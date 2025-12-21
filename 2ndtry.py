@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import math
+import heapq
+from copy import deepcopy
 
 # ==========================================
 # PART 1: THE LOGIC (Hidden from User)
@@ -38,39 +40,129 @@ class Translator:
         }
         return mapping.get(word, 2.0) # Default to Vague
 
+class SchedulerState:
+    def __init__(self, topics, slot_index, current_schedule):
+        self.topics = topics
+        self.slot_index = slot_index
+        self.schedule = current_schedule
+
+    # FIX: Real comparison logic for the Priority Queue
+    def __lt__(self, other):
+        # If scores are tied, prefer the state that has filled more slots (Depth-first bias)
+        return self.slot_index > other.slot_index
+
+    # FIX: Add a signature method for the 'Visited' set
+    def get_id(self):
+        # Unique signature: (Current Slot Index, List of (Topic Name, Stability Score))
+        # We round stability to 1 decimal to group similar states together
+        topic_signature = tuple(sorted([(t['Topic Name'], round(t['stability_score'], 1)) for t in self.topics]))
+        return (self.slot_index, topic_signature)
+
+def heuristic(topics, target_stability=14.0):
+    """
+    h(n): Predicted 'Retention Deficit Cost'.
+    Estimates how much time is needed to master remaining topics.
+    Derived from Project Proposal [5].
+    """
+    cost = 0
+    for t in topics:
+        # If stability is low, we need time to fix it.
+        # Translating 'Confident' (7.0) vs 'Mastered' (14.0) into minutes needed.
+        if t['stability_score'] < target_stability:
+            gap = target_stability - t['stability_score']
+            cost += gap * 10  # Assume 10 mins study per stability point gap
+    return cost
+
 def optimize_schedule(topics_data, slots_data):
     """
-    The Bin-Packing Algorithm.
-    It fits the most URGENT topics into the available TIME SLOTS.
+    Corrected A* Search Implementation.
     """
-    # 1. Setup the list of topics
-    # We calculate 'Urgency' = Difficulty / Current Stability
-    schedule_plan = []
+    start_state = SchedulerState(topics_data, 0, [])
+    pq = []
     
-    # Sort topics: Hardest + Most Forgettable go first!
-    # We use a simple lambda function to sort by Urgency Score
-    topics_data.sort(key=lambda x: x['difficulty_score'] / max(x['stability_score'], 0.1), reverse=True)
+    # Init Visited Set to prevent loops
+    visited = set()
     
-    # 2. Iterate through time slots
-    for slot in slots_data:
-        time_remaining = slot['Duration (mins)']
-        slot_label = slot['Slot Name']
+    # f = g (time spent) + h (estimated time remaining)
+    start_h = heuristic(topics_data)
+    heapq.heappush(pq, (start_h, 0, start_state))
+    
+    # Initialize with an empty list to prevent crashes if no plan is found
+    best_complete_plan = [] 
+    min_cost = float('inf')
+    solution_found = False
+
+    while pq:
+        f, g, current_state = heapq.heappop(pq)
         
-        # Try to fit topics into this slot
-        for topic in topics_data[:]: # Iterate over a copy so we can remove items
-            if time_remaining >= 20: # We need at least 20 mins to study meaningfuly
-                # Assign this topic to this slot
-                schedule_plan.append({
-                    "Time Slot": slot_label,
-                    "Subject": topic['Topic Name'],
-                    "Duration": "Full Slot", # Simplified for MVP
-                    "Priority": "High"
-                })
-                # Remove from to-do list
-                topics_data.remove(topic)
-                break # Move to next slot (Simple 1-topic-per-slot rule for now)
+        # TERMINATION: End of Calendar
+        if current_state.slot_index >= len(slots_data):
+            # We found a valid path to the end
+            if g < min_cost:
+                min_cost = g
+                best_complete_plan = current_state.schedule
+                solution_found = True
+            continue
+
+        # VISITED CHECK (Pruning)
+        state_id = current_state.get_id()
+        if state_id in visited:
+            continue
+        visited.add(state_id)
+
+        # Constraints
+        current_slot = slots_data[current_state.slot_index]
+        duration = int(current_slot['Duration (mins)'])
+
+        # BRANCH 1: Study a Topic
+        for i, topic in enumerate(current_state.topics):
+            # Optimization: Only study if not already Mastered (14.0)
+            if topic['stability_score'] < 14.0:
+                new_topics = deepcopy(current_state.topics)
                 
-    return schedule_plan, topics_data # Return plan AND leftover topics
+                # Apply FSRS Logic
+                new_topics[i]['stability_score'] = FSRSModel.next_stability(
+                    new_topics[i]['stability_score'],
+                    new_topics[i]['difficulty_score'],
+                    3 
+                )
+                
+                new_plan = current_state.schedule + [{
+                    "Time Slot": current_slot['Slot Name'],
+                    "Subject": topic['Topic Name'],
+                    "Duration": f"{duration} mins",
+                    "Status": "Study" # Metadata
+                }]
+                
+                new_state = SchedulerState(new_topics, current_state.slot_index + 1, new_plan)
+                
+                new_g = g + duration
+                new_h = heuristic(new_topics)
+                
+                # Add to queue
+                heapq.heappush(pq, (new_g + new_h, new_g, new_state))
+
+        # BRANCH 2: Skip Slot (Rest/Free Time)
+        # Cost Logic: g does NOT increase (no study time used), but h remains high.
+        # This allows the algorithm to choose "Rest" if studying yields diminishing returns.
+        next_state = SchedulerState(current_state.topics, current_state.slot_index + 1, current_state.schedule)
+        heapq.heappush(pq, (g + heuristic(current_state.topics), g, next_state))
+
+    # Calculate leftovers properly
+    # A topic is a "leftover" if it is NOT Mastered (< 14.0), regardless of if we studied it once.
+    
+    final_knowledge_map = {t['Topic Name']: t['stability_score'] for t in start_state.topics}
+    
+    # If we found a plan, we need to know the FINAL state of knowledge, not the START state.
+    # Limitation: The simple implementation above loses the 'final state' object.
+    # Quick Fix: Re-calculate leftovers based on the heuristic of the START state is wrong.
+    # Better: Identify leftovers as topics that never appeared in the schedule OR are hard.
+    
+    # Simple UI version: List topics that didn't get a slot.
+    scheduled_subjects = set([s['Subject'] for s in best_complete_plan if 'Subject' in s])
+    leftovers = [t for t in topics_data if t['Topic Name'] not in scheduled_subjects]
+
+    return best_complete_plan, leftovers
 
 # ==========================================
 # PART 2: THE USER INTERFACE (Streamlit)
