@@ -29,7 +29,7 @@ We implemented a three-stage pipeline to transform user input into an optimal sc
 We adapted the **Free Spaced Repetition Scheduler** model to predict memory decay.
 * **Input:** User confidence level (Qualitative).
 * **Output:** Estimated Stability ($S$) in days.
-* *Academic Note:* We assume an exponential decay curve where $R = S \times (1 + \text{difficulty\_factor})$.
+* *Academic Note:* We assume an exponential decay curve where $R = S \times (1 + \text{difficulty-factor})$.
 
 ### 2. The Urgency Heuristic
 To determine priority, we derived a dynamic scoring function:
@@ -49,8 +49,16 @@ We treat the scheduling problem as a **Bin Packing Problem**.
 ## 🛠️ How to Run It
 
 We built the interface using **Streamlit** so it feels like a modern app rather than a script.
-
+ 
 **1. Clone the repo**
 ```bash
 git clone [https://github.com/YOUR-USERNAME/Constrained-Path-Scheduler.git](https://github.com/YOUR-USERNAME/Constrained-Path-Scheduler.git)
 cd Constrained-Path-Scheduler
+
+**2. Install dependencies**
+
+pip install streamlit pandas
+
+**3. Run the App**
+
+streamlit run app.py
