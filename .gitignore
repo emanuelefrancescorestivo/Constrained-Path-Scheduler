@@ -20,3 +20,6 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# local outputs of the commands in CLAUDE.md
+demo.txt

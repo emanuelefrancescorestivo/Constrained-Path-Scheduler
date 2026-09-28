@@ -1,0 +1,19 @@
+scenario: 21 days, 42 candidate blocks, 2 topics, target stability 21
+
+value of the b-th block, V(b-1) - V(b), topic at S=2, D=7:
+  b =  1: 2.61e+01
+  b =  5: 6.42e-01
+  b = 10: 6.71e-02
+  b = 20: 3.51e-04
+  b = 42: 3.35e-09
+
+deterministic run (every recall succeeds):
+  window 1: day 19 Analysis (R=0.55), day 20 Algebra (R=0.68)
+  window 2: day 17 Analysis (R=0.57), day 19 Algebra (R=0.68)
+  window 4: day 16 Analysis (R=0.58), day 18 Algebra (R=0.69)
+
+stochastic runs (60 seeds):
+  window  blocks  lapses  first review          ready    time
+       1    2.52    0.85      day 19.0      35% ± 6%    1.4s
+       2    2.97    0.78      day 17.0      38% ± 6%    2.8s
+       4    2.48    0.83      day 16.0      38% ± 6%    8.1s
