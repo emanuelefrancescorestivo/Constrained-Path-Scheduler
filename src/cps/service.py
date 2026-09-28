@@ -713,3 +713,67 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
         points.append((until, 1.0))
         t = until + step
     return [(round(d, 6), float(p)) for d, p in points]
+
+
+# --------------------------------------------------------------------------- #
+# Tables for display
+# --------------------------------------------------------------------------- #
+# Shaped for a table widget but free of any framework, so that what a UI shows is
+# computed here, once, and a test can compare it with what the UI displays.
+
+
+def session_rows(plan: PlanReport) -> list[dict]:
+    """The upcoming sessions, one row each, as a person reads them."""
+    return [
+        {
+            "#": s.index,
+            "when": datetime.fromisoformat(s.start).strftime("%a %d %b %H:%M"),
+            "subject": s.subject,
+            "recall now": f"{s.recall:.0%}",
+            "why": s.rationale,
+        }
+        for s in plan.sessions
+    ]
+
+
+def week_count(plan: PlanReport) -> int:
+    return max(1, math.ceil(plan.settings.horizon_days / 7))
+
+
+def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int = 23) -> list[dict]:
+    """Half-hour rows by day columns for one week: "" free, the busy event's name,
+    "STUDY: subject", or "EXAM: subject". An exam wins over a session, a session
+    over a busy event."""
+    if not 0 <= week < week_count(plan):
+        raise InvalidInput(f"week must be 0 to {week_count(plan) - 1}")
+    zone = _zone(plan.settings.tz)
+    first_day = plan.settings.start + timedelta(days=7 * week)
+    days = [first_day + timedelta(days=d) for d in range(7)
+            if (first_day + timedelta(days=d) - plan.settings.start).days < plan.settings.horizon_days]
+    columns = {d: d.strftime("%a %d %b") for d in days}
+    cells: dict[tuple[date, time], str] = {}
+
+    def paint(start: datetime, end: datetime, label: str) -> None:
+        moment = start.replace(minute=0 if start.minute < 30 else 30, second=0, microsecond=0)
+        while moment < end:
+            local = moment.astimezone(zone)
+            if local.date() in columns:
+                cells[(local.date(), local.time())] = label
+            moment += timedelta(minutes=30)
+
+    for event in plan.events:
+        paint(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary)
+    for session in plan.sessions:
+        paint(datetime.fromisoformat(session.start), datetime.fromisoformat(session.end),
+              f"STUDY: {session.subject}")
+    for subject in plan.subjects:
+        exam = datetime.fromisoformat(subject.exam)
+        paint(exam, exam + timedelta(minutes=30), f"EXAM: {subject.name}")
+
+    rows = []
+    for minutes in range(first_hour * 60, last_hour * 60, 30):
+        clock = time(minutes // 60, minutes % 60)
+        row = {"time": clock.strftime("%H:%M")}
+        row.update({columns[d]: cells.get((d, clock), "") for d in days})
+        rows.append(row)
+    return rows
