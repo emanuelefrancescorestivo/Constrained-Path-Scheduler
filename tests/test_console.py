@@ -9,6 +9,7 @@ is a crash. The tests simulate the cp1252 stream directly, so they bite on Linux
 from __future__ import annotations
 
 import io
+import os
 import sys
 
 import pytest
@@ -30,7 +31,10 @@ def test_ensure_utf8_output_lets_a_cp1252_stream_print_them(monkeypatch):
     monkeypatch.setattr(sys, "stdout", stream)
     ensure_utf8_output()
     print("\u03c0*")
-    assert raw.getvalue() == "\u03c0*\n".encode("utf-8")
+    # Newline translation is the platform's business and is left alone: CRLF on
+    # Windows, LF elsewhere. The first Windows CI run failed here because this
+    # line expected a bare LF (AUDIT.md item 25); the encoding was right.
+    assert raw.getvalue() == ("\u03c0*" + os.linesep).encode("utf-8")
 
 
 def test_unencodable_text_is_replaced_never_raised(monkeypatch):

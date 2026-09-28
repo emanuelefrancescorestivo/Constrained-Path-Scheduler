@@ -257,3 +257,14 @@ of the exported sample plan, which was being checked for stray `\r\r\n`. Fixed w
 minimum); `test_exported_plan_defines_every_time_zone_it_references` covers it. The
 generated definition covers 1970 to 2038, which is icalendar's documented range.
 Status: fixed; import into a real calendar app still to be confirmed by a person.
+
+**25. The first real Windows run: one failure, in a test.** The CI job added in
+milestone M0 ran the suite on `windows-latest` for Python 3.11, 3.12 and 3.13 for
+the first time. 147 tests passed and one failed on all three:
+`test_ensure_utf8_output_lets_a_cp1252_stream_print_them` expected the bytes
+`\xcf\x80*\n` and got `\xcf\x80*\r\n`. A `TextIOWrapper` translates `\n` to
+`os.linesep` on Windows, which is what a real console stream does too. The UTF-8
+encoding under test was correct; the expected value assumed Linux. Fixed in the
+test by expecting `os.linesep`. The four fixes of item 21 held: the BOM, CRLF and
+tzdata tests passed on Windows, and so did the redirected demo once the suite was
+green. Status: fixed; Windows is now verified by CI rather than by simulation.
