@@ -580,8 +580,8 @@ def evaluate_exact_dynamics(instance: Instance, solution: "Solution") -> float:
     would make them, but the memory state that pays the terminal cost evolves with
     exact FSRS transitions and the exact recall probabilities.
 
-    It exposed AUDIT.md item 26: the ten-day plan in `demo.py` was reported at 8.84
-    blocks and costs 28.61 when followed with exact dynamics
+    It exposed AUDIT.md item 26: the ten-day plan in `demo.py` was reported at 8.83
+    blocks and costs 28.60 when followed with exact dynamics
     (`benchmarks/aggregation_goal_crossing.py`).
     """
     exact = replace(instance, stability_step=0.0, difficulty_step=0.0)

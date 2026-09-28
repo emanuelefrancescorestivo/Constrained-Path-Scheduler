@@ -335,18 +335,20 @@ Five-block instance, two topics, exam in 21 days, exhaustively solvable:
 
 | method | value | nodes |
 |---|---|---|
-| exhaustive backward induction | 13.23170 | 3,906 states |
-| AO\*, `h = 0` | 13.23170 | 184 expansions |
-| AO\*, `h =` closed-form knapsack | 13.23170 | 118 |
-| AO\*, `h =` SSP bound | 13.23170 | 152 |
-| AO\*, `h =` SSP + capacity | 13.23170 | **116** |
+| exhaustive backward induction | 13.22073 | 3,906 states |
+| AO\*, `h = 0` | 13.22073 | 184 expansions |
+| AO\*, `h =` closed-form knapsack | 13.22073 | 118 |
+| AO\*, `h =` SSP bound | 13.22073 | 151 |
+| AO\*, `h =` SSP + capacity | 13.22073 | **114** |
 
-All four reproduce the exact optimum to five decimals, and every one is verified
+(Values after milestone M4, AUDIT.md items 22 and 27; before, the optimum was
+13.23196 and the last two rows needed 152 and 116 expansions.) All four reproduce
+the exact optimum to five decimals, and every one is verified
 admissible at all 3,906 reachable states, not just at the root.
 
 Weighted AO\*, the technique January used with `w = 10` and no bound: at `w = 1.5`
-the plan is still exactly optimal from 41 expansions instead of 116, and at
-`w = 3` the realised gap is 1.038× against a guaranteed 3×. The bound is stated,
+the plan is still exactly optimal from 41 expansions instead of 114, and at
+`w = 3` the realised gap is 1.039× against a guaranteed 3×. The bound is stated,
 the gap is measured, and `evaluate_policy` computes the plan's real cost because
 the inflated root value is no longer it.
 
@@ -363,9 +365,9 @@ Two findings a student could act on:
   topic (S = 2, D = 7) tops out at 14.68 and is abandoned; the easier one clears
   at 21.25 and gets the blocks. *Corrected in milestone M1:* this paragraph used to
   say that at ten days the optimum studies both topics, interleaved, at a cost of
-  8.84. That plan was an artefact of state aggregation crossing the target; followed
-  with exact dynamics it costs 28.61. At ten days the optimum still abandons the
-  harder topic, studies the easier one on days 1 and 6, and costs 17.30 (AUDIT.md
+  8.83. That plan was an artefact of state aggregation crossing the target; followed
+  with exact dynamics it costs 28.60. At ten days the optimum still abandons the
+  harder topic, studies the easier one on days 1 and 6, and costs 17.29 (AUDIT.md
   item 26, `benchmarks/aggregation_goal_crossing.py`).
 
 ## The scaling wall, and what did not move it
@@ -378,10 +380,10 @@ coin flips along a path. State aggregation does help, because it attacks the siz
 of the solution instead: snapping stability to a 15% multiplicative grid and
 difficulty to half-points leaves the cost within 0.1% of exact on the instance
 where both are computable, and makes two more instances tractable: ten daily
-blocks go from more than 30,000 expansions to 4,603, and seven days at two blocks a
-day (fourteen blocks) to 10,136 expansions in under four seconds (counts after the
-M1 fix to aggregation, AUDIT.md item 26, and the M4 fix to the lapse formula,
-item 27; they were 4,835 and 9,775 before them). Fourteen days at
+blocks go from more than 30,000 expansions to 4,592, and seven days at two blocks a
+day (fourteen blocks) to 10,058 expansions in under four seconds (counts after the
+M1 fix to aggregation, AUDIT.md item 26, and the M4 fixes to the lapse formula and
+the heuristic's action grid, items 27 and 22; they were 4,835 and 9,775 before). Fourteen days at
 one block a day stays out of reach even with aggregation.
 
 It is not enough for a realistic sixty-day horizon. The next step is

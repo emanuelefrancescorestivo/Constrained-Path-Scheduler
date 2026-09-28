@@ -259,9 +259,20 @@ analysis grid has. Measured in `demo.py`: across the whole state grid the smalle
 gap (accurate minus heuristic) is -6.2e-06 reviews, against a mean slack of 2.45
 reviews (28%). It cannot change any AO* result, which is why every admissibility
 test passes, but it is a real discretisation caveat in a claim the project makes
-strongly. Not fixed. The remedy is to build the heuristic's action grid as a
-superset of the analysis grid and add a cell-wise test of `for_heuristic` against
-the accurate solve.
+strongly.
+
+*Status: fixed in milestone M4.* `for_heuristic` now adds every retention of the
+analysis grid to its own (`SSPConfig.extra_retentions`), so its minimum is over a
+superset of the analysis actions, and
+`test_the_heuristic_grade_solve_is_below_the_analysis_solve_in_every_cell` checks
+the order cell by cell. The smallest gap is now +0.0 and the mean slack 2.47 reviews
+(28%). One consequence worth knowing: `plan.Instance` uses the heuristic-grade solve
+as its terminal value as well as its heuristic, so the richer action set also moved
+the one-shot optimum of the five-block instance, from 13.23170 to 13.22073, and its
+expansion counts slightly (116 to 114 with the capacity heuristic). Every AO* run
+still reproduces the exhaustive optimum. `clock.py` never had this caveat: it bounds
+delays cell by cell rather than on a grid of points. `budget.py`, superseded, still
+does.
 
 **23. The CLI prints a traceback when its output pipe closes early.**
 `cps inspect calendar.ics | head -4` raises `BrokenPipeError` with a full traceback
@@ -309,12 +320,14 @@ pinned to the target's edge. `test_aggregation_never_carries_a_state_across_the_
 covers it.
 
 **It had also invalidated a published result.** The one-shot solver aggregates
-too. `demo.py` section 4 reported the ten-day, two-topic plan at a cost of 8.84,
+too. `demo.py` section 4 reported the ten-day, two-topic plan at a cost of 8.83,
 studying both topics ("the hard topic on days 2, 8 and 9, the easy one on day 6",
-PROCESS.md). Followed with exact FSRS dynamics, that policy costs 28.61: snapped
+PROCESS.md). Followed with exact FSRS dynamics, that policy costs 28.60: snapped
 stabilities had crossed a target the real ones had not reached. With the guard the
 optimum studies only the easier topic (days 1 and 6) and its reported and real
-costs agree, 17.28 and 17.30. Reproduced by `python benchmarks/aggregation_goal_crossing.py`.
+costs agree, 17.28 and 17.29. Reproduced by `python benchmarks/aggregation_goal_crossing.py` (figures as it prints
+them after the M4 model fixes, items 22 and 27; at the time the demo printed 8.84,
+28.61 and 17.30).
 `plan.evaluate_exact_dynamics`, which follows an aggregated policy with exact
 transitions, now checks this in `test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan`,
 and the demo prints both costs. The earlier aggregation check ("within 0.1% of

@@ -148,6 +148,11 @@ class SSPConfig:
     interpolation: str = "bilinear"
     tolerance: float = 1e-9
     max_sweeps: int = 20_000
+    # Retentions offered in addition to the evenly spaced grid. `for_heuristic`
+    # puts the analysis grid here, so that its action set contains the analysis
+    # action set and its solve is below the analysis solve cell by cell
+    # (AUDIT.md item 22).
+    extra_retentions: tuple[float, ...] = ()
 
     @classmethod
     def for_deadline(cls, days_to_exam: float, retention: float = 0.9, **kwargs) -> "SSPConfig":
@@ -189,13 +194,20 @@ class SSPConfig:
         heuristic never exceeds the exact optimum on every instance where the
         exact optimum is computable. For a bound that needs no such argument, use
         `plan.best_case_reviews`.
+
+        Since milestone M4 the heuristic grid also contains every retention of the
+        analysis grid, so the minimum is over a superset of the analysis actions
+        and the heuristic solve lies below the analysis solve in every cell, not
+        only on average (AUDIT.md item 22; it was above by up to 6.2e-06).
         """
+        analysis = cls(target_stability=target_stability)
         params = dict(
             target_stability=target_stability,
             interpolation="optimistic",
             min_retention=0.05,
             max_retention=0.999,
             n_retentions=80,
+            extra_retentions=tuple(float(r) for r in analysis.retentions()),
         )
         params.update(kwargs)
         return cls(**params)
@@ -207,7 +219,10 @@ class SSPConfig:
         return np.linspace(D_MIN, D_MAX, self.n_difficulty)
 
     def retentions(self) -> np.ndarray:
-        return np.linspace(self.min_retention, self.max_retention, self.n_retentions)
+        grid = np.linspace(self.min_retention, self.max_retention, self.n_retentions)
+        if not self.extra_retentions:
+            return grid
+        return np.union1d(grid, np.asarray(self.extra_retentions, dtype=float))
 
 
 # --------------------------------------------------------------------------- #

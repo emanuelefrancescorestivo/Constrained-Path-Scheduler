@@ -117,7 +117,7 @@ timetable.
 
 The rebuilt version claims less and checks all of it. AO* reproduces the exact
 optimum from exhaustive backward induction on every instance small enough to
-solve both ways, using 116 node expansions against 3,906 states, and the
+solve both ways, using 114 node expansions against 3,906 states, and the
 heuristic is verified admissible at all 3,906 reachable states. The learned policy
 needs about 19% fewer reviews than the fixed 0.90 target retention that every
 spaced-repetition tool ships with, and the optimal retention it discovers — 0.82

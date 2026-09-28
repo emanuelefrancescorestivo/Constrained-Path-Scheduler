@@ -182,6 +182,18 @@ def test_the_admissible_heuristic_is_loose_and_we_know_by_how_much(policy):
     assert 0.5 < gap.mean() < 6.0, gap.mean()
 
 
+def test_the_heuristic_grade_solve_is_below_the_analysis_solve_in_every_cell(policy):
+    """AUDIT.md item 22. `for_heuristic` is what AO* uses, `SSPConfig()` what the
+    analysis reports. The first must lie below the second in every cell, not only
+    on average, for "admissible" and "accurate" to be ordered as the documents
+    say. They were not: with two finite retention grids neither containing the
+    other, the smallest gap was -6.2e-06. The heuristic grid now contains the
+    analysis grid, so its minimum is over a superset of actions."""
+    lower = solve(SSPConfig.for_heuristic(365.0))
+    assert set(np.round(policy.config.retentions(), 12)) <= set(np.round(lower.config.retentions(), 12))
+    assert np.all(lower.expected_cost <= policy.expected_cost)
+
+
 def test_lower_bound_refuses_to_use_an_inadmissible_value_function(policy):
     """Structural guard: the distinction between "accurate" and "admissible" is
     easy to lose six modules downstream, so it fails loudly at the call site."""

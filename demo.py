@@ -118,9 +118,9 @@ def part_2_ssp() -> None:
     print(f"  bound vs accurate, whole grid: mean gap {gap[live].mean():.2f} reviews "
           f"({100 * (gap[live] / accurate.expected_cost[live]).mean():.0f}%), "
           f"smallest gap {gap.min():+.1e}")
-    print("    a negative smallest gap means the heuristic solve, which uses its own finite")
-    print("    action grid, sits above the analysis solve in some cell: the discretisation")
-    print("    caveat in SSPConfig.for_heuristic, measured. See AUDIT.md item 22.")
+    print("    the smallest gap must not be negative: the heuristic's action grid contains")
+    print("    the analysis grid, so it is below the analysis solve in every cell (it was")
+    print("    -6.2e-06 until the grids were nested; AUDIT.md item 22).")
 
     print("\n  Optimal policy vs a fixed target retention (4 seeds x 1500 runs, mean ± s.e.):")
     for fixed in (None, 0.95, 0.90, 0.85, 0.80, 0.70):

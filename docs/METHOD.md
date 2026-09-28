@@ -102,14 +102,15 @@ minimum is attained at a corner and lower-bounds `V*` everywhere inside. The
 optimistic Bellman operator is therefore dominated by the true one and its fixed
 point is a guaranteed lower bound.
 
-The price is informedness: the guaranteed bound sits 2.45 reviews (28%) below
+The price is informedness: the guaranteed bound sits 2.47 reviews (28%) below
 the accurate value function on average across the grid, which weakens pruning. The
 remedy is grid refinement, not quietly using the tighter inadmissible estimate.
 `reviews_lower_bound` raises rather than accept a bilinear policy, so the
-distinction cannot be lost downstream. One residual caveat is measured rather than
-hidden: the heuristic configuration has its own finite action grid, and on it the
-bound can sit above the analysis solve by up to 6e-06 reviews in a cell (AUDIT.md
-item 22).
+distinction cannot be lost downstream. The heuristic configuration's action grid
+contains the analysis grid, so the bound lies below the analysis solve in every
+cell, which a test checks (until milestone M4 it could sit 6e-06 above it in a
+cell, AUDIT.md item 22). It is still a minimum over a finite action set; the clock
+solver of section 6 removes that caveat by bounding delays cell by cell.
 
 ## 5. What this project may and may not claim
 

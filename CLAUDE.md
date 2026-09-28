@@ -90,8 +90,6 @@ than an impressive number.
 
 ## Known defects and limits (details in AUDIT.md)
 
-- Item 22: the heuristic-grade SSP solve can exceed the analysis solve by 6e-06 in a
-  cell. (`clock.py` bounds delays cell by cell and does not have this caveat.)
 - Item 23: `cps inspect ... | head` prints a BrokenPipeError traceback.
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.

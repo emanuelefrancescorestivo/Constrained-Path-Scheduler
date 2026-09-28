@@ -67,7 +67,7 @@ delays, not only over a grid of them. Three ingredients, each relying only on th
   is decreasing in `S` and non-increasing in `t`, evaluating both successors at
   `(S(beta), t - alpha)` and taking the better endpoint of the recall probability
   (the expression is linear in it) bounds every delay in the cell. This removes
-  the finite-action caveat that `ssp` and `budget` still carry (AUDIT.md item 22).
+  the finite-action caveat that `ssp` and `budget` carry (AUDIT.md item 22).
 * **Cell-minimum interpolation** in `(D, log S)`, as in `ssp`, and rounding the
   time left *up* to the grid.
 * **The first cell refers to its own level.** A delay in `[0, dt]` leaves time

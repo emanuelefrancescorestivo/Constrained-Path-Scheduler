@@ -251,9 +251,9 @@ def test_aggregation_barely_moves_the_answer(continuation, exact):
 
 def test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan(continuation):
     """AUDIT.md item 26. Before goal membership was decided by the exact state, the
-    ten-day plan reported 8.84 blocks in the aggregated model and cost 28.6 when
+    ten-day plan reported 8.83 blocks in the aggregated model and cost 28.6 when
     followed with exact dynamics: snapped stabilities crossed the target that the
-    real ones had not reached. Now the two agree (17.28 and 17.30). Both versions:
+    real ones had not reached. Now the two agree (17.28 and 17.29). Both versions:
     benchmarks/aggregation_goal_crossing.py."""
     coarse = Instance.build(
         student_week(10),
