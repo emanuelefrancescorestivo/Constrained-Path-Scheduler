@@ -1,0 +1,381 @@
+"""
+Calendar ingestion and export.
+
+This is stage 1 of the architecture in the November 2025 proposal — "parse user
+input" — which the January submission declared and never implemented. Appendix
+A.3 contained:
+
+    def parse_user_calendar(file_path, days=60):
+        \"\"\"Parses a user's .ics calendar file.\"\"\"
+        # ... (File reading logic with icalendar library) ...
+        return grid, subjects
+
+with the import commented out and the body a comment. The scheduler therefore
+only ever ran on `apply_mock_schedule()`, so nothing in the reported results was
+ever tested against a real calendar.
+
+Why .ics rather than a Google Calendar integration
+--------------------------------------------------
+RFC 5545 is the lowest common denominator that every calendar already speaks:
+Google Calendar, Apple Calendar, Outlook and Notion Calendar all export and
+import it. That means no OAuth, no API keys, no client verification, and a demo
+that runs on a stranger's machine with their real timetable. A Google Calendar
+adapter is a later convenience on top of this, not a prerequisite.
+
+Four decisions that matter, all of which are easy to get silently wrong
+----------------------------------------------------------------------
+1. **Busy intervals round outward.** A lecture from 18:10 to 18:50 blocks both
+   the 18:00 and 18:30 slots. Rounding to nearest would leave half a lecture
+   marked free, and the scheduler would cheerfully book study time inside it.
+   The asymmetry is deliberate: over-blocking costs a study slot, under-blocking
+   produces a plan the student cannot follow.
+
+2. **RRULE expansion is mandatory, not optional.** A student's calendar is mostly
+   recurring lectures. A parser that reads DTSTART and ignores RRULE sees one
+   lecture where there are thirteen weeks of them, marks the rest of the term
+   free, and produces a schedule that collides with every class after the first.
+
+3. **Slots are indexed by local wall clock.** Which means a day containing a DST
+   transition has 23 or 25 real hours mapped onto 48 half-hour slots. The
+   alternative — indexing by elapsed UTC — would shift every lecture by an hour
+   after the transition, which is far worse. The residual error is one hour of
+   drift in the elapsed-time arithmetic, and FSRS stability is measured in days,
+   so it costs about 1/24 of a day on the affected interval. Stated rather than
+   hidden; see `test_calendar_io.py`.
+
+4. **A naive UNTIL against an aware DTSTART raises in dateutil.** This is the
+   single most common .ics parsing crash, and real exports from real calendars
+   contain it. Normalised here instead of propagating.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone, tzinfo
+from typing import Iterable, Sequence
+from zoneinfo import ZoneInfo
+
+from icalendar import Calendar, Event
+from dateutil.rrule import rrulestr
+
+from .timegrid import SLOTS_PER_DAY, TimeGrid
+
+DEADLINE_KEYWORDS: tuple[str, ...] = (
+    "exam",
+    "examen",
+    "esame",
+    "midterm",
+    "final",
+    "quiz",
+    "test",
+    "controllo",
+    "prova",
+    "klausur",
+    "contrôle",
+    "partiel",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BusyEvent:
+    """One occurrence of a calendar event, resolved to a concrete local interval."""
+
+    start: datetime
+    end: datetime
+    summary: str
+
+    @property
+    def duration(self) -> timedelta:
+        return self.end - self.start
+
+    @property
+    def all_day(self) -> bool:
+        return self.start.time() == time(0, 0) and self.duration >= timedelta(days=1)
+
+
+# --------------------------------------------------------------------------- #
+# Parsing
+# --------------------------------------------------------------------------- #
+
+
+def _as_datetime(value, zone: tzinfo) -> tuple[datetime, bool]:
+    """Coerce a DTSTART/DTEND value to an aware datetime in `zone`.
+
+    Returns the datetime and whether the original was a DATE (all-day).
+    """
+    if isinstance(value, datetime):
+        aware = value if value.tzinfo else value.replace(tzinfo=zone)
+        return aware.astimezone(zone), False
+    if isinstance(value, date):
+        return datetime.combine(value, time(0, 0), tzinfo=zone), True
+    raise TypeError(f"unsupported date value {value!r}")
+
+
+def _event_end(component: Event, start: datetime, was_date: bool, zone: tzinfo) -> datetime:
+    if "DTEND" in component:
+        end, _ = _as_datetime(component["DTEND"].dt, zone)
+        return end
+    if "DURATION" in component:
+        return start + component["DURATION"].dt
+    # RFC 5545: a DATE-valued DTSTART with no DTEND is one whole day.
+    return start + (timedelta(days=1) if was_date else timedelta(0))
+
+
+def _normalise_until(rule_text: str, dtstart: datetime) -> str:
+    """Make UNTIL's awareness match DTSTART's.
+
+    dateutil raises `ValueError: RRULE UNTIL values must be specified in UTC when
+    DTSTART is timezone-aware`, and plenty of real exports violate that. Rather
+    than let the crash reach the caller, coerce.
+    """
+    if "UNTIL" not in rule_text.upper():
+        return rule_text
+    parts = []
+    for chunk in rule_text.split(";"):
+        key, _, value = chunk.partition("=")
+        if key.strip().upper() == "UNTIL" and dtstart.tzinfo is not None:
+            if not value.endswith("Z"):
+                value = value.split("T")[0] + "T235959Z" if "T" not in value else value + "Z"
+        parts.append(f"{key}={value}" if value else chunk)
+    return ";".join(parts)
+
+
+def decode_ics(data: bytes) -> str:
+    """Bytes of an .ics file to text, tolerating what real files contain.
+
+    RFC 5545 requires UTF-8, and Google's exports comply. But a file opened and
+    re-saved in Windows Notepad picks up a byte-order mark, which decodes to
+    U+FEFF and makes the parser raise on the very first line; `utf-8-sig` strips
+    it. Bytes that are not valid UTF-8 are replaced rather than raised, since a
+    single mangled character in a SUMMARY should not make a whole timetable
+    unreadable.
+    """
+    return data.decode("utf-8-sig", errors="replace")
+
+
+def expand_events(
+    ics_text: str,
+    window_start: datetime,
+    window_end: datetime,
+    zone: tzinfo | None = None,
+    max_occurrences: int = 5000,
+) -> list[BusyEvent]:
+    """Every event occurrence overlapping the window, with RRULEs expanded.
+
+    Occurrences are clipped to the window rather than dropped, so a lecture that
+    began before the planning horizon still blocks its tail.
+    """
+    zone = zone or window_start.tzinfo or timezone.utc
+    calendar = Calendar.from_ical(ics_text.lstrip("\ufeff"))
+    out: list[BusyEvent] = []
+
+    for component in calendar.walk("VEVENT"):
+        if "DTSTART" not in component:
+            continue
+        start, was_date = _as_datetime(component["DTSTART"].dt, zone)
+        end = _event_end(component, start, was_date, zone)
+        length = max(end - start, timedelta(0))
+        summary = str(component.get("SUMMARY", "")).strip()
+
+        excluded: set[datetime] = set()
+        if "EXDATE" in component:
+            raw = component["EXDATE"]
+            for item in raw if isinstance(raw, list) else [raw]:
+                for entry in item.dts:
+                    excluded.add(_as_datetime(entry.dt, zone)[0])
+
+        if "RRULE" in component:
+            rule_text = _normalise_until(
+                component["RRULE"].to_ical().decode("utf-8"), start
+            )
+            occurrences = rrulestr(rule_text, dtstart=start).between(
+                window_start - length, window_end, inc=True
+            )
+        else:
+            occurrences = [start]
+
+        for occurrence in occurrences[:max_occurrences]:
+            if occurrence.tzinfo is None:
+                occurrence = occurrence.replace(tzinfo=zone)
+            occurrence = occurrence.astimezone(zone)
+            if occurrence in excluded:
+                continue
+            finish = occurrence + length
+            if finish <= window_start or occurrence >= window_end:
+                continue
+            out.append(
+                BusyEvent(
+                    start=max(occurrence, window_start),
+                    end=min(finish, window_end),
+                    summary=summary,
+                )
+            )
+
+    out.sort(key=lambda e: (e.start, e.end))
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Events -> TimeGrid
+# --------------------------------------------------------------------------- #
+
+
+def busy_grid(
+    events: Iterable[BusyEvent],
+    start_date: date,
+    days: int,
+    slots_per_day: int = SLOTS_PER_DAY,
+) -> TimeGrid:
+    """Mark every slot that any event touches as busy.
+
+    Outward rounding: `floor` on the start, `ceil` on the end. See decision 1 in
+    the module docstring.
+    """
+    minutes_per_slot = 24 * 60 // slots_per_day
+    grid = TimeGrid(days=days, slots_per_day=slots_per_day)
+
+    for event in events:
+        first = _slot_index(event.start, start_date, minutes_per_slot, slots_per_day, math.floor)
+        last = _slot_index(event.end, start_date, minutes_per_slot, slots_per_day, math.ceil)
+        if last <= first:
+            last = first + 1
+        grid = grid.block(first, last - first)
+    return grid
+
+
+def _slot_index(
+    moment: datetime, start_date: date, minutes_per_slot: int, slots_per_day: int, round_fn
+) -> int:
+    day_offset = (moment.date() - start_date).days
+    minutes = moment.hour * 60 + moment.minute + moment.second / 60
+    return day_offset * slots_per_day + int(round_fn(minutes / minutes_per_slot))
+
+
+def load_availability(
+    ics_text: str,
+    start_date: date,
+    days: int,
+    zone_name: str = "UTC",
+    slots_per_day: int = SLOTS_PER_DAY,
+    study_window: tuple[float, float] | None = (8.0, 22.0),
+) -> tuple[TimeGrid, list[BusyEvent]]:
+    """The whole ingestion path: .ics text in, occupancy grid out.
+
+    `study_window` is not a detail — it is the difference between a usable
+    product and a joke. A calendar records when you are *busy*; nobody puts an
+    event on Google Calendar for sleeping. Ingest a real timetable and the first
+    free slot of every day is 00:00, so the scheduler dutifully proposes a study
+    block at midnight. Measured on the test timetable: the first exported session
+    landed at 00:00–01:30.
+
+    So availability is busy-time *plus* stated preferences, and the preferences
+    have to come from the user because they are not in the data. Pass None to opt
+    out and get raw calendar occupancy.
+
+    Returns the grid and the expanded occurrences, because a user told "no free
+    slots on Tuesday" deserves to be shown which events said so.
+    """
+    zone = ZoneInfo(zone_name)
+    window_start = datetime.combine(start_date, time(0, 0), tzinfo=zone)
+    window_end = window_start + timedelta(days=days)
+    events = expand_events(ics_text, window_start, window_end, zone)
+    grid = busy_grid(events, start_date, days, slots_per_day)
+    if study_window is not None:
+        earliest, latest = study_window
+        if not 0 <= earliest < latest <= 24:
+            raise ValueError("study_window must be (earliest, latest) with 0 <= earliest < latest <= 24")
+        grid = grid.block_daily(latest, earliest)
+    return grid, events
+
+
+# --------------------------------------------------------------------------- #
+# Deadlines
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True, slots=True)
+class Deadline:
+    """A test or exam found in the calendar."""
+
+    subject: str
+    when: datetime
+    summary: str
+
+    def days_from(self, start_date: date) -> float:
+        return (self.when - datetime.combine(start_date, time(0, 0), tzinfo=self.when.tzinfo)) / timedelta(days=1)
+
+
+def find_deadlines(
+    events: Sequence[BusyEvent], keywords: Sequence[str] = DEADLINE_KEYWORDS
+) -> list[Deadline]:
+    """Pick out events whose title names an assessment.
+
+    Keyword matching, deliberately: it is transparent, multilingual by extension,
+    and wrong in ways a user can see and fix by renaming an event. An opaque
+    classifier that silently mislabels "Test-driven development lecture" as an
+    exam would be worse, not better. Earliest occurrence wins per subject, since
+    that is the deadline that binds.
+    """
+    lowered = tuple(k.lower() for k in keywords)
+    found: dict[str, Deadline] = {}
+    for event in events:
+        title = event.summary
+        haystack = title.lower()
+        hit = next((k for k in lowered if k in haystack), None)
+        if hit is None:
+            continue
+        subject = _strip_keyword(title, hit) or title
+        existing = found.get(subject.casefold())
+        if existing is None or event.start < existing.when:
+            found[subject.casefold()] = Deadline(subject=subject, when=event.start, summary=title)
+    return sorted(found.values(), key=lambda d: d.when)
+
+
+def _strip_keyword(title: str, keyword: str) -> str:
+    lowered = title.lower()
+    index = lowered.find(keyword)
+    remainder = (title[:index] + " " + title[index + len(keyword) :]).strip()
+    return remainder.strip(" -–—:,·|").strip()
+
+
+# --------------------------------------------------------------------------- #
+# Export
+# --------------------------------------------------------------------------- #
+
+
+def plan_to_ics(
+    sessions: Sequence[tuple[int, str, str]],
+    start_date: date,
+    zone_name: str = "UTC",
+    slots_per_day: int = SLOTS_PER_DAY,
+    block_slots: int = 3,
+    calendar_name: str = "Study plan",
+) -> str:
+    """Turn scheduled blocks into an importable calendar.
+
+    `sessions` is (absolute slot index, subject, rationale). The rationale goes
+    into the event description on purpose: a schedule a student does not
+    understand is a schedule they will not follow, and "review 3 of 4 — timed for
+    85% recall, the point where a review is worth most" is the difference between
+    an instruction and an explanation.
+    """
+    zone = ZoneInfo(zone_name)
+    minutes_per_slot = 24 * 60 // slots_per_day
+    calendar = Calendar()
+    calendar.add("prodid", "-//constrained-path-scheduler//EN")
+    calendar.add("version", "2.0")
+    calendar.add("x-wr-calname", calendar_name)
+
+    midnight = datetime.combine(start_date, time(0, 0), tzinfo=zone)
+    for slot, subject, rationale in sessions:
+        begin = midnight + timedelta(minutes=slot * minutes_per_slot)
+        event = Event()
+        event.add("summary", f"Study: {subject}")
+        event.add("dtstart", begin)
+        event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
+        event.add("description", rationale)
+        event.add("uid", f"cps-{slot}-{subject.replace(' ', '-').lower()}@constrained-path-scheduler")
+        event.add("dtstamp", datetime.now(timezone.utc))
+        calendar.add_component(event)
+    return calendar.to_ical().decode("utf-8")

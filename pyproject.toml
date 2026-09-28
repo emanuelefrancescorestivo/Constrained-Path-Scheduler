@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constrained-path-scheduler"
+version = "0.2.0"
+description = "Neuroscience-informed study scheduling: FSRS memory dynamics under hard calendar constraints."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "icalendar>=6.0",
+    "python-dateutil>=2.9",
+    # Windows ships no IANA time-zone database, so zoneinfo needs this package. It
+    # arrives transitively through icalendar today; declaring it stops a Windows
+    # install depending on somebody else's dependency list.
+    "tzdata>=2024.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+cps = "cps.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
