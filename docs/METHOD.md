@@ -50,12 +50,30 @@ Validation, all in `tests/test_ssp.py`:
 - **Beats constant-retention policies.** Every real tool reviews at a fixed
   desired retention; Anki's FSRS default is 0.90. From a fresh item the optimal
   policy needs 6.02 ± 0.09 blocks against 7.41 ± 0.10 at a fixed 0.90, about 19%
-  fewer (`python demo.py`, section 2).
+  fewer, and 13% fewer than the best fixed retention (`python demo.py`, section 2;
+  see the sawtooth below).
 - **Agrees with the literature it was never told about.** Mean `π*` comes out at
   0.82–0.85 for difficulties between 2 and 8.5, inside the 0.75–0.90 band the FSRS
   community reports for workload-minimising desired retention.
 - **Sensitive to the cost model in the right direction.** Pricing a lapse at 4×
   a productive block moves the optimum from 0.75 to 0.88.
+
+**Fixed retention is a sawtooth, and 0.90 sits in a good spot on it.** The
+comparison above has a trap. The cost of a fixed retention is not a smooth curve:
+it needs 8.15 ± 0.11 blocks at 0.85, more than at both 0.80 (7.55 ± 0.12) and 0.90
+(7.41 ± 0.10). This was an open question and it is a real property of the model,
+not a bug. A schedule at fixed retention `R` reaches the target, if every review
+succeeds, after a whole number of reviews, 3 up to `R = 0.84` and 4 from 0.85 to
+0.90 (`ssp.successes_to_target`). Each time that number steps up, the cost jumps by
+about one block (7.11 to 8.15 between 0.84 and 0.85, 7.41 to 8.55 between 0.90 and
+0.91). Within a tooth the cost mostly falls as `R` rises, because lapses become
+rarer while the review count stays put. So "19% fewer blocks than fixed 0.90" is
+true, and 0.90 happens to be the cheap end of its tooth; against the best fixed
+retention on a 0.01 grid, 0.83 at 6.94 ± 0.11, chosen in hindsight, the optimal
+policy needs 13% fewer. Both figures come from `python demo.py`, section 2; the
+steps are pinned by `test_fixed_retention_cost_jumps_where_one_more_review_is_needed`.
+The optimal policy does not have the problem, because it chooses a retention per
+state and can place the last review so that it just clears the target.
 
 Reported honestly: `V*` is stable to under 0.1 reviews under grid refinement, but
 the **argmin is much less well determined than the value**: the range of

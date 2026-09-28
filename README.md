@@ -120,7 +120,9 @@ optimum from exhaustive backward induction on every instance small enough to
 solve both ways, using 114 node expansions against 3,906 states, and the
 heuristic is verified admissible at all 3,906 reachable states. The learned policy
 needs about 19% fewer reviews than the fixed 0.90 target retention that every
-spaced-repetition tool ships with, and the optimal retention it discovers — 0.82
+spaced-repetition tool ships with, and 13% fewer than the best fixed retention
+chosen in hindsight (fixed retention turns out to be a sawtooth, METHOD.md
+section 2), and the optimal retention it discovers — 0.82
 to 0.85 — lands inside the band the FSRS literature reports without having been
 told it.
 

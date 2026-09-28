@@ -519,6 +519,19 @@ def simulate_reviews_to_target(
     return max_reviews
 
 
+def successes_to_target(initial: MemoryState, retention: float, target: float, cap: int = 100) -> int:
+    """Reviews a fixed-retention schedule needs to reach `target` if every one
+    succeeds. A whole number, which is why the expected cost of fixed retention is
+    a sawtooth in the retention (see docs/METHOD.md section 2)."""
+    from .memory import review
+
+    state, count = initial, 0
+    while state.stability < target and count < cap:
+        state = review(state, interval_for_retention(state.stability, retention), Grade.GOOD)
+        count += 1
+    return count
+
+
 def reviews_statistics(
     policy: MemorizationPolicy,
     initial: MemoryState,

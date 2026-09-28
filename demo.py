@@ -16,6 +16,8 @@ from __future__ import annotations
 import argparse
 import time
 
+import numpy as np
+
 from cps.console import ensure_utf8_output
 from cps.memory import (
     Grade,
@@ -37,7 +39,7 @@ from cps.plan import (
     tile_free_time,
     zero_heuristic,
 )
-from cps.ssp import SSPConfig, mean_reviews_to_target, reviews_statistics, solve
+from cps.ssp import SSPConfig, mean_reviews_to_target, reviews_statistics, solve, successes_to_target
 from cps.timegrid import TimeGrid
 
 EXAM_IN_DAYS = 21.0
@@ -129,8 +131,24 @@ def part_2_ssp() -> None:
             accurate, fresh, trials=1500, seeds=(3, 4, 5, 6), fixed_retention=fixed
         )
         print(f"    {label:18s} {blocks:6.2f} ± {error:.2f} blocks")
-    print("    Fixed retention is not monotone (0.85 is worse than both 0.80 and 0.90);")
-    print("    see the open question in docs/CLAUDE_CODE_PROMPT.md, milestone M4.")
+
+    print("\n  Fixed retention is a sawtooth, not a curve (same seeds, 0.01 steps):")
+    print(f"    {'R':>5} {'blocks':>14} {'reviews if all succeed':>24}")
+    best, at_090 = None, None
+    for fixed in np.round(np.arange(0.80, 0.925, 0.01), 2):
+        blocks, error = reviews_statistics(
+            accurate, fresh, trials=1500, seeds=(3, 4, 5, 6), fixed_retention=float(fixed)
+        )
+        chain = successes_to_target(fresh, float(fixed), 365.0)
+        best = min(best or (blocks, error, fixed), (blocks, error, fixed))
+        at_090 = blocks if fixed == 0.90 else at_090
+        print(f"    {fixed:>5.2f} {blocks:>7.2f} ± {error:.2f} {chain:>24}")
+    optimal, _ = reviews_statistics(accurate, fresh, trials=1500, seeds=(3, 4, 5, 6))
+    print(f"    Each jump is where one more successful review is needed to pass the target;")
+    print(f"    within a tooth, higher R means fewer lapses. The best fixed R here is "
+          f"{best[2]:.2f} ({best[0]:.2f} ± {best[1]:.2f}),")
+    print(f"    chosen in hindsight; the optimal policy needs {100 * (1 - optimal / best[0]):.0f}% "
+          f"fewer blocks than that, and {100 * (1 - optimal / at_090):.0f}% fewer than R = 0.90.")
 
     band = accurate.target_retention[:, :-1]
     ordinary = [float(band[i].mean()) for i in range(2, 16)]  # D from 2.0 to 8.5

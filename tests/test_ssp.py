@@ -305,3 +305,25 @@ def test_a_short_deadline_makes_the_problem_easier():
     assert near.expected_reviews(fresh.difficulty, fresh.stability) < far.expected_reviews(
         fresh.difficulty, fresh.stability
     )
+
+
+def test_fixed_retention_cost_jumps_where_one_more_review_is_needed(policy):
+    """The open question of milestone M4: why does a fixed retention of 0.85 cost
+    more than both 0.80 and 0.90? Because a fixed-retention schedule needs a whole
+    number of successful reviews to pass the target, 3 up to 0.84 and 4 from 0.85,
+    and the cost jumps by about a block where that number steps up, while inside a
+    step a higher retention means fewer lapses. See docs/METHOD.md section 2."""
+    from cps.ssp import successes_to_target
+
+    fresh = initial_state(Grade.GOOD)
+    assert successes_to_target(fresh, 0.84, 365.0) == 3
+    assert successes_to_target(fresh, 0.85, 365.0) == 4
+    assert successes_to_target(fresh, 0.90, 365.0) == 4
+    assert successes_to_target(fresh, 0.91, 365.0) == 5
+    cost = {r: reviews_statistics(policy, fresh, trials=1500, seeds=(3, 4, 5, 6), fixed_retention=r)
+            for r in (0.84, 0.85, 0.90, 0.91)}
+    jump = cost[0.85][0] - cost[0.84][0]
+    se = math.hypot(cost[0.85][1], cost[0.84][1])
+    assert 0.6 < jump and jump > 4 * se, cost
+    assert cost[0.90][0] < cost[0.85][0] - 4 * math.hypot(cost[0.90][1], cost[0.85][1])  # within a tooth
+    assert cost[0.91][0] - cost[0.90][0] > 0.6  # the next step
