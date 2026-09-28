@@ -23,6 +23,7 @@ from cps.plan import (
     best_case_reviews,
     capacity_heuristic,
     closed_form_heuristic,
+    evaluate_exact_dynamics,
     evaluate_policy,
     solve_ao_star,
     solve_exact,
@@ -243,6 +244,31 @@ def test_aggregation_barely_moves_the_answer(continuation, exact):
     coarse = small_instance(continuation, stability_step=0.15, difficulty_step=0.5)
     solution = solve_ao_star(coarse, capacity_heuristic)
     assert abs(evaluate_policy(coarse, solution) / exact.value - 1.0) < 0.02
+    # ...and followed in the real, unsnapped world, which is the cost that matters
+    real = evaluate_exact_dynamics(coarse, solution)
+    assert exact.value - 1e-9 <= real <= exact.value * 1.02
+
+
+def test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan(continuation):
+    """AUDIT.md item 26. Before goal membership was decided by the exact state, the
+    ten-day plan reported 8.84 blocks in the aggregated model and cost 28.6 when
+    followed with exact dynamics: snapped stabilities crossed the target that the
+    real ones had not reached. Now the two agree (17.28 and 17.30). Both versions:
+    benchmarks/aggregation_goal_crossing.py."""
+    coarse = Instance.build(
+        student_week(10),
+        [("Analysis", MemoryState(2.0, 7.0)), ("Algebra", MemoryState(4.0, 5.0))],
+        TARGET,
+        continuation,
+        max_blocks_per_day=1,
+        lateness_penalty=12.0,
+        stability_step=0.15,
+        difficulty_step=0.5,
+    )
+    solution = solve_ao_star(coarse, capacity_heuristic, max_expansions=40_000)
+    claimed = evaluate_policy(coarse, solution)
+    real = evaluate_exact_dynamics(coarse, solution)
+    assert abs(real / claimed - 1.0) < 0.01, (claimed, real)
 
 
 def test_aggregation_reduces_the_search(continuation, instance):

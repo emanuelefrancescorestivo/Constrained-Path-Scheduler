@@ -42,7 +42,7 @@ Three simplifications, stated rather than hidden
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, Iterable, Protocol, Sequence, runtime_checkable
 
 from .memory import (
@@ -567,6 +567,41 @@ def evaluate_policy(instance: Instance, solution: "Solution") -> float:
         return value
 
     return rec(instance.initial)
+
+
+def evaluate_exact_dynamics(instance: Instance, solution: "Solution") -> float:
+    """Expected cost of following an aggregated policy in the real, unsnapped world.
+
+    `evaluate_policy` follows the policy with the instance's own transitions, so on
+    an aggregated instance it reports the cost in the aggregated model. That is
+    only the true cost if aggregation is harmless, which is what needs checking.
+    Here the decisions are still looked up by the aggregated state, as the planner
+    would make them, but the memory state that pays the terminal cost evolves with
+    exact FSRS transitions and the exact recall probabilities.
+
+    It exposed AUDIT.md item 26: the ten-day plan in `demo.py` was reported at 8.84
+    blocks and costs 28.61 when followed with exact dynamics
+    (`benchmarks/aggregation_goal_crossing.py`).
+    """
+    exact = replace(instance, stability_step=0.0, difficulty_step=0.0)
+
+    def rec(snapped: PlanState, real: PlanState) -> float:
+        if exact.is_terminal(real) or instance.is_terminal(snapped):
+            return exact.terminal_cost(real)
+        action = solution.policy.get(snapped)
+        if action is None:
+            return exact.terminal_cost(real)
+        cost, snapped_outcomes = instance.successors(snapped, action)
+        _, real_outcomes = exact.successors(real, action)
+        if len(snapped_outcomes) != len(real_outcomes):
+            raise RuntimeError("aggregated and exact outcomes disagree on which grades are possible")
+        # Both lists are ordered recall, then lapse; probabilities come from the real state.
+        return cost + sum(
+            p * rec(s_next, r_next)
+            for (_, s_next), (p, r_next) in zip(snapped_outcomes, real_outcomes)
+        )
+
+    return rec(instance.initial, instance.initial)
 
 
 def solve_ao_star(

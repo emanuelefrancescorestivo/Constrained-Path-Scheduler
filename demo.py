@@ -29,6 +29,7 @@ from cps.plan import (
     Instance,
     capacity_heuristic,
     closed_form_heuristic,
+    evaluate_exact_dynamics,
     evaluate_policy,
     solve_ao_star,
     solve_exact,
@@ -222,7 +223,9 @@ def part_4_findings() -> None:
         solution = solve_ao_star(instance, capacity_heuristic, max_expansions=40_000)
         plan = solution.trajectory(instance)
         print(f"\n      {days}-day horizon ({len(instance.blocks)} blocks): "
-              f"cost {evaluate_policy(instance, solution):.2f}, {len(plan)} blocks used")
+              f"cost {evaluate_policy(instance, solution):.2f} "
+              f"(followed with exact dynamics {evaluate_exact_dynamics(instance, solution):.2f}), "
+              f"{len(plan)} blocks used")
         for block, name in plan:
             print(f"          day {block.day:>2}  {block.start_day:5.2f}d  ->  {name}")
         if not plan:
