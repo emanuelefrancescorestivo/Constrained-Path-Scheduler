@@ -25,6 +25,9 @@ cps = "cps.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
+# altair, which app.py uses for its tables and chart.
+app = ["streamlit>=1.64"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

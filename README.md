@@ -14,7 +14,7 @@ exhaustive computation rather than asserted.
 
     pip install -e ".[dev]"
 
-    pytest                                    # 208 passed, 1 xfailed
+    pytest                                    # 213 passed, 1 xfailed
     python demo.py                            # every number quoted in the docs
     python benchmarks/replanning.py           # the planner against two baselines
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
@@ -53,6 +53,17 @@ disabled on this system"), run
 again. Open the project folder itself in your terminal before creating the
 environment; a terminal that starts in `C:\Windows\System32` cannot write there.
 
+Or use the web page, which does the same through the same code:
+
+    pip install -e ".[app]"
+    streamlit run app.py
+
+Upload an `.ics` or type your week into a table, check the exams it found, rate how
+well you know each subject, and get the plan, a recall curve per subject, a week
+grid, a `plan.ics` to download, and a replanned schedule when a session goes wrong.
+
+![The planner on the sample calendar](docs/app-screenshot.png)
+
 Then swap in your own calendar. Google Calendar: Settings, Import and export,
 Export — you get a zip with one `.ics` per calendar. Apple Calendar: File,
 Export. Run `inspect` on it first; if the free blocks it lists are wrong, nothing
@@ -73,6 +84,7 @@ M1 fixed it (AUDIT.md item 20).
 | `src/cps/ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
 | `src/cps/clock.py` | the same problem against an exam date: `V(D, S, t)`, the replanning continuation |
 | `src/cps/budget.py` | the same problem under a finite block budget; superseded, see AUDIT.md item 20 |
+| `app.py` | the Streamlit page: input and layout only, everything computed by `cps.service` |
 | `src/cps/service.py` | the one API every front end uses: analyse, plan, replan, export, recall curve |
 | `src/cps/console.py` | forces UTF-8 output so redirected runs cannot crash on Windows |
 | `src/cps/cli.py` | `cps inspect` and `cps plan` against a real `.ics` export |
