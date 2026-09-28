@@ -66,16 +66,24 @@ def main() -> None:
     ensure_utf8_output()
     continuation = solve(SSPConfig.for_heuristic(TARGET))
     base = Instance.build(
-        student_week(10), TOPICS, TARGET, continuation, max_blocks_per_day=1,
-        lateness_penalty=12.0, stability_step=0.15, difficulty_step=0.5,
+        student_week(10),
+        TOPICS,
+        TARGET,
+        continuation,
+        max_blocks_per_day=1,
+        lateness_penalty=12.0,
+        stability_step=0.15,
+        difficulty_step=0.5,
     )
     old = UnguardedInstance(**{f: getattr(base, f) for f in base.__dataclass_fields__})
     print(f"{'successors':<22} {'reported':>9} {'exact dynamics':>15}  plan if every recall succeeds")
     for name, instance in (("before M1 (unguarded)", old), ("now (guarded)", base)):
         solution = solve_ao_star(instance, capacity_heuristic, max_expansions=40_000)
         plan = ", ".join(f"day {b.day} {t}" for b, t in solution.trajectory(instance))
-        print(f"{name:<22} {evaluate_policy(instance, solution):>9.2f} "
-              f"{evaluate_exact_dynamics(instance, solution):>15.2f}  {plan}")
+        print(
+            f"{name:<22} {evaluate_policy(instance, solution):>9.2f} "
+            f"{evaluate_exact_dynamics(instance, solution):>15.2f}  {plan}"
+        )
 
 
 if __name__ == "__main__":

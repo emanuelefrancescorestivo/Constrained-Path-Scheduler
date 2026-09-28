@@ -15,7 +15,7 @@ the reason the original results are not trustworthy.
 
 from __future__ import annotations
 
-import math
+import itertools
 
 import numpy as np
 import pytest
@@ -28,7 +28,6 @@ from cps.memory import (
     Grade,
     MemoryState,
     Weights,
-    best_review_delay,
     expected_gain,
     expected_gain_rate,
     expected_retention_at,
@@ -95,7 +94,7 @@ def test_stability_is_the_90_percent_interval():
 def test_retrievability_starts_at_one_and_decays():
     assert retrievability(0.0, 10.0) == pytest.approx(1.0)
     values = [retrievability(t, 10.0) for t in (0, 1, 3, 10, 30, 365)]
-    assert all(a > b for a, b in zip(values, values[1:]))
+    assert all(a > b for a, b in itertools.pairwise(values))
     assert values[-1] > 0.0
 
 
@@ -140,7 +139,7 @@ def test_harder_items_gain_less():
 def test_grade_ordering_is_respected():
     state = MemoryState(stability=10.0, difficulty=5.0)
     outcomes = [review(state, 10.0, g).stability for g in (Grade.AGAIN, Grade.HARD, Grade.GOOD, Grade.EASY)]
-    assert all(a < b for a, b in zip(outcomes, outcomes[1:]))
+    assert all(a < b for a, b in itertools.pairwise(outcomes))
 
 
 def test_a_lapse_never_beats_a_recall():
@@ -186,7 +185,7 @@ def test_repeated_good_reviews_produce_growing_intervals():
         interval = state.ideal_interval()
         intervals.append(interval)
         state = review(state, interval, Grade.GOOD)
-    assert all(a < b for a, b in zip(intervals, intervals[1:])), intervals
+    assert all(a < b for a, b in itertools.pairwise(intervals)), intervals
 
 
 # --------------------------------------------------------------------------- #
@@ -216,6 +215,7 @@ def test_expected_stability_has_an_interior_optimum():
 # Produced by py-fsrs 2.5.1, the Python FSRS-4.5 by the algorithm's author, driven
 # through its own API with whole-day gaps: benchmarks/fsrs_reference.py.
 # (interval in days, stability, difficulty) after each review.
+# fmt: off
 REFERENCE_GOOD = [
     (4, 14.808101, 5.161800),
     (15, 49.461605, 5.161800),
@@ -233,6 +233,7 @@ REFERENCE_MIXED = [
     (2, 15, 18.864802, 8.919239), (4, 30, 83.884577, 7.933081), (1, 3, 5.809487, 9.586526),
     (1, 25, 2.428566, 10.000000), (1, 1, 0.927273, 10.000000), (1, 30, 1.185347, 10.000000),
 ]
+# fmt: on
 
 
 def test_good_ratings_reproduce_the_reference_trajectory_exactly():
@@ -375,8 +376,23 @@ def test_default_weights_pass_validation():
 def test_validate_rejects_a_shuffled_parameter_vector():
     """The guard that would have caught a misremembered parameter order."""
     v = [
-        0.4872, 1.4003, 3.7145, 13.8206, 5.1618, 1.2298, 0.8975, 0.031,
-        1.6474, 0.1367, 1.0461, 2.1072, 0.0793, 0.3246, 1.587, 0.2272, 2.8755,
+        0.4872,
+        1.4003,
+        3.7145,
+        13.8206,
+        5.1618,
+        1.2298,
+        0.8975,
+        0.031,
+        1.6474,
+        0.1367,
+        1.0461,
+        2.1072,
+        0.0793,
+        0.3246,
+        1.587,
+        0.2272,
+        2.8755,
     ]
     swapped = v.copy()
     swapped[15], swapped[16] = swapped[16], swapped[15]  # hard penalty <-> easy bonus
@@ -391,4 +407,4 @@ def test_wrong_vector_length_is_rejected():
 
 def test_forgetting_curve_constants_are_consistent():
     """FACTOR is not a free constant: it is fixed by demanding R(S) = 0.9."""
-    assert FACTOR == pytest.approx(0.9 ** (1 / DECAY) - 1, rel=1e-12)
+    assert pytest.approx(0.9 ** (1 / DECAY) - 1, rel=1e-12) == FACTOR

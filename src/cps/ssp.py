@@ -52,8 +52,9 @@ version was missing.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -61,9 +62,9 @@ from .memory import (
     D_MAX,
     D_MIN,
     DEFAULT_WEIGHTS,
+    S_MIN,
     Grade,
     MemoryState,
-    S_MIN,
     Weights,
     initial_difficulty,
     interval_for_retention,
@@ -88,10 +89,7 @@ def _vec_next_difficulty(d: np.ndarray, grade: Grade, w: Weights) -> np.ndarray:
 
 def _vec_stability_on_recall(s: np.ndarray, d: np.ndarray, r: np.ndarray, w: Weights) -> np.ndarray:
     gain = (
-        np.exp(w.sinc_scale)
-        * (11.0 - d)
-        * s ** (-w.sinc_s_decay)
-        * (np.exp((1.0 - r) * w.sinc_r_gain) - 1.0)
+        np.exp(w.sinc_scale) * (11.0 - d) * s ** (-w.sinc_s_decay) * (np.exp((1.0 - r) * w.sinc_r_gain) - 1.0)
     )
     return np.maximum(s * (1.0 + gain), S_MIN)
 
@@ -156,7 +154,7 @@ class SSPConfig:
     extra_retentions: tuple[float, ...] = ()
 
     @classmethod
-    def for_deadline(cls, days_to_exam: float, retention: float = 0.9, **kwargs) -> "SSPConfig":
+    def for_deadline(cls, days_to_exam: float, retention: float = 0.9, **kwargs) -> SSPConfig:
         """Derive the stability target from a date and a tolerance for forgetting.
 
         A student has an exam on the 14th and would like a 90% chance of recall,
@@ -169,7 +167,7 @@ class SSPConfig:
         return cls(target_stability=stability_for_interval(days_to_exam, retention), **kwargs)
 
     @classmethod
-    def for_heuristic(cls, target_stability: float, **kwargs) -> "SSPConfig":
+    def for_heuristic(cls, target_stability: float, **kwargs) -> SSPConfig:
         """Configuration valid for use as an A*/AO* heuristic.
 
         Two things differ from the analysis configuration, and both are required
@@ -202,7 +200,7 @@ class SSPConfig:
         only on average (AUDIT.md item 22; it was above by up to 6.2e-06).
         """
         analysis = cls(target_stability=target_stability)
-        params = dict(
+        params: dict[str, Any] = dict(
             target_stability=target_stability,
             interpolation="optimistic",
             min_retention=0.05,
@@ -323,13 +321,13 @@ class MemorizationPolicy:
     def _interp(self, table: np.ndarray, difficulty: float, stability: float) -> float:
         if stability >= self.config.target_stability:
             return 0.0 if table is self.expected_cost else float(table[-1, -1])
-        i, wd = _interp_index(self.difficulty_grid, np.array([np.clip(difficulty, D_MIN, D_MAX)]))
+        i_arr, wd_arr = _interp_index(self.difficulty_grid, np.array([np.clip(difficulty, D_MIN, D_MAX)]))
         log_grid = np.log(self.stability_grid)
-        j, ws = _interp_index(
+        j_arr, ws_arr = _interp_index(
             log_grid,
             np.log(np.array([np.clip(stability, self.stability_grid[0], self.stability_grid[-1])])),
         )
-        i, j, wd, ws = int(i[0]), int(j[0]), float(wd[0]), float(ws[0])
+        i, j, wd, ws = int(i_arr[0]), int(j_arr[0]), float(wd_arr[0]), float(ws_arr[0])
         if self.config.interpolation == "optimistic" and table is self.expected_cost:
             # Same argument as in the solver: take the cell minimum so the query
             # is a lower bound too, not just the fixed point.
@@ -412,7 +410,10 @@ class MemorizationPolicy:
         return sum(self.expected_reviews(st.difficulty, st.stability) for st in states)
 
 
-def solve(config: SSPConfig = SSPConfig(), weights: Weights = DEFAULT_WEIGHTS) -> MemorizationPolicy:
+def solve(
+    config: SSPConfig = SSPConfig(),  # noqa: B008 - frozen dataclass, a shared default is safe
+    weights: Weights = DEFAULT_WEIGHTS,
+) -> MemorizationPolicy:
     """Value iteration to convergence.
 
     Raises rather than returning an unconverged value function: silently
@@ -447,7 +448,7 @@ def solve(config: SSPConfig = SSPConfig(), weights: Weights = DEFAULT_WEIGHTS) -
 
     value = np.zeros((n_d, n_s))
     residual = np.inf
-    for sweep in range(1, config.max_sweeps + 1):
+    for sweep in range(1, config.max_sweeps + 1):  # noqa: B007 - `sweep` is reported after the loop
         flat = value.ravel()
         q = immediate + r * gather_rec(flat) + (1.0 - r) * gather_lap(flat)
         nxt = q.min(axis=0)
@@ -511,8 +512,10 @@ def simulate_reviews_to_target(
     for n in range(1, max_reviews + 1):
         if state.stability >= target:
             return n - 1
-        r = fixed_retention if fixed_retention is not None else policy.optimal_retention(
-            state.difficulty, state.stability
+        r = (
+            fixed_retention
+            if fixed_retention is not None
+            else policy.optimal_retention(state.difficulty, state.stability)
         )
         delay = interval_for_retention(state.stability, float(r))
         recalled = rng.random() < retrievability(delay, state.stability)

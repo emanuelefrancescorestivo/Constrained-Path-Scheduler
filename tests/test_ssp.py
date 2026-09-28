@@ -17,9 +17,10 @@ from cps.memory import (
     DEFAULT_WEIGHTS,
     Grade,
     MemoryState,
+    _next_difficulty,
+    _stability_on_lapse,
+    _stability_on_recall,
     initial_state,
-    interval_for_retention,
-    review,
     stability_for_interval,
 )
 from cps.ssp import (
@@ -31,7 +32,6 @@ from cps.ssp import (
     reviews_statistics,
     solve,
 )
-from cps.memory import _next_difficulty, _stability_on_lapse, _stability_on_recall
 
 
 @pytest.fixture(scope="module")
@@ -59,12 +59,12 @@ def test_vectorised_transitions_match_the_scalar_model():
 
     np.testing.assert_allclose(
         _vec_stability_on_recall(s, d, r, w),
-        [_stability_on_recall(si, di, ri, Grade.GOOD, w) for si, di, ri in zip(s, d, r)],
+        [_stability_on_recall(si, di, ri, Grade.GOOD, w) for si, di, ri in zip(s, d, r, strict=True)],
         rtol=1e-12,
     )
     np.testing.assert_allclose(
         _vec_stability_on_lapse(s, d, r, w),
-        [_stability_on_lapse(si, di, ri, w) for si, di, ri in zip(s, d, r)],
+        [_stability_on_lapse(si, di, ri, w) for si, di, ri in zip(s, d, r, strict=True)],
         rtol=1e-12,
     )
     for grade in (Grade.GOOD, Grade.AGAIN):
@@ -205,9 +205,7 @@ def test_lower_bound_is_additive_over_topics():
     lower = solve(SSPConfig(target_stability=365.0, interpolation="optimistic"))
     states = [initial_state(Grade.GOOD), MemoryState(5.0, 6.0), MemoryState(50.0, 3.0)]
     total = lower.reviews_lower_bound(states)
-    assert total == pytest.approx(
-        sum(lower.expected_reviews(s.difficulty, s.stability) for s in states)
-    )
+    assert total == pytest.approx(sum(lower.expected_reviews(s.difficulty, s.stability) for s in states))
     assert total > lower.reviews_lower_bound(states[:2])
 
 
@@ -320,10 +318,12 @@ def test_fixed_retention_cost_jumps_where_one_more_review_is_needed(policy):
     assert successes_to_target(fresh, 0.85, 365.0) == 4
     assert successes_to_target(fresh, 0.90, 365.0) == 4
     assert successes_to_target(fresh, 0.91, 365.0) == 5
-    cost = {r: reviews_statistics(policy, fresh, trials=1500, seeds=(3, 4, 5, 6), fixed_retention=r)
-            for r in (0.84, 0.85, 0.90, 0.91)}
+    cost = {
+        r: reviews_statistics(policy, fresh, trials=1500, seeds=(3, 4, 5, 6), fixed_retention=r)
+        for r in (0.84, 0.85, 0.90, 0.91)
+    }
     jump = cost[0.85][0] - cost[0.84][0]
     se = math.hypot(cost[0.85][1], cost[0.84][1])
-    assert 0.6 < jump and jump > 4 * se, cost
+    assert jump > 0.6 and jump > 4 * se, cost
     assert cost[0.90][0] < cost[0.85][0] - 4 * math.hypot(cost[0.90][1], cost[0.85][1])  # within a tooth
     assert cost[0.91][0] - cost[0.90][0] > 0.6  # the next step

@@ -13,6 +13,8 @@ it is verified at all 3,906 reachable states rather than at the root.
 
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from cps.memory import Grade, MemoryState, initial_state, review, stability_for_interval
@@ -101,7 +103,7 @@ def test_block_times_are_expressed_in_days_for_the_memory_model():
     grid = student_week(7)
     blocks = tile_free_time(grid, max_blocks_per_day=1)
     assert all(b.start_day == pytest.approx(b.slot / 48) for b in blocks)
-    assert all(a.start_day < b.start_day for a, b in zip(blocks, blocks[1:]))
+    assert all(a.start_day < b.start_day for a, b in itertools.pairwise(blocks))
 
 
 def test_build_rejects_a_non_admissible_continuation_policy():
@@ -273,9 +275,7 @@ def test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan(continuation):
 
 def test_aggregation_reduces_the_search(continuation, instance):
     coarse = small_instance(continuation, stability_step=0.15, difficulty_step=0.5)
-    assert solve_ao_star(coarse, capacity_heuristic).nodes < solve_ao_star(
-        instance, capacity_heuristic
-    ).nodes
+    assert solve_ao_star(coarse, capacity_heuristic).nodes < solve_ao_star(instance, capacity_heuristic).nodes
 
 
 def test_snapping_is_idempotent(continuation):

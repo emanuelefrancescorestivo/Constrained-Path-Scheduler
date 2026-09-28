@@ -32,9 +32,10 @@ report says so.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
-from typing import Iterable, Mapping, Sequence
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
@@ -64,8 +65,7 @@ from .timegrid import SLOTS_PER_DAY
 OUTCOMES = ("recalled", "lapsed", "skipped")
 
 LIMITATIONS = (
-    "The memory model uses population-default FSRS-4.5 parameters, not parameters "
-    "fitted to you.",
+    "The memory model uses population-default FSRS-4.5 parameters, not parameters fitted to you.",
     "Each subject's starting point is your own estimate (a familiarity rating or a "
     "stability and difficulty), not a measurement.",
     "Nothing is personalised: the plan does not learn from how your reviews go, "
@@ -215,8 +215,13 @@ class BlockView:
     end: str
 
     def to_dict(self) -> dict:
-        return {"slot": self.slot, "day": self.day, "start_day": self.start_day,
-                "start": self.start, "end": self.end}
+        return {
+            "slot": self.slot,
+            "day": self.day,
+            "start_day": self.start_day,
+            "start": self.start,
+            "end": self.end,
+        }
 
     def as_block(self) -> Block:
         return Block(self.slot, self.day, self.start_day)
@@ -279,11 +284,18 @@ class CalendarReport:
 
 def _row_to_dict(row: BusyRow) -> dict:
     end = "24:00" if row.end == time.max else row.end.strftime("%H:%M")
-    return {"label": row.label, "start": row.start.strftime("%H:%M"), "end": end,
-            "weekday": row.weekday, "date": row.on.isoformat() if row.on else None}
+    return {
+        "label": row.label,
+        "start": row.start.strftime("%H:%M"),
+        "end": end,
+        "weekday": row.weekday,
+        "date": row.on.isoformat() if row.on else None,
+    }
 
 
-def _events(ics_text: str | None, rows: Sequence[BusyRow], start: date, days: int, tz: str) -> list[BusyEvent]:
+def _events(
+    ics_text: str | None, rows: Sequence[BusyRow], start: date, days: int, tz: str
+) -> list[BusyEvent]:
     zone = _zone(tz)
     events: list[BusyEvent] = []
     if ics_text is not None:
@@ -291,7 +303,9 @@ def _events(ics_text: str | None, rows: Sequence[BusyRow], start: date, days: in
         try:
             events += expand_events(ics_text, window_start, window_start + timedelta(days=days), zone)
         except (ValueError, TypeError, KeyError) as exc:
-            raise InvalidCalendar(f"the calendar file could not be read ({exc}); export it again as .ics") from exc
+            raise InvalidCalendar(
+                f"the calendar file could not be read ({exc}); export it again as .ics"
+            ) from exc
     events += busy_from_table(rows, start, days, tz)
     events.sort(key=lambda e: (e.start, e.end))
     return events
@@ -469,7 +483,7 @@ class PlanReport:
         }
 
     @classmethod
-    def from_dict(cls, data: Mapping) -> "PlanReport":
+    def from_dict(cls, data: Mapping) -> PlanReport:
         try:
             settings = dict(data["settings"])
             settings["start"] = date.fromisoformat(settings["start"])
@@ -488,7 +502,7 @@ class PlanReport:
             raise InvalidInput(f"not a plan produced by this version: {exc}") from exc
 
 
-def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict], float]:
+def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
     """Specs to plain starting states with exam days, validated."""
     if not subjects:
         raise InvalidInput("add at least one subject with an exam date")
@@ -499,7 +513,7 @@ def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[l
         raise InvalidInput("two subjects have the same name")
     zone = _zone(report.tz)
     found = {a.subject.casefold(): a.when for a in report.assessments}
-    resolved = []
+    resolved: list[dict[str, Any]] = []
     for spec in subjects:
         memory, prior = spec.memory()
         if spec.exam is None:
@@ -513,19 +527,29 @@ def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[l
                 f"the exam for {spec.name} ({exam:%Y-%m-%d %H:%M}) is not after the start of the "
                 f"plan ({report.start}); change the date or the start"
             )
-        resolved.append({
-            "name": spec.name.strip(), "exam": _iso(exam), "exam_day": exam_day,
-            "stability": memory.stability, "difficulty": memory.difficulty,
-            "last_review_day": 0.0, "prior": prior,
-        })
-    return resolved, max(r["exam_day"] for r in resolved)
+        resolved.append(
+            {
+                "name": spec.name.strip(),
+                "exam": _iso(exam),
+                "exam_day": exam_day,
+                "stability": memory.stability,
+                "difficulty": memory.difficulty,
+                "last_review_day": 0.0,
+                "prior": prior,
+            }
+        )
+    return resolved, max(float(r["exam_day"]) for r in resolved)
 
 
 def _extend(report: CalendarReport, days: int) -> CalendarReport:
     return analyse_calendar(
         report.ics_text.encode("utf-8") if report.ics_text is not None else None,
-        start=report.start, tz=report.tz, days=days, study_window=report.study_window,
-        blocks_per_day=report.blocks_per_day, block_minutes=report.block_minutes,
+        start=report.start,
+        tz=report.tz,
+        days=days,
+        study_window=report.study_window,
+        blocks_per_day=report.blocks_per_day,
+        block_minutes=report.block_minutes,
         busy_rows=report.busy_rows,
     )
 
@@ -549,9 +573,15 @@ def make_plan(
     if needed > report.days:
         report = _extend(report, needed)
     settings = PlanSettings(
-        start=report.start, tz=report.tz, retention=retention, window=window, seed=seed,
-        failure_penalty=failure_penalty, block_minutes=report.block_minutes,
-        slots_per_day=report.slots_per_day, horizon_days=report.days,
+        start=report.start,
+        tz=report.tz,
+        retention=retention,
+        window=window,
+        seed=seed,
+        failure_penalty=failure_penalty,
+        block_minutes=report.block_minutes,
+        slots_per_day=report.slots_per_day,
+        horizon_days=report.days,
     )
     usable = [b for b in report.blocks if b.start_day < latest]
     if not usable:
@@ -562,10 +592,16 @@ def make_plan(
     return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
 
 
-def _plan(settings: PlanSettings, specs: Sequence[dict], blocks: tuple[BlockView, ...],
-          events: tuple[EventView, ...], history: tuple[SessionView, ...],
-          after_day: float = -1.0, current: Sequence[dict] | None = None,
-          strict: bool = False) -> PlanReport:
+def _plan(
+    settings: PlanSettings,
+    specs: Sequence[dict],
+    blocks: tuple[BlockView, ...],
+    events: tuple[EventView, ...],
+    history: tuple[SessionView, ...],
+    after_day: float = -1.0,
+    current: Sequence[dict] | None = None,
+    strict: bool = False,
+) -> PlanReport:
     """Run the planner from the states in `current` (default: the specs) on the
     blocks that start after `after_day`."""
     states = list(current) if current is not None else [dict(s) for s in specs]
@@ -575,42 +611,74 @@ def _plan(settings: PlanSettings, specs: Sequence[dict], blocks: tuple[BlockView
     ]
     pending = tuple(b for b in blocks if b.start_day > after_day)
     rng = np.random.default_rng(settings.seed) if settings.seed is not None else None
-    result = run_rolling(
-        [b.as_block() for b in pending], subjects, window=settings.window,
-        retention=settings.retention, failure_penalty=settings.failure_penalty, rng=rng,
-    ) if pending else None
+    result = (
+        run_rolling(
+            [b.as_block() for b in pending],
+            subjects,
+            window=settings.window,
+            retention=settings.retention,
+            failure_penalty=settings.failure_penalty,
+            rng=rng,
+        )
+        if pending
+        else None
+    )
 
     by_slot = {b.slot: b for b in blocks}
-    sessions = []
+    built: list[SessionView] = []
     for number, s in enumerate(result.sessions if result else (), start=len(history)):
         view = by_slot[s.block.slot]
-        sessions.append(SessionView(
-            index=number, subject=s.subject, start=view.start, end=view.end, day=view.day,
-            start_day=view.start_day, slot=view.slot, recall=s.retrievability_at_review,
-            outcome="recalled" if s.outcome != Grade.AGAIN else "lapsed",
-            stability_before=s.stability_before, stability_after=s.stability_after,
-            rationale=s.rationale,
-        ))
-    sessions = tuple(sessions)
+        built.append(
+            SessionView(
+                index=number,
+                subject=s.subject,
+                start=view.start,
+                end=view.end,
+                day=view.day,
+                start_day=view.start_day,
+                slot=view.slot,
+                recall=s.retrievability_at_review,
+                outcome="recalled" if s.outcome != Grade.AGAIN else "lapsed",
+                stability_before=s.stability_before,
+                stability_after=s.stability_after,
+                rationale=s.rationale,
+            )
+        )
+    sessions = tuple(built)
 
     finals = _replay(specs, history + sessions)
     views, warnings = [], []
-    targets = result.targets if result else tuple(
-        Subject(s["name"], MemoryState(s["stability"], s["difficulty"]), s["exam_day"]).target(settings.retention)
-        for s in specs
+    targets = (
+        result.targets
+        if result
+        else tuple(
+            Subject(s["name"], MemoryState(s["stability"], s["difficulty"]), s["exam_day"]).target(
+                settings.retention
+            )
+            for s in specs
+        )
     )
     unreachable = result.unreachable if result else tuple(False for _ in specs)
-    for spec, target, lost in zip(specs, targets, unreachable):
+    for spec, target, lost in zip(specs, targets, unreachable, strict=True):
         memory, last = finals[spec["name"]]
         first = next((x.start for x in history + sessions if x.subject == spec["name"]), None)
         ready = memory.stability >= target
-        views.append(SubjectView(
-            name=spec["name"], exam=spec["exam"], exam_day=spec["exam_day"],
-            stability=spec["stability"], difficulty=spec["difficulty"], prior=spec["prior"],
-            target=target, ready=ready, unreachable=lost and not ready,
-            recall_at_exam=retrievability(max(spec["exam_day"] - last, 0.0), memory.stability),
-            stability_at_exam=memory.stability, first_review=first,
-        ))
+        views.append(
+            SubjectView(
+                name=spec["name"],
+                exam=spec["exam"],
+                exam_day=spec["exam_day"],
+                stability=spec["stability"],
+                difficulty=spec["difficulty"],
+                prior=spec["prior"],
+                target=target,
+                ready=ready,
+                unreachable=lost and not ready,
+                recall_at_exam=retrievability(max(spec["exam_day"] - last, 0.0), memory.stability),
+                stability_at_exam=memory.stability,
+                first_review=first,
+            )
+        )
         if lost and not ready:
             warnings.append(
                 f"{spec['name']}: even if every review succeeded, the free blocks before this exam "
@@ -625,8 +693,13 @@ def _plan(settings: PlanSettings, specs: Sequence[dict], blocks: tuple[BlockView
             "review succeeded; " + " ".join(warnings)
         )
     return PlanReport(
-        settings=settings, subjects=tuple(views), specs=tuple(dict(s) for s in specs),
-        sessions=sessions, history=history, blocks=blocks, events=events,
+        settings=settings,
+        subjects=tuple(views),
+        specs=tuple(dict(s) for s in specs),
+        sessions=sessions,
+        history=history,
+        blocks=blocks,
+        events=events,
         warnings=tuple(warnings),
     )
 
@@ -662,12 +735,17 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
     specs = [dict(s) for s in plan.specs]
     after = _replay(specs, history)
     current = [
-        {**s, "stability": after[s["name"]][0].stability, "difficulty": after[s["name"]][0].difficulty,
-         "last_review_day": after[s["name"]][1]}
+        {
+            **s,
+            "stability": after[s["name"]][0].stability,
+            "difficulty": after[s["name"]][0].difficulty,
+            "last_review_day": after[s["name"]][1],
+        }
         for s in specs
     ]
-    return _plan(plan.settings, specs, plan.blocks, plan.events, history,
-                 after_day=reported.start_day, current=current)
+    return _plan(
+        plan.settings, specs, plan.blocks, plan.events, history, after_day=reported.start_day, current=current
+    )
 
 
 def export_ics(plan: PlanReport) -> bytes:
@@ -699,7 +777,7 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
     )
     points: list[tuple[float, float]] = []
     t = 0.0
-    for session in reviews + [None]:
+    for session in [*reviews, None]:
         until = session.start_day if session else spec["exam_day"]
         while t < until:
             points.append((t, retrievability(t - last, memory.stability)))
@@ -748,8 +826,11 @@ def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int =
         raise InvalidInput(f"week must be 0 to {week_count(plan) - 1}")
     zone = _zone(plan.settings.tz)
     first_day = plan.settings.start + timedelta(days=7 * week)
-    days = [first_day + timedelta(days=d) for d in range(7)
-            if (first_day + timedelta(days=d) - plan.settings.start).days < plan.settings.horizon_days]
+    days = [
+        first_day + timedelta(days=d)
+        for d in range(7)
+        if (first_day + timedelta(days=d) - plan.settings.start).days < plan.settings.horizon_days
+    ]
     columns = {d: d.strftime("%a %d %b") for d in days}
     cells: dict[tuple[date, time], str] = {}
 
@@ -764,8 +845,11 @@ def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int =
     for event in plan.events:
         paint(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary)
     for session in plan.sessions:
-        paint(datetime.fromisoformat(session.start), datetime.fromisoformat(session.end),
-              f"STUDY: {session.subject}")
+        paint(
+            datetime.fromisoformat(session.start),
+            datetime.fromisoformat(session.end),
+            f"STUDY: {session.subject}",
+        )
     for subject in plan.subjects:
         exam = datetime.fromisoformat(subject.exam)
         paint(exam, exam + timedelta(minutes=30), f"EXAM: {subject.name}")

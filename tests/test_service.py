@@ -8,10 +8,11 @@ typed, readable error instead of a traceback for everything a user can get wrong
 
 from __future__ import annotations
 
+import itertools
 import json
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -98,8 +99,10 @@ def test_reports_are_plain_json_and_round_trip(report, plan):
 
 def test_a_round_tripped_plan_replans_like_the_original(plan):
     rebuilt = service.PlanReport.from_dict(json.loads(json.dumps(plan.to_dict())))
-    assert (service.replan_after(rebuilt, 1, "lapsed").to_dict()
-            == service.replan_after(plan, 1, "lapsed").to_dict())
+    assert (
+        service.replan_after(rebuilt, 1, "lapsed").to_dict()
+        == service.replan_after(plan, 1, "lapsed").to_dict()
+    )
 
 
 def test_a_seed_makes_the_plan_deterministic(report, subjects):
@@ -168,8 +171,8 @@ def test_familiarity_is_anchored_to_the_first_review_grades():
     difficulty drifts back towards D0(Good), as FSRS-4.5's mean reversion does."""
     levels = [service.familiarity_prior(k) for k in range(1, 6)]
     assert levels[2] == initial_state(Grade.GOOD)
-    assert all(a.stability < b.stability for a, b in zip(levels, levels[1:]))
-    assert all(a.difficulty > b.difficulty for a, b in zip(levels[:4], levels[1:4]))
+    assert all(a.stability < b.stability for a, b in itertools.pairwise(levels))
+    assert all(a.difficulty > b.difficulty for a, b in itertools.pairwise(levels[:4]))
 
 
 def test_a_typed_timetable_works_without_any_ics():
@@ -204,8 +207,10 @@ def test_an_exam_in_the_past_is_a_typed_error(report):
 def test_an_unreachable_target_is_a_typed_error():
     """Free only on the first two days, exam on day 12: even if every review
     succeeded, reviews hours apart cannot build twelve days of stability."""
-    away = [{"label": "Away", "date": (START + timedelta(days=d)).isoformat(), "start": "00:00",
-             "end": "24:00"} for d in range(2, 14)]
+    away = [
+        {"label": "Away", "date": (START + timedelta(days=d)).isoformat(), "start": "00:00", "end": "24:00"}
+        for d in range(2, 14)
+    ]
     report = service.analyse_calendar(None, start=START, tz=TZ, days=13, busy_rows=away)
     with pytest.raises(service.UnreachableTarget, match="even if every review succeeded"):
         service.make_plan(report, [service.SubjectSpec("Analysis", "2026-03-14", stability=2, difficulty=7)])
@@ -221,12 +226,27 @@ def test_a_subject_without_an_exam_is_a_typed_error(report):
     [
         (lambda r: service.make_plan(r, [service.SubjectSpec("A", "2026-03-20", familiarity=7)]), "1 to 5"),
         (lambda r: service.make_plan(r, [service.SubjectSpec("A", "2026-03-20")]), "familiarity"),
-        (lambda r: service.make_plan(r, [service.SubjectSpec("A", "next week", familiarity=3)]), "not a date"),
-        (lambda r: service.make_plan(r, [service.SubjectSpec("A", "2026-03-20", familiarity=3),
-                                         service.SubjectSpec("a", "2026-03-21", familiarity=3)]), "same name"),
+        (
+            lambda r: service.make_plan(r, [service.SubjectSpec("A", "next week", familiarity=3)]),
+            "not a date",
+        ),
+        (
+            lambda r: service.make_plan(
+                r,
+                [
+                    service.SubjectSpec("A", "2026-03-20", familiarity=3),
+                    service.SubjectSpec("a", "2026-03-21", familiarity=3),
+                ],
+            ),
+            "same name",
+        ),
         (lambda r: service.make_plan(r, []), "at least one subject"),
-        (lambda r: service.make_plan(r, [service.SubjectSpec("A", "2026-03-20", familiarity=3)],
-                                     retention=1.2), "target recall"),
+        (
+            lambda r: service.make_plan(
+                r, [service.SubjectSpec("A", "2026-03-20", familiarity=3)], retention=1.2
+            ),
+            "target recall",
+        ),
     ],
 )
 def test_nonsense_inputs_are_readable_errors(report, call, message):
@@ -240,5 +260,9 @@ def test_an_unreadable_calendar_or_zone_is_a_typed_error():
     with pytest.raises(service.InvalidInput, match="time zone"):
         service.analyse_calendar(SAMPLE.read_bytes(), start=START, tz="Mars/Olympus")
     with pytest.raises(service.InvalidInput, match="not a weekday"):
-        service.analyse_calendar(None, start=START, tz=TZ,
-                                 busy_rows=[{"label": "x", "weekday": "Funday", "start": "9", "end": "10"}])
+        service.analyse_calendar(
+            None,
+            start=START,
+            tz=TZ,
+            busy_rows=[{"label": "x", "weekday": "Funday", "start": "9", "end": "10"}],
+        )

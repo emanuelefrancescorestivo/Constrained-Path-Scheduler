@@ -35,15 +35,23 @@ def cited_files() -> list[Path]:
     """Everything a reader of the repository reads, except the bibliography, the
     archived December prototype, and the working prompt that leaves in M5."""
     skip = {BIBLIOGRAPHY, ROOT / "docs" / "CLAUDE_CODE_PROMPT.md", Path(__file__).resolve()}
-    files = [*ROOT.glob("*.md"), *(ROOT / "docs").glob("*.md"), *ROOT.glob("*.py"),
-             *(ROOT / "src").rglob("*.py"), *(ROOT / "benchmarks").rglob("*.py"),
-             *(ROOT / "tests").rglob("*.py")]
+    files = [
+        *ROOT.glob("*.md"),
+        *(ROOT / "docs").glob("*.md"),
+        *ROOT.glob("*.py"),
+        *(ROOT / "src").rglob("*.py"),
+        *(ROOT / "benchmarks").rglob("*.py"),
+        *(ROOT / "tests").rglob("*.py"),
+    ]
     return [f for f in files if f not in skip and "archive" not in f.parts]
 
 
 def citations() -> list[tuple[Path, str]]:
-    return [(f, key) for f in cited_files()
-            for key in re.findall(r"\[ref:([a-z0-9.\-]+)\]", f.read_text(encoding="utf-8"))]
+    return [
+        (f, key)
+        for f in cited_files()
+        for key in re.findall(r"\[ref:([a-z0-9.\-]+)\]", f.read_text(encoding="utf-8"))
+    ]
 
 
 def test_every_entry_is_complete_and_says_how_it_was_checked():
@@ -84,13 +92,10 @@ ET_AL = re.compile(r"\b([A-Z][A-Za-z'\-]+) et al\.?,?\s*\(?(?:[A-Z][A-Za-z']*\s+
 
 
 def test_every_named_citation_matches_an_entry():
-    """"Ye et al. (KDD 2022)" must be an entry whose first author is Ye and whose
+    """ "Ye et al. (KDD 2022)" must be an entry whose first author is Ye and whose
     year is 2022. The January report's "Reddy et al." for the KDD 2022 paper would
     fail here."""
-    index = {
-        (fields["authors"].split(";")[0].split()[-1], fields["year"])
-        for fields in entries().values()
-    }
+    index = {(fields["authors"].split(";")[0].split()[-1], fields["year"]) for fields in entries().values()}
     checked = 0
     for path in cited_files():
         for surname, year in ET_AL.findall(path.read_text(encoding="utf-8")):

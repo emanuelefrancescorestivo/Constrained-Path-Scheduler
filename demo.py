@@ -39,7 +39,7 @@ from cps.plan import (
     tile_free_time,
     zero_heuristic,
 )
-from cps.ssp import SSPConfig, mean_reviews_to_target, reviews_statistics, solve, successes_to_target
+from cps.ssp import SSPConfig, reviews_statistics, solve, successes_to_target
 from cps.timegrid import TimeGrid
 
 EXAM_IN_DAYS = 21.0
@@ -78,8 +78,7 @@ def part_1_memory_model() -> None:
         fsrs = review(state, delay, Grade.GOOD).stability
         legacy = state.stability * (1 + 2.718281828 ** (state.difficulty / 10) * 0.2)
         print(
-            f"  {delay:>7.1f}d {retrievability(delay, state.stability):>12.3f} "
-            f"{fsrs:>10.2f} {legacy:>12.2f}"
+            f"  {delay:>7.1f}d {retrievability(delay, state.stability):>12.3f} {fsrs:>10.2f} {legacy:>12.2f}"
         )
     print("\n  Interval growth from a fresh item, six consecutive Good ratings:")
     fresh, seq = initial_state(Grade.GOOD), []
@@ -106,20 +105,23 @@ def part_2_ssp() -> None:
     elapsed = time.perf_counter() - started
     lower = solve(SSPConfig.for_heuristic(365.0))
     fresh = initial_state(Grade.GOOD)
-    print(f"  value iteration: {accurate.sweeps} sweeps, residual {accurate.residual:.1e}, "
-          f"{elapsed:.1f}s")
+    print(f"  value iteration: {accurate.sweeps} sweeps, residual {accurate.residual:.1e}, {elapsed:.1f}s")
     predicted = accurate.expected_reviews(fresh.difficulty, fresh.stability)
     mean, sem = reviews_statistics(accurate, fresh, trials=1500)
     print(f"\n  V* from a fresh item      : {predicted:6.3f} reviews")
     print(f"  simulated (6000 runs)     : {mean:6.3f} ± {sem:.3f}   <- calibration")
-    print(f"  guaranteed lower bound    : {lower.expected_reviews(fresh.difficulty, fresh.stability):6.3f}"
-          "   <- admissible, and loose because of it")
+    print(
+        f"  guaranteed lower bound    : {lower.expected_reviews(fresh.difficulty, fresh.stability):6.3f}"
+        "   <- admissible, and loose because of it"
+    )
 
     gap = accurate.expected_cost - lower.expected_cost
     live = accurate.expected_cost > 1e-9
-    print(f"  bound vs accurate, whole grid: mean gap {gap[live].mean():.2f} reviews "
-          f"({100 * (gap[live] / accurate.expected_cost[live]).mean():.0f}%), "
-          f"smallest gap {gap.min():+.1e}")
+    print(
+        f"  bound vs accurate, whole grid: mean gap {gap[live].mean():.2f} reviews "
+        f"({100 * (gap[live] / accurate.expected_cost[live]).mean():.0f}%), "
+        f"smallest gap {gap.min():+.1e}"
+    )
     print("    the smallest gap must not be negative: the heuristic's action grid contains")
     print("    the analysis grid, so it is below the analysis solve in every cell (it was")
     print("    -6.2e-06 until the grids were nested; AUDIT.md item 22).")
@@ -144,11 +146,15 @@ def part_2_ssp() -> None:
         at_090 = blocks if fixed == 0.90 else at_090
         print(f"    {fixed:>5.2f} {blocks:>7.2f} ± {error:.2f} {chain:>24}")
     optimal, _ = reviews_statistics(accurate, fresh, trials=1500, seeds=(3, 4, 5, 6))
-    print(f"    Each jump is where one more successful review is needed to pass the target;")
-    print(f"    within a tooth, higher R means fewer lapses. The best fixed R here is "
-          f"{best[2]:.2f} ({best[0]:.2f} ± {best[1]:.2f}),")
-    print(f"    chosen in hindsight; the optimal policy needs {100 * (1 - optimal / best[0]):.0f}% "
-          f"fewer blocks than that, and {100 * (1 - optimal / at_090):.0f}% fewer than R = 0.90.")
+    print("    Each jump is where one more successful review is needed to pass the target;")
+    print(
+        f"    within a tooth, higher R means fewer lapses. The best fixed R here is "
+        f"{best[2]:.2f} ({best[0]:.2f} ± {best[1]:.2f}),"
+    )
+    print(
+        f"    chosen in hindsight; the optimal policy needs {100 * (1 - optimal / best[0]):.0f}% "
+        f"fewer blocks than that, and {100 * (1 - optimal / at_090):.0f}% fewer than R = 0.90."
+    )
 
     band = accurate.target_retention[:, :-1]
     ordinary = [float(band[i].mean()) for i in range(2, 16)]  # D from 2.0 to 8.5
@@ -159,8 +165,10 @@ def part_2_ssp() -> None:
     print("\n  The optimum moves with the cost model (D=5, S=8):")
     for lapse_cost in (1.0, 2.0, 4.0):
         priced = solve(SSPConfig(target_stability=365.0, cost_lapse=lapse_cost))
-        print(f"    a lapse costs {lapse_cost:.0f}x a productive block -> "
-              f"π* = {priced.optimal_retention(5.0, 8.0):.3f}")
+        print(
+            f"    a lapse costs {lapse_cost:.0f}x a productive block -> "
+            f"π* = {priced.optimal_retention(5.0, 8.0):.3f}"
+        )
 
     print("\n  How well is the optimal retention identified? Width of the range of")
     print("  retentions that lose less than 0.01 review against the best:")
@@ -168,42 +176,50 @@ def part_2_ssp() -> None:
     for difficulty, stability in ((5.0, 2.0), (5.0, 30.0), (8.0, 8.0), (2.0, 8.0)):
         values = accurate.action_values(difficulty, stability)
         near = retentions[values <= values.min() + 0.01]
-        print(f"    D={difficulty:.0f} S={stability:>4.0f}: best {retentions[values.argmin()]:.3f}, "
-              f"plateau {near.max() - near.min():.2f} wide")
+        print(
+            f"    D={difficulty:.0f} S={stability:>4.0f}: best {retentions[values.argmin()]:.3f}, "
+            f"plateau {near.max() - near.min():.2f} wide"
+        )
 
 
 def part_3_search(quick: bool) -> None:
     rule("3. AO* on the calendar, against exhaustive search")
     continuation = solve(SSPConfig.for_heuristic(TARGET))
-    instance = Instance.build(
-        student_week(5), TOPICS[:2], TARGET, continuation, max_blocks_per_day=1
+    instance = Instance.build(student_week(5), TOPICS[:2], TARGET, continuation, max_blocks_per_day=1)
+    print(
+        f"  instance: {len(instance.blocks)} blocks, 2 topics, exam in {EXAM_IN_DAYS:.0f} days "
+        f"(target S = {TARGET:.0f}), lateness penalty {instance.lateness_penalty:.0f}"
     )
-    print(f"  instance: {len(instance.blocks)} blocks, 2 topics, exam in {EXAM_IN_DAYS:.0f} days "
-          f"(target S = {TARGET:.0f}), lateness penalty {instance.lateness_penalty:.0f}")
 
     optimum = None
     if not quick:
         started = time.perf_counter()
         exact = solve_exact(instance)
         optimum = exact.value
-        print(f"\n  exhaustive backward induction: {exact.value:.5f} over {exact.nodes:,} states "
-              f"in {time.perf_counter() - started:.1f}s")
+        print(
+            f"\n  exhaustive backward induction: {exact.value:.5f} over {exact.nodes:,} states "
+            f"in {time.perf_counter() - started:.1f}s"
+        )
 
     print(f"\n  {'heuristic':<20} {'h(root)':>9} {'value':>10} {'expansions':>11} {'optimal':>8}")
     for name, heuristic in HEURISTICS:
         solution = solve_ao_star(instance, heuristic)
         ok = "—" if optimum is None else str(abs(solution.value - optimum) < 1e-9)
-        print(f"  {name:<20} {heuristic(instance, instance.initial):>9.3f} "
-              f"{solution.value:>10.5f} {solution.nodes:>11,} {ok:>8}")
+        print(
+            f"  {name:<20} {heuristic(instance, instance.initial):>9.3f} "
+            f"{solution.value:>10.5f} {solution.nodes:>11,} {ok:>8}"
+        )
 
     if optimum is not None:
-        print(f"\n  Weighted AO*: bounded suboptimality, stated and measured.")
+        print("\n  Weighted AO*: bounded suboptimality, stated and measured.")
         print(f"  {'w':>5} {'expansions':>11} {'plan cost':>11} {'real gap':>9} {'bound':>7}")
         for weight in (1.0, 1.2, 1.5, 2.0, 3.0):
             solution = solve_ao_star(instance, capacity_heuristic, weight=weight)
             cost = evaluate_policy(instance, solution)
-            print(f"  {weight:>5.1f} {solution.nodes:>11,} {cost:>11.4f} "
-                  f"{cost / optimum:>8.3f}x {weight:>6.1f}x")
+            print(
+                f"  {weight:>5.1f} {solution.nodes:>11,} {cost:>11.4f} "
+                f"{cost / optimum:>8.3f}x {weight:>6.1f}x"
+            )
 
 
 def part_4_findings() -> None:
@@ -243,16 +259,23 @@ def part_4_findings() -> None:
     print("      across two, so an A/B comparison must fix it.")
     for days in (7, 10):
         instance = Instance.build(
-            student_week(days), TOPICS[:2], TARGET, continuation,
-            max_blocks_per_day=1, lateness_penalty=12.0,
-            stability_step=0.15, difficulty_step=0.5,
+            student_week(days),
+            TOPICS[:2],
+            TARGET,
+            continuation,
+            max_blocks_per_day=1,
+            lateness_penalty=12.0,
+            stability_step=0.15,
+            difficulty_step=0.5,
         )
         solution = solve_ao_star(instance, capacity_heuristic, max_expansions=40_000)
         plan = solution.trajectory(instance)
-        print(f"\n      {days}-day horizon ({len(instance.blocks)} blocks): "
-              f"cost {evaluate_policy(instance, solution):.2f} "
-              f"(followed with exact dynamics {evaluate_exact_dynamics(instance, solution):.2f}), "
-              f"{len(plan)} blocks used")
+        print(
+            f"\n      {days}-day horizon ({len(instance.blocks)} blocks): "
+            f"cost {evaluate_policy(instance, solution):.2f} "
+            f"(followed with exact dynamics {evaluate_exact_dynamics(instance, solution):.2f}), "
+            f"{len(plan)} blocks used"
+        )
         for block, name in plan:
             print(f"          day {block.day:>2}  {block.start_day:5.2f}d  ->  {name}")
         if not plan:
@@ -262,14 +285,21 @@ def part_4_findings() -> None:
 def part_5_scaling() -> None:
     rule("5. Where it stops working, and why")
     continuation = solve(SSPConfig.for_heuristic(TARGET))
-    print(f"  {'days':>5} {'bl/day':>7} {'topics':>7} {'blocks':>7} {'aggreg.':>8} {'expansions':>11} {'time':>7}")
+    print(
+        f"  {'days':>5} {'bl/day':>7} {'topics':>7} {'blocks':>7} {'aggreg.':>8} "
+        f"{'expansions':>11} {'time':>7}"
+    )
     settings = ((5, 1, 2), (7, 1, 2), (10, 1, 2), (7, 2, 2), (14, 1, 2))
     for days, per_day, count in settings:
         for step in (0.0, 0.15):
             instance = Instance.build(
-                student_week(days), TOPICS[:count], TARGET, continuation,
+                student_week(days),
+                TOPICS[:count],
+                TARGET,
+                continuation,
                 max_blocks_per_day=per_day,
-                stability_step=step, difficulty_step=0.5 if step else 0.0,
+                stability_step=step,
+                difficulty_step=0.5 if step else 0.0,
             )
             started = time.perf_counter()
             try:
@@ -277,8 +307,10 @@ def part_5_scaling() -> None:
                 nodes = f"{solution.nodes:,}"
             except RuntimeError:
                 nodes = ">30k"
-            print(f"  {days:>5} {per_day:>7} {count:>7} {len(instance.blocks):>7} "
-                  f"{('on' if step else 'off'):>8} {nodes:>11} {time.perf_counter() - started:>6.1f}s")
+            print(
+                f"  {days:>5} {per_day:>7} {count:>7} {len(instance.blocks):>7} "
+                f"{('on' if step else 'off'):>8} {nodes:>11} {time.perf_counter() - started:>6.1f}s"
+            )
     print("\n  Inflating h prunes exploration outside the solution graph. It cannot shrink")
     print("  the graph itself, which is exponential in the number of coin flips along a")
     print("  path. State aggregation attacks that; receding-horizon replanning is next.")

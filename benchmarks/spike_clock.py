@@ -47,6 +47,7 @@ from cps.memory import (
     review,
     stability_for_interval,
 )
+from cps.memory import DEFAULT_WEIGHTS as W
 from cps.plan import tile_free_time
 from cps.ssp import (
     _interp_index,
@@ -54,7 +55,6 @@ from cps.ssp import (
     _vec_stability_on_lapse,
     _vec_stability_on_recall,
 )
-from cps.memory import DEFAULT_WEIGHTS as W
 
 TIMETABLE = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -99,7 +99,7 @@ def interp2(table: np.ndarray, d: np.ndarray, s: np.ndarray) -> np.ndarray:
 class ClockB:
     def __init__(self, goal: str, dt: float = 0.25, horizon: float = EXAM + 1):
         self.goal, self.dt = goal, dt
-        n_t = int(round(horizon / dt)) + 1
+        n_t = round(horizon / dt) + 1
         self.t_grid = np.arange(n_t) * dt
         d = D_GRID[:, None]
         s = S_GRID[None, :]
@@ -115,8 +115,10 @@ class ClockB:
                 s_rec = _vec_stability_on_recall(s, d, r, W)
                 s_lap = _vec_stability_on_lapse(s, d, r, W)
                 nxt = self.V[j - k]
-                q = 1 + r * self._value_at(nxt, d_rec, s_rec, t - a) + (1 - r) * self._value_at(
-                    nxt, d_lap, s_lap, t - a
+                q = (
+                    1
+                    + r * self._value_at(nxt, d_rec, s_rec, t - a)
+                    + (1 - r) * self._value_at(nxt, d_lap, s_lap, t - a)
                 )
                 best = np.minimum(best, q)
             best[done] = 0.0
@@ -138,7 +140,7 @@ class ClockB:
         if self._done(s, t_left):
             return 0.0
         pos = min(t_left / self.dt, len(self.t_grid) - 1)
-        lo = int(math.floor(pos))
+        lo = math.floor(pos)
         hi = min(lo + 1, len(self.t_grid) - 1)
         f = pos - lo
         a = float(interp2(self.V[lo], np.array([d]), np.array([s]))[0])
@@ -148,7 +150,7 @@ class ClockB:
     def waiting(self, d: float, s: float, elapsed: float, t_left: float) -> float:
         """W(D, S, e, t): not reviewed for `elapsed` days, `t_left` to the exam.
         The next review can only happen at an elapsed time of at least `e`."""
-        if self._done(s, 0.0 if t_left <= 0 else 0.0) and self.goal == "fixed":
+        if self.goal == "fixed" and self._done(s, 0.0):
             return 0.0
         if t_left <= 0:
             return 0.0 if (self.goal == "exam" and retrievability(elapsed, s) >= RHO) else PENALTY
@@ -162,9 +164,11 @@ class ClockB:
             r = retrievability(a, s)
             good = review(state, a, Grade.GOOD)
             bad = review(state, a, Grade.AGAIN)
-            q = 1 + r * self.post_review(good.difficulty, good.stability, left) + (
-                1 - r
-            ) * self.post_review(bad.difficulty, bad.stability, left)
+            q = (
+                1
+                + r * self.post_review(good.difficulty, good.stability, left)
+                + (1 - r) * self.post_review(bad.difficulty, bad.stability, left)
+            )
             best = min(best, q)
         return best
 
@@ -182,13 +186,13 @@ class ClockA:
 
     def __init__(self, n_blocks: int, gap: float, dt: float = 0.5, horizon: float = EXAM + 1):
         self.gap, self.dt = gap, dt
-        self.t_grid = np.arange(int(round(horizon / dt)) + 1) * dt
+        self.t_grid = np.arange(round(horizon / dt) + 1) * dt
         n_t = len(self.t_grid)
         retentions = np.linspace(0.05, 0.999, 40)
         d = D_GRID[None, :, None]
         s = S_GRID[None, None, :]
         r = retentions[:, None, None]
-        delay = s / (19 / 81) * (r ** -2 - 1)
+        delay = s / (19 / 81) * (r**-2 - 1)
         s_rec = _vec_stability_on_recall(s, d, r, W) * np.ones_like(r)
         s_lap = _vec_stability_on_lapse(s, d, r, W) * np.ones_like(r)
         d_rec = _vec_next_difficulty(d, Grade.GOOD, W) * np.ones_like(s_rec)
@@ -200,7 +204,7 @@ class ClockA:
         for b in range(1, n_blocks + 1):
             prev = self.V[b - 1]
             for j, t in enumerate(self.t_grid):
-                skip_j = max(int(math.floor((t - gap) / dt)), 0)
+                skip_j = max(math.floor((t - gap) / dt), 0)
                 skip = prev[skip_j] if t - gap >= 0 else self.V[0][0]
                 left = t - delay
                 feasible = left >= 0
@@ -324,8 +328,7 @@ def main() -> None:
         p = ok / seeds
         se = math.sqrt(p * (1 - p) / seeds)
         first = f"{np.mean(firsts):.1f}" if firsts else "-"
-        print(f"  {name:<12} {np.mean(used):>6.2f} {first:>9} {p:>7.0%} ± {se:.0%} "
-              f"{np.mean(recalls):>10.3f}")
+        print(f"  {name:<12} {np.mean(used):>6.2f} {first:>9} {p:>7.0%} ± {se:.0%} {np.mean(recalls):>10.3f}")
 
 
 if __name__ == "__main__":

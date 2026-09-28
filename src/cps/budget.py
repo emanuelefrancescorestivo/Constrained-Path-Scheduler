@@ -61,6 +61,7 @@ two independently structured solvers, one answer.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -117,7 +118,7 @@ class BudgetConfig:
         return np.linspace(self.min_retention, self.max_retention, self.n_retentions)
 
     @classmethod
-    def for_heuristic(cls, target_stability: float, **kwargs) -> "BudgetConfig":
+    def for_heuristic(cls, target_stability: float, **kwargs) -> BudgetConfig:
         """Lower-bounding variant, for use as an admissible heuristic.
 
         Same two requirements as `ssp.SSPConfig.for_heuristic`: optimistic
@@ -125,7 +126,7 @@ class BudgetConfig:
         and an action range wide enough that every delay a calendar can induce is
         inside it.
         """
-        params = dict(target_stability=target_stability, interpolation="optimistic")
+        params: dict[str, Any] = dict(target_stability=target_stability, interpolation="optimistic")
         params.update(kwargs)
         return cls(**params)
 
@@ -144,17 +145,13 @@ class BudgetPolicy:
     # -- queries ------------------------------------------------------------- #
 
     def _interp(self, table: np.ndarray, difficulty: float, stability: float) -> float:
-        i, wd = _interp_index(
-            self.difficulty_grid, np.array([np.clip(difficulty, D_MIN, D_MAX)])
-        )
+        i_arr, wd_arr = _interp_index(self.difficulty_grid, np.array([np.clip(difficulty, D_MIN, D_MAX)]))
         log_grid = np.log(self.stability_grid)
-        j, ws = _interp_index(
+        j_arr, ws_arr = _interp_index(
             log_grid,
-            np.log(
-                np.array([np.clip(stability, self.stability_grid[0], self.stability_grid[-1])])
-            ),
+            np.log(np.array([np.clip(stability, self.stability_grid[0], self.stability_grid[-1])])),
         )
-        i, j, wd, ws = int(i[0]), int(j[0]), float(wd[0]), float(ws[0])
+        i, j, wd, ws = int(i_arr[0]), int(j_arr[0]), float(wd_arr[0]), float(ws_arr[0])
         corners = (table[i, j], table[i, j + 1], table[i + 1, j], table[i + 1, j + 1])
         if self.config.interpolation == "optimistic":
             return float(min(corners))

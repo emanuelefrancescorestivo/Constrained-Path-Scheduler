@@ -24,7 +24,8 @@ where = ["src"]
 cps = "cps.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+# Versions are the ones the checks were run with in milestone M4.
+dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3"]
 # The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
 # altair, which app.py uses for its tables and chart.
 app = ["streamlit>=1.64"]
@@ -33,3 +34,29 @@ app = ["streamlit>=1.64"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["archive"]
+
+[tool.ruff.lint]
+# Chosen explicitly rather than inherited from whatever the installed ruff
+# defaults to: pyflakes, pycodestyle, import order, bugbear, pyupgrade,
+# simplifications and ruff's own checks.
+select = ["F", "E", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # the docs use real typography: en dashes, primes, pi
+]
+
+[tool.mypy]
+# No python_version: numpy's stubs need 3.12 syntax, so mypy checks with the
+# interpreter it runs on. CI runs 3.11 to 3.13 for the tests themselves.
+files = ["src"]
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# python-dateutil ships no type information and its stubs are a separate
+# package; declaring it untyped is cheaper than a new dependency.
+module = ["dateutil", "dateutil.*"]
+ignore_missing_imports = true

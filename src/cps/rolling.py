@@ -53,8 +53,8 @@ scheme, and `docs/METHOD.md` says so.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence
 
 import numpy as np
 
@@ -131,7 +131,7 @@ class DeadlineContinuation:
                 "bounds used by a heuristic must come from ClockConfig.for_heuristic "
                 "(optimistic interpolation)"
             )
-        for estimate, bound in zip(self.estimates, self.bounds):
+        for estimate, bound in zip(self.estimates, self.bounds, strict=True):
             if estimate.target_stability != bound.target_stability:
                 raise ValueError("estimate and bound must share a target")
 
@@ -143,7 +143,7 @@ class DeadlineContinuation:
     def _total(policies, exams, topics: Sequence[TopicState], now: float) -> float:
         return sum(
             policy.cost_of(t.stability, t.difficulty, t.last_review_day, now, exam)
-            for policy, exam, t in zip(policies, exams, topics)
+            for policy, exam, t in zip(policies, exams, topics, strict=True)
         )
 
     def cost_at(self, topics: Sequence[TopicState], now: float) -> float:
@@ -339,21 +339,21 @@ class RollingResult:
     @property
     def ready(self) -> tuple[bool, ...]:
         """Per subject: did stability reach that subject's target before its exam."""
-        return tuple(t.stability >= g for t, g in zip(self.final_topics, self.targets))
+        return tuple(t.stability >= g for t, g in zip(self.final_topics, self.targets, strict=True))
 
     @property
     def recall_at_exam(self) -> tuple[float, ...]:
         """Per subject: predicted probability of recall at the moment of the exam."""
         return tuple(
             retrievability(max(exam - t.last_review_day, 0.0), t.stability)
-            for t, exam in zip(self.final_topics, self.exam_days)
+            for t, exam in zip(self.final_topics, self.exam_days, strict=True)
         )
 
     def unready_subjects(self) -> tuple[str, ...]:
-        return tuple(n for n, ok in zip(self.subjects, self.ready) if not ok)
+        return tuple(n for n, ok in zip(self.subjects, self.ready, strict=True) if not ok)
 
     def unreachable_subjects(self) -> tuple[str, ...]:
-        return tuple(n for n, bad in zip(self.subjects, self.unreachable) if bad)
+        return tuple(n for n, bad in zip(self.subjects, self.unreachable, strict=True) if bad)
 
     def first_review_day(self, subject: str) -> float | None:
         return next((s.block.start_day for s in self.sessions if s.subject == subject), None)
@@ -417,11 +417,11 @@ def run_rolling(
             s.memory, [b.start_day for b in blocks if b.start_day < s.exam_day], weights, s.last_review_day
         )
         < target
-        for s, target in zip(subjects, targets)
+        for s, target in zip(subjects, targets, strict=True)
     )
     # An unreachable subject is never offered as an action: its exam is treated as
     # already past, so the plan does not spend blocks on a lost cause.
-    live_exams = tuple(0.0 if bad else exam for bad, exam in zip(unreachable, exams))
+    live_exams = tuple(0.0 if bad else exam for bad, exam in zip(unreachable, exams, strict=True))
 
     state = tuple(TopicState(s.memory.stability, s.memory.difficulty, s.last_review_day) for s in subjects)
     result = RollingResult(
@@ -436,7 +436,7 @@ def run_rolling(
 
     for index in range(len(blocks)):
         now = blocks[index].start_day
-        if not any(t.stability < g and now < e for t, g, e in zip(state, targets, live_exams)):
+        if not any(t.stability < g and now < e for t, g, e in zip(state, targets, live_exams, strict=True)):
             break  # everything is ready, lost, or past its exam
 
         pane = tuple(blocks[index : index + window])
@@ -494,4 +494,3 @@ def run_rolling(
 
     result.final_topics = state
     return result
-

@@ -41,10 +41,11 @@ References
 
 from __future__ import annotations
 
+import itertools
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Iterable, Sequence
 
 # --------------------------------------------------------------------------- #
 # Forgetting-curve constants (fixed in FSRS-4.5 / FSRS-5; trainable in v6+).
@@ -115,7 +116,7 @@ class Weights:
     easy_bonus: float  # > 1
 
     @classmethod
-    def from_vector(cls, v: Sequence[float]) -> "Weights":
+    def from_vector(cls, v: Sequence[float]) -> Weights:
         if len(v) != 17:
             raise ValueError(f"FSRS-4.5 takes 17 parameters, got {len(v)}")
         return cls(*(float(x) for x in v))
@@ -144,6 +145,7 @@ class Weights:
 
 # open-spaced-repetition/awesome-fsrs, "The Algorithm" wiki (FSRS-4.5 defaults).
 # These are population defaults, not a fit to any individual. See AUDIT.md.
+# fmt: off
 DEFAULT_WEIGHTS = Weights.from_vector(
     [
         0.4872, 1.4003, 3.7145, 13.8206,  # initial stability, grades 1..4
@@ -154,6 +156,7 @@ DEFAULT_WEIGHTS = Weights.from_vector(
         0.2272, 2.8755,                    # hard penalty, easy bonus
     ]
 )
+# fmt: on
 DEFAULT_WEIGHTS.validate()
 
 
@@ -237,9 +240,7 @@ def _next_difficulty(difficulty: float, grade: Grade, w: Weights) -> float:
     return _clamp(d, D_MIN, D_MAX)
 
 
-def _stability_on_recall(
-    stability: float, difficulty: float, r: float, grade: Grade, w: Weights
-) -> float:
+def _stability_on_recall(stability: float, difficulty: float, r: float, grade: Grade, w: Weights) -> float:
     """S' = S * (1 + e^a * (11 - D) * S^-b * (e^((1-R)*c) - 1) * modifiers)
 
     Three things to notice, because they are the three things the January model
@@ -403,7 +404,7 @@ def expected_retention_at(
     always-recalled trajectory for the A* heuristic.
     """
     days = list(review_days)
-    if any(b < a for a, b in zip(days, days[1:])):
+    if any(b < a for a, b in itertools.pairwise(days)):
         raise ValueError("review_days must be non-decreasing")
     if days and (days[0] < 0 or days[-1] > exam_day):
         raise ValueError("review_days must lie in [0, exam_day]")

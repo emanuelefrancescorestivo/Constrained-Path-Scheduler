@@ -32,13 +32,17 @@ from datetime import date
 from pathlib import Path
 from cps import service
 
-report = service.analyse_calendar(Path("examples/sample-timetable.ics").read_bytes(),
-                                  start=date(2026, 3, 2), tz="Europe/Rome")
-plan = service.make_plan(report, [
-    service.SubjectSpec("Analysis", None, familiarity=2),        # date from the calendar
-    service.SubjectSpec("Algebra", "2026-03-27", familiarity=3),
-])
-plan = service.replan_after(plan, 0, "lapsed")                   # it did not stick
+report = service.analyse_calendar(
+    Path("examples/sample-timetable.ics").read_bytes(), start=date(2026, 3, 2), tz="Europe/Rome"
+)
+plan = service.make_plan(
+    report,
+    [
+        service.SubjectSpec("Analysis", None, familiarity=2),  # date from the calendar
+        service.SubjectSpec("Algebra", "2026-03-27", familiarity=3),
+    ],
+)
+plan = service.replan_after(plan, 0, "lapsed")  # it did not stick
 Path("plan.ics").write_bytes(service.export_ics(plan))
 ```
 

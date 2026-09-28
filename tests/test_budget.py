@@ -79,9 +79,7 @@ def test_marginal_value_decays_to_nothing(policy):
 
 
 def test_zero_budget_costs_the_failure_penalty(policy):
-    assert policy.cost_of(MemoryState(2.0, 7.0), 0) == pytest.approx(
-        policy.config.failure_penalty
-    )
+    assert policy.cost_of(MemoryState(2.0, 7.0), 0) == pytest.approx(policy.config.failure_penalty)
     assert policy.cost_of(MemoryState(TARGET + 1, 7.0), 0) == 0.0
 
 
@@ -154,9 +152,7 @@ def test_solve_refuses_a_budget_that_still_binds():
 
 
 def test_slack_check_can_be_waived_for_diagnostics():
-    coarse = solve_budget(
-        BudgetConfig(target_stability=TARGET, max_budget=20), require_slack=False
-    )
+    coarse = solve_budget(BudgetConfig(target_stability=TARGET, max_budget=20), require_slack=False)
     assert coarse.binding_budget == coarse.config.max_budget
 
 

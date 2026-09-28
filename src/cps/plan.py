@@ -14,7 +14,8 @@ which memory never fails.
 The right algorithm is therefore AO*, Nilsson's heuristic search for AND/OR
 graphs [ref:nilsson1980]. Note what we do *not* need: LAO* [ref:hansen2001]
 exists to handle cycles in the state graph, and here the block index strictly
-increases along every edge, so the graph is acyclic. Bringing in LAO*'s cycle machinery would be weight without benefit.
+increases along every edge, so the graph is acyclic. Bringing in LAO*'s cycle
+machinery would be weight without benefit.
 
 Three simplifications, stated rather than hidden
 -----------------------------------------------
@@ -42,20 +43,19 @@ Three simplifications, stated rather than hidden
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
-from typing import Callable, Iterable, Protocol, Sequence, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from .memory import (
-    D_MIN,
-    initial_difficulty,
     DEFAULT_WEIGHTS,
     Grade,
     MemoryState,
     Weights,
+    initial_difficulty,
     retrievability,
     review,
 )
-from .ssp import MemorizationPolicy
 from .timegrid import TimeGrid
 
 
@@ -86,9 +86,10 @@ class TimedContinuation(Protocol):
     use. Keeping them as two methods is invariant 1 applied to this object.
     """
 
-    def cost_at(self, topics: Sequence["TopicState"], now: float) -> float: ...
+    def cost_at(self, topics: Sequence[TopicState], now: float) -> float: ...
 
-    def bound_at(self, topics: Sequence["TopicState"], now: float) -> float: ...
+    def bound_at(self, topics: Sequence[TopicState], now: float) -> float: ...
+
 
 # --------------------------------------------------------------------------- #
 # States
@@ -133,9 +134,7 @@ SKIP = -1  # the action of leaving a block unused
 # --------------------------------------------------------------------------- #
 
 
-def tile_free_time(
-    grid: TimeGrid, block_slots: int = 3, max_blocks_per_day: int = 2
-) -> tuple[Block, ...]:
+def tile_free_time(grid: TimeGrid, block_slots: int = 3, max_blocks_per_day: int = 2) -> tuple[Block, ...]:
     """Greedily cut each day's free time into non-overlapping study blocks.
 
     Earliest-fit within the day, capped per day to model fatigue. See
@@ -165,7 +164,7 @@ class Instance:
     blocks: tuple[Block, ...]
     initial: PlanState
     target_stability: float
-    continuation: Continuation
+    continuation: Continuation | TimedContinuation
     lateness_penalty: float
     # State aggregation. Zero disables it. Otherwise successor stabilities are
     # snapped to a multiplicative grid of this relative step and difficulties to
@@ -197,7 +196,7 @@ class Instance:
     def target_of(self, index: int) -> float:
         return self.targets[index] if self.targets else self.target_stability
 
-    def is_ready(self, index: int, topic: "TopicState") -> bool:
+    def is_ready(self, index: int, topic: TopicState) -> bool:
         return topic.stability >= self.target_of(index)
 
     @classmethod
@@ -213,11 +212,10 @@ class Instance:
         stability_step: float = 0.0,
         difficulty_step: float = 0.0,
         weights: Weights = DEFAULT_WEIGHTS,
-    ) -> "Instance":
+    ) -> Instance:
         if not getattr(continuation, "is_lower_bound", False):
             raise ValueError(
-                "continuation must be an optimistic (lower-bounding) solve; "
-                "use SSPConfig.for_heuristic"
+                "continuation must be an optimistic (lower-bounding) solve; use SSPConfig.for_heuristic"
             )
         blocks = tile_free_time(grid, block_slots, max_blocks_per_day)
         # Default penalty: the number of blocks in the horizon. Since no policy
@@ -232,9 +230,7 @@ class Instance:
         # costs are not comparable. Pin it explicitly for any A/B comparison.
         if lateness_penalty is None:
             lateness_penalty = float(len(blocks))
-        initial = PlanState(
-            0, tuple(TopicState(m.stability, m.difficulty, 0.0) for _, m in topics)
-        )
+        initial = PlanState(0, tuple(TopicState(m.stability, m.difficulty, 0.0) for _, m in topics))
         return cls(
             topics=tuple(name for name, _ in topics),
             blocks=blocks,
@@ -300,7 +296,7 @@ class Instance:
             for i, t in enumerate(state.topics)
             if not self.is_ready(i, t) and (not self.exam_days or now < self.exam_days[i])
         )
-        return live + (SKIP,)
+        return (*live, SKIP)
 
     def successors(self, state: PlanState, action: int) -> tuple[float, tuple[tuple[float, PlanState], ...]]:
         """(immediate cost, [(probability, successor), ...])."""
@@ -375,7 +371,8 @@ def best_case_reviews(
 
     Lapses cannot beat this either: a lapse never ends above a successful recall
     from the same state after the same delay, and it raises difficulty
-    (`test_a_lapse_never_beats_a_recall`, AUDIT.md item 27). So no policy, constrained or not, reaches the target in fewer
+    (`test_a_lapse_never_beats_a_recall`, AUDIT.md item 27). So no policy,
+    constrained or not, reaches the target in fewer
     reviews than the count returned here.
     """
     floor = min(difficulty, initial_difficulty(Grade.GOOD, weights))
@@ -397,14 +394,14 @@ def best_case_reviews(
     return cap
 
 
-def _topic_horizon(instance: "Instance", state: PlanState, topic: TopicState) -> float:
+def _topic_horizon(instance: Instance, state: PlanState, topic: TopicState) -> float:
     """Longest gap still available to this topic before the last usable block."""
     if state.block_index >= len(instance.blocks):
         return 0.0
     return max(instance.blocks[-1].start_day - topic.last_review_day, 0.0)
 
 
-def _deadline_bound(instance: "Instance", state: PlanState) -> float:
+def _deadline_bound(instance: Instance, state: PlanState) -> float:
     """Lower bound on blocks spent plus lateness penalties, by a knapsack argument.
 
     Any policy finishes some subset F of the live topics. Each topic in F costs at
@@ -450,9 +447,22 @@ def closed_form_heuristic(instance: Instance, state: PlanState) -> float:
     return _deadline_bound(instance, state)
 
 
+def _memory_bound(instance: Instance) -> Continuation:
+    """The continuation, if it prices memory states alone. A TimedContinuation
+    also needs the time, so the heuristics below cannot use it; the planner that
+    uses one has its own heuristic (`rolling.deadline_heuristic`)."""
+    continuation = instance.continuation
+    if not isinstance(continuation, Continuation):
+        raise TypeError(
+            "this heuristic needs a continuation that prices memory states alone; "
+            "with a TimedContinuation use rolling.deadline_heuristic"
+        )
+    return continuation
+
+
 def ssp_heuristic(instance: Instance, state: PlanState) -> float:
     """h = sum of per-topic optimistic V*. Much better informed; see METHOD.md."""
-    return instance.continuation.reviews_lower_bound(t.as_memory() for t in state.topics)
+    return _memory_bound(instance).reviews_lower_bound(t.as_memory() for t in state.topics)
 
 
 # --------------------------------------------------------------------------- #
@@ -537,11 +547,11 @@ class _Node:
     solved: bool = False
     expanded: bool = False
     best_action: int = SKIP
-    children: dict[int, tuple[float, tuple[tuple[float, "_Node"], ...]]] = field(default_factory=dict)
-    parents: list["_Node"] = field(default_factory=list)
+    children: dict[int, tuple[float, tuple[tuple[float, _Node], ...]]] = field(default_factory=dict)
+    parents: list[_Node] = field(default_factory=list)
 
 
-def evaluate_policy(instance: Instance, solution: "Solution") -> float:
+def evaluate_policy(instance: Instance, solution: Solution) -> float:
     """Exact expected cost of *following* a given policy, with no minimisation.
 
     Needed because a weighted run inflates the heuristic, so the value AO*
@@ -570,7 +580,7 @@ def evaluate_policy(instance: Instance, solution: "Solution") -> float:
     return rec(instance.initial)
 
 
-def evaluate_exact_dynamics(instance: Instance, solution: "Solution") -> float:
+def evaluate_exact_dynamics(instance: Instance, solution: Solution) -> float:
     """Expected cost of following an aggregated policy in the real, unsnapped world.
 
     `evaluate_policy` follows the policy with the instance's own transitions, so on
@@ -599,7 +609,7 @@ def evaluate_exact_dynamics(instance: Instance, solution: "Solution") -> float:
         # Both lists are ordered recall, then lapse; probabilities come from the real state.
         return cost + sum(
             p * rec(s_next, r_next)
-            for (_, s_next), (p, r_next) in zip(snapped_outcomes, real_outcomes)
+            for (_, s_next), (p, r_next) in zip(snapped_outcomes, real_outcomes, strict=True)
         )
 
     return rec(instance.initial, instance.initial)
@@ -632,9 +642,7 @@ def solve_ao_star(
         if existing is not None:
             return existing
         terminal = instance.is_terminal(state)
-        value = (
-            instance.terminal_cost(state) if terminal else weight * heuristic(instance, state)
-        )
+        value = instance.terminal_cost(state) if terminal else weight * heuristic(instance, state)
         created = _Node(state=state, value=value, terminal=terminal, solved=terminal)
         nodes[state] = created
         return created
@@ -721,5 +729,5 @@ def capacity_heuristic(instance: Instance, state: PlanState) -> float:
     11.81 and barely beat h = 0; the combination reduced expansions from 2,289 to
     305.
     """
-    owed = instance.continuation.reviews_lower_bound(t.as_memory() for t in state.topics)
+    owed = _memory_bound(instance).reviews_lower_bound(t.as_memory() for t in state.topics)
     return max(owed, _deadline_bound(instance, state))

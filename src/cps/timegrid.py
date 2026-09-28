@@ -30,8 +30,8 @@ Two consequences that matter more than the constant factor:
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
-from typing import Iterator, Sequence
 
 SLOTS_PER_DAY: int = 48  # 30-minute quanta
 SLOTS_PER_HOUR: int = 2
@@ -91,7 +91,7 @@ class TimeGrid:
 
     # -- transitions (return new grids; never mutate) ------------------------ #
 
-    def occupy(self, start: int, duration: int = 1) -> "TimeGrid":
+    def occupy(self, start: int, duration: int = 1) -> TimeGrid:
         """Mark a block busy. Raises if it does not fit, rather than clipping:
         a scheduler that silently drops half a study block is worse than one
         that crashes."""
@@ -99,7 +99,7 @@ class TimeGrid:
             raise ValueError(f"slots [{start}, {start + duration}) are not free")
         return replace(self, busy=self.busy | self._window(start, duration))
 
-    def block(self, start: int, duration: int) -> "TimeGrid":
+    def block(self, start: int, duration: int) -> TimeGrid:
         """Mark a block busy idempotently, clipped to the horizon. For external
         constraints (sleep, classes) that may legitimately overlap each other
         and may run past the end of the planning window."""
@@ -112,7 +112,7 @@ class TimeGrid:
             return self
         return replace(self, busy=self.busy | self._window(start_c, end_c - start_c))
 
-    def block_daily(self, start_hour: float, end_hour: float, days: Sequence[int] | None = None) -> "TimeGrid":
+    def block_daily(self, start_hour: float, end_hour: float, days: Sequence[int] | None = None) -> TimeGrid:
         """Block a recurring wall-clock window on the given days.
 
         Handles windows that cross midnight (23:00-07:00 sleep) by treating them
@@ -132,10 +132,10 @@ class TimeGrid:
         span_hours = end_hour - start_hour
         if span_hours <= 0:
             span_hours += 24.0  # crosses midnight
-        duration = int(round(span_hours * SLOTS_PER_HOUR))
+        duration = round(span_hours * SLOTS_PER_HOUR)
         grid = self
         for day in target_days:
-            start = day * self.slots_per_day + int(round(start_hour * SLOTS_PER_HOUR))
+            start = day * self.slots_per_day + round(start_hour * SLOTS_PER_HOUR)
             grid = grid.block(start, duration)
         return grid
 

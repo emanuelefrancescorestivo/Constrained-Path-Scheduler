@@ -33,8 +33,8 @@ from __future__ import annotations
 import argparse
 import math
 import time
+from collections.abc import Callable, Sequence
 from datetime import date
-from typing import Callable, Sequence
 
 import numpy as np
 
@@ -71,10 +71,14 @@ SUBJECTS = (
 class Outcome:
     """What one run of any scheduler produced, in the same shape for all."""
 
-    def __init__(self, sessions: list[tuple[float, int, bool]], final: list[tuple[MemoryState, float]],
-                 targets: Sequence[float]):
+    def __init__(
+        self,
+        sessions: list[tuple[float, int, bool]],
+        final: list[tuple[MemoryState, float]],
+        targets: Sequence[float],
+    ):
         self.sessions = sessions  # (start_day, subject index, recalled)
-        self.ready = all(m.stability >= g for (m, _), g in zip(final, targets))
+        self.ready = all(m.stability >= g for (m, _), g in zip(final, targets, strict=True))
         self.recall = float(np.mean([retrievability(EXAM_DAYS - last, m.stability) for m, last in final]))
         self.stability = float(np.mean([m.stability for m, _ in final]))
         self.lapses = sum(1 for *_, ok in sessions if not ok)
@@ -82,9 +86,12 @@ class Outcome:
         self.first_analysis = first[0] if first else math.nan
 
 
-def simulate_rule(blocks: Sequence[Block], targets: Sequence[float],
-                  due: Callable[[MemoryState, float, float], float | None],
-                  rng: np.random.Generator | None) -> Outcome:
+def simulate_rule(
+    blocks: Sequence[Block],
+    targets: Sequence[float],
+    due: Callable[[MemoryState, float, float], float | None],
+    rng: np.random.Generator | None,
+) -> Outcome:
     """A rule-based scheduler. `due(memory, last_review_day, now)` returns an
     urgency (lower is more urgent) or None if the subject is not due."""
     state = [(s.memory, 0.0) for s in SUBJECTS]
@@ -92,7 +99,7 @@ def simulate_rule(blocks: Sequence[Block], targets: Sequence[float],
     for block in blocks:
         now = block.start_day
         candidates = []
-        for i, ((memory, last), subject, target) in enumerate(zip(state, SUBJECTS, targets)):
+        for i, ((memory, last), subject, target) in enumerate(zip(state, SUBJECTS, targets, strict=True)):
             if memory.stability >= target or now >= subject.exam_day:
                 continue
             urgency = due(memory, last, now)
@@ -113,12 +120,14 @@ def greedy_fixed(retention: float):
     def due(memory, last, now):
         r = retrievability(now - last, memory.stability)
         return r if r <= retention else None
+
     return due
 
 
 def every_k(k: float):
     def due(memory, last, now):
         return last - now if now - last >= k else None
+
     return due
 
 
@@ -137,19 +146,27 @@ def summarise(name: str, outcomes: list[Outcome], seconds: float) -> str:
     used = np.array([len(o.sessions) for o in outcomes], dtype=float)
     firsts = np.array([o.first_analysis for o in outcomes])
     first = f"day {np.nanmean(firsts):.1f}" if np.isfinite(firsts).any() else "-"
-    return (f"  {name:<13} {p:>5.0%} ± {se:>3.0%}  {used.mean():>5.2f} ± {used.std(ddof=1) / math.sqrt(n):.2f}"
-            f"  {np.mean([o.lapses for o in outcomes]):>6.2f}  {first:>9}"
-            f"  {np.mean([o.recall for o in outcomes]):>6.3f}  {np.mean([o.stability for o in outcomes]):>6.1f}"
-            f"  {seconds:>5.1f}s")
+    return (
+        f"  {name:<13} {p:>5.0%} ± {se:>3.0%}  {used.mean():>5.2f} ± {used.std(ddof=1) / math.sqrt(n):.2f}"
+        f"  {np.mean([o.lapses for o in outcomes]):>6.2f}  {first:>9}"
+        f"  {np.mean([o.recall for o in outcomes]):>6.3f}  {np.mean([o.stability for o in outcomes]):>6.1f}"
+        f"  {seconds:>5.1f}s"
+    )
 
 
 def main() -> None:
     ensure_utf8_output()
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--windows", type=int, nargs="+", default=[1, 2, 4])
     parser.add_argument("--seeds", type=int, default=100)
-    parser.add_argument("--penalty", type=float, default=PENALTY,
-                        help="failure penalty in blocks; pinned at 40 for every quoted number")
+    parser.add_argument(
+        "--penalty",
+        type=float,
+        default=PENALTY,
+        help="failure penalty in blocks; pinned at 40 for every quoted number",
+    )
     parser.add_argument("--baselines", action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
 
@@ -158,29 +175,40 @@ def main() -> None:
     started = time.perf_counter()
     continuation = solve_deadlines(SUBJECTS, RETENTION, args.penalty)
     targets = continuation.targets
-    print(f"scenario: {int(EXAM_DAYS)} days, {len(blocks)} candidate blocks, {len(SUBJECTS)} subjects, "
-          f"targets {', '.join(f'{t:.0f}' for t in targets)}, penalty {args.penalty:g}, "
-          f"clock solves {time.perf_counter() - started:.1f}s")
+    print(
+        f"scenario: {int(EXAM_DAYS)} days, {len(blocks)} candidate blocks, {len(SUBJECTS)} subjects, "
+        f"targets {', '.join(f'{t:.0f}' for t in targets)}, penalty {args.penalty:g}, "
+        f"clock solves {time.perf_counter() - started:.1f}s"
+    )
 
     estimate = continuation.estimates[0]
     print("\ncost of postponing Analysis (S=2, D=7), in blocks, from the start of the plan:")
-    print("  " + "  ".join(
-        f"{x:g}d: {estimate.cost_of_postponing(7.0, 2.0, 0.0, EXAM_DAYS, x):+.2f}" for x in (1, 2, 4, 8, 12, 16)
-    ))
-    print(f"  best first review, unconstrained: day "
-          f"{estimate.best_review_time(7.0, 2.0, 0.0, EXAM_DAYS):.2f}")
+    print(
+        "  "
+        + "  ".join(
+            f"{x:g}d: {estimate.cost_of_postponing(7.0, 2.0, 0.0, EXAM_DAYS, x):+.2f}"
+            for x in (1, 2, 4, 8, 12, 16)
+        )
+    )
+    print(
+        f"  best first review, unconstrained: day {estimate.best_review_time(7.0, 2.0, 0.0, EXAM_DAYS):.2f}"
+    )
 
     print("\ndeterministic run (every recall succeeds): day, subject, recall at review")
     for window in args.windows:
         result = run_rolling(blocks, SUBJECTS, continuation, window=window)
-        line = ", ".join(f"{s.block.start_day:.1f} {s.subject[:3]} {s.retrievability_at_review:.2f}"
-                         for s in result.sessions)
+        line = ", ".join(
+            f"{s.block.start_day:.1f} {s.subject[:3]} {s.retrievability_at_review:.2f}"
+            for s in result.sessions
+        )
         print(f"  window {window}: {line or 'no sessions'}")
 
     seeds = range(args.seeds)
     print(f"\nstochastic runs ({args.seeds} seeds), mean ± standard error:")
-    print(f"  {'scheduler':<13} {'ready':>11}  {'blocks':>12}  {'lapses':>6}  {'first Ana':>9}"
-          f"  {'recall':>6}  {'S exam':>6}  {'time':>6}")
+    print(
+        f"  {'scheduler':<13} {'ready':>11}  {'blocks':>12}  {'lapses':>6}  {'first Ana':>9}"
+        f"  {'recall':>6}  {'S exam':>6}  {'time':>6}"
+    )
     print("  recall = predicted probability of recall at the exam, S exam = stability at the")
     print("  exam in days; both are means over the two subjects")
     for window in args.windows:
@@ -198,10 +226,14 @@ def main() -> None:
     for k in range(1, 8):
         runs = [simulate_rule(blocks, targets, every_k(k), np.random.default_rng(s)) for s in seeds]
         scan[k] = runs
-    best_k = max(scan, key=lambda k: (sum(o.ready for o in scan[k]), -np.mean([len(o.sessions) for o in scan[k]])))
+    best_k = max(
+        scan, key=lambda k: (sum(o.ready for o in scan[k]), -np.mean([len(o.sessions) for o in scan[k]]))
+    )
     print(summarise(f"every-{best_k} (best)", scan[best_k], 0.0))
-    print("  every-k readiness for k = 1..7: " + ", ".join(
-        f"{k}: {sum(o.ready for o in runs) / len(runs):.0%}" for k, runs in scan.items()))
+    print(
+        "  every-k readiness for k = 1..7: "
+        + ", ".join(f"{k}: {sum(o.ready for o in runs) / len(runs):.0%}" for k, runs in scan.items())
+    )
 
 
 if __name__ == "__main__":

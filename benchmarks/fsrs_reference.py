@@ -25,22 +25,37 @@ computes from the same inputs, and the largest difference.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import fsrs  # py-fsrs 2.5.1, see above
 
-from cps.memory import Grade, MemoryState, initial_state, review
+from cps.memory import Grade, initial_state, review
 
 assert fsrs.FSRS().p.w[4] == 5.1618, "this script needs fsrs==2.5.1 (FSRS-4.5 defaults)"
 
-START = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+START = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
 GRADES = {1: fsrs.Rating.Again, 2: fsrs.Rating.Hard, 3: fsrs.Rating.Good, 4: fsrs.Rating.Easy}
 # (grade, days after the previous review) after the first rating; chosen once,
 # by hand, to cover every grade and a range of gaps. Not tuned to any outcome.
-MIXED = [(3, 3), (1, 9), (3, 1), (2, 2), (3, 5), (4, 7), (1, 40), (3, 2), (3, 6), (2, 15), (4, 30),
-         # four lapses in a row drive stability low, then a long gap: the last lapse
-         # ends *above* the stability before it, which FSRS-4.5 allows (AUDIT item 27)
-         (1, 3), (1, 25), (1, 1), (1, 30)]
+MIXED = [
+    (3, 3),
+    (1, 9),
+    (3, 1),
+    (2, 2),
+    (3, 5),
+    (4, 7),
+    (1, 40),
+    (3, 2),
+    (3, 6),
+    (2, 15),
+    (4, 30),
+    # four lapses in a row drive stability low, then a long gap: the last lapse
+    # ends *above* the stability before it, which FSRS-4.5 allows (AUDIT item 27)
+    (1, 3),
+    (1, 25),
+    (1, 1),
+    (1, 30),
+]
 
 
 def first_review(grade: int):
@@ -71,8 +86,10 @@ def main() -> None:
         card, _ = scheduler.review_card(card, fsrs.Rating.Good, now)
         ours = review(ours, float(interval), Grade.GOOD)
         worst = max(worst, abs(card.stability - ours.stability), abs(card.difficulty - ours.difficulty))
-        print(f"   {interval:>8}  {card.stability:>12.6f} {card.difficulty:>10.6f}  "
-              f"{ours.stability:>12.6f} {ours.difficulty:>10.6f}")
+        print(
+            f"   {interval:>8}  {card.stability:>12.6f} {card.difficulty:>10.6f}  "
+            f"{ours.stability:>12.6f} {ours.difficulty:>10.6f}"
+        )
     print(f"   next interval {card.scheduled_days}; largest difference {worst:.2e}")
 
     scheduler, card, now = first_review(3)
@@ -91,8 +108,10 @@ def main() -> None:
             card, _ = scheduler.review_card(card, fsrs.Rating.Good, now)
         ours = review(ours, float(gap), Grade(grade))
         worst = max(worst, abs(card.stability - ours.stability), abs(card.difficulty - ours.difficulty))
-        print(f"   {grade:>5} {gap:>4}  {card.stability:>12.6f} {card.difficulty:>10.6f}  "
-              f"{ours.stability:>12.6f} {ours.difficulty:>10.6f}")
+        print(
+            f"   {grade:>5} {gap:>4}  {card.stability:>12.6f} {card.difficulty:>10.6f}  "
+            f"{ours.stability:>12.6f} {ours.difficulty:>10.6f}"
+        )
     print(f"   largest difference {worst:.2e}")
 
 

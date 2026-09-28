@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 
-from .memory import Grade, MemoryState, Weights, DEFAULT_WEIGHTS, review
+from .memory import DEFAULT_WEIGHTS, Grade, MemoryState, Weights, review
 
 
 class LegacyHeuristic:

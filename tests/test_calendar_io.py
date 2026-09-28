@@ -350,8 +350,11 @@ def test_exported_plan_defines_every_time_zone_it_references():
 
 
 def test_exported_events_carry_the_reason(tmp_path):
-    ics = plan_to_ics([(36, "Algebra", "Third review; the gap is what makes it worth a block")],
-                      date(2026, 3, 2), "Europe/London")
+    ics = plan_to_ics(
+        [(36, "Algebra", "Third review; the gap is what makes it worth a block")],
+        date(2026, 3, 2),
+        "Europe/London",
+    )
     assert "the gap is what makes it worth a block" in ics.replace("\r\n ", "")
 
 
@@ -401,7 +404,9 @@ def test_a_typed_weekly_row_gives_the_events_an_ics_gives():
     from_ics = expand_events(WEEKLY_ONLY, begin, end, LONDON)
     from_table = busy_from_table(
         [{"label": "Analysis lecture", "weekday": "Monday", "start": "09:00", "end": "11:00"}],
-        date(2026, 3, 2), 42, "Europe/London",
+        date(2026, 3, 2),
+        42,
+        "Europe/London",
     )
     assert from_table == from_ics
 

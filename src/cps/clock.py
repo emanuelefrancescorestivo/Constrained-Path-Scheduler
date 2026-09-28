@@ -83,6 +83,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -148,9 +149,9 @@ class ClockConfig:
             raise ValueError(f"unknown interpolation mode {self.interpolation!r}")
 
     @classmethod
-    def for_exam(cls, days_to_exam: float, retention: float = 0.9, **kwargs) -> "ClockConfig":
+    def for_exam(cls, days_to_exam: float, retention: float = 0.9, **kwargs) -> ClockConfig:
         """Target and horizon from an exam date: see "Which goal" in the module docs."""
-        params = dict(
+        params: dict[str, Any] = dict(
             target_stability=stability_for_interval(days_to_exam, retention),
             horizon_days=days_to_exam,
         )
@@ -158,9 +159,9 @@ class ClockConfig:
         return cls(**params)
 
     @classmethod
-    def for_heuristic(cls, target_stability: float, horizon_days: float, **kwargs) -> "ClockConfig":
+    def for_heuristic(cls, target_stability: float, horizon_days: float, **kwargs) -> ClockConfig:
         """Lower-bounding variant, the only kind a search may use as `h`."""
-        params = dict(
+        params: dict[str, Any] = dict(
             target_stability=target_stability,
             horizon_days=horizon_days,
             interpolation="optimistic",
@@ -169,7 +170,7 @@ class ClockConfig:
         return cls(**params)
 
     def time_grid(self) -> np.ndarray:
-        steps = int(math.ceil(self.horizon_days / self.time_step - 1e-9))
+        steps = math.ceil(self.horizon_days / self.time_step - 1e-9)
         return np.arange(steps + 1) * self.time_step
 
     def stability_grid(self) -> np.ndarray:
@@ -194,7 +195,7 @@ class _Lookup:
     done: np.ndarray
 
     @classmethod
-    def build(cls, d_grid, s_grid, d, s, target) -> "_Lookup":
+    def build(cls, d_grid, s_grid, d, s, target) -> _Lookup:
         n_s = len(s_grid)
         i, w_d = _interp_index(d_grid, np.clip(d, D_MIN, D_MAX))
         j, w_s = _interp_index(np.log(s_grid), np.log(np.clip(s, s_grid[0], s_grid[-1])))
@@ -259,7 +260,7 @@ class ClockPolicy:
         """Q-values of every candidate review time, as an array over cells."""
         cfg = self.config
         dt = cfg.time_step
-        count = max(int(math.ceil(days_left / dt - 1e-9)), 1)
+        count = max(math.ceil(days_left / dt - 1e-9), 1)
         m = np.arange(count)
         alpha = elapsed + m * dt
         beta = np.minimum(alpha + dt, elapsed + days_left)
@@ -355,8 +356,14 @@ class ClockPolicy:
         later = self.waiting(difficulty, stability, elapsed + delay, days_left - delay)
         return later - now
 
-    def cost_of(self, topic_stability: float, topic_difficulty: float, last_review_day: float,
-                now: float, exam_day: float) -> float:
+    def cost_of(
+        self,
+        topic_stability: float,
+        topic_difficulty: float,
+        last_review_day: float,
+        now: float,
+        exam_day: float,
+    ) -> float:
         """Convenience wrapper in absolute days, as the planner holds them."""
         return self.waiting(topic_difficulty, topic_stability, now - last_review_day, exam_day - now)
 
@@ -405,11 +412,15 @@ def solve(config: ClockConfig, weights: Weights = DEFAULT_WEIGHTS) -> ClockPolic
         """Q for delay cells `cells`, reading the successor table at `levels`."""
         offset = (levels * per_level)[:, None, None]
         sub_rec = _Lookup(
-            flat=tuple(f[cells] for f in rec.flat), w_d=rec.w_d[cells], w_s=rec.w_s[cells],
+            flat=tuple(f[cells] for f in rec.flat),
+            w_d=rec.w_d[cells],
+            w_s=rec.w_s[cells],
             done=rec.done[cells],
         )
         sub_lap = _Lookup(
-            flat=tuple(f[cells] for f in lap.flat), w_d=lap.w_d[cells], w_s=lap.w_s[cells],
+            flat=tuple(f[cells] for f in lap.flat),
+            w_d=lap.w_d[cells],
+            w_s=lap.w_s[cells],
             done=lap.done[cells],
         )
         v_rec = sub_rec.values(flat, offset, mode)

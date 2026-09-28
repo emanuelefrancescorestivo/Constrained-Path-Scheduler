@@ -51,13 +51,14 @@ Four decisions that matter, all of which are easy to get silently wrong
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone, tzinfo
-from typing import Iterable, Sequence
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from icalendar import Calendar, Event
 from dateutil.rrule import rrulestr
+from icalendar import Calendar, Event
 
 from .timegrid import SLOTS_PER_DAY, TimeGrid
 
@@ -112,7 +113,7 @@ def _as_datetime(value, zone: tzinfo) -> tuple[datetime, bool]:
     raise TypeError(f"unsupported date value {value!r}")
 
 
-def _event_end(component: Event, start: datetime, was_date: bool, zone: tzinfo) -> datetime:
+def _event_end(component: Any, start: datetime, was_date: bool, zone: tzinfo) -> datetime:
     if "DTEND" in component:
         end, _ = _as_datetime(component["DTEND"].dt, zone)
         return end
@@ -134,9 +135,8 @@ def _normalise_until(rule_text: str, dtstart: datetime) -> str:
     parts = []
     for chunk in rule_text.split(";"):
         key, _, value = chunk.partition("=")
-        if key.strip().upper() == "UNTIL" and dtstart.tzinfo is not None:
-            if not value.endswith("Z"):
-                value = value.split("T")[0] + "T235959Z" if "T" not in value else value + "Z"
+        if key.strip().upper() == "UNTIL" and dtstart.tzinfo is not None and not value.endswith("Z"):
+            value = value.split("T")[0] + "T235959Z" if "T" not in value else value + "Z"
         parts.append(f"{key}={value}" if value else chunk)
     return ";".join(parts)
 
@@ -166,10 +166,14 @@ def expand_events(
     Occurrences are clipped to the window rather than dropped, so a lecture that
     began before the planning horizon still blocks its tail.
     """
-    zone = zone or window_start.tzinfo or timezone.utc
+    zone = zone or window_start.tzinfo or UTC
     calendar = Calendar.from_ical(ics_text.lstrip("\ufeff"))
     out: list[BusyEvent] = []
 
+    # icalendar types a property value as a union of some thirty classes; which one
+    # a property holds is only known at run time, and every access below is guarded
+    # by a membership test. So the component is handled as dynamic here, once.
+    component: Any
     for component in calendar.walk("VEVENT"):
         if "DTSTART" not in component:
             continue
@@ -186,9 +190,7 @@ def expand_events(
                     excluded.add(_as_datetime(entry.dt, zone)[0])
 
         if "RRULE" in component:
-            rule_text = _normalise_until(
-                component["RRULE"].to_ical().decode("utf-8"), start
-            )
+            rule_text = _normalise_until(component["RRULE"].to_ical().decode("utf-8"), start)
             occurrences = rrulestr(rule_text, dtstart=start).between(
                 window_start - length, window_end, inc=True
             )
@@ -333,7 +335,7 @@ class BusyRow:
             raise ValueError(f"row {self.label!r}: weekday must be 0 (Monday) to 6 (Sunday)")
 
     @classmethod
-    def parse(cls, row: "BusyRow | dict") -> "BusyRow":
+    def parse(cls, row: BusyRow | Mapping[str, Any]) -> BusyRow:
         """Accept a BusyRow or a mapping such as a row of a UI table:
         `{"label": "Gym", "weekday": "Wed", "start": "19:00", "end": "20:30"}` or
         `{"label": "Dentist", "date": "2026-03-10", "start": "14:00", "end": "15:00"}`.
@@ -395,7 +397,7 @@ def _parse_date(value, label: str) -> date:
 
 
 def busy_from_table(
-    rows: Iterable["BusyRow | dict"],
+    rows: Iterable[BusyRow | dict],
     start_date: date,
     days: int,
     zone_name: str = "UTC",
@@ -452,7 +454,9 @@ class Deadline:
     summary: str
 
     def days_from(self, start_date: date) -> float:
-        return (self.when - datetime.combine(start_date, time(0, 0), tzinfo=self.when.tzinfo)) / timedelta(days=1)
+        return (self.when - datetime.combine(start_date, time(0, 0), tzinfo=self.when.tzinfo)) / timedelta(
+            days=1
+        )
 
 
 def find_deadlines(
@@ -536,7 +540,7 @@ def plan_to_ics(
         event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
         event.add("description", rationale)
         event.add("uid", f"cps-{slot}-{subject.replace(' ', '-').lower()}@constrained-path-scheduler")
-        event.add("dtstamp", datetime.now(timezone.utc))
+        event.add("dtstamp", datetime.now(UTC))
         calendar.add_component(event)
     # RFC 5545 requires a VTIMEZONE for every TZID the events reference. Google
     # and Apple resolve a bare IANA name anyway; Outlook does not reliably, and an

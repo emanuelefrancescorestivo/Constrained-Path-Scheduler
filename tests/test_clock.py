@@ -173,7 +173,7 @@ def test_estimate_and_bound_against_monte_carlo(accurate, bound, state):
 
 
 def test_the_exam_day_goal_is_met_by_cramming():
-    """"Recall at the exam >= 0.9" is the natural goal and it degenerates.
+    """ "Recall at the exam >= 0.9" is the natural goal and it degenerates.
 
     One review twelve hours before a day-21 exam, from S=2 and three weeks without
     review, leaves recall at the exam at 0.9 or more whether that review succeeds

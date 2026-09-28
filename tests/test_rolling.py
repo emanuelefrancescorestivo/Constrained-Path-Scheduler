@@ -188,7 +188,10 @@ def test_an_exam_the_calendar_cannot_prepare_for_is_reported_not_scheduled(block
         Subject("Analysis", MemoryState(2.0, 7.0), 12.0),
         Subject("Algebra", MemoryState(1.5, 5.0), 1.9),
     )
-    best = best_case_stability(subjects[0].memory, [b.start_day for b in early], )
+    best = best_case_stability(
+        subjects[0].memory,
+        [b.start_day for b in early],
+    )
     assert best < subjects[0].target(0.9)
     result = run_rolling(early, subjects, window=3)
     assert result.unreachable == (True, False)
@@ -324,7 +327,9 @@ def test_budgeted_heuristic_is_admissible_across_a_whole_window(budget_policy, b
     instance = Instance(
         topics=tuple(s.name for s in SUBJECTS),
         blocks=pane,
-        initial=PlanState(0, tuple(TopicState(s.memory.stability, s.memory.difficulty, 0.0) for s in SUBJECTS)),
+        initial=PlanState(
+            0, tuple(TopicState(s.memory.stability, s.memory.difficulty, 0.0) for s in SUBJECTS)
+        ),
         target_stability=TARGET,
         continuation=BudgetedContinuation(budget_policy, budget_after),
         lateness_penalty=0.0,
@@ -335,3 +340,16 @@ def test_budgeted_heuristic_is_admissible_across_a_whole_window(budget_policy, b
         if instance.is_terminal(state):
             continue
         assert heuristic(instance, state) <= optimal + 1e-9
+
+
+def test_memory_only_heuristics_refuse_a_timed_continuation(blocks, continuation):
+    """Found by mypy in milestone M4: `ssp_heuristic` and `capacity_heuristic`
+    price memory states alone and used to fail with an AttributeError deep inside
+    AO* when handed the clock continuation. Now they say what to use instead."""
+    from cps.plan import capacity_heuristic, ssp_heuristic
+
+    topics = tuple(TopicState(s.memory.stability, s.memory.difficulty, 0.0) for s in SUBJECTS)
+    instance = window_instance(continuation, blocks, 0, 3, topics)
+    for heuristic in (ssp_heuristic, capacity_heuristic):
+        with pytest.raises(TypeError, match="deadline_heuristic"):
+            heuristic(instance, instance.initial)

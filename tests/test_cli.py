@@ -71,8 +71,19 @@ def test_plan_runs_and_states_what_it_does_not_know(calendar, capsys):
 
 def test_each_subject_can_carry_its_own_exam_date(calendar, capsys):
     """Analysis takes its date from the calendar, Algebra from the argument."""
-    code = main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7",
-                 "--subject", "Algebra:4:5@2026-03-27", "--window", "3"])
+    code = main(
+        [
+            "plan",
+            str(calendar),
+            *BASE,
+            "--subject",
+            "Analysis:2:7",
+            "--subject",
+            "Algebra:4:5@2026-03-27",
+            "--window",
+            "3",
+        ]
+    )
     assert code == 0
     out = capsys.readouterr().out
     assert "Analysis           exam on day  18.4, target stability 18 days" in out
@@ -98,8 +109,7 @@ def test_a_malformed_exam_date_is_rejected(calendar):
 
 def test_plan_writes_an_importable_calendar(calendar, tmp_path, capsys):
     out_path = tmp_path / "plan.ics"
-    main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3",
-          "--out", str(out_path)])
+    main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3", "--out", str(out_path)])
     text = out_path.read_text(encoding="utf-8")
     assert text.startswith("BEGIN:VCALENDAR") and "Study: Analysis" in text
 
@@ -110,8 +120,7 @@ def test_subjects_default_to_the_detected_assessments(calendar, capsys):
 
 
 def test_a_study_window_that_leaves_no_time_fails_loudly(calendar, capsys):
-    code = main(["plan", str(calendar), *BASE, "--study-window", "9-10",
-                 "--subject", "Analysis:2:7"])
+    code = main(["plan", str(calendar), *BASE, "--study-window", "9-10", "--subject", "Analysis:2:7"])
     assert code == 1
     assert "widen the study window" in capsys.readouterr().err
 
@@ -146,8 +155,7 @@ def test_the_plan_is_written_in_binary_mode(calendar, tmp_path, monkeypatch, cap
 
     monkeypatch.setattr(Path, "write_text", forbidden)
     out_path = tmp_path / "plan.ics"
-    main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3",
-          "--out", str(out_path)])
+    main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3", "--out", str(out_path)])
     data = out_path.read_bytes()
     assert data.startswith(b"BEGIN:VCALENDAR\r\n")
     assert b"\r\r\n" not in data
@@ -187,9 +195,16 @@ def test_a_closed_pipe_prints_no_traceback(calendar):
     import sys
 
     process = subprocess.Popen(
-        [sys.executable, "-c", "import sys; from cps.cli import main; sys.exit(main(sys.argv[1:]))",
-         "inspect", str(calendar), *BASE],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        [
+            sys.executable,
+            "-c",
+            "import sys; from cps.cli import main; sys.exit(main(sys.argv[1:]))",
+            "inspect",
+            str(calendar),
+            *BASE,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     process.stdout.close()
     _, err = process.communicate(timeout=120)
@@ -200,7 +215,8 @@ def test_a_closed_pipe_prints_no_traceback(calendar):
 def test_a_plan_that_cannot_be_written_is_an_error_not_a_silent_exit(calendar, tmp_path, capsys):
     """Only a closed stdout is forgiven. A failed write of --out is reported."""
     missing = tmp_path / "no-such-directory" / "plan.ics"
-    code = main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3",
-                 "--out", str(missing)])
+    code = main(
+        ["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3", "--out", str(missing)]
+    )
     assert code == 1
     assert "could not write" in capsys.readouterr().err

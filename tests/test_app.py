@@ -53,11 +53,14 @@ def test_the_displayed_sessions_are_the_service_plan():
 
     shown = next(df.value for df in app.dataframe if list(df.value.columns)[:2] == ["#", "when"])
 
-    report = service.analyse_calendar((ROOT / "examples" / "sample-timetable.ics").read_bytes(),
-                                      start=date(2026, 3, 2), tz="Europe/Rome")
+    report = service.analyse_calendar(
+        (ROOT / "examples" / "sample-timetable.ics").read_bytes(), start=date(2026, 3, 2), tz="Europe/Rome"
+    )
     expected = service.make_plan(
-        report, [service.SubjectSpec("Analysis", "2026-03-20 09:00", familiarity=3)],
-        retention=0.9, window=4,
+        report,
+        [service.SubjectSpec("Analysis", "2026-03-20 09:00", familiarity=3)],
+        retention=0.9,
+        window=4,
     )
     pd.testing.assert_frame_equal(
         shown.reset_index(drop=True), pd.DataFrame(service.session_rows(expected)), check_dtype=False
@@ -81,13 +84,16 @@ def test_what_if_i_miss_a_session_shows_the_service_replan():
 
     tables = [df.value for df in app.dataframe if list(df.value.columns)[:2] == ["#", "when"]]
     assert len(tables) == 2
-    report = service.analyse_calendar((ROOT / "examples" / "sample-timetable.ics").read_bytes(),
-                                      start=date(2026, 3, 2), tz="Europe/Rome")
-    plan = service.make_plan(report, [service.SubjectSpec("Analysis", "2026-03-20 09:00", familiarity=3)],
-                             retention=0.9, window=4)
+    report = service.analyse_calendar(
+        (ROOT / "examples" / "sample-timetable.ics").read_bytes(), start=date(2026, 3, 2), tz="Europe/Rome"
+    )
+    plan = service.make_plan(
+        report, [service.SubjectSpec("Analysis", "2026-03-20 09:00", familiarity=3)], retention=0.9, window=4
+    )
     expected = service.replan_after(plan, plan.sessions[0].index, "lapsed")
-    pd.testing.assert_frame_equal(tables[1].reset_index(drop=True),
-                                  pd.DataFrame(service.session_rows(expected)), check_dtype=False)
+    pd.testing.assert_frame_equal(
+        tables[1].reset_index(drop=True), pd.DataFrame(service.session_rows(expected)), check_dtype=False
+    )
 
 
 def test_a_typed_week_runs_without_errors():
