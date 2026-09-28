@@ -1,171 +1,168 @@
 # Constrained-Path Scheduler
 
-Study scheduling that respects both the science of memory and the reality of a
-student's calendar. Point it at your `.ics` export, tell it when your exams are,
-and it works out when to study — with every optimality claim checked against
-exhaustive computation rather than asserted.
+A study planner that reads your calendar, finds your exams, and works out when to
+study each subject, using a model of forgetting and a search over the time you
+actually have free.
 
-    # Linux / macOS
-    python3 -m venv .venv && source .venv/bin/activate
-
-    # Windows (PowerShell)
-    python -m venv .venv
-    .venv\Scripts\Activate.ps1
-
-    pip install -e ".[dev]"
-
-    pytest                                    # 219 passed, 12 deselected (slow), 1 xfailed
-    pytest -m "slow or not slow" --cov=cps    # everything: 231 passed, 1 xfailed, 94% coverage
-    python demo.py                            # every number quoted in the docs
-    python benchmarks/replanning.py           # the planner against two baselines
-    cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
-    cps plan    examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome \
-                --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
-
-A subject is `Name:stability:difficulty`, optionally followed by `@` and its exam
-date. Without a date, the date of the assessment with that name in the calendar is
-used ("Analysis exam" above).
-
-From Python, everything goes through `cps.service`, which is what the CLI uses:
-
-```python
-from datetime import date
-from pathlib import Path
-from cps import service
-
-report = service.analyse_calendar(
-    Path("examples/sample-timetable.ics").read_bytes(), start=date(2026, 3, 2), tz="Europe/Rome"
-)
-plan = service.make_plan(
-    report,
-    [
-        service.SubjectSpec("Analysis", None, familiarity=2),  # date from the calendar
-        service.SubjectSpec("Algebra", "2026-03-27", familiarity=3),
-    ],
-)
-plan = service.replan_after(plan, 0, "lapsed")  # it did not stick
-Path("plan.ics").write_bytes(service.export_ics(plan))
-```
-
-No calendar file? `analyse_calendar(None, ..., busy_rows=[{"label": "Lectures",
-"weekday": "Mon", "start": "09:00", "end": "13:00"}, ...])` takes your week typed
-in. A familiarity from 1 to 5 is a prior anchored to FSRS's own first-review
-states, not a measurement.
-
-On Windows, if PowerShell refuses to run `Activate.ps1` ("running scripts is
-disabled on this system"), run
-`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` once and try
-again. Open the project folder itself in your terminal before creating the
-environment; a terminal that starts in `C:\Windows\System32` cannot write there.
-
-Or use the web page, which does the same through the same code:
-
-    pip install -e ".[app]"
-    streamlit run app.py
-
-Upload an `.ics` or type your week into a table, check the exams it found, rate how
-well you know each subject, and get the plan, a recall curve per subject, a week
-grid, a `plan.ics` to download, and a replanned schedule when a session goes wrong.
+Two kinds of tool exist and neither does this. Spaced-repetition software such as
+Anki knows how memory decays and assumes you are free whenever a review falls due.
+Calendars know exactly when you are busy and nothing about memory. A student with
+three exams in three weeks, lectures, a job and a weekend away has to join the two
+by hand. This project joins them, and checks every claim it makes about doing so
+against exhaustive computation, simulation with error bars, or an independent
+implementation.
 
 ![The planner on the sample calendar](docs/app-screenshot.png)
 
-Then swap in your own calendar. Google Calendar: Settings, Import and export,
-Export — you get a zip with one `.ics` per calendar. Apple Calendar: File,
-Export. Run `inspect` on it first; if the free blocks it lists are wrong, nothing
-downstream can be right.
+## Sixty seconds
 
-The xfail is deliberate: it pins the January 2026 memory model's inability to
-represent the spacing effect, and it is `strict=True`, so the build breaks if it
-silently starts passing. A second one pinned the replanning defect until milestone
-M1 fixed it (AUDIT.md item 20).
+```bash
+python -m venv .venv
+source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install -e ".[app]"
+streamlit run app.py                 # choose "Sample calendar", then "Plan my study"
+```
 
-## What is here
+Or from a terminal, on the sample timetable in `examples/`:
 
-| file | what it does |
+```bash
+cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome \
+         --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
+```
+
+`Analysis:2:7` is a subject whose memory stability you guess at 2 days and whose
+difficulty at 7 on FSRS's 1-to-10 scale; its exam date is found in the calendar.
+`@2026-03-27` gives Algebra's date directly. The plan prints with the reason for
+every session, and `plan.ics` is a standard calendar file with its time zone
+defined.
+
+With your own calendar: export it (Google Calendar: Settings, Import and export,
+Export; Apple Calendar: File, Export), run `cps inspect your.ics --tz Europe/Rome`
+first and check the free blocks it lists, then `cps plan`. No calendar file? The web
+page lets you type your week into a table.
+
+## How it works
+
+- **Memory.** Each subject is an FSRS-4.5 memory state, stability and difficulty
+  (`src/cps/memory.py`). The model matches the reference implementation of the same
+  version, py-fsrs 2.5.1, to 4e-14 on two pinned trajectories.
+- **The calendar.** An `.ics` export is expanded (recurrences, exclusions, time
+  zones, daylight saving) into busy time, a study window is added because nobody's
+  calendar says "sleep", and the free time is cut into study blocks
+  (`calendar_io.py`, `timegrid.py`).
+- **What a subject still costs.** For each subject, a backward sweep over the days
+  left before its exam gives the expected number of study blocks needed to reach
+  its target, given the time since its last review (`clock.py`). Waiting costs
+  something as soon as it eats into the time the remaining reviews need.
+- **The search.** A review can fail, so a plan is a policy, not a sequence: AO*
+  searches the AND/OR graph of the next few blocks exactly, with an admissible
+  heuristic, takes one step, observes the outcome and replans (`plan.py`,
+  `rolling.py`).
+- **One API.** The CLI and the web page both call `cps.service` and nothing else,
+  which returns plain data, typed errors, a recall curve per subject, and a new plan
+  when you report that a session was forgotten or skipped.
+
+`docs/ARCHITECTURE.md` has the data flow as a diagram; `docs/METHOD.md` has the
+mathematics and the admissibility arguments.
+
+## Results
+
+All numbers come from `python demo.py` and `python benchmarks/replanning.py`, with
+fixed seeds and standard errors.
+
+**On a 21-day calendar with two subjects** (100 seeds, window 4; "ready" means
+both subjects reached their stability target before the exam):
+
+| scheduler | ready | blocks | first review | recall at exam | stability at exam |
+|---|---|---|---|---|---|
+| this planner | 90% ± 3% | 4.95 | day 2.3 | 0.932 | 20.5 days |
+| review when recall falls to 0.90 (Anki's default) | 0% | 3.74 | day 2.3 | 0.920 | 17.0 days |
+| review every day (best of every 1 to 7 days) | 93% ± 3% | 15.81 | day 1.3 | 0.943 | 21.4 days |
+
+Read it with the limits below: the planner's advantage is memory that lasts past
+the exam, which is what it is asked to produce, not exam-day recall.
+
+**Unconstrained, one subject** (value iteration against simulation): the optimal
+policy needs 6.02 ± 0.09 reviews from a fresh item, against 7.41 ± 0.10 at a fixed
+retention of 0.90 and 6.94 ± 0.11 at the best fixed retention chosen in hindsight.
+Fixed retention turns out to be a sawtooth, not a curve (METHOD.md §2).
+
+**The search is exact where it can be checked.** On a five-block instance with
+3,906 reachable states, AO* reproduces the optimum of exhaustive backward induction
+with four different heuristics, each verified admissible at every one of those
+states, in 114 node expansions with the best of them.
+
+**Two findings a student can use.** Spacing, not the number of free evenings, is
+what runs out: five daily blocks cannot build 21 days of stability however they are
+spent, because every gap is one day; seven can. And the objective is flat in the
+middle of a plan, so fitting study around lectures and sleep costs almost nothing.
+
+## Limits
+
+- **It does not beat Anki's rule on exam-day recall.** Reviewing whenever recall
+  falls to 0.90 predicts 0.920 recall at the exam against the planner's 0.932, with
+  1.2 fewer blocks. The planner reaches a durable target that rule never reaches,
+  because its next review would fall after the exam. If you only care about the
+  morning of the exam, you do not need this.
+- **It does not know you.** The FSRS parameters are population defaults, and a
+  subject's starting point is your own estimate. It adapts only when you report
+  that a session was forgotten or skipped.
+- **Its targets are choices.** A subject is "ready" when its stability would keep
+  recall at 90% for as long again as the preparation lasted; an unready exam is
+  priced at 40 study blocks. Both are stated, and both change the plan.
+- **Its estimates are estimates.** The value it plans with is 0.1 to 0.7 blocks
+  optimistic against simulation; readiness is 90% ± 3%, not a guarantee.
+- **Timing is at the level of days.** Blocks are placed at the start of each free
+  stretch; FSRS measures stability in days, so the hour barely matters.
+
+## What was wrong before, and how it was found
+
+This repository is a rebuild. The January 2026 version claimed a 32.2% retention
+improvement and an optimal schedule; its memory model could not see time, its A*
+never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
+those defects and every one found since, 28 in all, including a planner that put
+the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
+(fixed), and a corroborating claim that had no source (withdrawn).
+`docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
+included; `docs/REFERENCES.md` says how every reference was checked.
+
+## Repository
+
+| path | what it is |
 |---|---|
-| `src/cps/memory.py` | FSRS-4.5 forgetting curve and stability update |
-| `src/cps/timegrid.py` | calendar as a single integer bitmask; immutable, hashable |
-| `src/cps/calendar_io.py` | `.ics` in, study plan out: RRULE expansion, exam detection, export |
-| `src/cps/ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
-| `src/cps/clock.py` | the same problem against an exam date: `V(D, S, t)`, the replanning continuation |
-| `src/cps/budget.py` | the same problem under a finite block budget; superseded, see AUDIT.md item 20 |
-| `app.py` | the Streamlit page: input and layout only, everything computed by `cps.service` |
-| `src/cps/service.py` | the one API every front end uses: analyse, plan, replan, export, recall curve |
-| `src/cps/console.py` | forces UTF-8 output so redirected runs cannot crash on Windows |
-| `src/cps/cli.py` | `cps inspect` and `cps plan` against a real `.ics` export |
-| `benchmarks/replanning.py` | the planner against greedy fixed-0.90 and every-k scheduling |
-| `benchmarks/spike_clock.py` | the experiment that chose the clock design (PROCESS.md, Phase 6) |
-| `benchmarks/clock_calibration.py` | the clock value against Monte Carlo, and the looseness of its bound |
-| `benchmarks/aggregation_goal_crossing.py` | reproduces AUDIT.md item 26 before and after the fix |
-| `src/cps/rolling.py` | receding-horizon replanning: plan a window, act, observe, replan |
-| `src/cps/plan.py` | AO* over the AND/OR calendar graph, plus exhaustive reference |
-| `src/cps/legacy.py` | the January 2026 model, kept so its defect stays a failing test |
+| `app.py` | the web page; input and layout only |
+| `src/cps/service.py` | the one API every front end uses |
+| `src/cps/cli.py` | `cps inspect` and `cps plan` |
+| `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
+| `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
+| `src/cps/clock.py` | cost to reach a subject's target before its exam |
+| `src/cps/ssp.py` | the unconstrained optimum (SSP-MMC) and its admissible bound |
+| `src/cps/plan.py`, `rolling.py` | AO* over the calendar, and replanning over a real horizon |
+| `src/cps/budget.py` | the superseded block-budget continuation (AUDIT item 20) |
+| `src/cps/legacy.py` | the January 2026 model, kept as a failing test |
+| `benchmarks/` | the scripts behind every number that is not in `demo.py` |
+| `docs/` | method, process, architecture, write-up, references |
+| `archive/2025-prototype/` | the December 2025 prototype and reports, unchanged |
 
-## Where to start reading
+## Checking it yourself
 
-`docs/PROCESS.md` — how the project was built, including every mistake and what
-each one now costs to make again.
+```bash
+pip install -e ".[dev,app]"
+pytest                                    # 219 passed, 12 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 231 passed, 1 xfailed, 94% coverage
+ruff check . && ruff format --check . && mypy
+python demo.py                            # the numbers in the documents
+python benchmarks/replanning.py           # the results table above
+```
 
-`docs/METHOD.md` — the formal method: the SSP formulation, the admissibility
-proof, and an explicit list of what the project may and may not claim.
+CI runs all of it on Ubuntu and Windows, Python 3.11 to 3.13. The one expected
+failure is deliberate: it pins the January model's inability to represent the
+spacing effect, and it is strict, so the build breaks if it ever passes.
 
-`AUDIT.md` — every defect found in the January 2026 submission, by severity.
+On Windows, if PowerShell refuses to run `Activate.ps1`, run
+`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` once; open
+the project folder itself in the terminal before creating the environment.
 
-`docs/REFERENCES.md` — the bibliography, each entry with how it was checked; a
-test fails on a citation that does not resolve.
+## Licence
 
-## The short version
-
-The first version claimed a 32.2% retention improvement and an optimal schedule.
-Its memory model had no `elapsed_time` argument, so it could not represent the
-spacing effect; its A* had no goal test, so it never returned a solution; its
-heuristic added hours to stability-days, so admissibility could not be stated; and
-its calendar parser was a stub, so nothing was ever tested against a real
-timetable.
-
-The rebuilt version claims less and checks all of it. AO* reproduces the exact
-optimum from exhaustive backward induction on every instance small enough to
-solve both ways, using 114 node expansions against 3,906 states, and the
-heuristic is verified admissible at all 3,906 reachable states. The learned policy
-needs about 19% fewer reviews than a fixed retention of 0.90, Anki's default,
-and 13% fewer than the best fixed retention chosen in hindsight (fixed retention
-turns out to be a sawtooth, METHOD.md section 2). The retention it discovers,
-0.82 to 0.85, sits below that default, as a workload-minimising retention should.
-An earlier version also said it lay "inside the band the FSRS literature reports";
-no source for such a band could be found, so the claim is withdrawn (AUDIT.md
-item 28).
-
-Two things it will tell you that are worth knowing. Spacing, not the number of
-free evenings, is the binding constraint: five daily blocks cannot build 21 days
-of stability however you arrange them, because every gap is one day and the gain
-per review is near zero. And the objective is remarkably flat in the middle of a
-plan, which means hard constraints — sleep, lectures, deadlines — cost almost
-nothing.
-
-## Known limits
-
-Timing. Until milestone M1 the rolling planner procrastinated: its continuation
-counted remaining blocks, not remaining days, so the first review landed on day 16
-to 19 of 21 and both topics were ready in 35 to 38% of runs. The continuation now
-has a clock (`src/cps/clock.py`) and each subject its own exam. On the same
-benchmark, 100 seeds: first review on day 2.3 at recall 0.89, both subjects ready in
-90% ± 3% of runs at window 4 (86% and 83% at windows 1 and 2), 5.0 blocks.
-
-What the planner does not beat. A scheduler that reviews whenever recall falls to
-0.90, as Anki-style tools do, predicts almost the same recall *at the exam* (0.920
-against 0.932) with 1.2 fewer blocks. It never reaches the durable target, because
-its next review falls after the exam. The planner's advantage is memory that lasts
-past the exam, which is what it was asked for; for exam-morning recall alone it is
-not needed. Reviewing every day matches the planner's readiness at three times the
-work. `python benchmarks/replanning.py` reproduces all of this.
-
-What it does not know. The FSRS weights are population defaults, not fitted to
-you, and each subject's starting stability and difficulty are your own guesses.
-The target is a stated choice: recall at 90% for as long again as the preparation
-lasted, per subject. The failure penalty (40 blocks for an unready exam) is a
-choice too. The value estimate is 0.1 to 0.7 blocks optimistic against simulation.
-
-Availability is calendar occupancy plus stated preferences. A calendar records
-when you are busy, and nobody has an event called "sleep", so `load_availability`
-takes a study window that defaults to 08:00–22:00. Without it the scheduler will
-happily propose 00:00.
+MIT, see `LICENSE`.

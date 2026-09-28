@@ -32,9 +32,9 @@ def entries() -> dict[str, dict[str, str]]:
 
 
 def cited_files() -> list[Path]:
-    """Everything a reader of the repository reads, except the bibliography, the
-    archived December prototype, and the working prompt that leaves in M5."""
-    skip = {BIBLIOGRAPHY, ROOT / "docs" / "CLAUDE_CODE_PROMPT.md", Path(__file__).resolve()}
+    """Everything a reader of the repository reads, except the bibliography, this
+    file, and the archived December prototype."""
+    skip = {BIBLIOGRAPHY, Path(__file__).resolve()}
     files = [
         *ROOT.glob("*.md"),
         *(ROOT / "docs").glob("*.md"),

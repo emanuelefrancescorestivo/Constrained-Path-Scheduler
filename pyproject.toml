@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "constrained-path-scheduler"
-version = "0.2.0"
+version = "0.3.0"
 description = "Neuroscience-informed study scheduling: FSRS memory dynamics under hard calendar constraints."
 requires-python = ">=3.11"
 dependencies = [
