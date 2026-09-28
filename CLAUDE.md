@@ -90,7 +90,6 @@ than an impressive number.
 
 ## Known defects and limits (details in AUDIT.md)
 
-- Item 23: `cps inspect ... | head` prints a BrokenPipeError traceback.
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
 - FSRS weights are population defaults; a subject's starting stability and

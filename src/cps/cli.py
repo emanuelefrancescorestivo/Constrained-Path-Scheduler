@@ -24,6 +24,8 @@ All the work happens in `cps.service`; this module parses arguments and prints.
 from __future__ import annotations
 
 import argparse
+import errno
+import os
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -188,9 +190,32 @@ def command_plan(args) -> int:
     if args.out:
         # Bytes, not text. icalendar already emits CRLF line endings, and a
         # text-mode write on Windows would translate each LF again, leaving CR CR LF.
-        args.out.write_bytes(service.export_ics(plan))
+        try:
+            args.out.write_bytes(service.export_ics(plan))
+        except OSError as error:
+            # Reported here, so that the closed-stdout handling in `main` can
+            # never swallow a plan that was not written.
+            print(f"could not write {args.out}: {error.strerror or error}", file=sys.stderr)
+            return 1
         print(f"\nwrote {args.out}")
     return 0
+
+
+def _stdout_closed(error: OSError) -> bool:
+    """A reader that left early: `| head` on Linux and macOS raises EPIPE; on
+    Windows a closed pipe can surface as EINVAL instead. Any other OSError, and
+    this one from anything but printing, is a real failure."""
+    return isinstance(error, BrokenPipeError) or (os.name == "nt" and error.errno == errno.EINVAL)
+
+
+def _silence_stdout() -> None:
+    """Point stdout at the null device, so the interpreter's final flush of the
+    buffer that could not be delivered does not raise again on the way out."""
+    null = os.open(os.devnull, os.O_WRONLY)
+    try:
+        os.dup2(null, sys.stdout.fileno())
+    finally:
+        os.close(null)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -198,7 +223,16 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     command = {"inspect": command_inspect, "plan": command_plan}[args.command]
     try:
-        return command(args)
+        code = command(args)
+        sys.stdout.flush()
+        return code
+    except OSError as error:
+        # AUDIT.md item 23. Treated as a normal exit: the reader got what it
+        # wanted. The --out write is handled in command_plan and never lands here.
+        if not _stdout_closed(error):
+            raise
+        _silence_stdout()
+        return 0
     except service.MissingExam as error:
         print(f"{error} Add it, for example --subject \"{error.subject}:2:6@2026-06-15\".",
               file=sys.stderr)

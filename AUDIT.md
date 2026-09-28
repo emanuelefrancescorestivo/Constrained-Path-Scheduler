@@ -283,6 +283,14 @@ behave differently (a closed pipe can surface as a different `OSError`). Not fix
 The remedy is to treat a closed stdout as a normal exit in `cli.main`, with a test,
 without catching `OSError` broadly enough to hide a failed write of `--out`.
 
+*Status: fixed in milestone M4.* `cli.main` treats a `BrokenPipeError`, or on
+Windows an `OSError` with `EINVAL`, raised while printing as a normal exit (code 0)
+and points stdout at the null device so the final flush cannot raise again. The
+`--out` write is caught inside `command_plan` and reported with exit code 1, so the
+pipe handling can never swallow a plan that was not written. Tests: an in-process
+stdout that raises, a real pipe closed before the program writes (run on Windows
+by CI), and an unwritable `--out`.
+
 
 **24. The exported plan referenced a time zone it never defined.** Every event in
 `plan.ics` carried `DTSTART;TZID=Europe/Rome:...`, but the file contained no

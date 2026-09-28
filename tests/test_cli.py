@@ -151,3 +151,56 @@ def test_the_plan_is_written_in_binary_mode(calendar, tmp_path, monkeypatch, cap
     data = out_path.read_bytes()
     assert data.startswith(b"BEGIN:VCALENDAR\r\n")
     assert b"\r\r\n" not in data
+
+
+# --------------------------------------------------------------------------- #
+# A reader that leaves early (AUDIT.md item 23)
+# --------------------------------------------------------------------------- #
+
+
+def test_a_closed_stdout_is_a_normal_exit(calendar, monkeypatch):
+    """`cps inspect cal.ics | head -4` used to end in a BrokenPipeError traceback."""
+    import sys
+
+    class ClosedPipe:
+        encoding = "utf-8"
+
+        def write(self, text):
+            raise BrokenPipeError(32, "Broken pipe")
+
+        def flush(self):
+            raise BrokenPipeError(32, "Broken pipe")
+
+        def fileno(self):
+            return sys.__stdout__.fileno()
+
+    monkeypatch.setattr(sys, "stdout", ClosedPipe())
+    monkeypatch.setattr("cps.cli._silence_stdout", lambda: None)
+    assert main(["inspect", str(calendar), *BASE]) == 0
+
+
+def test_a_closed_pipe_prints_no_traceback(calendar):
+    """The same through a real pipe, closed before the program writes a byte.
+    On Windows a closed pipe can surface as OSError EINVAL instead; CI runs this
+    there too."""
+    import subprocess
+    import sys
+
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import sys; from cps.cli import main; sys.exit(main(sys.argv[1:]))",
+         "inspect", str(calendar), *BASE],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    process.stdout.close()
+    _, err = process.communicate(timeout=120)
+    assert b"Traceback" not in err and b"Exception ignored" not in err, err.decode(errors="replace")
+    assert process.returncode == 0
+
+
+def test_a_plan_that_cannot_be_written_is_an_error_not_a_silent_exit(calendar, tmp_path, capsys):
+    """Only a closed stdout is forgiven. A failed write of --out is reported."""
+    missing = tmp_path / "no-such-directory" / "plan.ics"
+    code = main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3",
+                 "--out", str(missing)])
+    assert code == 1
+    assert "could not write" in capsys.readouterr().err
