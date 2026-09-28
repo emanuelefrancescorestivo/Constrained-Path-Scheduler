@@ -127,24 +127,82 @@ nothing, so respecting sleep, classes and deadlines is close to free rather than
 a compromise. It is a smaller claim than "+32.2% effective retention" and, unlike
 that one, it survives being checked.
 
-## 6. Receding-horizon replanning (implemented, with one open defect)
+## 6. Receding-horizon replanning with a clock
 
 The one-shot search reaches about ten blocks, and a real horizon offers forty to a
 hundred and twenty. `rolling.py` plans a short window exactly with AO*, executes
 one block, observes whether the recall succeeded, and replans. An observed outcome
 collapses a whole contingency branch, so this is cheaper than building the tree up
-front, not a weaker substitute for it.
+front, not a weaker substitute for it. What is **not** claimed is global
+optimality: greedy-over-windows planning is a heuristic scheme.
 
-The window needs a value for "and then the rest happens later". `budget.py` supplies
-it as `V(D, S, b)`, the expected cost of reaching the target with at most `b` more
-review opportunities, solved by backward recursion. Within a window the heuristic
-`h = Σᵢ V(Dᵢ, Sᵢ, remaining blocks)` is admissible, checked against exhaustive
-search at every reachable state of a five-block window
-(`test_budgeted_heuristic_is_admissible_across_a_whole_window`). What is **not**
-claimed is global optimality: greedy-over-windows planning is a heuristic scheme.
+**The continuation has a clock.** A window needs a value for the work left after
+it, and that value must charge for waiting, because the resource waiting consumes
+is calendar time before the exam. `clock.py` solves, per subject, the expected cost
+of reaching the subject's target before its own exam. Right after a review the
+state is `(D, S, t)`, `t` the days left; the action is the delay `a` to the next
+review, which fixes the recall probability `r = R(a, S)`:
 
-**Open defect.** `V(D, S, b)` has no clock. Skipping a block leaves `(D, S)`
-unchanged, so waiting is free while blocks are plentiful and the planner defers:
-the first review lands on day 16 to 19 of 21 instead of 3 to 4, and 35 to 38% of
-runs end with both topics ready. Until this is fixed the timing of a plan is
-indicative and the CLI says so. See AUDIT.md item 20 and `benchmarks/replanning.py`.
+```
+V(D, S, t) = 0                                              if S >= S_target
+           = min( P,  min over 0 < a <= t of
+                  1 + r V(D_good, S_recall(a), t - a) + (1 - r) V(D_again, S_lapse(a), t - a) )
+```
+
+`P` is the price of giving up, which equals the price of arriving unready,
+`V(D, S, 0) = P` below the target; it is 40 blocks, a stated choice. Every review
+moves forward in time, so this is one backward sweep with no convergence loop.
+Between reviews the state also needs the elapsed time `e`, because the next review
+cannot be in the past. It needs no new table dimension: while a topic waits,
+`e + t` is constant, so the waiting value `W(D, S, e, t)` is the same minimum
+restricted to `a >= e`, computed at query time.
+
+**The target is a stability, per subject.** `S_target = stability_for_interval(T,
+rho)`, with `T` the days from the start of the plan to that subject's exam: recall
+`rho` for as long again as the preparation lasted. The natural alternative, recall
+at least `rho` at the exam, is met by a single review the night before and was
+rejected for that reason (PROCESS.md, Phase 6).
+
+**Estimate in the objective, bound in the heuristic.** The window's terminal value
+is `Σᵢ W_accurate`, an estimate of the real cost-to-go. The AO* heuristic at a node
+whose block starts at `τ` is `h = Σᵢ W_optimistic(Dᵢ, Sᵢ, τ − lastᵢ, examᵢ − τ)`.
+
+**Claim.** `h` is admissible for the window objective.
+
+**Argument.** (i) `W_optimistic` lower-bounds the true cost over continuous review
+times: delays are bounded cell by cell (successor stability at the cell's right
+end, time left at its left end, the better endpoint of the recall probability, on
+which the expression is linear), with cell-minimum interpolation in `(D, log S)` and
+time left rounded up; each step needs only that the true value is monotone in `D`,
+`S` and `t`, which the solved tables show. The first delay cell refers to its own
+time level and is solved by iterating from zero, which is a lower bound at every
+iterate. (ii) The optimistic table lies below the accurate one in every cell, and
+the optimistic query below the accurate query everywhere, so bounding the true
+continuation also bounds the accurate one. (iii) Topics do not help one another and
+costs add. Checked, not assumed: against exhaustive backward induction at every
+reachable state of a five-block window at the start and in the middle of the plan,
+and cell by cell and at 300 random off-grid queries.
+
+**Calibration** (`python benchmarks/clock_calibration.py`). Simulating the policy
+the accurate table induces, with free choice of review times, gives 6.85 ± 0.28 blocks from `S = 2, D = 7` against a predicted
+6.14, and 11.99 ± 0.28 from `S = 0.5, D = 8` against 11.88. The estimate is
+somewhat optimistic, by 0.1 to 0.7 blocks, and the bound (2.70 and 4.28) is far
+below. The bound is loose, which costs search effort, not decision quality, since
+decisions are made on the estimate.
+
+**What it achieves** (`python benchmarks/replanning.py`, 100 seeds). The first
+review of a weak topic moves from day 16 to 19 of 21 to day 2.3, at recall 0.89, and
+both subjects reach their targets in 90% ± 3% of runs at window 4 (86% and 83% at
+windows 1 and 2), against 35 to 38% before. Against the schedulers students use:
+reviewing every day reaches 93% ± 3% at three times the blocks; a greedy scheduler
+at the fixed recall 0.90 of Anki-style tools never reaches the target, because its
+next review falls after the exam, but predicts almost the same recall at the exam
+(0.920 against 0.932) with 1.2 fewer blocks. The planner's measurable advantage is
+durability past the exam, not exam-day recall, and this document does not claim
+otherwise.
+
+**Unreachable exams.** Before planning, `best_case_stability` bounds the stability a
+subject could reach on the actual free blocks if every review succeeded, holding
+difficulty at `min(D, D0(Good))`. If that is below the target the subject is
+reported and gets no blocks. The dynamic programme behind it relies on post-recall
+stability increasing with pre-review stability at a fixed gap, which is tested.

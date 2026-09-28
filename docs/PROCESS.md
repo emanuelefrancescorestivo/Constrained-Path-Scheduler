@@ -349,9 +349,12 @@ Two findings a student could act on:
   near zero. What is scarce is calendar length.
 - **The plan follows per-topic feasibility.** On a seven-day horizon the harder
   topic (S = 2, D = 7) tops out at 14.68 and is abandoned; the easier one clears
-  at 21.25 and gets the blocks. Stretch to ten days and the optimum studies both,
-  interleaved: the hard topic on days 2, 8 and 9, the easy one on day 6, four
-  blocks out of ten available.
+  at 21.25 and gets the blocks. *Corrected in milestone M1:* this paragraph used to
+  say that at ten days the optimum studies both topics, interleaved, at a cost of
+  8.84. That plan was an artefact of state aggregation crossing the target; followed
+  with exact dynamics it costs 28.61. At ten days the optimum still abandons the
+  harder topic, studies the easier one on days 1 and 6, and costs 17.30 (AUDIT.md
+  item 26, `benchmarks/aggregation_goal_crossing.py`).
 
 ## The scaling wall, and what did not move it
 
@@ -363,8 +366,9 @@ coin flips along a path. State aggregation does help, because it attacks the siz
 of the solution instead: snapping stability to a 15% multiplicative grid and
 difficulty to half-points leaves the cost within 0.1% of exact on the instance
 where both are computable, and makes two more instances tractable: ten daily
-blocks go from more than 30,000 expansions to 4,835, and seven days at two blocks a
-day (fourteen blocks) to 9,775 expansions in under four seconds. Fourteen days at
+blocks go from more than 30,000 expansions to 4,603, and seven days at two blocks a
+day (fourteen blocks) to 10,133 expansions in under four seconds (counts after the
+M1 fix to aggregation, AUDIT.md item 26; they were 4,835 and 9,775 before it). Fourteen days at
 one block a day stays out of reach even with aggregation.
 
 It is not enough for a realistic sixty-day horizon. The next step is
@@ -418,7 +422,7 @@ with forty-two left, the first review lands on day 16 to 19 instead of 3 to 4, a
 and are reproducible with the same script: a larger window (0% ready) and a longer
 stability target (0% ready). The mechanism is the same as in the three earlier
 cases: minimising expected review count is a workload objective, not a deadline
-objective. Open, and pinned as a strict xfail.
+objective. It was pinned as a strict xfail and fixed in milestone M1 (Phase 6).
 
 ### Mistake 12 — everything had only ever run on Linux
 
@@ -426,8 +430,9 @@ Handing the project to a Windows machine turned up four defects that no test had
 any way to see. An `.ics` written in text mode ends up with CR CR LF. A byte-order
 mark from Notepad makes the parser raise on the first line. The demo cannot print
 pi through a redirected cp1252 pipe. And `zoneinfo` needs `tzdata`, which Windows
-does not ship. All four are fixed and were reproduced by simulation, not verified on
-Windows, which needs a CI job.
+does not ship. All four were fixed and reproduced by simulation. The Windows CI job
+added in milestone M0 then confirmed them, and found one more failure, in a test
+that expected a Linux line ending (AUDIT.md item 25).
 
 ### Two smaller admissions
 
@@ -442,6 +447,113 @@ fourteen blocks from unsolvable to five seconds". Re-running the demo showed tha
 holds for one of two fourteen-block instances and not the other. Checking every
 quoted number against `demo.py` is now a rule, not a one-off.
 
+## Phase 6 — milestone M1: giving the value function a clock
+
+The brief was specific: waiting must consume calendar time, each subject must carry
+its own exam, and two designs were to be spiked before either was built. A: add a
+days-left dimension to the budget recursion. B: a backward sweep over time, where
+the state after a review is `(D, S, t)` with `t` the days left, and the action is
+the delay to the next review. Everything else was a hypothesis.
+
+### The spike, and what it decided
+
+`benchmarks/spike_clock.py` plugs each candidate into the same one-block lookahead
+on the benchmark calendar, so the only thing that changes between rows is the value
+function (100 seeds, ready means both subjects at stability 21):
+
+| continuation | blocks | first review | ready |
+|---|---|---|---|
+| budget, the defect | 3.6 | day 6 | 54% ± 5% |
+| A: budget plus days left | 7.3 | day 1 | 88% ± 3% |
+| B without elapsed time | 1.2 | day 6 | 0% |
+| B, goal "recall at the exam" | 1.0 | day 20 | 0% |
+| B, stability target, elapsed time | 6.2 | day 2 | 82% ± 4% |
+
+(The budget row differs from the benchmark's 35 to 38% because the spike uses the
+accurate budget solve and a one-block lookahead; the ordering is what matters.)
+
+**A was rejected** for being internally inconsistent rather than for its number. On
+a skip it lets time run but keeps `(D, S)` unaged, and it charges a review its
+delay in days but a single block, so it reviews too early and too often (recall
+0.93 to 0.98 at review, 7.3 blocks). It also needs to know how many days a skipped
+block consumes, which a real calendar does not answer: blocks come in clumps.
+
+**B without elapsed time is admissible and useless.** Leaving the time since the
+last review out of the state gives a valid lower bound, and a value that does not
+change while a topic waits. Waiting is free again, and the planner reviewed once
+and never again. This is the subtlety the brief flagged, and the answer turned out
+to need no new table dimension: while a topic waits, elapsed time plus time left is
+constant, so the waiting value is a minimum over a suffix of the same actions,
+computed at query time from the `(D, S, t)` table.
+
+**The goal "recall at the exam" is the fifth degenerate optimum.** It is the goal a
+student would state, and FSRS says one review twelve hours before the exam meets it
+whether that review succeeds or lapses. The spike's planner obliged: one review, day
+20. Cramming does work for the exam day, in this model and in life; a study planner
+that recommends it has been asked the wrong question. The stability target of the
+old code survives, per subject: reach the stability at which recall would still be
+`rho` after as long again as the preparation lasted. It implies the exam-day goal
+and cannot be met by one late review. It is a choice, and it is written down as one
+(`test_the_exam_day_goal_is_met_by_cramming`).
+
+### Mistake 13 — a lower bound is the wrong terminal value
+
+Making the optimistic clock solve admissible over *continuous* delays, not only a
+grid of them, was straightforward: bound each cell of delays by its best corner.
+But it is loose, 2.7 blocks at the benchmark's start state against an accurate 6.1,
+mostly from cell-minimum interpolation, which gives every review a slightly easier
+difficulty and a slightly higher stability than the exact one; refining the grid
+four- to fivefold in both dimensions only moved it to 3.7
+(`python benchmarks/clock_calibration.py --refine`). The old budget planner used such
+a bound for two jobs at once: the heuristic and the window's terminal value. The
+second job is part of the objective. Pricing everything after the window with a
+lower bound tells every window that the future is cheaper than it is, which is one
+more reason to defer. The window now ends on the accurate estimate, and only the
+heuristic is a bound; the heuristic is admissible for that objective because the
+bound lies below the estimate in every cell, which a test checks, along with the
+usual check against exhaustive search at every reachable state of a window.
+
+### Mistake 14 — a hypothesis about interpolation that was wrong
+
+With the Analysis exam moved to day 9 the planner reviewed at 08:00 and again at
+09:30, at recall 0.999, taking stability from 8.85 to 8.97, still short of 9. The
+first explanation was that bilinear interpolation towards the zero stored at the
+target made "just below the target" look almost free. It was plausible, it came
+with a clean fix, and it was wrong: the value just below the 9-day target is 1.06
+blocks (`benchmarks/clock_calibration.py`), and the fix did not change it. The cause was state aggregation. The window
+search snaps stability to a 15% grid, and 8.85 snapped to 9.36, past the target, so
+the search believed one cheap review finished the topic. Aggregation is still only a
+search device, and the executed trajectory was exact, but the decision had been
+made on the wrong side of the goal. Goal membership is now decided by the exact
+state (AUDIT.md item 26). The wrong fix was reverted before it was committed.
+
+### What the fix buys, and what it does not
+
+`benchmarks/replanning.py` now puts the planner beside the two schedulers students
+actually use, on the same calendar and seeds (100 seeds):
+
+| scheduler | ready | blocks | first review | recall at exam | stability at exam |
+|---|---|---|---|---|---|
+| planner, window 4 | 90% ± 3% | 4.95 | day 2.3 | 0.932 | 20.5 |
+| greedy, fixed recall 0.90 | 0% | 3.74 | day 2.3 | 0.920 | 17.0 |
+| every day (best k of 1..7) | 93% ± 3% | 15.81 | day 1.3 | 0.943 | 21.4 |
+
+Three readings, none of them flattering by default. Reviewing every day reaches the
+target slightly more often, at three times the work. The fixed-0.90 scheduler never
+reaches the 21-day target, because its next due date falls after the exam; but its
+recall at the exam is almost the planner's, with a block and a quarter less. What the
+planner buys is durability past the exam, which is the objective it was given, and
+spacing that is timed against the exam date. A student who only cares about the exam
+morning does not need it; one who needs the material next term does. The runs in
+which the planner fails are ones where lapses leave too little calendar to rebuild,
+and there it stops spending blocks on the subject, which is the rational thing to do
+and exactly what a failure penalty says.
+
+The brief asked for 90% of 100 seeds. The planner reaches it at window 4 (90% ± 3%);
+windows 1 and 2 give 86% and 83%. A higher failure penalty does not move readiness
+and costs blocks (`--penalty 100 --windows 6`: 88% ± 3%, 7.0 blocks), which suggests
+the calendar, not the planner, is the limit.
+
 ## What this project claims, and what it does not
 
 **Claims.** An exact reference optimum for unconstrained memorisation. An
@@ -453,8 +565,9 @@ and whose bound is stated and measured whenever it is weakened.
 **Does not claim.** A large retention improvement from scheduling as such. The
 objective is flat in the middle of a plan, so there is no such improvement to
 claim. What can be claimed is the flatness itself: constraints turn out to be
-nearly free. And a scheduler whose timing can be trusted at realistic horizons:
-the rolling planner scales, but it procrastinates (AUDIT.md item 20).
+nearly free. And an advantage over a fixed-0.90 scheduler on exam-day recall: the
+planner's timing is now sound (AUDIT.md item 20 is fixed), but what it buys over
+that scheduler is durability past the exam, at 1.2 more blocks for two subjects.
 
 ## Method notes worth keeping
 
@@ -470,10 +583,17 @@ the rolling planner scales, but it procrastinates (AUDIT.md item 20).
 5. **Accurate and admissible are different properties.** Keep them in separate
    objects and make the wrong one raise at the call site.
 6. **When a degenerate optimum appears, the objective is wrong, not the solver.**
-   It happened four times: two single-review objectives, the missing
-   deadline, and a value function indexed by blocks instead of by time. Each time the search was correct and the thing being asked for was
-   not what was wanted.
+   It happened five times: two single-review objectives, the missing
+   deadline, a value function indexed by blocks instead of by time, and "recall at
+   the exam", which is met by cramming. Each time the search was correct and the
+   thing being asked for was not what was wanted.
 7. **Derive constants from the instance, or state them as choices.** The lateness
    penalty is derived. The aggregation step is a stated choice with a measured
    cost. `target_stability = 14.0` was neither, which is why it went unexamined
    for a whole submission.
+8. **A bound belongs in the heuristic, an estimate in the objective.** The value a
+   receding-horizon window ends on is part of what it optimises. A lower bound there
+   is a systematic bias towards waiting.
+9. **Spike before building, with the same harness for every candidate.** Three of
+   five candidate value functions failed in ways that were obvious in one table and
+   would each have cost a day to discover inside the real planner.

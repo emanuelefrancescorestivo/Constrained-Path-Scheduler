@@ -149,9 +149,10 @@ def test_estimate_and_bound_against_monte_carlo(accurate, bound, state):
     cost (reviews plus penalty when not ready) with the table.
 
     The bound must sit below the realised cost. The estimate is not a bound and is
-    somewhat optimistic: measured over 2,000 runs it sits 0.1 to 0.7 blocks below
-    the simulated cost (6.14 against 6.85 +- 0.28 at S=2, D=7; 11.88 against
-    11.99 +- 0.28 at S=0.5, D=8). The tolerance pins that, with the standard error.
+    somewhat optimistic: over 2,000 runs it sits 0.1 to 0.7 blocks below the
+    simulated cost (6.14 against 6.85 +- 0.28 at S=2, D=7; 11.88 against
+    11.99 +- 0.28 at S=0.5, D=8; benchmarks/clock_calibration.py). The tolerance
+    pins that, with the standard error.
     """
     trials = 1000
     costs = []

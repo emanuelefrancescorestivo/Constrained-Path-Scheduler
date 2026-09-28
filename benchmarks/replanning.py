@@ -148,15 +148,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--windows", type=int, nargs="+", default=[1, 2, 4])
     parser.add_argument("--seeds", type=int, default=100)
+    parser.add_argument("--penalty", type=float, default=PENALTY,
+                        help="failure penalty in blocks; pinned at 40 for every quoted number")
+    parser.add_argument("--baselines", action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
 
     grid, _ = load_availability(TIMETABLE, date(2026, 3, 2), int(EXAM_DAYS), "Europe/London")
     blocks = tile_free_time(grid, block_slots=3, max_blocks_per_day=2)
     started = time.perf_counter()
-    continuation = solve_deadlines(SUBJECTS, RETENTION, PENALTY)
+    continuation = solve_deadlines(SUBJECTS, RETENTION, args.penalty)
     targets = continuation.targets
     print(f"scenario: {int(EXAM_DAYS)} days, {len(blocks)} candidate blocks, {len(SUBJECTS)} subjects, "
-          f"targets {', '.join(f'{t:.0f}' for t in targets)}, penalty {PENALTY:g}, "
+          f"targets {', '.join(f'{t:.0f}' for t in targets)}, penalty {args.penalty:g}, "
           f"clock solves {time.perf_counter() - started:.1f}s")
 
     estimate = continuation.estimates[0]
@@ -185,6 +188,8 @@ def main() -> None:
         runs = [planner(blocks, continuation, window, np.random.default_rng(s)) for s in seeds]
         print(summarise(f"planner w={window}", runs, time.perf_counter() - started))
 
+    if not args.baselines:
+        return
     started = time.perf_counter()
     runs = [simulate_rule(blocks, targets, greedy_fixed(0.90), np.random.default_rng(s)) for s in seeds]
     print(summarise("greedy-0.90", runs, time.perf_counter() - started))

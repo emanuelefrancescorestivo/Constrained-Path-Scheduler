@@ -25,11 +25,11 @@ than an impressive number.
 ## Commands
 
     pip install -e ".[dev]"
-    pytest                                   # 148 passed, 2 xfailed, about 45 s
+    pytest                                   # 177 passed, 1 xfailed, about 65 s
     python demo.py                           # recomputes every number quoted in the docs
-    python benchmarks/replanning.py          # before/after harness for AUDIT item 20
+    python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
-    cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --out plan.ics
+    cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
 ## Map of src/cps
 
@@ -40,9 +40,10 @@ than an impressive number.
 | `timegrid.py` | calendar as one immutable, hashable integer bitmask; local wall-clock slots |
 | `calendar_io.py` | `.ics` in (RRULE, EXDATE, DST, BOM), exam detection, `.ics` out |
 | `ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
-| `budget.py` | `V(D, S, b)`: cost with a finite block budget. Unreviewed, see AUDIT item 20 |
+| `clock.py` | `V(D, S, t)` and `W(D, S, e, t)`: cost to reach a subject's target before its exam |
+| `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
-| `rolling.py` | receding-horizon replanning built on `budget.py` and `plan.py` |
+| `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-subject exams |
 | `cli.py`, `console.py` | `cps inspect` / `cps plan`; UTF-8 output hardening for Windows |
 
 ## Invariants: do not weaken these to get a green build
@@ -50,10 +51,12 @@ than an impressive number.
 1. **Admissible is not accurate.** Only solves made with `for_heuristic`
    (optimistic interpolation) are lower bounds and may be used as A*/AO*
    heuristics. Bilinear solves are accurate estimates. `Instance.build`,
-   `BudgetedContinuation` and `reviews_lower_bound` raise on the wrong kind. Keep it.
+   `BudgetedContinuation`, `DeadlineContinuation` and `reviews_lower_bound` raise on
+   the wrong kind. Keep it. The converse matters too: a window's terminal value is
+   part of the objective and uses the estimate, not the bound (PROCESS Mistake 13).
 2. A heuristic is checked against `solve_exact(...).values` at every reachable
    state, not only at the root.
-3. The two `xfail(strict=True)` tests are deliberate records of known defects.
+3. The `xfail(strict=True)` test is a deliberate record of a known defect.
    When a fix makes one pass, remove the marker in the same commit, update the
    counts, add an AUDIT entry. Never delete or loosen a test to get green.
 4. Every number in a document is reproduced by code (`demo.py`, `benchmarks/`, or
@@ -63,7 +66,8 @@ than an impressive number.
 6. Pin `lateness_penalty` when comparing two instances. Its default is derived from
    the instance and is not comparable across instances.
 7. Aggregation (`stability_step`, `difficulty_step`) is a search device only. The
-   executed trajectory uses exact FSRS transitions.
+   executed trajectory uses exact FSRS transitions, and a snapped state never
+   crosses a goal the exact state has not crossed (AUDIT item 26).
 8. `TimeGrid.days_from_start` is the only slot-to-days conversion. Slots follow
    local wall-clock time; DST drift of up to one hour is documented, not hidden.
 9. Property tests are not enough for a parameterised model. Keep at least one
@@ -82,11 +86,13 @@ than an impressive number.
 - Most of this repository was developed on Linux. Treat any untested Windows
   behaviour as unverified, and prefer a test that fails on Linux too.
 
-## Known defects (details in AUDIT.md)
+## Known defects and limits (details in AUDIT.md)
 
-- Item 20: the replanning value function has no clock, so the planner
-  procrastinates. Timing of a plan is not trustworthy until this is fixed.
-- Item 22: the heuristic-grade solve can exceed the analysis solve by 6e-06 in a cell.
-- Single stability target for all subjects (taken from the earliest exam).
+- Item 22: the heuristic-grade SSP solve can exceed the analysis solve by 6e-06 in a
+  cell. (`clock.py` bounds delays cell by cell and does not have this caveat.)
+- Item 23: `cps inspect ... | head` prints a BrokenPipeError traceback.
+- The planner beats a fixed-0.90 scheduler on durability past the exam, not on
+  exam-day recall; say so wherever results are quoted.
 - FSRS weights are population defaults; a subject's starting stability and
-  difficulty are user-supplied guesses.
+  difficulty are user-supplied guesses. The target and the 40-block failure penalty
+  are stated choices.

@@ -150,9 +150,10 @@ def test_both_topics_are_usually_ready(blocks, continuation):
 
     Measured with benchmarks/replanning.py over 100 seeds: 86 +- 3% ready at
     window 1, 83 +- 4% at window 2, 90 +- 3% at window 4. At window 2 the original
-    12 seeds give 9 of 12, so the test uses window 4, the best measured setting,
-    and more seeds for a tighter estimate: 37 of these 40 seeds are ready. The
-    runs that fail are ones where lapses leave too little calendar to rebuild.
+    12 seeds give 9 of 12 (`--seeds 12 --windows 2`), so the test uses window 4,
+    the best measured setting, and more seeds for a tighter estimate: 37 of these
+    40 seeds are ready (`--seeds 40 --windows 4`). The runs that fail are ones
+    where lapses leave too little calendar to rebuild.
     """
     seeds = 40
     ready = sum(

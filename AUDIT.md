@@ -190,9 +190,31 @@ help either (`--target-days 90`): it raises the bar without adding a clock, the
 first review is still on day 16 to 18, and 0% of runs reach the target.
 
 The fix is to make waiting consume the resource it actually consumes, which is
-calendar time before the exam. Not implemented. Recorded as
-`test_readiness_is_poor_because_the_continuation_has_no_clock`, marked
-`xfail(strict=True)`, so the build breaks when it is fixed.
+calendar time before the exam.
+
+*Status: fixed in milestone M1.* The continuation is now `clock.py`: for each
+subject, the expected cost of reaching its target before its own exam, given the
+days since its last review. Measured with the same script and seeds (100 seeds;
+before: `docs/baselines/replanning-before.txt`, after:
+`docs/baselines/replanning-after.txt`):
+
+| | first review of Analysis | both ready | blocks |
+|---|---|---|---|
+| before, windows 1/2/4 | day 19 / 17 / 16, recall 0.55-0.58 | 35% / 38% / 38% (± 6%, 60 seeds) | 2.5-3.0 |
+| after, windows 1/2/4 | day 1.4 / 2.3 / 2.3, recall 0.89-0.93 | 86% / 83% / 90% (± 3-4%) | 5.0-5.3 |
+
+The strict xfail passes and lost its marker. Postponing the first review of the
+S=2, D=7 topic now costs 0.48 blocks at four days and 3.0 at eight, where it cost
+3.4e-09. How the design was chosen, including three candidates that failed, is in
+PROCESS.md, "Milestone M1".
+
+What the fix does not buy, measured in the same run: a greedy scheduler that
+reviews each subject when its recall falls to 0.90 (the fixed desired retention of
+Anki-style tools) reaches the 21-day target in 0% of runs, because its next due
+date falls after the exam, yet its predicted recall *at the exam* is 0.920 against
+the planner's 0.932, with 3.7 blocks against 5.0. The planner's advantage is
+durability past the exam (mean stability at the exam 20.5 days against 17.0), which
+is the objective it was given, not exam-day recall.
 
 The general lesson, now on its fourth instance after `argmax E[S']`,
 `argmax (E[S'] - S)/t` and the `V_opt` continuation: **minimising expected review
@@ -221,8 +243,8 @@ project was handed to a Windows user:
 - `tzdata` was only a transitive dependency, through `icalendar`. Windows has no
   IANA time-zone database, so `zoneinfo` depends on it. Declared explicitly.
 
-Not verified: none of this has run on real Windows. Status: fixed by construction
-and by simulation; a Windows job in CI is the outstanding verification.
+Not verified at the time: none of this had run on real Windows. Status: fixed, and
+since milestone M0 verified by the Windows CI job (item 25).
 
 **22. The heuristic-grade solve is not cell-wise below the analysis solve.**
 `SSPConfig.for_heuristic` uses 80 retentions on [0.05, 0.999]; the analysis
@@ -268,3 +290,36 @@ encoding under test was correct; the expected value assumed Linux. Fixed in the
 test by expecting `os.linesep`. The four fixes of item 21 held: the BOM, CRLF and
 tzdata tests passed on Windows, and so did the redirected demo once the suite was
 green. Status: fixed; Windows is now verified by CI rather than by simulation.
+
+**26. State aggregation could carry a state across the goal.** Found in milestone
+M1 while testing per-subject exams: with the Analysis exam on day 9 (target 9),
+the planner reviewed at 3.33 (S from 5.0 to 8.85) and again 1.5 hours later at
+recall 0.999 (8.85 to 8.97, still short). `Instance.snap` rounds stability to a 15%
+multiplicative grid, and 8.85 and 8.97 both round to 9.36, past the target, so the
+window search believed one cheap review finished the topic. The executed
+trajectory was exact (invariant 7 held); the *decision* was made on a snapped state
+on the wrong side of the goal. Fixed in `Instance.successors`: goal membership is
+decided by the exact state, and a snapped state that would cross the target is
+pinned to the target's edge. `test_aggregation_never_carries_a_state_across_the_goal`
+covers it.
+
+**It had also invalidated a published result.** The one-shot solver aggregates
+too. `demo.py` section 4 reported the ten-day, two-topic plan at a cost of 8.84,
+studying both topics ("the hard topic on days 2, 8 and 9, the easy one on day 6",
+PROCESS.md). Followed with exact FSRS dynamics, that policy costs 28.61: snapped
+stabilities had crossed a target the real ones had not reached. With the guard the
+optimum studies only the easier topic (days 1 and 6) and its reported and real
+costs agree, 17.28 and 17.30. Reproduced by `python benchmarks/aggregation_goal_crossing.py`.
+`plan.evaluate_exact_dynamics`, which follows an aggregated policy with exact
+transitions, now checks this in `test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan`,
+and the demo prints both costs. The earlier aggregation check ("within 0.1% of
+exact") had compared the aggregated model's own value with the exact optimum on a
+five-block instance, where it happened to hold; it now also compares the real cost.
+
+A first hypothesis was wrong and is recorded because it was plausible: that
+bilinear interpolation towards the zero stored at the target smeared "almost free"
+into the states just below it. Measured, the value just below a 9-day target was
+1.06 blocks either way, because successors that reach the target are zeroed by the
+goal test rather than by interpolation. The grid change was reverted; the test that
+checks the property (`test_just_below_the_target_is_at_least_one_more_review`)
+stays. Status: fixed.
