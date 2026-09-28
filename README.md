@@ -14,7 +14,8 @@ exhaustive computation rather than asserted.
 
     pip install -e ".[dev]"
 
-    pytest                                    # 213 passed, 1 xfailed
+    pytest                                    # 219 passed, 12 deselected (slow), 1 xfailed
+    pytest -m "slow or not slow" --cov=cps    # everything: 231 passed, 1 xfailed, 94% coverage
     python demo.py                            # every number quoted in the docs
     python benchmarks/replanning.py           # the planner against two baselines
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome

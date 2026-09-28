@@ -26,7 +26,9 @@ than an impressive number.
 
     pip install -e ".[dev,app]"             # app = streamlit, for app.py
     streamlit run app.py
-    pytest                                   # 213 passed, 1 xfailed, about 95 s
+    pytest                                   # 219 passed, 12 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 231 + 1 xfailed, 94% coverage, about 2 min; CI runs this
+    ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
