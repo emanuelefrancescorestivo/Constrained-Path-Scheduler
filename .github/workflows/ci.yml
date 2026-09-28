@@ -35,8 +35,8 @@ jobs:
           cache: pip
       - name: Install
         run: python -m pip install -e ".[dev,app]"
-      - name: Test
-        run: python -m pytest
+      - name: Test (all, including slow)
+        run: python -m pytest -m "slow or not slow" --cov=cps --cov-report=term
       - name: Demo (quick)
         # Redirected on purpose: a redirected stdout on Windows is cp1252 unless
         # console.ensure_utf8_output() does its job (AUDIT.md item 21).

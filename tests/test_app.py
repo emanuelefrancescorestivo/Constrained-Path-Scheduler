@@ -39,6 +39,7 @@ def test_the_app_stays_thin():
     assert len(APP.read_text(encoding="utf-8").splitlines()) <= 250
 
 
+@pytest.mark.slow
 def test_the_displayed_sessions_are_the_service_plan():
     pytest.importorskip("streamlit")
     import pandas as pd
@@ -68,6 +69,7 @@ def test_the_displayed_sessions_are_the_service_plan():
     assert len(shown) == len(expected.sessions) > 0
 
 
+@pytest.mark.slow
 def test_what_if_i_miss_a_session_shows_the_service_replan():
     pytest.importorskip("streamlit")
     import pandas as pd

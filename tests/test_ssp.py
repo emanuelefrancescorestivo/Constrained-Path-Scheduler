@@ -137,6 +137,7 @@ def test_restricting_the_action_set_cannot_lower_the_cost(policy):
     assert gap.mean() > 0.1, "a genuinely restricted action set should cost something"
 
 
+@pytest.mark.slow
 def test_bilinear_value_function_is_calibrated_against_simulation(policy):
     """V* should predict the cost the policy actually pays.
 
@@ -153,6 +154,7 @@ def test_bilinear_value_function_is_calibrated_against_simulation(policy):
         )
 
 
+@pytest.mark.slow
 def test_optimistic_solve_is_a_genuine_lower_bound(policy):
     """The admissibility guarantee A* actually needs.
 
@@ -264,6 +266,7 @@ def test_higher_lapse_cost_raises_the_optimal_retention():
     assert dear.optimal_retention(5.0, 8.0) > cheap.optimal_retention(5.0, 8.0) + 0.05
 
 
+@pytest.mark.slow
 def test_v_star_is_stable_under_grid_refinement():
     """Discretisation error must be small relative to the quantity reported.
 
@@ -305,6 +308,7 @@ def test_a_short_deadline_makes_the_problem_easier():
     )
 
 
+@pytest.mark.slow
 def test_fixed_retention_cost_jumps_where_one_more_review_is_needed(policy):
     """The open question of milestone M4: why does a fixed retention of 0.85 cost
     more than both 0.80 and 0.90? Because a fixed-retention schedule needs a whole

@@ -33,7 +33,12 @@ app = ["streamlit>=1.64"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+# The default run skips tests marked slow (Monte Carlo calibration, grid
+# refinement, headless app runs, multi-seed planner runs): about 45 s instead
+# of 100. CI runs everything with `-m "slow or not slow"`; so should anyone
+# changing the model.
+addopts = "-q --strict-markers -m 'not slow'"
+markers = ["slow: takes more than a few seconds; skipped by default, run by CI"]
 
 [tool.ruff]
 line-length = 110

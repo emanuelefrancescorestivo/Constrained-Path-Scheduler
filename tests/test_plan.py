@@ -251,6 +251,7 @@ def test_aggregation_barely_moves_the_answer(continuation, exact):
     assert exact.value - 1e-9 <= real <= exact.value * 1.02
 
 
+@pytest.mark.slow
 def test_the_aggregated_cost_is_the_real_cost_on_a_ten_day_plan(continuation):
     """AUDIT.md item 26. Before goal membership was decided by the exact state, the
     ten-day plan reported 8.83 blocks in the aggregated model and cost 28.6 when
@@ -349,6 +350,7 @@ def test_the_plan_is_empty_exactly_when_the_target_is_unreachable(instance, cont
     assert max(days_used) - min(days_used) >= 2, "reviews should be spread, not massed"
 
 
+@pytest.mark.slow
 def test_extra_capacity_never_makes_the_plan_worse(continuation):
     """Sanity property, and the setup for the triage finding: more free evenings
     cannot increase the optimal expected cost."""

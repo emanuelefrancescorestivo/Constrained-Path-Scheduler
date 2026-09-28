@@ -77,6 +77,7 @@ def test_each_subject_is_planned_to_its_own_exam(plan):
     assert last_analysis < analysis.exam_day
 
 
+@pytest.mark.slow
 def test_a_horizon_too_short_for_the_exams_is_extended(subjects):
     short = service.analyse_calendar(SAMPLE.read_bytes(), start=START, tz=TZ, days=7)
     plan = service.make_plan(short, subjects, window=3)
@@ -97,6 +98,7 @@ def test_reports_are_plain_json_and_round_trip(report, plan):
     assert rebuilt.to_dict() == plan.to_dict()
 
 
+@pytest.mark.slow
 def test_a_round_tripped_plan_replans_like_the_original(plan):
     rebuilt = service.PlanReport.from_dict(json.loads(json.dumps(plan.to_dict())))
     assert (
@@ -105,6 +107,7 @@ def test_a_round_tripped_plan_replans_like_the_original(plan):
     )
 
 
+@pytest.mark.slow
 def test_a_seed_makes_the_plan_deterministic(report, subjects):
     first = service.make_plan(report, subjects, window=3, seed=5).to_dict()
     second = service.make_plan(report, subjects, window=3, seed=5).to_dict()

@@ -144,6 +144,7 @@ def test_the_first_review_of_a_weak_topic_is_early(blocks, continuation):
     assert first.retrievability_at_review >= 0.85
 
 
+@pytest.mark.slow
 def test_both_topics_are_usually_ready(blocks, continuation):
     """Formerly the strict xfail `test_readiness_is_poor_because_the_continuation_has_no_clock`,
     which asked for 80% over 12 seeds at window 2.
