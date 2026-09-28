@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from cps.legacy import FSRSModel, LegacyHeuristic
@@ -142,11 +143,30 @@ def test_grade_ordering_is_respected():
     assert all(a < b for a, b in zip(outcomes, outcomes[1:]))
 
 
-def test_lapse_never_increases_stability():
-    for s in (0.5, 5.0, 50.0, 500.0):
-        state = MemoryState(stability=s, difficulty=5.0)
-        for elapsed in (0.0, 1.0, s, 10 * s):
-            assert review(state, elapsed, Grade.AGAIN).stability <= s + 1e-12
+def test_a_lapse_never_beats_a_recall():
+    """What the best-case bounds need (`plan.best_case_reviews`,
+    `rolling.best_case_stability`): from the same state after the same delay, a
+    lapse never ends above a successful recall. Holds on the whole grid without any
+    clamp; the largest ratio is 0.999, at the stability floor (AUDIT.md item 27)."""
+    for s in np.geomspace(0.01, 500, 60):
+        for d in np.linspace(1, 10, 10):
+            state = MemoryState(float(s), float(d))
+            for elapsed in np.geomspace(0.01, 1000, 40):
+                lapse = review(state, float(elapsed), Grade.AGAIN).stability
+                recall = review(state, float(elapsed), Grade.GOOD).stability
+                assert lapse <= recall + 1e-12
+
+
+def test_post_lapse_stability_is_not_clamped_because_fsrs_4_5_is_not():
+    """This test used to assert that a lapse never raises stability, which the old
+    `min(., S)` clamp guaranteed. FSRS-4.5 has no such clamp: at S = 0.93 after
+    thirty days, py-fsrs 2.5.1 gives 1.185347 (benchmarks/fsrs_reference.py, the
+    last step of the mixed trajectory). Matching the reference wins over a
+    property the reference does not have (AUDIT.md item 27)."""
+    before = MemoryState(0.927273, 10.0)
+    after = review(before, 30.0, Grade.AGAIN)
+    assert after.stability > before.stability
+    assert after.stability == pytest.approx(1.185347, abs=2e-6)
 
 
 def test_difficulty_stays_in_range_under_adversarial_grading():
@@ -193,33 +213,64 @@ def test_expected_stability_has_an_interior_optimum():
     assert values[best] > values[-1]
 
 
-def test_interval_sequence_matches_the_upstream_reference():
-    """Golden test against a published trajectory.
+# Produced by py-fsrs 2.5.1, the Python FSRS-4.5 by the algorithm's author, driven
+# through its own API with whole-day gaps: benchmarks/fsrs_reference.py.
+# (interval in days, stability, difficulty) after each review.
+REFERENCE_GOOD = [
+    (4, 14.808101, 5.161800),
+    (15, 49.461605, 5.161800),
+    (49, 145.670632, 5.161800),
+    (146, 392.697898, 5.161800),
+    (393, 973.427791, 5.161800),
+    (973, 2243.573044, 5.161800),
+]
+# (grade, days since the previous review, stability, difficulty), after a first
+# rating of Good.
+REFERENCE_MIXED = [
+    (3, 3, 12.262351, 5.161800), (1, 9, 2.744538, 6.901155), (3, 1, 4.929007, 6.847235),
+    (2, 2, 5.853178, 7.664664), (3, 5, 13.465381, 7.587075), (4, 7, 42.435274, 6.642214),
+    (1, 40, 5.063535, 8.335676), (3, 2, 7.666694, 8.237286), (3, 6, 15.012426, 8.141946),
+    (2, 15, 18.864802, 8.919239), (4, 30, 83.884577, 7.933081), (1, 3, 5.809487, 9.586526),
+    (1, 25, 2.428566, 10.000000), (1, 1, 0.927273, 10.000000), (1, 30, 1.185347, 10.000000),
+]
 
-    py-fsrs' own documentation reports that a run of "Good" ratings with default
-    parameters yields intervals of roughly 0, 4, 14, 44, 125, 328 days. Our
-    reimplementation has to land in that neighbourhood; if it does not, we have
-    either the wrong formula or the wrong parameter semantics. This test is what
-    caught the FSRS-5 initial-difficulty formula being used with the FSRS-4.5
-    parameter vector -- a mismatch that every property test above tolerated.
+
+def test_good_ratings_reproduce_the_reference_trajectory_exactly():
+    """Golden test against an independent implementation of the same version.
+
+    It replaces a neighbourhood check (0.6x to 1.7x of "4, 14, 44, 125"), which is
+    what caught the FSRS-5 initial-difficulty formula mixed with FSRS-4.5
+    parameters (AUDIT.md item 11), a mismatch every property test above tolerated.
+    Those four numbers turned out not to be FSRS-4.5's: with its defaults and whole
+    days, py-fsrs 2.5.1 schedules 4, 15, 49, 146, 393, 973 days. The six printed
+    decimals are matched to 1e-6.
     """
-    reference = [4, 14, 44, 125]
     state = initial_state(Grade.GOOD)
-    ours = []
-    for _ in range(len(reference) + 1):
-        interval = state.ideal_interval()
-        ours.append(interval)
-        state = review(state, interval, Grade.GOOD)
+    for interval, stability, difficulty in REFERENCE_GOOD:
+        assert max(round(state.ideal_interval()), 1) == interval
+        state = review(state, float(interval), Grade.GOOD)
+        assert state.stability == pytest.approx(stability, abs=1e-6)
+        assert state.difficulty == pytest.approx(difficulty, abs=1e-6)
 
-    for got, want in zip(ours[:len(reference)], reference):
-        assert 0.6 * want < got < 1.7 * want, f"intervals {ours} vs reference {reference}"
+
+def test_every_grade_and_lapses_reproduce_the_reference_trajectory_exactly():
+    """Again, Hard and Easy and the post-lapse formula, which a Good-only
+    trajectory never exercises. This one caught the post-lapse clamp that FSRS-4.5
+    does not have (AUDIT.md item 27): with it, the last step gave 0.927 instead of
+    1.185."""
+    state = initial_state(Grade.GOOD)
+    for grade, gap, stability, difficulty in REFERENCE_MIXED:
+        state = review(state, float(gap), Grade(grade))
+        assert state.stability == pytest.approx(stability, abs=1e-6), (grade, gap)
+        assert state.difficulty == pytest.approx(difficulty, abs=1e-6), (grade, gap)
 
 
 def test_both_naive_single_review_objectives_degenerate():
     """Recorded so nobody re-derives them and ships the result.
 
-    argmax E[S'] runs off to ~100 days for a 5-day item (a lapse is nearly free
-    once post-lapse stability is clamped at S), and argmax of the gain *rate*
+    argmax E[S'] runs off to ~100 days for a 5-day item (post-lapse stability
+    does not fall with the delay, so the downside of waiting is capped), and
+    argmax of the gain *rate*
     collapses to zero delay (the gain is linear in t for small t). Any objective
     defined on a single review in isolation has this problem.
     """

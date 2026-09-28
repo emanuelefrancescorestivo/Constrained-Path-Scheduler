@@ -373,8 +373,9 @@ def best_case_reviews(
     `R = retrievability(horizon, S)` is therefore still generous -- every single
     gap is bounded by the whole horizon -- but far tighter.
 
-    Lapses cannot beat this either, since post-lapse stability is clamped at the
-    pre-lapse value. So no policy, constrained or not, reaches the target in fewer
+    Lapses cannot beat this either: a lapse never ends above a successful recall
+    from the same state after the same delay, and it raises difficulty
+    (`test_a_lapse_never_beats_a_recall`, AUDIT.md item 27). So no policy, constrained or not, reaches the target in fewer
     reviews than the count returned here.
     """
     floor = min(difficulty, initial_difficulty(Grade.GOOD, weights))

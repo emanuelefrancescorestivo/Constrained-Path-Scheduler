@@ -86,7 +86,15 @@ def part_1_memory_model() -> None:
         seq.append(round(interval, 1))
         fresh = review(fresh, interval, Grade.GOOD)
     print(f"    ours      {seq}")
-    print("    reference [4, 14, 44, 125, 328]  (py-fsrs, default parameters)")
+    whole, days = initial_state(Grade.GOOD), []
+    for _ in range(6):
+        interval = max(round(whole.ideal_interval()), 1)
+        days.append(interval)
+        whole = review(whole, float(interval), Grade.GOOD)
+    print(f"    ours, whole days       {days}")
+    print("    py-fsrs 2.5.1 (FSRS-4.5), whole days [4, 15, 49, 146, 393, 973]")
+    print("    (the reference is pinned in tests/test_memory.py; benchmarks/fsrs_reference.py")
+    print("     produces it from py-fsrs itself)")
 
 
 def part_2_ssp() -> None:

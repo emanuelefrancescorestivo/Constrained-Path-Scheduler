@@ -102,7 +102,7 @@ def _vec_stability_on_lapse(s: np.ndarray, d: np.ndarray, r: np.ndarray, w: Weig
         * ((s + 1.0) ** w.lapse_s_gain - 1.0)
         * np.exp((1.0 - r) * w.lapse_r_gain)
     )
-    return np.maximum(np.minimum(post, s), S_MIN)
+    return np.maximum(post, S_MIN)
 
 
 # --------------------------------------------------------------------------- #

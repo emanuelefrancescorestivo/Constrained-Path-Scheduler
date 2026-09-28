@@ -102,9 +102,19 @@ trivially easy, and stability exploded.
 
 **Every property test passed.** Monotonicity held, the spacing effect held, the
 lapse clamp held. What caught it was printing `D0` per grade and then pinning one
-trajectory to an external reference: py-fsrs documents that consecutive Good
-ratings produce intervals near 0, 4, 14, 44, 125, 328 days. The broken version
-gave 3.7, 21.5, 102, 414. The fixed version gives 3.7, 14.1, 46.9, 139.6.
+trajectory to an external reference: consecutive Good ratings were said to produce
+intervals near 0, 4, 14, 44, 125, 328 days. The broken version gave 3.7, 21.5, 102,
+414. The fixed version gives 3.7, 14.1, 46.9, 139.6.
+
+*Postscript from milestone M4.* The reference was the weakest link. Nobody had
+checked where "4, 14, 44, 125" came from, and the test accepted anything from 0.6
+to 1.7 times it. Run through py-fsrs 2.5.1, the FSRS-4.5 release, the same defaults
+give 4, 15, 49, 146, 393, 973 whole days, and our model now matches that
+implementation to 4e-14 on two trajectories, one with every grade and several
+lapses. That exact comparison immediately found a second, milder version mix: a
+post-lapse clamp, `min(·, S)`, which FSRS-4.5 does not have (AUDIT.md item 27). It
+had changed the headline optimum in the fifth decimal and nothing else, which is
+the kind of error only an exact reference finds.
 
 FSRS-4/4.5 use the *linear* form `D0(g) = w4 − w5·(g−3)`; the exponential form
 arrived in FSRS-5 with refitted `w4`/`w5`.
@@ -119,8 +129,10 @@ With a working forgetting curve, the obvious next question is when to review one
 item. Both obvious answers collapse:
 
 - `argmax E[S′]` runs out to ~97 days for a five-day item. Post-lapse stability
-  is clamped at `min(·, S)`, so forgetting costs you the gain but not your
-  existing stability. Waiting is almost free, so the model says wait.
+  does not fall with the delay (it rises slightly), so the downside of waiting is
+  capped at the lapse value while the upside keeps growing. Waiting is almost
+  free, so the model says wait. (This paragraph first blamed a post-lapse clamp;
+  the clamp does not bind here and was removed in M4, AUDIT.md item 27.)
 - `argmax (E[S′] − S)/t` collapses to `t → 0`. For small `t`,
   `R ≈ 1 − FACTOR·t/(2S)`, so the gain is linear in `t` and the ratio tends to a
   positive constant. The model says review immediately.
@@ -323,11 +335,11 @@ Five-block instance, two topics, exam in 21 days, exhaustively solvable:
 
 | method | value | nodes |
 |---|---|---|
-| exhaustive backward induction | 13.23196 | 3,906 states |
-| AO\*, `h = 0` | 13.23196 | 184 expansions |
-| AO\*, `h =` closed-form knapsack | 13.23196 | 118 |
-| AO\*, `h =` SSP bound | 13.23196 | 152 |
-| AO\*, `h =` SSP + capacity | 13.23196 | **116** |
+| exhaustive backward induction | 13.23170 | 3,906 states |
+| AO\*, `h = 0` | 13.23170 | 184 expansions |
+| AO\*, `h =` closed-form knapsack | 13.23170 | 118 |
+| AO\*, `h =` SSP bound | 13.23170 | 152 |
+| AO\*, `h =` SSP + capacity | 13.23170 | **116** |
 
 All four reproduce the exact optimum to five decimals, and every one is verified
 admissible at all 3,906 reachable states, not just at the root.
@@ -367,8 +379,9 @@ of the solution instead: snapping stability to a 15% multiplicative grid and
 difficulty to half-points leaves the cost within 0.1% of exact on the instance
 where both are computable, and makes two more instances tractable: ten daily
 blocks go from more than 30,000 expansions to 4,603, and seven days at two blocks a
-day (fourteen blocks) to 10,133 expansions in under four seconds (counts after the
-M1 fix to aggregation, AUDIT.md item 26; they were 4,835 and 9,775 before it). Fourteen days at
+day (fourteen blocks) to 10,136 expansions in under four seconds (counts after the
+M1 fix to aggregation, AUDIT.md item 26, and the M4 fix to the lapse formula,
+item 27; they were 4,835 and 9,775 before them). Fourteen days at
 one block a day stays out of reach even with aggregation.
 
 It is not enough for a realistic sixty-day horizon. The next step is

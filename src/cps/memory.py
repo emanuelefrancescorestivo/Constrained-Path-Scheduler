@@ -262,7 +262,16 @@ def _stability_on_recall(
 
 
 def _stability_on_lapse(stability: float, difficulty: float, r: float, w: Weights) -> float:
-    """Post-lapse stability, clamped so that forgetting can never *help*."""
+    """Post-lapse stability, exactly as FSRS-4.5 defines it.
+
+    There is no `min(., S)` here. An earlier version clamped the result at the
+    pre-lapse stability "so that forgetting can never help"; FSRS-4.5 has no such
+    clamp, and at low stability after a long gap its formula does return more than
+    the pre-lapse value (pinned against py-fsrs 2.5.1 in tests/test_memory.py).
+    FSRS-5 later added a different cap. What the bounds in this project need is
+    weaker and holds without a clamp: a lapse never ends above a successful recall
+    from the same state after the same delay (AUDIT.md item 27).
+    """
     s = max(stability, S_MIN)
     post = (
         w.lapse_scale
@@ -270,7 +279,7 @@ def _stability_on_lapse(stability: float, difficulty: float, r: float, w: Weight
         * ((s + 1.0) ** w.lapse_s_gain - 1.0)
         * math.exp((1.0 - r) * w.lapse_r_gain)
     )
-    return max(min(post, s), S_MIN)
+    return max(post, S_MIN)
 
 
 def review(
@@ -338,9 +347,10 @@ def expected_gain_rate(
     because picking either one would have produced another set of confident and
     meaningless numbers:
 
-      * argmax E[S']  -> ~97 days for a 5-day item. Post-lapse stability is
-        clamped at min(., S), so forgetting costs you the gain but not your
-        existing stability. Waiting is nearly free, so the model says wait.
+      * argmax E[S']  -> ~97 days for a 5-day item. Post-lapse stability does
+        not fall with the delay (it rises slightly), so the downside of waiting
+        is capped at the lapse value while the upside keeps growing. Waiting is
+        nearly free, so the model says wait.
       * argmax E[S']/t -> t -> 0. For small t, R ~ 1 - FACTOR*t/(2S), so the gain
         is linear in t and the ratio tends to a positive constant. The model says
         review immediately.

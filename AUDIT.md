@@ -96,11 +96,16 @@ by printing D0 per grade and by a golden test against the published interval
 sequence (0, 4, 14, 44, 125, 328). Worth recording as a methodology note: for a
 model with named-parameter semantics, property tests are necessary but not
 sufficient — you also need at least one trajectory pinned to an external
-reference.
+reference. *Added in milestone M4:* that "published sequence" was itself
+unverified. py-fsrs 2.5.1, the FSRS-4.5 release, schedules 4, 15, 49, 146, 393,
+973 days with the same defaults, and the check was only 0.6x to 1.7x wide. The
+test is now exact against py-fsrs 2.5.1 (item 27).
 
 **12. Both obvious objectives degenerate.** `argmax E[S']` runs out to ~97 days
-for a 5-day item, because post-lapse stability is clamped at `min(·, S)` and
-waiting is therefore nearly free. `argmax (E[S'] − S)/t` collapses to t → 0,
+for a 5-day item, because post-lapse stability does not fall with the delay (it
+rises slightly), so the downside of waiting is capped and waiting is nearly free.
+(Until M4 this item blamed a `min(·, S)` clamp, which does not bind at S = 5 and
+was removed; see item 27. The ~97 days is unchanged.) `argmax (E[S'] − S)/t` collapses to t → 0,
 because the gain is linear in t for small t. Recorded in
 `test_both_naive_single_review_objectives_degenerate` so the next person does not
 re-derive one of them and publish the result. The objective with an interior
@@ -323,3 +328,27 @@ into the states just below it. Measured, the value just below a 9-day target was
 goal test rather than by interpolation. The grid change was reverted; the test that
 checks the property (`test_just_below_the_target_is_at_least_one_more_review`)
 stays. Status: fixed.
+
+**27. A second, milder version mix: a post-lapse clamp that FSRS-4.5 does not have.**
+`_stability_on_lapse` returned `min(post, S)`, "so that forgetting can never help".
+Found in milestone M4 while replacing the neighbourhood check of item 11 with an
+exact comparison against an independent implementation of the same version:
+py-fsrs 2.5.1, the last release of the Python package implementing FSRS-4.5, by
+the algorithm's author. Its post-lapse formula has no clamp, and neither does the
+FSRS-4.5 formula on the algorithm's wiki ("The Algorithm", awesome-fsrs). FSRS-5
+later added a *different* cap, `S / exp(w17·w18)`, so the clamp was a hybrid that
+matched no published version. A trajectory with four lapses in a row exposes it:
+py-fsrs gives 1.185347 at the last step, the clamped model 0.927273. Without the
+clamp every value of both reference trajectories matches to 4e-14.
+
+Fixed by removing the clamp (`memory.py` and its vectorised twin in `ssp.py`).
+Measured effect: the exhaustive optimum of the five-block instance moves from
+13.23196 to 13.23170, one aggregated expansion count from 10,133 to 10,136, and no
+other number in `demo.py`, `benchmarks/replanning.py` or the clock calibration
+changes; the clamp never binds above a stability of about two days. The bounds that
+cited the clamp (`plan.best_case_reviews`, `rolling.best_case_stability`) need only
+that a lapse never ends above a successful recall from the same state and delay,
+which holds without it (largest ratio 0.999, at the stability floor) and is now a
+test. The test that asserted the clamp was replaced by one that pins the reference
+value. Reproduce the reference with `benchmarks/fsrs_reference.py` in an
+environment with `fsrs==2.5.1`; the project does not depend on it. Status: fixed.

@@ -206,7 +206,8 @@ def best_case_stability(
     """An upper bound on the stability reachable by reviewing at some subset of
     `review_days`, starting from `memory` last reviewed at `last_review_day`.
 
-    Every review is assumed to succeed, and difficulty is held at
+    Every review is assumed to succeed, which is an upper bound because a lapse
+    never ends above a recall from the same state and delay; difficulty is held at
     `min(D, D0(Good))`, which Good grades cannot go below (the argument in
     `plan.best_case_reviews`). The best stability after a review at each day is a
     dynamic programme over the previous review, valid because the post-recall
