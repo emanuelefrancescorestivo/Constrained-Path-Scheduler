@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from cps.calendar_io import (
+    BusyRow,
+    busy_from_table,
     busy_grid,
     decode_ics,
     expand_events,
@@ -372,3 +374,70 @@ def test_decode_ics_strips_a_bom_and_survives_bad_bytes():
     assert decode_ics(b"\xef\xbb\xbf" + TIMETABLE.encode("utf-8")).startswith("BEGIN:VCALENDAR")
     damaged = b"BEGIN:VCALENDAR\nSUMMARY:Caf\xe9\nEND:VCALENDAR"
     assert "\ufffd" in decode_ics(damaged), "invalid bytes should be replaced, not raised"
+
+
+# --------------------------------------------------------------------------- #
+# Hand-typed timetables
+# --------------------------------------------------------------------------- #
+
+WEEKLY_ONLY = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//EN
+BEGIN:VEVENT
+UID:lecture@test
+SUMMARY:Analysis lecture
+DTSTART;TZID=Europe/London:20260302T090000
+DTEND;TZID=Europe/London:20260302T110000
+RRULE:FREQ=WEEKLY;BYDAY=MO
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_a_typed_weekly_row_gives_the_events_an_ics_gives():
+    """The point of `busy_from_table`: nothing downstream can tell the difference.
+    Checked across the clock change on 29 March, where wall-clock times matter."""
+    begin, end, _ = window(start=date(2026, 3, 2), days=42)
+    from_ics = expand_events(WEEKLY_ONLY, begin, end, LONDON)
+    from_table = busy_from_table(
+        [{"label": "Analysis lecture", "weekday": "Monday", "start": "09:00", "end": "11:00"}],
+        date(2026, 3, 2), 42, "Europe/London",
+    )
+    assert from_table == from_ics
+
+
+def test_a_night_row_blocks_the_first_morning_too():
+    """Same trap as AUDIT.md item 15: a window crossing midnight must be inherited
+    from the day before the horizon."""
+    rows = [BusyRow("Sleep", time(23, 0), time(7, 0), weekday=d) for d in range(7)]
+    events = busy_from_table(rows, date(2026, 3, 2), 3, "Europe/London")
+    assert events[0].start.hour == 0 and events[0].end.hour == 7
+    grid = busy_grid(events, date(2026, 3, 2), 3)
+    assert not grid.is_free(grid.slot(0, 3), 1)
+    assert grid.is_free(grid.slot(0, 12), 1)
+
+
+def test_one_off_rows_and_exam_detection():
+    rows = [
+        {"label": "Dentist", "date": "2026-03-04", "start": "14:00", "end": "15:00"},
+        {"label": "Esame di Fisica", "date": date(2026, 3, 9), "start": "09:00", "end": "12:00"},
+        {"label": "Holiday", "date": "2026-03-05", "start": "00:00", "end": "24:00"},
+    ]
+    events = busy_from_table(rows, date(2026, 3, 2), 14, "Europe/Rome")
+    assert [e.summary for e in events] == ["Dentist", "Holiday", "Esame di Fisica"]
+    assert events[1].duration == timedelta(days=1)
+    assert [d.subject for d in find_deadlines(events)] == ["Fisica"]
+
+
+@pytest.mark.parametrize(
+    "row, message",
+    [
+        ({"label": "x", "start": "9", "end": "10"}, "weekday or a date"),
+        ({"label": "x", "weekday": "Mon", "date": "2026-03-04", "start": "9", "end": "10"}, "not both"),
+        ({"label": "x", "weekday": "Mon", "start": "nine", "end": "10"}, "time of day"),
+        ({"label": "x", "date": "4 March", "start": "9", "end": "10"}, "not a date"),
+    ],
+)
+def test_bad_rows_say_what_is_wrong(row, message):
+    with pytest.raises(ValueError, match=message):
+        busy_from_table([row], date(2026, 3, 2), 7, "Europe/Rome")

@@ -280,13 +280,162 @@ def load_availability(
     window_start = datetime.combine(start_date, time(0, 0), tzinfo=zone)
     window_end = window_start + timedelta(days=days)
     events = expand_events(ics_text, window_start, window_end, zone)
+    return availability_from_events(events, start_date, days, slots_per_day, study_window), events
+
+
+def availability_from_events(
+    events: Iterable[BusyEvent],
+    start_date: date,
+    days: int,
+    slots_per_day: int = SLOTS_PER_DAY,
+    study_window: tuple[float, float] | None = (8.0, 22.0),
+) -> TimeGrid:
+    """Occupancy grid from events, whatever produced them, plus the study window.
+
+    The second half of `load_availability`, split out so that events typed into a
+    table (`busy_from_table`) go through exactly the same path as an `.ics`.
+    """
     grid = busy_grid(events, start_date, days, slots_per_day)
     if study_window is not None:
         earliest, latest = study_window
         if not 0 <= earliest < latest <= 24:
             raise ValueError("study_window must be (earliest, latest) with 0 <= earliest < latest <= 24")
         grid = grid.block_daily(latest, earliest)
-    return grid, events
+    return grid
+
+
+# --------------------------------------------------------------------------- #
+# Busy time typed in by hand
+# --------------------------------------------------------------------------- #
+
+_WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+@dataclass(frozen=True, slots=True)
+class BusyRow:
+    """One row of a hand-typed timetable.
+
+    Either weekly (`weekday`, 0 = Monday) or one-off (`on`, a date), never both.
+    An `end` at or before `start` runs past midnight into the next day, so
+    "23:00 to 07:00" is a night. `end` may be 24:00, written as `time.max`.
+    """
+
+    label: str
+    start: time
+    end: time
+    weekday: int | None = None
+    on: date | None = None
+
+    def __post_init__(self) -> None:
+        if (self.weekday is None) == (self.on is None):
+            raise ValueError(f"row {self.label!r}: give either a weekday or a date, not both or neither")
+        if self.weekday is not None and not 0 <= self.weekday <= 6:
+            raise ValueError(f"row {self.label!r}: weekday must be 0 (Monday) to 6 (Sunday)")
+
+    @classmethod
+    def parse(cls, row: "BusyRow | dict") -> "BusyRow":
+        """Accept a BusyRow or a mapping such as a row of a UI table:
+        `{"label": "Gym", "weekday": "Wed", "start": "19:00", "end": "20:30"}` or
+        `{"label": "Dentist", "date": "2026-03-10", "start": "14:00", "end": "15:00"}`.
+        """
+        if isinstance(row, BusyRow):
+            return row
+        label = str(row.get("label") or row.get("what") or "Busy").strip()
+        weekday = row.get("weekday")
+        on = row.get("date", row.get("on"))
+        return cls(
+            label=label,
+            start=_parse_clock(row.get("start"), label),
+            end=_parse_clock(row.get("end"), label),
+            weekday=_parse_weekday(weekday, label) if _present(weekday) else None,
+            on=_parse_date(on, label) if _present(on) else None,
+        )
+
+
+def _present(value) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, float) and math.isnan(value):  # an empty cell in a DataFrame
+        return False
+    return str(value).strip() != ""
+
+
+def _parse_clock(value, label: str) -> time:
+    if isinstance(value, time):
+        return value
+    text = str(value if value is not None else "").strip()
+    if text in ("24:00", "24"):
+        return time.max
+    try:
+        hours, _, minutes = text.partition(":")
+        return time(int(hours), int(minutes or 0))
+    except ValueError as exc:
+        raise ValueError(f"row {label!r}: {text!r} is not a time of day like 09:30") from exc
+
+
+def _parse_weekday(value, label: str) -> int:
+    if isinstance(value, int) or (isinstance(value, float) and value.is_integer()):
+        return int(value)
+    text = str(value).strip().lower()
+    for index, name in enumerate(_WEEKDAYS):
+        if len(text) >= 2 and name.startswith(text):
+            return index
+    raise ValueError(f"row {label!r}: {value!r} is not a weekday")
+
+
+def _parse_date(value, label: str) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except ValueError as exc:
+        raise ValueError(f"row {label!r}: {value!r} is not a date like 2026-03-10") from exc
+
+
+def busy_from_table(
+    rows: Iterable["BusyRow | dict"],
+    start_date: date,
+    days: int,
+    zone_name: str = "UTC",
+) -> list[BusyEvent]:
+    """The same `BusyEvent`s an `.ics` would give, from hand-typed rows.
+
+    For a student who would rather type "lectures Monday 9 to 11" than export a
+    calendar. Occurrences are local wall-clock intervals in `zone_name`, clipped to
+    the horizon exactly as `expand_events` clips, so everything downstream
+    (the grid, exam detection by keyword, the planner) cannot tell the difference.
+    """
+    zone = ZoneInfo(zone_name)
+    window_start = datetime.combine(start_date, time(0, 0), tzinfo=zone)
+    window_end = window_start + timedelta(days=days)
+    out: list[BusyEvent] = []
+    for raw in rows:
+        row = BusyRow.parse(raw)
+        if row.on is not None:
+            dates = [row.on]
+        else:
+            # from the day before the horizon, so a night that starts on the eve
+            # still blocks the first morning
+            dates = [
+                start_date + timedelta(days=offset)
+                for offset in range(-1, days + 1)
+                if (start_date + timedelta(days=offset)).weekday() == row.weekday
+            ]
+        for day in dates:
+            begin = datetime.combine(day, row.start, tzinfo=zone)
+            if row.end == time.max:
+                finish = datetime.combine(day + timedelta(days=1), time(0, 0), tzinfo=zone)
+            elif row.end <= row.start:
+                finish = datetime.combine(day + timedelta(days=1), row.end, tzinfo=zone)
+            else:
+                finish = datetime.combine(day, row.end, tzinfo=zone)
+            if finish <= window_start or begin >= window_end:
+                continue
+            out.append(BusyEvent(max(begin, window_start), min(finish, window_end), row.label))
+    out.sort(key=lambda e: (e.start, e.end))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -332,11 +481,22 @@ def find_deadlines(
     return sorted(found.values(), key=lambda d: d.when)
 
 
+# Connectives left behind when the keyword is removed: "Esame di Fisica",
+# "Examen de physique", "Exam of Analysis".
+_CONNECTIVES = ("di", "del", "della", "dello", "de", "du", "des", "of", "in", "für", "d'")
+
+
 def _strip_keyword(title: str, keyword: str) -> str:
     lowered = title.lower()
     index = lowered.find(keyword)
     remainder = (title[:index] + " " + title[index + len(keyword) :]).strip()
-    return remainder.strip(" -–—:,·|").strip()
+    remainder = remainder.strip(" -–—:,·|").strip()
+    head, _, tail = remainder.partition(" ")
+    if tail and head.lower() in _CONNECTIVES:
+        remainder = tail.strip()
+    elif remainder.lower().startswith("d'") and len(remainder) > 2:
+        remainder = remainder[2:].strip()
+    return remainder
 
 
 # --------------------------------------------------------------------------- #
