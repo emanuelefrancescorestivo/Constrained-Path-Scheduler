@@ -94,13 +94,14 @@ class Subject:
     """One thing to study: its memory state now and when its exam is.
 
     `exam_day` is measured in days from midnight at the start of the horizon, the
-    same clock as `Block.start_day`. The memory state is taken as of that
-    midnight, with the last review at day 0.
+    same clock as `Block.start_day`, and so is `last_review_day`: 0 for a plan
+    made from scratch, the day of the last review when replanning part-way.
     """
 
     name: str
     memory: MemoryState
     exam_day: float
+    last_review_day: float = 0.0
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -200,9 +201,10 @@ def best_case_stability(
     memory: MemoryState,
     review_days: Sequence[float],
     weights: Weights = DEFAULT_WEIGHTS,
+    last_review_day: float = 0.0,
 ) -> float:
     """An upper bound on the stability reachable by reviewing at some subset of
-    `review_days`, starting from `memory` last reviewed at day 0.
+    `review_days`, starting from `memory` last reviewed at `last_review_day`.
 
     Every review is assumed to succeed, and difficulty is held at
     `min(D, D0(Good))`, which Good grades cannot go below (the argument in
@@ -214,11 +216,11 @@ def best_case_stability(
     planner says so instead of scheduling anyway.
     """
     floor = min(memory.difficulty, _next_difficulty_fixed_point(weights))
-    days = sorted(d for d in review_days if d > 0)
+    days = sorted(d for d in review_days if d > last_review_day)
     best: list[float] = []
     overall = memory.stability
     for j, day in enumerate(days):
-        candidates = [(0.0, memory.stability)] + [(days[i], best[i]) for i in range(j)]
+        candidates = [(last_review_day, memory.stability)] + [(days[i], best[i]) for i in range(j)]
         value = max(
             _stability_on_recall(s, floor, retrievability(day - last, s), Grade.GOOD, weights)
             for last, s in candidates
@@ -410,7 +412,9 @@ def run_rolling(
     names = tuple(s.name for s in subjects)
     targets = continuation.targets
     unreachable = tuple(
-        best_case_stability(s.memory, [b.start_day for b in blocks if b.start_day < s.exam_day], weights)
+        best_case_stability(
+            s.memory, [b.start_day for b in blocks if b.start_day < s.exam_day], weights, s.last_review_day
+        )
         < target
         for s, target in zip(subjects, targets)
     )
@@ -418,7 +422,7 @@ def run_rolling(
     # already past, so the plan does not spend blocks on a lost cause.
     live_exams = tuple(0.0 if bad else exam for bad, exam in zip(unreachable, exams))
 
-    state = tuple(TopicState(s.memory.stability, s.memory.difficulty, 0.0) for s in subjects)
+    state = tuple(TopicState(s.memory.stability, s.memory.difficulty, s.last_review_day) for s in subjects)
     result = RollingResult(
         subjects=names,
         targets=targets,
