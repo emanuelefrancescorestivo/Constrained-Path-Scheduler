@@ -25,7 +25,7 @@ than an impressive number.
 ## Commands
 
     pip install -e ".[dev]"
-    pytest                                   # 177 passed, 1 xfailed, about 65 s
+    pytest                                   # 208 passed, 1 xfailed, about 95 s
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
@@ -44,7 +44,8 @@ than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-subject exams |
-| `cli.py`, `console.py` | `cps inspect` / `cps plan`; UTF-8 output hardening for Windows |
+| `service.py` | the API every front end uses; typed errors; JSON results; no UI imports |
+| `cli.py`, `console.py` | `cps inspect` / `cps plan`, printing what `service` returns; UTF-8 output hardening |
 
 ## Invariants: do not weaken these to get a green build
 

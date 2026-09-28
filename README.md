@@ -14,7 +14,7 @@ exhaustive computation rather than asserted.
 
     pip install -e ".[dev]"
 
-    pytest                                    # 177 passed, 1 xfailed
+    pytest                                    # 208 passed, 1 xfailed
     python demo.py                            # every number quoted in the docs
     python benchmarks/replanning.py           # the planner against two baselines
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
@@ -24,6 +24,28 @@ exhaustive computation rather than asserted.
 A subject is `Name:stability:difficulty`, optionally followed by `@` and its exam
 date. Without a date, the date of the assessment with that name in the calendar is
 used ("Analysis exam" above).
+
+From Python, everything goes through `cps.service`, which is what the CLI uses:
+
+```python
+from datetime import date
+from pathlib import Path
+from cps import service
+
+report = service.analyse_calendar(Path("examples/sample-timetable.ics").read_bytes(),
+                                  start=date(2026, 3, 2), tz="Europe/Rome")
+plan = service.make_plan(report, [
+    service.SubjectSpec("Analysis", None, familiarity=2),        # date from the calendar
+    service.SubjectSpec("Algebra", "2026-03-27", familiarity=3),
+])
+plan = service.replan_after(plan, 0, "lapsed")                   # it did not stick
+Path("plan.ics").write_bytes(service.export_ics(plan))
+```
+
+No calendar file? `analyse_calendar(None, ..., busy_rows=[{"label": "Lectures",
+"weekday": "Mon", "start": "09:00", "end": "13:00"}, ...])` takes your week typed
+in. A familiarity from 1 to 5 is a prior anchored to FSRS's own first-review
+states, not a measurement.
 
 On Windows, if PowerShell refuses to run `Activate.ps1` ("running scripts is
 disabled on this system"), run
@@ -51,6 +73,7 @@ M1 fixed it (AUDIT.md item 20).
 | `src/cps/ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
 | `src/cps/clock.py` | the same problem against an exam date: `V(D, S, t)`, the replanning continuation |
 | `src/cps/budget.py` | the same problem under a finite block budget; superseded, see AUDIT.md item 20 |
+| `src/cps/service.py` | the one API every front end uses: analyse, plan, replan, export, recall curve |
 | `src/cps/console.py` | forces UTF-8 output so redirected runs cannot crash on Windows |
 | `src/cps/cli.py` | `cps inspect` and `cps plan` against a real `.ics` export |
 | `benchmarks/replanning.py` | the planner against greedy fixed-0.90 and every-k scheduling |
