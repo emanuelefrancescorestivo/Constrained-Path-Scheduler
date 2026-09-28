@@ -51,16 +51,49 @@ def test_inspect_reports_what_ingestion_saw(calendar, capsys):
     assert "Analysis" in out, "the exam should be detected and named"
 
 
-def test_the_horizon_defaults_to_the_first_assessment(calendar, capsys):
+def test_the_horizon_runs_to_the_last_assessment_and_includes_its_day(calendar, capsys):
+    """The exam is at 09:00 on day 18 (index from 0), so the horizon covers 19
+    days. Before per-subject exams it stopped at the earliest assessment and
+    rounded down, which dropped the morning of an afternoon exam."""
     main(["inspect", str(calendar), *BASE])
-    assert "plus 18 days" in capsys.readouterr().out
+    assert "plus 19 days" in capsys.readouterr().out
 
 
-def test_plan_runs_and_states_its_known_defect(calendar, capsys):
+def test_plan_runs_and_states_what_it_does_not_know(calendar, capsys):
+    """The notice about AUDIT.md item 20 is gone with the defect. What stays is
+    the honest part: population parameters and self-assessed starting points."""
     assert main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3"]) == 0
     out = capsys.readouterr().out
     assert "blocks used" in out
-    assert "AUDIT.md item 20" in out, "a plan that is known to be late must say so"
+    assert "AUDIT.md item 20" not in out
+    assert "population-default" in out and "your" in out
+
+
+def test_each_subject_can_carry_its_own_exam_date(calendar, capsys):
+    """Analysis takes its date from the calendar, Algebra from the argument."""
+    code = main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7",
+                 "--subject", "Algebra:4:5@2026-03-27", "--window", "3"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "Analysis           exam on day  18.4, target stability 18 days" in out
+    assert "Algebra            exam on day  25.0, target stability 25 days" in out
+    assert "horizon 25 days" in out
+
+
+def test_a_subject_without_an_exam_date_is_refused_with_a_remedy(calendar, capsys):
+    assert main(["plan", str(calendar), *BASE, "--subject", "Physics:3:6"]) == 1
+    err = capsys.readouterr().err
+    assert "No exam date for 'Physics'" in err and "@" in err
+
+
+def test_an_exam_date_before_the_plan_is_refused(calendar, capsys):
+    assert main(["plan", str(calendar), *BASE, "--subject", "Algebra:4:5@2026-03-01"]) == 1
+    assert "is not after" in capsys.readouterr().err
+
+
+def test_a_malformed_exam_date_is_rejected(calendar):
+    with pytest.raises(SystemExit):
+        main(["plan", str(calendar), *BASE, "--subject", "Algebra:4:5@next-friday"])
 
 
 def test_plan_writes_an_importable_calendar(calendar, tmp_path, capsys):

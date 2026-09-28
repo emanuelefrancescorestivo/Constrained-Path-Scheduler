@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 """
-Baseline harness for the replanning defect (AUDIT.md item 20).
+Before/after harness for the replanning defect (AUDIT.md item 20), and the
+comparison of the planner against the two schedulers students actually use.
 
-This is the yardstick for fixing it. Run it before touching anything, keep the
-output, run it again afterwards: the fix has worked when the numbers below move,
-not when someone says it has.
+    python benchmarks/replanning.py                 # about a minute
+    python benchmarks/replanning.py --seeds 200 --windows 1 2 4 6
 
-    python benchmarks/replanning.py                 # windows 1, 2, 4  (about 30 s)
-    python benchmarks/replanning.py --windows 1 2 4 8 --seeds 100
+The output before the fix is kept in docs/baselines/replanning-before.txt; the
+numbers quoted in AUDIT.md, PROCESS.md, METHOD.md and the README come from this
+script with its defaults.
 
 The scenario is the one used in tests/test_rolling.py: a 21-day horizon, one
-Monday lecture, two topics, an exam at day 21 and a stability target derived from
-it. Two topics are enough to show the defect and small enough to run in seconds.
+Monday lecture, two topics (Analysis at S=2, D=7 and Algebra at S=4, D=5), both
+examined at the end of day 21, and a stability target of 21 days, the stability at
+which recall would still be 90% if the whole preparation period elapsed again.
 
-What to look at, and what a fixed planner should look like:
+Three schedulers, all stopping work on a subject once it reaches its target and
+none studying after its exam, all on the same calendar and the same seeds:
 
-  * "value of the b-th block": today a block is worth ~1e-8 while the budget is
-    slack, so the planner is indifferent to waiting. After the fix, waiting has to
-    cost something well before the budget binds.
-  * "first review": for a topic that starts at stability 2, retrievability decays
-    to roughly 0.82-0.85 (the optimal-retention band from the SSP analysis) after
-    3.5-4.5 days. The first review should land near there, not on day 13-19.
-  * "ready": the share of stochastic runs in which every topic reaches the target.
-    This is the number that matters to a student.
+  planner     rolling AO* with the clock continuation (src/cps/rolling.py)
+  greedy-0.90 review a subject when its recall has fallen to 0.90 or below, the
+              most overdue first: the fixed desired retention of Anki-style tools
+  every-k     review each subject every k days; k is chosen *after the fact* as
+              the best of 1..7 on these seeds, which favours the baseline
+
+"ready" means both subjects reached their target, reported with the binomial
+standard error. The failure penalty is pinned at 40 blocks (CLAUDE.md invariant 6).
 """
 
 from __future__ import annotations
@@ -31,16 +34,15 @@ import argparse
 import math
 import time
 from datetime import date
+from typing import Callable, Sequence
 
 import numpy as np
 
-from cps.budget import BudgetConfig
-from cps.budget import solve as budget_solve
 from cps.calendar_io import load_availability
 from cps.console import ensure_utf8_output
-from cps.memory import MemoryState, stability_for_interval
-from cps.plan import tile_free_time
-from cps.rolling import run_rolling
+from cps.memory import Grade, MemoryState, retrievability, review
+from cps.plan import Block, tile_free_time
+from cps.rolling import Subject, run_rolling, solve_deadlines
 
 # Identical to the timetable in tests/test_rolling.py. Kept as a literal so that
 # the benchmark does not import from the test suite.
@@ -58,61 +60,143 @@ END:VCALENDAR
 """
 
 EXAM_DAYS = 21.0
-TOPICS = [("Analysis", MemoryState(2.0, 7.0)), ("Algebra", MemoryState(4.0, 5.0))]
+RETENTION = 0.9
+PENALTY = 40.0
+SUBJECTS = (
+    Subject("Analysis", MemoryState(2.0, 7.0), EXAM_DAYS),
+    Subject("Algebra", MemoryState(4.0, 5.0), EXAM_DAYS),
+)
+
+
+class Outcome:
+    """What one run of any scheduler produced, in the same shape for all."""
+
+    def __init__(self, sessions: list[tuple[float, int, bool]], final: list[tuple[MemoryState, float]],
+                 targets: Sequence[float]):
+        self.sessions = sessions  # (start_day, subject index, recalled)
+        self.ready = all(m.stability >= g for (m, _), g in zip(final, targets))
+        self.recall = float(np.mean([retrievability(EXAM_DAYS - last, m.stability) for m, last in final]))
+        self.stability = float(np.mean([m.stability for m, _ in final]))
+        self.lapses = sum(1 for *_, ok in sessions if not ok)
+        first = [d for d, i, _ in sessions if i == 0]
+        self.first_analysis = first[0] if first else math.nan
+
+
+def simulate_rule(blocks: Sequence[Block], targets: Sequence[float],
+                  due: Callable[[MemoryState, float, float], float | None],
+                  rng: np.random.Generator | None) -> Outcome:
+    """A rule-based scheduler. `due(memory, last_review_day, now)` returns an
+    urgency (lower is more urgent) or None if the subject is not due."""
+    state = [(s.memory, 0.0) for s in SUBJECTS]
+    sessions = []
+    for block in blocks:
+        now = block.start_day
+        candidates = []
+        for i, ((memory, last), subject, target) in enumerate(zip(state, SUBJECTS, targets)):
+            if memory.stability >= target or now >= subject.exam_day:
+                continue
+            urgency = due(memory, last, now)
+            if urgency is not None:
+                candidates.append((urgency, i))
+        if not candidates:
+            continue
+        _, i = min(candidates)
+        memory, last = state[i]
+        r = retrievability(now - last, memory.stability)
+        ok = True if rng is None else bool(rng.random() < r)
+        state[i] = (review(memory, now - last, Grade.GOOD if ok else Grade.AGAIN), now)
+        sessions.append((now, i, ok))
+    return Outcome(sessions, state, targets)
+
+
+def greedy_fixed(retention: float):
+    def due(memory, last, now):
+        r = retrievability(now - last, memory.stability)
+        return r if r <= retention else None
+    return due
+
+
+def every_k(k: float):
+    def due(memory, last, now):
+        return last - now if now - last >= k else None
+    return due
+
+
+def planner(blocks, continuation, window, rng) -> Outcome:
+    result = run_rolling(blocks, SUBJECTS, continuation, window=window, rng=rng)
+    index = {name: i for i, name in enumerate(result.subjects)}
+    sessions = [(s.block.start_day, index[s.subject], s.outcome != Grade.AGAIN) for s in result.sessions]
+    final = [(t.as_memory(), t.last_review_day) for t in result.final_topics]
+    return Outcome(sessions, final, result.targets)
+
+
+def summarise(name: str, outcomes: list[Outcome], seconds: float) -> str:
+    n = len(outcomes)
+    p = sum(o.ready for o in outcomes) / n
+    se = math.sqrt(p * (1 - p) / n)
+    used = np.array([len(o.sessions) for o in outcomes], dtype=float)
+    firsts = np.array([o.first_analysis for o in outcomes])
+    first = f"day {np.nanmean(firsts):.1f}" if np.isfinite(firsts).any() else "-"
+    return (f"  {name:<13} {p:>5.0%} ± {se:>3.0%}  {used.mean():>5.2f} ± {used.std(ddof=1) / math.sqrt(n):.2f}"
+            f"  {np.mean([o.lapses for o in outcomes]):>6.2f}  {first:>9}"
+            f"  {np.mean([o.recall for o in outcomes]):>6.3f}  {np.mean([o.stability for o in outcomes]):>6.1f}"
+            f"  {seconds:>5.1f}s")
 
 
 def main() -> None:
     ensure_utf8_output()
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--windows", type=int, nargs="+", default=[1, 2, 4])
-    parser.add_argument("--seeds", type=int, default=60)
-    parser.add_argument(
-        "--target-days", type=float, default=EXAM_DAYS,
-        help="the stability target is stability_for_interval(this, 0.9); the default is "
-             "the exam date. 90 reproduces the 'durable retention' hypothesis that was "
-             "tried and rejected in AUDIT.md item 20.",
-    )
+    parser.add_argument("--seeds", type=int, default=100)
     args = parser.parse_args()
 
-    target = stability_for_interval(args.target_days, 0.9)
-    policy = budget_solve(BudgetConfig.for_heuristic(target))
     grid, _ = load_availability(TIMETABLE, date(2026, 3, 2), int(EXAM_DAYS), "Europe/London")
     blocks = tile_free_time(grid, block_slots=3, max_blocks_per_day=2)
-    print(f"scenario: {int(EXAM_DAYS)} days, {len(blocks)} candidate blocks, "
-          f"{len(TOPICS)} topics, target stability {target:.0f}")
+    started = time.perf_counter()
+    continuation = solve_deadlines(SUBJECTS, RETENTION, PENALTY)
+    targets = continuation.targets
+    print(f"scenario: {int(EXAM_DAYS)} days, {len(blocks)} candidate blocks, {len(SUBJECTS)} subjects, "
+          f"targets {', '.join(f'{t:.0f}' for t in targets)}, penalty {PENALTY:g}, "
+          f"clock solves {time.perf_counter() - started:.1f}s")
 
-    print("\nvalue of the b-th block, V(b-1) - V(b), topic at S=2, D=7:")
-    for budget in (1, 5, 10, 20, len(blocks)):
-        print(f"  b = {budget:>2}: {policy.marginal_value(7.0, 2.0, budget):.2e}")
+    estimate = continuation.estimates[0]
+    print("\ncost of postponing Analysis (S=2, D=7), in blocks, from the start of the plan:")
+    print("  " + "  ".join(
+        f"{x:g}d: {estimate.cost_of_postponing(7.0, 2.0, 0.0, EXAM_DAYS, x):+.2f}" for x in (1, 2, 4, 8, 12, 16)
+    ))
+    print(f"  best first review, unconstrained: day "
+          f"{estimate.best_review_time(7.0, 2.0, 0.0, EXAM_DAYS):.2f}")
 
-    print("\ndeterministic run (every recall succeeds):")
+    print("\ndeterministic run (every recall succeeds): day, subject, recall at review")
     for window in args.windows:
-        result = run_rolling(blocks, TOPICS, target, policy, window=window)
-        first = ", ".join(
-            f"day {s.block.day} {s.subject} (R={s.retrievability_at_review:.2f})"
-            for s in result.sessions
-        )
-        print(f"  window {window}: {first or 'no sessions'}")
+        result = run_rolling(blocks, SUBJECTS, continuation, window=window)
+        line = ", ".join(f"{s.block.start_day:.1f} {s.subject[:3]} {s.retrievability_at_review:.2f}"
+                         for s in result.sessions)
+        print(f"  window {window}: {line or 'no sessions'}")
 
-    print(f"\nstochastic runs ({args.seeds} seeds):")
-    print(f"  {'window':>6} {'blocks':>7} {'lapses':>7} {'first review':>13} {'ready':>14} {'time':>7}")
+    seeds = range(args.seeds)
+    print(f"\nstochastic runs ({args.seeds} seeds), mean ± standard error:")
+    print(f"  {'scheduler':<13} {'ready':>11}  {'blocks':>12}  {'lapses':>6}  {'first Ana':>9}"
+          f"  {'recall':>6}  {'S exam':>6}  {'time':>6}")
+    print("  recall = predicted probability of recall at the exam, S exam = stability at the")
+    print("  exam in days; both are means over the two subjects")
     for window in args.windows:
         started = time.perf_counter()
-        used, lapses, firsts, successes = [], [], [], 0
-        for seed in range(args.seeds):
-            result = run_rolling(
-                blocks, TOPICS, target, policy, window=window, rng=np.random.default_rng(seed)
-            )
-            used.append(result.blocks_used)
-            lapses.append(result.lapses)
-            successes += all(result.ready)
-            if result.sessions:
-                firsts.append(result.sessions[0].block.day)
-        p = successes / args.seeds
-        se = math.sqrt(p * (1 - p) / args.seeds)
-        first = f"day {np.mean(firsts):.1f}" if firsts else "-"
-        print(f"  {window:>6} {np.mean(used):>7.2f} {np.mean(lapses):>7.2f} {first:>13} "
-              f"{p:>8.0%} ± {se:.0%} {time.perf_counter() - started:>6.1f}s")
+        runs = [planner(blocks, continuation, window, np.random.default_rng(s)) for s in seeds]
+        print(summarise(f"planner w={window}", runs, time.perf_counter() - started))
+
+    started = time.perf_counter()
+    runs = [simulate_rule(blocks, targets, greedy_fixed(0.90), np.random.default_rng(s)) for s in seeds]
+    print(summarise("greedy-0.90", runs, time.perf_counter() - started))
+
+    scan = {}
+    for k in range(1, 8):
+        runs = [simulate_rule(blocks, targets, every_k(k), np.random.default_rng(s)) for s in seeds]
+        scan[k] = runs
+    best_k = max(scan, key=lambda k: (sum(o.ready for o in scan[k]), -np.mean([len(o.sessions) for o in scan[k]])))
+    print(summarise(f"every-{best_k} (best)", scan[best_k], 0.0))
+    print("  every-k readiness for k = 1..7: " + ", ".join(
+        f"{k}: {sum(o.ready for o in runs) / len(runs):.0%}" for k, runs in scan.items()))
 
 
 if __name__ == "__main__":

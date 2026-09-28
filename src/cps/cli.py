@@ -9,31 +9,31 @@ is finished and tested, and it is the useful thing to run against your own
 export first — if the free blocks it lists are wrong, nothing downstream can be
 right.
 
-`plan` runs the whole pipeline and prints a schedule. It works mechanically and
-the schedule it produces is *late*, because of the defect recorded as AUDIT.md
-item 20: the value function is indexed by remaining blocks and not by remaining
-time, so postponing is nearly free and the planner drifts toward the deadline. It
-prints that warning rather than letting you discover it.
+`plan` runs the whole pipeline and prints a schedule. Each subject is planned
+towards its own exam: pass the date with `--subject "Analysis:2:7@2026-03-20"`, or
+leave it out and the date of the matching assessment found in the calendar is
+used. The planner reports a subject whose exam the calendar cannot prepare for
+instead of scheduling it anyway.
 
-Known limitation, separate from the defect: one stability target for all
-subjects, taken from the earliest assessment. Per-subject deadlines would need
-the target to move into the topic state.
+What it does not know, and says so in its output: the memory model uses
+population-default FSRS parameters, and each subject's starting stability and
+difficulty are your own guesses.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date, datetime
+import math
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
-from .budget import BudgetConfig
-from .budget import solve as budget_solve
 from .calendar_io import decode_ics, find_deadlines, load_availability, plan_to_ics
 from .console import ensure_utf8_output
-from .memory import MemoryState, stability_for_interval
+from .memory import MemoryState
 from .plan import tile_free_time
-from .rolling import run_rolling
+from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling
 
 DEFAULT_STABILITY = 2.0
 DEFAULT_DIFFICULTY = 6.0
@@ -47,15 +47,30 @@ def _study_window(text: str) -> tuple[float, float]:
     return earliest, latest
 
 
-def _subject(text: str) -> tuple[str, MemoryState]:
-    """`Name`, `Name:stability`, or `Name:stability:difficulty`."""
-    parts = text.split(":")
+def _subject(text: str) -> tuple[str, MemoryState, datetime | None]:
+    """`Name[:stability[:difficulty]][@YYYY-MM-DD[THH:MM]]`.
+
+    The date is read in the zone given by --tz. A bare date means midnight at the
+    start of that day, so nothing is scheduled on the exam day itself.
+    """
+    body, _, when = text.partition("@")
+    parts = body.split(":")
     name = parts[0].strip()
     if not name:
         raise argparse.ArgumentTypeError("a subject needs a name")
-    stability = float(parts[1]) if len(parts) > 1 and parts[1] else DEFAULT_STABILITY
-    difficulty = float(parts[2]) if len(parts) > 2 and parts[2] else DEFAULT_DIFFICULTY
-    return name, MemoryState(stability, difficulty)
+    try:
+        stability = float(parts[1]) if len(parts) > 1 and parts[1] else DEFAULT_STABILITY
+        difficulty = float(parts[2]) if len(parts) > 2 and parts[2] else DEFAULT_DIFFICULTY
+        memory = MemoryState(stability, difficulty)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"bad stability or difficulty in {text!r}: {exc}") from exc
+    exam = None
+    if when.strip():
+        try:
+            exam = datetime.fromisoformat(when.strip())
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"use @YYYY-MM-DD or @YYYY-MM-DDTHH:MM, not {when!r}") from exc
+    return name, memory, exam
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -77,11 +92,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     plan = sub.choices["plan"]
     plan.add_argument("--subject", type=_subject, action="append", default=[],
-                      help="Name[:stability[:difficulty]], repeatable; "
-                           "defaults to the assessments found in the calendar")
+                      help="Name[:stability[:difficulty]][@exam date], repeatable; without a "
+                           "date the matching assessment in the calendar is used; without "
+                           "any --subject, every assessment found is planned")
     plan.add_argument("--retention", type=float, default=0.9,
                       help="recall probability you want on the day, default 0.9")
     plan.add_argument("--window", type=int, default=6, help="blocks planned exactly per solve")
+    plan.add_argument("--penalty", type=float, default=DEFAULT_FAILURE_PENALTY,
+                      help="cost, in study blocks, of reaching an exam unready (default 40)")
     plan.add_argument("--seed", type=int, default=None,
                       help="simulate outcomes stochastically instead of assuming every recall works")
     plan.add_argument("--out", type=Path, default=None, help="write the plan as .ics")
@@ -98,10 +116,10 @@ def _load(args) -> tuple:
 
     if args.days:
         days = args.days
-    elif deadlines:
-        days = max(1, int(deadlines[0].days_from(start)))
     else:
-        days = 21
+        exams = [e for e in getattr(args, "exams", [])] or [d.when for d in deadlines]
+        latest = max((_days_after(start, e) for e in exams), default=21.0)
+        days = max(1, math.ceil(latest - 1e-9))
 
     grid, events = load_availability(text, start, days, args.tz, study_window=args.study_window)
     blocks = tile_free_time(
@@ -110,6 +128,42 @@ def _load(args) -> tuple:
         max_blocks_per_day=args.blocks_per_day,
     )
     return start, days, grid, events, blocks, deadlines
+
+
+def _days_after(start: date, when: datetime) -> float:
+    """Days from midnight at `start` to `when`, in wall-clock time.
+
+    Blocks are placed on the local wall clock (`TimeGrid.days_from_start`), so the
+    exam has to be measured the same way; both datetimes share the zone, and
+    Python subtracts same-zone datetimes on the wall clock.
+    """
+    midnight = datetime.combine(start, time(0, 0), tzinfo=when.tzinfo)
+    return (when - midnight) / timedelta(days=1)
+
+
+def _resolve_subjects(args, start: date, deadlines) -> list[Subject]:
+    """Attach an exam date to every subject, or fail with a message that says how."""
+    zone = ZoneInfo(args.tz)
+    by_name = {d.subject.casefold(): d.when for d in deadlines}
+    requested = list(args.subject) or [
+        (d.subject, MemoryState(DEFAULT_STABILITY, DEFAULT_DIFFICULTY), None) for d in deadlines
+    ]
+    subjects = []
+    for name, memory, exam in requested:
+        if exam is None:
+            exam = by_name.get(name.casefold())
+            if exam is None:
+                raise SystemExit(
+                    f"No exam date for {name!r}: none of the assessments in the calendar is "
+                    f"called that. Add it, for example --subject \"{name}:2:6@2026-06-15\"."
+                )
+        elif exam.tzinfo is None:
+            exam = exam.replace(tzinfo=zone)
+        exam_day = _days_after(start, exam.astimezone(zone))
+        if exam_day <= 0:
+            raise SystemExit(f"The exam for {name!r} ({exam:%Y-%m-%d %H:%M}) is not after {start}.")
+        subjects.append(Subject(name, memory, exam_day))
+    return subjects
 
 
 def _clock(grid, slot: int) -> str:
@@ -138,30 +192,40 @@ def command_inspect(args) -> int:
 
 
 def command_plan(args) -> int:
-    start, days, grid, events, blocks, deadlines = _load(args)
+    start = args.start or date.today()
+    text = decode_ics(args.ics.read_bytes())
+    _, probe_events = load_availability(text, start, args.days or 120, args.tz, study_window=None)
+    try:
+        subjects = _resolve_subjects(args, start, find_deadlines(probe_events))
+    except SystemExit as stop:
+        print(stop, file=sys.stderr)
+        return 1
+    if not subjects:
+        print("Nothing to schedule: no --subject given and no assessment found.", file=sys.stderr)
+        return 1
+    args.exams = []
+    args.days = args.days or max(1, math.ceil(max(s.exam_day for s in subjects) - 1e-9))
+    start, days, grid, events, blocks, _ = _load(args)
     if not blocks:
         print("No candidate study blocks; run `inspect` and widen the study window.", file=sys.stderr)
         return 1
 
-    subjects = list(args.subject) or [
-        (d.subject, MemoryState(DEFAULT_STABILITY, DEFAULT_DIFFICULTY)) for d in deadlines
-    ]
-    if not subjects:
-        print("Nothing to schedule: no --subject given and no assessment found.", file=sys.stderr)
-        return 1
-
-    target = stability_for_interval(days, args.retention)
-    policy = budget_solve(BudgetConfig.for_heuristic(target))
     rng = None
     if args.seed is not None:
         import numpy as np
 
         rng = np.random.default_rng(args.seed)
 
-    result = run_rolling(blocks, subjects, target, policy, window=args.window, rng=rng)
+    result = run_rolling(
+        blocks, subjects, window=args.window, retention=args.retention,
+        failure_penalty=args.penalty, rng=rng,
+    )
 
     print(f"horizon {days} days, {len(blocks)} candidate blocks, "
-          f"target stability {target:.0f} days for {args.retention:.0%} recall")
+          f"{args.retention:.0%} recall wanted, a missed exam priced at {args.penalty:g} blocks")
+    for subject, target in zip(subjects, result.targets):
+        print(f"  {subject.name:<18} exam on day {subject.exam_day:5.1f}, "
+              f"target stability {target:.0f} days")
     print(f"solves {result.solves}, peak expansions {result.peak_expansions}\n")
     if result.sessions:
         print(f"{'day':>4} {'time':>6}  {'subject':<18}{'recall':>7}{'outcome':>9}{'stability':>19}")
@@ -174,12 +238,22 @@ def command_plan(args) -> int:
         print("(no sessions scheduled)")
 
     print(f"\nblocks used {result.blocks_used} of {len(blocks)}, lapses {result.lapses}")
-    for name, ready in zip(result.subjects, result.ready):
-        print(f"  {'ready    ' if ready else 'NOT ready'}  {name}")
+    for name, ready, lost, recall in zip(
+        result.subjects, result.ready, result.unreachable, result.recall_at_exam
+    ):
+        status = "ready    " if ready else ("CANNOT   " if lost else "NOT ready")
+        print(f"  {status}  {name:<18} recall at the exam {recall:.0%}")
+    for name in result.unreachable_subjects():
+        print(f"\n{name}: even if every review succeeded, the free blocks before this exam "
+              f"cannot build the target stability, so none were spent on it. More free time "
+              f"spread over more days, or a later exam date, would change that.")
 
-    print("\nKnown defect (AUDIT.md item 20): the value function is indexed by remaining")
-    print("blocks, not remaining time, so postponing costs almost nothing and this plan")
-    print("sits later than it should. Treat the timing as indicative, not as advice.")
+    if rng is None:
+        print("\nThis is the plan if every review succeeds. Add --seed N to simulate one run in")
+        print("which some reviews fail, and see the plan adapt.")
+    print("\nWhat this does not know: the memory model uses population-default FSRS")
+    print("parameters, and each subject's starting stability and difficulty are your")
+    print("own estimates. Treat the plan as a reasoned suggestion, not a measurement.")
 
     if args.out:
         # Bytes, not text. icalendar already emits CRLF line endings, and a

@@ -74,6 +74,22 @@ class Continuation(Protocol):
 
     def reviews_lower_bound(self, states: Iterable[MemoryState]) -> float: ...
 
+
+@runtime_checkable
+class TimedContinuation(Protocol):
+    """A continuation that also needs to know *when* the window ends.
+
+    Once the value function has a clock (`clock.py`), leftover work depends on the
+    time elapsed since each topic's last review and the time left before its exam,
+    so a memory state alone no longer prices it. `cost_at` is the window's terminal
+    value and is an estimate; `bound_at` is the admissible bound a heuristic may
+    use. Keeping them as two methods is invariant 1 applied to this object.
+    """
+
+    def cost_at(self, topics: Sequence["TopicState"], now: float) -> float: ...
+
+    def bound_at(self, topics: Sequence["TopicState"], now: float) -> float: ...
+
 # --------------------------------------------------------------------------- #
 # States
 # --------------------------------------------------------------------------- #
@@ -167,6 +183,22 @@ class Instance:
     stability_step: float = 0.0
     difficulty_step: float = 0.0
     weights: Weights = DEFAULT_WEIGHTS
+    # Per-topic stability targets and exam days (days from the start of the
+    # horizon). Empty means every topic uses `target_stability` and has no exam
+    # inside the horizon, which is the one-shot solver's original setting. A topic
+    # cannot be studied in a block that starts at or after its exam.
+    targets: tuple[float, ...] = ()
+    exam_days: tuple[float, ...] = ()
+    # When the window's terminal state is evaluated, in days from the start of the
+    # horizon: the start of the first block after the window. Only a
+    # TimedContinuation reads it.
+    end_day: float | None = None
+
+    def target_of(self, index: int) -> float:
+        return self.targets[index] if self.targets else self.target_stability
+
+    def is_ready(self, index: int, topic: "TopicState") -> bool:
+        return topic.stability >= self.target_of(index)
 
     @classmethod
     def build(
@@ -231,7 +263,7 @@ class Instance:
         return MemoryState(max(stability, 0.01), min(max(difficulty, 1.0), 10.0))
 
     def is_done(self, state: PlanState) -> bool:
-        return all(t.stability >= self.target_stability for t in state.topics)
+        return all(self.is_ready(i, t) for i, t in enumerate(state.topics))
 
     def is_terminal(self, state: PlanState) -> bool:
         return state.block_index >= len(self.blocks) or self.is_done(state)
@@ -245,12 +277,16 @@ class Instance:
         (the penalty term is non-negative, so it can only push the true cost up);
         adding the penalty is what stops the search from deferring everything.
         """
-        owed = self.continuation.reviews_lower_bound(t.as_memory() for t in state.topics)
-        unready = sum(1 for t in state.topics if t.stability < self.target_stability)
-        return owed + self.lateness_penalty * unready
+        if isinstance(self.continuation, TimedContinuation):
+            if self.end_day is None:
+                raise ValueError("a TimedContinuation needs Instance.end_day")
+            owed = self.continuation.cost_at(state.topics, self.end_day)
+        else:
+            owed = self.continuation.reviews_lower_bound(t.as_memory() for t in state.topics)
+        return owed + self.lateness_penalty * self.unready_count(state)
 
     def unready_count(self, state: PlanState) -> int:
-        return sum(1 for t in state.topics if t.stability < self.target_stability)
+        return sum(1 for i, t in enumerate(state.topics) if not self.is_ready(i, t))
 
     def actions(self, state: PlanState) -> tuple[int, ...]:
         """Which topic to study in this block, or SKIP.
@@ -258,7 +294,12 @@ class Instance:
         Topics already at target are dropped: reviewing them cannot help and only
         inflates the branching factor.
         """
-        live = tuple(i for i, t in enumerate(state.topics) if t.stability < self.target_stability)
+        now = self.blocks[state.block_index].start_day
+        live = tuple(
+            i
+            for i, t in enumerate(state.topics)
+            if not self.is_ready(i, t) and (not self.exam_days or now < self.exam_days[i])
+        )
         return live + (SKIP,)
 
     def successors(self, state: PlanState, action: int) -> tuple[float, tuple[tuple[float, PlanState], ...]]:
@@ -272,11 +313,20 @@ class Instance:
         elapsed = max(block.start_day - topic.last_review_day, 0.0)
         r = retrievability(elapsed, topic.stability)
 
+        target = self.target_of(action)
         outcomes = []
         for prob, grade in ((r, Grade.GOOD), (1.0 - r, Grade.AGAIN)):
             if prob <= 0.0:
                 continue
-            after = self.snap(review(topic.as_memory(), elapsed, grade, self.weights))
+            exact = review(topic.as_memory(), elapsed, grade, self.weights)
+            after = self.snap(exact)
+            # Aggregation may move a state, but never across the goal: a snapped
+            # 8.85 became 9.36 against a target of 9, and the search then bought a
+            # review at recall 0.999 believing it finished the topic (AUDIT.md
+            # item 26). Goal membership is decided by the exact state.
+            if (exact.stability >= target) != (after.stability >= target):
+                edge = target if exact.stability >= target else math.nextafter(target, 0.0)
+                after = MemoryState(edge, after.difficulty)
             topics = list(state.topics)
             topics[action] = TopicState(after.stability, after.difficulty, block.start_day)
             outcomes.append((prob, PlanState(nxt_index, tuple(topics))))
@@ -376,12 +426,12 @@ def _deadline_bound(instance: "Instance", state: PlanState) -> float:
         best_case_reviews(
             t.stability,
             t.difficulty,
-            instance.target_stability,
+            instance.target_of(i),
             _topic_horizon(instance, state, t),
             instance.weights,
         )
-        for t in state.topics
-        if t.stability < instance.target_stability
+        for i, t in enumerate(state.topics)
+        if not instance.is_ready(i, t)
     )
     live = len(needs)
     best = instance.lateness_penalty * live  # abandon everything
