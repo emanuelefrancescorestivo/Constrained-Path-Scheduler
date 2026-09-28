@@ -106,6 +106,9 @@ proof, and an explicit list of what the project may and may not claim.
 
 `AUDIT.md` — every defect found in the January 2026 submission, by severity.
 
+`docs/REFERENCES.md` — the bibliography, each entry with how it was checked; a
+test fails on a citation that does not resolve.
+
 ## The short version
 
 The first version claimed a 32.2% retention improvement and an optimal schedule.
@@ -119,12 +122,13 @@ The rebuilt version claims less and checks all of it. AO* reproduces the exact
 optimum from exhaustive backward induction on every instance small enough to
 solve both ways, using 114 node expansions against 3,906 states, and the
 heuristic is verified admissible at all 3,906 reachable states. The learned policy
-needs about 19% fewer reviews than the fixed 0.90 target retention that every
-spaced-repetition tool ships with, and 13% fewer than the best fixed retention
-chosen in hindsight (fixed retention turns out to be a sawtooth, METHOD.md
-section 2), and the optimal retention it discovers — 0.82
-to 0.85 — lands inside the band the FSRS literature reports without having been
-told it.
+needs about 19% fewer reviews than a fixed retention of 0.90, Anki's default,
+and 13% fewer than the best fixed retention chosen in hindsight (fixed retention
+turns out to be a sawtooth, METHOD.md section 2). The retention it discovers,
+0.82 to 0.85, sits below that default, as a workload-minimising retention should.
+An earlier version also said it lay "inside the band the FSRS literature reports";
+no source for such a band could be found, so the claim is withdrawn (AUDIT.md
+item 28).
 
 Two things it will tell you that are worth knowing. Spacing, not the number of
 free evenings, is the binding constraint: five daily blocks cannot build 21 days

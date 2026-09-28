@@ -12,9 +12,9 @@ A* over a path graph here means silently solving a different, easier problem in
 which memory never fails.
 
 The right algorithm is therefore AO*, Nilsson's heuristic search for AND/OR
-graphs. Note what we do *not* need: LAO* exists to handle cycles in the state
-graph, and here the block index strictly increases along every edge, so the graph
-is acyclic. Bringing in LAO*'s cycle machinery would be weight without benefit.
+graphs [ref:nilsson1980]. Note what we do *not* need: LAO* [ref:hansen2001]
+exists to handle cycles in the state graph, and here the block index strictly
+increases along every edge, so the graph is acyclic. Bringing in LAO*'s cycle machinery would be weight without benefit.
 
 Three simplifications, stated rather than hidden
 -----------------------------------------------

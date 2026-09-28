@@ -70,13 +70,19 @@ a bitmask; the code is `np.zeros(total_slots, dtype=int)` with
 the claim is now true and the state is immutable and hashable for free.*
 
 **9. Citation errors.** [3] and [5] carry the same title under different author
-lists, so at least one is wrong: the SSP-MMC paper is Ye et al. (KDD 2022), while
-Reddy et al. (KDD 2016) is *Unbounded Human Learning: Optimal Scheduling for
-Spaced Repetition*. §3.2 attributes FSRS to "Reddy et al."; FSRS is by Jarrett
+lists, so at least one is wrong: the SSP-MMC paper is Ye et al. (KDD 2022)
+[ref:ye2022], while Reddy et al. (KDD 2016) [ref:reddy2016] is *Unbounded Human
+Learning: Optimal Scheduling for Spaced Repetition*. §3.2 attributes FSRS to "Reddy et al."; FSRS is by Jarrett
 Ye. The proposal attributes `R(t) = (1 + t/9S)^-1` to Reddy et al. while the
 report body correctly says Reddy used `exp(-θd/s)` — the two documents
 contradict each other. The author list of [1] (Balkanski et al., NeurIPS 2023)
-also needs checking against the published version.
+also needs checking against the published version. *Milestone M4:* the paper is
+"Energy-Efficient Scheduling with Predictions" [ref:balkanski2023], whose author
+list the proposal left as "[Authors]". All entries now live in
+`docs/REFERENCES.md`, each with how it was checked, and
+`tests/test_references.py` turns this item into a regression test: a
+"Surname et al. (year)" that does not match an entry's first author and year fails
+the build.
 
 **10. No reproducibility scaffolding.** 50 trials are reported as point estimates
 with no seed, no standard deviation, no confidence interval and no paired
@@ -371,5 +377,18 @@ cited the clamp (`plan.best_case_reviews`, `rolling.best_case_stability`) need o
 that a lapse never ends above a successful recall from the same state and delay,
 which holds without it (largest ratio 0.999, at the stability floor) and is now a
 test. The test that asserted the clamp was replaced by one that pins the reference
-value. Reproduce the reference with `benchmarks/fsrs_reference.py` in an
+value [ref:py-fsrs-2.5.1] [ref:fsrs-wiki]. Reproduce the reference with
+`benchmarks/fsrs_reference.py` in an
 environment with `fsrs==2.5.1`; the project does not depend on it. Status: fixed.
+
+**28. A corroboration that had no source.** METHOD.md, PROCESS.md, the README,
+`demo.py` and a test name all said that the optimal retention the solver finds,
+0.82 to 0.85, lies "inside the 0.75–0.90 band the FSRS community reports" for
+workload-minimising desired retention, and presented that as independent evidence
+that the model and solver are right. Found in milestone M4 while building
+`docs/REFERENCES.md`: no source for the band could be found. The Anki manual gives
+0.90 as the default, "a good balance of retention and workload", and says the
+workload rises quickly above it [ref:anki-manual]; that is all. The claim is
+withdrawn everywhere; what remains is that the optimum lies below Anki's default,
+which is what a workload-minimising retention should do and is a weaker statement.
+The test keeps its range as a sanity check chosen here and says so. Status: fixed.

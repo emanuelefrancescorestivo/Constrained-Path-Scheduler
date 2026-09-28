@@ -153,7 +153,8 @@ def part_2_ssp() -> None:
     band = accurate.target_retention[:, :-1]
     ordinary = [float(band[i].mean()) for i in range(2, 16)]  # D from 2.0 to 8.5
     print(f"\n  mean π* per difficulty, D in [2, 8.5]: {min(ordinary):.3f}–{max(ordinary):.3f}")
-    print("  published band for workload-minimising desired retention: 0.75–0.90")
+    print("  Anki's default desired retention is 0.90 [ref:anki-manual]; no published band for")
+    print("  the workload-minimising retention was found (AUDIT.md item 28)")
 
     print("\n  The optimum moves with the cost model (D=5, S=8):")
     for lapse_cost in (1.0, 2.0, 4.0):

@@ -4,7 +4,8 @@ stability.
 
 Formulation
 -----------
-Following Ye et al. (KDD 2022), memorising one topic is a Stochastic Shortest
+Following Ye et al. (KDD 2022) [ref:ye2022], memorising one topic is a
+Stochastic Shortest
 Path problem over the memory state:
 
     state   (D, S)              difficulty and stability

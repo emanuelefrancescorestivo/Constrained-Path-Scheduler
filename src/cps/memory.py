@@ -31,9 +31,12 @@ References
 ----------
 - Forgetting curve (FSRS-4.5+): R(t, S) = (1 + FACTOR * t / S) ** DECAY
 - Stability / difficulty updates and default parameters:
-  open-spaced-repetition/awesome-fsrs, "The Algorithm" wiki.
+  open-spaced-repetition/awesome-fsrs, "The Algorithm" wiki [ref:fsrs-wiki].
+- Checked value by value against py-fsrs 2.5.1 [ref:py-fsrs-2.5.1], see
+  tests/test_memory.py.
 - FSRS is by Jarrett Ye (open-spaced-repetition), *not* Reddy et al.;
-  the January report misattributes it. See AUDIT.md, item 9.
+  the January report misattributes it. See AUDIT.md, item 9. Full entries in
+  docs/REFERENCES.md.
 """
 
 from __future__ import annotations

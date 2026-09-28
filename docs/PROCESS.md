@@ -185,9 +185,11 @@ residual below 1e-9 in about a second, and yields:
 Three independent validations, in `tests/test_ssp.py` and reproduced by
 `demo.py`: simulating the policy reproduces `V*` (6.06 predicted, 6.13 ± 0.09
 simulated); the optimal policy needs 6.02 ± 0.09 blocks against 7.41 ± 0.10 at the
-fixed 0.90 retention every tool ships with (≈19% fewer); and mean `π*` lands at 0.82–0.85 for ordinary difficulties, inside the
-0.75–0.90 band the FSRS community reports. Nothing told the solver that last
-number.
+fixed 0.90 retention that is Anki's default (≈19% fewer); and mean `π*` lands at
+0.82–0.85 for ordinary difficulties. This paragraph used to add that the last range
+lies "inside the 0.75–0.90 band the FSRS community reports", as independent
+corroboration. When the references were checked in milestone M4 no source for that
+band could be found, so the corroboration is withdrawn (AUDIT.md item 28).
 
 ### Mistake 2 — `target_stability = 14.0` was inherited without justification
 
@@ -251,7 +253,7 @@ study next given what happened — not a sequence. Running plain A\* over a path
 graph here means silently solving an easier problem in which memory never fails.
 That is what January did.
 
-Not LAO\*, which I had offered. LAO\* exists to handle cycles in the state graph,
+Not LAO\* [ref:hansen2001], which I had offered. LAO\* exists to handle cycles in the state graph,
 and here the block index strictly increases along every edge, so the graph is
 acyclic. Its cycle machinery would be weight without benefit, and the acyclicity
 also means value revision can simply be ordered by block index descending.

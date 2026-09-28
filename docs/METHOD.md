@@ -6,7 +6,7 @@ let alone verified. See `AUDIT.md` for why.
 
 ## 1. Memorising one topic is a stochastic shortest path problem
 
-Following Ye et al. (KDD 2022), the state of one topic is the FSRS pair
+Following Ye et al. (KDD 2022) [ref:ye2022], the state of one topic is the FSRS pair
 `(D, S)` — difficulty and stability. An action is the retrievability `r` at which
 to schedule the next review, which fixes the delay
 `t = interval_for_retention(S, r)`. Because `r` *is* the recall probability, the
@@ -48,13 +48,16 @@ Validation, all in `tests/test_ssp.py`:
   within one standard error from a fresh item (6.06 predicted, 6.13 ± 0.09
   simulated over 6000 runs).
 - **Beats constant-retention policies.** Every real tool reviews at a fixed
-  desired retention; Anki's FSRS default is 0.90. From a fresh item the optimal
+  desired retention; Anki's FSRS default is 0.90 [ref:anki-manual]. From a fresh item the optimal
   policy needs 6.02 ± 0.09 blocks against 7.41 ± 0.10 at a fixed 0.90, about 19%
   fewer, and 13% fewer than the best fixed retention (`python demo.py`, section 2;
   see the sawtooth below).
-- **Agrees with the literature it was never told about.** Mean `π*` comes out at
-  0.82–0.85 for difficulties between 2 and 8.5, inside the 0.75–0.90 band the FSRS
-  community reports for workload-minimising desired retention.
+- **Lands below Anki's default, as it should.** Mean `π*` comes out at 0.82–0.85
+  for difficulties between 2 and 8.5, below the 0.90 default of Anki's FSRS
+  [ref:anki-manual], which the manual presents as a balance between retention and
+  workload rather than a workload minimum. (This bullet used to say the result
+  lay inside a "0.75–0.90 band the FSRS community reports"; no source for that
+  band could be found and the claim is withdrawn, AUDIT.md item 28.)
 - **Sensitive to the cost model in the right direction.** Pricing a lapse at 4×
   a productive block moves the optimum from 0.75 to 0.88.
 

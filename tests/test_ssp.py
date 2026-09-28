@@ -212,7 +212,7 @@ def test_lower_bound_is_additive_over_topics():
 
 
 # --------------------------------------------------------------------------- #
-# Does the optimal policy agree with the literature?
+# Does the optimal policy behave like a workload minimiser?
 # --------------------------------------------------------------------------- #
 
 
@@ -230,14 +230,14 @@ def test_optimal_policy_beats_fixed_retention_policies(policy):
         assert optimal < constant, f"optimal {optimal:.3f} not better than R={fixed} ({constant:.3f})"
 
 
-def test_optimal_retention_lands_in_the_band_reported_in_the_literature():
-    """Cross-check, in the spirit of the interval golden test in test_memory.py.
+def test_optimal_retention_is_below_ankis_default_and_not_extreme():
+    """Mean pi* across the stability grid comes out at 0.82-0.85 for normal
+    difficulties: below Anki's default of 0.90 [ref:anki-manual], which the manual
+    describes as a balance of retention and workload, and far from the extremes.
 
-    The FSRS community's own analyses put the workload-minimising desired
-    retention at roughly 0.75-0.90, against Anki's 0.90 default. Nothing in this
-    solver was told that. Mean pi* across the stability grid comes out at
-    0.82-0.85 for normal difficulties, which is independent corroboration that
-    the model and the solver are both doing what they claim.
+    This test used to be called a check against "the band reported in the
+    literature", 0.75-0.90. No source for that band could be found (AUDIT.md
+    item 28). The range is kept as a sanity range chosen here, not a published one.
     """
     p = solve(SSPConfig(target_stability=365.0))
     pi = p.target_retention[:, :-1]  # drop the goal column
