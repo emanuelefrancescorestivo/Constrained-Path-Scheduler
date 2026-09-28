@@ -9,7 +9,7 @@ description = "Neuroscience-informed study scheduling: FSRS memory dynamics unde
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
-    "icalendar>=6.0",
+    "icalendar>=6.1",  # 6.1 added Calendar.add_missing_timezones, used by the export
     "python-dateutil>=2.9",
     # Windows ships no IANA time-zone database, so zoneinfo needs this package. It
     # arrives transitively through icalendar today; declaring it stops a Windows

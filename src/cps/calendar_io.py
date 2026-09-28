@@ -378,4 +378,8 @@ def plan_to_ics(
         event.add("uid", f"cps-{slot}-{subject.replace(' ', '-').lower()}@constrained-path-scheduler")
         event.add("dtstamp", datetime.now(timezone.utc))
         calendar.add_component(event)
+    # RFC 5545 requires a VTIMEZONE for every TZID the events reference. Google
+    # and Apple resolve a bare IANA name anyway; Outlook does not reliably, and an
+    # importer that cannot resolve it may shift every block (AUDIT.md item 24).
+    calendar.add_missing_timezones()
     return calendar.to_ical().decode("utf-8")

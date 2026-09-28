@@ -25,7 +25,7 @@ than an impressive number.
 ## Commands
 
     pip install -e ".[dev]"
-    pytest                                   # 147 passed, 2 xfailed, about 45 s
+    pytest                                   # 148 passed, 2 xfailed, about 45 s
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # before/after harness for AUDIT item 20
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome

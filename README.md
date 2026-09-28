@@ -14,7 +14,7 @@ exhaustive computation rather than asserted.
 
     pip install -e ".[dev]"
 
-    pytest                                    # 147 passed, 2 xfailed
+    pytest                                    # 148 passed, 2 xfailed
     python demo.py                            # every number quoted in the docs
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan    examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome \

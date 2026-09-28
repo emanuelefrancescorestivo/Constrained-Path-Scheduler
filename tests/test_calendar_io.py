@@ -333,6 +333,20 @@ def test_exported_plan_reimports_as_busy_time():
         assert not reloaded.is_free(block.slot, 3)
 
 
+def test_exported_plan_defines_every_time_zone_it_references():
+    """RFC 5545 section 3.2.19: a TZID parameter must name a VTIMEZONE in the same
+    file. Google and Apple accept a bare IANA name, Outlook does not reliably, and
+    an importer that cannot resolve the zone may fall back to floating or UTC time,
+    moving every study block by the offset. Found in AUDIT.md item 24.
+    """
+    ics = plan_to_ics([(36, "Algebra", "why")], date(2026, 3, 2), "Europe/Rome")
+    assert "DTSTART;TZID=Europe/Rome:" in ics
+    assert "BEGIN:VTIMEZONE" in ics and "TZID:Europe/Rome" in ics
+    # the export still reads back at the same wall-clock time
+    _, events = load_availability(ics, date(2026, 3, 2), 3, "Europe/Rome")
+    assert events[0].start.hour == 18 and events[0].start.minute == 0
+
+
 def test_exported_events_carry_the_reason(tmp_path):
     ics = plan_to_ics([(36, "Algebra", "Third review; the gap is what makes it worth a block")],
                       date(2026, 3, 2), "Europe/London")

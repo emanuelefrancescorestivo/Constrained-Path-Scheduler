@@ -245,3 +245,15 @@ behave differently (a closed pipe can surface as a different `OSError`). Not fix
 The remedy is to treat a closed stdout as a normal exit in `cli.main`, with a test,
 without catching `OSError` broadly enough to hide a failed write of `--out`.
 
+
+**24. The exported plan referenced a time zone it never defined.** Every event in
+`plan.ics` carried `DTSTART;TZID=Europe/Rome:...`, but the file contained no
+`VTIMEZONE` component. RFC 5545 (section 3.2.19) requires one for each TZID used.
+Google and Apple Calendar resolve a bare IANA name anyway; Outlook does not reliably,
+and an importer that cannot resolve the zone may treat the time as floating or UTC
+and move every study block by the offset. Found in milestone M0 by reading the bytes
+of the exported sample plan, which was being checked for stray `\r\r\n`. Fixed with
+`Calendar.add_missing_timezones()` (icalendar 6.1 or newer, now the declared
+minimum); `test_exported_plan_defines_every_time_zone_it_references` covers it. The
+generated definition covers 1970 to 2038, which is icalendar's documented range.
+Status: fixed; import into a real calendar app still to be confirmed by a person.
