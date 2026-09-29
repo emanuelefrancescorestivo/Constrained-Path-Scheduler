@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="400" viewBox="0 0 760 400" role="img" aria-label="The research planner against two common schedulers, 100 simulated students" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>The research planner against two common schedulers, 100 simulated students</title>
+<rect width="760" height="400" rx="12" fill="#fcfcfb"/>
+<text x="24.0" y="34.0" font-size="16" font-weight="650" fill="#0b0b0b" text-anchor="start">The planner's advantage: memory that lasts past the exam</text>
+<text x="24.0" y="54.0" font-size="12" font-weight="400" fill="#52514e" text-anchor="start">Not higher recall on exam day. Two subjects, a 21-day calendar, 100 simulated students; means ± 1 standard error</text>
+<text x="238.0" y="80.0" font-size="12" font-weight="650" fill="#0b0b0b" text-anchor="start">Both subjects at target</text>
+<line x1="238.0" y1="92.0" x2="238.0" y2="172.0" stroke="#e4e3df" stroke-width="1" stroke-linecap="round"/>
+<path d="M238.0,94.0 h156.2 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-156.2 z" fill="#2a78d6"/>
+<line x1="392.9" y1="103.0" x2="403.5" y2="103.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="392.9" y1="98.0" x2="392.9" y2="108.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="403.5" y1="98.0" x2="403.5" y2="108.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="409.5" y="107.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">90%</text>
+<text x="244.0" y="137.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">0%</text>
+<path d="M238.0,154.0 h161.5 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-161.5 z" fill="#1baf7a"/>
+<line x1="399.0" y1="163.0" x2="408.1" y2="163.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="399.0" y1="158.0" x2="399.0" y2="168.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="408.1" y1="158.0" x2="408.1" y2="168.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="414.1" y="167.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">93%</text>
+<circle cx="29.0" cy="103.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="107.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">This planner (AO* search)</text>
+<circle cx="29.0" cy="133.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="137.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Review at 90% recall (Anki)</text>
+<circle cx="29.0" cy="163.0" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="167.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Review every day (best interval)</text>
+<text x="516.0" y="80.0" font-size="12" font-weight="650" fill="#0b0b0b" text-anchor="start">Stability at the exam (days)</text>
+<line x1="516.0" y1="92.0" x2="516.0" y2="172.0" stroke="#e4e3df" stroke-width="1" stroke-linecap="round"/>
+<path d="M516.0,94.0 h141.6 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-141.6 z" fill="#2a78d6"/>
+<line x1="659.8" y1="103.0" x2="663.4" y2="103.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="659.8" y1="98.0" x2="659.8" y2="108.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="663.4" y1="98.0" x2="663.4" y2="108.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="669.4" y="107.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">20.5</text>
+<path d="M516.0,124.0 h117.3 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-117.3 z" fill="#eb6834"/>
+<line x1="636.0" y1="133.0" x2="638.6" y2="133.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="636.0" y1="128.0" x2="636.0" y2="138.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="638.6" y1="128.0" x2="638.6" y2="138.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="644.6" y="137.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">17.0</text>
+<path d="M516.0,154.0 h148.5 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-148.5 z" fill="#1baf7a"/>
+<line x1="667.5" y1="163.0" x2="669.5" y2="163.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="667.5" y1="158.0" x2="667.5" y2="168.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="669.5" y1="158.0" x2="669.5" y2="168.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="675.5" y="167.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">21.4</text>
+<text x="238.0" y="232.0" font-size="12" font-weight="650" fill="#0b0b0b" text-anchor="start">Recall on exam day</text>
+<line x1="238.0" y1="244.0" x2="238.0" y2="324.0" stroke="#e4e3df" stroke-width="1" stroke-linecap="round"/>
+<path d="M238.0,246.0 h162.0 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-162.0 z" fill="#2a78d6"/>
+<line x1="403.1" y1="255.0" x2="404.8" y2="255.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="403.1" y1="250.0" x2="403.1" y2="260.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="404.8" y1="250.0" x2="404.8" y2="260.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="410.8" y="259.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">0.932</text>
+<path d="M238.0,276.0 h159.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-159.8 z" fill="#eb6834"/>
+<line x1="401.6" y1="285.0" x2="401.9" y2="285.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="401.6" y1="280.0" x2="401.6" y2="290.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="401.9" y1="280.0" x2="401.9" y2="290.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="407.9" y="289.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">0.920</text>
+<path d="M238.0,306.0 h163.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-163.8 z" fill="#1baf7a"/>
+<line x1="405.6" y1="315.0" x2="406.0" y2="315.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="405.6" y1="310.0" x2="405.6" y2="320.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="406.0" y1="310.0" x2="406.0" y2="320.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="412.0" y="319.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">0.943</text>
+<circle cx="29.0" cy="255.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="259.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">This planner (AO* search)</text>
+<circle cx="29.0" cy="285.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="289.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Review at 90% recall (Anki)</text>
+<circle cx="29.0" cy="315.0" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<text x="40.0" y="319.0" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Review every day (best interval)</text>
+<text x="516.0" y="232.0" font-size="12" font-weight="650" fill="#0b0b0b" text-anchor="start">Study blocks used</text>
+<line x1="516.0" y1="244.0" x2="516.0" y2="324.0" stroke="#e4e3df" stroke-width="1" stroke-linecap="round"/>
+<path d="M516.0,246.0 h40.1 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-40.1 z" fill="#2a78d6"/>
+<line x1="558.5" y1="255.0" x2="561.6" y2="255.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="558.5" y1="250.0" x2="558.5" y2="260.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="561.6" y1="250.0" x2="561.6" y2="260.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="567.6" y="259.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">5.0</text>
+<path d="M516.0,276.0 h29.3 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-29.3 z" fill="#eb6834"/>
+<line x1="548.1" y1="285.0" x2="550.5" y2="285.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="548.1" y1="280.0" x2="548.1" y2="290.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="550.5" y1="280.0" x2="550.5" y2="290.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="556.5" y="289.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">3.7</text>
+<path d="M516.0,306.0 h136.7 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-136.7 z" fill="#1baf7a"/>
+<line x1="653.3" y1="315.0" x2="660.1" y2="315.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="653.3" y1="310.0" x2="653.3" y2="320.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<line x1="660.1" y1="310.0" x2="660.1" y2="320.0" stroke="#0b0b0b" stroke-width="1.2" stroke-linecap="round"/>
+<text x="666.1" y="319.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">15.8</text>
+<text x="24.0" y="384.0" font-size="11" font-weight="400" fill="#52514e" text-anchor="start">Stability target 21 days: recall of 90% if the preparation time passed again. benchmarks/replanning.py, benchmarks/figures.py</text>
+</svg>

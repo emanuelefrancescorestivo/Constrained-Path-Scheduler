@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="290" viewBox="0 0 760 290" role="img" aria-label="The research planner against one-line rules on a semester" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>The research planner against one-line rules on a semester</title>
+<rect width="760" height="290" rx="12" fill="#1a1a19"/>
+<text x="24.0" y="34.0" font-size="16" font-weight="650" fill="#ffffff" text-anchor="start">On a semester, a one-line rule matches the search</text>
+<text x="24.0" y="54.0" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">Six courses, 69 weekly topics, the same memory model; the product uses the rule, in a hundredth of a second</text>
+<text x="234.0" y="88.0" font-size="12" font-weight="650" fill="#ffffff" text-anchor="start">Study sessions</text>
+<line x1="234.0" y1="100.0" x2="234.0" y2="210.0" stroke="#383835" stroke-width="1" stroke-linecap="round"/>
+<path d="M234.0,102.0 h78.6 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-78.6 z" fill="#3987e5"/>
+<text x="322.6" y="115.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">222</text>
+<text x="24.0" y="115.0" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">Research planner (AO* search)</text>
+<path d="M234.0,132.0 h87.5 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-87.5 z" fill="#3987e5"/>
+<text x="331.5" y="145.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">246</text>
+<text x="24.0" y="145.0" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">Rule: least remembered topic</text>
+<path d="M234.0,162.0 h83.4 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-83.4 z" fill="#3987e5"/>
+<text x="327.4" y="175.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">235</text>
+<text x="24.0" y="175.0" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">Same rule, once recall ≤ 93%</text>
+<path d="M234.0,192.0 h73.0 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-73.0 z" fill="#3987e5"/>
+<text x="317.0" y="205.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">207</text>
+<text x="24.0" y="205.0" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">Review at 90% recall (Anki)</text>
+<text x="504.0" y="88.0" font-size="12" font-weight="650" fill="#ffffff" text-anchor="start">Topics at target (of 69)</text>
+<line x1="504.0" y1="100.0" x2="504.0" y2="210.0" stroke="#383835" stroke-width="1" stroke-linecap="round"/>
+<path d="M504.0,102.0 h165.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-165.8 z" fill="#3987e5"/>
+<text x="679.8" y="115.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">63</text>
+<path d="M504.0,132.0 h171.2 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-171.2 z" fill="#3987e5"/>
+<text x="685.2" y="145.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">65</text>
+<path d="M504.0,162.0 h165.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-165.8 z" fill="#3987e5"/>
+<text x="679.8" y="175.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">63</text>
+<path d="M504.0,192.0 h114.6 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-114.6 z" fill="#3987e5"/>
+<text x="628.6" y="205.0" font-size="11" font-weight="400" fill="#ffffff" text-anchor="start">44</text>
+<text x="24.0" y="242.0" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">For the same 63 topics at target, the search saves 13 of 235 sessions (about one in 18) and takes 39 s instead of 0.01 s.</text>
+<text x="24.0" y="274.0" font-size="11" font-weight="400" fill="#c3c2b7" text-anchor="start">Every review assumed to succeed. benchmarks/rule_vs_planner.py, benchmarks/figures.py</text>
+</svg>

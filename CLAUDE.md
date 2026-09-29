@@ -28,13 +28,14 @@ than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 388 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 402 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 391 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 405 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
     python benchmarks/rule_vs_planner.py     # the research planner against one-line rules
+    python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 

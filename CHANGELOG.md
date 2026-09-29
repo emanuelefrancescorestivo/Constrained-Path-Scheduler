@@ -6,6 +6,12 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Figures in the README, drawn by `benchmarks/figures.py` from the code behind their
+  numbers, as SVG in light and dark (no plotting dependency): what the memory model
+  predicts for spaced self-testing, cramming and a single study session; the planner
+  against the schedulers students use, with standard errors; and the search against
+  one-line rules on a semester. `tests/test_figures.py` holds the README's quoted
+  numbers to the code.
 - The hosted app, redesigned around one screen: the calendar beside a panel with
   what is next, what to report, deadlines with progress and exams with a countdown.
   Course colours (lectures lightly, study sessions fully), a now line, light and dark
