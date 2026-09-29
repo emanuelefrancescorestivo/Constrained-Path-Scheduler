@@ -52,7 +52,7 @@
 .wc-grid {
   position: relative;
   display: grid;
-  grid-template-columns: 46px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 46px repeat(7, minmax(0, 1fr)); /* set from the number of days shown */
   grid-template-rows: auto auto;
   border: 1px solid var(--wc-line);
   border-radius: 8px;
@@ -83,6 +83,16 @@
 
 .wc-editable .wc-col:not(.wc-out) {
   cursor: crosshair;
+  /* A finger swipes the page up and down; a tap adds a block. */
+  touch-action: pan-y;
+}
+
+.wc-link {
+  cursor: pointer;
+}
+
+.wc-link:hover .wc-label {
+  text-decoration: underline;
 }
 
 .wc-out {
@@ -146,6 +156,7 @@
 
 .wc-own {
   cursor: grab;
+  touch-action: none;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -236,4 +247,31 @@
   background: var(--wc-accent) !important;
   color: #fff !important;
   border-color: transparent !important;
+}
+
+/* On a phone the editor is a sheet along the bottom of the screen, not a box
+   beside a column that may be off the screen. */
+@media (max-width: 640px) {
+  .wc-editor {
+    position: fixed;
+    top: auto !important;
+    left: 8px !important;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  .wc-editor input,
+  .wc-editor select,
+  .wc-editor button {
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .wc-editor input[type="time"] {
+    width: auto;
+    flex: 1;
+  }
 }

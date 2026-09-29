@@ -54,12 +54,13 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "activities": [
             {
                 "label": r["label"],
+                "kind": r["kind"] or "other",
                 "weekday": "" if r["date"] else r["weekday"],
                 "date": r["date"],
                 "start": r["start"],
                 "end": r["end"],
             }
-            for r in _rows(form, "a", ("label", "weekday", "date", "start", "end"))
+            for r in _rows(form, "a", ("label", "kind", "weekday", "date", "start", "end"))
             if r["label"] or r["start"]
         ],
         "deadlines_url": form.get("deadlines_url", "").strip(),

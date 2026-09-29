@@ -1,4 +1,6 @@
 // A week calendar for the study planner: drag to block time, click to edit.
+// Used by the hosted app (cps.web, static/week.js) and the Streamlit page
+// (widgets/), from this one file.
 //
 // Pure presentation. It receives the week's days, read-only items (calendar
 // events, exams, study sessions) and the person's own activities as rows in the
@@ -67,7 +69,9 @@ function el(tag, attrs = {}, text) {
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue;
     if (k === "class") node.className = v;
-    else if (k === "style") node.setAttribute("style", v);
+    // Through the CSSOM, which a Content-Security-Policy without 'unsafe-inline'
+    // allows; a style attribute set as text would be refused.
+    else if (k === "style") node.style.cssText = v;
     else node.setAttribute(k, v === true ? "" : v);
   }
   if (text !== undefined) node.textContent = text;
@@ -137,6 +141,7 @@ export default function (component) {
 
   // -- grid ------------------------------------------------------------------
   const grid = el("div", { class: "wc-grid" });
+  grid.style.gridTemplateColumns = `46px repeat(${days.length}, minmax(0, 1fr))`;
   root.appendChild(grid);
   grid.appendChild(el("div", { class: "wc-corner" }));
   days.forEach((day) =>
@@ -172,7 +177,7 @@ export default function (component) {
   // -- boxes -----------------------------------------------------------------
   const boxes = [];
   for (const item of data.items || []) {
-    boxes.push({ day: item.day, start: item.start, end: item.end, label: item.label, kind: item.kind });
+    boxes.push({ day: item.day, start: item.start, end: item.end, label: item.label, kind: item.kind, href: item.href });
   }
   rows.forEach((row, index) => {
     days.forEach((day, d) => {
@@ -203,6 +208,17 @@ export default function (component) {
       });
       node.appendChild(el("span", { class: "wc-time" }, `${toClock(box.start)}–${toClock(box.end)}`));
       node.appendChild(el("span", { class: "wc-label" }, box.label));
+      if (box.href) {
+        // A study session opens its page, where it can be reported.
+        node.classList.add("wc-link");
+        node.setAttribute("role", "link");
+        node.setAttribute("tabindex", "0");
+        node.addEventListener("pointerdown", (event) => event.stopPropagation());
+        node.addEventListener("click", () => window.location.assign(box.href));
+        node.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") window.location.assign(box.href);
+        });
+      }
       if (own && editable) {
         node.dataset.row = String(box.row);
         node.dataset.day = String(d);
@@ -272,18 +288,23 @@ export default function (component) {
         if (to - from < SNAP) to = from + SNAP;
         draw();
       };
-      const up = () => {
+      const stop = () => {
         column.removeEventListener("pointermove", move);
         column.removeEventListener("pointerup", up);
-        column.removeEventListener("pointercancel", up);
+        column.removeEventListener("pointercancel", stop);
         ghost.remove();
-        // A click without a drag gives a one-hour block starting there.
+      };
+      const up = () => {
+        stop();
+        // A click or a tap without a drag gives a one-hour block starting there.
         if (to - from <= SNAP) to = Math.min(from + DEFAULT_MINUTES, bottom);
         create(d, from, to);
       };
+      // On a touch screen a vertical swipe scrolls the page, and the browser
+      // cancels the pointer: that is a scroll, not a new block.
       column.addEventListener("pointermove", move);
       column.addEventListener("pointerup", up);
-      column.addEventListener("pointercancel", up);
+      column.addEventListener("pointercancel", stop);
     });
   }
 

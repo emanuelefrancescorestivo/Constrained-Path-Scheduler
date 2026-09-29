@@ -41,6 +41,7 @@ import functools
 import hashlib
 import math
 import os
+import re
 import secrets
 import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -1259,33 +1260,47 @@ def week_count(plan: PlanReport) -> int:
     return max(1, math.ceil(plan.settings.horizon_days / 7))
 
 
-def calendar_week(source: CalendarReport | PlanReport, week: int, *, typed: bool = True) -> dict:
+def calendar_week(
+    source: CalendarReport | PlanReport,
+    week: int,
+    *,
+    typed: bool = True,
+    first: date | None = None,
+    count: int = 7,
+    history: bool = False,
+) -> dict:
     """One week, Monday or not, as positioned items for a calendar widget.
 
     `{"days": [{"date", "label", "weekday", "in_horizon"} x 7], "items": [{"day",
     "start", "end", "label", "kind"}]}`, with `start` and `end` in minutes after
     local midnight and an item cut at midnight when it runs into the next day.
-    `kind` is "calendar" (from the .ics), "typed" (a busy row), "exam" or "study".
-    The week starts on the plan's first day, like `week_view`. `typed=False`
-    leaves out the busy rows, for an editor that draws them itself.
+    `kind` is "calendar" (from the .ics), "typed" (a busy row), "exam" or "study";
+    a study item also carries its `id` (`session_id`) and `detail`.
+    The week starts on the plan's first day, like `week_view`, unless `first` names
+    the first of `count` days to show. `typed=False` leaves out the busy rows, for
+    an editor that draws them itself; `history` adds the sessions already done.
     """
     if isinstance(source, PlanReport):
         start, tz, days = source.settings.start, source.settings.tz, source.settings.horizon_days
         exams = {s.exam: s.name for s in source.subjects}
-        sessions = [(x.start, x.end, x.title) for x in source.sessions]
+        shown_sessions = source.history + source.sessions if history else source.sessions
+        sessions = [(x.start, x.end, x.title, x) for x in shown_sessions]
     else:
         start, tz, days = source.start, source.tz, source.days
         exams = {a.when: a.subject for a in source.assessments}
         sessions = []
     weeks = max(1, math.ceil(days / 7))
-    if not 0 <= week < weeks:
-        raise InvalidInput(f"week must be 0 to {weeks - 1}")
+    if first is None:
+        if not 0 <= week < weeks:
+            raise InvalidInput(f"week must be 0 to {weeks - 1}")
+        first = start + timedelta(days=7 * week)
+    if not 1 <= count <= 14:
+        raise InvalidInput("show 1 to 14 days")
     zone = _zone(tz)
-    first = start + timedelta(days=7 * week)
-    dates = [first + timedelta(days=d) for d in range(7)]
+    dates = [first + timedelta(days=d) for d in range(count)]
     items: list[dict] = []
 
-    def place(begin: datetime, end: datetime, label: str, kind: str) -> None:
+    def place(begin: datetime, end: datetime, label: str, kind: str, **extra: Any) -> None:
         begin, end = begin.astimezone(zone), end.astimezone(zone)
         for index, day in enumerate(dates):
             midnight = datetime.combine(day, time(0, 0), tzinfo=zone)
@@ -1298,6 +1313,7 @@ def calendar_week(source: CalendarReport | PlanReport, week: int, *, typed: bool
                         "end": round((hi - midnight) / timedelta(minutes=1)),
                         "label": label,
                         "kind": kind,
+                        **extra,
                     }
                 )
 
@@ -1309,25 +1325,65 @@ def calendar_week(source: CalendarReport | PlanReport, week: int, *, typed: bool
         if event.start in exams:
             kind = "exam"
             shown_exams.add(event.start)
-        place(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary, kind)
+        label = event.summary if kind == "exam" else short_title(event.summary)
+        place(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), label, kind)
     for when, name in exams.items():
         if when not in shown_exams:
             moment = datetime.fromisoformat(when)
             place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam")
-    for begin, end, label in sessions:
-        place(datetime.fromisoformat(begin), datetime.fromisoformat(end), label, "study")
+    for begin, end, label, session in sessions:
+        extra = {}
+        if isinstance(session, SessionView):
+            label = session_label(session)
+            extra = {"id": session_id(session), "detail": session.detail}
+        place(datetime.fromisoformat(begin), datetime.fromisoformat(end), label, "study", **extra)
     return {
         "days": [
             {
                 "date": d.isoformat(),
                 "label": d.strftime("%a %d %b"),
-                "weekday": d.strftime("%a"),
+                "weekday": WEEKDAY_NAMES[d.weekday()],
                 "in_horizon": 0 <= (d - start).days < days,
             }
             for d in dates
         ],
         "items": items,
     }
+
+
+# How a calendar box names a session: short enough for a phone's column.
+_SESSION_VERBS = {
+    "first review": "Self-test",
+    "review": "Self-test",
+    "task": "Work on",
+    "practice": "Practice",
+}
+
+
+def session_label(session: SessionView) -> str:
+    """ "Self-test: Algebra 3", "Work on: Stats report", "Practice: Analysis 3"."""
+    what = session.title if session.kind == "task" else session.subject
+    verb = _SESSION_VERBS.get(session.kind)
+    return f"{verb}: {what}" if verb else session.title
+
+
+def short_title(summary: str) -> str:
+    """A timetable event's title as a person reads it: "Algebra 3 · CM · Salle 4"
+    for ADE's "Algebra 3, Grp: CM ., Salle: Salle 4". Fields written "Key: value"
+    keep their value; stray punctuation goes; a title without fields is unchanged."""
+    fields = [f.strip() for f in summary.split(",")]
+    if len(fields) < 2 or not any(re.match(r"^[\w ]{1,20}:\s", f) for f in fields[1:]):
+        return summary.strip()
+    shown: list[str] = []
+    for part in fields:
+        key, sep, value = part.partition(":")
+        text = value if sep and len(key) <= 20 and value.strip() else part
+        text = text.strip(" .-·")
+        if text.casefold().startswith("salle ") and shown and shown[-1].casefold().startswith("salle"):
+            continue
+        if text:
+            shown.append(text)
+    return " · ".join(shown)
 
 
 def calendar_week_count(source: CalendarReport | PlanReport) -> int:
@@ -1684,12 +1740,15 @@ def revise_subscription(
     now: datetime | None = None,
     deadlines_url: str | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    strict: bool = True,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, weekly
     hours and days off, or any of `new_subscription`'s settings) and plan again at
     once from the calendar last read. A new `deadlines_url` ("" removes it) is read
-    at once, which is the only network access here."""
+    at once, which is the only network access here. A change that leaves nothing to
+    plan is refused, unless `strict` is False: busy times drawn before any exam is
+    known are kept, with `error` saying what is missing."""
     merged = dict(subscription.options)
     unknown = set(options) - set(merged)
     if unknown:
@@ -1713,7 +1772,7 @@ def revise_subscription(
             if changed.options.get("deadlines_error"):
                 raise InvalidInput(f"the learning platform's link: {changed.options['deadlines_error']}")
     fresh = refresh_subscription(changed, now=now, reread=False)
-    if fresh.error:
+    if fresh.error and strict:
         raise InvalidInput(fresh.error)
     return fresh
 
@@ -1773,11 +1832,29 @@ def sync_deadlines(
     )
 
 
+# What a student can block out on the calendar. Every kind is busy time to the
+# planner; the kind only colours the block and names it until the student does.
+ACTIVITY_KINDS = (
+    ("training", "Training"),
+    ("commute", "Commute"),
+    ("work", "Work"),
+    ("timeoff", "Time off"),
+    ("other", "Other"),
+)
+
+
 def _rows(busy_rows: Iterable[BusyRow | Mapping]) -> tuple[dict, ...]:
+    """Busy rows as stored: validated, with the kind the student chose kept."""
+    kinds = {k for k, _ in ACTIVITY_KINDS}
+    out = []
     try:
-        return tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
+        for r in busy_rows:
+            row = _row_to_dict(BusyRow.parse(r))
+            kind = r.get("kind") if isinstance(r, Mapping) else None
+            out.append({**row, "kind": kind if kind in kinds else "other"})
     except ValueError as exc:
         raise InvalidInput(str(exc)) from exc
+    return tuple(out)
 
 
 def subscription_expiry(subscription: Subscription) -> datetime | None:
@@ -2010,7 +2087,8 @@ def _session_card(s: SessionView, zone: ZoneInfo, now: datetime, outcomes: Mappi
     sid = session_id(s)
     return {
         "id": sid,
-        "title": s.title,
+        # The course, or the deadline's name; which week of lectures is in `what`.
+        "title": s.title if s.kind == "task" else s.subject,
         "kind": KIND_LABELS.get(s.kind, s.kind),
         "when": _when(start, now),
         "until": f"{end:%H:%M}",
@@ -2029,6 +2107,49 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
     local = (now or datetime.now(UTC)).astimezone(zone)
     return _session_card(session, zone, local, subscription.outcomes)
+
+
+def calendar_view(
+    subscription: Subscription, first: date | None = None, count: int = 7, now: datetime | None = None
+) -> dict:
+    """What the calendar page draws: `count` days from `first` (today by default)
+    with the timetable, exams and study sessions (done and to come) as items, and
+    the student's own busy times as editable activities, in the shape the week
+    calendar widget takes. Works before there is a plan, from the timetable alone."""
+    options = subscription.options
+    zone = _zone(options["tz"])
+    first = first or (now or datetime.now(UTC)).astimezone(zone).date()
+    source: CalendarReport | PlanReport
+    if subscription.plan is not None:
+        source = PlanReport.from_dict(subscription.plan)
+    else:
+        source = analyse_calendar(
+            subscription.ics_text.encode("utf-8") if subscription.ics_text is not None else None,
+            start=date.fromisoformat(options["start"]),
+            tz=options["tz"],
+            days=max(7, (first - date.fromisoformat(options["start"])).days + count),
+        )
+    week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
+    return {
+        **week,
+        "activities": [
+            {
+                "label": r["label"],
+                "kind": r.get("kind", "other"),
+                "weekday": None if r.get("weekday") is None else WEEKDAY_NAMES[r["weekday"]],
+                "date": r.get("date"),
+                "start": r["start"],
+                "end": r["end"],
+            }
+            for r in subscription.busy_rows
+        ],
+        "kinds": [{"id": k, "label": label} for k, label in ACTIVITY_KINDS],
+        "hours": [7, 23],
+        "window": list(options["study_window"]),
+        "first": first.isoformat(),
+        "planned": subscription.plan is not None,
+        "error": subscription.error,
+    }
 
 
 def setup_view(subscription: Subscription) -> dict:
@@ -2178,10 +2299,11 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
     exams = {x.exam for x in plan.subjects}
     for e in plan.events:
         kind = "exam" if e.start in exams else ("typed" if e.source == "typed" else "calendar")
-        add(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end), e.summary, kind)
+        label = e.summary if kind == "exam" else short_title(e.summary)
+        add(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end), label, kind)
     for s in plan.history + plan.sessions:
-        label = f"{KIND_LABELS.get(s.kind, s.kind)}: {s.title}"
-        add(datetime.fromisoformat(s.start), datetime.fromisoformat(s.end), label, "study", session_id(s))
+        begin, end = datetime.fromisoformat(s.start), datetime.fromisoformat(s.end)
+        add(begin, end, session_label(s), "study", session_id(s))
     return {
         "week": week,
         "days": [

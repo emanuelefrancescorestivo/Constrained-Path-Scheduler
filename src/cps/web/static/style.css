@@ -127,3 +127,18 @@ summary { cursor: pointer; font-weight: 600; margin: 0.6rem 0; }
 .agenda li.study { background: var(--study); font-weight: 600; }
 .agenda li.exam { background: var(--exam); font-weight: 700; }
 .agenda .time { display: inline-block; min-width: 6.6rem; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; }
+
+/* The week calendar (week_calendar.css) reads these; mapped to this page's colours. */
+#calendar {
+  --st-text-color: var(--text);
+  --st-background-color: var(--surface);
+  --st-secondary-background-color: var(--bg);
+  --st-primary-color: var(--accent);
+  --st-font: inherit;
+  margin: 0.5rem 0 1.5rem;
+}
+#calendar .wc { font-size: 13px; }
+#calendar .wc button { min-height: 36px; }
+#calendar .wc-bar { margin: 0.4rem 0 0.6rem; }
+.status-error, #calendar-status.error { color: var(--risk); font-weight: 600; }
+main:has(#calendar), body:has(#calendar) .top, body:has(#calendar) footer { max-width: 72rem; }

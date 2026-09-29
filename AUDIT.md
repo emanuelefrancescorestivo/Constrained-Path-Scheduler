@@ -503,3 +503,18 @@ policy Chromium sends `Origin: null` with the site's own form posts, and every
 `Origin`; found in the first browser run at phone width. The check now reads
 `Sec-Fetch-Site`, which browsers send for this purpose, and refuses "cross-site" and
 "same-site"; a test sends each header as Chromium did. Status: fixed.
+
+**38. The hosted app lost the calendar the owner had asked for.** The Streamlit page
+has had a calendar to drag busy times on since the owner asked for one (PR 3). The
+hosted app (item 37's PR) was built with no JavaScript, to keep its security model
+simple, and asked for busy times as typed rows in a form. Found by the owner on first
+use: "nobody would ever pay to insert manually their busy times". A design choice
+that removed a requirement, made without asking. The Week page is now that calendar
+(the same file serves both front ends), under the same Content-Security-Policy,
+which meant setting styles through the CSSOM instead of style attributes; the typed
+form stays behind "Type them instead" and every page works without the script.
+Two defects of the widget itself came out while adapting it, and are fixed for both
+front ends: its grid had seven columns written into the stylesheet, and on a touch
+screen a swipe to scroll ended in a cancelled pointer that it treated as a tap, which
+added a block. Checked in Chromium at desktop and phone sizes: drag, move, tap,
+report page, no console error. Status: fixed.

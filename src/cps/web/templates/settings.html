@@ -143,7 +143,11 @@ to study, then save: the plan is made at once.</p>
 
 <fieldset>
   <legend>Busy times not in your timetable</legend>
-  <p class="hint">Training, a job, a commute: nothing is planned then.</p>
+  <p class="hint">Training, a job, a commute: nothing is planned then. Draw them on the
+  {% if new %}calendar, the next step{% else %}<a href="/p/{{ token }}/week">Week</a> calendar{% endif %};
+  {% if values.activities %}you have {{ values.activities | length }}.{% else %}you have none yet.{% endif %}</p>
+  <details>
+  <summary>Type them instead</summary>
   {% set rows = values.activities | length + empty_rows %}
   {% for i in range(rows) %}
   {% set a = values.activities[i] if i < values.activities | length else {} %}
@@ -166,11 +170,13 @@ to study, then save: the plan is made at once.</p>
       <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
     </div>
     {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> Remove</label>{% endif %}
+    <input type="hidden" name="a{{ i }}_kind" value="{{ a.kind or 'other' }}">
   </div>
   {% endfor %}
+  </details>
 </fieldset>
 
-<button type="submit" class="primary sticky">Save and plan</button>
+<button type="submit" class="primary sticky">{% if new %}Next: your week{% else %}Save and plan{% endif %}</button>
 </form>
 
 {% if not new %}
