@@ -26,12 +26,14 @@ than an impressive number.
 
     pip install -e ".[dev,app]"             # app = streamlit, for app.py
     streamlit run app.py
-    pytest                                   # 252 passed, 12 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 264 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    cps serve                                # the calendar feeds the page publishes
+    pytest                                   # 298 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 312 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
+    python benchmarks/rule_vs_planner.py     # the research planner against one-line rules
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -48,7 +50,10 @@ than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
-| `service.py` | the API every front end uses; lectures become weekly topics; typed errors; JSON results; no UI imports |
+| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time |
+| `service.py` | the API every front end uses; lectures become weekly topics; feeds; typed errors; JSON results; no UI imports |
+| `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
+| `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `cli.py`, `console.py` | `cps inspect` / `cps plan`, printing what `service` returns; UTF-8 output hardening |
 
 `widgets/` (next to `app.py`, not in the package) is the week calendar the page
@@ -96,11 +101,19 @@ draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input on
 
 ## Known defects and limits (details in AUDIT.md)
 
+- The product runs the assistant (rules); the FSRS + AO* planner is the research
+  reference and saves about one session in twenty on its own objective
+  (`benchmarks/rule_vs_planner.py`, AUDIT item 36). Do not present the search as
+  what makes the product better; `docs/PRODUCT.md` is the product plan.
+
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
 - With lectures in the calendar, a topic is one week of one subject, reviewed in one
   block and starting "seen once and shaky"; each window considers at most four
   topics (METHOD.md §7). A semester takes about half a minute to plan.
+- Feeds count past sessions as done as planned; a missed session reported on the
+  page does not reach the feed. On a laptop, only local calendar apps can read a feed;
+  Google and Notion Calendar need it on the internet, and hosting is the owner's call.
 - FSRS weights are population defaults; a subject's starting stability and
   difficulty are user-supplied guesses. The target and the 40-block failure penalty
   are stated choices.

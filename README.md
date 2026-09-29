@@ -1,16 +1,19 @@
 # Constrained-Path Scheduler
 
-A study planner that reads your calendar, finds your exams, and works out when to
-study each subject, using a model of forgetting and a search over the time you
-actually have free.
+A study assistant for busy students. It reads your university timetable (a file or
+its link), finds your courses, lectures and exams, takes your deadlines and the hours
+you are willing to study, and puts a realistic plan in your calendar: deadlines met,
+each exam prepared with practice, the material of each week tested again as it
+fades, days off kept free, and a sentence in every session saying what to do.
 
-Two kinds of tool exist and neither does this. Spaced-repetition software such as
-Anki knows how memory decays and assumes you are free whenever a review falls due.
-Calendars know exactly when you are busy and nothing about memory. A student with
-three exams in three weeks, lectures, a job and a weekend away has to join the two
-by hand. This project joins them, and checks every claim it makes about doing so
-against exhaustive computation, simulation with error bars, or an independent
-implementation.
+It began as a research question: can a memory model and an exact search over your
+free time plan revision better than a simple rule? The answer, measured on a
+semester, is "barely" (AUDIT.md item 36), so the product schedules with rules that
+run in a hundredth of a second, and the search stays as the reference that shows
+they are good enough. Every claim here is checked against exhaustive computation,
+simulation with error bars, an independent implementation, or a benchmark you can
+run. Where this is going as a product, and what it still lacks, is in
+`docs/PRODUCT.md`.
 
 ![The planner on the sample calendar: a football session dragged onto Thursday, and the plan week by week](docs/app-screenshot.png)
 
@@ -23,7 +26,10 @@ pip install -e ".[app]"
 streamlit run app.py                 # choose "Sample calendar", then "Plan my study"
 ```
 
-Or from a terminal, on the sample timetable in `examples/`:
+The page plans with the assistant: add deadlines under "Deadlines", and set the hours
+a week and the days off in the sidebar. The sidebar also switches to the research
+planner. The command line runs the research planner, on the sample timetable in
+`examples/`:
 
 ```bash
 cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome \
@@ -40,9 +46,10 @@ item instead. The plan prints with the reason for every session, and `plan.ics` 
 a standard calendar file with its time zone defined.
 
 With your own calendar: export it (Google Calendar: Settings, Import and export,
-Export; Apple Calendar: File, Export; a university timetable usually has an export
-or a subscription link), run `cps inspect your.ics --tz Europe/Rome` first and check
-the free blocks it lists, then `cps plan`. On the web page you can also drag your
+Export; Apple Calendar: File, Export), or give its link: a university timetable
+(ADE, Hyperplanning) has an export or subscription address, and Google Calendar a
+"secret address in iCal format". Run `cps inspect your.ics --tz Europe/Rome` (or
+`cps inspect "https://…"`) first and check the free blocks it lists, then `cps plan`. On the web page you can also drag your
 own training, commutes, work and time off onto the week, like in a calendar app.
 No calendar file? Draw the whole week there. `examples/sample-semester.ics` is a
 synthetic four-month semester to try the page on.
@@ -64,7 +71,12 @@ synthetic four-month semester to try the page on.
   each week of them is a topic that appears when it is taught, with its own target,
   so a semester is studied as it is taught instead of being "finished" in November
   (`service.py`, METHOD.md §7).
-- **The search.** A review can fail, so a plan is a policy, not a sequence: AO*
+- **The assistant.** Each free block goes to the first rule that wants it: a
+  deadline that is getting close (earliest deadline first), exam practice in the last
+  two weeks, self-testing on the taught topic you remember least, working ahead, or
+  nothing, within your weekly hours and never on a day off (`assistant.py`,
+  METHOD.md §8).
+- **The search (research planner).** A review can fail, so a plan is a policy, not a sequence: AO*
   searches the AND/OR graph of the next few blocks exactly, with an admissible
   heuristic, takes one step, observes the outcome and replans (`plan.py`,
   `rolling.py`).
@@ -74,6 +86,40 @@ synthetic four-month semester to try the page on.
 
 `docs/ARCHITECTURE.md` has the data flow as a diagram; `docs/METHOD.md` has the
 mathematics and the admissibility arguments.
+
+## Keep the plan in your calendar
+
+A downloaded `plan.ics` is a snapshot. The web page can also publish the plan as a
+calendar feed, an address your calendar app subscribes to (Google Calendar: Other
+calendars, From URL; Apple Calendar: New Calendar Subscription; Outlook: Subscribe
+from web). The feed asks to be read again every six hours. When it is read and its
+plan is older than that, `cps serve` reads your timetable's link again and plans from
+today in the background, counting the sessions already behind you as done; the next
+read gets the new plan. If the timetable's server is down, the last plan stays. No account, no sign-in, nothing that needs Google's approval.
+
+```bash
+cps serve                      # answers http://localhost:8765/feed/<token>.ics
+streamlit run app.py           # plan, then "Publish as a calendar feed"
+```
+
+What it does not do yet, said plainly:
+
+- **On your own machine, only your own machine can read it.** Google Calendar and
+  Notion Calendar fetch feeds from Google's servers, so they need the feed server on
+  the internet. Apple Calendar or Outlook on the same computer can read it locally.
+- **It does not know what you actually did.** Past sessions count as done as planned;
+  reporting a missed one on the page changes the page's plan, not the feed.
+- **The address is the only key.** Anyone with it can read the plan, as with any
+  calendar subscription link. The store keeps your timetable's link, your activities
+  and the plan in plain JSON files; "Stop publishing" deletes them.
+
+**Publishing feeds.** To let Google Calendar read a feed, run the web page and
+`cps serve` on one internet-facing machine that shares a directory, behind HTTPS
+(any reverse proxy), with `CPS_FEED_DIR` set to that directory and `CPS_FEED_URL` to
+the public address of the feed server. Leave `CPS_ALLOW_PRIVATE_LINKS` unset there:
+it is what stops the server from being made to read addresses on its own network.
+Which host to use, and whether to open it to other people, is a decision this
+repository does not make for you.
 
 ## Results
 
@@ -113,6 +159,22 @@ in the first two weeks, whose targets are the highest (112 to 119 days): they en
 62 to 77 days, because two blocks a day also have to cover
 everything taught later. Planning took 38 seconds.
 
+**Does the search earn its keep?** (`python benchmarks/rule_vs_planner.py`, the same
+semester, topics and memory model, every review assumed to succeed)
+
+| scheduler | sessions | topics at target | recall at the exams | time |
+|---|---|---|---|---|
+| research planner (value functions and AO*) | 222 | 63 of 69 | 0.967 | about 40 s |
+| rule: study the taught topic you remember least | 246 | 65 of 69 | 0.980 | 0.01 s |
+| the same rule, only once recall is 0.93 or less | 235 | 63 of 69 | 0.978 | 0.01 s |
+| rule: review at recall 0.90, as Anki does | 207 | 44 of 69 | 0.957 | 0.01 s |
+
+The search saves about one session in twenty on its own objective. The assistant
+uses the rule and adds what the planner never modelled; with 15 hours a week, Sundays
+off and exam practice, it plans the same semester in 174 sessions, and 51 of the 69
+topics are predicted at 90% or more at their exam, which it says, instead of quietly
+asking for more hours.
+
 **Two findings a student can use.** Spacing, not the number of free evenings, is
 what runs out: five daily blocks cannot build 21 days of stability however they are
 spent, because every gap is one day; seven can. And the objective is flat in the
@@ -133,6 +195,8 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
   priced at 40 study blocks. Both are stated, and both change the plan.
 - **Its estimates are estimates.** The value it plans with is 0.1 to 0.7 blocks
   optimistic against simulation; readiness is 90% ± 3%, not a guarantee.
+- **The assistant trusts your estimates.** How long a task takes is yours to say,
+  and a session counts as done until you report otherwise.
 - **A topic is a week of one subject.** One study block reviews a week of lectures,
   fresh lectures start "seen once and shaky", and the lecture itself is not counted
   as a review. These are simplifications, and the app lists them.
@@ -146,7 +210,7 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 35 in all, including a planner that put
+those defects and every one found since, 36 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
@@ -159,7 +223,10 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | `app.py` | the web page; input and layout only |
 | `widgets/` | the drag-and-drop week calendar the page draws with (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
-| `src/cps/cli.py` | `cps inspect` and `cps plan` |
+| `src/cps/assistant.py` | the assistant's rules: deadlines, budget, days off, exam practice, self-testing |
+| `src/cps/cli.py` | `cps inspect`, `cps plan` and `cps serve` |
+| `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
+| `src/cps/feed.py` | the feed server calendar apps subscribe to |
 | `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
 | `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
 | `src/cps/clock.py` | cost to reach a subject's target before its exam |
@@ -168,19 +235,20 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | `src/cps/budget.py` | the superseded block-budget continuation (AUDIT item 20) |
 | `src/cps/legacy.py` | the January 2026 model, kept as a failing test |
 | `benchmarks/` | the scripts behind every number that is not in `demo.py` |
-| `docs/` | method, process, architecture, write-up, references |
+| `docs/` | method, process, architecture, write-up, references, product |
 | `archive/2025-prototype/` | the December 2025 prototype and reports, unchanged |
 
 ## Checking it yourself
 
 ```bash
 pip install -e ".[dev,app]"
-pytest                                    # 252 passed, 12 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 264 passed, 1 xfailed, 93% coverage
+pytest                                    # 298 passed, 14 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 312 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
 python benchmarks/semester.py             # a semester, with and without lectures as topics
+python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
 ```
 
 CI runs all of it on Ubuntu and Windows, Python 3.11 to 3.13. The one expected

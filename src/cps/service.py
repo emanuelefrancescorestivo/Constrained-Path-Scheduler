@@ -3,16 +3,22 @@ The service layer: everything a user-facing surface needs, and nothing else.
 
 The CLI, the Streamlit app and any future web API call these functions and only
 these, so they can be swapped without touching the planner. Nothing here imports a
-UI framework, prints, or reads a file: bytes and plain values in, frozen result
-objects out. Every result has `to_dict()` returning plain JSON types, and
-`PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as JSON and
-send it back to `replan_after` or `export_ics`.
+UI framework or prints: bytes and plain values in, frozen result objects out. Two
+kinds of input and output are allowed, both explicit: `fetch_calendar` reads a
+calendar link the person gave, and the `*_subscription` functions keep feeds in a
+directory the caller names. Every result has `to_dict()` returning plain JSON
+types, and `PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as
+JSON and send it back to `replan_after` or `export_ics`.
 
     analyse_calendar(ics, *, start, tz, ...)          -> CalendarReport
+    fetch_calendar(url)                                -> bytes
     make_plan(report, subjects, *, retention, ...)     -> PlanReport
+    continue_plan(report, subjects, *, done, now)      -> PlanReport
     replan_after(plan, session_index, outcome)         -> PlanReport
     export_ics(plan)                                   -> bytes
     recall_curve(plan, subject)                        -> [(day, probability), ...]
+    new_subscription(...), refresh_subscription(sub)   -> Subscription
+    feed_ics(sub)                                      -> bytes
 
 Errors a user can cause come back as `ServiceError` subclasses with a stable
 `code` and a sentence that says what to do, never as a traceback: no free blocks,
@@ -31,15 +37,23 @@ report says so.
 
 from __future__ import annotations
 
+import json
 import math
-from collections.abc import Iterable, Mapping, Sequence
+import os
+import re
+import secrets
+import tempfile
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from .assistant import Exam, Preferences, Task, Topic, blocks_for_hours
+from .assistant import schedule as assist
 from .calendar_io import (
     BusyEvent,
     BusyRow,
@@ -61,6 +75,8 @@ from .memory import (
 )
 from .plan import Block, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
+from .sources import SourceError
+from .sources import fetch_calendar as _fetch
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
@@ -111,6 +127,12 @@ class ExamInPast(ServiceError):
 
 class UnreachableTarget(ServiceError):
     code = "unreachable_target"
+
+
+class UnreadableLink(ServiceError):
+    """A calendar link that cannot be read: the message says why."""
+
+    code = "unreadable_link"
 
 
 class MissingExam(InvalidInput):
@@ -460,6 +482,7 @@ class SubjectView:
     # own target. `target` and `stability_at_exam` are then the weakest topic's.
     topics: int = 1
     topics_ready: int = 0
+    status_line: str = ""  # set when the engine words its own status
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -480,8 +503,11 @@ class SessionView:
     stability_after: float
     rationale: str
     # The topic studied, "Algebra 3 · week of 05 Oct", when the subject's lectures
-    # are topics; "" when the subject is one topic.
+    # are topics; "" when the subject is one topic. For the assistant, also the
+    # task, or "Exam practice: <course>".
     topic: str = ""
+    kind: str = "review"  # "review", "first review", "task", "practice"
+    detail: str = ""  # what to do in the block (the assistant says; the planner does not)
 
     @property
     def title(self) -> str:
@@ -502,10 +528,15 @@ class PlanSettings:
     block_minutes: int
     slots_per_day: int
     horizon_days: int
+    # "planner" (FSRS value functions and AO*, `rolling.py`) or "assistant" (the
+    # rules of `assistant.py`), and the assistant's preferences.
+    engine: str = "planner"
+    preferences: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         out = {k: getattr(self, k) for k in self.__dataclass_fields__}
         out["start"] = self.start.isoformat()
+        out["preferences"] = dict(self.preferences)
         return out
 
 
@@ -528,6 +559,7 @@ class PlanReport:
     events: tuple[EventView, ...]
     warnings: tuple[str, ...]
     limitations: tuple[str, ...] = LIMITATIONS
+    tasks: tuple[TaskView, ...] = ()
 
     @property
     def blocks_used(self) -> int:
@@ -544,6 +576,7 @@ class PlanReport:
             "events": [e.to_dict() for e in self.events],
             "warnings": list(self.warnings),
             "limitations": list(self.limitations),
+            "tasks": [t.to_dict() for t in self.tasks],
         }
 
     @classmethod
@@ -561,9 +594,39 @@ class PlanReport:
                 events=tuple(EventView(**e) for e in data["events"]),
                 warnings=tuple(data["warnings"]),
                 limitations=tuple(data["limitations"]),
+                tasks=tuple(TaskView(**t) for t in data.get("tasks", ())),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise InvalidInput(f"not a plan produced by this version: {exc}") from exc
+
+
+@dataclass(frozen=True)
+class TaskSpec:
+    """Work with a deadline, as a person describes it: "Stats report, due 20 Nov,
+    about 6 hours". `due` is read like `SubjectSpec.exam`."""
+
+    name: str
+    due: datetime | date | str
+    hours: float
+    course: str = ""
+
+    def due_datetime(self, zone: ZoneInfo) -> datetime:
+        return SubjectSpec(self.name, self.due).exam_datetime(zone)
+
+
+@dataclass(frozen=True)
+class TaskView:
+    name: str
+    course: str
+    due: str
+    due_day: float
+    blocks: int  # the work, in study blocks
+    scheduled: int = 0  # blocks done or planned before the due date
+    finish: str | None = None  # start of the last block planned for it
+    at_risk: bool = False  # some of the work does not fit before the due date
+
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in self.__dataclass_fields__}
 
 
 def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
@@ -646,6 +709,7 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     "name": f"{spec['subject']} · taught before {report.start:%d %b}",
                     "topic": f"taught before {report.start:%d %b}",
                     "note": f"Review what was taught before {report.start:%d %b}.",
+                    "about": f"what was taught before {report.start:%d %b}",
                     "target_days": _week_target(spec["exam_day"]),
                 }
             )
@@ -666,6 +730,7 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     "name": f"{spec['subject']} · {label}",
                     "topic": label,
                     "note": f"Review the lectures of the {label}.",
+                    "about": f"the lectures of the {label}",
                     "stability": lecture_memory.stability,
                     "difficulty": lecture_memory.difficulty,
                     "last_review_day": available,
@@ -706,6 +771,22 @@ def make_plan(
     planned as one topic per week of lectures, each studied from the day it is
     taught (AUDIT.md item 33); a subject without lectures is one topic, as before.
     """
+    settings, specs, report = _prepare(
+        report, subjects, retention, window, seed, failure_penalty, lectures_as_topics
+    )
+    return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
+
+
+def _prepare(
+    report: CalendarReport,
+    subjects: Sequence[SubjectSpec],
+    retention: float,
+    window: int,
+    seed: int | None,
+    failure_penalty: float,
+    lectures_as_topics: bool,
+) -> tuple[PlanSettings, list[dict[str, Any]], CalendarReport]:
+    """Validate, resolve exam dates, make the topics, and settle the horizon."""
     if not 0.5 <= retention < 1.0:
         raise InvalidInput("target recall must be at least 0.5 and below 1")
     if window < 1:
@@ -735,7 +816,58 @@ def make_plan(
             "there is no free study block before the exams; widen the study window, allow more "
             "blocks a day, shorten the blocks, or free some time in the calendar"
         )
-    return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
+    return settings, specs, report
+
+
+def continue_plan(
+    report: CalendarReport,
+    subjects: Sequence[SubjectSpec],
+    *,
+    done: Sequence[SessionView],
+    now: datetime,
+    retention: float = 0.9,
+    window: int = 6,
+    seed: int | None = None,
+    failure_penalty: float = DEFAULT_FAILURE_PENALTY,
+    lectures_as_topics: bool = True,
+) -> PlanReport:
+    """Plan from `now` on, on a calendar that may have changed since the last plan.
+
+    `done` are the sessions behind: they are replayed, with their outcomes, from
+    the starting states, and the plan continues from the states they lead to, on the
+    free blocks that start after `now`. A session whose topic no longer exists, a
+    week of lectures that was cancelled, is dropped. This is what keeps a
+    subscribed feed (`refresh_subscription`) current without forgetting what was
+    already studied.
+    """
+    settings, specs, report = _prepare(
+        report, subjects, retention, window, seed, failure_penalty, lectures_as_topics
+    )
+    names = {s["name"] for s in specs}
+    history = tuple(
+        replace(s, index=i)
+        for i, s in enumerate(sorted((s for s in done if s.title in names), key=lambda s: s.start_day))
+    )
+    after = _days_after(report.start, now.astimezone(_zone(report.tz)))
+    states = _replay(specs, history)
+    current = [
+        {
+            **s,
+            "stability": states[s["name"]][0].stability,
+            "difficulty": states[s["name"]][0].difficulty,
+            "last_review_day": states[s["name"]][1],
+        }
+        for s in specs
+    ]
+    return _plan(
+        settings,
+        specs,
+        tuple(report.blocks),
+        tuple(report.events),
+        history,
+        after_day=after,
+        current=current,
+    )
 
 
 # Topics a window chooses between; see `rolling._candidates`. Measured by
@@ -947,8 +1079,8 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
     with exact FSRS transitions (a single source of truth, not stored numbers)."""
     state = {s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in specs}
     for session in sorted(done, key=lambda x: x.start_day):
-        if session.outcome == "skipped":
-            continue
+        if session.outcome == "skipped" or session.title not in state:
+            continue  # a task or exam practice: nothing to remember
         memory, last = state[session.title]
         grade = Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
         state[session.title] = (review(memory, session.start_day - last, grade), session.start_day)
@@ -970,6 +1102,10 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
     cut = positions[session_index]
     reported = replace(plan.sessions[cut], outcome=outcome)
     history = plan.history + plan.sessions[:cut] + (reported,)
+    if plan.settings.engine == "assistant":
+        return _assist(
+            plan.settings, plan.specs, plan.tasks, plan.blocks, plan.events, history, reported.start_day
+        )
     specs = [dict(s) for s in plan.specs]
     after = _replay(specs, history)
     current = [
@@ -986,14 +1122,27 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
     )
 
 
-def export_ics(plan: PlanReport) -> bytes:
-    """The upcoming sessions as an importable calendar, as bytes (see AUDIT item 21)."""
+def export_ics(
+    plan: PlanReport,
+    *,
+    include_history: bool = False,
+    uid_prefix: str = "",
+    refresh: timedelta | None = None,
+) -> bytes:
+    """The upcoming sessions as an importable calendar, as bytes (see AUDIT item 21).
+
+    `include_history` adds the sessions already behind, which a subscribed feed
+    keeps so that they do not vanish from the person's calendar once done.
+    """
+    shown = (plan.history if include_history else ()) + plan.sessions
     text = plan_to_ics(
-        [(s.slot, s.title, s.rationale) for s in plan.sessions],
+        [(s.slot, s.title, s.rationale) for s in shown if s.outcome != "skipped"],
         plan.settings.start,
         plan.settings.tz,
         slots_per_day=plan.settings.slots_per_day,
         block_slots=max(1, plan.settings.block_minutes // (24 * 60 // plan.settings.slots_per_day)),
+        uid_prefix=uid_prefix,
+        refresh=refresh,
     )
     return text.encode("utf-8")
 
@@ -1062,24 +1211,46 @@ def _topic_curve(spec: Mapping, reviews: Sequence[SessionView], step: float) -> 
 def subject_status(subject: SubjectView) -> str:
     """One line on where a subject ends up: "ready: stability 18 of 18 days", or
     for a subject planned week by week, "not ready: 11 of 13 topics at target"."""
+    if subject.status_line:
+        return subject.status_line
     status = "ready" if subject.ready else ("out of reach" if subject.unreachable else "not ready")
     if subject.topics > 1:
         return f"{status}: {subject.topics_ready} of {subject.topics} topics at target"
     return f"{status}: stability {subject.stability_at_exam:.0f} of {subject.target:.0f} days"
 
 
-def session_rows(plan: PlanReport) -> list[dict]:
-    """The upcoming sessions, one row each, as a person reads them."""
+def task_rows(plan: PlanReport) -> list[dict]:
+    """The deadlines, one row each: when the work is planned to finish, and whether
+    it all fits."""
     return [
         {
+            "task": t.name,
+            "course": t.course,
+            "due": datetime.fromisoformat(t.due).strftime("%a %d %b %H:%M"),
+            "planned": f"{t.scheduled} of {t.blocks} blocks",
+            "finishes": datetime.fromisoformat(t.finish).strftime("%a %d %b") if t.finish else "",
+            "status": "at risk" if t.at_risk else "on track",
+        }
+        for t in plan.tasks
+    ]
+
+
+def session_rows(plan: PlanReport) -> list[dict]:
+    """The upcoming sessions, one row each, as a person reads them."""
+    what = any(s.detail for s in plan.sessions)
+    rows = []
+    for s in plan.sessions:
+        row = {
             "#": s.index,
             "when": datetime.fromisoformat(s.start).strftime("%a %d %b %H:%M"),
             "subject": s.title,
-            "recall now": f"{s.recall:.0%}",
+            "recall now": f"{s.recall:.0%}" if s.kind in ("review", "first review") else "",
             "why": s.rationale,
         }
-        for s in plan.sessions
-    ]
+        if what:
+            row["what to do"] = s.detail
+        rows.append(row)
+    return rows
 
 
 def week_count(plan: PlanReport) -> int:
@@ -1205,3 +1376,561 @@ def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int =
         row.update({columns[d]: cells.get((d, clock), "") for d in days})
         rows.append(row)
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Calendars from a link, and plans published as a feed
+# --------------------------------------------------------------------------- #
+
+
+# A page or server that runs on the person's own machine may read links on their own
+# network; one that fetches links for strangers must not (see `cps.sources`).
+LINKS_MAY_BE_PRIVATE = os.environ.get("CPS_ALLOW_PRIVATE_LINKS") == "1"
+
+
+def fetch_calendar(url: str, *, allow_private: bool | None = None) -> bytes:
+    """The calendar behind a link (an ADE export address, Google's secret iCal
+    address, a `webcal://` link), as bytes for `analyse_calendar`. The link must be
+    on the public internet unless `allow_private`, which defaults to the
+    `CPS_ALLOW_PRIVATE_LINKS` environment variable; see `cps.sources`."""
+    if allow_private is None:
+        allow_private = LINKS_MAY_BE_PRIVATE
+    try:
+        return _fetch(url, allow_private=allow_private)
+    except SourceError as exc:
+        raise UnreadableLink(str(exc)) from exc
+
+
+FEED_REFRESH = timedelta(hours=6)
+# Where feeds are kept and the address the feed server answers on: the same
+# machine and port unless a deployment says otherwise.
+FEED_STORE = Path(os.environ.get("CPS_FEED_DIR") or Path.home() / ".cps" / "feeds")
+FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
+_TOKEN = re.compile(r"[A-Za-z0-9_-]{22,64}")
+
+
+@dataclass(frozen=True)
+class Subscription:
+    """A plan kept up to date for a calendar app to subscribe to.
+
+    It holds what is needed to plan again: the timetable's link (or, for an
+    uploaded file, the file itself), the person's own activities, the subjects and
+    the settings, and the current plan. The token is the feed's only secret: whoever
+    has the feed address can read the plan, as with any calendar subscription link.
+    Personal data: a store keeps it in plain JSON files, and `delete_subscription`
+    removes them.
+    """
+
+    token: str
+    created: str
+    source_url: str | None
+    ics_text: str | None
+    busy_rows: tuple[dict, ...]
+    subjects: tuple[dict, ...]
+    options: dict
+    plan: dict | None = None
+    refreshed: str | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict:
+        out = {k: getattr(self, k) for k in self.__dataclass_fields__}
+        out["busy_rows"] = [dict(r) for r in self.busy_rows]
+        out["subjects"] = [dict(s) for s in self.subjects]
+        return out
+
+    @classmethod
+    def from_dict(cls, data: Mapping) -> Subscription:
+        try:
+            return cls(
+                **{
+                    **data,
+                    "busy_rows": tuple(dict(r) for r in data["busy_rows"]),
+                    "subjects": tuple(dict(s) for s in data["subjects"]),
+                }
+            )
+        except (KeyError, TypeError) as exc:
+            raise InvalidInput(f"not a subscription made by this version: {exc}") from exc
+
+
+def _spec_dict(spec: SubjectSpec) -> dict:
+    exam = spec.exam.isoformat() if isinstance(spec.exam, date | datetime) else spec.exam
+    return {
+        "name": spec.name,
+        "exam": exam,
+        "familiarity": spec.familiarity,
+        "stability": spec.stability,
+        "difficulty": spec.difficulty,
+    }
+
+
+def new_subscription(
+    *,
+    subjects: Sequence[SubjectSpec],
+    start: date,
+    tz: str,
+    source_url: str | None = None,
+    ics: bytes | None = None,
+    busy_rows: Iterable[BusyRow | Mapping] = (),
+    study_window: tuple[float, float] = (8.0, 22.0),
+    blocks_per_day: int = 2,
+    block_minutes: int = 90,
+    retention: float = 0.9,
+    window: int = 4,
+    lectures_as_topics: bool = True,
+    engine: str = "assistant",
+    tasks: Sequence[TaskSpec] = (),
+    preferences: Mapping | None = None,
+    plan: PlanReport | None = None,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """A new feed. With a `source_url`, the timetable is read again at every
+    refresh; with `ics`, the file given now is the timetable for good. `plan`, if
+    the caller has just made it from the same inputs, saves planning again."""
+    if source_url is None and ics is None and not busy_rows:
+        raise InvalidInput("give a calendar link, a calendar file or your week")
+    rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
+    subscription = Subscription(
+        token=secrets.token_urlsafe(24),
+        created=datetime.now(UTC).isoformat(timespec="seconds"),
+        source_url=source_url.strip() if source_url else None,
+        ics_text=decode_ics(ics) if ics is not None and not source_url else None,
+        busy_rows=rows,
+        subjects=tuple(_spec_dict(s) for s in subjects),
+        options={
+            "start": start.isoformat(),
+            "tz": tz,
+            "study_window": list(study_window),
+            "blocks_per_day": blocks_per_day,
+            "block_minutes": block_minutes,
+            "retention": retention,
+            "window": window,
+            "lectures_as_topics": lectures_as_topics,
+            "engine": engine,
+            "tasks": [
+                {
+                    "name": t.name,
+                    "due": t.due.isoformat() if isinstance(t.due, date | datetime) else t.due,
+                    "hours": t.hours,
+                    "course": t.course,
+                }
+                for t in tasks
+            ],
+            "preferences": dict(preferences or {}),
+        },
+    )
+    if plan is not None:
+        stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+        return replace(subscription, plan=plan.to_dict(), refreshed=stamp)
+    refreshed = refresh_subscription(subscription, now=now, fetch=fetch)
+    if refreshed.plan is None:
+        raise ServiceError(refreshed.error or "the plan could not be made")
+    return refreshed
+
+
+def refresh_subscription(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """Read the timetable again and plan from `now` on.
+
+    Sessions of the current plan that are behind `now` count as done as planned,
+    those reported through `replan_after` keep their outcome, and the plan goes on
+    from the memory they leave. If the link cannot be read or the plan cannot be
+    made, the previous plan stays and `error` says why, so that a feed never goes
+    blank because a university server was down for an hour.
+    """
+    now = now or datetime.now(UTC)
+    options = subscription.options
+    try:
+        ics = (
+            fetch(subscription.source_url)
+            if subscription.source_url
+            else (subscription.ics_text.encode("utf-8") if subscription.ics_text is not None else None)
+        )
+        report = analyse_calendar(
+            ics,
+            start=date.fromisoformat(options["start"]),
+            tz=options["tz"],
+            study_window=tuple(options["study_window"]),
+            blocks_per_day=options["blocks_per_day"],
+            block_minutes=options["block_minutes"],
+            busy_rows=subscription.busy_rows,
+        )
+        done: tuple[SessionView, ...] = ()
+        if subscription.plan is not None:
+            previous = PlanReport.from_dict(subscription.plan)
+            cut = _days_after(previous.settings.start, now.astimezone(_zone(previous.settings.tz)))
+            done = previous.history + tuple(s for s in previous.sessions if s.start_day < cut)
+        subjects = [SubjectSpec(**s) for s in subscription.subjects]
+        if options.get("engine", "planner") == "assistant":
+            plan = make_schedule(
+                report,
+                subjects,
+                tasks=[TaskSpec(**t) for t in options.get("tasks", ())],
+                retention=options["retention"],
+                lectures_as_topics=options["lectures_as_topics"],
+                done=done,
+                now=now,
+                **options.get("preferences", {}),
+            )
+        else:
+            plan = continue_plan(
+                report,
+                subjects,
+                done=done,
+                now=now,
+                retention=options["retention"],
+                window=options["window"],
+                lectures_as_topics=options["lectures_as_topics"],
+            )
+    except ServiceError as error:
+        return replace(subscription, error=str(error))
+    return replace(
+        subscription,
+        plan=plan.to_dict(),
+        refreshed=now.astimezone(UTC).isoformat(timespec="seconds"),
+        error=None,
+    )
+
+
+def is_stale(subscription: Subscription, now: datetime | None = None, age: timedelta = FEED_REFRESH) -> bool:
+    if subscription.refreshed is None:
+        return True
+    return (now or datetime.now(UTC)) - datetime.fromisoformat(subscription.refreshed) >= age
+
+
+def feed_ics(subscription: Subscription) -> bytes:
+    """The feed a calendar app reads: every session, done and to come, with stable
+    identifiers and a request to be read again every `FEED_REFRESH`."""
+    if subscription.plan is None:
+        raise InvalidInput("this feed has no plan yet")
+    return export_ics(
+        PlanReport.from_dict(subscription.plan),
+        include_history=True,
+        uid_prefix=subscription.token[:8] + "-",
+        refresh=FEED_REFRESH,
+    )
+
+
+def feed_url(base_url: str, token: str) -> str:
+    """The address to subscribe to, under the feed server at `base_url`."""
+    return f"{base_url.rstrip('/')}/feed/{token}.ics"
+
+
+def _path(store: str | os.PathLike, token: str) -> Path:
+    if not _TOKEN.fullmatch(token):
+        raise InvalidInput("not a feed token")
+    return Path(store) / f"{token}.json"
+
+
+def save_subscription(store: str | os.PathLike, subscription: Subscription) -> None:
+    """Write a subscription into the store directory, atomically: a feed server
+    reading it at the same moment sees the old file or the new one, never half."""
+    target = _path(store, subscription.token)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            json.dump(subscription.to_dict(), out)
+        os.replace(temporary, target)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def load_subscription(store: str | os.PathLike, token: str) -> Subscription | None:
+    try:
+        path = _path(store, token)
+    except InvalidInput:
+        return None
+    if not path.is_file():
+        return None
+    return Subscription.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def delete_subscription(store: str | os.PathLike, token: str) -> bool:
+    try:
+        path = _path(store, token)
+    except InvalidInput:
+        return False
+    if not path.is_file():
+        return False
+    path.unlink()
+    return True
+
+
+# --------------------------------------------------------------------------- #
+# The assistant: deadlines, a weekly budget, days off, exam practice
+# --------------------------------------------------------------------------- #
+
+WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def make_schedule(
+    report: CalendarReport,
+    subjects: Sequence[SubjectSpec] = (),
+    *,
+    tasks: Sequence[TaskSpec] = (),
+    weekly_hours: float | None = None,
+    rest_days: Sequence[str] = (),
+    practice_days: float = 14.0,
+    practice_hours: float = 4.5,
+    retention: float = 0.9,
+    lectures_as_topics: bool = True,
+    done: Sequence[SessionView] = (),
+    now: datetime | None = None,
+) -> PlanReport:
+    """The student's week, scheduled by the assistant's rules (`cps.assistant`):
+    deadlines first when they get close, exam practice before each exam, self-testing
+    on the taught material that is fading, work ahead otherwise, and free time
+    when nothing needs it. Within `weekly_hours` a week, never on `rest_days`.
+
+    Instant, so it can be run again whenever anything changes: `done` and `now`
+    continue from what already happened, as `continue_plan` does. A subject is
+    "ready" when every one of its topics is predicted at `retention` or more at the
+    exam.
+    """
+    if not subjects and not tasks:
+        raise InvalidInput("add a subject with an exam, or a task with a deadline")
+    if weekly_hours is not None and weekly_hours <= 0:
+        raise InvalidInput("the weekly hours must be positive, or left out for no limit")
+    unknown = [d for d in rest_days if d not in WEEKDAY_NAMES]
+    if unknown:
+        raise InvalidInput(f"days off must be among {', '.join(WEEKDAY_NAMES)}, not {', '.join(unknown)}")
+    if len(set(rest_days)) >= 7:
+        raise InvalidInput("leave at least one day of the week for studying")
+    if practice_days < 0 or practice_hours < 0:
+        raise InvalidInput("exam practice cannot be negative")
+    names = [t.name.strip() for t in tasks]
+    if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
+        raise InvalidInput("every task needs a name of its own")
+    if any(not t.hours > 0 for t in tasks):
+        raise InvalidInput("every task needs a positive number of hours")
+    zone = _zone(report.tz)
+    dues = []
+    for t in tasks:
+        due = t.due_datetime(zone)
+        day = _days_after(report.start, due)
+        if day <= 0:
+            raise ExamInPast(f"{t.name} is due ({due:%Y-%m-%d %H:%M}) before the start of the plan")
+        dues.append((t, due, day))
+
+    if subjects:
+        settings, specs, report = _prepare(
+            report, subjects, retention, 1, None, DEFAULT_FAILURE_PENALTY, lectures_as_topics
+        )
+    else:
+        if not 0.5 <= retention < 1.0:
+            raise InvalidInput("target recall must be at least 0.5 and below 1")
+        specs = []
+        settings = PlanSettings(
+            start=report.start,
+            tz=report.tz,
+            retention=retention,
+            window=1,
+            seed=None,
+            failure_penalty=DEFAULT_FAILURE_PENALTY,
+            block_minutes=report.block_minutes,
+            slots_per_day=report.slots_per_day,
+            horizon_days=report.days,
+        )
+    latest_due = max((day for _, _, day in dues), default=0.0)
+    if latest_due > report.days:
+        report = _extend(report, math.ceil(latest_due - 1e-9))
+    settings = replace(
+        settings,
+        horizon_days=report.days,
+        engine="assistant",
+        preferences={
+            "weekly_hours": weekly_hours,
+            "rest_days": list(rest_days),
+            "practice_days": practice_days,
+            "practice_hours": practice_hours,
+        },
+    )
+    views = tuple(
+        TaskView(
+            name=t.name.strip(),
+            course=t.course.strip(),
+            due=_iso(due),
+            due_day=day,
+            blocks=blocks_for_hours(t.hours, report.block_minutes),
+        )
+        for t, due, day in dues
+    )
+    known = {s["name"] for s in specs} | {t.name for t in views}
+    known |= {f"Exam practice: {s['subject']}" for s in specs}
+    history = tuple(
+        replace(x, index=i)
+        for i, x in enumerate(sorted((x for x in done if x.title in known), key=lambda x: x.start_day))
+    )
+    after = _days_after(report.start, now.astimezone(zone)) if now is not None else -1.0
+    return _assist(settings, specs, views, report.blocks, report.events, history, after)
+
+
+def _assist(
+    settings: PlanSettings,
+    specs: Sequence[dict],
+    tasks: Sequence[TaskView],
+    blocks: tuple[BlockView, ...],
+    events: tuple[EventView, ...],
+    history: tuple[SessionView, ...],
+    after_day: float,
+) -> PlanReport:
+    """Run the assistant on the blocks after `after_day`, from the state `history`
+    leaves, and report it in the shape every front end already reads."""
+    prefs = settings.preferences
+    minutes = settings.block_minutes
+    states = _replay(specs, history)
+    counted = [h for h in history if h.outcome != "skipped"]
+    done_task: dict[str, int] = {}
+    done_practice: dict[str, int] = {}
+    for h in counted:
+        if h.kind == "task":
+            done_task[h.title] = done_task.get(h.title, 0) + 1
+        elif h.kind == "practice":
+            done_practice[h.subject] = done_practice.get(h.subject, 0) + 1
+    topics = [
+        Topic(
+            s["name"],
+            s.get("subject", s["name"]),
+            states[s["name"]][0],
+            states[s["name"]][1],
+            s.get("available_day", 0.0),
+            s["exam_day"],
+            s.get("about", s.get("subject", s["name"])),
+        )
+        for s in specs
+    ]
+    per_exam = blocks_for_hours(prefs["practice_hours"], minutes) if prefs["practice_hours"] > 0 else 0
+    exams = {
+        s.get("subject", s["name"]): Exam(
+            s.get("subject", s["name"]),
+            s["exam_day"],
+            max(per_exam - done_practice.get(s.get("subject", s["name"]), 0), 0),
+        )
+        for s in specs
+    }
+    work = [Task(t.name, t.due_day, max(t.blocks - done_task.get(t.name, 0), 0), t.course) for t in tasks]
+    first_weekday = settings.start.weekday()
+    week_used: dict[int, int] = {}
+    for h in counted:
+        w = (first_weekday + h.day) // 7
+        week_used[w] = week_used.get(w, 0) + 1
+    weekly = prefs["weekly_hours"]
+    result = assist(
+        [b.as_block() for b in blocks if b.start_day > after_day],
+        first_weekday=first_weekday,
+        topics=topics,
+        tasks=work,
+        exams=list(exams.values()),
+        preferences=Preferences(
+            weekly_blocks=None if weekly is None else max(1, math.floor(weekly * 60 / minutes + 1e-9)),
+            rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
+            practice_days=prefs["practice_days"],
+            review_below=settings.retention,
+        ),
+        week_used=week_used,
+    )
+
+    by_slot = {b.slot: b for b in blocks}
+    sessions = tuple(
+        SessionView(
+            index=len(history) + i,
+            subject=x.course or x.title,
+            start=by_slot[x.block.slot].start,
+            end=by_slot[x.block.slot].end,
+            day=x.block.day,
+            start_day=x.block.start_day,
+            slot=x.block.slot,
+            recall=x.recall,
+            outcome="recalled",
+            stability_before=x.stability_before,
+            stability_after=x.stability_after,
+            rationale=x.why,
+            topic=x.title,
+            kind=x.kind,
+            detail=x.what,
+        )
+        for i, x in enumerate(result.sessions)
+    )
+
+    views, warnings = [], []
+    groups: dict[str, list[dict]] = {}
+    for s in specs:
+        groups.setdefault(s.get("subject", s["name"]), []).append(s)
+    for name, members in groups.items():
+        finals = [result.topics[s["name"]] for s in members]
+        recalls = [
+            retrievability(max(s["exam_day"] - last, 0.0), memory.stability)
+            for s, (memory, last) in zip(members, finals, strict=True)
+        ]
+        ok = [r >= settings.retention for r in recalls]
+        ready = all(ok)
+        head = members[0]
+        if len(members) == 1:
+            line = f"{'ready' if ready else 'not ready'}: {recalls[0]:.0%} predicted at the exam"
+        else:
+            line = (
+                f"{'ready' if ready else 'not ready'}: {sum(ok)} of {len(members)} topics at "
+                f"{settings.retention:.0%} or more at the exam"
+            )
+        views.append(
+            SubjectView(
+                name=name,
+                exam=head["exam"],
+                exam_day=head["exam_day"],
+                stability=head["stability"],
+                difficulty=head["difficulty"],
+                prior=head["prior"],
+                target=0.0,
+                ready=ready,
+                unreachable=False,
+                recall_at_exam=sum(recalls) / len(recalls),
+                stability_at_exam=min(result.topics[s["name"]][0].stability for s in members),
+                first_review=next((x.start for x in history + sessions if x.subject == name), None),
+                topics=len(members),
+                topics_ready=sum(ok),
+                status_line=line,
+            )
+        )
+        if not ready:
+            warnings.append(
+                f"{name}: {len(members) - sum(ok)} of {len(members)} topics are predicted below "
+                f"{settings.retention:.0%} at the exam. More hours a week, or fewer days off, "
+                f"would change that."
+            )
+        if result.practice_left.get(name):
+            warnings.append(
+                f"{name}: {result.practice_left[name]} block(s) of exam practice did not fit before the exam."
+            )
+
+    task_views = []
+    for t in tasks:
+        mine = [
+            x for x in history + sessions if x.kind == "task" and x.title == t.name and x.outcome != "skipped"
+        ]
+        left = result.task_left.get(t.name, 0)
+        task_views.append(
+            replace(t, scheduled=len(mine), finish=mine[-1].start if mine else None, at_risk=left > 0)
+        )
+        if left:
+            warnings.append(
+                f"{t.name}: {left} block(s) of work do not fit before it is due "
+                f"({t.due[:16].replace('T', ' ')}). More hours a week, fewer days off or an "
+                f"earlier start would change that."
+            )
+    return PlanReport(
+        settings=settings,
+        subjects=tuple(views),
+        specs=tuple(dict(s) for s in specs),
+        sessions=sessions,
+        history=history,
+        blocks=blocks,
+        events=events,
+        warnings=tuple(warnings),
+        tasks=tuple(task_views),
+    )

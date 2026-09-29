@@ -60,7 +60,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from dateutil.rrule import rrulestr
-from icalendar import Calendar, Event
+from icalendar import Calendar, Event, vDuration
 
 from .timegrid import SLOTS_PER_DAY, TimeGrid
 
@@ -626,6 +626,8 @@ def plan_to_ics(
     slots_per_day: int = SLOTS_PER_DAY,
     block_slots: int = 3,
     calendar_name: str = "Study plan",
+    uid_prefix: str = "",
+    refresh: timedelta | None = None,
 ) -> str:
     """Turn scheduled blocks into an importable calendar.
 
@@ -634,6 +636,12 @@ def plan_to_ics(
     understand is a schedule they will not follow, and "review 3 of 4 — timed for
     85% recall, the point where a review is worth most" is the difference between
     an instruction and an explanation.
+
+    For a subscribed feed, `uid_prefix` keeps one feed's events apart from
+    another's, and `refresh` asks the calendar app to read the feed again that
+    often (RFC 7986 REFRESH-INTERVAL, and X-PUBLISHED-TTL, which Outlook and Apple
+    read). An event keeps its UID from one refresh to the next as long as its block
+    and subject do, so an app updates it instead of duplicating it.
     """
     zone = ZoneInfo(zone_name)
     minutes_per_slot = 24 * 60 // slots_per_day
@@ -641,6 +649,9 @@ def plan_to_ics(
     calendar.add("prodid", "-//constrained-path-scheduler//EN")
     calendar.add("version", "2.0")
     calendar.add("x-wr-calname", calendar_name)
+    if refresh is not None:
+        calendar.add("refresh-interval", refresh, parameters={"VALUE": "DURATION"})
+        calendar.add("x-published-ttl", vDuration(refresh))
 
     midnight = datetime.combine(start_date, time(0, 0), tzinfo=zone)
     for slot, subject, rationale in sessions:
@@ -650,7 +661,8 @@ def plan_to_ics(
         event.add("dtstart", begin)
         event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
         event.add("description", rationale)
-        event.add("uid", f"cps-{slot}-{subject.replace(' ', '-').lower()}@constrained-path-scheduler")
+        name = subject.replace(" ", "-").lower()
+        event.add("uid", f"cps-{uid_prefix}{slot}-{name}@constrained-path-scheduler")
         event.add("dtstamp", datetime.now(UTC))
         calendar.add_component(event)
     # RFC 5545 requires a VTIMEZONE for every TZID the events reference. Google
