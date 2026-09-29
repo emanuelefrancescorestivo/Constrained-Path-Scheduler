@@ -137,3 +137,16 @@ def test_a_backup_is_a_whole_copy(tmp_path):
     store.put(TOKEN, {"x": 1})
     copy = store.backup(tmp_path / "backups" / "copy.sqlite")
     assert Store(copy).get(TOKEN) == {"x": 1}
+
+
+def test_rotating_backups_keep_a_week(tmp_path):
+    import os
+
+    store = Store(tmp_path / "live")
+    store.put(TOKEN, {"x": 1})
+    copies = tmp_path / "backups"
+    old = store.backup(copies / "cps-20200101-000000.sqlite")
+    os.utime(old, (0, 0))
+    recent = store.backup_rotating(copies, keep_days=7)
+    assert sorted(p.name for p in copies.iterdir()) == [recent.name]
+    assert Store(recent).get(TOKEN) == {"x": 1}

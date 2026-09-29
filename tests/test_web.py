@@ -434,3 +434,39 @@ def test_a_learning_platform_link_brings_its_deadlines(web, planned, timetable_s
     assert names == ["Stats report", "Week 4 quiz", "Problem sheet 3", "Essay on fairness"]
     page = web.get(f"/p/{planned}/settings").text
     assert page.count("From your learning platform") == 3
+
+
+def test_the_running_app_backs_up_the_store(tmp_path):
+    config = Config(
+        store=tmp_path / "db", background=False, sweep_every=None, backup_dir=tmp_path / "backups"
+    )
+    Store(tmp_path / "db").put("k" * 32, {"x": 1})
+    with TestClient(create_app(config)):
+        deadline = time.monotonic() + 5
+        while not list((tmp_path / "backups").glob("cps-*.sqlite")) and time.monotonic() < deadline:
+            time.sleep(0.02)
+    (copy,) = (tmp_path / "backups").glob("cps-*.sqlite")
+    assert Store(copy).get("k" * 32) == {"x": 1}
+
+
+def test_the_blueprint_starts_a_command_that_exists(monkeypatch):
+    """render.yaml's start command parses with the CLI it names, and the settings
+    it gives are the ones the app reads."""
+    import shlex
+
+    from cps.cli import _build_parser
+
+    text = (Path(__file__).resolve().parent.parent / "render.yaml").read_text(encoding="utf-8")
+    command = re.search(r"startCommand: (.+)", text).group(1)
+    words = shlex.split(command)
+    assert words[0] == "cps"
+    args = _build_parser().parse_args(words[1:])
+    assert args.command == "web" and args.behind_proxy and str(args.db) == "/var/data/cps.sqlite"
+    assert "healthCheckPath: /health" in text and "region: frankfurt" in text
+    monkeypatch.setenv("CPS_BACKUP_DIR", "/var/data/backups")
+    monkeypatch.setenv("CPS_CONTACT", "owner@example.org")
+    monkeypatch.delenv("CPS_BASE_URL", raising=False)
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://study-plan.example.onrender.com")
+    config = Config.from_env()
+    assert config.backup_dir == Path("/var/data/backups") and config.contact == "owner@example.org"
+    assert config.base_url == "https://study-plan.example.onrender.com"

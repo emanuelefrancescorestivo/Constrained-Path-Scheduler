@@ -94,6 +94,8 @@ class Config:
     base_url: str | None = None  # the public address, e.g. https://example.onrender.com
     contact: str | None = None  # who to write to, shown on the privacy page
     sweep_every: timedelta | None = SWEEP_EVERY
+    backup_dir: Path | None = None  # a dated copy of the store every `backup_every`, a week kept
+    backup_every: timedelta = timedelta(days=1)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     fetch: Callable[[str], bytes] = service.fetch_calendar
     background: bool = True  # refresh feeds in a thread (tests turn it off)
@@ -104,8 +106,10 @@ class Config:
     def from_env(cls) -> Config:
         return cls(
             store=Path(os.environ.get("CPS_DB") or service.FEED_STORE),
-            base_url=os.environ.get("CPS_BASE_URL") or None,
+            # Render sets RENDER_EXTERNAL_URL to the service's public address.
+            base_url=os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or None,
             contact=os.environ.get("CPS_CONTACT") or None,
+            backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
         )
 
 
@@ -136,6 +140,20 @@ def create_app(config: Config | None = None) -> FastAPI:
                     stop.wait(period)
 
             threading.Thread(target=sweep, name="cps-sweep", daemon=True).start()
+        if config.backup_dir is not None:
+            directory, every = config.backup_dir, config.backup_every.total_seconds()
+
+            def backup() -> None:
+                # In the server's own process: a host's scheduled job may not see
+                # the server's disk. One copy at start, then one per period.
+                while not stop.is_set():
+                    try:
+                        store.backup_rotating(directory, now=config.clock())
+                    except Exception:
+                        LOG.exception("backup failed")
+                    stop.wait(every)
+
+            threading.Thread(target=backup, name="cps-backup", daemon=True).start()
         yield
         stop.set()
 

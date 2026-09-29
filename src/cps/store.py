@@ -184,6 +184,19 @@ class Store:
         with self._connect() as db:
             return int(db.execute("SELECT COUNT(*) FROM subscriptions").fetchone()[0])
 
+    def backup_rotating(self, directory: str | Path, keep_days: int = 7, now: datetime | None = None) -> Path:
+        """A dated copy in `directory`, and the copies older than `keep_days`
+        deleted: the privacy page promises that deleted data leaves backups
+        within a week."""
+        now = now or datetime.now(UTC)
+        directory = Path(directory)
+        target = self.backup(directory / f"cps-{now:%Y%m%d-%H%M%S}.sqlite")
+        cutoff = now.timestamp() - keep_days * 86400
+        for old in directory.glob("cps-*.sqlite"):
+            if old != target and old.stat().st_mtime < cutoff:
+                old.unlink()
+        return target
+
     def backup(self, destination: str | Path) -> Path:
         """A consistent copy of the whole file, taken while it is in use."""
         destination = Path(destination)

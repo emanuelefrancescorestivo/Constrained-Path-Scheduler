@@ -334,17 +334,12 @@ def command_sweep(args) -> int:
 
 
 def command_backup(args) -> int:
-    from datetime import UTC, datetime, timedelta
-
     from .store import Store
 
-    now = datetime.now(UTC)
-    target = Store(args.db).backup(args.to / f"cps-{now:%Y%m%d-%H%M%S}.sqlite")
-    cutoff = (now - timedelta(days=args.keep_days)).timestamp()
-    old = [p for p in args.to.glob("cps-*.sqlite") if p != target and p.stat().st_mtime < cutoff]
-    for p in old:
-        p.unlink()
-    print(f"wrote {target}; removed {len(old)} copies older than {args.keep_days} days")
+    before = set(args.to.glob("cps-*.sqlite")) if args.to.exists() else set()
+    target = Store(args.db).backup_rotating(args.to, args.keep_days)
+    removed = len(before - set(args.to.glob("cps-*.sqlite")))
+    print(f"wrote {target}; removed {removed} copies older than {args.keep_days} days")
     return 0
 
 
