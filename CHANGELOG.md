@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Exams are found in a real university timetable export (ADE / Hyperplanning
+  style, `Course, Grp: EXAMEN ., Salle: Room`), tested on the owner's own:
+  keywords match whole words, longest first (AUDIT.md item 29); the subject is the
+  course name, not the whole title (item 30); cancelled classes no longer block
+  time (item 31); assessments are searched for over a year, not 120 days, so the
+  end of a semester is found (item 32).
+
 ## 0.3.0 (2026-09-29)
 
 The planner's timing can be trusted, a web page and a service layer exist, and
