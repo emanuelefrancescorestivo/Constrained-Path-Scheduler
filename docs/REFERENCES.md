@@ -79,3 +79,12 @@ against the publisher's page before anything is published, and they say so.
 - venue: Artificial Intelligence 129(1–2), pages 35–62
 - status: unchecked
 - checked against: a search engine's index of sciencedirect.com and of the authors' copy at rbr.cs.umass.edu, 2026-09-28; both were blocked from the build environment.
+
+### dunlosky2013
+- authors: John Dunlosky; Katherine A. Rawson; Elizabeth J. Marsh; Mitchell J. Nathan; Daniel T. Willingham
+- title: Improving Students' Learning With Effective Learning Techniques: Promising Directions From Cognitive and Educational Psychology
+- year: 2013
+- venue: Psychological Science in the Public Interest 14(1), pages 4–58
+- doi: 10.1177/1529100612453266
+- status: unchecked
+- checked against: a search engine's index of journals.sagepub.com, pubmed.ncbi.nlm.nih.gov and psychologicalscience.org, and ScienceDaily's report of the publisher's press release (2013-01-10), 2026-09-29: ten techniques reviewed; practice testing and distributed practice rated high utility; summarization, highlighting, the keyword mnemonic, imagery for text and rereading rated low. The publisher's page, PubMed and ERIC were blocked from the build environment, so the full text was not read.

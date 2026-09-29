@@ -20,6 +20,9 @@ flowchart TD
     MEM["memory<br/>FSRS-4.5, checked against py-fsrs 2.5.1"] --> CLOCK
     MEM --> AOSTAR
 
+    TASKS["deadlines, weekly hours, days off"] --> ASSIST
+    ASSIST["assistant (the product)<br/>deadline first, exam practice, self-test what fades,<br/>work ahead, else free; milliseconds"] --> SVC
+    MEM --> ASSIST
     CLOCK["clock<br/>per subject, cost to reach its target<br/>before its exam: an estimate V and a bound"] --> ROLL
     ROLL["rolling<br/>plan the next blocks exactly, take one,<br/>observe, replan"] --> AOSTAR
     AOSTAR["plan.solve_ao_star<br/>AND/OR search over the window;<br/>h = bound, terminal value = estimate"] --> ROLL
@@ -58,7 +61,13 @@ accurate estimate, and an optimistic lower bound that a search may use as a
 heuristic. `ssp` is the unconstrained version, used for analysis and by the one-shot
 solver; `budget` is the superseded block-count version (AUDIT.md item 20).
 
-**Search.** `plan` defines the problem (states, actions, successors, the goal) and
+**The assistant.** `assistant` is what the product runs: each free block goes to the
+first of five rules that wants it (a close deadline, exam practice, self-testing on
+the fading topic, working ahead, nothing), within a weekly budget and off days. It
+uses the memory model only to rank what is fading. METHOD.md §8 and
+`benchmarks/rule_vs_planner.py` say why a rule and not the search.
+
+**Search (research planner).** `plan` defines the problem (states, actions, successors, the goal) and
 solves it with AO*, which returns a policy because a review can fail. `rolling`
 makes it tractable on a real horizon: it plans a window of a few blocks exactly,
 ending on the accurate estimate and guided by the bound, executes one block, and
@@ -91,6 +100,7 @@ background (`service.continue_plan`), keeping the sessions already behind as don
 | estimates are calibrated | Monte Carlo with standard errors in `tests/test_clock.py`, `tests/test_ssp.py` |
 | aggregation does not change the cost | `plan.evaluate_exact_dynamics`, `tests/test_plan.py` |
 | the page computes nothing itself | `tests/test_app.py`, by syntax tree and by comparing tables |
+| deadlines met when possible, budget and days off kept, nothing before it is taught | `tests/test_assistant.py` |
 | a link cannot make the server read its own network | `tests/test_sources.py`, redirects included |
 | a feed keeps what was done, survives a dead link, stays deleted, logs no address | `tests/test_feed.py` |
 | a topic is never studied before it is taught | `tests/test_service.py`, `tests/test_rolling.py` |

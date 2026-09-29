@@ -475,3 +475,21 @@ development machine, which is not the reader's: the synthetic semester with each
 course as one topic, 39 seconds before and 26 after, the same 27 sessions; with a
 topic per week, 38 seconds. Status: improved; the remaining time is disclosed in the
 README.
+
+**36. The optimiser's advantage over a simple rule had never been measured on a real
+horizon.** The project's centre is the search: clock value functions and AO* over
+windows, checked exact against exhaustive search. What it had never been compared
+with, on a semester, was the simplest rule a person would write. Found while
+reviewing the whole concept after items 33 to 35. On the synthetic semester
+(`benchmarks/rule_vs_planner.py`), "study the taught topic you remember least" reaches
+65 of 69 topics at target in 246 sessions and 0.01 seconds, against the planner's 63
+in 222 sessions and about 40 seconds; the same rule restricted to recall of 0.93 or
+less reaches 63 in 235 sessions, with higher predicted recall at the exams (0.978
+against 0.967). The search saves about one session in twenty on the model's own
+objective, which METHOD.md §5 already said is flat where plans differ. Nothing
+published is wrong: the planner's results stand as stated, including its advantage
+over the fixed-0.90 rule. What changes is what the product runs: the assistant
+(`assistant.py`, METHOD.md §8) schedules with rules, instantly, and adds what the
+planner never modelled (deadlines, a weekly budget, days off, exam practice); the
+planner stays as the research reference and a switch in the app. Status: resolved by
+the choice of engine; the comparison is a benchmark.

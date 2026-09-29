@@ -275,3 +275,38 @@ is exact over the topics it is given, not over all of them.
 **What this does not model.** One study block reviews one week of one subject, which
 is a simplification of a student's session; lectures are not reviews; and a lapse on
 a week's material is a lapse of the whole week.
+
+## 8. The assistant: rules, and why
+
+`benchmarks/rule_vs_planner.py` compares the planner of sections 6 and 7 with rules
+that fit in a sentence, on the same semester, topics and model (AUDIT.md item 36).
+Studying the taught topic you remember least reaches as many topics at target as the
+planner with about one session in twenty more, with higher predicted recall at the
+exams, in a hundredth of a second instead of forty. The flatness of section 5 is the
+reason: where plans differ, the objective barely does. The search remains the
+reference that shows a rule is good enough; it is not what a student needs to wait
+for.
+
+What a student does need, the planner never modelled. `assistant.py` offers each
+free block to five rules in order:
+
+1. **A deadline that is getting close.** Earliest-deadline-first: if the blocks left
+   before some due date, within each week's budget, no longer exceed the work due by
+   then, the earliest-due task takes the block. On one machine with unit jobs this
+   order meets every deadline whenever any order can, which is the classical result
+   the rule relies on; what it cannot meet is reported as at risk, not hidden.
+2. **Exam practice** in the last `practice_days` before each exam, nearest exam first.
+3. **Self-testing** on the taught topic with the lowest predicted recall, once it has
+   fallen to the recall wanted at the exam.
+4. **Working ahead** on the task due soonest.
+5. **Free time** otherwise, within a weekly budget and never on a day off.
+
+The sessions say what to do. Of ten study techniques reviewed by Dunlosky et al.
+(2013), practice testing and distributed practice were the two rated high utility and
+rereading and highlighting low [ref:dunlosky2013]; so a review is "recall first, then
+check", reviews are spread, and exam practice is a timed past paper.
+
+What the assistant does not know: the effort a task takes (the student's estimate),
+whether a session happened (assumed, until reported), and whether FSRS describes a
+week of a course (a model fitted on flashcards, used here only to rank what is fading,
+not to promise a stability).

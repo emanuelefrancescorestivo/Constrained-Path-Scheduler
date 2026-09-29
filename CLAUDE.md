@@ -27,12 +27,13 @@ than an impressive number.
     pip install -e ".[dev,app]"             # app = streamlit, for app.py
     streamlit run app.py
     cps serve                                # the calendar feeds the page publishes
-    pytest                                   # 281 passed, 13 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 294 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 298 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 312 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
+    python benchmarks/rule_vs_planner.py     # the research planner against one-line rules
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -49,6 +50,7 @@ than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
+| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time |
 | `service.py` | the API every front end uses; lectures become weekly topics; feeds; typed errors; JSON results; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
@@ -98,6 +100,11 @@ draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input on
   behaviour as unverified, and prefer a test that fails on Linux too.
 
 ## Known defects and limits (details in AUDIT.md)
+
+- The product runs the assistant (rules); the FSRS + AO* planner is the research
+  reference and saves about one session in twenty on its own objective
+  (`benchmarks/rule_vs_planner.py`, AUDIT item 36). Do not present the search as
+  what makes the product better; `docs/PRODUCT.md` is the product plan.
 
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.

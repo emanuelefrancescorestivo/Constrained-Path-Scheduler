@@ -11,15 +11,23 @@ anything from `cps` other than `service`.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
-import altair as alt
 import pandas as pd
 import streamlit as st
 
 from cps import service
-from widgets import EXAMPLE_WEEK, activity_table, calendar_source, feed_panel, week_calendar
+from widgets import (
+    EXAMPLE_WEEK,
+    activity_table,
+    calendar_source,
+    feed_panel,
+    recall_chart,
+    settings_panel,
+    task_table,
+    week_calendar,
+)
 
 SAMPLE = Path(__file__).parent / "examples" / "sample-timetable.ics"
 
@@ -40,22 +48,10 @@ if source == "I have no calendar file" and not st.session_state.get("seeded"):
     st.session_state["seeded"] = True
 
 # 2. Settings --------------------------------------------------------------- #
-with st.sidebar:
-    st.header("Settings")
-    sample = source == "Sample calendar"
-    start = st.date_input("Plan from", value=date(2026, 3, 2) if sample else date.today())
-    tz = st.text_input("Time zone", value="Europe/Rome")
-    earliest, latest = st.slider("Hours you study between", 0, 24, (8, 22))
-    per_day = st.number_input("Study blocks per day at most", 1, 6, 2)
-    minutes = st.selectbox("Block length (minutes)", [60, 90, 120], index=1)
-    retention = st.slider("Recall you want at the exam", 0.75, 0.97, 0.90, 0.01)
-    window = st.number_input(
-        "Blocks planned exactly at a time",
-        1,
-        8,
-        4,
-        help="Larger is slower and, measured, slightly better up to about 4.",
-    )
+opts = settings_panel(sample=source == "Sample calendar")
+start, tz, retention = opts["start"], opts["tz"], opts["retention"]
+earliest, latest = opts["window_hours"]
+per_day, minutes = opts["per_day"], opts["minutes"]
 
 if source in ("Upload an .ics file", "Paste a calendar link") and ics is None:
     st.stop()
@@ -137,10 +133,19 @@ specs = [
     if str(r.get("subject") or "").strip()
 ]
 
+assistant = opts["engine"] == "assistant"
+prefs = {k: opts[k] for k in ("weekly_hours", "rest_days", "practice_hours")} if assistant else {}
+if assistant:
+    st.subheader("Deadlines")
+    tasks = task_table("tasks")
+
 # 4. Plan --------------------------------------------------------------------- #
 if st.button("Plan my study", type="primary"):
     try:
-        plan = service.make_plan(report, specs, retention=retention, window=int(window))
+        if assistant:
+            plan = service.make_schedule(report, specs, tasks=tasks, retention=retention, **prefs)
+        else:
+            plan = service.make_plan(report, specs, retention=retention, window=opts["window"])
         st.session_state["plan"] = plan.to_dict()
         st.session_state.pop("replanned", None)
     except service.ServiceError as error:
@@ -162,6 +167,9 @@ for col, subject in zip(cols, plan.subjects, strict=False):
 for warning in plan.warnings:
     st.warning(warning)
 
+if plan.tasks:
+    st.subheader("Deadlines")
+    st.dataframe(pd.DataFrame(service.task_rows(plan)), use_container_width=True, hide_index=True)
 st.subheader("Sessions")
 st.dataframe(
     pd.DataFrame(service.session_rows(plan)), use_container_width=True, hide_index=True, key="sessions"
@@ -180,31 +188,14 @@ feed_panel(
         blocks_per_day=int(per_day),
         block_minutes=int(minutes),
         retention=retention,
-        window=int(window),
+        window=opts.get("window", 4),
+        engine=opts["engine"],
+        tasks=tasks if assistant else (),
+        preferences=prefs,
     ),
 )
 
-st.subheader("Predicted recall")
-curves = pd.DataFrame(
-    [
-        {"day": d, "recall": p, "subject": s.name}
-        for s in plan.subjects
-        for d, p in service.recall_curve(plan, s.name)
-    ]
-)
-marks = pd.DataFrame([{"day": x.start_day, "recall": x.recall, "subject": x.subject} for x in plan.sessions])
-chart = (
-    alt.Chart(curves)
-    .mark_line()
-    .encode(
-        x=alt.X("day", title="days from the start"),
-        y=alt.Y("recall", scale=alt.Scale(domain=[0, 1])),
-        color="subject",
-    )
-)
-if not marks.empty:
-    chart += alt.Chart(marks).mark_point(filled=True, size=70).encode(x="day", y="recall", color="subject")
-st.altair_chart(chart, use_container_width=True)
+recall_chart(plan)
 
 st.subheader("Week by week")
 week = st.selectbox(

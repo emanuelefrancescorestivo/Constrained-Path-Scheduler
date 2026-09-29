@@ -2,7 +2,20 @@
 
 ## Unreleased
 
+The project becomes a study assistant: the product schedules with rules, and the
+research planner becomes the reference behind them (AUDIT.md item 36).
+
 ### Added
+- The assistant (`assistant.py`, `service.make_schedule`): deadlines met
+  earliest-deadline-first with at-risk warnings, a weekly hours budget, days off,
+  exam practice in the last two weeks before each exam, self-testing on the taught
+  material that is fading, working ahead, and free time left free. A semester in
+  about a hundredth of a second. Every session says what to do.
+- The web page plans with the assistant by default: a "Deadlines" table, hours a
+  week and days off in the sidebar, a deadlines summary with the plan; the research
+  planner is a switch. Feeds refresh with the assistant.
+- `benchmarks/rule_vs_planner.py`: the research planner against one-line rules on a
+  semester. `docs/PRODUCT.md`: where the product is going and what it lacks.
 - A calendar can be read from its link: a university timetable's export address
   (ADE, Hyperplanning), Google Calendar's secret iCal address, `webcal://`. In the
   web page ("Paste a calendar link") and on the command line (`cps plan "https://…"`).
