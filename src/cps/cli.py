@@ -129,6 +129,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="simulate outcomes stochastically instead of assuming every recall works",
     )
+    plan.add_argument(
+        "--whole-subjects",
+        action="store_true",
+        help="plan each subject as one topic, ignoring its lectures in the calendar",
+    )
     plan.add_argument("--out", type=Path, default=None, help="write the plan as .ics")
     return parser
 
@@ -189,6 +194,7 @@ def command_plan(args) -> int:
         window=args.window,
         seed=args.seed,
         failure_penalty=args.penalty,
+        lectures_as_topics=not args.whole_subjects,
     )
 
     print(
@@ -196,18 +202,25 @@ def command_plan(args) -> int:
         f"{args.retention:.0%} recall wanted, a missed exam priced at {args.penalty:g} blocks"
     )
     for subject in plan.subjects:
-        print(
-            f"  {subject.name:<18} exam on day {subject.exam_day:5.1f}, "
-            f"target stability {subject.target:.0f} days"
-        )
+        if subject.topics > 1:
+            print(
+                f"  {subject.name:<18} exam on day {subject.exam_day:5.1f}, "
+                f"{subject.topics} topics, one per week of lectures, each with its own target"
+            )
+        else:
+            print(
+                f"  {subject.name:<18} exam on day {subject.exam_day:5.1f}, "
+                f"target stability {subject.target:.0f} days"
+            )
     print()
     if plan.sessions:
-        print(f"{'day':>4} {'time':>6}  {'subject':<18}{'recall':>7}{'outcome':>9}{'stability':>19}")
+        width = max(18, *(len(s.title) + 2 for s in plan.sessions))
+        print(f"{'day':>4} {'time':>6}  {'subject':<{width}}{'recall':>7}{'outcome':>9}{'stability':>19}")
         for session in plan.sessions:
             arrow = f"{session.stability_before:.1f} -> {session.stability_after:.1f}"
             outcome = "good" if session.outcome == "recalled" else "again"
             print(
-                f"{session.day:>4} {_hhmm(session.start):>6}  {session.subject:<18}"
+                f"{session.day:>4} {_hhmm(session.start):>6}  {session.title:<{width}}"
                 f"{session.recall:>7.2f}{outcome:>9}{arrow:>19}"
             )
     else:
@@ -217,7 +230,8 @@ def command_plan(args) -> int:
     print(f"\nblocks used {plan.blocks_used} of {len(plan.blocks)}, lapses {lapses}")
     for subject in plan.subjects:
         status = "ready    " if subject.ready else ("CANNOT   " if subject.unreachable else "NOT ready")
-        print(f"  {status}  {subject.name:<18} recall at the exam {subject.recall_at_exam:.0%}")
+        topics = f", {subject.topics_ready} of {subject.topics} topics ready" if subject.topics > 1 else ""
+        print(f"  {status}  {subject.name:<18} recall at the exam {subject.recall_at_exam:.0%}{topics}")
     for warning in plan.warnings:
         print(f"\n{warning}")
 

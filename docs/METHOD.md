@@ -228,3 +228,50 @@ subject could reach on the actual free blocks if every review succeeded, holding
 difficulty at `min(D, D0(Good))`. If that is below the target the subject is
 reported and gets no blocks. The dynamic programme behind it relies on post-recall
 stability increasing with pre-review stability at a fixed gap, which is tested.
+
+## 7. Lectures become topics
+
+Sections 1 to 6 treat a subject as one memory item with a starting state the
+student rates. That is right for revising something already learnt, and wrong for a
+semester: the material arrives a lecture at a time, until December, and a plan that
+keeps one rated state from decaying finishes early and stops (AUDIT.md item 33;
+`python benchmarks/semester.py` shows it on a synthetic timetable, last session on
+23 November before exams at the end of January).
+
+**Topics from the calendar.** The calendar already lists every lecture. An event
+belongs to a subject when its course, read from the title by `calendar_io.course_of`
+("Algebra 3" in "Algebra 3, Grp: CM ., Salle: 4", "Analysis" in "Analysis lecture"),
+is the subject's name. A subject's lectures after the start of the plan are grouped
+by calendar week, and each week is a topic `i` with:
+
+* `available_i`, the end of the week's last lecture: no block before it may study it;
+* a starting state, that of an item seen once with the grade Hard (familiarity 2),
+  last reviewed at `available_i`: a stated guess, like every prior here;
+* its own target `stability_for_interval(T_i, rho)`, `T_i = exam − available_i`
+  rounded down to whole weeks once it is a week or more. Rounding down only lowers a
+  target, and it lets topics taught in the same week share a value-function solve.
+
+What was taught before the plan starts is one more topic, `available = 0`, in the
+state the student rates. A subject with no lectures in the calendar is one topic,
+exactly as in section 6.
+
+**Shared solves.** With a horizon common to every topic, a clock table depends only on
+the target, the time step and the penalty. A table for target `T` is queried at most
+`exam − available` days before an exam, never more, so it is solved only that far:
+a week taught in December needs a few weeks of table, not the semester. Solved tables
+are kept for the next plan, and a value is a function of its arguments rounded to
+1e-9, so sharing a memo between plans cannot change a result.
+
+**The window chooses among the topics taught so far.** A window of `w` blocks is built
+from the topics that can be studied in it: taught, not yet at target, not lost, exam
+still ahead. Leaving the others out is exact, since nothing inside the window changes
+them and their share of the terminal value is the same constant under every policy;
+`tests/test_rolling.py` checks that the plan is then identical to the full windows. A
+semester has dozens of such topics, so the window keeps at most four, ranked by what
+waiting through the window costs each of them under the accurate estimate (ties to
+the earlier exam, then the weaker memory). That cap is an approximation: each window
+is exact over the topics it is given, not over all of them.
+
+**What this does not model.** One study block reviews one week of one subject, which
+is a simplification of a student's session; lectures are not reviews; and a lapse on
+a week's material is a lapse of the whole week.

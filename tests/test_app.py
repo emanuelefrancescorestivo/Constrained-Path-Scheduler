@@ -104,6 +104,9 @@ def test_a_typed_week_runs_without_errors():
 
     app = AppTest.from_file(str(APP), default_timeout=300)
     app.run()
-    app.radio[0].set_value("Type my week").run()
+    app.radio[0].set_value("I have no calendar file").run()
     assert not app.exception, app.exception
     assert any("free study blocks" in m.value for m in app.markdown)
+    # The example week is there to be edited, and it is what the planner sees.
+    assert len(app.session_state["activities"]) == 3
+    assert any(m.value.startswith("9 busy events over 21 days") for m in app.markdown)

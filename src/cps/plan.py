@@ -103,6 +103,15 @@ class TopicState:
     stability: float
     difficulty: float
     last_review_day: float = 0.0
+    # The hash the dataclass would compute, computed once: the search hashes the
+    # same states millions of times (it was a tenth of the planning time).
+    _hash: int = field(default=0, init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((self.stability, self.difficulty, self.last_review_day)))
+
+    def __hash__(self) -> int:
+        return self._hash
 
     def as_memory(self) -> MemoryState:
         return MemoryState(self.stability, self.difficulty)
@@ -115,6 +124,13 @@ class PlanState:
 
     block_index: int
     topics: tuple[TopicState, ...]
+    _hash: int = field(default=0, init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((self.block_index, self.topics)))
+
+    def __hash__(self) -> int:
+        return self._hash
 
 
 @dataclass(frozen=True, slots=True)

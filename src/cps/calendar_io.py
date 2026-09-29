@@ -50,6 +50,7 @@ Four decisions that matter, all of which are easy to get silently wrong
 
 from __future__ import annotations
 
+import functools
 import math
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -181,6 +182,10 @@ def expand_events(
         # RFC 5545 STATUS:CANCELLED: the lecture is not happening, so its time is
         # free (AUDIT.md item 31).
         if str(component.get("STATUS", "")).strip().upper() == "CANCELLED":
+            continue
+        # University exports often keep the status and write it in the title
+        # instead: "Ethics, Grp: CM ., Salle: 4, COURS ANNULE" (AUDIT.md item 34).
+        if _CANCELLED_TITLE.search(str(component.get("SUMMARY", ""))):
             continue
         start, was_date = _as_datetime(component["DTSTART"].dt, zone)
         end = _event_end(component, start, was_date, zone)
@@ -479,14 +484,10 @@ def find_deadlines(
     keyword "examen" and never "exam" followed by "EN" (AUDIT.md item 29). The
     subject is the course name: see `_course_name`.
     """
-    patterns = [
-        (k, re.compile(rf"(?<!\w){re.escape(k)}s?(?!\w)", re.IGNORECASE))
-        for k in sorted({k.lower() for k in keywords}, key=len, reverse=True)
-    ]
     found: dict[str, Deadline] = {}
     for event in events:
         title = event.summary
-        match = next((m for _, p in patterns if (m := p.search(title))), None)
+        match = _assessment_match(title, tuple(keywords))
         if match is None:
             continue
         subject = _course_name(title, match) or title.strip()
@@ -494,6 +495,90 @@ def find_deadlines(
         if existing is None or event.start < existing.when:
             found[subject.casefold()] = Deadline(subject=subject, when=event.start, summary=title)
     return sorted(found.values(), key=lambda d: d.when)
+
+
+@functools.lru_cache(maxsize=8)
+def _keyword_patterns(keywords: tuple[str, ...]) -> tuple[re.Pattern[str], ...]:
+    return tuple(
+        re.compile(rf"(?<!\w){re.escape(k)}s?(?!\w)", re.IGNORECASE)
+        for k in sorted({k.lower() for k in keywords}, key=len, reverse=True)
+    )
+
+
+def _assessment_match(title: str, keywords: tuple[str, ...] = DEADLINE_KEYWORDS) -> re.Match[str] | None:
+    return next((m for p in _keyword_patterns(keywords) if (m := p.search(title))), None)
+
+
+def course_of(title: str) -> str:
+    """The course a timetable event belongs to, or "" if the title names none.
+
+    The same reading of a title as `_course_name`, without an assessment keyword:
+    the first field that contains a letter, "Algebra 3" in "Algebra 3, Grp: CM .,
+    Salle: 4", less a word that only says what kind of session it is, "Analysis"
+    in "Analysis lecture" or "Fisica" in "Lezione di Fisica". A lecture belongs to
+    a subject when this equals the subject's name, ignoring case.
+    """
+    for field in _FIELD_SEPARATORS.split(title):
+        words = field.strip(" .-–—:·").split()
+        if not any(c.isalpha() for c in "".join(words)):
+            continue
+        if words[0].casefold().rstrip(":") in ("grp", "group", "groupe", "salle", "room"):
+            return ""
+        while words and words[-1].casefold() in _SESSION_WORDS:
+            words.pop()
+        while words and words[0].casefold() in _SESSION_WORDS:
+            words.pop(0)
+            if len(words) > 1 and words[0].casefold() in _CONNECTIVES:
+                words.pop(0)
+        if words:
+            return " ".join(words)
+    return ""
+
+
+def find_lectures(
+    events: Sequence[BusyEvent], keywords: Sequence[str] = DEADLINE_KEYWORDS
+) -> list[tuple[str, BusyEvent]]:
+    """Every event that is not an assessment, with the course it belongs to.
+
+    Nothing here decides that an event *is* teaching: gym sessions come back as
+    course "Gym". The service keeps only the events whose course is the name of a
+    subject being planned, which is what makes a weekly "Gym" harmless.
+    """
+    out = []
+    for event in events:
+        if _assessment_match(event.summary, tuple(keywords)) is not None:
+            continue
+        course = course_of(event.summary)
+        if course:
+            out.append((course, event))
+    return out
+
+
+# Words that name the kind of session rather than the course.
+_SESSION_WORDS = (
+    "lecture",
+    "lectures",
+    "lesson",
+    "lessons",
+    "class",
+    "seminar",
+    "tutorial",
+    "lab",
+    "cours",
+    "lezione",
+    "lezioni",
+    "vorlesung",
+    "übung",
+    "cm",
+    "td",
+    "tp",
+)
+
+# "COURS ANNULE", "annulée", "cancelled", "annullata", "entfällt": a session that
+# is not happening, said in its title.
+_CANCELLED_TITLE = re.compile(
+    r"(?<!\w)(annul[ée]e?s?|cancell?ed|annullat[oaie]|entf[äa]llt|abgesagt)(?!\w)", re.IGNORECASE
+)
 
 
 # Connectives left behind when the keyword is removed: "Esame di Fisica",

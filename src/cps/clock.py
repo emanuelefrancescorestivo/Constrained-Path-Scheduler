@@ -229,6 +229,7 @@ class ClockPolicy:
     time_grid: np.ndarray
     expected_cost: np.ndarray  # (n_t, n_d, n_s)
     _cache: dict = field(default_factory=dict, repr=False, compare=False)
+    _rounded: dict = field(default_factory=dict, repr=False, compare=False)
 
     @property
     def is_lower_bound(self) -> bool:
@@ -315,16 +316,28 @@ class ClockPolicy:
             return 0.0
         if days_left <= 0:
             return self.config.failure_penalty
-        self._check_horizon(days_left)
-        key = (round(difficulty, 9), round(stability, 9), round(elapsed, 9), round(days_left, 9))
-        cached = self._cache.get(key)
+        # Two memos. The exact arguments first, because the search asks for the
+        # same few states again and again and rounding four floats costs more than
+        # the lookup; then the arguments rounded to 1e-9, at which the value is
+        # computed. The value is therefore a function of the rounded arguments
+        # alone, whatever was asked before, so memos can be shared between plans
+        # and cleared at any time without changing a result.
+        exact = (difficulty, stability, elapsed, days_left)
+        cached = self._cache.get(exact)
         if cached is not None:
             return cached
-        _, q = self._cells(difficulty, stability, max(elapsed, 0.0), days_left)
-        value = float(min(self.config.failure_penalty, q.min() if q.size else np.inf))
+        self._check_horizon(days_left)
+        key = (round(difficulty, 9), round(stability, 9), round(elapsed, 9), round(days_left, 9))
+        cached = self._rounded.get(key)
+        if cached is None:
+            d, s, e, t = key
+            _, q = self._cells(d, s, max(e, 0.0), t)
+            cached = float(min(self.config.failure_penalty, q.min() if q.size else np.inf))
+            if len(self._rounded) < 500_000:
+                self._rounded[key] = cached
         if len(self._cache) < 500_000:
-            self._cache[key] = value
-        return value
+            self._cache[exact] = cached
+        return cached
 
     def best_review_time(
         self, difficulty: float, stability: float, elapsed: float, days_left: float
@@ -408,17 +421,18 @@ def solve(config: ClockConfig, weights: Weights = DEFAULT_WEIGHTS) -> ClockPolic
     values[0] = give_up
     flat = values.ravel()
 
-    def q_of(cells: np.ndarray, levels: np.ndarray) -> np.ndarray:
-        """Q for delay cells `cells`, reading the successor table at `levels`."""
+    def q_of(cells: slice, levels: np.ndarray) -> np.ndarray:
+        """Q for delay cells `cells` (a contiguous range, so the lookups below are
+        views rather than copies), reading the successor table at `levels`."""
         offset = (levels * per_level)[:, None, None]
         sub_rec = _Lookup(
-            flat=tuple(f[cells] for f in rec.flat),
+            flat=(rec.flat[0][cells], rec.flat[1][cells], rec.flat[2][cells], rec.flat[3][cells]),
             w_d=rec.w_d[cells],
             w_s=rec.w_s[cells],
             done=rec.done[cells],
         )
         sub_lap = _Lookup(
-            flat=tuple(f[cells] for f in lap.flat),
+            flat=(lap.flat[0][cells], lap.flat[1][cells], lap.flat[2][cells], lap.flat[3][cells]),
             w_d=lap.w_d[cells],
             w_s=lap.w_s[cells],
             done=lap.done[cells],
@@ -436,13 +450,11 @@ def solve(config: ClockConfig, weights: Weights = DEFAULT_WEIGHTS) -> ClockPolic
             # cells 1..j-1 read strictly earlier levels; cell 0 reads level j
             known = give_up
             if j > 1:
-                cells = np.arange(1, j)
-                known = np.minimum(known, q_of(cells, j - cells).min(axis=0))
+                known = np.minimum(known, q_of(slice(1, j), j - np.arange(1, j)).min(axis=0))
             current = np.zeros((n_d, n_s))
-            zero = np.array([0])
             for _ in range(config.max_inner_iterations):
                 values[j] = current
-                nxt = np.minimum(known, q_of(zero, np.array([j]))[0])
+                nxt = np.minimum(known, q_of(slice(0, 1), np.array([j]))[0])
                 nxt[:, at_goal] = 0.0
                 change = float(np.max(np.abs(nxt - current)))
                 current = nxt
@@ -452,8 +464,7 @@ def solve(config: ClockConfig, weights: Weights = DEFAULT_WEIGHTS) -> ClockPolic
                 raise RuntimeError(f"inner iteration at level {j} did not converge")
             values[j] = current
         else:
-            cells = np.arange(0, j)
-            best = np.minimum(give_up, q_of(cells, j - 1 - cells).min(axis=0))
+            best = np.minimum(give_up, q_of(slice(0, j), j - 1 - np.arange(0, j)).min(axis=0))
             best[:, at_goal] = 0.0
             values[j] = best
 

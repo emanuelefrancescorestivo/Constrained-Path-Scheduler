@@ -1,0 +1,239 @@
+.wc {
+  --wc-text: var(--st-text-color, #31333f);
+  --wc-bg: var(--st-background-color, #ffffff);
+  --wc-soft: var(--st-secondary-background-color, #f0f2f6);
+  --wc-line: color-mix(in srgb, var(--wc-text) 12%, transparent);
+  --wc-accent: var(--st-primary-color, #ff4b4b);
+  font-family: var(--st-font, "Source Sans Pro", sans-serif);
+  font-size: 13px;
+  color: var(--wc-text);
+}
+
+.wc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.wc-hint {
+  margin-right: 4px;
+  opacity: 0.8;
+}
+
+.wc button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid var(--wc-line);
+  background: var(--wc-bg);
+  padding: 4px 10px;
+}
+
+.wc button:focus-visible,
+.wc-own:focus-visible,
+.wc input:focus-visible,
+.wc select:focus-visible {
+  outline: 2px solid var(--wc-accent);
+  outline-offset: 1px;
+}
+
+.wc-chip.wc-on {
+  border-color: var(--wc-text);
+  font-weight: 600;
+}
+
+.wc-add {
+  margin-left: auto;
+}
+
+.wc-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 46px repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  border: 1px solid var(--wc-line);
+  border-radius: 8px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.wc-corner,
+.wc-head {
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 600;
+  background: var(--wc-soft);
+  border-bottom: 1px solid var(--wc-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-gutter,
+.wc-col {
+  position: relative;
+}
+
+.wc-col {
+  border-left: 1px solid var(--wc-line);
+}
+
+.wc-editable .wc-col:not(.wc-out) {
+  cursor: crosshair;
+}
+
+.wc-out {
+  opacity: 0.45;
+}
+
+.wc-hour {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.wc-hour:first-child {
+  transform: none;
+}
+
+.wc-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--wc-line);
+}
+
+.wc-closed {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--wc-text) 6%, transparent) 6px 12px
+  );
+  pointer-events: none;
+}
+
+.wc-box {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 5px;
+  padding: 2px 5px;
+  overflow: hidden;
+  line-height: 1.2;
+  font-size: 12px;
+  color: #1f2328;
+  border-left: 3px solid rgba(0, 0, 0, 0.35);
+}
+
+.wc-box .wc-time {
+  display: block;
+  font-size: 10.5px;
+  opacity: 0.8;
+}
+
+.wc-box .wc-label {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wc-own {
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.wc-dragging {
+  cursor: grabbing;
+  opacity: 0.85;
+  z-index: 5;
+}
+
+.wc-ghost {
+  opacity: 0.6;
+  border-style: dashed;
+  z-index: 4;
+}
+
+.wc-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+/* Colours with dark text: readable in the light and the dark theme alike. */
+.wc-k-calendar { background: #d7dce3; }
+.wc-k-typed { background: #d7dce3; }
+.wc-k-exam { background: #f4a6a6; border-left-color: #b42318; }
+.wc-k-study { background: #a7d8f0; border-left-color: #0b6aa2; }
+.wc-k-training { background: #b8e3b0; }
+.wc-k-commute { background: #f3dea2; }
+.wc-k-work { background: #d4c4f0; }
+.wc-k-timeoff { background: #f6c6de; }
+.wc-k-other { background: #e2e2e2; }
+
+.wc-chip.wc-k-training,
+.wc-chip.wc-k-commute,
+.wc-chip.wc-k-work,
+.wc-chip.wc-k-timeoff,
+.wc-chip.wc-k-other {
+  color: #1f2328;
+}
+
+.wc-editor {
+  position: absolute;
+  z-index: 10;
+  width: 220px;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--wc-line);
+  background: var(--wc-bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: text;
+}
+
+.wc-line-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.wc-editor input[type="text"],
+.wc-editor select {
+  flex: 1;
+  min-width: 0;
+}
+
+.wc-editor input,
+.wc-editor select {
+  font: inherit;
+  color: inherit;
+  background: var(--wc-bg);
+  border: 1px solid var(--wc-line);
+  border-radius: 5px;
+  padding: 3px 5px;
+}
+
+.wc-editor input[type="time"] {
+  width: 86px;
+}
+
+.wc-done {
+  margin-left: auto;
+  background: var(--wc-accent) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}

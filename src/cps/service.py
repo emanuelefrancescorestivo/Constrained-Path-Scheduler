@@ -48,6 +48,7 @@ from .calendar_io import (
     decode_ics,
     expand_events,
     find_deadlines,
+    find_lectures,
     plan_to_ics,
 )
 from .memory import (
@@ -59,7 +60,7 @@ from .memory import (
     review,
 )
 from .plan import Block, tile_free_time
-from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling
+from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
@@ -73,6 +74,8 @@ LIMITATIONS = (
     "except when you tell it that a session was forgotten or skipped.",
     "The target is a choice: recall at your chosen level for as long again as the "
     "preparation lasts. A missed exam is priced at a fixed number of study blocks.",
+    "Each week of a subject's lectures is a topic that one study block reviews, and it starts "
+    "out 'seen once and shaky'; both are simplifications, not measurements.",
 )
 
 
@@ -202,9 +205,10 @@ class EventView:
     summary: str
     start: str  # ISO 8601, local
     end: str
+    source: str = "calendar"  # "calendar" (the .ics) or "typed" (busy rows)
 
     def to_dict(self) -> dict:
-        return {"summary": self.summary, "start": self.start, "end": self.end}
+        return {"summary": self.summary, "start": self.start, "end": self.end, "source": self.source}
 
 
 @dataclass(frozen=True)
@@ -239,6 +243,18 @@ class AssessmentView:
 
 
 @dataclass(frozen=True)
+class LectureView:
+    """A teaching event and the course it belongs to (`calendar_io.course_of`)."""
+
+    course: str
+    start: str
+    end: str
+
+    def to_dict(self) -> dict:
+        return {"course": self.course, "start": self.start, "end": self.end}
+
+
+@dataclass(frozen=True)
 class CalendarReport:
     """What ingestion saw. Check it before trusting any plan built on it."""
 
@@ -259,6 +275,9 @@ class CalendarReport:
     # in `to_dict`, and is never written anywhere by this module.
     ics_text: str | None = field(default=None, repr=False)
     busy_rows: tuple[BusyRow, ...] = field(default=(), repr=False)
+    # Every non-assessment event of the .ics from half a year before the start to
+    # a year after it, with its course: what `make_plan` turns into topics.
+    lectures: tuple[LectureView, ...] = field(default=(), repr=False)
 
     @property
     def block_slots(self) -> int:
@@ -280,6 +299,7 @@ class CalendarReport:
             "assessments": [a.to_dict() for a in self.assessments],
             "ics_text": self.ics_text,
             "busy_rows": [_row_to_dict(r) for r in self.busy_rows],
+            "lectures": [x.to_dict() for x in self.lectures],
         }
 
 
@@ -297,18 +317,26 @@ def _row_to_dict(row: BusyRow) -> dict:
 def _events(
     ics_text: str | None, rows: Sequence[BusyRow], start: date, days: int, tz: str
 ) -> list[BusyEvent]:
+    return [e for e, _ in _tagged_events(ics_text, rows, start, days, tz)]
+
+
+def _tagged_events(
+    ics_text: str | None, rows: Sequence[BusyRow], start: date, days: int, tz: str
+) -> list[tuple[BusyEvent, str]]:
+    """Every busy event with where it came from: "calendar" or "typed"."""
     zone = _zone(tz)
-    events: list[BusyEvent] = []
+    events: list[tuple[BusyEvent, str]] = []
     if ics_text is not None:
         window_start = datetime.combine(start, time(0, 0), tzinfo=zone)
         try:
-            events += expand_events(ics_text, window_start, window_start + timedelta(days=days), zone)
+            found = expand_events(ics_text, window_start, window_start + timedelta(days=days), zone)
         except (ValueError, TypeError, KeyError) as exc:
             raise InvalidCalendar(
                 f"the calendar file could not be read ({exc}); export it again as .ics"
             ) from exc
-    events += busy_from_table(rows, start, days, tz)
-    events.sort(key=lambda e: (e.start, e.end))
+        events += [(e, "calendar") for e in found]
+    events += [(e, "typed") for e in busy_from_table(rows, start, days, tz)]
+    events.sort(key=lambda pair: (pair[0].start, pair[0].end))
     return events
 
 
@@ -350,11 +378,13 @@ def analyse_calendar(
     if days is not None and days < 1:
         raise InvalidInput("the horizon must be at least one day")
     found = find_deadlines(_events(text, rows, start, max(days or 0, ASSESSMENT_SEARCH_DAYS), tz))
+    lectures = _lectures(text, start, tz)
     if days is None:
         latest = max((_days_after(start, d.when) for d in found), default=21.0)
         days = max(1, math.ceil(latest - 1e-9))
 
-    events = _events(text, rows, start, days, tz)
+    tagged = _tagged_events(text, rows, start, days, tz)
+    events = [e for e, _ in tagged]
     grid = availability_from_events(events, start, days, SLOTS_PER_DAY, study_window)
     minutes_per_slot = 24 * 60 // grid.slots_per_day
     block_slots = max(1, block_minutes // minutes_per_slot)
@@ -375,7 +405,7 @@ def analyse_calendar(
         slots_per_day=grid.slots_per_day,
         busy_hours=grid.busy_slots() * minutes_per_slot / 60,
         total_hours=grid.total_slots * minutes_per_slot / 60,
-        events=tuple(EventView(e.summary, _iso(e.start), _iso(e.end)) for e in events),
+        events=tuple(EventView(e.summary, _iso(e.start), _iso(e.end), source) for e, source in tagged),
         blocks=tuple(
             BlockView(b.slot, b.day, b.start_day, _iso(clock(b.slot)), _iso(clock(b.slot + block_slots)))
             for b in tiles
@@ -383,7 +413,28 @@ def analyse_calendar(
         assessments=tuple(AssessmentView(d.subject, _iso(d.when), d.summary) for d in found),
         ics_text=text,
         busy_rows=rows,
+        lectures=lectures,
     )
+
+
+LECTURE_LOOKBACK_DAYS = 183
+
+
+def _lectures(ics_text: str | None, start: date, tz: str) -> tuple[LectureView, ...]:
+    """Teaching events of the .ics around the plan: see `CalendarReport.lectures`."""
+    if ics_text is None:
+        return ()
+    zone = _zone(tz)
+    origin = datetime.combine(start, time(0, 0), tzinfo=zone) - timedelta(days=LECTURE_LOOKBACK_DAYS)
+    try:
+        events = expand_events(
+            ics_text, origin, origin + timedelta(days=LECTURE_LOOKBACK_DAYS + ASSESSMENT_SEARCH_DAYS), zone
+        )
+    except (ValueError, TypeError, KeyError) as exc:
+        raise InvalidCalendar(
+            f"the calendar file could not be read ({exc}); export it again as .ics"
+        ) from exc
+    return tuple(LectureView(course, _iso(e.start), _iso(e.end)) for course, e in find_lectures(events))
 
 
 # --------------------------------------------------------------------------- #
@@ -405,6 +456,10 @@ class SubjectView:
     recall_at_exam: float
     stability_at_exam: float
     first_review: str | None
+    # For a subject whose lectures are topics: how many, and how many reach their
+    # own target. `target` and `stability_at_exam` are then the weakest topic's.
+    topics: int = 1
+    topics_ready: int = 0
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -424,6 +479,13 @@ class SessionView:
     stability_before: float
     stability_after: float
     rationale: str
+    # The topic studied, "Algebra 3 · week of 05 Oct", when the subject's lectures
+    # are topics; "" when the subject is one topic.
+    topic: str = ""
+
+    @property
+    def title(self) -> str:
+        return self.topic or self.subject
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -505,7 +567,7 @@ class PlanReport:
 
 
 def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
-    """Specs to plain starting states with exam days, validated."""
+    """Specs to plain starting states with exam days, validated: one per subject."""
     if not subjects:
         raise InvalidInput("add at least one subject with an exam date")
     names = [s.name.strip() for s in subjects]
@@ -532,15 +594,87 @@ def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[l
         resolved.append(
             {
                 "name": spec.name.strip(),
+                "subject": spec.name.strip(),
+                "topic": "",
                 "exam": _iso(exam),
                 "exam_day": exam_day,
                 "stability": memory.stability,
                 "difficulty": memory.difficulty,
                 "last_review_day": 0.0,
+                "available_day": 0.0,
+                "target_days": None,
                 "prior": prior,
             }
         )
     return resolved, max(float(r["exam_day"]) for r in resolved)
+
+
+# The state of a week of lectures right after it is taught: seen once and shaky,
+# familiarity 2 (a first review graded Hard). A stated guess, like every prior.
+LECTURE_FAMILIARITY = 2
+
+
+def _week_target(days: float) -> float:
+    """Preparation length for a topic's target, rounded down to whole weeks past
+    the first, so that topics taught in the same week share a value-function solve
+    whatever their exam. Rounding down makes the target easier, never harder."""
+    return days if days < 7 else 7 * math.floor(days / 7 + 1e-9)
+
+
+def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any]]:
+    """Each subject whose lectures are in the calendar becomes a topic per week of
+    lectures, plus one for what was taught before the plan starts; the others stay
+    one topic. See "Lectures become topics" in docs/METHOD.md."""
+    zone = _zone(report.tz)
+    midnight = datetime.combine(report.start, time(0, 0), tzinfo=zone)
+    lecture_memory = familiarity_prior(LECTURE_FAMILIARITY)
+    out: list[dict[str, Any]] = []
+    for spec in specs:
+        exam = datetime.fromisoformat(spec["exam"])
+        ends = sorted(
+            datetime.fromisoformat(x.end)
+            for x in report.lectures
+            if x.course.casefold() == spec["subject"].casefold() and datetime.fromisoformat(x.end) < exam
+        )
+        if not ends:
+            out.append({**spec, "target_days": _week_target(spec["exam_day"])})
+            continue
+        if ends[0] <= midnight:
+            out.append(
+                {
+                    **spec,
+                    "name": f"{spec['subject']} · taught before {report.start:%d %b}",
+                    "topic": f"taught before {report.start:%d %b}",
+                    "note": f"Review what was taught before {report.start:%d %b}.",
+                    "target_days": _week_target(spec["exam_day"]),
+                }
+            )
+        weeks: dict[date, datetime] = {}
+        for end in ends:
+            if end > midnight:
+                local = end.astimezone(zone)
+                monday = local.date() - timedelta(days=local.weekday())
+                weeks[monday] = max(weeks.get(monday, end), end)
+        for monday, last in sorted(weeks.items()):
+            available = _days_after(report.start, last)
+            if available >= spec["exam_day"]:
+                continue
+            label = f"week of {monday:%d %b}"
+            out.append(
+                {
+                    **spec,
+                    "name": f"{spec['subject']} · {label}",
+                    "topic": label,
+                    "note": f"Review the lectures of the {label}.",
+                    "stability": lecture_memory.stability,
+                    "difficulty": lecture_memory.difficulty,
+                    "last_review_day": available,
+                    "available_day": available,
+                    "target_days": _week_target(spec["exam_day"] - available),
+                    "prior": f"lectures, familiarity {LECTURE_FAMILIARITY}",
+                }
+            )
+    return out
 
 
 def _extend(report: CalendarReport, days: int) -> CalendarReport:
@@ -564,8 +698,14 @@ def make_plan(
     window: int = 6,
     seed: int | None = None,
     failure_penalty: float = DEFAULT_FAILURE_PENALTY,
+    lectures_as_topics: bool = True,
 ) -> PlanReport:
-    """Plan every subject towards its own exam on the free blocks of `report`."""
+    """Plan every subject towards its own exam on the free blocks of `report`.
+
+    With `lectures_as_topics`, a subject whose lectures are in the calendar is
+    planned as one topic per week of lectures, each studied from the day it is
+    taught (AUDIT.md item 33); a subject without lectures is one topic, as before.
+    """
     if not 0.5 <= retention < 1.0:
         raise InvalidInput("target recall must be at least 0.5 and below 1")
     if window < 1:
@@ -574,6 +714,10 @@ def make_plan(
     needed = max(1, math.ceil(latest - 1e-9))
     if needed > report.days:
         report = _extend(report, needed)
+    if lectures_as_topics:
+        topics = _topics(report, specs)
+        if any(t["topic"] for t in topics):
+            specs = topics
     settings = PlanSettings(
         start=report.start,
         tz=report.tz,
@@ -594,6 +738,24 @@ def make_plan(
     return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
 
 
+# Topics a window chooses between; see `rolling._candidates`. Measured by
+# `benchmarks/semester.py --candidates 3 4 6` on a synthetic semester of 69 topics:
+# 62, 63 and 66 of them reach their target, and 6 takes about three times as long
+# as 4 (AUDIT.md item 33).
+TOPIC_CANDIDATES = 4
+
+
+def _subject(s: Mapping) -> Subject:
+    return Subject(
+        s["name"],
+        MemoryState(s["stability"], s["difficulty"]),
+        s["exam_day"],
+        s["last_review_day"],
+        s.get("available_day", 0.0),
+        s.get("target_days"),
+    )
+
+
 def _plan(
     settings: PlanSettings,
     specs: Sequence[dict],
@@ -607,33 +769,51 @@ def _plan(
     """Run the planner from the states in `current` (default: the specs) on the
     blocks that start after `after_day`."""
     states = list(current) if current is not None else [dict(s) for s in specs]
-    subjects = [
-        Subject(s["name"], MemoryState(s["stability"], s["difficulty"]), s["exam_day"], s["last_review_day"])
-        for s in states
-    ]
+    subjects = [_subject(s) for s in states]
+    # Topics share one horizon so that topics taught in the same week share their
+    # solves, and each window chooses among the most urgent few. A plan without
+    # topics runs exactly as it always has.
+    topical = any(s.get("topic") for s in specs)
     pending = tuple(b for b in blocks if b.start_day > after_day)
     rng = np.random.default_rng(settings.seed) if settings.seed is not None else None
+    continuation = (
+        solve_deadlines(
+            subjects,
+            settings.retention,
+            settings.failure_penalty,
+            horizon=max(s.exam_day for s in subjects),
+        )
+        if topical and pending
+        else None
+    )
     result = (
         run_rolling(
             [b.as_block() for b in pending],
             subjects,
+            continuation,
             window=settings.window,
             retention=settings.retention,
             failure_penalty=settings.failure_penalty,
             rng=rng,
+            max_candidates=TOPIC_CANDIDATES if topical else None,
         )
         if pending
         else None
     )
 
     by_slot = {b.slot: b for b in blocks}
+    by_name = {s["name"]: s for s in specs}
     built: list[SessionView] = []
     for number, s in enumerate(result.sessions if result else (), start=len(history)):
         view = by_slot[s.block.slot]
+        spec = by_name[s.subject]
+        rationale = s.rationale
+        if spec.get("topic"):
+            rationale = f"{spec['note']} {rationale}"
         built.append(
             SessionView(
                 index=number,
-                subject=s.subject,
+                subject=spec.get("subject", s.subject),
                 start=view.start,
                 end=view.end,
                 day=view.day,
@@ -643,52 +823,53 @@ def _plan(
                 outcome="recalled" if s.outcome != Grade.AGAIN else "lapsed",
                 stability_before=s.stability_before,
                 stability_after=s.stability_after,
-                rationale=s.rationale,
+                rationale=rationale,
+                topic=s.subject if spec.get("topic") else "",
             )
         )
     sessions = tuple(built)
 
     finals = _replay(specs, history + sessions)
-    views, warnings = [], []
-    targets = (
-        result.targets
-        if result
-        else tuple(
-            Subject(s["name"], MemoryState(s["stability"], s["difficulty"]), s["exam_day"]).target(
-                settings.retention
-            )
-            for s in specs
-        )
-    )
+    targets = result.targets if result else tuple(_subject(s).target(settings.retention) for s in specs)
     unreachable = result.unreachable if result else tuple(False for _ in specs)
+    views, warnings = [], []
+    groups: dict[str, list[tuple[dict, float, bool]]] = {}
     for spec, target, lost in zip(specs, targets, unreachable, strict=True):
-        memory, last = finals[spec["name"]]
-        first = next((x.start for x in history + sessions if x.subject == spec["name"]), None)
-        ready = memory.stability >= target
-        views.append(
-            SubjectView(
-                name=spec["name"],
-                exam=spec["exam"],
-                exam_day=spec["exam_day"],
-                stability=spec["stability"],
-                difficulty=spec["difficulty"],
-                prior=spec["prior"],
-                target=target,
-                ready=ready,
-                unreachable=lost and not ready,
-                recall_at_exam=retrievability(max(spec["exam_day"] - last, 0.0), memory.stability),
-                stability_at_exam=memory.stability,
-                first_review=first,
+        groups.setdefault(spec.get("subject", spec["name"]), []).append((spec, target, lost))
+    for name, members in groups.items():
+        first = next((x.start for x in history + sessions if x.subject == name), None)
+        if len(members) == 1 and not members[0][0].get("topic"):
+            spec, target, lost = members[0]
+            memory, last = finals[spec["name"]]
+            ready = memory.stability >= target
+            views.append(
+                SubjectView(
+                    name=name,
+                    exam=spec["exam"],
+                    exam_day=spec["exam_day"],
+                    stability=spec["stability"],
+                    difficulty=spec["difficulty"],
+                    prior=spec["prior"],
+                    target=target,
+                    ready=ready,
+                    unreachable=lost and not ready,
+                    recall_at_exam=retrievability(max(spec["exam_day"] - last, 0.0), memory.stability),
+                    stability_at_exam=memory.stability,
+                    first_review=first,
+                )
             )
-        )
-        if lost and not ready:
-            warnings.append(
-                f"{spec['name']}: even if every review succeeded, the free blocks before this exam "
-                f"cannot build a stability of {target:.0f} days, so no time was spent on it. More "
-                f"free time spread over more days would change that."
-            )
-        elif not ready:
-            warnings.append(f"{spec['name']}: this plan does not reach the target by the exam.")
+            if lost and not ready:
+                warnings.append(
+                    f"{name}: even if every review succeeded, the free blocks before this exam "
+                    f"cannot build a stability of {target:.0f} days, so no time was spent on it. More "
+                    f"free time spread over more days would change that."
+                )
+            elif not ready:
+                warnings.append(f"{name}: this plan does not reach the target by the exam.")
+            continue
+        summary, warning = _topic_view(name, members, finals, first)
+        views.append(summary)
+        warnings.extend(warning)
     if strict and all(v.unreachable for v in views):
         raise UnreachableTarget(
             "no subject can reach its target before its exam on this calendar, even if every "
@@ -706,6 +887,61 @@ def _plan(
     )
 
 
+def _topic_view(
+    name: str,
+    members: Sequence[tuple[dict, float, bool]],
+    finals: Mapping[str, tuple[MemoryState, float]],
+    first: str | None,
+) -> tuple[SubjectView, list[str]]:
+    """A subject taught over the horizon, summarised over its topics: ready when
+    every topic is, recall at the exam averaged over topics, and the weakest
+    topic's stability against its own target."""
+    exam_day = members[0][0]["exam_day"]
+    ready = [finals[s["name"]][0].stability >= t for s, t, _ in members]
+    lost = [bad and not ok for (_, _, bad), ok in zip(members, ready, strict=True)]
+    recall = [
+        retrievability(max(exam_day - finals[s["name"]][1], 0.0), finals[s["name"]][0].stability)
+        for s, _, _ in members
+    ]
+    weakest, weakest_target, _ = min(members, key=lambda m: finals[m[0]["name"]][0].stability / m[1])
+    head = members[0][0]
+    view = SubjectView(
+        name=name,
+        exam=head["exam"],
+        exam_day=exam_day,
+        stability=head["stability"],
+        difficulty=head["difficulty"],
+        prior=head["prior"],
+        target=weakest_target,
+        ready=all(ready),
+        unreachable=all(lost),
+        recall_at_exam=sum(recall) / len(recall),
+        stability_at_exam=finals[weakest["name"]][0].stability,
+        first_review=first,
+        topics=len(members),
+        topics_ready=sum(ready),
+    )
+    warnings = []
+    if not any(s.get("available_day", 0.0) == 0.0 for s, _, _ in members):
+        warnings.append(
+            f"{name}: all its lectures in the calendar come after the start of the plan, so your "
+            f"estimate of what you already know is not used; each week is planned from the day it "
+            f"is taught."
+        )
+    if any(lost):
+        warnings.append(
+            f"{name}: {sum(lost)} of {len(members)} topics cannot reach their target before the exam "
+            f"even if every review succeeded, so no time was spent on them. More free time spread "
+            f"over more days would change that."
+        )
+    if not all(ready) and sum(lost) < len(members) - sum(ready):
+        warnings.append(
+            f"{name}: {len(members) - sum(ready)} of {len(members)} topics do not reach their target "
+            f"by the exam."
+        )
+    return view, warnings
+
+
 def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tuple[MemoryState, float]]:
     """Memory state and last review day of every subject after `done`, recomputed
     with exact FSRS transitions (a single source of truth, not stored numbers)."""
@@ -713,9 +949,9 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
     for session in sorted(done, key=lambda x: x.start_day):
         if session.outcome == "skipped":
             continue
-        memory, last = state[session.subject]
+        memory, last = state[session.title]
         grade = Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
-        state[session.subject] = (review(memory, session.start_day - last, grade), session.start_day)
+        state[session.title] = (review(memory, session.start_day - last, grade), session.start_day)
     return state
 
 
@@ -753,7 +989,7 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
 def export_ics(plan: PlanReport) -> bytes:
     """The upcoming sessions as an importable calendar, as bytes (see AUDIT item 21)."""
     text = plan_to_ics(
-        [(s.slot, s.subject, s.rationale) for s in plan.sessions],
+        [(s.slot, s.title, s.rationale) for s in plan.sessions],
         plan.settings.start,
         plan.settings.tz,
         slots_per_day=plan.settings.slots_per_day,
@@ -766,20 +1002,41 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
     """Predicted probability of recall over time, from the start to the exam.
 
     Includes the sessions already reported and the upcoming ones; at each session
-    the curve has two points, just before and just after the review.
+    the curve has two points, just before and just after the review. A subject
+    whose lectures are topics gets the average over the topics taught so far, on
+    a grid of `step` days.
     """
-    spec = next((s for s in plan.specs if s["name"] == subject), None)
-    if spec is None:
+    specs = [s for s in plan.specs if s.get("subject", s["name"]) == subject]
+    if not specs:
         raise InvalidInput(f"no subject called {subject!r} in this plan")
+    done = [s for s in plan.history + plan.sessions if s.outcome != "skipped"]
+    if len(specs) == 1 and not specs[0].get("topic"):
+        return _topic_curve(specs[0], [s for s in done if s.title == specs[0]["name"]], step)
+    curves = [(s, dict(_topic_curve(s, [x for x in done if x.title == s["name"]], step))) for s in specs]
+    exam_day = specs[0]["exam_day"]
+    points = []
+    t = 0.0
+    while t <= exam_day + 1e-9:
+        taught = [c for s, c in curves if s.get("available_day", 0.0) <= t + 1e-9]
+        values = [_curve_at(c, t) for c in taught]
+        if values:
+            points.append((round(t, 6), float(sum(values) / len(values))))
+        t += step
+    return points
+
+
+def _curve_at(curve: Mapping[float, float], t: float) -> float:
+    """The value of a sampled curve at `t`: the last sample at or before it."""
+    at = max((d for d in curve if d <= t + 1e-9), default=None)
+    return curve[at] if at is not None else 1.0
+
+
+def _topic_curve(spec: Mapping, reviews: Sequence[SessionView], step: float) -> list[tuple[float, float]]:
     memory = MemoryState(spec["stability"], spec["difficulty"])
     last = spec["last_review_day"]
-    reviews = sorted(
-        (s for s in plan.history + plan.sessions if s.subject == subject and s.outcome != "skipped"),
-        key=lambda s: s.start_day,
-    )
     points: list[tuple[float, float]] = []
-    t = 0.0
-    for session in [*reviews, None]:
+    t = spec.get("available_day", 0.0)
+    for session in [*sorted(reviews, key=lambda s: s.start_day), None]:
         until = session.start_day if session else spec["exam_day"]
         while t < until:
             points.append((t, retrievability(t - last, memory.stability)))
@@ -802,13 +1059,22 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
 # computed here, once, and a test can compare it with what the UI displays.
 
 
+def subject_status(subject: SubjectView) -> str:
+    """One line on where a subject ends up: "ready: stability 18 of 18 days", or
+    for a subject planned week by week, "not ready: 11 of 13 topics at target"."""
+    status = "ready" if subject.ready else ("out of reach" if subject.unreachable else "not ready")
+    if subject.topics > 1:
+        return f"{status}: {subject.topics_ready} of {subject.topics} topics at target"
+    return f"{status}: stability {subject.stability_at_exam:.0f} of {subject.target:.0f} days"
+
+
 def session_rows(plan: PlanReport) -> list[dict]:
     """The upcoming sessions, one row each, as a person reads them."""
     return [
         {
             "#": s.index,
             "when": datetime.fromisoformat(s.start).strftime("%a %d %b %H:%M"),
-            "subject": s.subject,
+            "subject": s.title,
             "recall now": f"{s.recall:.0%}",
             "why": s.rationale,
         }
@@ -818,6 +1084,82 @@ def session_rows(plan: PlanReport) -> list[dict]:
 
 def week_count(plan: PlanReport) -> int:
     return max(1, math.ceil(plan.settings.horizon_days / 7))
+
+
+def calendar_week(source: CalendarReport | PlanReport, week: int, *, typed: bool = True) -> dict:
+    """One week, Monday or not, as positioned items for a calendar widget.
+
+    `{"days": [{"date", "label", "weekday", "in_horizon"} x 7], "items": [{"day",
+    "start", "end", "label", "kind"}]}`, with `start` and `end` in minutes after
+    local midnight and an item cut at midnight when it runs into the next day.
+    `kind` is "calendar" (from the .ics), "typed" (a busy row), "exam" or "study".
+    The week starts on the plan's first day, like `week_view`. `typed=False`
+    leaves out the busy rows, for an editor that draws them itself.
+    """
+    if isinstance(source, PlanReport):
+        start, tz, days = source.settings.start, source.settings.tz, source.settings.horizon_days
+        exams = {s.exam: s.name for s in source.subjects}
+        sessions = [(x.start, x.end, x.title) for x in source.sessions]
+    else:
+        start, tz, days = source.start, source.tz, source.days
+        exams = {a.when: a.subject for a in source.assessments}
+        sessions = []
+    weeks = max(1, math.ceil(days / 7))
+    if not 0 <= week < weeks:
+        raise InvalidInput(f"week must be 0 to {weeks - 1}")
+    zone = _zone(tz)
+    first = start + timedelta(days=7 * week)
+    dates = [first + timedelta(days=d) for d in range(7)]
+    items: list[dict] = []
+
+    def place(begin: datetime, end: datetime, label: str, kind: str) -> None:
+        begin, end = begin.astimezone(zone), end.astimezone(zone)
+        for index, day in enumerate(dates):
+            midnight = datetime.combine(day, time(0, 0), tzinfo=zone)
+            lo, hi = max(begin, midnight), min(end, midnight + timedelta(days=1))
+            if lo < hi:
+                items.append(
+                    {
+                        "day": index,
+                        "start": round((lo - midnight) / timedelta(minutes=1)),
+                        "end": round((hi - midnight) / timedelta(minutes=1)),
+                        "label": label,
+                        "kind": kind,
+                    }
+                )
+
+    shown_exams = set()
+    for event in source.events:
+        if event.source == "typed" and not typed:
+            continue
+        kind = "typed" if event.source == "typed" else "calendar"
+        if event.start in exams:
+            kind = "exam"
+            shown_exams.add(event.start)
+        place(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary, kind)
+    for when, name in exams.items():
+        if when not in shown_exams:
+            moment = datetime.fromisoformat(when)
+            place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam")
+    for begin, end, label in sessions:
+        place(datetime.fromisoformat(begin), datetime.fromisoformat(end), label, "study")
+    return {
+        "days": [
+            {
+                "date": d.isoformat(),
+                "label": d.strftime("%a %d %b"),
+                "weekday": d.strftime("%a"),
+                "in_horizon": 0 <= (d - start).days < days,
+            }
+            for d in dates
+        ],
+        "items": items,
+    }
+
+
+def calendar_week_count(source: CalendarReport | PlanReport) -> int:
+    days = source.settings.horizon_days if isinstance(source, PlanReport) else source.days
+    return max(1, math.ceil(days / 7))
 
 
 def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int = 23) -> list[dict]:

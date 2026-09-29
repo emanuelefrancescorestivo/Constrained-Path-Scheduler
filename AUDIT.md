@@ -427,3 +427,51 @@ sessions reaching every target. The synthetic `ADE_STYLE` calendar in
 left as it is and disclosed: planning six subjects over four months took 38
 seconds on the development machine, because each of about 246 blocks runs a window
 search over six subjects.
+
+**33. A course was one memory item that was already known.** Found on the owner's
+timetable, once the exams were read correctly: the plan put its last session on 23
+November and nothing in the two months before exams on 25 to 29 January, although
+lectures went on until December. The model was working as designed; the design was
+wrong for a semester. Each subject was a single FSRS state, rated once by the
+student at the start, so the plan only had to keep that state from decaying; it
+reached each target (stability of about 120 days) by late November and stopped.
+Material taught in October, November and December did not exist for it.
+`benchmarks/semester.py` reproduces this on a synthetic timetable in the same
+format (`examples/sample-semester.ics`).
+
+Fixed by making the lectures in the calendar the material. `calendar_io.course_of`
+reads the course from each event's title, `service` groups a subject's lectures by
+week, and each week becomes a topic that appears when its last lecture ends, in the
+state of something seen once and shaky (familiarity 2), with a target running from
+that day to the exam; what was taught before the plan starts is one more topic,
+rated by the student as before. A subject without lectures in the calendar is one
+topic exactly as before, so every published result is unchanged (the
+`--whole-subjects` flag and `lectures_as_topics=False` keep the old model). Two
+consequences for the search, both in METHOD.md §7: each window now chooses among
+the topics taught so far, which is exact, and among at most four of them, which is
+not; targets are rounded down to whole weeks so that topics share value-function
+solves. Stated simplifications, also shown in the app: one study block reviews a
+week of one subject, and the familiarity of fresh lectures is a guess. Status:
+fixed; the simplifications are disclosed.
+
+**34. A class cancelled in its title still blocked its time.** Item 31 skipped
+events with `STATUS:CANCELLED`; the owner's export also writes "COURS ANNULE" in
+the title of a cancelled class, and not every export sets the status. Found while
+reading the lectures for item 33. Fixed: a title containing a cancellation word
+(annulé, cancelled, annullato, entfällt, abgesagt) is skipped too; "Annual review"
+is not. Status: fixed.
+
+**35. Planning a semester was slow.** Six subjects over four months took 44 seconds
+on the owner's timetable and 39 on the synthetic semester of item 33, and the first
+version of topics was slower still. Three changes, none of which alters a result: the search caches the hash of
+its states and the memo of the waiting value keys on the exact arguments before
+rounding them (a value is now computed at the rounded arguments, so a memo can be
+shared or cleared without changing anything); the value-function solves use slices
+instead of copies and run in threads; a table is solved only as far before the exam
+as its topics are ever queried, and solved tables are kept for the next plan. The
+cap of four topics per window (item 33) is the one change that trades quality for
+time, and `benchmarks/semester.py --candidates 3 4 6` measures it. Measured on the
+development machine, which is not the reader's: the synthetic semester with each
+course as one topic, 39 seconds before and 26 after, the same 27 sessions; with a
+topic per week, 38 seconds. Status: improved; the remaining time is disclosed in the
+README.

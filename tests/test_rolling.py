@@ -354,3 +354,57 @@ def test_memory_only_heuristics_refuse_a_timed_continuation(blocks, continuation
     for heuristic in (ssp_heuristic, capacity_heuristic):
         with pytest.raises(TypeError, match="deadline_heuristic"):
             heuristic(instance, instance.initial)
+
+
+# --------------------------------------------------------------------------- #
+# Topics that appear during the horizon (AUDIT.md item 33)
+# --------------------------------------------------------------------------- #
+
+
+def test_leaving_unusable_topics_out_of_a_window_changes_nothing(blocks, continuation):
+    """With a candidate cap no smaller than the number of topics, each window is
+    built from the live topics only (ready, lost and untaught ones left out). The
+    claim in `_candidates` is that this is exact; here it must give the very plan
+    of the full windows."""
+    full = run_rolling(blocks, SUBJECTS, continuation, window=4)
+    live = run_rolling(blocks, SUBJECTS, continuation, window=4, max_candidates=len(SUBJECTS))
+    assert [(s.block, s.subject) for s in live.sessions] == [(s.block, s.subject) for s in full.sessions]
+    assert live.final_topics == full.final_topics
+
+
+def test_a_topic_is_not_studied_before_it_is_taught(blocks):
+    later = Subject("Analysis, week 2", MemoryState(0.6, 6.0), EXAM_DAYS, 7.5, 7.5)
+    subjects = (SUBJECTS[1], later)
+    result = run_rolling(blocks, subjects, solve_deadlines(subjects, horizon=EXAM_DAYS), window=4)
+    taught = [s.block.start_day for s in result.sessions if s.subject == later.name]
+    assert taught and min(taught) >= 7.5
+    assert result.first_review_day(SUBJECTS[1].name) < 7.5  # the other subject did not wait
+
+
+def test_a_topic_target_runs_from_when_it_is_taught():
+    topic = Subject("week 2", MemoryState(0.6, 6.0), EXAM_DAYS, 7.5, 7.5)
+    assert topic.target(0.9) == pytest.approx(stability_for_interval(EXAM_DAYS - 7.5, 0.9))
+    assert Subject("w", MemoryState(0.6, 6.0), EXAM_DAYS, 7.5, 7.5, 7.0).target(0.9) == pytest.approx(
+        stability_for_interval(7.0, 0.9)
+    )
+    with pytest.raises(ValueError, match="after its exam"):
+        Subject("late", MemoryState(0.6, 6.0), EXAM_DAYS, EXAM_DAYS, EXAM_DAYS)
+
+
+def test_topics_with_the_same_target_share_their_solves():
+    """A shared horizon makes the table depend on the target only, which is what
+    keeps a topic per week of lectures affordable."""
+    a = Subject("a", MemoryState(2.0, 5.0), 20.0, target_days=14.0)
+    b = Subject("b", MemoryState(0.6, 6.0), 21.0, 5.0, 5.0, target_days=14.0)
+    shared = solve_deadlines((a, b), horizon=21.0)
+    assert shared.estimates[0] is shared.estimates[1]
+    assert shared.bounds[0] is shared.bounds[1]
+    with pytest.raises(ValueError, match="beyond the shared horizon"):
+        solve_deadlines((a, b), horizon=20.5)
+
+
+def test_a_cap_keeps_the_most_urgent_topics(blocks, continuation):
+    """With room for one topic per window, the planner still finishes both
+    subjects on this calendar: urgency, not list order, picks the topic."""
+    capped = run_rolling(blocks, SUBJECTS, continuation, window=4, max_candidates=1)
+    assert {s.subject for s in capped.sessions} == {"Analysis", "Algebra"}
