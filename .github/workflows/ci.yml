@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e ".[dev,app]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test:
+    # Windows is in the matrix because the project was developed on Linux and is
+    # used on Windows: AUDIT.md item 21 lists four defects only Windows exposes.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev,app]"
+      - name: Test (all, including slow)
+        run: python -m pytest -m "slow or not slow" --cov=cps --cov-report=term
+      - name: Demo (quick)
+        # Redirected on purpose: a redirected stdout on Windows is cp1252 unless
+        # console.ensure_utf8_output() does its job (AUDIT.md item 21).
+        run: python demo.py --quick > demo.txt
+      - name: Export has no stray CR
+        # bash on both systems, so the quoting is the same; the file is still
+        # written by Python on Windows, which is what this checks.
+        shell: bash
+        run: >
+          cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
+          --subject "Analysis:2:7" --out plan.ics &&
+          python -c "import sys; b = open('plan.ics', 'rb').read(); sys.exit(1 if b'\r\r\n' in b else 0)"

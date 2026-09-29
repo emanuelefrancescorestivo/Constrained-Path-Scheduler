@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constrained-path-scheduler"
+version = "0.3.0"
+description = "Neuroscience-informed study scheduling: FSRS memory dynamics under hard calendar constraints."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "icalendar>=6.1",  # 6.1 added Calendar.add_missing_timezones, used by the export
+    "python-dateutil>=2.9",
+    # Windows ships no IANA time-zone database, so zoneinfo needs this package. It
+    # arrives transitively through icalendar today; declaring it stops a Windows
+    # install depending on somebody else's dependency list.
+    "tzdata>=2024.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+cps = "cps.cli:main"
+
+[project.optional-dependencies]
+# Versions are the ones the checks were run with in milestone M4.
+dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3"]
+# The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
+# altair, which app.py uses for its tables and chart.
+app = ["streamlit>=1.64"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+# The default run skips tests marked slow (Monte Carlo calibration, grid
+# refinement, headless app runs, multi-seed planner runs): about 45 s instead
+# of 100. CI runs everything with `-m "slow or not slow"`; so should anyone
+# changing the model.
+addopts = "-q --strict-markers -m 'not slow'"
+markers = ["slow: takes more than a few seconds; skipped by default, run by CI"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["archive"]
+
+[tool.ruff.lint]
+# Chosen explicitly rather than inherited from whatever the installed ruff
+# defaults to: pyflakes, pycodestyle, import order, bugbear, pyupgrade,
+# simplifications and ruff's own checks.
+select = ["F", "E", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # the docs use real typography: en dashes, primes, pi
+]
+
+[tool.mypy]
+# No python_version: numpy's stubs need 3.12 syntax, so mypy checks with the
+# interpreter it runs on. CI runs 3.11 to 3.13 for the tests themselves.
+files = ["src"]
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# python-dateutil ships no type information and its stubs are a separate
+# package; declaring it untyped is cheaper than a new dependency.
+module = ["dateutil", "dateutil.*"]
+ignore_missing_imports = true
