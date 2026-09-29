@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- A calendar can be read from its link: a university timetable's export address
+  (ADE, Hyperplanning), Google Calendar's secret iCal address, `webcal://`. In the
+  web page ("Paste a calendar link") and on the command line (`cps plan "https://…"`).
+  Private and loopback addresses are refused, after redirects too, unless
+  `CPS_ALLOW_PRIVATE_LINKS=1` says the page runs on the person's own machine.
+- Plans can be published as a calendar feed that a calendar app subscribes to:
+  "Publish as a calendar feed" on the page, `cps serve` to answer it. A stale feed
+  reads the timetable's link again and continues the plan from now, keeping the
+  sessions already behind; a dead link keeps the last plan. `service.continue_plan`,
+  `service.new_subscription`, `service.refresh_subscription`, `service.feed_ics`.
 - Lectures become topics: a subject's lectures in the calendar are grouped by week,
   and each week is a topic studied from the day it is taught, with its own target
   (AUDIT.md item 33, METHOD.md §7). A subject without lectures is planned as before;

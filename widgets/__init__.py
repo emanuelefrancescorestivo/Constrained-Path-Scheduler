@@ -17,6 +17,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from cps import service
+
 _HERE = Path(__file__).parent
 
 # What a person can block out. The planner treats every kind as busy; the kind
@@ -111,3 +113,82 @@ def activity_table(activities: Sequence[dict], *, key: str) -> list[dict] | None
     rows = [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in table.to_dict("records")]
     rows = [r for r in rows if r.get("start") and r.get("end")]
     return rows if rows != list(activities) else None
+
+
+SOURCES = ("Upload an .ics file", "Paste a calendar link", "Sample calendar", "I have no calendar file")
+
+
+def calendar_source(sample: Path) -> tuple[str, bytes | None, str | None]:
+    """Where the timetable comes from: (choice, the calendar's bytes or None, the
+    link or None). A link is read once and kept until it changes."""
+    source = st.radio("Where is your timetable?", SOURCES, horizontal=True)
+    if source == "Upload an .ics file":
+        upload = st.file_uploader("Calendar export (.ics)", type=["ics"])
+        st.caption("Google Calendar: Settings, Import and export, Export. Apple Calendar: File, Export.")
+        return source, (upload.getvalue() if upload else None), None
+    if source == "Paste a calendar link":
+        link = st.text_input("Calendar link", placeholder="https://… or webcal://…").strip()
+        st.caption(
+            "Your university timetable's export or subscription address (ADE, Hyperplanning), or "
+            "Google Calendar's secret address in iCal format (Settings, your calendar, Integrate "
+            "calendar). A plan made from a link can follow the timetable when it changes."
+        )
+        if not link:
+            return source, None, None
+        cached = st.session_state.get("link-calendar")
+        if not cached or cached[0] != link:
+            try:
+                cached = (link, service.fetch_calendar(link))
+            except service.ServiceError as error:
+                st.error(str(error))
+                st.stop()
+            st.session_state["link-calendar"] = cached
+        return source, cached[1], link
+    if source == "Sample calendar":
+        st.caption(
+            "A synthetic timetable: lectures, gym, a weekend away, and an Analysis exam on "
+            "20 March 2026. Start the plan on 2 March 2026 in Europe/Rome to see it."
+        )
+        return source, sample.read_bytes(), None
+    st.caption('Draw your week below. Name a one-off block "Physics exam" and it is found as an exam.')
+    return source, None, None
+
+
+def feed_panel(plan: service.PlanReport, *, link: str | None, ics: bytes | None, inputs: dict) -> None:
+    """Publish the plan as a calendar subscription, or stop publishing it. `inputs`
+    are the keyword arguments `service.new_subscription` needs besides the source."""
+    st.subheader("Keep it in your calendar")
+    st.caption(
+        "Publish the plan as a calendar feed: your calendar app reads it again every few hours, "
+        + ("and the plan follows your timetable's link as it changes. " if link else "")
+        + "Sessions behind you count as done as planned: a session reported below as missed "
+        "changes this page's plan, not the feed."
+    )
+    token = st.session_state.get("feed-token")
+    if token and service.load_subscription(service.FEED_STORE, token) is None:
+        token = None
+    if token is None and st.button("Publish as a calendar feed"):
+        subscription = service.new_subscription(source_url=link, ics=ics, plan=plan, **inputs)
+        service.save_subscription(service.FEED_STORE, subscription)
+        st.session_state["feed-token"] = subscription.token
+        st.rerun()
+    if token is None:
+        return
+    url = service.feed_url(service.FEED_URL, token)
+    st.code(url, language=None)
+    st.caption(
+        "Google Calendar: Other calendars, +, From URL. Apple Calendar: File, New Calendar "
+        "Subscription. Outlook: Add calendar, Subscribe from web. Notion Calendar: subscribe in "
+        "the Google or Apple calendar it shows (not tested here). Anyone with this address can "
+        "read the plan."
+    )
+    if service.FEED_URL.startswith(("http://localhost", "http://127.")):
+        st.warning(
+            "This address only works on this computer, while `cps serve` runs. Google Calendar "
+            "and Notion Calendar read feeds from Google's servers, so they need the feed server "
+            "on the internet: see Publishing feeds in the README."
+        )
+    if st.button("Stop publishing"):
+        service.delete_subscription(service.FEED_STORE, token)
+        st.session_state.pop("feed-token", None)
+        st.rerun()

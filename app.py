@@ -19,7 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from cps import service
-from widgets import EXAMPLE_WEEK, activity_table, week_calendar
+from widgets import EXAMPLE_WEEK, activity_table, calendar_source, feed_panel, week_calendar
 
 SAMPLE = Path(__file__).parent / "examples" / "sample-timetable.ics"
 
@@ -33,27 +33,7 @@ st.info("**What this does not know.** " + " ".join(service.LIMITATIONS))
 
 # 1. Input ------------------------------------------------------------------ #
 st.header("1. Your calendar")
-source = st.radio(
-    "Where is your timetable?",
-    ["Upload an .ics file", "Sample calendar", "I have no calendar file"],
-    horizontal=True,
-)
-ics = None
-if source == "Upload an .ics file":
-    upload = st.file_uploader("Calendar export (.ics)", type=["ics"])
-    st.caption(
-        "Google Calendar: Settings, Import and export, Export. Apple Calendar: File, Export. "
-        "University timetables (ADE, Hyperplanning) have an export or a subscription link."
-    )
-    ics = upload.getvalue() if upload else None
-elif source == "Sample calendar":
-    ics = SAMPLE.read_bytes()
-    st.caption(
-        "A synthetic timetable: lectures, gym, a weekend away, and an Analysis exam on "
-        "20 March 2026. Start the plan on 2 March 2026 in Europe/Rome to see it."
-    )
-else:
-    st.caption('Draw your week below. Name a one-off block "Physics exam" and it is found as an exam.')
+source, ics, link = calendar_source(SAMPLE)
 st.session_state.setdefault("activities", [])
 if source == "I have no calendar file" and not st.session_state.get("seeded"):
     st.session_state["activities"] = st.session_state["activities"] or list(EXAMPLE_WEEK)
@@ -77,7 +57,7 @@ with st.sidebar:
         help="Larger is slower and, measured, slightly better up to about 4.",
     )
 
-if source == "Upload an .ics file" and ics is None:
+if source in ("Upload an .ics file", "Paste a calendar link") and ics is None:
     st.stop()
 activities = st.session_state["activities"]
 try:
@@ -187,6 +167,22 @@ st.dataframe(
     pd.DataFrame(service.session_rows(plan)), use_container_width=True, hide_index=True, key="sessions"
 )
 st.download_button("Download plan.ics", service.export_ics(plan), file_name="plan.ics", mime="text/calendar")
+feed_panel(
+    plan,
+    link=link,
+    ics=ics,
+    inputs=dict(
+        subjects=specs,
+        start=start,
+        tz=tz,
+        busy_rows=activities,
+        study_window=(earliest, latest),
+        blocks_per_day=int(per_day),
+        block_minutes=int(minutes),
+        retention=retention,
+        window=int(window),
+    ),
+)
 
 st.subheader("Predicted recall")
 curves = pd.DataFrame(

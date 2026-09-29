@@ -40,9 +40,10 @@ item instead. The plan prints with the reason for every session, and `plan.ics` 
 a standard calendar file with its time zone defined.
 
 With your own calendar: export it (Google Calendar: Settings, Import and export,
-Export; Apple Calendar: File, Export; a university timetable usually has an export
-or a subscription link), run `cps inspect your.ics --tz Europe/Rome` first and check
-the free blocks it lists, then `cps plan`. On the web page you can also drag your
+Export; Apple Calendar: File, Export), or give its link: a university timetable
+(ADE, Hyperplanning) has an export or subscription address, and Google Calendar a
+"secret address in iCal format". Run `cps inspect your.ics --tz Europe/Rome` (or
+`cps inspect "https://…"`) first and check the free blocks it lists, then `cps plan`. On the web page you can also drag your
 own training, commutes, work and time off onto the week, like in a calendar app.
 No calendar file? Draw the whole week there. `examples/sample-semester.ics` is a
 synthetic four-month semester to try the page on.
@@ -74,6 +75,40 @@ synthetic four-month semester to try the page on.
 
 `docs/ARCHITECTURE.md` has the data flow as a diagram; `docs/METHOD.md` has the
 mathematics and the admissibility arguments.
+
+## Keep the plan in your calendar
+
+A downloaded `plan.ics` is a snapshot. The web page can also publish the plan as a
+calendar feed, an address your calendar app subscribes to (Google Calendar: Other
+calendars, From URL; Apple Calendar: New Calendar Subscription; Outlook: Subscribe
+from web). The feed asks to be read again every six hours. When it is read and its
+plan is older than that, `cps serve` reads your timetable's link again and plans from
+today in the background, counting the sessions already behind you as done; the next
+read gets the new plan. If the timetable's server is down, the last plan stays. No account, no sign-in, nothing that needs Google's approval.
+
+```bash
+cps serve                      # answers http://localhost:8765/feed/<token>.ics
+streamlit run app.py           # plan, then "Publish as a calendar feed"
+```
+
+What it does not do yet, said plainly:
+
+- **On your own machine, only your own machine can read it.** Google Calendar and
+  Notion Calendar fetch feeds from Google's servers, so they need the feed server on
+  the internet. Apple Calendar or Outlook on the same computer can read it locally.
+- **It does not know what you actually did.** Past sessions count as done as planned;
+  reporting a missed one on the page changes the page's plan, not the feed.
+- **The address is the only key.** Anyone with it can read the plan, as with any
+  calendar subscription link. The store keeps your timetable's link, your activities
+  and the plan in plain JSON files; "Stop publishing" deletes them.
+
+**Publishing feeds.** To let Google Calendar read a feed, run the web page and
+`cps serve` on one internet-facing machine that shares a directory, behind HTTPS
+(any reverse proxy), with `CPS_FEED_DIR` set to that directory and `CPS_FEED_URL` to
+the public address of the feed server. Leave `CPS_ALLOW_PRIVATE_LINKS` unset there:
+it is what stops the server from being made to read addresses on its own network.
+Which host to use, and whether to open it to other people, is a decision this
+repository does not make for you.
 
 ## Results
 
@@ -159,7 +194,9 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | `app.py` | the web page; input and layout only |
 | `widgets/` | the drag-and-drop week calendar the page draws with (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
-| `src/cps/cli.py` | `cps inspect` and `cps plan` |
+| `src/cps/cli.py` | `cps inspect`, `cps plan` and `cps serve` |
+| `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
+| `src/cps/feed.py` | the feed server calendar apps subscribe to |
 | `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
 | `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
 | `src/cps/clock.py` | cost to reach a subject's target before its exam |
@@ -175,8 +212,8 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 
 ```bash
 pip install -e ".[dev,app]"
-pytest                                    # 252 passed, 12 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 264 passed, 1 xfailed, 93% coverage
+pytest                                    # 281 passed, 13 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 294 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

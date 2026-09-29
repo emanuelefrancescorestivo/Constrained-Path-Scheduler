@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from cps import service
 from cps.cli import main
 
 TIMETABLE = """BEGIN:VCALENDAR
@@ -231,3 +232,14 @@ def test_a_plan_that_cannot_be_written_is_an_error_not_a_silent_exit(calendar, t
     )
     assert code == 1
     assert "could not write" in capsys.readouterr().err
+
+
+def test_a_calendar_can_be_read_from_a_link(timetable_server, capsys, monkeypatch):
+    """A timetable's export address instead of a file. The test server is local, so
+    the refusal of private addresses is lifted as it is on one's own machine."""
+    link = f"{timetable_server}/sample-timetable.ics"
+    assert main(["inspect", link, *BASE]) == 1
+    assert "not on the public internet" in capsys.readouterr().err
+    monkeypatch.setattr(service, "LINKS_MAY_BE_PRIVATE", True)
+    assert main(["inspect", link, *BASE]) == 0
+    assert "Analysis" in capsys.readouterr().out

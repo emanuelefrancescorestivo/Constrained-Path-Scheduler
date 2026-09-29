@@ -6,6 +6,8 @@ guarantees sit. The mathematics is in `METHOD.md`; this page is the map.
 ```mermaid
 flowchart TD
     ICS["calendar export (.ics)"] --> CIO
+    LINK["timetable link (ADE, Google secret address)"] --> SRC["sources<br/>fetch, refuse private addresses"]
+    SRC --> CIO
     ROWS["activities dragged onto the week<br/>(or typed into a table)"] --> CIO
     CIO["calendar_io<br/>expand recurrences, time zones,<br/>find exams by keyword, lectures by course"] --> GRID
     WIN["study window<br/>(hours you will study)"] --> GRID
@@ -28,6 +30,9 @@ flowchart TD
     SVC --> CLI["cli: cps inspect / cps plan"]
     SVC --> APP["app.py: Streamlit page,<br/>widgets/: the week calendar"]
     SVC --> OUT["plan.ics with a reason per session"]
+    SVC --> STORE["feed store<br/>one JSON file per subscription"]
+    STORE --> FEED["feed: cps serve<br/>/feed/token.ics, refreshed from the link"]
+    FEED -- "refresh: continue_plan from now" --> SVC
 ```
 
 ## The layers
@@ -69,6 +74,13 @@ reported forgotten or skipped, and shapes tables and calendar weeks for display.
 drags out as busy rows. A test fails if `app.py` imports anything from `cps` except
 `service`.
 
+**Links and feeds.** `sources` reads a calendar from a link and refuses what a server
+must not fetch (other schemes, private and loopback addresses, also after a redirect,
+oversized answers). A plan published from the page is a `Subscription` in a store
+directory; `feed` serves it at an unguessable address, and when a calendar app reads a
+stale one it reads the timetable's link again and continues the plan from now in the
+background (`service.continue_plan`), keeping the sessions already behind as done.
+
 ## Where the guarantees are checked
 
 | claim | where it is checked |
@@ -79,6 +91,8 @@ drags out as busy rows. A test fails if `app.py` imports anything from `cps` exc
 | estimates are calibrated | Monte Carlo with standard errors in `tests/test_clock.py`, `tests/test_ssp.py` |
 | aggregation does not change the cost | `plan.evaluate_exact_dynamics`, `tests/test_plan.py` |
 | the page computes nothing itself | `tests/test_app.py`, by syntax tree and by comparing tables |
+| a link cannot make the server read its own network | `tests/test_sources.py`, redirects included |
+| a feed keeps what was done, survives a dead link, stays deleted, logs no address | `tests/test_feed.py` |
 | a topic is never studied before it is taught | `tests/test_service.py`, `tests/test_rolling.py` |
 | leaving untaught and finished topics out of a window changes nothing | `tests/test_rolling.py`, same plan as the full windows |
 | every number in the documents | `demo.py` and `benchmarks/`, fixed seeds |

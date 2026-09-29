@@ -3,16 +3,22 @@ The service layer: everything a user-facing surface needs, and nothing else.
 
 The CLI, the Streamlit app and any future web API call these functions and only
 these, so they can be swapped without touching the planner. Nothing here imports a
-UI framework, prints, or reads a file: bytes and plain values in, frozen result
-objects out. Every result has `to_dict()` returning plain JSON types, and
-`PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as JSON and
-send it back to `replan_after` or `export_ics`.
+UI framework or prints: bytes and plain values in, frozen result objects out. Two
+kinds of input and output are allowed, both explicit: `fetch_calendar` reads a
+calendar link the person gave, and the `*_subscription` functions keep feeds in a
+directory the caller names. Every result has `to_dict()` returning plain JSON
+types, and `PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as
+JSON and send it back to `replan_after` or `export_ics`.
 
     analyse_calendar(ics, *, start, tz, ...)          -> CalendarReport
+    fetch_calendar(url)                                -> bytes
     make_plan(report, subjects, *, retention, ...)     -> PlanReport
+    continue_plan(report, subjects, *, done, now)      -> PlanReport
     replan_after(plan, session_index, outcome)         -> PlanReport
     export_ics(plan)                                   -> bytes
     recall_curve(plan, subject)                        -> [(day, probability), ...]
+    new_subscription(...), refresh_subscription(sub)   -> Subscription
+    feed_ics(sub)                                      -> bytes
 
 Errors a user can cause come back as `ServiceError` subclasses with a stable
 `code` and a sentence that says what to do, never as a traceback: no free blocks,
@@ -31,10 +37,16 @@ report says so.
 
 from __future__ import annotations
 
+import json
 import math
-from collections.abc import Iterable, Mapping, Sequence
+import os
+import re
+import secrets
+import tempfile
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -61,6 +73,8 @@ from .memory import (
 )
 from .plan import Block, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
+from .sources import SourceError
+from .sources import fetch_calendar as _fetch
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
@@ -111,6 +125,12 @@ class ExamInPast(ServiceError):
 
 class UnreachableTarget(ServiceError):
     code = "unreachable_target"
+
+
+class UnreadableLink(ServiceError):
+    """A calendar link that cannot be read: the message says why."""
+
+    code = "unreadable_link"
 
 
 class MissingExam(InvalidInput):
@@ -706,6 +726,22 @@ def make_plan(
     planned as one topic per week of lectures, each studied from the day it is
     taught (AUDIT.md item 33); a subject without lectures is one topic, as before.
     """
+    settings, specs, report = _prepare(
+        report, subjects, retention, window, seed, failure_penalty, lectures_as_topics
+    )
+    return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
+
+
+def _prepare(
+    report: CalendarReport,
+    subjects: Sequence[SubjectSpec],
+    retention: float,
+    window: int,
+    seed: int | None,
+    failure_penalty: float,
+    lectures_as_topics: bool,
+) -> tuple[PlanSettings, list[dict[str, Any]], CalendarReport]:
+    """Validate, resolve exam dates, make the topics, and settle the horizon."""
     if not 0.5 <= retention < 1.0:
         raise InvalidInput("target recall must be at least 0.5 and below 1")
     if window < 1:
@@ -735,7 +771,58 @@ def make_plan(
             "there is no free study block before the exams; widen the study window, allow more "
             "blocks a day, shorten the blocks, or free some time in the calendar"
         )
-    return _plan(settings, specs, tuple(report.blocks), tuple(report.events), history=(), strict=True)
+    return settings, specs, report
+
+
+def continue_plan(
+    report: CalendarReport,
+    subjects: Sequence[SubjectSpec],
+    *,
+    done: Sequence[SessionView],
+    now: datetime,
+    retention: float = 0.9,
+    window: int = 6,
+    seed: int | None = None,
+    failure_penalty: float = DEFAULT_FAILURE_PENALTY,
+    lectures_as_topics: bool = True,
+) -> PlanReport:
+    """Plan from `now` on, on a calendar that may have changed since the last plan.
+
+    `done` are the sessions behind: they are replayed, with their outcomes, from
+    the starting states, and the plan continues from the states they lead to, on the
+    free blocks that start after `now`. A session whose topic no longer exists, a
+    week of lectures that was cancelled, is dropped. This is what keeps a
+    subscribed feed (`refresh_subscription`) current without forgetting what was
+    already studied.
+    """
+    settings, specs, report = _prepare(
+        report, subjects, retention, window, seed, failure_penalty, lectures_as_topics
+    )
+    names = {s["name"] for s in specs}
+    history = tuple(
+        replace(s, index=i)
+        for i, s in enumerate(sorted((s for s in done if s.title in names), key=lambda s: s.start_day))
+    )
+    after = _days_after(report.start, now.astimezone(_zone(report.tz)))
+    states = _replay(specs, history)
+    current = [
+        {
+            **s,
+            "stability": states[s["name"]][0].stability,
+            "difficulty": states[s["name"]][0].difficulty,
+            "last_review_day": states[s["name"]][1],
+        }
+        for s in specs
+    ]
+    return _plan(
+        settings,
+        specs,
+        tuple(report.blocks),
+        tuple(report.events),
+        history,
+        after_day=after,
+        current=current,
+    )
 
 
 # Topics a window chooses between; see `rolling._candidates`. Measured by
@@ -986,14 +1073,27 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
     )
 
 
-def export_ics(plan: PlanReport) -> bytes:
-    """The upcoming sessions as an importable calendar, as bytes (see AUDIT item 21)."""
+def export_ics(
+    plan: PlanReport,
+    *,
+    include_history: bool = False,
+    uid_prefix: str = "",
+    refresh: timedelta | None = None,
+) -> bytes:
+    """The upcoming sessions as an importable calendar, as bytes (see AUDIT item 21).
+
+    `include_history` adds the sessions already behind, which a subscribed feed
+    keeps so that they do not vanish from the person's calendar once done.
+    """
+    shown = (plan.history if include_history else ()) + plan.sessions
     text = plan_to_ics(
-        [(s.slot, s.title, s.rationale) for s in plan.sessions],
+        [(s.slot, s.title, s.rationale) for s in shown if s.outcome != "skipped"],
         plan.settings.start,
         plan.settings.tz,
         slots_per_day=plan.settings.slots_per_day,
         block_slots=max(1, plan.settings.block_minutes // (24 * 60 // plan.settings.slots_per_day)),
+        uid_prefix=uid_prefix,
+        refresh=refresh,
     )
     return text.encode("utf-8")
 
@@ -1205,3 +1305,260 @@ def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int =
         row.update({columns[d]: cells.get((d, clock), "") for d in days})
         rows.append(row)
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Calendars from a link, and plans published as a feed
+# --------------------------------------------------------------------------- #
+
+
+# A page or server that runs on the person's own machine may read links on their own
+# network; one that fetches links for strangers must not (see `cps.sources`).
+LINKS_MAY_BE_PRIVATE = os.environ.get("CPS_ALLOW_PRIVATE_LINKS") == "1"
+
+
+def fetch_calendar(url: str, *, allow_private: bool | None = None) -> bytes:
+    """The calendar behind a link (an ADE export address, Google's secret iCal
+    address, a `webcal://` link), as bytes for `analyse_calendar`. The link must be
+    on the public internet unless `allow_private`, which defaults to the
+    `CPS_ALLOW_PRIVATE_LINKS` environment variable; see `cps.sources`."""
+    if allow_private is None:
+        allow_private = LINKS_MAY_BE_PRIVATE
+    try:
+        return _fetch(url, allow_private=allow_private)
+    except SourceError as exc:
+        raise UnreadableLink(str(exc)) from exc
+
+
+FEED_REFRESH = timedelta(hours=6)
+# Where feeds are kept and the address the feed server answers on: the same
+# machine and port unless a deployment says otherwise.
+FEED_STORE = Path(os.environ.get("CPS_FEED_DIR") or Path.home() / ".cps" / "feeds")
+FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
+_TOKEN = re.compile(r"[A-Za-z0-9_-]{22,64}")
+
+
+@dataclass(frozen=True)
+class Subscription:
+    """A plan kept up to date for a calendar app to subscribe to.
+
+    It holds what is needed to plan again: the timetable's link (or, for an
+    uploaded file, the file itself), the person's own activities, the subjects and
+    the settings, and the current plan. The token is the feed's only secret: whoever
+    has the feed address can read the plan, as with any calendar subscription link.
+    Personal data: a store keeps it in plain JSON files, and `delete_subscription`
+    removes them.
+    """
+
+    token: str
+    created: str
+    source_url: str | None
+    ics_text: str | None
+    busy_rows: tuple[dict, ...]
+    subjects: tuple[dict, ...]
+    options: dict
+    plan: dict | None = None
+    refreshed: str | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict:
+        out = {k: getattr(self, k) for k in self.__dataclass_fields__}
+        out["busy_rows"] = [dict(r) for r in self.busy_rows]
+        out["subjects"] = [dict(s) for s in self.subjects]
+        return out
+
+    @classmethod
+    def from_dict(cls, data: Mapping) -> Subscription:
+        try:
+            return cls(
+                **{
+                    **data,
+                    "busy_rows": tuple(dict(r) for r in data["busy_rows"]),
+                    "subjects": tuple(dict(s) for s in data["subjects"]),
+                }
+            )
+        except (KeyError, TypeError) as exc:
+            raise InvalidInput(f"not a subscription made by this version: {exc}") from exc
+
+
+def _spec_dict(spec: SubjectSpec) -> dict:
+    exam = spec.exam.isoformat() if isinstance(spec.exam, date | datetime) else spec.exam
+    return {
+        "name": spec.name,
+        "exam": exam,
+        "familiarity": spec.familiarity,
+        "stability": spec.stability,
+        "difficulty": spec.difficulty,
+    }
+
+
+def new_subscription(
+    *,
+    subjects: Sequence[SubjectSpec],
+    start: date,
+    tz: str,
+    source_url: str | None = None,
+    ics: bytes | None = None,
+    busy_rows: Iterable[BusyRow | Mapping] = (),
+    study_window: tuple[float, float] = (8.0, 22.0),
+    blocks_per_day: int = 2,
+    block_minutes: int = 90,
+    retention: float = 0.9,
+    window: int = 4,
+    lectures_as_topics: bool = True,
+    plan: PlanReport | None = None,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """A new feed. With a `source_url`, the timetable is read again at every
+    refresh; with `ics`, the file given now is the timetable for good. `plan`, if
+    the caller has just made it from the same inputs, saves planning again."""
+    if source_url is None and ics is None and not busy_rows:
+        raise InvalidInput("give a calendar link, a calendar file or your week")
+    rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
+    subscription = Subscription(
+        token=secrets.token_urlsafe(24),
+        created=datetime.now(UTC).isoformat(timespec="seconds"),
+        source_url=source_url.strip() if source_url else None,
+        ics_text=decode_ics(ics) if ics is not None and not source_url else None,
+        busy_rows=rows,
+        subjects=tuple(_spec_dict(s) for s in subjects),
+        options={
+            "start": start.isoformat(),
+            "tz": tz,
+            "study_window": list(study_window),
+            "blocks_per_day": blocks_per_day,
+            "block_minutes": block_minutes,
+            "retention": retention,
+            "window": window,
+            "lectures_as_topics": lectures_as_topics,
+        },
+    )
+    if plan is not None:
+        stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+        return replace(subscription, plan=plan.to_dict(), refreshed=stamp)
+    refreshed = refresh_subscription(subscription, now=now, fetch=fetch)
+    if refreshed.plan is None:
+        raise ServiceError(refreshed.error or "the plan could not be made")
+    return refreshed
+
+
+def refresh_subscription(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """Read the timetable again and plan from `now` on.
+
+    Sessions of the current plan that are behind `now` count as done as planned,
+    those reported through `replan_after` keep their outcome, and the plan goes on
+    from the memory they leave. If the link cannot be read or the plan cannot be
+    made, the previous plan stays and `error` says why, so that a feed never goes
+    blank because a university server was down for an hour.
+    """
+    now = now or datetime.now(UTC)
+    options = subscription.options
+    try:
+        ics = (
+            fetch(subscription.source_url)
+            if subscription.source_url
+            else (subscription.ics_text.encode("utf-8") if subscription.ics_text is not None else None)
+        )
+        report = analyse_calendar(
+            ics,
+            start=date.fromisoformat(options["start"]),
+            tz=options["tz"],
+            study_window=tuple(options["study_window"]),
+            blocks_per_day=options["blocks_per_day"],
+            block_minutes=options["block_minutes"],
+            busy_rows=subscription.busy_rows,
+        )
+        done: tuple[SessionView, ...] = ()
+        if subscription.plan is not None:
+            previous = PlanReport.from_dict(subscription.plan)
+            cut = _days_after(previous.settings.start, now.astimezone(_zone(previous.settings.tz)))
+            done = previous.history + tuple(s for s in previous.sessions if s.start_day < cut)
+        plan = continue_plan(
+            report,
+            [SubjectSpec(**s) for s in subscription.subjects],
+            done=done,
+            now=now,
+            retention=options["retention"],
+            window=options["window"],
+            lectures_as_topics=options["lectures_as_topics"],
+        )
+    except ServiceError as error:
+        return replace(subscription, error=str(error))
+    return replace(
+        subscription,
+        plan=plan.to_dict(),
+        refreshed=now.astimezone(UTC).isoformat(timespec="seconds"),
+        error=None,
+    )
+
+
+def is_stale(subscription: Subscription, now: datetime | None = None, age: timedelta = FEED_REFRESH) -> bool:
+    if subscription.refreshed is None:
+        return True
+    return (now or datetime.now(UTC)) - datetime.fromisoformat(subscription.refreshed) >= age
+
+
+def feed_ics(subscription: Subscription) -> bytes:
+    """The feed a calendar app reads: every session, done and to come, with stable
+    identifiers and a request to be read again every `FEED_REFRESH`."""
+    if subscription.plan is None:
+        raise InvalidInput("this feed has no plan yet")
+    return export_ics(
+        PlanReport.from_dict(subscription.plan),
+        include_history=True,
+        uid_prefix=subscription.token[:8] + "-",
+        refresh=FEED_REFRESH,
+    )
+
+
+def feed_url(base_url: str, token: str) -> str:
+    """The address to subscribe to, under the feed server at `base_url`."""
+    return f"{base_url.rstrip('/')}/feed/{token}.ics"
+
+
+def _path(store: str | os.PathLike, token: str) -> Path:
+    if not _TOKEN.fullmatch(token):
+        raise InvalidInput("not a feed token")
+    return Path(store) / f"{token}.json"
+
+
+def save_subscription(store: str | os.PathLike, subscription: Subscription) -> None:
+    """Write a subscription into the store directory, atomically: a feed server
+    reading it at the same moment sees the old file or the new one, never half."""
+    target = _path(store, subscription.token)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            json.dump(subscription.to_dict(), out)
+        os.replace(temporary, target)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def load_subscription(store: str | os.PathLike, token: str) -> Subscription | None:
+    try:
+        path = _path(store, token)
+    except InvalidInput:
+        return None
+    if not path.is_file():
+        return None
+    return Subscription.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def delete_subscription(store: str | os.PathLike, token: str) -> bool:
+    try:
+        path = _path(store, token)
+    except InvalidInput:
+        return False
+    if not path.is_file():
+        return False
+    path.unlink()
+    return True

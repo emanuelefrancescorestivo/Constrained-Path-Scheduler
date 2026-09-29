@@ -110,3 +110,28 @@ def test_a_typed_week_runs_without_errors():
     # The example week is there to be edited, and it is what the planner sees.
     assert len(app.session_state["activities"]) == 3
     assert any(m.value.startswith("9 busy events over 21 days") for m in app.markdown)
+
+
+@pytest.mark.slow
+def test_a_calendar_link_is_read_and_the_plan_can_be_published(timetable_server, tmp_path, monkeypatch):
+    pytest.importorskip("streamlit")
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setattr(service, "LINKS_MAY_BE_PRIVATE", True)
+    monkeypatch.setattr(service, "FEED_STORE", tmp_path)
+    app = AppTest.from_file(str(APP), default_timeout=300)
+    app.run()
+    app.radio[0].set_value("Paste a calendar link").run()
+    app.text_input[0].set_value(f"{timetable_server}/sample-timetable.ics").run()
+    app.date_input[0].set_value(date(2026, 3, 2)).run()
+    assert not app.exception, app.exception
+    assert any("free study blocks" in m.value for m in app.markdown)
+    next(b for b in app.button if b.label == "Plan my study").click().run()
+    next(b for b in app.button if b.label == "Publish as a calendar feed").click().run()
+    assert not app.exception, app.exception
+    token = app.session_state["feed-token"]
+    stored = service.load_subscription(tmp_path, token)
+    assert stored.source_url == f"{timetable_server}/sample-timetable.ics" and stored.plan is not None
+    assert any(service.feed_url(service.FEED_URL, token) in c.value for c in app.code)
+    next(b for b in app.button if b.label == "Stop publishing").click().run()
+    assert service.load_subscription(tmp_path, token) is None

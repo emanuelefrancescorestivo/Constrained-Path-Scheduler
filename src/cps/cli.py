@@ -8,6 +8,9 @@ occurrences, busy hours, candidate study blocks, detected assessments. Run it
 against your own export first: if the free blocks it lists are wrong, nothing
 downstream can be right.
 
+Both take a calendar file or a link to one: a university timetable's export
+address, Google Calendar's secret iCal address, a `webcal://` subscription.
+
 `plan` runs the whole pipeline and prints a schedule. Each subject is planned
 towards its own exam: pass the date with `--subject "Analysis:2:7@2026-03-20"`, or
 leave it out and the date of the matching assessment found in the calendar is
@@ -18,12 +21,16 @@ What it does not know, and says so in its output: the memory model uses
 population-default FSRS parameters, and each subject's starting stability and
 difficulty are your own guesses.
 
+`serve` runs the feed server (`cps.feed`), which answers the calendar subscriptions
+the web page publishes.
+
 All the work happens in `cps.service`; this module parses arguments and prints.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import errno
 import os
 import sys
@@ -79,7 +86,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     for name in ("inspect", "plan"):
         p = sub.add_parser(name)
-        p.add_argument("ics", type=Path, help="calendar export (.ics)")
+        p.add_argument("ics", help="calendar export (.ics), or a link to one (https://, webcal://)")
         p.add_argument(
             "--from",
             dest="start",
@@ -135,12 +142,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="plan each subject as one topic, ignoring its lectures in the calendar",
     )
     plan.add_argument("--out", type=Path, default=None, help="write the plan as .ics")
+
+    serve = sub.add_parser("serve", help="answer the calendar feeds published from the web page")
+    serve.add_argument("--store", type=Path, default=service.FEED_STORE, help="where the feeds are kept")
+    serve.add_argument("--host", default="127.0.0.1", help="address to listen on (default: this machine)")
+    serve.add_argument("--port", type=int, default=8765)
     return parser
+
+
+def _read(source: str) -> bytes:
+    """A calendar file's bytes, or the calendar behind a link."""
+    if source.lower().startswith(("http://", "https://", "webcal://")):
+        return service.fetch_calendar(source)
+    return Path(source).read_bytes()
 
 
 def _analyse(args) -> service.CalendarReport:
     return service.analyse_calendar(
-        args.ics.read_bytes(),
+        _read(args.ics),
         start=args.start or date.today(),
         tz=args.tz,
         days=args.days,
@@ -256,6 +275,14 @@ def command_plan(args) -> int:
     return 0
 
 
+def command_serve(args) -> int:
+    from .feed import serve
+
+    with contextlib.suppress(KeyboardInterrupt):
+        serve(args.store, args.host, args.port)
+    return 0
+
+
 def _stdout_closed(error: OSError) -> bool:
     """A reader that left early: `| head` on Linux and macOS raises EPIPE; on
     Windows a closed pipe can surface as EINVAL instead. Any other OSError, and
@@ -276,7 +303,7 @@ def _silence_stdout() -> None:
 def main(argv: list[str] | None = None) -> int:
     ensure_utf8_output()
     args = _build_parser().parse_args(argv)
-    command = {"inspect": command_inspect, "plan": command_plan}[args.command]
+    command = {"inspect": command_inspect, "plan": command_plan, "serve": command_serve}[args.command]
     try:
         code = command(args)
         sys.stdout.flush()
