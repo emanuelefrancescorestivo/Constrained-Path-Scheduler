@@ -17,6 +17,25 @@ run. Where this is going as a product, and what it still lacks, is in
 
 ![The planner on the sample calendar: a football session dragged onto Thursday, and the plan week by week](docs/app-screenshot.png)
 
+## Why spaced self-testing
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/spacing-dark.svg">
+  <img alt="Predicted recall of one week of lectures: studied once falls to 22%, crammed keeps 79% and spaced self-tests keep 83% twelve weeks after the exam" src="docs/figures/spacing-light.svg" width="760">
+</picture>
+
+Two of the best-supported techniques in the research on learning are spreading study
+out over time and testing yourself instead of rereading; a review of ten techniques
+rated these two, and only these, of high utility [ref:dunlosky2013]. The memory model
+the planner uses, FSRS-4.5, reproduces both. For one week of lectures examined four
+weeks later, three self-tests, each when predicted recall falls to 90%, keep 83%
+twelve weeks after the exam; four sessions crammed into the last four days keep 79%,
+though they are marginally ahead on exam day (99.6% against 98.8%); studied once and
+never again, 22%. This is the model's prediction with population-default weights, not
+a measurement of students; `python benchmarks/figures.py` draws it and prints every
+number. Every session the assistant plans is built on it: a self-test when material
+fades, spread out, and a sentence saying what to do.
+
 ## Sixty seconds
 
 ```bash
@@ -146,10 +165,16 @@ answer on the same machine; reports do not reach those feeds.
 ## Results
 
 All numbers come from `python demo.py` and `python benchmarks/replanning.py`, with
-fixed seeds and standard errors.
+fixed seeds and standard errors; the figures from `python benchmarks/figures.py`, which
+reruns the benchmarks and prints what it draws.
 
 **On a 21-day calendar with two subjects** (100 seeds, window 4; "ready" means
 both subjects reached their stability target before the exam):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/planner-vs-schedulers-dark.svg">
+  <img alt="The planner against reviewing at 90% recall and reviewing every day: 90%, 0% and 93% ready; stability at the exam 20.5, 17.0 and 21.4 days; recall on exam day 0.932, 0.920 and 0.943; 5.0, 3.7 and 15.8 study blocks" src="docs/figures/planner-vs-schedulers-light.svg" width="760">
+</picture>
 
 | scheduler | ready | blocks | first review | recall at exam | stability at exam |
 |---|---|---|---|---|---|
@@ -183,6 +208,11 @@ everything taught later. Planning took 38 seconds.
 
 **Does the search earn its keep?** (`python benchmarks/rule_vs_planner.py`, the same
 semester, topics and memory model, every review assumed to succeed)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/search-vs-rules-dark.svg">
+  <img alt="Sessions and topics at target on a semester: research planner 222 and 63, least-remembered rule 246 and 65, the same rule at 93% 235 and 63, review at 90% recall 207 and 44" src="docs/figures/search-vs-rules-light.svg" width="760">
+</picture>
 
 | scheduler | sessions | topics at target | recall at the exams | time |
 |---|---|---|---|---|
@@ -266,13 +296,14 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 
 ```bash
 pip install -e ".[dev,app,web]"
-pytest                                    # 388 passed, 14 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 402 passed, 1 xfailed, 93% coverage
+pytest                                    # 391 passed, 14 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 405 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
 python benchmarks/semester.py             # a semester, with and without lectures as topics
 python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
+python benchmarks/figures.py              # the README's figures, from the runs above
 ```
 
 CI runs all of it on Ubuntu and Windows, Python 3.11 to 3.13. The one expected
