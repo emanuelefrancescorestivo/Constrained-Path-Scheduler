@@ -59,6 +59,7 @@ from .calendar_io import (
     busy_from_table,
     decode_ics,
     expand_events,
+    find_assignments,
     find_deadlines,
     find_lectures,
     plan_to_ics,
@@ -1553,6 +1554,8 @@ def refresh_subscription(
     an hour.
     """
     now = now or datetime.now(UTC)
+    if reread:
+        subscription = sync_deadlines(subscription, now=now, fetch=fetch)
     options = subscription.options
     cached = subscription.ics_text
     try:
@@ -1677,11 +1680,14 @@ def revise_subscription(
     busy_rows: Iterable[BusyRow | Mapping] | None = None,
     preferences: Mapping | None = None,
     now: datetime | None = None,
+    deadlines_url: str | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, weekly
     hours and days off, or any of `new_subscription`'s settings) and plan again at
-    once from the calendar last read."""
+    once from the calendar last read. A new `deadlines_url` ("" removes it) is read
+    at once, which is the only network access here."""
     merged = dict(subscription.options)
     unknown = set(options) - set(merged)
     if unknown:
@@ -1697,10 +1703,72 @@ def revise_subscription(
         subjects=subscription.subjects if subjects is None else tuple(_spec_dict(s) for s in subjects),
         busy_rows=subscription.busy_rows if busy_rows is None else _rows(busy_rows),
     )
+    if deadlines_url is not None and deadlines_url.strip() != (merged.get("deadlines_url") or ""):
+        url = deadlines_url.strip() or None
+        changed = replace(changed, options={**changed.options, "deadlines_url": url, "deadlines_error": None})
+        if url:
+            changed = sync_deadlines(changed, now=now, fetch=fetch)
+            if changed.options.get("deadlines_error"):
+                raise InvalidInput(f"the learning platform's link: {changed.options['deadlines_error']}")
     fresh = refresh_subscription(changed, now=now, reread=False)
     if fresh.error:
         raise InvalidInput(fresh.error)
     return fresh
+
+
+# A deadline from a learning platform says when, not how long: this is the guess
+# until the student changes it, shown as a guess on the settings page.
+DEFAULT_TASK_HOURS = 2.0
+
+
+def sync_deadlines(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """Read the learning platform's calendar (`options["deadlines_url"]`, Moodle's
+    export) and add each deadline not seen before as a task of
+    `DEFAULT_TASK_HOURS`. The platform owns the dates: a deadline already imported
+    follows its new date (an extension, say); the student owns the rest: the hours,
+    the name, and a deadline removed from the list does not come back. Past
+    deadlines are skipped. A link that cannot be read leaves the tasks as they
+    were and says why in `options["deadlines_error"]`."""
+    options = subscription.options
+    url = options.get("deadlines_url")
+    if not url:
+        return subscription
+    now = now or datetime.now(UTC)
+    zone = _zone(options["tz"])
+    try:
+        found = find_assignments(decode_ics(fetch(url)), options["tz"])
+    except ServiceError as error:
+        return replace(subscription, options={**options, "deadlines_error": str(error)})
+    except ValueError as error:
+        return replace(subscription, options={**options, "deadlines_error": f"not a calendar ({error})"})
+    tasks = [dict(t) for t in options.get("tasks", ())]
+    imported: dict[str, str] = dict(options.get("imported", {}))
+    names = {t["name"].casefold(): t for t in tasks}
+    for a in found:
+        key = f"{a.course}|{a.name}".casefold()
+        due = a.due.astimezone(zone).strftime("%Y-%m-%d %H:%M")
+        if key in imported:
+            task = names.get(imported[key].casefold())
+            if task is not None and a.due > now:
+                task["due"] = due
+            continue
+        if a.due <= now:
+            continue
+        name = a.name if a.name.casefold() not in names else f"{a.name} ({a.course})"
+        if name.casefold() in names:
+            continue
+        task = {"name": name, "due": due, "hours": DEFAULT_TASK_HOURS, "course": a.course}
+        tasks.append(task)
+        names[name.casefold()] = task
+        imported[key] = name
+    return replace(
+        subscription, options={**options, "tasks": tasks, "imported": imported, "deadlines_error": None}
+    )
 
 
 def _rows(busy_rows: Iterable[BusyRow | Mapping]) -> tuple[dict, ...]:
@@ -1918,6 +1986,9 @@ def setup_view(subscription: Subscription) -> dict:
         "block_minutes": options["block_minutes"],
         "tz": options["tz"],
         "source_url": subscription.source_url,
+        "deadlines_url": options.get("deadlines_url") or "",
+        "deadlines_error": options.get("deadlines_error"),
+        "imported": sorted(set(options.get("imported", {}).values())),
         "weekdays": list(WEEKDAY_NAMES),
     }
 

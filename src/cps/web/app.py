@@ -291,7 +291,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.update_subscription(
                 store.path,
                 token,
-                lambda current: service.revise_subscription(current, now=config.clock(), **change),
+                lambda current: service.revise_subscription(
+                    current, now=config.clock(), fetch=config.fetch, **change
+                ),
             )
         except service.ServiceError as error:
             shown = {**service.setup_view(subscription), **values}

@@ -62,6 +62,7 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
             for r in _rows(form, "a", ("label", "weekday", "date", "start", "end"))
             if r["label"] or r["start"]
         ],
+        "deadlines_url": form.get("deadlines_url", "").strip(),
         "weekly_hours": form.get("weekly_hours", "").strip(),
         "rest_days": rest_days,
         "practice_hours": form.get("practice_hours", "").strip(),
@@ -94,6 +95,7 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         "subjects": subjects,
         "tasks": tasks,
         "busy_rows": [{**a, "date": a["date"] or None} for a in values["activities"]],
+        "deadlines_url": values["deadlines_url"],
         "preferences": {
             "weekly_hours": weekly_hours or None,
             "rest_days": list(values["rest_days"]),

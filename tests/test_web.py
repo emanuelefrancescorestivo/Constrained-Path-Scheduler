@@ -423,3 +423,14 @@ def test_the_stored_expiry_follows_the_last_exam(web, planned):
     assert service.subscription_expiry(subscription) == datetime.fromisoformat(
         "2027-01-29T13:45:00+01:00"
     ) + timedelta(days=30)
+
+
+def test_a_learning_platform_link_brings_its_deadlines(web, planned, timetable_server, monkeypatch):
+    monkeypatch.setattr(service, "LINKS_MAY_BE_PRIVATE", True)
+    form = _form(web.get(f"/p/{planned}/settings").text)
+    form["deadlines_url"] = f"{timetable_server}/sample-moodle.ics"
+    assert web.post(f"/p/{planned}/settings", data=form, follow_redirects=False).status_code == 303
+    names = [t["name"] for t in _subscription(web, planned).options["tasks"]]
+    assert names == ["Stats report", "Week 4 quiz", "Problem sheet 3", "Essay on fairness"]
+    page = web.get(f"/p/{planned}/settings").text
+    assert page.count("From your learning platform") == 3

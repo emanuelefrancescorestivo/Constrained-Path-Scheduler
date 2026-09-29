@@ -75,10 +75,17 @@ to study, then save: the plan is made at once.</p>
 <fieldset>
   <legend>Deadlines</legend>
   <p class="hint">Homework, reports, projects, readings: when each is due and roughly how many hours it takes.</p>
+  <label for="deadlines_url">Your learning platform's calendar link (Moodle)</label>
+  <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url }}" placeholder="https://…/calendar/export_execute.php?…">
+  <p class="hint">In Moodle: Calendar, Export calendar, All courses, Recent and next 60 days,
+  Get calendar URL. Assignments and quizzes due appear below by themselves, at 2 hours each
+  until you change it.</p>
+  {% if values.deadlines_error %}<p class="error">The learning platform's link could not be read: {{ values.deadlines_error }}</p>{% endif %}
   {% for t in values.tasks %}
   <div class="item">
     <label for="t{{ loop.index0 }}_name">What</label>
     <input id="t{{ loop.index0 }}_name" name="t{{ loop.index0 }}_name" value="{{ t.name }}">
+    {% if t.name in values.imported %}<p class="hint">From your learning platform; its date follows it. The hours are your estimate.</p>{% endif %}
     <label for="t{{ loop.index0 }}_due">Due</label>
     <input id="t{{ loop.index0 }}_due" name="t{{ loop.index0 }}_due" type="datetime-local" value="{{ t.due | replace(' ', 'T') }}">
     <div class="row">
