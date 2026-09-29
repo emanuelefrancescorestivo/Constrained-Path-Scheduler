@@ -31,7 +31,7 @@ flowchart TD
     CIO --> SVC
     ROLL --> SVC
     SVC --> CLI["cli: cps inspect / cps plan"]
-    SVC --> APP["app.py: Streamlit page,<br/>widgets/: the week calendar"]
+    SVC --> APP["app.py: Streamlit page (workbench)"]
     SVC --> OUT["plan.ics with a reason per session"]
     SVC --> STORE["store<br/>SQLite: one versioned document per plan,<br/>event log, expiry, backups"]
     SVC --> WEB["web: cps web (the hosted product)<br/>setup, Today, week, one-tap reports,<br/>/feed/token.ics"]
@@ -80,9 +80,10 @@ urgent topics taught so far.
 returns frozen results with `to_dict()` in plain JSON types, turns a user's mistake
 into a typed error with a sentence saying what to do, replans after a session is
 reported forgotten or skipped, and shapes tables and calendar weeks for display.
-`cli` prints what it returns; `app.py` lays it out, with the week calendar in
-`widgets/` (plain JavaScript, no build step), which returns the activities a person
-drags out as busy rows. A test fails if `app.py` imports anything from `cps` except
+`cli` prints what it returns; `app.py` lays it out, with the week calendar
+(`web/static/week_calendar.js`, plain JavaScript, no build step, registered for
+Streamlit by `widgets/`), which returns the activities a person drags out as busy
+rows. A test fails if `app.py` imports anything from `cps` except
 `service`.
 
 **Links and feeds.** `sources` reads a calendar from a link and refuses what a server
@@ -100,10 +101,13 @@ an update is written only over the version it was computed from, else computed a
 (for the pilot's measures), deletes plans past their expiry, and copies itself while
 in use.
 
-**The hosted app.** `web` is a FastAPI application with Jinja2 templates and one
-stylesheet, no JavaScript. It reads forms, calls `service`, and fills templates; a test
-fails if it imports anything from `cps` but `service`. The page models (`today_view`,
-`agenda`, `setup_view`) are in `service`. A student's two secret addresses are the only
+**The hosted app.** `web` is a FastAPI application with Jinja2 templates, one
+stylesheet, and one script: the week calendar, which reads `/p/<token>/calendar.json`
+and saves every edit of the busy times to `/p/<token>/activities`, getting back the
+replanned week. Every page works without the script. It reads forms and JSON, calls
+`service`, and fills templates; a test fails if it imports anything from `cps` but
+`service`. The page models (`today_view`, `agenda`, `setup_view`, `calendar_view`) are
+in `service`. A student's two secret addresses are the only
 credential, so nothing logs them, no referrer carries them, and a GET never changes a
 plan: the link in a calendar event opens a page whose button records the report.
 

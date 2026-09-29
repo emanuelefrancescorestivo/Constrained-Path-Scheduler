@@ -370,3 +370,17 @@ def test_the_recall_curve_of_a_topical_subject_averages_what_has_been_taught(top
     assert curve[0][0] == pytest.approx(2.5)  # nothing taught before the first Wednesday
     assert curve[-1][0] <= exam_day
     assert all(0 < p <= 1 for _, p in curve)
+
+
+@pytest.mark.parametrize(
+    ("summary", "shown"),
+    [
+        ("Algebra 3, Grp: CM ., Salle: Salle 4 Estrapade", "Algebra 3 · CM · Salle 4 Estrapade"),
+        ("Gym", "Gym"),
+        ("Analysis lecture", "Analysis lecture"),
+        ("Meeting: project kickoff", "Meeting: project kickoff"),
+        ("Physique, TD, Salle 12", "Physique, TD, Salle 12"),
+    ],
+)
+def test_a_timetable_title_reads_as_a_person_would_write_it(summary, shown):
+    assert service.short_title(summary) == shown

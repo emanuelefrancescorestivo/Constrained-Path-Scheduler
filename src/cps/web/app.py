@@ -14,9 +14,11 @@ and change the plan. What follows from it:
 * **A GET never changes anything.** A calendar app, a mail client or a chat
   preview may open a link in an event by itself. The link in each event opens a
   page that asks what happened; only the button on that page (a POST) records it.
-* **No cookies, no scripts, no third parties.** The pages are plain HTML forms and
-  one stylesheet served from here, under a Content-Security-Policy that allows
-  nothing else. Nothing is there to consent to, and nothing to track with.
+* **No cookies, no third parties.** The pages are HTML forms, one stylesheet and
+  the week calendar's script, all served from here, under a Content-Security-Policy
+  that allows nothing else (no inline script or style). Every page works without
+  the script, which only turns the week into a calendar to drag on. Nothing is
+  there to consent to, and nothing to track with.
 * **Rate limits** on what costs the server something (reading a timetable link for
   a stranger, replanning), per address and per token (`limits.Limiter`).
 * **Cross-site forms refused.** A POST that a browser says comes from another site
@@ -35,13 +37,14 @@ import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.datastructures import UploadFile
@@ -58,8 +61,8 @@ SWEEP_EVERY = timedelta(hours=6)
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
-        "default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; "
-        "frame-ancestors 'none'; base-uri 'none'"
+        "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; "
+        "img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     ),
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
@@ -266,15 +269,74 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
-    def week(request: Request, token: str, w: int = 0) -> HTMLResponse:
+    def week(request: Request, token: str, w: int = 0, new: int = 0) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        if subscription.plan is None:
-            return RedirectResponse(f"/p/{token}", 303)  # type: ignore[return-value]
         w = max(-8, min(w, 60))
-        agenda = service.agenda(subscription, w, config.clock())
-        return page(request, "week.html", token=token, agenda=agenda, tab="week")
+        agenda = service.agenda(subscription, w, config.clock()) if subscription.plan is not None else None
+        today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
+        return page(
+            request,
+            "week.html",
+            token=token,
+            agenda=agenda,
+            first=(today + timedelta(days=7 * w)).isoformat(),
+            new=bool(new),
+            error=subscription.error,
+            tab="week",
+        )
+
+    def days_shown(start: str | None, days: int) -> tuple[date | None, int]:
+        try:
+            first = date.fromisoformat(start) if start else None
+        except ValueError:
+            raise service.InvalidInput(f"{start!r} is not a date like 2026-10-05") from None
+        return first, max(1, min(days, 14))
+
+    @app.get("/p/{token}/calendar.json")
+    def calendar(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        try:
+            first, count = days_shown(start, days)
+            view = service.calendar_view(subscription, first, count, config.clock())
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse(view)
+
+    @app.post("/p/{token}/activities")
+    async def activities(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:
+        """The calendar's busy times, all of them, as the page holds them after an
+        edit; the plan is made again at once and the new calendar returned."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": "Too many changes; try again in a while."}, 429)
+        if int(request.headers.get("content-length") or 0) > 64 * 1024:
+            return JSONResponse({"message": "too many busy times"}, 413)
+        try:
+            rows = await request.json()
+            if not isinstance(rows, list) or len(rows) > 200 or not all(isinstance(r, dict) for r in rows):
+                raise service.InvalidInput("busy times come as a list of at most 200 rows")
+            first, count = days_shown(start, days)
+            fresh = service.update_subscription(
+                store,
+                token,
+                lambda current: service.revise_subscription(
+                    current, busy_rows=rows, now=config.clock(), strict=False
+                ),
+            )
+            if fresh is None:
+                return JSONResponse({"message": "no such plan"}, 404)
+            view = service.calendar_view(fresh, first, count, config.clock())
+        except ValueError:  # the body is not JSON
+            return JSONResponse({"message": "not a list of busy times"}, 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        service.log_event(store, token, "activities", str(len(rows)))
+        return JSONResponse(view)
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
     def settings(request: Request, token: str, new: int = 0) -> HTMLResponse:
@@ -325,7 +387,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tab="settings",
             )
         service.log_event(store, token, "settings")
-        return RedirectResponse(f"/p/{token}/feed?new=1" if new else f"/p/{token}?saved=1", 303)
+        return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
 
     @app.post("/p/{token}/tasks", response_class=HTMLResponse)
     async def add_task(request: Request, token: str) -> Response:

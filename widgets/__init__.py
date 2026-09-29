@@ -21,8 +21,6 @@ import streamlit as st
 
 from cps import service
 
-_HERE = Path(__file__).parent
-
 # What a person can block out. The planner treats every kind as busy; the kind
 # only colours the block and names it until the person types a name.
 KINDS: tuple[tuple[str, str], ...] = (
@@ -42,8 +40,11 @@ EXAMPLE_WEEK: tuple[dict, ...] = (
 _COLUMNS = ["label", "kind", "weekday", "date", "start", "end"]
 _WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-_JS = (_HERE / "week_calendar.js").read_text(encoding="utf-8")
-_CSS = (_HERE / "week_calendar.css").read_text(encoding="utf-8")
+# One copy of the calendar for both front ends: the hosted app serves it as a
+# static file, and this page hands the same text to Streamlit.
+_STATIC = Path(service.__file__).parent / "web" / "static"
+_JS = (_STATIC / "week_calendar.js").read_text(encoding="utf-8")
+_CSS = (_STATIC / "week_calendar.css").read_text(encoding="utf-8")
 _MOUNTED: list[tuple[object, Callable[..., object]]] = []
 
 

@@ -6,6 +6,15 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The hosted app's Week page is a calendar to drag on: the timetable, exams and
+  study sessions, with busy times drawn, moved, resized and renamed in place, and the
+  plan redone at every change (`service.calendar_view`, `/p/<token>/calendar.json`,
+  `/p/<token>/activities`). Three days on a phone, seven on a wide screen; a tap adds
+  a block on a touch screen; the editor is a sheet along the bottom on a phone. Setup
+  goes through it. Tapping a session opens its report page.
+- Readable labels: "Algebra 3 · CM · Salle 4" for ADE's "Algebra 3, Grp: CM .,
+  Salle: Salle 4" (`service.short_title`); "Self-test: Algebra 3", "Work on: Stats
+  report" in the calendar (`service.session_label`).
 - The hosted app, `cps web` (`src/cps/web`, the `web` extra: FastAPI, uvicorn,
   Jinja2, python-multipart): start from a timetable link or file; check the exams
   found, add deadlines, busy times, weekly hours and days off; a Today page and a

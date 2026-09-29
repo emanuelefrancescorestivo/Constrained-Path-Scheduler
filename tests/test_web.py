@@ -194,8 +194,11 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
         },
         follow_redirects=False,
     )
-    assert answer.headers["location"] == f"/p/{token}/feed?new=1"
-    feed_page = web.get(answer.headers["location"]).text
+    # Setup goes on to the week, to draw busy times, and from there to the links.
+    assert answer.headers["location"] == f"/p/{token}/week?new=1"
+    week = web.get(answer.headers["location"]).text
+    assert "Last step: your week" in week and f'href="/p/{token}/feed?new=1"' in week
+    feed_page = web.get(f"/p/{token}/feed?new=1").text
     assert f"http://testserver/feed/{token}.ics" in feed_page
     assert f"webcal://testserver/feed/{token}.ics" in feed_page
     assert f"http://testserver/p/{token}" in feed_page
@@ -226,7 +229,7 @@ def test_an_exam_can_be_dropped_and_a_busy_time_added(web, planned):
     subscription = _subscription(web, planned)
     assert "Computer Programming 3" not in [s["name"] for s in subscription.subjects]
     assert subscription.busy_rows == (
-        {"label": "Training", "start": "18:00", "end": "20:00", "weekday": 2, "date": None},
+        {"label": "Training", "start": "18:00", "end": "20:00", "weekday": 2, "date": None, "kind": "other"},
     )
     page = web.get(f"/p/{planned}/settings").text
     assert "Also in your timetable: <strong>Computer Programming 3</strong>" in page
@@ -248,7 +251,9 @@ def test_a_deadline_added_from_today(web, planned):
 def test_the_week_is_a_list_of_days(web, planned):
     page = web.get(f"/p/{planned}/week").text
     assert page.count('<section class="day">') == 7
-    assert "Deadline work: Stats report" in page and "Advanced Statistics" in page
+    assert "Work on: Stats report" in page and "Self-test: " in page
+    # Timetable titles as a person reads them, not as ADE writes them.
+    assert "Advanced Statistics · CM · Salle 3" in page and "Grp:" not in page
     assert web.get(f"/p/{planned}/week?w=3").status_code == 200
 
 
@@ -495,7 +500,103 @@ def test_the_link_of_any_session_opens_it(web, planned):
     plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
     far = plan.sessions[-1]
     page = web.get(f"/s/{planned}/{service.session_id(far)}")
-    assert page.status_code == 200 and unescape(far.title) in unescape(page.text)
+    assert page.status_code == 200 and unescape(far.subject) in unescape(page.text)
     assert "once it has started" in page.text
     gone = web.get(f"/s/{planned}/000000000000")
     assert gone.status_code == 404 and "no longer in your plan" in gone.text
+
+
+# --------------------------------------------------------------------------- #
+# The calendar to drag on
+# --------------------------------------------------------------------------- #
+
+
+def test_the_calendar_data_has_the_timetable_the_sessions_and_the_busy_times(web, planned):
+    data = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=3").json()
+    assert [d["date"] for d in data["days"]] == ["2026-09-29", "2026-09-30", "2026-10-01"]
+    kinds = {i["kind"] for i in data["items"]}
+    assert {"calendar", "study"} <= kinds
+    study = [i for i in data["items"] if i["kind"] == "study"]
+    assert all(i["id"] and i["label"].split(":")[0] in ("Self-test", "Work on", "Practice") for i in study)
+    assert all("Grp:" not in i["label"] for i in data["items"])
+    assert data["activities"] == [] and data["planned"] and data["window"] == [8.0, 22.0]
+    assert [k["id"] for k in data["kinds"]] == ["training", "commute", "work", "timeoff", "other"]
+    assert web.get(f"/p/{planned}/calendar.json?start=nonsense").status_code == 400
+    assert web.get("/p/" + "x" * 32 + "/calendar.json").status_code == 404
+
+
+def test_a_busy_time_drawn_on_the_calendar_moves_the_plan(web, planned):
+    before = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=7").json()
+    first = next(i for i in before["items"] if i["kind"] == "study")
+    day = before["days"][first["day"]]
+    rows = [
+        {
+            "label": "Away",
+            "kind": "timeoff",
+            "weekday": None,
+            "date": day["date"],
+            "start": "00:00",
+            "end": "24:00",
+        }
+    ]
+    answer = web.post(f"/p/{planned}/activities?start=2026-09-29&days=7", json=rows)
+    assert answer.status_code == 200, answer.text
+    after = answer.json()
+    assert after["activities"] == [
+        {
+            "label": "Away",
+            "kind": "timeoff",
+            "weekday": None,
+            "date": day["date"],
+            "start": "00:00",
+            "end": "24:00",
+        }
+    ]
+    assert not [i for i in after["items"] if i["kind"] == "study" and i["day"] == first["day"]]
+    assert [i for i in after["items"] if i["kind"] == "study"], "the work moves to other days"
+    stored = _subscription(web, planned)
+    assert stored.busy_rows[0]["kind"] == "timeoff" and stored.busy_rows[0]["date"] == day["date"]
+    assert web.store.events(planned)[-1]["kind"] == "activities"
+
+
+def test_busy_times_can_be_drawn_before_any_exam_is_known(web, planned):
+    form = _form(web.get(f"/p/{planned}/settings").text)
+    # A plan whose exams are dropped: nothing to plan, but the week can be drawn.
+    subscription = _subscription(web, planned)
+    bare = service.revise_subscription(subscription, subjects=[], tasks=[], strict=False)
+    service.save_subscription(web.store.path, bare)
+    rows = [
+        {"label": "Job", "kind": "work", "weekday": "Sat", "date": None, "start": "10:00", "end": "18:00"}
+    ]
+    answer = web.post(f"/p/{planned}/activities", json=rows)
+    assert answer.status_code == 200 and "add a subject" in answer.json()["error"]
+    assert _subscription(web, planned).busy_rows[0]["label"] == "Job"
+    assert form  # the settings page still renders for such a plan
+
+
+def test_nonsense_busy_times_are_refused_and_change_nothing(web, planned):
+    for body in (
+        {"not": "a list"},
+        [1, 2],
+        [{"label": "x", "start": "25:00", "end": "26:00", "weekday": "Mon"}],
+    ):
+        answer = web.post(f"/p/{planned}/activities", json=body)
+        assert answer.status_code == 400 and answer.json()["message"]
+    bad_json = web.post(
+        f"/p/{planned}/activities", content=b"{", headers={"content-type": "application/json"}
+    )
+    assert bad_json.status_code == 400
+    assert _subscription(web, planned).busy_rows == ()
+
+
+def test_the_week_page_loads_the_calendar_script_under_the_policy(web, planned):
+    page = web.get(f"/p/{planned}/week")
+    assert 'type="module" src="/static/week.js"' in page.text
+    assert 'data-first="2026-09-29"' in page.text
+    policy = page.headers["content-security-policy"]
+    assert "script-src 'self'" in policy and "unsafe-inline" not in policy
+    for name in ("week.js", "week_calendar.js", "week_calendar.css"):
+        asset = web.get(f"/static/{name}")
+        assert asset.status_code == 200 and asset.text
+    # No inline script or style attribute that the policy would refuse.
+    assert "<script>" not in page.text and " style=" not in page.text

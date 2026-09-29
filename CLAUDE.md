@@ -28,8 +28,8 @@ than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 361 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 375 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 371 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 385 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -56,11 +56,14 @@ than an impressive number.
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2, no JavaScript): setup, Today, week, one-tap reports, privacy; only calls `service` |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop week, one-tap reports, privacy; only calls `service`; every page works without its one script |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `sweep` / `backup`; UTF-8 output hardening |
 
-`widgets/` (next to `app.py`, not in the package) is the week calendar the page
-draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input only.
+The week calendar is `web/static/week_calendar.js` and `.css`: plain JavaScript,
+layout and input only, one copy for both front ends. The hosted app mounts it from
+`web/static/week.js`; `widgets/` (next to `app.py`, not in the package) registers the
+same file as a Streamlit v2 component. It must work under the app's
+Content-Security-Policy: styles through the CSSOM, no inline script or style.
 
 ## Invariants: do not weaken these to get a green build
 
