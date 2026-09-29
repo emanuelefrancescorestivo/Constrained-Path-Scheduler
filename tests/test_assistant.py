@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from cps import service
-from cps.assistant import Exam, Preferences, Task, Topic, blocks_for_hours, schedule
+from cps.assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours, schedule
 from cps.memory import MemoryState
 from cps.plan import Block
 
@@ -193,3 +193,45 @@ def test_bad_preferences_are_readable_errors(semester, options, message):
     report, subjects, _ = semester
     with pytest.raises(service.ServiceError, match=message):
         service.make_schedule(report, subjects, **options)
+
+
+# --------------------------------------------------------------------------- #
+# Sessions the student moved
+# --------------------------------------------------------------------------- #
+
+
+def test_a_moved_review_happens_where_it_was_put_and_not_again_in_between():
+    blocks = evenings(4)
+    plain = schedule(blocks, first_weekday=MONDAY, topics=[fresh("w1", 0.0, 30.0)])
+    first = plain.sessions[0]
+    later = Block(slot=-1, day=3, start_day=3.9)  # Thursday, 21:36
+    pin = Pin(later, first.kind, first.title, first.course, first.block.start_day, later.start_day)
+    moved = schedule(
+        [b for b in blocks if b is not first.block],
+        first_weekday=MONDAY,
+        topics=[fresh("w1", 0.0, 30.0)],
+        pins=[pin],
+    )
+    reviews = [s for s in moved.sessions if s.title == "w1"]
+    assert reviews[0].block is later and reviews[0].pinned and reviews[0].why == "You put it here."
+    assert all(not (first.block.start_day <= s.block.start_day < later.start_day) for s in reviews[1:])
+    assert reviews[0].kind == "first review"
+
+
+def test_a_pinned_block_of_work_counts_towards_its_deadline():
+    blocks = evenings(5)
+    task = Task("essay", 4.5, 3)
+    pin = Pin(Block(slot=-1, day=0, start_day=0.4), "task", "essay", "", 0.4, 0.4)  # Monday morning
+    result = schedule(blocks, first_weekday=MONDAY, tasks=[task], pins=[pin])
+    worked = [s for s in result.sessions if s.title == "essay"]
+    assert len(worked) == 3 and worked[0].pinned and result.task_left == {}
+
+
+def test_a_pin_on_a_day_off_or_over_budget_is_kept_and_counted():
+    rest = Preferences(weekly_blocks=1, rest_weekdays=(6,))
+    sunday = Block(slot=-1, day=6, start_day=6.75)
+    pin = Pin(sunday, "task", "essay", "", 6.75, 6.75)
+    result = schedule(
+        evenings(7), first_weekday=MONDAY, tasks=[Task("essay", 13.0, 2)], preferences=rest, pins=[pin]
+    )
+    assert [s.block.day for s in result.sessions if s.block.day < 7] == [0, 6]  # one planned, one pinned

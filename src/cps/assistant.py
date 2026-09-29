@@ -32,6 +32,14 @@ A block on a rest day, or beyond the week's budget, is left free. Otherwise:
 5. Otherwise the block stays free. A plan that fills every free hour is a plan
    nobody follows; this one uses time only when something needs it.
 
+A session the student moved (a `Pin`) comes before all of these: it happens where
+they put it, whatever the rules would say, on a rest day or over the budget
+included, and it counts in the week's budget. What it studies is not planned again
+between where it was and where it went, or the rules would put it straight back:
+moving "Algebra" from 17:00 to 20:00 would otherwise leave Algebra the most faded
+topic at 17:00. A pinned block of a task, or of exam practice, before its deadline
+counts towards the work due.
+
 Sessions say what to do, not only when: practice testing (recall first, then check)
 and distributed practice are the two techniques rated high utility in the review
 of ten study techniques by Dunlosky et al. (2013) [ref:dunlosky2013]; rereading and
@@ -93,6 +101,20 @@ class Preferences:
 
 
 @dataclass(frozen=True, slots=True)
+class Pin:
+    """A session the student moved to `block`: what it studies (`kind` and `title`,
+    as in `Session`) happens there, and is not planned by the rules between
+    `hold_from` and `hold_to` (the old and the new time, in days)."""
+
+    block: Block
+    kind: str
+    title: str
+    course: str = ""
+    hold_from: float = 0.0
+    hold_to: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class Session:
     block: Block
     kind: str  # "task", "practice", "first review", "review"
@@ -103,6 +125,7 @@ class Session:
     recall: float = 1.0  # predicted recall of a topic at the start of the block
     stability_before: float = 0.0
     stability_after: float = 0.0
+    pinned: bool = False
 
 
 @dataclass
@@ -123,15 +146,26 @@ def schedule(
     exams: Sequence[Exam] = (),
     preferences: Preferences | None = None,
     week_used: dict[int, int] | None = None,
+    pins: Sequence[Pin] = (),
 ) -> Schedule:
     """Fill `blocks` by the rules in the module docstring.
 
     `first_weekday` is the weekday of day 0 (0 = Monday), which places each block in
     its calendar week for the budget. `week_used` counts blocks already spent in each
-    week (by sessions reported before a replan)."""
+    week (by sessions reported before a replan). `pins` are sessions the student
+    placed; their blocks must not be among `blocks`."""
     prefs = preferences or Preferences()
-    order = sorted(blocks, key=lambda b: b.start_day)
+    pinned = {id(p.block): p for p in pins}
+    order = sorted([*blocks, *(p.block for p in pins)], key=lambda b: b.start_day)
     used = dict(week_used or {})
+
+    def held(kind: str, title: str, now: float) -> bool:
+        return any(
+            p.title == title
+            and (p.kind == kind or {p.kind, kind} <= {"review", "first review"})
+            and p.hold_from <= now < p.hold_to
+            for p in pins
+        )
 
     def week(block: Block) -> int:
         return (first_weekday + block.day) // 7
@@ -139,10 +173,19 @@ def schedule(
     def resting(block: Block) -> bool:
         return (first_weekday + block.day) % 7 in prefs.rest_weekdays
 
-    eligible = [b for b in order if not resting(b)]
+    eligible = [b for b in order if not resting(b) and id(b) not in pinned]
     left = {t.name: t.blocks for t in tasks}
     finish: dict[str, float] = {}
     practice = {e.course: e.practice_blocks for e in exams}
+    # Work already placed by the student before its deadline is work the rules
+    # need not find room for.
+    due = {t.name: t.due_day for t in tasks}
+    exam_day = {e.course: e.day for e in exams}
+    for p in pins:
+        if p.kind == "task" and p.title in left and p.block.start_day < due[p.title]:
+            left[p.title] = max(left[p.title] - 1, 0)
+        if p.kind == "practice" and p.course in practice and p.block.start_day < exam_day[p.course]:
+            practice[p.course] = max(practice[p.course] - 1, 0)
     state = {t.name: (t.memory, t.last_review_day) for t in topics}
     reviewed: set[str] = set()
     result = Schedule()
@@ -169,9 +212,18 @@ def schedule(
                 return True
         return False
 
+    topic_by_name = {t.name: t for t in topics}
     position = 0
     for block in order:
         now = block.start_day
+        pin = pinned.get(id(block))
+        if pin is not None:
+            forced = _pinned_session(pin, topic_by_name, state, reviewed, exam_day)
+            if forced.kind == "task":
+                finish[forced.title] = max(finish.get(forced.title, now), now)
+            used[week(block)] = used.get(week(block), 0) + 1
+            result.sessions.append(forced)
+            continue
         if resting(block):
             continue
         here = position
@@ -183,16 +235,23 @@ def schedule(
             (t for t in tasks if left[t.name] > 0 and t.available_day <= now < t.due_day),
             key=lambda t: t.due_day,
         )
+        free_tasks = [t for t in open_tasks if not held("task", t.name, now)]
         choice: Session | None = None
 
         # 1. A deadline that is getting close: earliest-deadline-first feasibility.
-        if open_tasks and tight(here, open_tasks):
-            choice = _task_session(block, open_tasks[0], left, "a deadline is close")
+        if free_tasks and tight(here, open_tasks):
+            choice = _task_session(block, free_tasks[0], left, "a deadline is close")
 
         # 2. Exam practice in the last days before an exam.
         if choice is None:
             due_exams = sorted(
-                (e for e in exams if practice[e.course] > 0 and e.day - prefs.practice_days <= now < e.day),
+                (
+                    e
+                    for e in exams
+                    if practice[e.course] > 0
+                    and e.day - prefs.practice_days <= now < e.day
+                    and not held("practice", f"Exam practice: {e.course}", now)
+                ),
                 key=lambda e: e.day,
             )
             if due_exams:
@@ -216,7 +275,7 @@ def schedule(
             fading = [
                 (retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
                 for t in topics
-                if t.available_day <= now < t.exam_day
+                if t.available_day <= now < t.exam_day and not held("review", t.name, now)
             ]
             fading = [(r, t) for r, t in fading if r <= prefs.review_below]
             if fading:
@@ -240,8 +299,8 @@ def schedule(
                 )
 
         # 4. Working ahead on the task due soonest.
-        if choice is None and open_tasks:
-            choice = _task_session(block, open_tasks[0], left, "nothing else needs this block")
+        if choice is None and free_tasks:
+            choice = _task_session(block, free_tasks[0], left, "nothing else needs this block")
 
         if choice is None:
             continue  # 5. free time
@@ -255,6 +314,53 @@ def schedule(
     result.task_finish = finish
     result.practice_left = {course: n for course, n in practice.items() if n > 0}
     return result
+
+
+def _pinned_session(
+    pin: Pin,
+    topics: dict[str, Topic],
+    state: dict[str, tuple[MemoryState, float]],
+    reviewed: set[str],
+    exam_day: dict[str, float],
+) -> Session:
+    """The session a pin puts in its block. A review updates the topic's memory as
+    any review does; the work of a task or practice was counted when the schedule
+    began."""
+    now = pin.block.start_day
+    why = "You put it here."
+    topic = topics.get(pin.title)
+    if pin.kind in ("review", "first review") and topic is not None:
+        memory, last = state[topic.name]
+        recall = retrievability(max(now - last, 0.0), memory.stability)
+        after = review(memory, max(now - last, 0.0), Grade.GOOD)
+        state[topic.name] = (after, now)
+        first = topic.name not in reviewed
+        reviewed.add(topic.name)
+        return Session(
+            pin.block,
+            "first review" if first else "review",
+            topic.course,
+            topic.name,
+            _review_text(topic, first),
+            why,
+            recall=recall,
+            stability_before=memory.stability,
+            stability_after=after.stability,
+            pinned=True,
+        )
+    if pin.kind == "practice":
+        days = exam_day.get(pin.course, now) - now
+        return Session(
+            pin.block,
+            "practice",
+            pin.course,
+            pin.title,
+            "Do a past paper or exam-style problems under exam conditions, timed and without "
+            "notes. Then mark it and write down what you missed.",
+            f"{why} The exam is in {days:.0f} days.",
+            pinned=True,
+        )
+    return Session(pin.block, pin.kind, pin.course, pin.title, f"Work on {pin.title}.", why, pinned=True)
 
 
 def _task_session(block: Block, task: Task, left: dict[str, int], reason: str) -> Session:

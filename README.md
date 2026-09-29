@@ -103,11 +103,15 @@ cps web                        # http://127.0.0.1:8000
 2. **Settings**: check the exams, add deadlines (or the learning platform's calendar
    link, and Moodle's assignments and quizzes arrive by themselves at a guessed 2
    hours each), weekly hours, days off.
-3. **Your week**: the timetable and the plan on a calendar. Drag (or tap, on a
-   phone) to block training, work, a commute or time off; drag a block to move it,
-   pull its edge to resize it, tap it to rename it or make it weekly. The plan moves
-   around it as soon as you let go. Tap a study session to open it. Seven days on a
-   wide screen, three on a phone.
+3. **Your plan**: one screen, the calendar beside what is next, what to report,
+   deadlines with their progress and exams with their countdown. Each course has a
+   colour: its lectures lightly, its study sessions fully. Drag on empty time (tap,
+   on a phone) to block training, work, a commute or time off. Drag a study session
+   to move it: it stays where you put it, and the rest of the plan makes room at once;
+   a move onto a lecture, into the past or past a deadline is refused with the reason.
+   Click any session for what to do, why, "done, skipped, hard", and moving it by date
+   and time. Seven days on a wide screen, five on a tablet, three on a phone, with
+   tabs at the bottom.
 4. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
 5. **After each session**: its calendar event links to a page that asks how it went.
@@ -239,10 +243,10 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | path | what it is |
 |---|---|
 | `app.py` | the web page; input and layout only |
-| `widgets/` | the Streamlit side of the week calendar; the calendar itself (`src/cps/web/static/week_calendar.js`, plain JavaScript, no build step) serves both front ends |
+| `widgets/` | the Streamlit workbench's drag-and-drop week (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
 | `src/cps/assistant.py` | the assistant's rules: deadlines, budget, days off, exam practice, self-testing |
-| `src/cps/web/` | the hosted app (`cps web`): pages, the drag-and-drop week, feeds, one-tap reports |
+| `src/cps/web/` | the hosted app (`cps web`): the plan screen and its calendar (`static/calendar.js`), setup, feeds, one-tap reports |
 | `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
 | `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
@@ -262,8 +266,8 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 
 ```bash
 pip install -e ".[dev,app,web]"
-pytest                                    # 371 passed, 14 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 385 passed, 1 xfailed, 93% coverage
+pytest                                    # 388 passed, 14 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 402 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

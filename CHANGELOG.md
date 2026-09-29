@@ -6,6 +6,17 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The hosted app, redesigned around one screen: the calendar beside a panel with
+  what is next, what to report, deadlines with progress and exams with a countdown.
+  Course colours (lectures lightly, study sessions fully), a now line, light and dark
+  themes, popovers on a computer and sheets on a phone, tabs at the bottom on a phone,
+  an onboarding stepper, compact exam rows in Settings (`calendar.js`, `app.js`,
+  `style.css`; `service.course_colours`).
+- Moving a study session: drag it, or give a date and a time. It stays where it was
+  put (a pin), what it studies is not planned again between its old and new time, and
+  a pinned block of work counts towards its deadline (`assistant.Pin`,
+  `service.move_session`, `service.unpin_session`, METHOD.md §8). A move onto the
+  timetable, into the past or past a deadline is refused with the reason.
 - The hosted app's Week page is a calendar to drag on: the timetable, exams and
   study sessions, with busy times drawn, moved, resized and renamed in place, and the
   plan redone at every change (`service.calendar_view`, `/p/<token>/calendar.json`,

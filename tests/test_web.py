@@ -133,7 +133,7 @@ def test_starting_from_a_file_finds_the_exams(web):
     assert subscription.options["start"] == "2026-09-29"
     assert subscription.options["preferences"] == service.DEFAULT_PREFERENCES
     page = web.get(f"/p/{token}/settings?new=1").text
-    assert "Check what was found" in page and "Exam from your timetable: 2027-01-25 13:45" in page
+    assert "Check what was found" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
 
 
 def test_starting_from_a_link_reads_it(web, timetable_server, monkeypatch):
@@ -197,7 +197,7 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
     # Setup goes on to the week, to draw busy times, and from there to the links.
     assert answer.headers["location"] == f"/p/{token}/week?new=1"
     week = web.get(answer.headers["location"]).text
-    assert "Last step: your week" in week and f'href="/p/{token}/feed?new=1"' in week
+    assert "Your week." in week and f'href="/p/{token}/feed?new=1"' in week
     feed_page = web.get(f"/p/{token}/feed?new=1").text
     assert f"http://testserver/feed/{token}.ics" in feed_page
     assert f"webcal://testserver/feed/{token}.ics" in feed_page
@@ -249,8 +249,8 @@ def test_a_deadline_added_from_today(web, planned):
 
 
 def test_the_week_is_a_list_of_days(web, planned):
-    page = web.get(f"/p/{planned}/week").text
-    assert page.count('<section class="day">') == 7
+    page = web.get(f"/p/{planned}/agenda").text  # the calendar for a browser without scripts
+    assert page.count('<section class="section">') == 7
     assert "Work on: Stats report" in page and "Self-test: " in page
     # Timetable titles as a person reads them, not as ADE writes them.
     assert "Advanced Statistics · CM · Salle 3" in page and "Grp:" not in page
@@ -291,7 +291,8 @@ def test_the_link_in_an_event_asks_and_only_the_button_records(web, planned, clo
     assert after.options["tasks"][0]["hours"] == 7.5  # one more block of 90 minutes
     assert [e["kind"] for e in web.store.events(planned)][-1] == "report"
     today = web.get(f"/p/{planned}?reported=struggled").text
-    assert "Recorded: Hard" in today and "Reported: Hard" in today
+    assert "Recorded: Hard" in today
+    assert 'value="struggled" aria-pressed="true"' in web.get(f"/s/{planned}/{sid}").text
 
 
 def test_a_session_to_come_cannot_be_reported(web, planned):
@@ -591,12 +592,82 @@ def test_nonsense_busy_times_are_refused_and_change_nothing(web, planned):
 
 def test_the_week_page_loads_the_calendar_script_under_the_policy(web, planned):
     page = web.get(f"/p/{planned}/week")
-    assert 'type="module" src="/static/week.js"' in page.text
+    assert 'type="module" src="/static/app.js"' in page.text
     assert 'data-first="2026-09-29"' in page.text
     policy = page.headers["content-security-policy"]
     assert "script-src 'self'" in policy and "unsafe-inline" not in policy
-    for name in ("week.js", "week_calendar.js", "week_calendar.css"):
+    for name in ("app.js", "calendar.js", "style.css"):
         asset = web.get(f"/static/{name}")
         assert asset.status_code == 200 and asset.text
     # No inline script or style attribute that the policy would refuse.
     assert "<script>" not in page.text and " style=" not in page.text
+
+
+# --------------------------------------------------------------------------- #
+# Moving sessions, and the panel beside the calendar
+# --------------------------------------------------------------------------- #
+
+
+def _movable(web, token) -> dict:
+    data = web.get(f"/p/{token}/calendar.json?start=2026-09-29&days=7").json()
+    return next(i for i in data["items"] if i["kind"] == "study" and i["movable"])
+
+
+def test_the_calendar_colours_each_course_and_says_what_can_move(web, planned):
+    data = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=7").json()
+    legend = {entry["course"]: entry["color"] for entry in data["legend"]}
+    assert legend["Computer Programming 3"] == 0 and len(set(legend.values())) == len(legend) <= 8
+    lectures = [i for i in data["items"] if i["kind"] == "calendar" and i["course"] == "Algebra 3"]
+    reviews = [i for i in data["items"] if i["kind"] == "study" and i["course"] == "Algebra 3"]
+    assert lectures and reviews and {i["color"] for i in lectures + reviews} == {legend["Algebra 3"]}
+    assert data["now"] == {"date": "2026-09-29", "minute": 8 * 60}
+    study = [i for i in data["items"] if i["kind"] == "study"]
+    assert all(i["movable"] and not i["started"] for i in study)  # nothing has started at 08:00
+
+
+def test_a_session_dragged_on_the_calendar_moves_and_stays(web, planned):
+    item = _movable(web, planned)
+    answer = web.post(
+        f"/p/{planned}/sessions/{item['id']}/move?start=2026-09-29&days=7", json={"to": "2026-10-04T10:00"}
+    )
+    assert answer.status_code == 200, answer.text
+    moved = [i for i in answer.json()["items"] if i["kind"] == "study" and i["pinned"]]
+    assert [(i["label"], i["at"][:16]) for i in moved] == [(item["label"], "2026-10-04T10:00")]
+    assert web.store.events(planned)[-1]["kind"] == "move"
+    panel = web.get(f"/p/{planned}/panel").text
+    assert "<html" not in panel  # a fragment, for the page to put in place
+    assert "Placed by you" in panel or ">placed<" in panel
+    back = web.post(f"/p/{planned}/sessions/{moved[0]['id']}/unpin")
+    assert back.status_code == 200 and not [i for i in back.json()["items"] if i.get("pinned")]
+
+
+def test_a_move_the_plan_cannot_take_is_refused_with_the_reason(web, planned):
+    item = _movable(web, planned)
+    lecture = web.post(f"/p/{planned}/sessions/{item['id']}/move", json={"to": "2026-09-30T11:30"})
+    assert lecture.status_code == 400 and "that time is taken" in lecture.json()["message"]
+    past = web.post(f"/p/{planned}/sessions/{item['id']}/move", json={"to": "2026-09-28T10:00"})
+    assert past.status_code == 400 and "past" in past.json()["message"]
+    nonsense = web.post(f"/p/{planned}/sessions/{item['id']}/move", json=["not", "a", "change"])
+    assert nonsense.status_code == 400
+    gone = web.post(f"/p/{planned}/sessions/000000000000/move", json={"to": "2026-10-04T10:00"})
+    assert gone.status_code == 400 and "no longer in your plan" in gone.json()["message"]
+    assert _subscription(web, planned).options.get("pins", []) == []
+
+
+def test_a_session_is_reported_from_the_calendar(web, planned, clock):
+    item = _movable(web, planned)
+    clock.now = datetime.fromisoformat(item["at"]).astimezone(UTC) + timedelta(minutes=10)
+    answer = web.post(f"/p/{planned}/sessions/{item['id']}/report", json={"outcome": "done"})
+    assert answer.status_code == 200
+    reported = next(i for i in answer.json()["items"] if i.get("id") == item["id"])
+    assert reported["reported"] == "done" and reported["started"] and not reported["movable"]
+    refused = web.post(f"/p/{planned}/sessions/{item['id']}/move", json={"to": "2026-10-04T10:00"})
+    assert refused.status_code == 400 and "already started" in refused.json()["message"]
+
+
+def test_the_panel_is_the_plan_pages_panel(web, planned):
+    page = web.get(f"/p/{planned}").text
+    panel = web.get(f"/p/{planned}/panel").text
+    assert panel.strip() and panel.strip().split("\n")[0] in page
+    assert "Tuesday 29 September" in panel and "sessions in the next 7 days" in panel
+    assert "Stats report" in panel and "Deadlines" in panel

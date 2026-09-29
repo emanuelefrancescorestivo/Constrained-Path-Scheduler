@@ -80,10 +80,9 @@ urgent topics taught so far.
 returns frozen results with `to_dict()` in plain JSON types, turns a user's mistake
 into a typed error with a sentence saying what to do, replans after a session is
 reported forgotten or skipped, and shapes tables and calendar weeks for display.
-`cli` prints what it returns; `app.py` lays it out, with the week calendar
-(`web/static/week_calendar.js`, plain JavaScript, no build step, registered for
-Streamlit by `widgets/`), which returns the activities a person drags out as busy
-rows. A test fails if `app.py` imports anything from `cps` except
+`cli` prints what it returns; `app.py` lays it out, with the week calendar in
+`widgets/` (plain JavaScript, no build step), which returns the activities a person
+drags out as busy rows. A test fails if `app.py` imports anything from `cps` except
 `service`.
 
 **Links and feeds.** `sources` reads a calendar from a link and refuses what a server
@@ -102,12 +101,17 @@ an update is written only over the version it was computed from, else computed a
 in use.
 
 **The hosted app.** `web` is a FastAPI application with Jinja2 templates, one
-stylesheet, and one script: the week calendar, which reads `/p/<token>/calendar.json`
-and saves every edit of the busy times to `/p/<token>/activities`, getting back the
-replanned week. Every page works without the script. It reads forms and JSON, calls
+stylesheet and two script modules. The plan screen puts a panel (what is next, what to
+report, deadlines, exams: HTML from `/p/<token>/panel`) beside the calendar
+(`calendar.js`), which reads `/p/<token>/calendar.json`, saves busy times to
+`/p/<token>/activities`, and moves, unpins or reports a session at
+`/p/<token>/sessions/<id>/…`; each answer is the replanned calendar, and the panel is
+fetched again. Without scripts, every form still works by full page loads and the
+week is a list (`/p/<token>/agenda`). It reads forms and JSON, calls
 `service`, and fills templates; a test fails if it imports anything from `cps` but
-`service`. The page models (`today_view`, `agenda`, `setup_view`, `calendar_view`) are
-in `service`. A student's two secret addresses are the only
+`service`. The page models (`today_view`, `agenda`, `setup_view`, `calendar_view`,
+`course_colours`) are in `service`, and so are the rules for moving a session
+(`move_session`, `unpin_session`; the assistant's pins, METHOD.md §8). A student's two secret addresses are the only
 credential, so nothing logs them, no referrer carries them, and a GET never changes a
 plan: the link in a calendar event opens a page whose button records the report.
 

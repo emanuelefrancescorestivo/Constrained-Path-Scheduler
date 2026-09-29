@@ -79,12 +79,21 @@ OUTCOME_WORDS = {
 
 
 FAMILIARITY = (
-    (1, "1 · new to me"),
-    (2, "2 · seen it, shaky"),
-    (3, "3 · partly"),
-    (4, "4 · well"),
-    (5, "5 · very well"),
+    (1, "New to me"),
+    (2, "Seen it, shaky"),
+    (3, "Know it partly"),
+    (4, "Know it well"),
+    (5, "Know it very well"),
 )
+
+
+def _nice_date(value: str) -> str:
+    """ "2027-01-25 13:45" as a person reads it: "Mon 25 Jan 2027, 13:45"."""
+    try:
+        moment = datetime.fromisoformat(str(value).replace(" ", "T"))
+    except ValueError:
+        return str(value)
+    return f"{moment:%a} {moment.day} {moment:%b %Y}, {moment:%H:%M}"
 
 
 @dataclass
@@ -123,6 +132,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
     templates.env.globals["familiarity"] = FAMILIARITY
+    templates.env.filters["nice_date"] = _nice_date
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -251,40 +261,71 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, subscription.token, "start", "link" if link else "file")
         return RedirectResponse(f"/p/{subscription.token}/settings?new=1", 303)
 
+    def plan_page(
+        request: Request,
+        subscription: service.Subscription,
+        tab: str,
+        status: int = 200,
+        **context: Any,
+    ) -> HTMLResponse:
+        """The main screen: the panel (today, reports, deadlines, exams) beside the
+        calendar. On a phone the tab decides which of the two shows."""
+        token = subscription.token
+        if subscription.source_url and service.is_stale(subscription, config.clock()):
+            feeds.refresh(token)
+        today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
+        return page(
+            request,
+            "plan.html",
+            status,
+            token=token,
+            view=service.today_view(subscription, config.clock()),
+            first=today.isoformat(),
+            tab=tab,
+            **context,
+        )
+
     @app.get("/p/{token}", response_class=HTMLResponse)
     def today(request: Request, token: str, reported: str | None = None, saved: int = 0) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        if subscription.source_url and service.is_stale(subscription, config.clock()):
-            feeds.refresh(token)
-        return page(
-            request,
-            "today.html",
-            token=token,
-            view=service.today_view(subscription, config.clock()),
-            reported=OUTCOME_WORDS.get(reported or ""),
-            saved=bool(saved),
-            tab="today",
+        return plan_page(
+            request, subscription, "today", reported=OUTCOME_WORDS.get(reported or ""), saved=bool(saved)
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
-    def week(request: Request, token: str, w: int = 0, new: int = 0) -> HTMLResponse:
+    def week(request: Request, token: str, new: int = 0) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
+        return plan_page(request, subscription, "calendar", new=bool(new))
+
+    @app.get("/p/{token}/panel", response_class=HTMLResponse)
+    def panel(request: Request, token: str) -> HTMLResponse:
+        """The panel alone, for the page to redraw after a change."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request, "_panel.html", token=token, view=service.today_view(subscription, config.clock())
+        )
+
+    @app.get("/p/{token}/agenda", response_class=HTMLResponse)
+    def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
+        """The week as a list of days: the calendar for a browser without scripts."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if subscription.plan is None:
+            return RedirectResponse(f"/p/{token}", 303)  # type: ignore[return-value]
         w = max(-8, min(w, 60))
-        agenda = service.agenda(subscription, w, config.clock()) if subscription.plan is not None else None
-        today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         return page(
             request,
-            "week.html",
+            "agenda.html",
             token=token,
-            agenda=agenda,
-            first=(today + timedelta(days=7 * w)).isoformat(),
-            new=bool(new),
-            error=subscription.error,
-            tab="week",
+            agenda=service.agenda(subscription, w, config.clock()),
+            tab="calendar",
         )
 
     def days_shown(start: str | None, days: int) -> tuple[date | None, int]:
@@ -337,6 +378,66 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(error.to_dict(), 400)
         service.log_event(store, token, "activities", str(len(rows)))
         return JSONResponse(view)
+
+    async def session_change(
+        request: Request,
+        token: str,
+        sid: str,
+        start: str | None,
+        days: int,
+        change: Callable[[service.Subscription, dict], service.Subscription],
+        kind: str,
+    ) -> Response:
+        """A change to one session from the calendar (move, unpin, report): applied
+        without losing a concurrent write, answered with the new calendar."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": "Too many changes; try again in a while."}, 429)
+        if int(request.headers.get("content-length") or 0) > 4096:
+            return JSONResponse({"message": "too long"}, 413)
+        try:
+            body = await request.json() if int(request.headers.get("content-length") or 0) else {}
+            if not isinstance(body, dict):
+                raise service.InvalidInput("not a change to a session")
+            first, count = days_shown(start, days)
+            fresh = service.update_subscription(store, token, lambda current: change(current, body))
+            if fresh is None:
+                return JSONResponse({"message": "no such plan"}, 404)
+            view = service.calendar_view(fresh, first, count, config.clock())
+        except ValueError:
+            return JSONResponse({"message": "not a change to a session"}, 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        service.log_event(store, token, kind, str(body.get("outcome", "")))
+        return JSONResponse(view)
+
+    @app.post("/p/{token}/sessions/{sid}/move")
+    async def move(
+        request: Request, token: str, sid: str, start: str | None = None, days: int = 7
+    ) -> Response:
+        def change(current: service.Subscription, body: dict) -> service.Subscription:
+            return service.move_session(current, sid, str(body.get("to") or ""), now=config.clock())
+
+        return await session_change(request, token, sid, start, days, change, "move")
+
+    @app.post("/p/{token}/sessions/{sid}/unpin")
+    async def unpin(
+        request: Request, token: str, sid: str, start: str | None = None, days: int = 7
+    ) -> Response:
+        def change(current: service.Subscription, body: dict) -> service.Subscription:
+            return service.unpin_session(current, sid, now=config.clock())
+
+        return await session_change(request, token, sid, start, days, change, "unpin")
+
+    @app.post("/p/{token}/sessions/{sid}/report")
+    async def report_json(
+        request: Request, token: str, sid: str, start: str | None = None, days: int = 7
+    ) -> Response:
+        def change(current: service.Subscription, body: dict) -> service.Subscription:
+            return service.report_session(current, sid, str(body.get("outcome") or ""), now=config.clock())
+
+        return await session_change(request, token, sid, start, days, change, "report")
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
     def settings(request: Request, token: str, new: int = 0) -> HTMLResponse:
@@ -414,15 +515,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
             service.update_subscription(store, token, add)
         except service.ServiceError as error:
-            return page(
-                request,
-                "today.html",
-                400,
-                token=token,
-                view=service.today_view(subscription, config.clock()),
-                task_error=str(error),
-                tab="today",
-            )
+            return plan_page(request, subscription, "today", 400, task_error=str(error))
         service.log_event(store, token, "task")
         return RedirectResponse(f"/p/{token}?saved=1", 303)
 
@@ -441,7 +534,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             page_url=f"{base(request)}/p/{token}",
             new=bool(new),
             planned=subscription.plan is not None,
-            tab="feed",
+            tab="connect",
         )
 
     @app.get("/feed/{name}")

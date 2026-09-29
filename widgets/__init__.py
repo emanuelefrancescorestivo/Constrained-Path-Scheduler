@@ -40,11 +40,11 @@ EXAMPLE_WEEK: tuple[dict, ...] = (
 _COLUMNS = ["label", "kind", "weekday", "date", "start", "end"]
 _WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-# One copy of the calendar for both front ends: the hosted app serves it as a
-# static file, and this page hands the same text to Streamlit.
-_STATIC = Path(service.__file__).parent / "web" / "static"
-_JS = (_STATIC / "week_calendar.js").read_text(encoding="utf-8")
-_CSS = (_STATIC / "week_calendar.css").read_text(encoding="utf-8")
+# The workbench's calendar. The hosted app has its own (cps/web/static/calendar.js),
+# built for a product rather than for a Streamlit component.
+_HERE = Path(__file__).parent
+_JS = (_HERE / "week_calendar.js").read_text(encoding="utf-8")
+_CSS = (_HERE / "week_calendar.css").read_text(encoding="utf-8")
 _MOUNTED: list[tuple[object, Callable[..., object]]] = []
 
 

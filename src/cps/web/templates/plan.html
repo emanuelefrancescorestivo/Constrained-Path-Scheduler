@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{% if tab == 'calendar' %}Calendar{% else %}Today{% endif %} · Study plan{% endblock %}
+{% block head %}<script type="module" src="/static/app.js"></script>{% endblock %}
+{% block body %}
+<div class="plan" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}">
+  <aside class="panel" aria-label="Today">
+    {% if reported %}<p class="notice notice-ok" role="status">Recorded: {{ reported }}. The plan has changed to match.</p>{% endif %}
+    {% if saved %}<p class="notice notice-ok" role="status">Saved. The plan has changed to match.</p>{% endif %}
+    <div id="panel">{% include "_panel.html" %}</div>
+  </aside>
+  <section class="board" aria-label="Calendar">
+    {% if new %}
+    <div class="notice" role="note">
+      {% set step = 3 %}{% include "_steps.html" %}
+      <p><strong>Your week.</strong> Your timetable is already here, and the plan with it.
+      Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening
+      off. Drag a study session to move it. The plan rearranges itself as you go.</p>
+      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1">Next: put it in your calendar</a></p>
+    </div>
+    {% endif %}
+    <div class="board-bar" id="calendar-bar" hidden>
+      <button type="button" class="btn btn-sm" data-go="today">Today</button>
+      <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="Earlier days">‹</button>
+      <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="Later days">›</button>
+      <span class="range" id="calendar-range" aria-live="polite"></span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm" data-go="busy" aria-label="Add a busy time">+ <span class="wide-only">Busy time</span></button>
+    </div>
+    <div id="calendar">
+      <div class="board-fallback">
+        <p>The calendar needs JavaScript. <a href="/p/{{ token }}/agenda">See the week as a list</a>, and add busy times in <a href="/p/{{ token }}/settings">Settings</a>.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

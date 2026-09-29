@@ -1,6 +1,5 @@
 // A week calendar for the study planner: drag to block time, click to edit.
-// Used by the hosted app (cps.web, static/week.js) and the Streamlit page
-// (widgets/), from this one file.
+// The Streamlit workbench's calendar (the hosted app has cps/web/static/calendar.js).
 //
 // Pure presentation. It receives the week's days, read-only items (calendar
 // events, exams, study sessions) and the person's own activities as rows in the
