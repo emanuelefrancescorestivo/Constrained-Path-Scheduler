@@ -28,8 +28,8 @@ than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 371 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 385 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 388 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 402 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -51,7 +51,7 @@ than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
-| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time |
+| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
@@ -59,11 +59,15 @@ than an impressive number.
 | `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop week, one-tap reports, privacy; only calls `service`; every page works without its one script |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `sweep` / `backup`; UTF-8 output hardening |
 
-The week calendar is `web/static/week_calendar.js` and `.css`: plain JavaScript,
-layout and input only, one copy for both front ends. The hosted app mounts it from
-`web/static/week.js`; `widgets/` (next to `app.py`, not in the package) registers the
-same file as a Streamlit v2 component. It must work under the app's
-Content-Security-Policy: styles through the CSSOM, no inline script or style.
+The hosted app's front end is `web/static/`: `style.css` (tokens, light and dark,
+eight course colours), `calendar.js` (the calendar: draw, drag, popovers) and
+`app.js` (the plan screen: the panel is server-rendered HTML, fetched again after
+each change). Plain JavaScript modules, no build step, no framework, layout and
+input only: every decision comes back from `service` as JSON or HTML. They must work
+under the app's Content-Security-Policy: styles through the CSSOM (or classes, such
+as the `w0`..`w100` progress widths), no inline script or style. `widgets/` (next to
+`app.py`) is the Streamlit workbench's own calendar component. Check the front end in
+a real browser at desktop and phone widths; the Python tests do not run JavaScript.
 
 ## Invariants: do not weaken these to get a green build
 

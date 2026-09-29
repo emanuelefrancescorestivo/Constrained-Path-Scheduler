@@ -2,52 +2,54 @@
 {% block title %}Settings · Study plan{% endblock %}
 {% block main %}
 {% if new %}
+{% set step = 2 %}{% include "_steps.html" %}
 <h1>Check what was found</h1>
-<p>Your timetable is read. Check the exams, add your deadlines, say how much you want
-to study, then save: the plan is made at once.</p>
+<p class="muted">Your timetable is read. Check the exams, add your deadlines, and say how much
+you want to study. Next, you will see your week.</p>
 {% else %}
 <h1>Settings</h1>
 {% endif %}
-{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
 
 <form method="post" action="/p/{{ token }}/settings">
 {% if new %}<input type="hidden" name="new" value="1">{% endif %}
 
 <fieldset>
   <legend>Exams</legend>
-  <p class="hint">Each week of lectures is planned on its own once it has been taught;
-  "how well you know it" is about what was taught before today.</p>
+  <p class="hint">For each exam: how well you already know what was taught before today.
+  Each later week of lectures is planned on its own once it has been taught.</p>
   {% for s in values.subjects %}
   {% set i = loop.index0 %}
-  <div class="item">
+  <div class="item exam-row">
     <input type="hidden" name="s{{ i }}_found" value="{{ '1' if s.found else '' }}">
     <input type="hidden" name="s{{ i }}_found_when" value="{{ s.found_when }}">
-    <label for="s{{ i }}_name">Course</label>
-    <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}">
-    {% if s.found and s.found_when and not s.exam %}
-    <p class="hint">Exam from your timetable: {{ s.found_when }}; it follows the timetable if that changes.</p>
-    <details><summary>A different date?</summary>
+    <div class="exam-main">
+      <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}" class="bare" aria-label="Course">
+      {% if s.found and s.found_when and not s.exam %}
+      <p class="hint">Exam {{ s.found_when | nice_date }} · from your timetable</p>
+      <details class="inline"><summary>Different date</summary>
+        <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" aria-label="Exam date">
+      </details>
+      {% else %}
       <label for="s{{ i }}_exam">Exam</label>
-      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
-    </details>
-    {% else %}
-    <label for="s{{ i }}_exam">Exam</label>
-    <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
-    {% if s.found and not s.found_when %}<p class="hint">Not in your timetable any more: give its date.</p>{% endif %}
-    {% if s.found and s.found_when %}<p class="hint">Leave empty to follow your timetable ({{ s.found_when }}).</p>{% endif %}
-    {% endif %}
-    <label for="s{{ i }}_familiarity">How well you know it already</label>
-    <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity">
-      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ word }}</option>{% endfor %}
-    </select>
-    <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> Do not plan for this exam</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
+      {% if s.found and not s.found_when %}<p class="hint">Not in your timetable any more: give its date.</p>{% endif %}
+      {% if s.found and s.found_when %}<p class="hint">Leave empty to follow your timetable ({{ s.found_when | nice_date }}).</p>{% endif %}
+      {% endif %}
+    </div>
+    <div class="exam-side">
+      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="How well you know it already">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ word }}</option>{% endfor %}
+      </select>
+      <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> Skip</label>
+    </div>
   </div>
   {% endfor %}
   {% set n = values.subjects | length %}
   {% for f in values.unplanned_exams %}
   {% set i = n + loop.index0 %}
   <div class="item">
-    <p>Also in your timetable: <strong>{{ f.subject }}</strong>, {{ f.when }}.</p>
+    <p>Also in your timetable: <strong>{{ f.subject }}</strong>, {{ f.when | nice_date }}.</p>
     <input type="hidden" name="s{{ i }}_found" value="1">
     <input type="hidden" name="s{{ i }}_name" value="{{ f.subject }}">
     <input type="hidden" name="s{{ i }}_familiarity" value="3">
@@ -55,6 +57,8 @@ to study, then save: the plan is made at once.</p>
   </div>
   {% endfor %}
   {% set n = n + (values.unplanned_exams | length) %}
+  <details{% if not values.subjects %} open{% endif %}>
+  <summary>+ Add an exam that is not in your timetable</summary>
   {% for k in range(empty_rows) %}
   {% set i = n + k %}
   <div class="item new">
@@ -69,10 +73,11 @@ to study, then save: the plan is made at once.</p>
     </select>
   </div>
   {% endfor %}
+  </details>
   <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
 </fieldset>
 
-<fieldset>
+<fieldset id="deadlines">
   <legend>Deadlines</legend>
   <p class="hint">Homework, reports, projects, readings: when each is due and roughly how many hours it takes.</p>
   <label for="deadlines_url">Your learning platform's calendar link (Moodle)</label>
@@ -144,7 +149,7 @@ to study, then save: the plan is made at once.</p>
 <fieldset>
   <legend>Busy times not in your timetable</legend>
   <p class="hint">Training, a job, a commute: nothing is planned then. Draw them on the
-  {% if new %}calendar, the next step{% else %}<a href="/p/{{ token }}/week">Week</a> calendar{% endif %};
+  {% if new %}calendar, the next step{% else %}<a href="/p/{{ token }}/week">calendar</a>{% endif %};
   {% if values.activities %}you have {{ values.activities | length }}.{% else %}you have none yet.{% endif %}</p>
   <details>
   <summary>Type them instead</summary>
@@ -176,14 +181,16 @@ to study, then save: the plan is made at once.</p>
   </details>
 </fieldset>
 
-<button type="submit" class="primary sticky">{% if new %}Next: your week{% else %}Save and plan{% endif %}</button>
+<div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new %}Next: your week{% else %}Save and plan{% endif %}</button></div>
 </form>
 
 {% if not new %}
+<div class="card section">
 <h2>Your timetable</h2>
 <p>{% if values.source_url %}Read from its link, again every few hours.{% else %}From the file you gave; it does not change.{% endif %}
 Time zone: {{ values.tz }}.</p>
-<h2>Your data</h2>
+<h2 class="section">Your data</h2>
 <p><a href="/p/{{ token }}/delete">Delete my plan and all my data</a> · <a href="/privacy">Privacy</a></p>
+</div>
 {% endif %}
 {% endblock %}

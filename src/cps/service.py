@@ -53,13 +53,14 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
-from .assistant import Exam, Preferences, Task, Topic, blocks_for_hours
+from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
     BusyEvent,
     BusyRow,
     availability_from_events,
     busy_from_table,
+    course_of,
     decode_ics,
     expand_events,
     find_assignments,
@@ -511,6 +512,7 @@ class SessionView:
     topic: str = ""
     kind: str = "review"  # "review", "first review", "task", "practice"
     detail: str = ""  # what to do in the block (the assistant says; the planner does not)
+    pinned: bool = False  # the student put it at this time (`move_session`)
 
     @property
     def title(self) -> str:
@@ -1326,16 +1328,28 @@ def calendar_week(
             kind = "exam"
             shown_exams.add(event.start)
         label = event.summary if kind == "exam" else short_title(event.summary)
-        place(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), label, kind)
+        course = exams.get(event.start) or course_of(event.summary)
+        lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
+        place(lo, hi, label, kind, course=course)
     for when, name in exams.items():
         if when not in shown_exams:
             moment = datetime.fromisoformat(when)
-            place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam")
+            place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam", course=name)
     for begin, end, label, session in sessions:
-        extra = {}
+        extra: dict[str, Any] = {}
         if isinstance(session, SessionView):
             label = session_label(session)
-            extra = {"id": session_id(session), "detail": session.detail}
+            extra = {
+                "id": session_id(session),
+                "detail": session.detail,
+                "why": session.rationale,
+                "title": session.title,
+                "session_kind": session.kind,
+                "pinned": session.pinned,
+                "course": session.subject,
+                "at": session.start,
+                "until": session.end,
+            }
         place(datetime.fromisoformat(begin), datetime.fromisoformat(end), label, "study", **extra)
     return {
         "days": [
@@ -1649,6 +1663,7 @@ def refresh_subscription(
                 lectures_as_topics=options["lectures_as_topics"],
                 done=done,
                 now=now,
+                pins=options.get("pins", ()),
                 **options.get("preferences", {}),
             )
         else:
@@ -1663,8 +1678,11 @@ def refresh_subscription(
             )
     except ServiceError as error:
         return replace(subscription, error=str(error))
+    # A pin behind now has done its work: its session is in the history.
+    pins = [p for p in options.get("pins", ()) if datetime.fromisoformat(p["end"]) > now]
     return replace(
         subscription,
+        options={**options, "pins": pins} if "pins" in options else options,
         ics_text=cached,
         plan=plan.to_dict(),
         refreshed=now.astimezone(UTC).isoformat(timespec="seconds"),
@@ -1727,6 +1745,92 @@ def report_session(
             ],
         }
     changed = replace(subscription, options=options, outcomes={**subscription.outcomes, sid: report})
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def _local(value: str | datetime, zone: ZoneInfo) -> datetime:
+    moment = datetime.fromisoformat(value) if isinstance(value, str) else value
+    return moment.replace(tzinfo=zone) if moment.tzinfo is None else moment.astimezone(zone)
+
+
+def move_session(
+    subscription: Subscription, sid: str, start: str | datetime, *, now: datetime | None = None
+) -> Subscription:
+    """Put a session the student has not started at another time (`start`, local
+    when naive). It stays there, pinned, whatever the rules say; what it studies is
+    not planned again between its old and its new time; the rest of the plan is
+    made again around it at once. Refused, with a sentence saying why, when the new
+    time is taken, past, or after the deadline or exam it prepares."""
+    now = now or datetime.now(UTC)
+    session = find_session(subscription, sid)
+    if session is None or subscription.plan is None:
+        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    old_start, old_end = _local(session.start, zone), _local(session.end, zone)
+    if session not in plan.sessions or old_start <= now:
+        raise InvalidInput("this session has already started; report it instead of moving it")
+    begin = _local(start, zone).replace(second=0, microsecond=0)
+    end = begin + (old_end - old_start)
+    if begin <= now:
+        raise InvalidInput("that time is already past")
+    if _days_after(plan.settings.start, begin) >= plan.settings.horizon_days:
+        raise InvalidInput("that is after the end of your plan")
+    for event in plan.events:
+        lo, hi = _local(event.start, zone), _local(event.end, zone)
+        if lo < end and begin < hi:
+            raise InvalidInput(f"that time is taken: {short_title(event.summary)}, {lo:%H:%M}–{hi:%H:%M}")
+    limit = None
+    if session.kind == "task":
+        task = next((t for t in plan.tasks if t.name == session.title), None)
+        limit = (_local(task.due, zone), "it is due") if task else None
+    else:
+        subject = next((x for x in plan.subjects if x.name == session.subject), None)
+        limit = (_local(subject.exam, zone), "the exam") if subject else None
+    if limit is not None and end > limit[0]:
+        raise InvalidInput(f"that is after {limit[1]} ({limit[0]:%a %d %b %H:%M})")
+    if session.kind in ("review", "first review"):
+        spec = next((x for x in plan.specs if x["name"] == session.title), None)
+        if spec is not None and _days_after(plan.settings.start, begin) < spec.get("available_day", 0.0):
+            raise InvalidInput("those lectures have not been taught yet at that time")
+    pins = [dict(p) for p in subscription.options.get("pins", ())]
+    origin = session.start
+    for p in list(pins):
+        if p["title"] == session.title and _local(p["start"], zone) == old_start:
+            origin = p.get("from") or origin
+            pins.remove(p)
+    for p in pins:
+        if _local(p["start"], zone) < end and begin < _local(p["end"], zone):
+            raise InvalidInput(f"that time is taken by another session you placed: {p['title']}")
+    pins.append(
+        {
+            "kind": session.kind,
+            "title": session.title,
+            "course": session.subject,
+            "start": _iso(begin),
+            "end": _iso(end),
+            "from": origin,
+        }
+    )
+    changed = replace(subscription, options={**subscription.options, "pins": pins})
+    fresh = refresh_subscription(changed, now=now, reread=False)
+    if fresh.error:
+        raise InvalidInput(fresh.error)
+    return fresh
+
+
+def unpin_session(subscription: Subscription, sid: str, *, now: datetime | None = None) -> Subscription:
+    """Give a moved session back to the planner: it goes wherever the rules put it."""
+    session = find_session(subscription, sid)
+    if session is None or subscription.plan is None:
+        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+    zone = _zone(subscription.options["tz"])
+    pins = [
+        p
+        for p in subscription.options.get("pins", ())
+        if not (p["title"] == session.title and _local(p["start"], zone) == _local(session.start, zone))
+    ]
+    changed = replace(subscription, options={**subscription.options, "pins": pins})
     return refresh_subscription(changed, now=now, reread=False)
 
 
@@ -2081,7 +2185,13 @@ def _when(moment: datetime, now: datetime) -> str:
     return f"{day} {moment:%H:%M}"
 
 
-def _session_card(s: SessionView, zone: ZoneInfo, now: datetime, outcomes: Mapping[str, str]) -> dict:
+def _session_card(
+    s: SessionView,
+    zone: ZoneInfo,
+    now: datetime,
+    outcomes: Mapping[str, str],
+    colours: Mapping[str, int] | None = None,
+) -> dict:
     start = datetime.fromisoformat(s.start).astimezone(zone)
     end = datetime.fromisoformat(s.end).astimezone(zone)
     sid = session_id(s)
@@ -2089,13 +2199,18 @@ def _session_card(s: SessionView, zone: ZoneInfo, now: datetime, outcomes: Mappi
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
         "title": s.title if s.kind == "task" else s.subject,
+        "label": session_label(s),
         "kind": KIND_LABELS.get(s.kind, s.kind),
         "when": _when(start, now),
+        "day": _when(start, now).rsplit(" ", 1)[0],
+        "time": f"{start:%H:%M}–{end:%H:%M}",
         "until": f"{end:%H:%M}",
         "what": s.detail,
         "why": s.rationale,
         "reported": outcomes.get(sid),
         "started": start <= now,
+        "pinned": s.pinned,
+        "color": (colours or {}).get(s.subject.casefold()),
     }
 
 
@@ -2107,6 +2222,32 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
     local = (now or datetime.now(UTC)).astimezone(zone)
     return _session_card(session, zone, local, subscription.outcomes)
+
+
+# How many course colours the pages have (CSS classes c0 to c7): enough to tell a
+# semester's courses apart; beyond that, colours repeat.
+COURSE_PALETTE = 8
+
+
+def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]:
+    """Each course and its colour index: the subjects with an exam first, in the
+    order of their exams, then the other courses of the timetable. A course's
+    lectures and its study sessions share its colour."""
+    names: list[str] = []
+    if isinstance(source, PlanReport):
+        names += [x.name for x in sorted(source.subjects, key=lambda x: x.exam)]
+        names += sorted({t.course for t in source.tasks if t.course}, key=str.casefold)
+    else:
+        names += [a.subject for a in source.assessments]
+    taught = {course_of(e.summary) for e in source.events if e.source != "typed"} - {""}
+    names += sorted(taught, key=str.casefold)
+    seen: dict[str, int] = {}
+    ordered = []
+    for name in names:
+        if name.casefold() not in seen:
+            seen[name.casefold()] = len(seen) % COURSE_PALETTE
+            ordered.append((name, seen[name.casefold()]))
+    return ordered
 
 
 def calendar_view(
@@ -2130,8 +2271,26 @@ def calendar_view(
             days=max(7, (first - date.fromisoformat(options["start"])).days + count),
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
+    moment = (now or datetime.now(UTC)).astimezone(zone)
+    legend = course_colours(source)
+    colours = {name.casefold(): index for name, index in legend}
+    upcoming = (
+        {session_id(x) for x in source.sessions}
+        if isinstance(source, PlanReport) and source.settings.engine == "assistant"
+        else set()
+    )
+    for item in week["items"]:
+        item["color"] = colours.get(str(item.get("course") or "").casefold())
+        if item["kind"] == "study":
+            started = _local(item["at"], zone) <= moment
+            item["started"] = started
+            item["done"] = _local(item["until"], zone) <= moment
+            item["reported"] = subscription.outcomes.get(item["id"])
+            item["movable"] = not started and item["id"] in upcoming
     return {
         **week,
+        "now": {"date": moment.date().isoformat(), "minute": moment.hour * 60 + moment.minute},
+        "legend": [{"course": name, "color": index} for name, index in legend],
         "activities": [
             {
                 "label": r["label"],
@@ -2216,9 +2375,12 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view: dict = {
         "planned": subscription.plan is not None,
         "error": subscription.error,
+        "today": "",
         "to_report": [],
         "now": None,
         "next": [],
+        "unreported": [],
+        "week": {"sessions": 0, "hours": 0.0},
         "tasks": [],
         "exams": [],
         "warnings": [],
@@ -2228,7 +2390,11 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
-    cards = [_session_card(s, zone, local, subscription.outcomes) for s in plan.history + plan.sessions]
+    view["today"] = f"{local:%A} {local.day} {local:%B}"
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    cards = [
+        _session_card(s, zone, local, subscription.outcomes, colours) for s in plan.history + plan.sessions
+    ]
     moments = [
         (datetime.fromisoformat(s.start).astimezone(zone), datetime.fromisoformat(s.end).astimezone(zone))
         for s in plan.history + plan.sessions
@@ -2243,26 +2409,50 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     if view["now"] is not None:
         view["to_report"].append(view["now"])
     view["to_report"].reverse()
+    # The panel asks only about what has not been answered yet.
+    view["unreported"] = [c for c in view["to_report"] if not c["reported"]]
+    week_end = local + timedelta(days=7)
+    coming = [
+        s for s in plan.sessions if local <= datetime.fromisoformat(s.start).astimezone(zone) < week_end
+    ]
+    view["week"] = {
+        "sessions": len(coming),
+        "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
+    }
+    done_blocks: dict[str, int] = {}
+    for x in plan.history:
+        if x.kind == "task" and x.outcome != "skipped":
+            done_blocks[x.title] = done_blocks.get(x.title, 0) + 1
     view["tasks"] = [
         {
             "name": t.name,
             "course": t.course,
             "due": _when(datetime.fromisoformat(t.due).astimezone(zone), local),
+            "days": max((datetime.fromisoformat(t.due) - now) / timedelta(days=1), 0.0),
             "planned": f"{t.scheduled} of {t.blocks} blocks",
+            "done": done_blocks.get(t.name, 0),
+            "blocks": t.blocks,
+            "percent": round(100 * min(done_blocks.get(t.name, 0) / t.blocks, 1.0)) if t.blocks else 100,
             "finish": _when(datetime.fromisoformat(t.finish).astimezone(zone), local) if t.finish else "",
             "at_risk": t.at_risk,
             "past": datetime.fromisoformat(t.due) < now,
+            "color": colours.get(t.course.casefold()),
         }
-        for t in plan.tasks
+        for t in sorted(plan.tasks, key=lambda t: t.due)
     ]
     view["exams"] = [
         {
             "name": x.name,
             "when": _when(datetime.fromisoformat(x.exam).astimezone(zone), local),
+            "days": (datetime.fromisoformat(x.exam) - now) / timedelta(days=1),
             "status": subject_status(x),
             "ready": x.ready,
+            "topics": x.topics,
+            "topics_ready": x.topics_ready if x.topics > 1 else int(x.ready),
+            "percent": round(100 * (x.topics_ready if x.topics > 1 else int(x.ready)) / max(x.topics, 1)),
+            "color": colours.get(x.name.casefold()),
         }
-        for x in plan.subjects
+        for x in sorted(plan.subjects, key=lambda x: x.exam)
         if datetime.fromisoformat(x.exam) > now
     ]
     # A subject short of its target already says so in its status line; other
@@ -2336,6 +2526,7 @@ def make_schedule(
     lectures_as_topics: bool = True,
     done: Sequence[SessionView] = (),
     now: datetime | None = None,
+    pins: Sequence[Mapping] = (),
 ) -> PlanReport:
     """The student's week, scheduled by the assistant's rules (`cps.assistant`):
     deadlines first when they get close, exam practice before each exam, self-testing
@@ -2422,7 +2613,7 @@ def make_schedule(
         for i, x in enumerate(sorted((x for x in done if x.title in known), key=lambda x: x.start_day))
     )
     after = _days_after(report.start, now.astimezone(zone)) if now is not None else -1.0
-    return _assist(settings, specs, views, report.blocks, report.events, history, after)
+    return _assist(settings, specs, views, report.blocks, report.events, history, after, pins)
 
 
 def _assist(
@@ -2433,11 +2624,38 @@ def _assist(
     events: tuple[EventView, ...],
     history: tuple[SessionView, ...],
     after_day: float,
+    pins: Sequence[Mapping] = (),
 ) -> PlanReport:
     """Run the assistant on the blocks after `after_day`, from the state `history`
-    leaves, and report it in the shape every front end already reads."""
+    leaves, and report it in the shape every front end already reads. `pins` are the
+    sessions the student moved (`move_session`); the free blocks they overlap are
+    left out, and a pin whose task, topic or exam is gone is dropped."""
     prefs = settings.preferences
     minutes = settings.block_minutes
+    zone = _zone(settings.tz)
+    names = {s["name"] for s in specs} | {t.name for t in tasks}
+    courses = {s.get("subject", s["name"]) for s in specs}
+    pinned_views: list[BlockView] = []
+    forced: list[Pin] = []
+    for i, p in enumerate(pins):
+        start, end = _local(p["start"], zone), _local(p["end"], zone)
+        day = _days_after(settings.start, start)
+        known = p["course"] in courses if p["kind"] == "practice" else p["title"] in names
+        if day <= after_day or not known:
+            continue
+        origin = _days_after(settings.start, _local(p.get("from") or p["start"], zone))
+        view = BlockView(slot=-1 - i, day=math.floor(day), start_day=day, start=_iso(start), end=_iso(end))
+        pinned_views.append(view)
+        hold = (min(origin, day), max(origin, day))
+        forced.append(Pin(view.as_block(), p["kind"], p["title"], p["course"], *hold))
+
+    def overlaps(b: BlockView) -> bool:
+        lo, hi = datetime.fromisoformat(b.start), datetime.fromisoformat(b.end)
+        return any(
+            lo < datetime.fromisoformat(v.end) and datetime.fromisoformat(v.start) < hi for v in pinned_views
+        )
+
+    blocks = tuple(b for b in blocks if not overlaps(b))
     states = _replay(specs, history)
     counted = [h for h in history if h.outcome != "skipped"]
     done_task: dict[str, int] = {}
@@ -2488,9 +2706,10 @@ def _assist(
             review_below=settings.retention,
         ),
         week_used=week_used,
+        pins=forced,
     )
 
-    by_slot = {b.slot: b for b in blocks}
+    by_slot = {b.slot: b for b in (*blocks, *pinned_views)}
     sessions = tuple(
         SessionView(
             index=len(history) + i,
@@ -2508,6 +2727,7 @@ def _assist(
             topic=x.title,
             kind=x.kind,
             detail=x.what,
+            pinned=x.pinned,
         )
         for i, x in enumerate(result.sessions)
     )

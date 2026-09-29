@@ -1,39 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Your calendar · Study plan{% endblock %}
+{% block title %}Connect your calendar · Study plan{% endblock %}
 {% block main %}
-{% if new %}
-<h1>Your plan is ready</h1>
-<p>Two addresses belong to you. Keep both private: whoever has them can see your plan,
-and the first one can change it.</p>
-<h2>1. This page</h2>
-<p>Bookmark it or add it to your home screen: it is where you see today, report
-sessions and change settings.</p>
-<input readonly value="{{ page_url }}" aria-label="Your plan's address" class="copy">
-<h2>2. Your calendar</h2>
-{% else %}
-<h1>Your plan in your calendar</h1>
-{% endif %}
-{% if not planned %}<p class="warning">There is nothing planned yet: add an exam or a deadline in Settings first.</p>{% endif %}
-<p>Subscribe to this address in your calendar app. The plan appears next to your
-timetable and updates by itself; each session says what to do and has a link to
-report how it went.</p>
-<input readonly value="{{ feed }}" aria-label="Calendar subscription address" class="copy">
-<p><a class="button primary" href="{{ webcal }}">Open in my calendar app</a></p>
-<details open>
-  <summary>How to subscribe</summary>
+{% if new %}{% set step = 4 %}{% include "_steps.html" %}{% endif %}
+<h1>{% if new %}Put your plan in your calendar{% else %}Connect your calendar{% endif %}</h1>
+<p class="muted">Subscribe once: every study session appears next to your timetable, updates by
+itself, and has a link to say how it went.</p>
+{% if not planned %}<p class="notice">There is nothing planned yet: add an exam or a deadline in Settings first.</p>{% endif %}
+
+<div class="card section">
+  <div class="card-title"><h2>Your calendar's address</h2></div>
+  <input readonly value="{{ feed }}" aria-label="Calendar subscription address" class="copy">
+  <p><a class="btn btn-primary" href="{{ webcal }}">Open in my calendar app</a></p>
   <dl>
-    <dt>Google Calendar (on a computer)</dt>
-    <dd>Other calendars, +, From URL; paste the address. It then appears on your phone too.
-    Google reads subscribed calendars on its own schedule, often every few hours or more,
-    so a change can take that long to show.</dd>
-    <dt>iPhone or Mac</dt>
-    <dd>Tap "Open in my calendar app", or Settings, Calendar, Accounts, Add Account,
-    Other, Add Subscribed Calendar.</dd>
+    <dt>Google Calendar</dt>
+    <dd>On a computer: Other calendars, +, From URL, and paste the address. It then shows on
+    your phone too. Google reads subscribed calendars on its own schedule, often hours apart,
+    so a change can take that long to appear; this site is always up to date.</dd>
+    <dt>iPhone, iPad or Mac</dt>
+    <dd>Tap "Open in my calendar app", or Settings, Calendar, Accounts, Add Account, Other,
+    Add Subscribed Calendar.</dd>
     <dt>Outlook</dt>
     <dd>Add calendar, Subscribe from web.</dd>
     <dt>Notion Calendar</dt>
     <dd>Subscribe in the Google or Apple calendar it shows.</dd>
   </dl>
-</details>
-<p><a href="/p/{{ token }}">Go to today →</a></p>
+</div>
+
+<div class="card section">
+  <div class="card-title"><h2>This page's address</h2></div>
+  <p class="muted">Bookmark it, or add it to your phone's home screen: it is your key to your
+  plan. Anyone with it can see and change your plan, so keep it to yourself.</p>
+  <input readonly value="{{ page_url }}" aria-label="Your plan's address" class="copy">
+</div>
+<p class="section"><a class="btn btn-primary" href="/p/{{ token }}">{% if new %}Done: go to my plan{% else %}Back to my plan{% endif %}</a></p>
 {% endblock %}

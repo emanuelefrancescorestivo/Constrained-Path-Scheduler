@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Delete · Study plan{% endblock %}
 {% block main %}
+<div class="card">
 <h1>Delete everything?</h1>
-<p>Your plan, your timetable (and its link), your deadlines, your activities and every
+<p>Your plan, your timetable (and its link), your deadlines, your busy times and every
 session you reported are deleted at once. This cannot be undone.</p>
-<form method="post" action="/p/{{ token }}/delete">
-  <button type="submit" class="danger">Delete everything</button>
+<form method="post" action="/p/{{ token }}/delete" class="pop-actions">
+  <a class="btn left" href="/p/{{ token }}/settings">Keep my plan</a>
+  <button type="submit" class="btn btn-danger">Delete everything</button>
 </form>
-<p><a href="/p/{{ token }}/settings">Keep my plan</a></p>
+</div>
 {% endblock %}

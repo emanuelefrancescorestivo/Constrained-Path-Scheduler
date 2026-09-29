@@ -301,6 +301,16 @@ free block to five rules in order:
 4. **Working ahead** on the task due soonest.
 5. **Free time** otherwise, within a weekly budget and never on a day off.
 
+**Sessions the student moves.** Dragging a session to another time pins it there: it
+happens where it was put, before any rule is asked, on a day off or over the budget
+included, and it counts in that week's budget. Two consequences are designed in. What
+the session studies is not planned again between its old and its new time, or the
+rules would put it straight back (a review moved from 17:00 to 20:00 leaves its topic
+the most faded one at 17:00). And a pinned block of a task, or of exam practice, before
+its deadline counts towards the work due, so moving work does not add work. A move
+onto the timetable, into the past, after the task's deadline or the exam, or before
+the lectures it reviews were taught, is refused with the reason.
+
 The sessions say what to do. Of ten study techniques reviewed by Dunlosky et al.
 (2013), practice testing and distributed practice were the two rated high utility and
 rereading and highlighting low [ref:dunlosky2013]; so a review is "recall first, then

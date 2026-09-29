@@ -2,10 +2,9 @@
 {% block title %}{{ card.title }} · Study plan{% endblock %}
 {% block main %}
 <h1>How did it go?</h1>
-{% with show_why=true %}{% include "_card.html" %}{% endwith %}
-{% if not card.started %}
-<p class="hint">You can report this session once it has started.</p>
-{% endif %}
-<p class="hint"><strong>Hard</strong> on a self-test means you could not recall much: it comes
-back sooner. On deadline work, it means it needs more time: one more session is planned.</p>
+<div class="section">{% with show_why=true %}{% include "_session.html" %}{% endwith %}</div>
+{% if not card.started %}<p class="hint">You can report this session once it has started.</p>{% endif %}
+<p class="hint"><strong>Hard</strong> on a self-test means you could not recall much: it comes back
+sooner. On deadline work, it means it needs more time: one more session is planned.</p>
+<p><a href="/p/{{ token }}">Back to your plan</a></p>
 {% endblock %}
