@@ -18,20 +18,20 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
 
 ## Phase 1: the hosted product
 
-- [ ] **W1 Storage.** SQLite for students' plans, settings and reported sessions.
-- [ ] **W2 Web app.** One FastAPI app for pages, feeds and feedback; security headers,
+- [x] **W1 Storage.** SQLite for students' plans, settings and reported sessions.
+- [x] **W2 Web app.** One FastAPI app for pages, feeds and feedback; security headers,
       rate limits, no secrets in logs.
-- [ ] **W3 One-tap feedback.** Done, skipped, struggled, from each calendar event and
+- [x] **W3 One-tap feedback.** Done, skipped, struggled, from each calendar event and
       from the Today page, confirmed by a second tap; the plan changes at once.
-- [ ] **W4 Today page.** Phone first: what's next and what to do, the week, deadlines
+- [x] **W4 Today page.** Phone first: what's next and what to do, the week, deadlines
       at risk, add a deadline.
-- [ ] **W5 Two-minute setup.** Timetable link, courses and exams found, deadlines,
+- [x] **W5 Two-minute setup.** Timetable link, courses and exams found, deadlines,
       hours and days off, then the feed link and the Today link.
-- [ ] **W6 Privacy.** A privacy page, deletion on request and after the exams.
-- [ ] **W7 Deployment.** Render blueprint, health check, settings from the
+- [x] **W6 Privacy.** A privacy page, deletion on request and after the exams.
+- [x] **W7 Deployment.** Render blueprint, health check, settings from the
       environment, daily backup, click-by-click steps.
-- [ ] **W8 Moodle deadlines.** A learning platform's calendar export becomes tasks.
-- [ ] **W9 Tests, browser run, documents.**
+- [x] **W8 Moodle deadlines.** A learning platform's calendar export becomes tasks.
+- [x] **W9 Tests, browser run, documents.**
 - [ ] **C1 (owner)** Create the Render account, connect the repository, set two
       settings, go through setup on a phone with one's own timetable.
 - [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.

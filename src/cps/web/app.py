@@ -47,8 +47,6 @@ from fastapi.templating import Jinja2Templates
 from starlette.datastructures import UploadFile
 
 from cps import service
-from cps.feed import FeedApp
-from cps.store import Store
 
 from . import forms
 from .limits import Limiter
@@ -115,8 +113,8 @@ class Config:
 
 def create_app(config: Config | None = None) -> FastAPI:
     config = config or Config.from_env()
-    store = Store(config.store)
-    feeds = FeedApp(store.path, background=config.background, clock=config.clock, fetch=config.fetch)
+    store = config.store
+    feeds = service.Refresher(store, background=config.background, clock=config.clock, fetch=config.fetch)
     starts = Limiter(*config.start_limit)
     changes = Limiter(*config.change_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -132,7 +130,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             def sweep() -> None:
                 while not stop.is_set():
                     try:
-                        gone = store.sweep(config.clock())
+                        gone = service.sweep_subscriptions(store, config.clock())
                         if gone:
                             LOG.info("deleted %d expired subscriptions", gone)
                     except Exception:  # a failed sweep must not stop the next one
@@ -148,7 +146,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 # the server's disk. One copy at start, then one per period.
                 while not stop.is_set():
                     try:
-                        store.backup_rotating(directory, now=config.clock())
+                        service.backup_subscriptions(store, directory, config.clock())
                     except Exception:
                         LOG.exception("backup failed")
                     stop.wait(every)
@@ -191,7 +189,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return (config.base_url or str(request.base_url)).rstrip("/")
 
     def load(token: str) -> service.Subscription | None:
-        return service.load_subscription(store.path, token) if store.valid(token) else None
+        return service.load_subscription(store, token)
 
     def missing(request: Request) -> HTMLResponse:
         return page(
@@ -246,8 +244,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         except service.ServiceError as error:
             return page(request, "home.html", 400, error=str(error), link=link or "", tz=tz)
-        service.save_subscription(store.path, subscription)
-        store.log(subscription.token, "start", "link" if link else "file")
+        service.save_subscription(store, subscription)
+        service.log_event(store, subscription.token, "start", "link" if link else "file")
         return RedirectResponse(f"/p/{subscription.token}/settings?new=1", 303)
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -307,7 +305,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             change = forms.revision(values)
             service.update_subscription(
-                store.path,
+                store,
                 token,
                 lambda current: service.revise_subscription(
                     current, now=config.clock(), fetch=config.fetch, **change
@@ -326,7 +324,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 error=str(error),
                 tab="settings",
             )
-        store.log(token, "settings")
+        service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/feed?new=1" if new else f"/p/{token}?saved=1", 303)
 
     @app.post("/p/{token}/tasks", response_class=HTMLResponse)
@@ -352,7 +350,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tasks = [service.TaskSpec(**t) for t in current.options.get("tasks", ())]
                 return service.revise_subscription(current, tasks=[*tasks, task], now=config.clock())
 
-            service.update_subscription(store.path, token, add)
+            service.update_subscription(store, token, add)
         except service.ServiceError as error:
             return page(
                 request,
@@ -363,7 +361,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 task_error=str(error),
                 tab="today",
             )
-        store.log(token, "task")
+        service.log_event(store, token, "task")
         return RedirectResponse(f"/p/{token}?saved=1", 303)
 
     @app.get("/p/{token}/feed", response_class=HTMLResponse)
@@ -406,19 +404,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        found = service.find_session(subscription, sid)
-        view = service.today_view(subscription, config.clock())
-        card = next(
-            (c for c in [view["now"], *view["to_report"], *view["next"]] if c and c["id"] == sid),
-            None,
-        )
-        if found is None or card is None:
+        card = service.session_card(subscription, sid, config.clock())
+        if card is None:
             return page(
                 request,
                 "message.html",
                 404,
                 title="Session not found",
-                message="This session is no longer in your plan, or is more than a week old.",
+                message="This session is no longer in your plan: the plan has changed since. "
+                "Your calendar shows the new one after its next refresh.",
                 token=token,
             )
         return page(request, "session.html", token=token, card=card)
@@ -433,7 +427,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         outcome = str(form.get("outcome") or "")
         try:
             done = service.update_subscription(
-                store.path,
+                store,
                 token,
                 lambda current: service.report_session(current, sid, outcome, now=config.clock()),
             )
@@ -441,7 +435,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return page(request, "message.html", 400, title="Not recorded", message=str(error), token=token)
         if done is None:
             return missing(request)
-        store.log(token, "report", outcome)
+        service.log_event(store, token, "report", outcome)
         return RedirectResponse(f"/p/{token}?reported={outcome}", 303)
 
     @app.get("/p/{token}/delete", response_class=HTMLResponse)
@@ -452,7 +446,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.post("/p/{token}/delete", response_class=HTMLResponse)
     def delete(request: Request, token: str) -> HTMLResponse:
-        if not service.delete_subscription(store.path, token):
+        if not service.delete_subscription(store, token):
             return missing(request)
         return page(
             request,

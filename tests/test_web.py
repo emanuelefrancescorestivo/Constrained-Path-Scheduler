@@ -470,3 +470,32 @@ def test_the_blueprint_starts_a_command_that_exists(monkeypatch):
     config = Config.from_env()
     assert config.backup_dir == Path("/var/data/backups") and config.contact == "owner@example.org"
     assert config.base_url == "https://study-plan.example.onrender.com"
+
+
+def test_the_web_app_imports_nothing_from_cps_but_the_service():
+    """Invariant 11: the pages read forms and fill templates; every decision, and
+    every access to the store, goes through `cps.service`."""
+    import ast
+
+    root = Path(__file__).resolve().parent.parent / "src" / "cps" / "web"
+    for path in root.glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("cps"):
+                assert node.module == "cps" and [a.name for a in node.names] == ["service"], (
+                    path.name,
+                    node.module,
+                )
+            if isinstance(node, ast.Import):
+                assert not any(a.name.startswith("cps") for a in node.names), path.name
+
+
+def test_the_link_of_any_session_opens_it(web, planned):
+    """A calendar shows weeks ahead: the link of a session a month away opens it."""
+    plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
+    far = plan.sessions[-1]
+    page = web.get(f"/s/{planned}/{service.session_id(far)}")
+    assert page.status_code == 200 and unescape(far.title) in unescape(page.text)
+    assert "once it has started" in page.text
+    gone = web.get(f"/s/{planned}/000000000000")
+    assert gone.status_code == 404 and "no longer in your plan" in gone.text

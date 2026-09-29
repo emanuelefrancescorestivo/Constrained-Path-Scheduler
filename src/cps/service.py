@@ -5,8 +5,8 @@ The CLI, the Streamlit app and any future web API call these functions and only
 these, so they can be swapped without touching the planner. Nothing here imports a
 UI framework or prints: bytes and plain values in, frozen result objects out. Two
 kinds of input and output are allowed, both explicit: `fetch_calendar` reads a
-calendar link the person gave, and the `*_subscription` functions keep feeds in a
-directory the caller names. Every result has `to_dict()` returning plain JSON
+calendar link the person gave, and the `*_subscription` functions keep plans in
+the SQLite store (`cps.store`) the caller names. Every result has `to_dict()` returning plain JSON
 types, and `PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as
 JSON and send it back to `replan_after` or `export_ics`.
 
@@ -37,10 +37,12 @@ report says so.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import math
 import os
 import secrets
+import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -76,7 +78,7 @@ from .plan import Block, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
 from .sources import SourceError
 from .sources import fetch_calendar as _fetch
-from .store import Store
+from .store import Conflict, Store
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
@@ -1831,7 +1833,7 @@ def feed_url(base_url: str, token: str) -> str:
 def save_subscription(store: str | os.PathLike, subscription: Subscription) -> None:
     """Write a subscription into the store (`cps.store`), with the date it expires."""
     expiry = subscription_expiry(subscription)
-    Store(store).put(
+    _store(store).put(
         subscription.token,
         subscription.to_dict(),
         expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None,
@@ -1839,7 +1841,7 @@ def save_subscription(store: str | os.PathLike, subscription: Subscription) -> N
 
 
 def load_subscription(store: str | os.PathLike, token: str) -> Subscription | None:
-    data = Store(store).get(token)
+    data = _store(store).get(token)
     return Subscription.from_dict(data) if data is not None else None
 
 
@@ -1854,12 +1856,95 @@ def update_subscription(
         expiry = subscription_expiry(new)
         return new.to_dict(), expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None
 
-    data = Store(store).update(token, apply)
+    data = _store(store).update(token, apply)
     return Subscription.from_dict(data) if data is not None else None
 
 
 def delete_subscription(store: str | os.PathLike, token: str) -> bool:
-    return Store(store).delete(token)
+    return _store(store).delete(token)
+
+
+@functools.lru_cache(maxsize=16)
+def _open(path: str) -> Store:
+    return Store(path)
+
+
+def _store(store: str | os.PathLike) -> Store:
+    """One `Store` per file, opened once (its schema is checked on opening)."""
+    return _open(os.fspath(store))
+
+
+def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "") -> None:
+    """Record what happened to a plan (created, changed, a session reported), for the
+    pilot's measures. No timetable content, no names."""
+    _store(store).log(token, kind, detail)
+
+
+def events(store: str | os.PathLike, token: str) -> list[dict]:
+    return _store(store).events(token)
+
+
+def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
+    """Delete every subscription past its expiry (`subscription_expiry`)."""
+    return _store(store).sweep(now)
+
+
+def backup_subscriptions(
+    store: str | os.PathLike, directory: str | os.PathLike, now: datetime | None = None
+) -> Path:
+    """A consistent dated copy of the store in `directory`; copies older than a week go."""
+    return _store(store).backup_rotating(Path(directory), now=now)
+
+
+class Refresher:
+    """Brings subscriptions up to date without making anyone wait: a refresh reads
+    a timetable from the network and takes seconds, far longer than a calendar app
+    or a page should wait, so it runs in a thread (unless `background` is False,
+    for tests) and the next read gets the new plan. One refresh per subscription at
+    a time. A report or a deletion arriving meanwhile wins: the result is written
+    only over the version it started from (`update_subscription`), and a deleted
+    subscription is not brought back."""
+
+    def __init__(
+        self,
+        store: str | os.PathLike,
+        *,
+        background: bool = True,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        fetch: Callable[[str], bytes] = fetch_calendar,
+    ) -> None:
+        self.store = store
+        self.background = background
+        self.clock = clock
+        self.fetch = fetch
+        self._running: set[str] = set()
+        self._lock = threading.Lock()
+
+    def refresh(self, token: str) -> None:
+        with self._lock:
+            if token in self._running:
+                return
+            self._running.add(token)
+        if self.background:
+            threading.Thread(target=self._refresh, args=(token,), daemon=True).start()
+        else:
+            self._refresh(token)
+
+    def _fresh(self, current: Subscription) -> Subscription:
+        return refresh_subscription(current, now=self.clock(), fetch=self.fetch)
+
+    def _refresh(self, token: str) -> None:
+        try:
+            update_subscription(
+                self.store,
+                token,
+                lambda current: refresh_subscription(current, now=self.clock(), fetch=self.fetch),
+            )
+        except Conflict:
+            pass  # kept changing: the next read tries again
+        finally:
+            with self._lock:
+                self._running.discard(token)
 
 
 # --------------------------------------------------------------------------- #
@@ -1934,6 +2019,16 @@ def _session_card(s: SessionView, zone: ZoneInfo, now: datetime, outcomes: Mappi
         "reported": outcomes.get(sid),
         "started": start <= now,
     }
+
+
+def session_card(subscription: Subscription, sid: str, now: datetime | None = None) -> dict | None:
+    """One session of the plan, done or to come, as the pages show it."""
+    session = find_session(subscription, sid)
+    if session is None or subscription.plan is None:
+        return None
+    zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
+    local = (now or datetime.now(UTC)).astimezone(zone)
+    return _session_card(session, zone, local, subscription.outcomes)
 
 
 def setup_view(subscription: Subscription) -> dict:

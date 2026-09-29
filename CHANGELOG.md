@@ -6,6 +6,22 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The hosted app, `cps web` (`src/cps/web`, the `web` extra: FastAPI, uvicorn,
+  Jinja2, python-multipart): start from a timetable link or file; check the exams
+  found, add deadlines, busy times, weekly hours and days off; a Today page and a
+  week, phone first; a calendar feed whose events link to a one-tap report (done,
+  skipped, hard) that changes the plan at once; a privacy page and deletion. No
+  accounts, cookies or scripts; secret addresses kept out of logs and referrers;
+  cross-site forms refused; rate limits. `docs/ROADMAP.md` is the plan it follows.
+- `store.py`: SQLite for plans (versioned updates, an event log, expiry 30 days after
+  the last exam or deadline, rotating backups); `cps sweep`, `cps backup`.
+- Deadlines from a learning platform's calendar (Moodle): `calendar_io.find_assignments`,
+  `service.sync_deadlines`, and a link in the app's settings.
+- `service.report_session`, `revise_subscription`, `subscription_expiry`,
+  `start_subscription`, `today_view`, `agenda`, `setup_view`, `Refresher`;
+  `feed_ics(subscription, base_url)` puts what to do and the report link in each event.
+- `render.yaml` and `docs/DEPLOY.md`: a Render blueprint (Frankfurt, one instance, a
+  disk) and the owner's steps to deploy it.
 - The assistant (`assistant.py`, `service.make_schedule`): deadlines met
   earliest-deadline-first with at-risk warnings, a weekly hours budget, days off,
   exam practice in the last two weeks before each exam, self-testing on the taught

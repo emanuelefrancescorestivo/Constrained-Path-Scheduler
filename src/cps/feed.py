@@ -24,7 +24,6 @@ from __future__ import annotations
 import os
 import re
 import sys
-import threading
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -33,7 +32,6 @@ from typing import Any
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 from . import service
-from .store import Conflict
 
 DEFAULT_STORE = service.FEED_STORE
 _FEED = re.compile(r"/feed/([A-Za-z0-9_-]{22,64})\.ics")
@@ -55,11 +53,8 @@ class FeedApp:
     ) -> None:
         self.store = Path(store)
         self.age = age
-        self.background = background
         self.clock = clock
-        self.fetch = fetch
-        self._running: set[str] = set()
-        self._lock = threading.Lock()
+        self.refresher = service.Refresher(store, background=background, clock=clock, fetch=fetch)
 
     def __call__(self, environ: dict, start_response: StartResponse) -> Iterable[bytes]:
         method = environ.get("REQUEST_METHOD", "GET")
@@ -85,32 +80,8 @@ class FeedApp:
         return _answer(start_response, "200 OK", b"" if method == "HEAD" else body, headers)
 
     def refresh(self, token: str) -> None:
-        """Refresh one feed, in the background unless told otherwise; a feed already
-        being refreshed is left alone."""
-        with self._lock:
-            if token in self._running:
-                return
-            self._running.add(token)
-        if self.background:
-            threading.Thread(target=self._refresh, args=(token,), daemon=True).start()
-        else:
-            self._refresh(token)
-
-    def _refresh(self, token: str) -> None:
-        try:
-            # A report or a deletion arriving while the plan is being made wins: the
-            # update is written only over the version it started from, and a
-            # deleted subscription is not brought back.
-            service.update_subscription(
-                self.store,
-                token,
-                lambda current: service.refresh_subscription(current, now=self.clock(), fetch=self.fetch),
-            )
-        except Conflict:
-            pass  # kept changing: the next read of the feed tries again
-        finally:
-            with self._lock:
-                self._running.discard(token)
+        """Refresh one feed (`service.Refresher`)."""
+        self.refresher.refresh(token)
 
 
 def _answer(
