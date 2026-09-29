@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Week · Study plan{% endblock %}
+{% block main %}
+<nav class="pager" aria-label="Weeks">
+  <a href="/p/{{ token }}/week?w={{ agenda.week - 1 }}">← Earlier</a>
+  <span>{% if agenda.week == 0 %}The next 7 days{% else %}{{ agenda.days[0].label }} to {{ agenda.days[-1].label }}{% endif %}</span>
+  <a href="/p/{{ token }}/week?w={{ agenda.week + 1 }}">Later →</a>
+</nav>
+{% for day in agenda.days %}
+<section class="day">
+  <h2>{{ day.label }}</h2>
+  {% if day.entries %}
+  <ul class="agenda">
+  {% for e in day.entries %}
+    <li class="{{ e.kind }}"><span class="time">{{ e.start }}–{{ e.end }}</span>
+    {% if e.id %}<a href="/s/{{ token }}/{{ e.id }}">{{ e.label }}</a>{% else %}{{ e.label }}{% endif %}</li>
+  {% endfor %}
+  </ul>
+  {% else %}<p class="hint">Free.</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

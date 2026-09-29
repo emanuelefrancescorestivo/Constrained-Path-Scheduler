@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Today · Study plan{% endblock %}
+{% block main %}
+{% if reported %}<p class="notice" role="status">Recorded: {{ reported }}. The plan has changed to match.</p>{% endif %}
+{% if saved %}<p class="notice" role="status">Saved. The plan has changed to match.</p>{% endif %}
+{% if view.error %}<p class="error" role="alert">{{ view.error }}{% if view.planned %} The plan below is the last one that could be made.{% endif %}</p>{% endif %}
+
+{% if not view.planned %}
+<h1>Nothing to plan yet</h1>
+<p>Add an exam or a deadline in <a href="/p/{{ token }}/settings">Settings</a>.</p>
+{% else %}
+
+{% if view.now %}
+<h1>Now</h1>
+{% with card=view.now, show_why=true %}{% include "_card.html" %}{% endwith %}
+{% elif view.next %}
+<h1>Next</h1>
+{% with card=view.next[0], show_why=true %}{% include "_card.html" %}{% endwith %}
+{% else %}
+<h1>Nothing planned</h1>
+<p>No session is planned after now. Add a deadline or an exam to plan for.</p>
+{% endif %}
+
+{% set later = view.next if view.now else view.next[1:] %}
+{% if later %}
+<h2>Coming up</h2>
+{% for card in later %}{% with show_why=false %}{% include "_card.html" %}{% endwith %}{% endfor %}
+{% endif %}
+
+{% set past = view.to_report | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
+{% if past %}
+<h2>How did these go?</h2>
+<p class="hint">Sessions you do not report count as done as planned.</p>
+{% for card in past %}{% with show_why=false %}{% include "_card.html" %}{% endwith %}{% endfor %}
+{% endif %}
+
+{% if view.tasks %}
+<h2>Deadlines</h2>
+<ul class="list">
+{% for t in view.tasks %}{% if not t.past %}
+  <li{% if t.at_risk %} class="risk"{% endif %}>
+    <strong>{{ t.name }}</strong>{% if t.course %} · {{ t.course }}{% endif %}<br>
+    due {{ t.due }} · {{ t.planned }}{% if t.finish %} · last session {{ t.finish }}{% endif %}
+    {% if t.at_risk %}<br><em>At risk: the work does not all fit before it is due.</em>{% endif %}
+  </li>
+{% endif %}{% endfor %}
+</ul>
+{% endif %}
+
+{% if view.exams %}
+<h2>Exams</h2>
+<ul class="list">
+{% for e in view.exams %}
+  <li{% if not e.ready %} class="risk"{% endif %}><strong>{{ e.name }}</strong> · {{ e.when }}<br>{{ e.status }}</li>
+{% endfor %}
+</ul>
+{% if view.exams | rejectattr("ready") | list %}<p class="hint">Predicted from the plan as it stands. More hours a week, or fewer days off, in <a href="/p/{{ token }}/settings">Settings</a> would change it.</p>{% endif %}
+{% endif %}
+
+{% for w in view.warnings %}<p class="warning">{{ w }}</p>{% endfor %}
+{% endif %}
+
+<h2>Add a deadline</h2>
+{% if task_error %}<p class="error" role="alert">{{ task_error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/tasks" class="card">
+  <label for="task-name">What</label>
+  <input id="task-name" name="name" required placeholder="Statistics report">
+  <label for="task-due">Due</label>
+  <input id="task-due" name="due" type="datetime-local" required>
+  <div class="row">
+    <div><label for="task-hours">Hours of work</label>
+    <input id="task-hours" name="hours" type="number" min="0.5" step="0.5" value="2" inputmode="decimal"></div>
+    <div><label for="task-course">Course (optional)</label>
+    <input id="task-course" name="course"></div>
+  </div>
+  <button type="submit" class="primary">Add</button>
+</form>
+<p class="hint">This page's address is your key: bookmark it, and do not share it.</p>
+{% endblock %}

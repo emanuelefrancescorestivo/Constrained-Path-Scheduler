@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Settings · Study plan{% endblock %}
+{% block main %}
+{% if new %}
+<h1>Check what was found</h1>
+<p>Your timetable is read. Check the exams, add your deadlines, say how much you want
+to study, then save: the plan is made at once.</p>
+{% else %}
+<h1>Settings</h1>
+{% endif %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+<form method="post" action="/p/{{ token }}/settings">
+{% if new %}<input type="hidden" name="new" value="1">{% endif %}
+
+<fieldset>
+  <legend>Exams</legend>
+  <p class="hint">Each week of lectures is planned on its own once it has been taught;
+  "how well you know it" is about what was taught before today.</p>
+  {% for s in values.subjects %}
+  {% set i = loop.index0 %}
+  <div class="item">
+    <input type="hidden" name="s{{ i }}_found" value="{{ '1' if s.found else '' }}">
+    <input type="hidden" name="s{{ i }}_found_when" value="{{ s.found_when }}">
+    <label for="s{{ i }}_name">Course</label>
+    <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}">
+    {% if s.found and s.found_when and not s.exam %}
+    <p class="hint">Exam from your timetable: {{ s.found_when }}; it follows the timetable if that changes.</p>
+    <details><summary>A different date?</summary>
+      <label for="s{{ i }}_exam">Exam</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    </details>
+    {% else %}
+    <label for="s{{ i }}_exam">Exam</label>
+    <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
+    {% if s.found and not s.found_when %}<p class="hint">Not in your timetable any more: give its date.</p>{% endif %}
+    {% if s.found and s.found_when %}<p class="hint">Leave empty to follow your timetable ({{ s.found_when }}).</p>{% endif %}
+    {% endif %}
+    <label for="s{{ i }}_familiarity">How well you know it already</label>
+    <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity">
+      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ word }}</option>{% endfor %}
+    </select>
+    <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> Do not plan for this exam</label>
+  </div>
+  {% endfor %}
+  {% set n = values.subjects | length %}
+  {% for f in values.unplanned_exams %}
+  {% set i = n + loop.index0 %}
+  <div class="item">
+    <p>Also in your timetable: <strong>{{ f.subject }}</strong>, {{ f.when }}.</p>
+    <input type="hidden" name="s{{ i }}_found" value="1">
+    <input type="hidden" name="s{{ i }}_name" value="{{ f.subject }}">
+    <input type="hidden" name="s{{ i }}_familiarity" value="3">
+    <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1" checked> Do not plan for it</label>
+  </div>
+  {% endfor %}
+  {% set n = n + (values.unplanned_exams | length) %}
+  {% for k in range(empty_rows) %}
+  {% set i = n + k %}
+  <div class="item new">
+    <input type="hidden" name="s{{ i }}_found" value="">
+    <label for="s{{ i }}_name">Add an exam: course</label>
+    <input id="s{{ i }}_name" name="s{{ i }}_name" list="courses">
+    <label for="s{{ i }}_exam">Exam</label>
+    <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    <label for="s{{ i }}_familiarity">How well you know it already</label>
+    <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity">
+      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ word }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+  <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+</fieldset>
+
+<fieldset>
+  <legend>Deadlines</legend>
+  <p class="hint">Homework, reports, projects, readings: when each is due and roughly how many hours it takes.</p>
+  {% for t in values.tasks %}
+  <div class="item">
+    <label for="t{{ loop.index0 }}_name">What</label>
+    <input id="t{{ loop.index0 }}_name" name="t{{ loop.index0 }}_name" value="{{ t.name }}">
+    <label for="t{{ loop.index0 }}_due">Due</label>
+    <input id="t{{ loop.index0 }}_due" name="t{{ loop.index0 }}_due" type="datetime-local" value="{{ t.due | replace(' ', 'T') }}">
+    <div class="row">
+      <div><label for="t{{ loop.index0 }}_hours">Hours of work</label>
+      <input id="t{{ loop.index0 }}_hours" name="t{{ loop.index0 }}_hours" type="number" min="0.5" step="0.5" value="{{ t.hours }}" inputmode="decimal"></div>
+      <div><label for="t{{ loop.index0 }}_course">Course</label>
+      <input id="t{{ loop.index0 }}_course" name="t{{ loop.index0 }}_course" value="{{ t.course }}" list="courses"></div>
+    </div>
+    <label class="check"><input type="checkbox" name="t{{ loop.index0 }}_remove" value="1"> Remove</label>
+  </div>
+  {% endfor %}
+  {% set n = values.tasks | length %}
+  {% for k in range(empty_rows) %}
+  {% set i = n + k %}
+  <div class="item new">
+    <label for="t{{ i }}_name">Add a deadline</label>
+    <input id="t{{ i }}_name" name="t{{ i }}_name">
+    <label for="t{{ i }}_due">Due</label>
+    <input id="t{{ i }}_due" name="t{{ i }}_due" type="datetime-local">
+    <div class="row">
+      <div><label for="t{{ i }}_hours">Hours of work</label>
+      <input id="t{{ i }}_hours" name="t{{ i }}_hours" type="number" min="0.5" step="0.5" value="2" inputmode="decimal"></div>
+      <div><label for="t{{ i }}_course">Course</label>
+      <input id="t{{ i }}_course" name="t{{ i }}_course" list="courses"></div>
+    </div>
+  </div>
+  {% endfor %}
+</fieldset>
+
+<fieldset>
+  <legend>Your week</legend>
+  <label for="weekly_hours">Study hours a week at most (empty: no limit)</label>
+  <input id="weekly_hours" name="weekly_hours" type="number" min="1" max="80" step="0.5" value="{{ values.weekly_hours or '' }}" inputmode="decimal">
+  <p class="label">Days off</p>
+  <div class="days">
+  {% for d in values.weekdays %}
+    <label class="check"><input type="checkbox" name="rest" value="{{ d }}"{% if d in values.rest_days %} checked{% endif %}> {{ d }}</label>
+  {% endfor %}
+  </div>
+  <div class="row">
+    <div><label for="from_hour">Study from</label>
+    <select id="from_hour" name="from_hour">{% for h in range(0, 24) %}<option value="{{ h }}"{% if h == values.study_window[0] | float | int %} selected{% endif %}>{{ '%02d:00' % h }}</option>{% endfor %}</select></div>
+    <div><label for="to_hour">until</label>
+    <select id="to_hour" name="to_hour">{% for h in range(1, 25) %}<option value="{{ h }}"{% if h == values.study_window[1] | float | int %} selected{% endif %}>{{ '%02d:00' % h }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="row">
+    <div><label for="blocks_per_day">Sessions a day at most</label>
+    <select id="blocks_per_day" name="blocks_per_day">{% for k in range(1, 7) %}<option{% if k == values.blocks_per_day | int %} selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
+    <div><label for="block_minutes">Session length</label>
+    <select id="block_minutes" name="block_minutes">{% for m in (45, 60, 90, 120) %}<option value="{{ m }}"{% if m == values.block_minutes | int %} selected{% endif %}>{{ m }} min</option>{% endfor %}</select></div>
+  </div>
+  <label for="practice_hours">Exam practice before each exam (hours)</label>
+  <input id="practice_hours" name="practice_hours" type="number" min="0" max="40" step="0.5" value="{{ values.practice_hours }}" inputmode="decimal">
+</fieldset>
+
+<fieldset>
+  <legend>Busy times not in your timetable</legend>
+  <p class="hint">Training, a job, a commute: nothing is planned then.</p>
+  {% set rows = values.activities | length + empty_rows %}
+  {% for i in range(rows) %}
+  {% set a = values.activities[i] if i < values.activities | length else {} %}
+  <div class="item{% if not a %} new{% endif %}">
+    <label for="a{{ i }}_label">What</label>
+    <input id="a{{ i }}_label" name="a{{ i }}_label" value="{{ a.label or '' }}" placeholder="Training">
+    <div class="row">
+      <div><label for="a{{ i }}_weekday">Every</label>
+      <select id="a{{ i }}_weekday" name="a{{ i }}_weekday">
+        <option value="">(one day)</option>
+        {% for d in values.weekdays %}<option{% if a.weekday == d %} selected{% endif %}>{{ d }}</option>{% endfor %}
+      </select></div>
+      <div><label for="a{{ i }}_date">or on</label>
+      <input id="a{{ i }}_date" name="a{{ i }}_date" type="date" value="{{ a.date or '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label for="a{{ i }}_start">From</label>
+      <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
+      <div><label for="a{{ i }}_end">to</label>
+      <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
+    </div>
+    {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> Remove</label>{% endif %}
+  </div>
+  {% endfor %}
+</fieldset>
+
+<button type="submit" class="primary sticky">Save and plan</button>
+</form>
+
+{% if not new %}
+<h2>Your timetable</h2>
+<p>{% if values.source_url %}Read from its link, again every few hours.{% else %}From the file you gave; it does not change.{% endif %}
+Time zone: {{ values.tz }}.</p>
+<h2>Your data</h2>
+<p><a href="/p/{{ token }}/delete">Delete my plan and all my data</a> · <a href="/privacy">Privacy</a></p>
+{% endif %}
+{% endblock %}

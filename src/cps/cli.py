@@ -22,7 +22,9 @@ population-default FSRS parameters, and each subject's starting stability and
 difficulty are your own guesses.
 
 `serve` runs the feed server (`cps.feed`), which answers the calendar subscriptions
-the web page publishes.
+the Streamlit page publishes. `web` runs the hosted product (`cps.web`, which needs
+the `web` extra): pages, feeds and reports in one server. `sweep` deletes expired
+plans and `backup` copies the store, for a deployment's scheduled jobs.
 
 All the work happens in `cps.service`; this module parses arguments and prints.
 """
@@ -147,6 +149,24 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--store", type=Path, default=service.FEED_STORE, help="where the feeds are kept")
     serve.add_argument("--host", default="127.0.0.1", help="address to listen on (default: this machine)")
     serve.add_argument("--port", type=int, default=8765)
+
+    web = sub.add_parser("web", help="run the hosted product: pages, feeds and reports (needs [web])")
+    web.add_argument("--db", type=Path, default=service.FEED_STORE, help="the store (file or directory)")
+    web.add_argument("--host", default="127.0.0.1", help="address to listen on (default: this machine)")
+    web.add_argument("--port", type=int, default=int(os.environ.get("PORT") or 8000))
+    web.add_argument(
+        "--behind-proxy",
+        action="store_true",
+        help="trust X-Forwarded-For and -Proto from any address: only behind a host's own proxy",
+    )
+
+    sweep = sub.add_parser("sweep", help="delete the plans whose retention has passed")
+    sweep.add_argument("--db", type=Path, default=service.FEED_STORE)
+
+    backup = sub.add_parser("backup", help="copy the store while it is in use; keep a week of copies")
+    backup.add_argument("--db", type=Path, default=service.FEED_STORE)
+    backup.add_argument("--to", type=Path, required=True, help="directory for the copies")
+    backup.add_argument("--keep-days", type=int, default=7)
     return parser
 
 
@@ -283,6 +303,51 @@ def command_serve(args) -> int:
     return 0
 
 
+def command_web(args) -> int:
+    import logging
+
+    import uvicorn
+
+    from .web import Config, create_app
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    config = Config.from_env()
+    config.store = args.db
+    print(f"serving on http://{args.host}:{args.port}", flush=True)
+    uvicorn.run(
+        create_app(config),
+        host=args.host,
+        port=args.port,
+        access_log=False,  # the app logs the route, never the path: it holds the secret
+        proxy_headers=args.behind_proxy,
+        forwarded_allow_ips="*" if args.behind_proxy else None,
+        server_header=False,
+    )
+    return 0
+
+
+def command_sweep(args) -> int:
+    from .store import Store
+
+    print(f"deleted {Store(args.db).sweep()} expired plans")
+    return 0
+
+
+def command_backup(args) -> int:
+    from datetime import UTC, datetime, timedelta
+
+    from .store import Store
+
+    now = datetime.now(UTC)
+    target = Store(args.db).backup(args.to / f"cps-{now:%Y%m%d-%H%M%S}.sqlite")
+    cutoff = (now - timedelta(days=args.keep_days)).timestamp()
+    old = [p for p in args.to.glob("cps-*.sqlite") if p != target and p.stat().st_mtime < cutoff]
+    for p in old:
+        p.unlink()
+    print(f"wrote {target}; removed {len(old)} copies older than {args.keep_days} days")
+    return 0
+
+
 def _stdout_closed(error: OSError) -> bool:
     """A reader that left early: `| head` on Linux and macOS raises EPIPE; on
     Windows a closed pipe can surface as EINVAL instead. Any other OSError, and
@@ -303,7 +368,14 @@ def _silence_stdout() -> None:
 def main(argv: list[str] | None = None) -> int:
     ensure_utf8_output()
     args = _build_parser().parse_args(argv)
-    command = {"inspect": command_inspect, "plan": command_plan, "serve": command_serve}[args.command]
+    command = {
+        "inspect": command_inspect,
+        "plan": command_plan,
+        "serve": command_serve,
+        "web": command_web,
+        "sweep": command_sweep,
+        "backup": command_backup,
+    }[args.command]
     try:
         code = command(args)
         sys.stdout.flush()

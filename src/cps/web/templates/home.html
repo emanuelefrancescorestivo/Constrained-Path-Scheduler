@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Study plan: your timetable, your deadlines, your week{% endblock %}
+{% block main %}
+<h1>A study plan that fits your week</h1>
+<p class="lead">Paste your university timetable's link. The plan finds your exams, fits
+self-testing, exam practice and your deadlines into your free time, within the hours
+you choose, and goes into the calendar you already use.</p>
+
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+<form method="post" action="/start" enctype="multipart/form-data" class="card">
+  <label for="link">Your timetable's link</label>
+  <input id="link" name="link" type="url" inputmode="url" placeholder="https://… or webcal://…" value="{{ link or '' }}">
+  <p class="hint">The calendar export or subscription address of ADE, Hyperplanning or
+  your university's timetable, or Google Calendar's secret address in iCal format
+  (Settings, your calendar, Integrate calendar). A link keeps the plan up to date when
+  the timetable changes.</p>
+  <details>
+    <summary>No link? Use a file</summary>
+    <label for="file">Calendar file (.ics)</label>
+    <input id="file" name="file" type="file" accept=".ics,text/calendar">
+  </details>
+  <label for="tz">Time zone</label>
+  <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off">
+  <button type="submit" class="primary">Start</button>
+</form>
+
+<h2>What it does, and what it does not</h2>
+<ul>
+  <li>It meets deadlines first, earliest due first, and says early when one will not fit.</li>
+  <li>Before each exam it plans timed practice; between lectures it plans short self-tests
+  on what is fading, because testing yourself beats rereading.</li>
+  <li>It keeps to your weekly hours and days off, and leaves the rest of your time free.</li>
+  <li>It does not know how well you know a subject until you tell it: after each session,
+  one tap says done, skipped or hard, and the plan changes.</li>
+</ul>
+<p class="hint">No account: your plan lives at a secret address, like a calendar
+subscription link. <a href="/privacy">What is stored and for how long.</a></p>
+{% endblock %}

@@ -20,6 +20,10 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# The web app's pages and stylesheet ship with the package.
+"cps.web" = ["templates/*.html", "static/*"]
+
 [project.scripts]
 cps = "cps.cli:main"
 
