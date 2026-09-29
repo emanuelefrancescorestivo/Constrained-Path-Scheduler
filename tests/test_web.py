@@ -461,7 +461,7 @@ def test_the_blueprint_starts_a_command_that_exists(monkeypatch):
     words = shlex.split(command)
     assert words[0] == "cps"
     args = _build_parser().parse_args(words[1:])
-    assert args.command == "web" and args.behind_proxy and str(args.db) == "/var/data/cps.sqlite"
+    assert args.command == "web" and args.behind_proxy and args.db == Path("/var/data/cps.sqlite")
     assert "healthCheckPath: /health" in text and "region: frankfurt" in text
     monkeypatch.setenv("CPS_BACKUP_DIR", "/var/data/backups")
     monkeypatch.setenv("CPS_CONTACT", "owner@example.org")
