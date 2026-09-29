@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-09-29)
 
 The planner's timing can be trusted, a web page and a service layer exist, and
 the quality bar is enforced by CI on Ubuntu and Windows.
