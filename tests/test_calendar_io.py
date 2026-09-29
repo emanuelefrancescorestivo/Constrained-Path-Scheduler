@@ -19,9 +19,11 @@ from cps.calendar_io import (
     BusyRow,
     busy_from_table,
     busy_grid,
+    course_of,
     decode_ics,
     expand_events,
     find_deadlines,
+    find_lectures,
     load_availability,
     plan_to_ics,
 )
@@ -548,3 +550,61 @@ def test_a_cancelled_event_does_not_block_time():
     summaries = [e.summary for e in ade_events()]
     assert not any("ANNULE" in s for s in summaries)
     assert any("Advanced Statistics" in s for s in summaries)
+
+
+TITLE_ONLY_CANCELLATION = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//EN
+BEGIN:VEVENT
+UID:c1@test
+DTSTART;TZID=Europe/Paris:20261203T153000
+DTEND;TZID=Europe/Paris:20261203T170000
+SUMMARY: Ethics & Philosophy of AI, Grp: CM ., Salle: Salle 4   Estrapade, COURS ANNULE
+END:VEVENT
+BEGIN:VEVENT
+UID:c2@test
+DTSTART;TZID=Europe/Paris:20261204T090000
+DTEND;TZID=Europe/Paris:20261204T100000
+SUMMARY:Seminario di Fisica (annullato)
+END:VEVENT
+BEGIN:VEVENT
+UID:c3@test
+DTSTART;TZID=Europe/Paris:20261204T110000
+DTEND;TZID=Europe/Paris:20261204T120000
+SUMMARY:Annual review
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_a_class_cancelled_only_in_its_title_does_not_block_time():
+    """AUDIT.md item 34. Some exports keep the event and write the cancellation
+    in its title, without STATUS:CANCELLED. A word that merely starts the same,
+    "Annual", is not a cancellation."""
+    begin = datetime.combine(date(2026, 12, 1), time(0, 0), tzinfo=PARIS)
+    events = expand_events(TITLE_ONLY_CANCELLATION, begin, begin + timedelta(days=7), PARIS)
+    assert [e.summary for e in events] == ["Annual review"]
+
+
+@pytest.mark.parametrize(
+    ("title", "course"),
+    [
+        (" Algebra 3, Grp: CM ., Salle: Salle 4   Estrapade", "Algebra 3"),
+        ("Deep Learning 1, Grp: TD .", "Deep Learning 1"),
+        ("Analysis lecture", "Analysis"),
+        ("Lezione di Fisica", "Fisica"),
+        ("Lab: Organic Chemistry", "Organic Chemistry"),
+        ("CM - Economie | Amphi A", "Economie"),
+        ("Gym", "Gym"),
+        ("Grp: TD", ""),
+    ],
+)
+def test_the_course_of_an_event_is_read_from_its_title(title, course):
+    assert course_of(title) == course
+
+
+def test_lectures_are_every_event_but_the_assessments():
+    lectures = find_lectures(ade_events())
+    courses = {course for course, _ in lectures}
+    assert "Advanced Statistics" in courses
+    assert not any("EXAMEN" in e.summary for _, e in lectures)

@@ -53,7 +53,10 @@ scheme, and `docs/METHOD.md` says so.
 
 from __future__ import annotations
 
+import math
+import os
 from collections.abc import Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -96,23 +99,42 @@ class Subject:
     `exam_day` is measured in days from midnight at the start of the horizon, the
     same clock as `Block.start_day`, and so is `last_review_day`: 0 for a plan
     made from scratch, the day of the last review when replanning part-way.
+
+    A topic taught later in the horizon, one week of a course's lectures, has
+    `available_day` at the end of its last lecture: it cannot be studied before
+    then, and `memory` is its state right after that lecture (`last_review_day`
+    equal to `available_day`). Its preparation, and so its target, runs from
+    `available_day` to the exam unless `target_days` says otherwise; the service
+    rounds it to whole weeks so that topics can share value-function solves.
     """
 
     name: str
     memory: MemoryState
     exam_day: float
     last_review_day: float = 0.0
+    available_day: float = 0.0
+    target_days: float | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("a subject needs a name")
         if not self.exam_day > 0:
             raise ValueError(f"the exam for {self.name!r} is not after the start of the plan")
+        if not self.available_day < self.exam_day:
+            raise ValueError(f"{self.name!r} is only taught after its exam")
+        if self.target_days is not None and not self.target_days > 0:
+            raise ValueError("target_days must be positive")
+
+    @property
+    def preparation_days(self) -> float:
+        if self.target_days is not None:
+            return self.target_days
+        return self.exam_day - self.available_day
 
     def target(self, retention: float) -> float:
         """Stability to reach by the exam: recall at `retention` for as long as the
         preparation lasts. See "Which goal" in `clock.py` for why not less."""
-        return stability_for_interval(self.exam_day, retention)
+        return stability_for_interval(self.preparation_days, retention)
 
 
 @dataclass(frozen=True)
@@ -152,39 +174,98 @@ class DeadlineContinuation:
     def bound_at(self, topics: Sequence[TopicState], now: float) -> float:
         return self._total(self.bounds, self.exam_days, topics, now)
 
+    def subset(self, indices: Sequence[int]) -> DeadlineContinuation:
+        """The continuation of some of the subjects, in the order given."""
+        return DeadlineContinuation(
+            estimates=tuple(self.estimates[i] for i in indices),
+            bounds=tuple(self.bounds[i] for i in indices),
+            exam_days=tuple(self.exam_days[i] for i in indices),
+        )
+
+
+# Solved tables, shared between calls: a replan, or a second plan on the same
+# calendar, reuses them. A solve is a pure function of its configuration and the
+# weights, so sharing cannot change a result. Bounded, because a table is about
+# 1.4 MB and the web page is a long-lived process.
+_SOLVED: dict[tuple[ClockConfig, Weights], ClockPolicy] = {}
+_SOLVED_LIMIT = 64
+
+
+def _solved(config: ClockConfig, weights: Weights) -> ClockPolicy:
+    key = (config, weights)
+    policy = _SOLVED.get(key)
+    if policy is None:
+        policy = clock_solve(config, weights)
+        if len(_SOLVED) >= _SOLVED_LIMIT:
+            _SOLVED.pop(next(iter(_SOLVED)))
+        _SOLVED[key] = policy
+    return policy
+
 
 def solve_deadlines(
     subjects: Sequence[Subject],
     retention: float = 0.9,
     failure_penalty: float = DEFAULT_FAILURE_PENALTY,
     weights: Weights = DEFAULT_WEIGHTS,
+    horizon: float | None = None,
 ) -> DeadlineContinuation:
     """Solve the clock value function for every subject (two solves each).
 
     The time step grows with the horizon, 0.25 days up to 24 days and one
     ninety-sixth of the horizon beyond, so a 60-day exam costs the same few
-    seconds as a 21-day one. Subjects sharing an exam day share the solves.
+    seconds as a 21-day one. Subjects sharing a configuration share the solves.
+
+    Without `horizon`, each subject's table covers its own exam, as it always has.
+    With it, every table covers `horizon` days on the same time step, so that
+    subjects with different exams but the same target share one solve: that is
+    what makes one topic per week of lectures affordable. A table only depends on
+    the target, the time step and the penalty; its horizon is how many levels of
+    the backward sweep are kept.
     """
-    cache: dict[tuple[float, str], ClockPolicy] = {}
+    if horizon is not None and any(s.exam_day > horizon + 1e-9 for s in subjects):
+        raise ValueError("an exam lies beyond the shared horizon")
+    # With a shared horizon, a table only needs to reach as far before the exam as
+    # its longest-prepared subject is ever queried: from the day it is taught. A
+    # subject taught in December needs weeks of table, not the semester, and the
+    # backward sweep is quadratic in its length.
+    reach: dict[float, float] = {}
+    for s in subjects:
+        target = s.target(retention)
+        reach[target] = max(reach.get(target, 0.0), s.exam_day - s.available_day)
 
-    def policy(exam_day: float, mode: str) -> ClockPolicy:
-        key = (exam_day, mode)
-        if key not in cache:
-            config = ClockConfig.for_exam(
-                exam_day,
-                retention,
-                failure_penalty=failure_penalty,
-                time_step=max(0.25, exam_day / 96),
-                interpolation=mode,
-            )
-            cache[key] = clock_solve(config, weights)
-        return cache[key]
+    def config(subject: Subject, mode: str) -> ClockConfig:
+        span = subject.exam_day if horizon is None else horizon
+        return ClockConfig(
+            target_stability=subject.target(retention),
+            horizon_days=span if horizon is None else reach[subject.target(retention)],
+            failure_penalty=failure_penalty,
+            time_step=max(0.25, span / 96),
+            interpolation=mode,
+        )
 
-    return DeadlineContinuation(
-        estimates=tuple(policy(s.exam_day, "bilinear") for s in subjects),
-        bounds=tuple(policy(s.exam_day, "optimistic") for s in subjects),
+    configs = {config(s, mode) for s in subjects for mode in ("bilinear", "optimistic")}
+    missing = [c for c in configs if (c, weights) not in _SOLVED]
+    if len(missing) > 1:
+        # The backward sweeps are numpy-bound and release the GIL for much of
+        # their time: about 1.6 times faster on four cores than one after another.
+        with ThreadPoolExecutor(max_workers=min(len(missing), os.cpu_count() or 1)) as pool:
+            for c, policy in zip(missing, pool.map(lambda c: clock_solve(c, weights), missing), strict=True):
+                if len(_SOLVED) >= _SOLVED_LIMIT:
+                    _SOLVED.pop(next(iter(_SOLVED)))
+                _SOLVED[(c, weights)] = policy
+
+    continuation = DeadlineContinuation(
+        estimates=tuple(_solved(config(s, "bilinear"), weights) for s in subjects),
+        bounds=tuple(_solved(config(s, "optimistic"), weights) for s in subjects),
         exam_days=tuple(s.exam_day for s in subjects),
     )
+    # A shared table keeps its memo of waiting values between plans; drop a large
+    # one so that a long-lived process does not grow without bound.
+    for policy in {id(p): p for p in continuation.estimates + continuation.bounds}.values():
+        if len(policy._cache) + len(policy._rounded) > 200_000:
+            policy._cache.clear()
+            policy._rounded.clear()
+    return continuation
 
 
 def deadline_heuristic(continuation: DeadlineContinuation) -> Heuristic:
@@ -202,6 +283,7 @@ def best_case_stability(
     review_days: Sequence[float],
     weights: Weights = DEFAULT_WEIGHTS,
     last_review_day: float = 0.0,
+    enough: float = math.inf,
 ) -> float:
     """An upper bound on the stability reachable by reviewing at some subset of
     `review_days`, starting from `memory` last reviewed at `last_review_day`.
@@ -215,6 +297,10 @@ def best_case_stability(
     (`test_recall_stability_increases_with_stability`). If even this is below a
     subject's target, no schedule on this calendar can make it ready, and the
     planner says so instead of scheduling anyway.
+
+    The programme stops as soon as it reaches `enough`: the caller only asks
+    whether a target is reachable, and a topic per week of lectures makes the
+    full quadratic programme too slow to run for every topic.
     """
     floor = min(memory.difficulty, _next_difficulty_fixed_point(weights))
     days = sorted(d for d in review_days if d > last_review_day)
@@ -229,6 +315,8 @@ def best_case_stability(
         )
         best.append(value)
         overall = max(overall, value)
+        if overall >= enough:
+            break
     return overall
 
 
@@ -382,6 +470,7 @@ def run_rolling(
     difficulty_step: float = 0.5,
     max_expansions: int = 60_000,
     force_lapse_at: Sequence[int] = (),
+    max_candidates: int | None = None,
 ) -> RollingResult:
     """Plan one window exactly, act, observe, repeat.
 
@@ -393,6 +482,9 @@ def run_rolling(
 
     `force_lapse_at` forces a lapse at the given session indices, so that the
     planner's reaction to a failure can be tested rather than hoped for.
+
+    `max_candidates` caps how many topics a window may choose from; see
+    `_candidates`. None means no cap.
 
     Note which state is snapped and which is not. Window instances aggregate
     stability onto a grid, because that is what makes the search tractable; the
@@ -412,9 +504,14 @@ def run_rolling(
 
     names = tuple(s.name for s in subjects)
     targets = continuation.targets
+    available = tuple(s.available_day for s in subjects)
     unreachable = tuple(
         best_case_stability(
-            s.memory, [b.start_day for b in blocks if b.start_day < s.exam_day], weights, s.last_review_day
+            s.memory,
+            [b.start_day for b in blocks if s.available_day <= b.start_day < s.exam_day],
+            weights,
+            s.last_review_day,
+            enough=target,
         )
         < target
         for s, target in zip(subjects, targets, strict=True)
@@ -422,6 +519,11 @@ def run_rolling(
     # An unreachable subject is never offered as an action: its exam is treated as
     # already past, so the plan does not spend blocks on a lost cause.
     live_exams = tuple(0.0 if bad else exam for bad, exam in zip(unreachable, exams, strict=True))
+    # Topics that appear during the horizon, or more topics than a window should
+    # branch over, make each window a problem over the topics that can be studied
+    # now: see `_candidates`. Without either, the window holds every subject, as it
+    # always has, so the published results are untouched.
+    restrict = max_candidates is not None or any(a > 0 for a in available)
 
     state = tuple(TopicState(s.memory.stability, s.memory.difficulty, s.last_review_day) for s in subjects)
     result = RollingResult(
@@ -442,28 +544,40 @@ def run_rolling(
         pane = tuple(blocks[index : index + window])
         after = index + len(pane)
         end_day = blocks[after].start_day if after < len(blocks) else max(exams)
+        if restrict:
+            chosen = _candidates(
+                continuation, state, targets, live_exams, available, now, end_day, max_candidates
+            )
+            if not chosen:
+                continue  # nothing taught yet is left to study
+        else:
+            chosen = tuple(range(len(subjects)))
+        part = continuation.subset(chosen) if restrict else continuation
         instance = Instance(
-            topics=names,
+            topics=tuple(names[i] for i in chosen),
             blocks=pane,
-            initial=PlanState(0, state),
-            target_stability=max(targets),
-            continuation=continuation,
+            initial=PlanState(0, tuple(state[i] for i in chosen)),
+            target_stability=max(targets[i] for i in chosen),
+            continuation=part,
             lateness_penalty=0.0,
             stability_step=stability_step,
             difficulty_step=difficulty_step,
             weights=weights,
-            targets=targets,
-            exam_days=live_exams,
+            targets=tuple(targets[i] for i in chosen),
+            exam_days=tuple(live_exams[i] for i in chosen),
             end_day=end_day,
         )
-        solution = solve_ao_star(instance, heuristic, max_expansions=max_expansions)
+        solution = solve_ao_star(
+            instance, heuristic if not restrict else deadline_heuristic(part), max_expansions=max_expansions
+        )
         result.solves += 1
         result.expansions += solution.nodes
         result.peak_expansions = max(result.peak_expansions, solution.nodes)
 
-        action = solution.policy.get(instance.initial, SKIP)
-        if action == SKIP:
+        local = solution.policy.get(instance.initial, SKIP)
+        if local == SKIP:
             continue
+        action = chosen[local]
         block = pane[0]
         topic = state[action]
         elapsed = max(block.start_day - topic.last_review_day, 0.0)
@@ -494,3 +608,44 @@ def run_rolling(
 
     result.final_topics = state
     return result
+
+
+def _candidates(
+    continuation: DeadlineContinuation,
+    state: Sequence[TopicState],
+    targets: Sequence[float],
+    exams: Sequence[float],
+    available: Sequence[float],
+    now: float,
+    end_day: float,
+    limit: int | None,
+) -> tuple[int, ...]:
+    """The topics a window starting at `now` chooses between.
+
+    A topic can be studied once it has been taught, until its exam, while it is
+    below its target. Leaving the others out of the window is exact, not an
+    approximation: nothing inside the window can change them, so their share of
+    the terminal value is the same constant under every policy.
+
+    With more such topics than `limit`, only the `limit` most urgent are kept,
+    and that is an approximation, stated here and in METHOD.md: the window is
+    exact over the topics it is given. Urgency is what waiting through the window
+    costs a topic, by the accurate estimate; ties, which are the common case while
+    every best review time is still ahead, go to the earlier exam and then to the
+    weaker memory. A window of `w` blocks studies at most `w` topics, so a limit
+    at or above `w` keeps every topic the window could possibly use when the
+    ranking is right.
+    """
+    live = [i for i, t in enumerate(state) if available[i] <= now < exams[i] and t.stability < targets[i]]
+    if limit is None or len(live) <= limit:
+        return tuple(live)
+
+    def urgency(i: int) -> tuple[float, float, float]:
+        t = state[i]
+        policy = continuation.estimates[i]
+        waiting = policy.cost_of(t.stability, t.difficulty, t.last_review_day, end_day, exams[i]) - (
+            policy.cost_of(t.stability, t.difficulty, t.last_review_day, now, exams[i])
+        )
+        return (-waiting, exams[i], t.stability)
+
+    return tuple(sorted(sorted(live, key=urgency)[:limit]))

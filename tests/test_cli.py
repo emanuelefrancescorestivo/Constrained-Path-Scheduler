@@ -82,6 +82,7 @@ def test_each_subject_can_carry_its_own_exam_date(calendar, capsys):
             "Algebra:4:5@2026-03-27",
             "--window",
             "3",
+            "--whole-subjects",
         ]
     )
     assert code == 0
@@ -89,6 +90,16 @@ def test_each_subject_can_carry_its_own_exam_date(calendar, capsys):
     assert "Analysis           exam on day  18.4, target stability 18 days" in out
     assert "Algebra            exam on day  25.0, target stability 25 days" in out
     assert "horizon 25 days" in out
+
+
+def test_a_subject_with_lectures_in_the_calendar_is_planned_week_by_week(calendar, capsys):
+    """Without --whole-subjects, Analysis's weekly lectures become topics: what was
+    taught before the start, then one per week, each studied after it is taught."""
+    assert main(["plan", str(calendar), *BASE, "--subject", "Analysis:2:7", "--window", "3"]) == 0
+    out = capsys.readouterr().out
+    assert "topics, one per week of lectures" in out
+    assert "Analysis · week of" in out
+    assert "topics ready" in out
 
 
 def test_a_subject_without_an_exam_date_is_refused_with_a_remedy(calendar, capsys):

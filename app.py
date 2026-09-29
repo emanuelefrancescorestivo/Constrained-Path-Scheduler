@@ -11,7 +11,7 @@ anything from `cps` other than `service`.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import altair as alt
@@ -19,15 +19,9 @@ import pandas as pd
 import streamlit as st
 
 from cps import service
+from widgets import EXAMPLE_WEEK, activity_table, week_calendar
 
 SAMPLE = Path(__file__).parent / "examples" / "sample-timetable.ics"
-DEFAULT_WEEK = pd.DataFrame(
-    [
-        {"label": "Lectures", "weekday": "Mon", "date": None, "start": "09:00", "end": "13:00"},
-        {"label": "Lectures", "weekday": "Wed", "date": None, "start": "09:00", "end": "13:00"},
-        {"label": "Job", "weekday": "Fri", "date": None, "start": "14:00", "end": "19:00"},
-    ]
-)
 
 st.set_page_config(page_title="Study planner", layout="wide")
 st.title("When should I study?")
@@ -40,12 +34,17 @@ st.info("**What this does not know.** " + " ".join(service.LIMITATIONS))
 # 1. Input ------------------------------------------------------------------ #
 st.header("1. Your calendar")
 source = st.radio(
-    "Where is your timetable?", ["Upload an .ics file", "Type my week", "Sample calendar"], horizontal=True
+    "Where is your timetable?",
+    ["Upload an .ics file", "Sample calendar", "I have no calendar file"],
+    horizontal=True,
 )
-ics, rows = None, []
+ics = None
 if source == "Upload an .ics file":
     upload = st.file_uploader("Calendar export (.ics)", type=["ics"])
-    st.caption("Google Calendar: Settings, Import and export, Export. Apple Calendar: File, Export.")
+    st.caption(
+        "Google Calendar: Settings, Import and export, Export. Apple Calendar: File, Export. "
+        "University timetables (ADE, Hyperplanning) have an export or a subscription link."
+    )
     ics = upload.getvalue() if upload else None
 elif source == "Sample calendar":
     ics = SAMPLE.read_bytes()
@@ -54,17 +53,15 @@ elif source == "Sample calendar":
         "20 March 2026. Start the plan on 2 March 2026 in Europe/Rome to see it."
     )
 else:
-    st.caption(
-        "One row per busy block. Weekly rows take a weekday, one-off rows a date "
-        "(YYYY-MM-DD). An end before the start runs past midnight. Name an exam "
-        '"Physics exam" and it is found as an exam.'
-    )
-    edited = st.data_editor(DEFAULT_WEEK, num_rows="dynamic", use_container_width=True, key="week")
-    rows = [r for r in edited.to_dict("records") if r.get("label")]
+    st.caption('Draw your week below. Name a one-off block "Physics exam" and it is found as an exam.')
+st.session_state.setdefault("activities", [])
+if source == "I have no calendar file" and not st.session_state.get("seeded"):
+    st.session_state["activities"] = st.session_state["activities"] or list(EXAMPLE_WEEK)
+    st.session_state["seeded"] = True
 
 # 2. Settings --------------------------------------------------------------- #
 with st.sidebar:
-    st.header("2. Settings")
+    st.header("Settings")
     sample = source == "Sample calendar"
     start = st.date_input("Plan from", value=date(2026, 3, 2) if sample else date.today())
     tz = st.text_input("Time zone", value="Europe/Rome")
@@ -82,6 +79,7 @@ with st.sidebar:
 
 if source == "Upload an .ics file" and ics is None:
     st.stop()
+activities = st.session_state["activities"]
 try:
     report = service.analyse_calendar(
         ics,
@@ -90,7 +88,7 @@ try:
         study_window=(earliest, latest),
         blocks_per_day=int(per_day),
         block_minutes=int(minutes),
-        busy_rows=rows,
+        busy_rows=activities,
     )
 except service.ServiceError as error:
     st.error(str(error))
@@ -100,11 +98,44 @@ st.write(
     f"**{len(report.blocks)} free study blocks** of {minutes} minutes."
 )
 
+# 2. Your week --------------------------------------------------------------- #
+st.header("2. Your week")
+st.caption(
+    "Drag on a day to block time for training, a commute, work or time off. Click a block "
+    "to rename it, make it weekly or one-off, or delete it. Grey blocks come from your "
+    "calendar file; hatched hours are outside the hours you study."
+)
+
+
+def _edited() -> None:
+    st.session_state["activities"] = st.session_state["week-editor"]["edit"]
+
+
+shown = st.selectbox(
+    "Week",
+    range(service.calendar_week_count(report)),
+    format_func=lambda w: f"Week {w + 1}, from {report.start + timedelta(days=7 * w):%a %d %b}",
+    key="editor-week",
+)
+week_calendar(
+    service.calendar_week(report, shown, typed=False),
+    key="week-editor",
+    activities=activities,
+    editable=True,
+    study_window=(earliest, latest),
+    on_edit=_edited,
+)
+edited = activity_table(activities, key="activity-table")
+if edited is not None:
+    st.session_state["activities"] = edited
+    st.rerun()
+
 # 3. Subjects ----------------------------------------------------------------- #
 st.header("3. Subjects and exams")
 st.caption(
-    "Familiarity: 1 = new to me, 2 = seen it but shaky, 3 = partly know it, "
-    "4 = know it well, 5 = know it very well. It is a guess and the plan treats it as one."
+    "Familiarity, for what was taught before the plan starts: 1 = new to me, 2 = seen it but shaky, "
+    "3 = partly know it, 4 = know it well, 5 = very well. Each later week of a subject's lectures "
+    "in your calendar becomes a topic of its own, studied once it has been taught."
 )
 found = [
     {"subject": a.subject, "exam": a.when[:16].replace("T", " "), "familiarity": 3}
@@ -142,11 +173,10 @@ plan = service.PlanReport.from_dict(st.session_state["plan"])
 st.header("4. Your plan")
 cols = st.columns(max(1, len(plan.subjects)))
 for col, subject in zip(cols, plan.subjects, strict=False):
-    status = "ready" if subject.ready else ("out of reach" if subject.unreachable else "not ready")
     col.metric(
         subject.name,
         f"{subject.recall_at_exam:.0%} recall at the exam",
-        f"{status}: stability {subject.stability_at_exam:.0f} of {subject.target:.0f} days",
+        service.subject_status(subject),
         delta_color="normal" if subject.ready else "inverse",
     )
 for warning in plan.warnings:
@@ -181,10 +211,12 @@ if not marks.empty:
 st.altair_chart(chart, use_container_width=True)
 
 st.subheader("Week by week")
-week = st.selectbox("Week", range(service.week_count(plan)), format_func=lambda w: f"Week {w + 1}")
-st.dataframe(
-    pd.DataFrame(service.week_view(plan, week)), use_container_width=True, hide_index=True, height=420
+week = st.selectbox(
+    "Week",
+    range(service.calendar_week_count(plan)),
+    format_func=lambda w: f"Week {w + 1}, from {plan.settings.start + timedelta(days=7 * w):%a %d %b}",
 )
+week_calendar(service.calendar_week(plan, week), key="plan-week", study_window=(earliest, latest))
 
 # 5. What if ------------------------------------------------------------------ #
 st.header("5. What if I miss a session?")

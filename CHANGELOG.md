@@ -2,7 +2,28 @@
 
 ## Unreleased
 
+### Added
+- Lectures become topics: a subject's lectures in the calendar are grouped by week,
+  and each week is a topic studied from the day it is taught, with its own target
+  (AUDIT.md item 33, METHOD.md §7). A subject without lectures is planned as before;
+  `cps plan --whole-subjects` and `make_plan(..., lectures_as_topics=False)` keep the
+  old model. `benchmarks/semester.py` and `examples/sample-semester.ics` show the
+  difference on a synthetic semester.
+- The web page has a week calendar: drag on a day to block time for training, a
+  commute, work or time off, move and resize blocks, click one to rename it or make
+  it weekly or one-off. Keyboard users can do the same with the arrow keys, or edit
+  the same activities as a table. The plan is shown on the same calendar.
+- `service.calendar_week`, `service.calendar_week_count`, `service.subject_status`,
+  and `CalendarReport.lectures`.
+
+### Changed
+- Planning is faster without changing a result (item 35): the synthetic semester
+  planned with each course as one topic takes 26 seconds instead of 39, with the
+  same sessions, and a replan reuses the solved value functions.
+
 ### Fixed
+- A class cancelled only in its title ("COURS ANNULE") no longer blocks time
+  (item 34).
 - Exams are found in a real university timetable export (ADE / Hyperplanning
   style, `Course, Grp: EXAMEN ., Salle: Room`), tested on the owner's own:
   keywords match whole words, longest first (AUDIT.md item 29); the subject is the

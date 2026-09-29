@@ -70,7 +70,7 @@ test and reported the best state it had seen anywhere in the search tree, while 
 greedy baseline was scored where it finished. And the heuristic added hours to days,
 so its admissibility, the property that makes A* optimal, could not even be stated.
 The calendar parser was a stub; nothing had ever been run on a real timetable.
-`AUDIT.md` lists these and every defect found since, 28 in all.
+`AUDIT.md` lists these and every defect found since, 35 in all.
 
 ## How the rebuild is arranged
 
@@ -150,6 +150,21 @@ unrounded model. And a sentence that had been in the method document from the st
 that the optimal retention "lies inside the 0.75–0.90 band the FSRS community
 reports", turned out to have no source anyone could find. It was presented as
 independent corroboration. It is withdrawn.
+
+## The plan that finished in November
+
+The first real calendar the planner saw was my own: six courses, lectures until
+December, exams at the end of January. Once its exams were read correctly, the plan
+put its last session on 23 November and nothing in the two months before the exams.
+Every test passed and every number in this document still held. The model did what
+it was built for, keeping one rated memory per course from decaying, and it reached
+each target early. A course is not one memory: its material arrives a lecture at a
+time. The calendar already said so, since it lists every lecture; it now drives the
+model, one topic per week of lectures, each studied from the day it is taught. On a
+synthetic semester in the same format the plan goes from 27 sessions ending in
+November to 222 spread over all eighteen weeks. The same lesson as the degenerate
+optimum, one level up: a correct answer to the wrong question, found only by using
+the thing for what it is for.
 
 ## What I would tell someone starting a project like this
 

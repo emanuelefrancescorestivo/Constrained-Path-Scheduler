@@ -26,11 +26,12 @@ than an impressive number.
 
     pip install -e ".[dev,app]"             # app = streamlit, for app.py
     streamlit run app.py
-    pytest                                   # 230 passed, 12 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 242 + 1 xfailed, 94% coverage, about 2 min; CI runs this
+    pytest                                   # 252 passed, 12 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 264 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
+    python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -41,14 +42,17 @@ than an impressive number.
 | `memory.py` | FSRS-4.5: forgetting curve, stability and difficulty updates, 17 named weights |
 | `legacy.py` | the January 2026 model, verbatim, so its defect stays a failing test |
 | `timegrid.py` | calendar as one immutable, hashable integer bitmask; local wall-clock slots |
-| `calendar_io.py` | `.ics` in (RRULE, EXDATE, DST, BOM), exam detection, `.ics` out |
+| `calendar_io.py` | `.ics` in (RRULE, EXDATE, DST, BOM, cancellations), exam detection, course of each event, `.ics` out |
 | `ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
 | `clock.py` | `V(D, S, t)` and `W(D, S, e, t)`: cost to reach a subject's target before its exam |
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
-| `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-subject exams |
-| `service.py` | the API every front end uses; typed errors; JSON results; no UI imports |
+| `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
+| `service.py` | the API every front end uses; lectures become weekly topics; typed errors; JSON results; no UI imports |
 | `cli.py`, `console.py` | `cps inspect` / `cps plan`, printing what `service` returns; UTF-8 output hardening |
+
+`widgets/` (next to `app.py`, not in the package) is the week calendar the page
+draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input only.
 
 ## Invariants: do not weaken these to get a green build
 
@@ -94,6 +98,9 @@ than an impressive number.
 
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
+- With lectures in the calendar, a topic is one week of one subject, reviewed in one
+  block and starting "seen once and shaky"; each window considers at most four
+  topics (METHOD.md §7). A semester takes about half a minute to plan.
 - FSRS weights are population defaults; a subject's starting stability and
   difficulty are user-supplied guesses. The target and the 40-block failure penalty
   are stated choices.

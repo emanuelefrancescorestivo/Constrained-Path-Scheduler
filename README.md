@@ -12,7 +12,7 @@ by hand. This project joins them, and checks every claim it makes about doing so
 against exhaustive computation, simulation with error bars, or an independent
 implementation.
 
-![The planner on the sample calendar](docs/app-screenshot.png)
+![The planner on the sample calendar: a football session dragged onto Thursday, and the plan week by week](docs/app-screenshot.png)
 
 ## Sixty seconds
 
@@ -32,14 +32,20 @@ cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome \
 
 `Analysis:2:7` is a subject whose memory stability you guess at 2 days and whose
 difficulty at 7 on FSRS's 1-to-10 scale; its exam date is found in the calendar.
-`@2026-03-27` gives Algebra's date directly. The plan prints with the reason for
-every session, and `plan.ics` is a standard calendar file with its time zone
-defined.
+`@2026-03-27` gives Algebra's date directly. Both subjects' lectures are in the
+sample calendar, so each week of them becomes a topic of its own, studied from the
+day it is taught; the guess describes what was taught before the plan starts, and
+here nothing was, which the plan says. `--whole-subjects` plans each subject as one
+item instead. The plan prints with the reason for every session, and `plan.ics` is
+a standard calendar file with its time zone defined.
 
 With your own calendar: export it (Google Calendar: Settings, Import and export,
-Export; Apple Calendar: File, Export), run `cps inspect your.ics --tz Europe/Rome`
-first and check the free blocks it lists, then `cps plan`. No calendar file? The web
-page lets you type your week into a table.
+Export; Apple Calendar: File, Export; a university timetable usually has an export
+or a subscription link), run `cps inspect your.ics --tz Europe/Rome` first and check
+the free blocks it lists, then `cps plan`. On the web page you can also drag your
+own training, commutes, work and time off onto the week, like in a calendar app.
+No calendar file? Draw the whole week there. `examples/sample-semester.ics` is a
+synthetic four-month semester to try the page on.
 
 ## How it works
 
@@ -54,6 +60,10 @@ page lets you type your week into a table.
   left before its exam gives the expected number of study blocks needed to reach
   its target, given the time since its last review (`clock.py`). Waiting costs
   something as soon as it eats into the time the remaining reviews need.
+- **Lectures become topics.** A subject's lectures in the calendar are its material:
+  each week of them is a topic that appears when it is taught, with its own target,
+  so a semester is studied as it is taught instead of being "finished" in November
+  (`service.py`, METHOD.md §7).
 - **The search.** A review can fail, so a plan is a policy, not a sequence: AO*
   searches the AND/OR graph of the next few blocks exactly, with an admissible
   heuristic, takes one step, observes the outcome and replans (`plan.py`,
@@ -92,6 +102,17 @@ Fixed retention turns out to be a sawtooth, not a curve (METHOD.md §2).
 with four different heuristics, each verified admissible at every one of those
 states, in 114 node expansions with the best of them.
 
+**A semester** (`python benchmarks/semester.py`: six courses taught from 28
+September to 18 December, exams from 25 to 29 January, two 90-minute blocks a day at
+most). Planned with each course as one item already partly known, the plan has 27
+sessions and the last one on 23 November: nothing in the two months before the
+exams. With a topic per week of lectures it has 222 sessions spread over all 18
+weeks, 84 of them after teaching ends, and 63 of 69 topics reach their target. The
+six that fall short are the earliest material, what was taught before the start and
+in the first two weeks, whose targets are the highest (112 to 119 days): they end at
+62 to 77 days, because two blocks a day also have to cover
+everything taught later. Planning took 38 seconds.
+
 **Two findings a student can use.** Spacing, not the number of free evenings, is
 what runs out: five daily blocks cannot build 21 days of stability however they are
 spent, because every gap is one day; seven can. And the objective is flat in the
@@ -112,6 +133,11 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
   priced at 40 study blocks. Both are stated, and both change the plan.
 - **Its estimates are estimates.** The value it plans with is 0.1 to 0.7 blocks
   optimistic against simulation; readiness is 90% ± 3%, not a guarantee.
+- **A topic is a week of one subject.** One study block reviews a week of lectures,
+  fresh lectures start "seen once and shaky", and the lecture itself is not counted
+  as a review. These are simplifications, and the app lists them.
+- **It is not instant.** A four-month semester of six subjects takes about half a
+  minute to plan, a replan less; most of it is the search over each window.
 - **Timing is at the level of days.** Blocks are placed at the start of each free
   stretch; FSRS measures stability in days, so the hour barely matters.
 
@@ -120,7 +146,7 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 28 in all, including a planner that put
+those defects and every one found since, 35 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
@@ -131,6 +157,7 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | path | what it is |
 |---|---|
 | `app.py` | the web page; input and layout only |
+| `widgets/` | the drag-and-drop week calendar the page draws with (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
 | `src/cps/cli.py` | `cps inspect` and `cps plan` |
 | `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
@@ -148,11 +175,12 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 
 ```bash
 pip install -e ".[dev,app]"
-pytest                                    # 230 passed, 12 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 242 passed, 1 xfailed, 94% coverage
+pytest                                    # 252 passed, 12 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 264 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
+python benchmarks/semester.py             # a semester, with and without lectures as topics
 ```
 
 CI runs all of it on Ubuntu and Windows, Python 3.11 to 3.13. The one expected

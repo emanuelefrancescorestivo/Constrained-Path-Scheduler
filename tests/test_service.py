@@ -40,6 +40,13 @@ def subjects():
 
 @pytest.fixture(scope="module")
 def plan(report, subjects):
+    """Each subject as one topic: the model every result in the documents uses.
+    `topical` below is the same calendar with lectures as topics."""
+    return service.make_plan(report, subjects, window=4, lectures_as_topics=False)
+
+
+@pytest.fixture(scope="module")
+def topical(report, subjects):
     return service.make_plan(report, subjects, window=4)
 
 
@@ -295,3 +302,71 @@ END:VCALENDAR
     report = service.analyse_calendar(ics, start=date(2026, 9, 29), tz="Europe/Paris")
     assert [a.subject for a in report.assessments] == ["Computer Programming 3", "Deep Learning 1"]
     assert report.days == 123  # to the last exam, including its day
+
+
+# --------------------------------------------------------------------------- #
+# Lectures become topics (AUDIT.md item 33)
+# --------------------------------------------------------------------------- #
+
+
+def test_the_lectures_of_each_week_become_a_topic(report, topical):
+    """The sample's Analysis lectures (Mondays and Wednesdays from 2 March, exam on
+    Friday 20 March) are three weeks of material, each available once the week's
+    last lecture has ended; nothing was taught before the plan starts."""
+    analysis = [s for s in topical.specs if s["subject"] == "Analysis"]
+    assert [s["topic"] for s in analysis] == ["week of 02 Mar", "week of 09 Mar", "week of 16 Mar"]
+    assert [round(s["available_day"], 3) for s in analysis] == [2.458, 9.458, 16.458]  # Wednesdays, 11:00
+    assert all(s["last_review_day"] == s["available_day"] for s in analysis)
+    # Preparation from the end of the week to the exam (day 18.375), in whole weeks
+    # once it is a week or more.
+    assert [s["target_days"] for s in analysis] == [14, 7, pytest.approx(18.375 - 16.458, abs=1e-3)]
+    # Ten lectures up to 1 April; the four after the exam belong to no topic.
+    lectures = [x for x in report.lectures if x.course == "Analysis"]
+    assert len(lectures) == 10
+
+
+def test_a_topic_is_never_studied_before_it_is_taught(topical):
+    available = {s["name"]: s["available_day"] for s in topical.specs}
+    assert topical.sessions
+    for session in topical.sessions:
+        assert session.title in available
+        assert session.start_day >= available[session.title]
+
+
+def test_a_subject_summarises_its_topics(topical):
+    analysis = next(s for s in topical.subjects if s.name == "Analysis")
+    assert analysis.topics == 3
+    assert 0 <= analysis.topics_ready <= 3
+    assert analysis.ready == (analysis.topics_ready == 3)
+    assert 0 < analysis.recall_at_exam <= 1
+    # Every Analysis lecture is after the start, so the stated 2-day stability
+    # describes nothing, and the plan says so rather than silently ignoring it.
+    assert any(w.startswith("Analysis: all its lectures") for w in topical.warnings)
+    assert service.subject_status(analysis).endswith(f"{analysis.topics_ready} of 3 topics at target")
+
+
+def test_without_lectures_in_the_calendar_a_subject_is_one_topic(subjects):
+    """Typed busy rows carry no lectures, so the default plans exactly as before."""
+    rows = [{"label": "Analysis exam", "date": "2026-03-20", "start": "09:00", "end": "12:00"}]
+    typed = service.analyse_calendar(None, start=START, tz=TZ, busy_rows=rows)
+    assert typed.lectures == ()
+    both = [service.make_plan(typed, subjects, window=3, lectures_as_topics=flag) for flag in (True, False)]
+    assert both[0].to_dict() == both[1].to_dict()
+
+
+def test_replanning_and_json_work_with_topics(topical):
+    again = service.PlanReport.from_dict(topical.to_dict())
+    assert again == topical
+    first = topical.sessions[0]
+    after = service.replan_after(topical, first.index, "lapsed")
+    assert after.history[-1].topic == first.topic and after.history[-1].outcome == "lapsed"
+    # The forgotten topic comes back before the exam.
+    assert any(s.topic == first.topic for s in after.sessions)
+
+
+def test_the_recall_curve_of_a_topical_subject_averages_what_has_been_taught(topical):
+    curve = service.recall_curve(topical, "Analysis")
+    exam_day = next(s.exam_day for s in topical.subjects if s.name == "Analysis")
+    assert curve[0][0] == pytest.approx(2.5)  # nothing taught before the first Wednesday
+    assert curve[-1][0] <= exam_day
+    assert all(0 < p <= 1 for _, p in curve)
