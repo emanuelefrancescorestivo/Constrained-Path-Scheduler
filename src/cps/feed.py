@@ -5,7 +5,7 @@ A calendar app (Google Calendar "From URL", Apple Calendar "New Calendar
 Subscription", Notion Calendar through the Google or Apple account it shows, Outlook
 "Subscribe from web") reads a URL every few hours and shows what it finds. That is
 all a feed needs: one address per plan, `/feed/<token>.ics`, answered from the
-subscription store `service` writes. No account and no sign-in, which is why this
+store (`cps.store`, one SQLite file) `service` writes. No account and no sign-in, which is why this
 is step one before any Google integration: nothing here needs Google's approval.
 
 When a feed is read and its plan is older than `service.FEED_REFRESH`, the answer is
@@ -33,6 +33,7 @@ from typing import Any
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 from . import service
+from .store import Conflict
 
 DEFAULT_STORE = service.FEED_STORE
 _FEED = re.compile(r"/feed/([A-Za-z0-9_-]{22,64})\.ics")
@@ -97,13 +98,16 @@ class FeedApp:
 
     def _refresh(self, token: str) -> None:
         try:
-            current = service.load_subscription(self.store, token)
-            if current is None:
-                return
-            fresh = service.refresh_subscription(current, now=self.clock(), fetch=self.fetch)
-            # Deleted while the plan was being made: do not bring it back.
-            if service.load_subscription(self.store, token) is not None:
-                service.save_subscription(self.store, fresh)
+            # A report or a deletion arriving while the plan is being made wins: the
+            # update is written only over the version it started from, and a
+            # deleted subscription is not brought back.
+            service.update_subscription(
+                self.store,
+                token,
+                lambda current: service.refresh_subscription(current, now=self.clock(), fetch=self.fetch),
+            )
+        except Conflict:
+            pass  # kept changing: the next read of the feed tries again
         finally:
             with self._lock:
                 self._running.discard(token)

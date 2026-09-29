@@ -25,10 +25,15 @@ cps = "cps.cli:main"
 
 [project.optional-dependencies]
 # Versions are the ones the checks were run with in milestone M4.
-dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3"]
+dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3", "httpx>=0.28"]
 # The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
 # altair, which app.py uses for its tables and chart.
 app = ["streamlit>=1.64"]
+# The hosted product (`cps web`, src/cps/web): the owner approved FastAPI, uvicorn
+# and Jinja2 on 2026-09-29 (docs/ROADMAP.md, D1); python-multipart is what FastAPI
+# needs to read forms and uploads. Tested with FastAPI 0.141, uvicorn 0.54,
+# Jinja2 3.1, python-multipart 0.0.x.
+web = ["fastapi>=0.141", "uvicorn>=0.54", "jinja2>=3.1", "python-multipart>=0.0.20"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

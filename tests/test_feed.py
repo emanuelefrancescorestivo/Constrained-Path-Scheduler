@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import threading
 import urllib.request
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from wsgiref.simple_server import make_server
@@ -72,7 +73,7 @@ def test_a_new_subscription_holds_a_plan_and_a_secret_token(published):
 def test_a_subscription_round_trips_through_the_store(published, tmp_path):
     service.save_subscription(tmp_path, published)
     assert service.load_subscription(tmp_path, published.token) == published
-    assert [p.name for p in tmp_path.iterdir()] == [f"{published.token}.json"]  # no temporary left
+    assert {p.name for p in tmp_path.iterdir()} <= {"cps.sqlite", "cps.sqlite-wal", "cps.sqlite-shm"}
     assert service.delete_subscription(tmp_path, published.token)
     assert service.load_subscription(tmp_path, published.token) is None
     assert not service.delete_subscription(tmp_path, published.token)
@@ -215,5 +216,130 @@ def test_the_access_log_leaves_out_the_secret_address(published, tmp_path, capfd
 def test_a_subscription_from_a_link_reads_the_link(timetable_server, monkeypatch):
     monkeypatch.setattr(service, "LINKS_MAY_BE_PRIVATE", True)
     linked = _subscription(ics=None, source_url=f"{timetable_server}/sample-timetable.ics")
-    assert linked.ics_text is None and linked.plan is not None
+    # The calendar last read is kept, so that a report replans without the network.
+    assert linked.ics_text.startswith("BEGIN:VCALENDAR") and linked.plan is not None
     assert service.feed_ics(linked).startswith(b"BEGIN:VCALENDAR")
+
+
+# --------------------------------------------------------------------------- #
+# What the student reports
+# --------------------------------------------------------------------------- #
+
+REPORT = service.TaskSpec("Analysis problem sheet", "2026-03-13 18:00", 4.5, "Analysis")
+
+
+@pytest.fixture(scope="module")
+def assisted() -> service.Subscription:
+    return _subscription(engine="assistant", tasks=[REPORT], preferences={"weekly_hours": 12})
+
+
+def _first(sub: service.Subscription, kind: str) -> service.SessionView:
+    return next(s for s in service.PlanReport.from_dict(sub.plan).sessions if s.kind == kind)
+
+
+def _after(session: service.SessionView) -> datetime:
+    return datetime.fromisoformat(session.start).replace(tzinfo=ZoneInfo(TZ)) + timedelta(minutes=5)
+
+
+def test_a_session_id_is_stable_across_a_refresh(assisted):
+    plan = service.PlanReport.from_dict(assisted.plan)
+    later = service.refresh_subscription(assisted, now=datetime(2026, 3, 4, tzinfo=UTC))
+    after = service.PlanReport.from_dict(later.plan)
+    ids = {service.session_id(s) for s in after.history}
+    assert ids and ids <= {service.session_id(s) for s in plan.sessions}
+    assert service.find_session(later, next(iter(ids))) is not None
+
+
+def test_a_skipped_task_block_comes_back_later(assisted):
+    task = _first(assisted, "task")
+    before = sum(s.kind == "task" for s in service.PlanReport.from_dict(assisted.plan).sessions)
+    now = _after(task)
+    reported = service.report_session(assisted, service.session_id(task), "skipped", now=now)
+    plan = service.PlanReport.from_dict(reported.plan)
+    skipped = [s for s in plan.history if service.session_id(s) == service.session_id(task)]
+    assert [s.outcome for s in skipped] == ["skipped"]
+    assert reported.outcomes == {service.session_id(task): "skipped"}
+    # The work still has to be done: as many task blocks as before, the skipped one aside.
+    done = sum(s.kind == "task" and s.outcome != "skipped" for s in plan.history)
+    assert done + sum(s.kind == "task" for s in plan.sessions) == before
+
+
+def test_a_hard_task_gets_one_more_block(assisted):
+    task = _first(assisted, "task")
+    reported = service.report_session(assisted, service.session_id(task), "struggled", now=_after(task))
+    assert reported.options["tasks"][0]["hours"] == REPORT.hours + 1.5
+    view = service.PlanReport.from_dict(reported.plan).tasks[0]
+    assert view.blocks == service.PlanReport.from_dict(assisted.plan).tasks[0].blocks + 1
+
+
+def test_a_hard_review_counts_as_forgotten(assisted):
+    review = _first(assisted, "first review")
+    reported = service.report_session(assisted, service.session_id(review), "struggled", now=_after(review))
+    kept = service.find_session(reported, service.session_id(review))
+    assert kept.outcome == "lapsed"
+    fine = service.report_session(assisted, service.session_id(review), "done", now=_after(review))
+    assert service.find_session(fine, service.session_id(review)).outcome == "recalled"
+
+
+def test_a_report_needs_no_network_and_a_started_session(assisted):
+    # A link that can never be read (.invalid is reserved): a report that tried
+    # would come back with an error.
+    linked = replace(assisted, source_url="https://timetable.invalid/x.ics")
+    task = _first(linked, "task")
+    sid = service.session_id(task)
+    with pytest.raises(service.InvalidInput, match="not started"):
+        service.report_session(linked, sid, "done", now=_after(task) - timedelta(hours=1))
+    with pytest.raises(service.InvalidInput, match="no longer in your plan"):
+        service.report_session(linked, "0" * 12, "done", now=_after(task))
+    with pytest.raises(service.InvalidInput):
+        service.report_session(linked, sid, "maybe", now=_after(task))
+    reported = service.report_session(linked, sid, "done", now=_after(task))
+    assert reported.error is None and reported.outcomes == {sid: "done"}
+    assert service.refresh_subscription(linked, now=_after(task)).error  # while a refresh reads it
+
+
+def test_a_revision_replans_at_once(assisted):
+    revised = service.revise_subscription(assisted, preferences={"rest_days": ["Sat", "Sun"]}, now=BEFORE)
+    days = {
+        datetime.fromisoformat(s.start).weekday() for s in service.PlanReport.from_dict(revised.plan).sessions
+    }
+    assert days.isdisjoint({5, 6})
+    assert revised.options["preferences"]["weekly_hours"] == 12  # the rest is kept
+    fewer = service.revise_subscription(assisted, tasks=[], now=BEFORE)
+    assert not any(s.kind == "task" for s in service.PlanReport.from_dict(fewer.plan).sessions)
+    with pytest.raises(service.InvalidInput, match="unknown"):
+        service.revise_subscription(assisted, colour="red")
+
+
+def test_a_subscription_expires_a_month_after_its_last_exam_or_deadline(assisted):
+    plan = service.PlanReport.from_dict(assisted.plan)
+    last = max(datetime.fromisoformat(s.exam) for s in plan.subjects)
+    assert service.subscription_expiry(assisted) == last + service.RETENTION
+
+
+def test_a_feed_with_an_address_carries_the_report_link(assisted):
+    text = service.feed_ics(assisted, "https://cps.example.org/").decode("utf-8").replace("\r\n ", "")
+    task = _first(assisted, "task")
+    assert f"https://cps.example.org/s/{assisted.token}/{service.session_id(task)}" in text
+    assert "/s/" not in service.feed_ics(assisted).decode("utf-8")
+
+
+def test_reports_and_refreshes_do_not_overwrite_each_other(assisted, tmp_path):
+    """A refresh that started before a report must not erase it (`Store.update`)."""
+    service.save_subscription(tmp_path, assisted)
+    task = _first(assisted, "task")
+    sid = service.session_id(task)
+
+    calls = []
+
+    def refresh_during_which_a_report_arrives(current):
+        calls.append(dict(current.outcomes))
+        if len(calls) == 1:
+            service.update_subscription(
+                tmp_path, current.token, lambda s: service.report_session(s, sid, "skipped", now=_after(task))
+            )
+        return service.refresh_subscription(current, now=_after(task), reread=False)
+
+    service.update_subscription(tmp_path, assisted.token, refresh_during_which_a_report_arrives)
+    assert calls == [{}, {sid: "skipped"}]  # the refresh was made again, from the report
+    assert service.load_subscription(tmp_path, assisted.token).outcomes == {sid: "skipped"}
