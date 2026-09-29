@@ -1,0 +1,16 @@
+<article class="session{% if card.reported %} reported{% endif %}">
+  <p class="when">{{ card.when }}–{{ card.until }} · <span class="kind">{{ card.kind }}</span></p>
+  <h3>{{ card.title }}</h3>
+  {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
+  {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
+  {% if card.started %}
+    {% if card.reported %}
+    <p class="done">Reported: {{ outcome_words[card.reported] }}</p>
+    {% endif %}
+    <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes">
+      {% for value, word in outcome_words.items() %}
+      <button name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+      {% endfor %}
+    </form>
+  {% endif %}
+</article>

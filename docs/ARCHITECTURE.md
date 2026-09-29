@@ -33,9 +33,11 @@ flowchart TD
     SVC --> CLI["cli: cps inspect / cps plan"]
     SVC --> APP["app.py: Streamlit page,<br/>widgets/: the week calendar"]
     SVC --> OUT["plan.ics with a reason per session"]
-    SVC --> STORE["feed store<br/>one JSON file per subscription"]
-    STORE --> FEED["feed: cps serve<br/>/feed/token.ics, refreshed from the link"]
-    FEED -- "refresh: continue_plan from now" --> SVC
+    SVC --> STORE["store<br/>SQLite: one versioned document per plan,<br/>event log, expiry, backups"]
+    SVC --> WEB["web: cps web (the hosted product)<br/>setup, Today, week, one-tap reports,<br/>/feed/token.ics"]
+    SVC --> FEED["feed: cps serve<br/>feeds the Streamlit page publishes"]
+    MOODLE["learning platform calendar<br/>(Moodle): deadlines"] --> SVC
+    WEB -- "refresh in the background: read the links, plan from now" --> SVC
 ```
 
 ## The layers
@@ -85,10 +87,25 @@ drags out as busy rows. A test fails if `app.py` imports anything from `cps` exc
 
 **Links and feeds.** `sources` reads a calendar from a link and refuses what a server
 must not fetch (other schemes, private and loopback addresses, also after a redirect,
-oversized answers). A plan published from the page is a `Subscription` in a store
-directory; `feed` serves it at an unguessable address, and when a calendar app reads a
-stale one it reads the timetable's link again and continues the plan from now in the
-background (`service.continue_plan`), keeping the sessions already behind as done.
+oversized answers). A plan published is a `Subscription`: the timetable (its link and
+the text last read), what the student typed, the plan, and the sessions they reported.
+When a calendar app or a page reads a stale one, `service.Refresher` reads the links
+again in the background (the timetable, and the learning platform's deadlines) and
+plans from now, sessions behind counting as done unless reported otherwise.
+
+**Store.** `store` keeps each subscription as one JSON document in one SQLite file,
+with a version: a report and a background refresh can touch the same plan at once, and
+an update is written only over the version it was computed from, else computed again
+(`service.update_subscription`). It also keeps a log of what happened to each plan
+(for the pilot's measures), deletes plans past their expiry, and copies itself while
+in use.
+
+**The hosted app.** `web` is a FastAPI application with Jinja2 templates and one
+stylesheet, no JavaScript. It reads forms, calls `service`, and fills templates; a test
+fails if it imports anything from `cps` but `service`. The page models (`today_view`,
+`agenda`, `setup_view`) are in `service`. A student's two secret addresses are the only
+credential, so nothing logs them, no referrer carries them, and a GET never changes a
+plan: the link in a calendar event opens a page whose button records the report.
 
 ## Where the guarantees are checked
 
@@ -103,6 +120,10 @@ background (`service.continue_plan`), keeping the sessions already behind as don
 | deadlines met when possible, budget and days off kept, nothing before it is taught | `tests/test_assistant.py` |
 | a link cannot make the server read its own network | `tests/test_sources.py`, redirects included |
 | a feed keeps what was done, survives a dead link, stays deleted, logs no address | `tests/test_feed.py` |
+| a report is never lost to a concurrent refresh | `tests/test_store.py`, `tests/test_feed.py` |
+| a GET changes nothing, other sites' forms are refused, logs hold no address, deletion deletes | `tests/test_web.py` |
+| the hosted app computes nothing itself | `tests/test_web.py`, by syntax tree |
+| Moodle's deadlines are read as Moodle writes them; the student's edits survive a refresh | `tests/test_deadlines.py` |
 | a topic is never studied before it is taught | `tests/test_service.py`, `tests/test_rolling.py` |
 | leaving untaught and finished topics out of a window changes nothing | `tests/test_rolling.py`, same plan as the full windows |
 | every number in the documents | `demo.py` and `benchmarks/`, fixed seeds |

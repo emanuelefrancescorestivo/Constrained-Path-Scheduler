@@ -24,11 +24,12 @@ than an impressive number.
 
 ## Commands
 
-    pip install -e ".[dev,app]"             # app = streamlit, for app.py
-    streamlit run app.py
-    cps serve                                # the calendar feeds the page publishes
-    pytest                                   # 298 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 312 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pip install -e ".[dev,app,web]"         # app = streamlit (app.py); web = the hosted app
+    cps web                                  # the hosted product: pages, feeds, reports (port 8000)
+    streamlit run app.py                     # the workbench
+    cps serve                                # the calendar feeds the Streamlit page publishes
+    pytest                                   # 361 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 375 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -51,10 +52,12 @@ than an impressive number.
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time |
-| `service.py` | the API every front end uses; lectures become weekly topics; feeds; typed errors; JSON results; no UI imports |
+| `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
-| `cli.py`, `console.py` | `cps inspect` / `cps plan`, printing what `service` returns; UTF-8 output hardening |
+| `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2, no JavaScript): setup, Today, week, one-tap reports, privacy; only calls `service` |
+| `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `sweep` / `backup`; UTF-8 output hardening |
 
 `widgets/` (next to `app.py`, not in the package) is the week calendar the page
 draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input only.
@@ -111,9 +114,12 @@ draws: a Streamlit v2 component in plain JavaScript and CSS, layout and input on
 - With lectures in the calendar, a topic is one week of one subject, reviewed in one
   block and starting "seen once and shaky"; each window considers at most four
   topics (METHOD.md §7). A semester takes about half a minute to plan.
-- Feeds count past sessions as done as planned; a missed session reported on the
-  page does not reach the feed. On a laptop, only local calendar apps can read a feed;
-  Google and Notion Calendar need it on the internet, and hosting is the owner's call.
+- Sessions not reported count as done as planned. In `cps web` a report reaches the
+  feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
+  owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
+  refreshes a subscribed feed on its own schedule, often hours apart.
+- Moodle deadlines are read from English event names only; their hours are a guess
+  (2 h) until the student changes them.
 - FSRS weights are population defaults; a subject's starting stability and
   difficulty are user-supplied guesses. The target and the 40-block failure penalty
   are stated choices.

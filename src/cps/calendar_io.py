@@ -509,6 +509,59 @@ def _assessment_match(title: str, keywords: tuple[str, ...] = DEADLINE_KEYWORDS)
     return next((m for p in _keyword_patterns(keywords) if (m := p.search(title))), None)
 
 
+# What a learning platform names its deadlines. Moodle's calendar export
+# (calendar/export_execute.php) writes each event's name as SUMMARY and the course's
+# short name as CATEGORIES; an assignment's due date is named "<name> is due"
+# (mod/assign lang string `calendardue`), a personal extension "<name> is due
+# (extension)" (`calendarextension`), and a quiz's close "<name> closes"
+# (mod/quiz `quizeventcloses`). "is due to be graded" is the teacher's, and "opens"
+# is not a deadline. English only: other languages' strings live in language packs
+# not checked here.
+_PLATFORM_DEADLINE = re.compile(r"^(?P<name>.+?) (?:is due(?P<extension> \(extension\))?|closes)$")
+_NOT_A_DEADLINE = re.compile(r" is due to be graded$")
+
+
+@dataclass(frozen=True, slots=True)
+class Assignment:
+    """A deadline from a learning platform's calendar export."""
+
+    name: str
+    course: str
+    due: datetime
+
+
+def find_assignments(ics_text: str, tz: str) -> list[Assignment]:
+    """The deadlines in a learning platform's calendar (Moodle's export), one per
+    assignment: a personal extension replaces the course's due date, and the
+    course is the event's category. Sorted by due date."""
+    zone = ZoneInfo(tz)
+    try:
+        calendar = Calendar.from_ical(ics_text)
+    except ValueError as exc:
+        raise ValueError(f"not a calendar file: {exc}") from exc
+    found: dict[tuple[str, str], tuple[bool, Assignment]] = {}
+    events: list[Any] = calendar.walk("VEVENT")
+    for component in events:
+        summary = str(component.get("SUMMARY", "")).strip()
+        match = _PLATFORM_DEADLINE.match(summary)
+        if match is None or _NOT_A_DEADLINE.search(summary) or "DTSTART" not in component:
+            continue
+        due, _ = _as_datetime(component["DTSTART"].dt, zone)
+        categories = component.get("CATEGORIES")
+        if isinstance(categories, list):
+            categories = categories[0] if categories else None
+        course = ", ".join(str(c) for c in getattr(categories, "cats", [])) if categories is not None else ""
+        name = match.group("name").strip()
+        extension = match.group("extension") is not None
+        key = (name.casefold(), course.casefold())
+        current = found.get(key)
+        # A personal extension wins over the course's date; between two of a kind,
+        # the later one (a date moved back).
+        if current is None or (extension, due) > (current[0], current[1].due):
+            found[key] = (extension, Assignment(name, course, due))
+    return sorted((a for _, a in found.values()), key=lambda a: a.due)
+
+
 def course_of(title: str) -> str:
     """The course a timetable event belongs to, or "" if the title names none.
 

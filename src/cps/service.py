@@ -5,8 +5,8 @@ The CLI, the Streamlit app and any future web API call these functions and only
 these, so they can be swapped without touching the planner. Nothing here imports a
 UI framework or prints: bytes and plain values in, frozen result objects out. Two
 kinds of input and output are allowed, both explicit: `fetch_calendar` reads a
-calendar link the person gave, and the `*_subscription` functions keep feeds in a
-directory the caller names. Every result has `to_dict()` returning plain JSON
+calendar link the person gave, and the `*_subscription` functions keep plans in
+the SQLite store (`cps.store`) the caller names. Every result has `to_dict()` returning plain JSON
 types, and `PlanReport.from_dict` rebuilds a plan, so a front end can hold a plan as
 JSON and send it back to `replan_after` or `export_ics`.
 
@@ -37,12 +37,12 @@ report says so.
 
 from __future__ import annotations
 
-import json
+import functools
+import hashlib
 import math
 import os
-import re
 import secrets
-import tempfile
+import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -61,6 +61,7 @@ from .calendar_io import (
     busy_from_table,
     decode_ics,
     expand_events,
+    find_assignments,
     find_deadlines,
     find_lectures,
     plan_to_ics,
@@ -77,6 +78,7 @@ from .plan import Block, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
 from .sources import SourceError
 from .sources import fetch_calendar as _fetch
+from .store import Conflict, Store
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
@@ -1404,9 +1406,13 @@ def fetch_calendar(url: str, *, allow_private: bool | None = None) -> bytes:
 FEED_REFRESH = timedelta(hours=6)
 # Where feeds are kept and the address the feed server answers on: the same
 # machine and port unless a deployment says otherwise.
-FEED_STORE = Path(os.environ.get("CPS_FEED_DIR") or Path.home() / ".cps" / "feeds")
+# The store is one SQLite file (`cps.store`); a directory means cps.sqlite inside it.
+FEED_STORE = Path(os.environ.get("CPS_DB") or os.environ.get("CPS_FEED_DIR") or Path.home() / ".cps")
 FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
-_TOKEN = re.compile(r"[A-Za-z0-9_-]{22,64}")
+# Kept 30 days after the last exam or deadline, then deleted (docs/ROADMAP.md, D6).
+RETENTION = timedelta(days=30)
+# What a student can report about a session.
+REPORTS = ("done", "skipped", "struggled")
 
 
 @dataclass(frozen=True)
@@ -1431,11 +1437,14 @@ class Subscription:
     plan: dict | None = None
     refreshed: str | None = None
     error: str | None = None
+    # What the student reported, by `session_id`: "done", "skipped" or "struggled".
+    outcomes: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         out = {k: getattr(self, k) for k in self.__dataclass_fields__}
         out["busy_rows"] = [dict(r) for r in self.busy_rows]
         out["subjects"] = [dict(s) for s in self.subjects]
+        out["outcomes"] = dict(self.outcomes)
         return out
 
     @classmethod
@@ -1446,10 +1455,16 @@ class Subscription:
                     **data,
                     "busy_rows": tuple(dict(r) for r in data["busy_rows"]),
                     "subjects": tuple(dict(s) for s in data["subjects"]),
+                    "outcomes": dict(data.get("outcomes", {})),
                 }
             )
         except (KeyError, TypeError) as exc:
             raise InvalidInput(f"not a subscription made by this version: {exc}") from exc
+
+
+def _task_dict(task: TaskSpec) -> dict:
+    due = task.due.isoformat() if isinstance(task.due, date | datetime) else task.due
+    return {"name": task.name, "due": due, "hours": task.hours, "course": task.course}
 
 
 def _spec_dict(spec: SubjectSpec) -> dict:
@@ -1483,10 +1498,14 @@ def new_subscription(
     plan: PlanReport | None = None,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    require_plan: bool = True,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
-    the caller has just made it from the same inputs, saves planning again."""
+    the caller has just made it from the same inputs, saves planning again.
+
+    The calendar last read is kept (`ics_text`), also for a link, so that a
+    feedback tap replans at once from it instead of waiting for the network."""
     if source_url is None and ics is None and not busy_rows:
         raise InvalidInput("give a calendar link, a calendar file or your week")
     rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
@@ -1494,7 +1513,7 @@ def new_subscription(
         token=secrets.token_urlsafe(24),
         created=datetime.now(UTC).isoformat(timespec="seconds"),
         source_url=source_url.strip() if source_url else None,
-        ics_text=decode_ics(ics) if ics is not None and not source_url else None,
+        ics_text=decode_ics(ics) if ics is not None else None,
         busy_rows=rows,
         subjects=tuple(_spec_dict(s) for s in subjects),
         options={
@@ -1507,23 +1526,15 @@ def new_subscription(
             "window": window,
             "lectures_as_topics": lectures_as_topics,
             "engine": engine,
-            "tasks": [
-                {
-                    "name": t.name,
-                    "due": t.due.isoformat() if isinstance(t.due, date | datetime) else t.due,
-                    "hours": t.hours,
-                    "course": t.course,
-                }
-                for t in tasks
-            ],
+            "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
         },
     )
     if plan is not None:
         stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
         return replace(subscription, plan=plan.to_dict(), refreshed=stamp)
-    refreshed = refresh_subscription(subscription, now=now, fetch=fetch)
-    if refreshed.plan is None:
+    refreshed = refresh_subscription(subscription, now=now, fetch=fetch, reread=ics is None)
+    if refreshed.plan is None and require_plan:
         raise ServiceError(refreshed.error or "the plan could not be made")
     return refreshed
 
@@ -1533,23 +1544,26 @@ def refresh_subscription(
     *,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    reread: bool = True,
 ) -> Subscription:
-    """Read the timetable again and plan from `now` on.
+    """Read the timetable again (unless `reread` is False) and plan from `now` on.
 
-    Sessions of the current plan that are behind `now` count as done as planned,
-    those reported through `replan_after` keep their outcome, and the plan goes on
-    from the memory they leave. If the link cannot be read or the plan cannot be
-    made, the previous plan stays and `error` says why, so that a feed never goes
-    blank because a university server was down for an hour.
+    Sessions of the current plan that are behind `now` count as done as planned;
+    sessions the student reported (`report_session`) count as reported, whenever
+    they were; and the plan goes on from the memory they leave. If the link cannot
+    be read or the plan cannot be made, the previous plan stays and `error` says
+    why, so that a feed never goes blank because a university server was down for
+    an hour.
     """
     now = now or datetime.now(UTC)
+    if reread:
+        subscription = sync_deadlines(subscription, now=now, fetch=fetch)
     options = subscription.options
+    cached = subscription.ics_text
     try:
-        ics = (
-            fetch(subscription.source_url)
-            if subscription.source_url
-            else (subscription.ics_text.encode("utf-8") if subscription.ics_text is not None else None)
-        )
+        if subscription.source_url and (reread or cached is None):
+            cached = decode_ics(fetch(subscription.source_url))
+        ics = cached.encode("utf-8") if cached is not None else None
         report = analyse_calendar(
             ics,
             start=date.fromisoformat(options["start"]),
@@ -1563,7 +1577,12 @@ def refresh_subscription(
         if subscription.plan is not None:
             previous = PlanReport.from_dict(subscription.plan)
             cut = _days_after(previous.settings.start, now.astimezone(_zone(previous.settings.tz)))
-            done = previous.history + tuple(s for s in previous.sessions if s.start_day < cut)
+            reported = subscription.outcomes
+            done = tuple(
+                _as_reported(s, reported.get(session_id(s)))
+                for s in previous.history + previous.sessions
+                if s.start_day < cut or session_id(s) in reported
+            )
         subjects = [SubjectSpec(**s) for s in subscription.subjects]
         if options.get("engine", "planner") == "assistant":
             plan = make_schedule(
@@ -1590,10 +1609,185 @@ def refresh_subscription(
         return replace(subscription, error=str(error))
     return replace(
         subscription,
+        ics_text=cached,
         plan=plan.to_dict(),
         refreshed=now.astimezone(UTC).isoformat(timespec="seconds"),
         error=None,
     )
+
+
+def session_id(session: SessionView) -> str:
+    """A short, stable name for a session: the same block and the same title give
+    the same id from one plan to the next, so a link in a calendar event still
+    finds its session after a refresh."""
+    return hashlib.sha256(f"{session.start}|{session.title}".encode()).hexdigest()[:12]
+
+
+def _as_reported(session: SessionView, report: str | None) -> SessionView:
+    """A session with the outcome the student reported. "struggled" is a lapse for
+    something to remember (it comes back sooner) and done for a task or practice
+    (a task gets one more block instead, in `report_session`)."""
+    if report is None:
+        return session
+    if report == "skipped":
+        return replace(session, outcome="skipped")
+    if report == "struggled" and session.kind in ("review", "first review"):
+        return replace(session, outcome="lapsed")
+    return replace(session, outcome="recalled")
+
+
+def find_session(subscription: Subscription, sid: str) -> SessionView | None:
+    """The session called `sid` in the current plan, done or to come."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    return next((s for s in plan.history + plan.sessions if session_id(s) == sid), None)
+
+
+def report_session(
+    subscription: Subscription, sid: str, report: str, *, now: datetime | None = None
+) -> Subscription:
+    """Record what happened at a session and plan again at once, from the calendar
+    last read: no network, so a tap is answered immediately."""
+    if report not in REPORTS:
+        raise InvalidInput(f"a session is {', '.join(REPORTS)}, not {report!r}")
+    session = find_session(subscription, sid)
+    if session is None:
+        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+    now = now or datetime.now(UTC)
+    settings = PlanReport.from_dict(subscription.plan or {}).settings
+    if session.start_day > _days_after(settings.start, now.astimezone(_zone(settings.tz))):
+        # What happens at a session is known once it has started. Skipping one ahead
+        # of time is blocking its time out, which is an activity, not a report.
+        raise InvalidInput("this session has not started yet; report it once it has")
+    options = subscription.options
+    if report == "struggled" and session.kind == "task":
+        block_hours = options["block_minutes"] / 60
+        options = {
+            **options,
+            "tasks": [
+                {**t, "hours": t["hours"] + block_hours} if t["name"] == session.title else t
+                for t in options.get("tasks", ())
+            ],
+        }
+    changed = replace(subscription, options=options, outcomes={**subscription.outcomes, sid: report})
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def revise_subscription(
+    subscription: Subscription,
+    *,
+    subjects: Sequence[SubjectSpec] | None = None,
+    tasks: Sequence[TaskSpec] | None = None,
+    busy_rows: Iterable[BusyRow | Mapping] | None = None,
+    preferences: Mapping | None = None,
+    now: datetime | None = None,
+    deadlines_url: str | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+    **options: Any,
+) -> Subscription:
+    """Change what the plan is made from (subjects, deadlines, activities, weekly
+    hours and days off, or any of `new_subscription`'s settings) and plan again at
+    once from the calendar last read. A new `deadlines_url` ("" removes it) is read
+    at once, which is the only network access here."""
+    merged = dict(subscription.options)
+    unknown = set(options) - set(merged)
+    if unknown:
+        raise InvalidInput(f"unknown settings: {', '.join(sorted(unknown))}")
+    merged.update(options)
+    if preferences is not None:
+        merged["preferences"] = {**merged.get("preferences", {}), **preferences}
+    if tasks is not None:
+        merged["tasks"] = [_task_dict(t) for t in tasks]
+    changed = replace(
+        subscription,
+        options=merged,
+        subjects=subscription.subjects if subjects is None else tuple(_spec_dict(s) for s in subjects),
+        busy_rows=subscription.busy_rows if busy_rows is None else _rows(busy_rows),
+    )
+    if deadlines_url is not None and deadlines_url.strip() != (merged.get("deadlines_url") or ""):
+        url = deadlines_url.strip() or None
+        changed = replace(changed, options={**changed.options, "deadlines_url": url, "deadlines_error": None})
+        if url:
+            changed = sync_deadlines(changed, now=now, fetch=fetch)
+            if changed.options.get("deadlines_error"):
+                raise InvalidInput(f"the learning platform's link: {changed.options['deadlines_error']}")
+    fresh = refresh_subscription(changed, now=now, reread=False)
+    if fresh.error:
+        raise InvalidInput(fresh.error)
+    return fresh
+
+
+# A deadline from a learning platform says when, not how long: this is the guess
+# until the student changes it, shown as a guess on the settings page.
+DEFAULT_TASK_HOURS = 2.0
+
+
+def sync_deadlines(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """Read the learning platform's calendar (`options["deadlines_url"]`, Moodle's
+    export) and add each deadline not seen before as a task of
+    `DEFAULT_TASK_HOURS`. The platform owns the dates: a deadline already imported
+    follows its new date (an extension, say); the student owns the rest: the hours,
+    the name, and a deadline removed from the list does not come back. Past
+    deadlines are skipped. A link that cannot be read leaves the tasks as they
+    were and says why in `options["deadlines_error"]`."""
+    options = subscription.options
+    url = options.get("deadlines_url")
+    if not url:
+        return subscription
+    now = now or datetime.now(UTC)
+    zone = _zone(options["tz"])
+    try:
+        found = find_assignments(decode_ics(fetch(url)), options["tz"])
+    except ServiceError as error:
+        return replace(subscription, options={**options, "deadlines_error": str(error)})
+    except ValueError as error:
+        return replace(subscription, options={**options, "deadlines_error": f"not a calendar ({error})"})
+    tasks = [dict(t) for t in options.get("tasks", ())]
+    imported: dict[str, str] = dict(options.get("imported", {}))
+    names = {t["name"].casefold(): t for t in tasks}
+    for a in found:
+        key = f"{a.course}|{a.name}".casefold()
+        due = a.due.astimezone(zone).strftime("%Y-%m-%d %H:%M")
+        if key in imported:
+            task = names.get(imported[key].casefold())
+            if task is not None and a.due > now:
+                task["due"] = due
+            continue
+        if a.due <= now:
+            continue
+        name = a.name if a.name.casefold() not in names else f"{a.name} ({a.course})"
+        if name.casefold() in names:
+            continue
+        task = {"name": name, "due": due, "hours": DEFAULT_TASK_HOURS, "course": a.course}
+        tasks.append(task)
+        names[name.casefold()] = task
+        imported[key] = name
+    return replace(
+        subscription, options={**options, "tasks": tasks, "imported": imported, "deadlines_error": None}
+    )
+
+
+def _rows(busy_rows: Iterable[BusyRow | Mapping]) -> tuple[dict, ...]:
+    try:
+        return tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
+    except ValueError as exc:
+        raise InvalidInput(str(exc)) from exc
+
+
+def subscription_expiry(subscription: Subscription) -> datetime | None:
+    """When a subscription is deleted: `RETENTION` after its last exam or deadline."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    moments = [datetime.fromisoformat(s.exam) for s in plan.subjects]
+    moments += [datetime.fromisoformat(t.due) for t in plan.tasks]
+    return max(moments) + RETENTION if moments else None
 
 
 def is_stale(subscription: Subscription, now: datetime | None = None, age: timedelta = FEED_REFRESH) -> bool:
@@ -1602,17 +1796,33 @@ def is_stale(subscription: Subscription, now: datetime | None = None, age: timed
     return (now or datetime.now(UTC)) - datetime.fromisoformat(subscription.refreshed) >= age
 
 
-def feed_ics(subscription: Subscription) -> bytes:
+def feed_ics(subscription: Subscription, base_url: str | None = None) -> bytes:
     """The feed a calendar app reads: every session, done and to come, with stable
-    identifiers and a request to be read again every `FEED_REFRESH`."""
+    identifiers and a request to be read again every `FEED_REFRESH`. With the web
+    app's `base_url`, each event also says what to do and carries the link where the
+    student reports how it went."""
     if subscription.plan is None:
         raise InvalidInput("this feed has no plan yet")
+    plan = PlanReport.from_dict(subscription.plan)
+    if base_url is not None:
+
+        def described(s: SessionView) -> SessionView:
+            parts = [s.detail, f"Why: {s.rationale}" if s.detail else s.rationale]
+            parts.append(f"Done, skipped or hard? {session_url(base_url, subscription.token, s)}")
+            return replace(s, rationale="\n\n".join(p for p in parts if p))
+
+        plan = replace(
+            plan,
+            history=tuple(described(s) for s in plan.history),
+            sessions=tuple(described(s) for s in plan.sessions),
+        )
     return export_ics(
-        PlanReport.from_dict(subscription.plan),
-        include_history=True,
-        uid_prefix=subscription.token[:8] + "-",
-        refresh=FEED_REFRESH,
+        plan, include_history=True, uid_prefix=subscription.token[:8] + "-", refresh=FEED_REFRESH
     )
+
+
+def session_url(base_url: str, token: str, session: SessionView) -> str:
+    return f"{base_url.rstrip('/')}/s/{token}/{session_id(session)}"
 
 
 def feed_url(base_url: str, token: str) -> str:
@@ -1620,46 +1830,368 @@ def feed_url(base_url: str, token: str) -> str:
     return f"{base_url.rstrip('/')}/feed/{token}.ics"
 
 
-def _path(store: str | os.PathLike, token: str) -> Path:
-    if not _TOKEN.fullmatch(token):
-        raise InvalidInput("not a feed token")
-    return Path(store) / f"{token}.json"
-
-
 def save_subscription(store: str | os.PathLike, subscription: Subscription) -> None:
-    """Write a subscription into the store directory, atomically: a feed server
-    reading it at the same moment sees the old file or the new one, never half."""
-    target = _path(store, subscription.token)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    handle, temporary = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8") as out:
-            json.dump(subscription.to_dict(), out)
-        os.replace(temporary, target)
-    except BaseException:
-        Path(temporary).unlink(missing_ok=True)
-        raise
+    """Write a subscription into the store (`cps.store`), with the date it expires."""
+    expiry = subscription_expiry(subscription)
+    _store(store).put(
+        subscription.token,
+        subscription.to_dict(),
+        expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None,
+    )
 
 
 def load_subscription(store: str | os.PathLike, token: str) -> Subscription | None:
-    try:
-        path = _path(store, token)
-    except InvalidInput:
-        return None
-    if not path.is_file():
-        return None
-    return Subscription.from_dict(json.loads(path.read_text(encoding="utf-8")))
+    data = _store(store).get(token)
+    return Subscription.from_dict(data) if data is not None else None
+
+
+def update_subscription(
+    store: str | os.PathLike, token: str, change: Callable[[Subscription], Subscription]
+) -> Subscription | None:
+    """Apply `change` to a stored subscription without losing a concurrent write
+    (`Store.update`). None if it does not exist, or was deleted meanwhile."""
+
+    def apply(data: dict) -> tuple[dict, str | None]:
+        new = change(Subscription.from_dict(data))
+        expiry = subscription_expiry(new)
+        return new.to_dict(), expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None
+
+    data = _store(store).update(token, apply)
+    return Subscription.from_dict(data) if data is not None else None
 
 
 def delete_subscription(store: str | os.PathLike, token: str) -> bool:
+    return _store(store).delete(token)
+
+
+@functools.lru_cache(maxsize=16)
+def _open(path: str) -> Store:
+    return Store(path)
+
+
+def _store(store: str | os.PathLike) -> Store:
+    """One `Store` per file, opened once (its schema is checked on opening)."""
+    return _open(os.fspath(store))
+
+
+def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "") -> None:
+    """Record what happened to a plan (created, changed, a session reported), for the
+    pilot's measures. No timetable content, no names."""
+    _store(store).log(token, kind, detail)
+
+
+def events(store: str | os.PathLike, token: str) -> list[dict]:
+    return _store(store).events(token)
+
+
+def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
+    """Delete every subscription past its expiry (`subscription_expiry`)."""
+    return _store(store).sweep(now)
+
+
+def backup_subscriptions(
+    store: str | os.PathLike, directory: str | os.PathLike, now: datetime | None = None
+) -> Path:
+    """A consistent dated copy of the store in `directory`; copies older than a week go."""
+    return _store(store).backup_rotating(Path(directory), now=now)
+
+
+class Refresher:
+    """Brings subscriptions up to date without making anyone wait: a refresh reads
+    a timetable from the network and takes seconds, far longer than a calendar app
+    or a page should wait, so it runs in a thread (unless `background` is False,
+    for tests) and the next read gets the new plan. One refresh per subscription at
+    a time. A report or a deletion arriving meanwhile wins: the result is written
+    only over the version it started from (`update_subscription`), and a deleted
+    subscription is not brought back."""
+
+    def __init__(
+        self,
+        store: str | os.PathLike,
+        *,
+        background: bool = True,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        fetch: Callable[[str], bytes] = fetch_calendar,
+    ) -> None:
+        self.store = store
+        self.background = background
+        self.clock = clock
+        self.fetch = fetch
+        self._running: set[str] = set()
+        self._lock = threading.Lock()
+
+    def refresh(self, token: str) -> None:
+        with self._lock:
+            if token in self._running:
+                return
+            self._running.add(token)
+        if self.background:
+            threading.Thread(target=self._refresh, args=(token,), daemon=True).start()
+        else:
+            self._refresh(token)
+
+    def _fresh(self, current: Subscription) -> Subscription:
+        return refresh_subscription(current, now=self.clock(), fetch=self.fetch)
+
+    def _refresh(self, token: str) -> None:
+        try:
+            update_subscription(
+                self.store,
+                token,
+                lambda current: refresh_subscription(current, now=self.clock(), fetch=self.fetch),
+            )
+        except Conflict:
+            pass  # kept changing: the next read tries again
+        finally:
+            with self._lock:
+                self._running.discard(token)
+
+
+# --------------------------------------------------------------------------- #
+# The hosted product: a subscription, as its pages show it
+# --------------------------------------------------------------------------- #
+
+# What a new student starts with, before changing anything: the benchmark's week
+# (benchmarks/rule_vs_planner.py). Stated defaults, not recommendations.
+DEFAULT_PREFERENCES: dict = {"weekly_hours": 15.0, "rest_days": ["Sun"], "practice_hours": 4.5}
+DEFAULT_FAMILIARITY = 3
+# How far back the Today page asks about sessions.
+REPORT_WINDOW = timedelta(days=7)
+
+KIND_LABELS = {
+    "first review": "First self-test",
+    "review": "Self-test",
+    "task": "Deadline work",
+    "practice": "Exam practice",
+}
+
+
+def start_subscription(
+    *,
+    tz: str,
+    source_url: str | None = None,
+    ics: bytes | None = None,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """The hosted product's first step: a timetable and nothing else. The link is
+    read once; every exam found in it becomes a subject; the week starts from the
+    stated defaults; and the plan is made if there is anything to plan for yet."""
+    now = now or datetime.now(UTC)
+    if source_url:
+        ics = fetch(source_url.strip())
+    if ics is None:
+        raise InvalidInput("give your timetable's link or its file")
+    today = now.astimezone(_zone(tz)).date()
+    report = analyse_calendar(ics, start=today, tz=tz)
+    return new_subscription(
+        subjects=[SubjectSpec(a.subject, None, familiarity=DEFAULT_FAMILIARITY) for a in report.assessments],
+        start=today,
+        tz=tz,
+        source_url=source_url,
+        ics=ics,
+        engine="assistant",
+        preferences=DEFAULT_PREFERENCES,
+        now=now,
+        require_plan=False,
+    )
+
+
+def _when(moment: datetime, now: datetime) -> str:
+    """A time as a person says it, relative to `now` (both local)."""
+    days = (moment.date() - now.date()).days
+    day = {0: "Today", 1: "Tomorrow", -1: "Yesterday"}.get(days, moment.strftime("%a %d %b"))
+    return f"{day} {moment:%H:%M}"
+
+
+def _session_card(s: SessionView, zone: ZoneInfo, now: datetime, outcomes: Mapping[str, str]) -> dict:
+    start = datetime.fromisoformat(s.start).astimezone(zone)
+    end = datetime.fromisoformat(s.end).astimezone(zone)
+    sid = session_id(s)
+    return {
+        "id": sid,
+        "title": s.title,
+        "kind": KIND_LABELS.get(s.kind, s.kind),
+        "when": _when(start, now),
+        "until": f"{end:%H:%M}",
+        "what": s.detail,
+        "why": s.rationale,
+        "reported": outcomes.get(sid),
+        "started": start <= now,
+    }
+
+
+def session_card(subscription: Subscription, sid: str, now: datetime | None = None) -> dict | None:
+    """One session of the plan, done or to come, as the pages show it."""
+    session = find_session(subscription, sid)
+    if session is None or subscription.plan is None:
+        return None
+    zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
+    local = (now or datetime.now(UTC)).astimezone(zone)
+    return _session_card(session, zone, local, subscription.outcomes)
+
+
+def setup_view(subscription: Subscription) -> dict:
+    """What the settings page shows: the exams planned for, the courses in the
+    timetable, deadlines, activities and the week, as plain values for a form."""
+    options = subscription.options
+    courses: list[str] = []
+    found: list[dict] = []
     try:
-        path = _path(store, token)
-    except InvalidInput:
-        return False
-    if not path.is_file():
-        return False
-    path.unlink()
-    return True
+        report = analyse_calendar(
+            subscription.ics_text.encode("utf-8") if subscription.ics_text is not None else None,
+            start=date.fromisoformat(options["start"]),
+            tz=options["tz"],
+        )
+        courses = sorted({x.course for x in report.lectures if x.course}, key=str.casefold)
+        found = [{"subject": a.subject, "when": a.when[:16].replace("T", " ")} for a in report.assessments]
+    except ServiceError:
+        pass  # the page still shows what the student typed
+    found_names = {f["subject"].casefold(): f["when"] for f in found}
+    subjects = [
+        {
+            "name": x["name"],
+            "exam": (x.get("exam") or "")[:16].replace("T", " "),
+            "found": x.get("exam") is None,
+            "found_when": found_names.get(x["name"].casefold(), ""),
+            "familiarity": x.get("familiarity") or DEFAULT_FAMILIARITY,
+        }
+        for x in subscription.subjects
+    ]
+    planned = {x["name"].casefold() for x in subscription.subjects}
+    prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
+    return {
+        "subjects": subjects,
+        "unplanned_exams": [f for f in found if f["subject"].casefold() not in planned],
+        "courses": courses,
+        "tasks": [{**t, "due": str(t["due"])[:16].replace("T", " ")} for t in options.get("tasks", ())],
+        "activities": [
+            {
+                **r,
+                "weekday": "" if r.get("weekday") is None else WEEKDAY_NAMES[r["weekday"]],
+                "date": r.get("date") or "",
+            }
+            for r in subscription.busy_rows
+        ],
+        "weekly_hours": prefs["weekly_hours"],
+        "rest_days": list(prefs["rest_days"]),
+        "practice_hours": prefs["practice_hours"],
+        "study_window": list(options["study_window"]),
+        "blocks_per_day": options["blocks_per_day"],
+        "block_minutes": options["block_minutes"],
+        "tz": options["tz"],
+        "source_url": subscription.source_url,
+        "deadlines_url": options.get("deadlines_url") or "",
+        "deadlines_error": options.get("deadlines_error"),
+        "imported": sorted(set(options.get("imported", {}).values())),
+        "weekdays": list(WEEKDAY_NAMES),
+    }
+
+
+def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the Today page shows: sessions to report, the one in progress or next,
+    what comes after, deadlines, exams, and anything wrong."""
+    now = now or datetime.now(UTC)
+    view: dict = {
+        "planned": subscription.plan is not None,
+        "error": subscription.error,
+        "to_report": [],
+        "now": None,
+        "next": [],
+        "tasks": [],
+        "exams": [],
+        "warnings": [],
+    }
+    if subscription.plan is None:
+        return view
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    cards = [_session_card(s, zone, local, subscription.outcomes) for s in plan.history + plan.sessions]
+    moments = [
+        (datetime.fromisoformat(s.start).astimezone(zone), datetime.fromisoformat(s.end).astimezone(zone))
+        for s in plan.history + plan.sessions
+    ]
+    for card, (start, end) in zip(cards, moments, strict=True):
+        if start <= local < end:
+            view["now"] = card
+        elif local - REPORT_WINDOW <= start <= local:
+            view["to_report"].append(card)
+        elif start > local and len(view["next"]) < 6:
+            view["next"].append(card)
+    if view["now"] is not None:
+        view["to_report"].append(view["now"])
+    view["to_report"].reverse()
+    view["tasks"] = [
+        {
+            "name": t.name,
+            "course": t.course,
+            "due": _when(datetime.fromisoformat(t.due).astimezone(zone), local),
+            "planned": f"{t.scheduled} of {t.blocks} blocks",
+            "finish": _when(datetime.fromisoformat(t.finish).astimezone(zone), local) if t.finish else "",
+            "at_risk": t.at_risk,
+            "past": datetime.fromisoformat(t.due) < now,
+        }
+        for t in plan.tasks
+    ]
+    view["exams"] = [
+        {
+            "name": x.name,
+            "when": _when(datetime.fromisoformat(x.exam).astimezone(zone), local),
+            "status": subject_status(x),
+            "ready": x.ready,
+        }
+        for x in plan.subjects
+        if datetime.fromisoformat(x.exam) > now
+    ]
+    # A subject short of its target already says so in its status line; other
+    # warnings (practice that does not fit, work that does not fit) stay.
+    shown = tuple(f"{x.name}: " for x in plan.subjects)
+    view["warnings"] = [
+        w
+        for w in plan.warnings
+        if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
+    ]
+    return view
+
+
+def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:
+    """One week as a list of days, each with its busy events and sessions in time
+    order: what a phone shows instead of a grid. Week 0 is the one holding `now`."""
+    if subscription.plan is None:
+        raise InvalidInput("there is no plan yet: add an exam or a deadline in the settings")
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    first = local.date() + timedelta(days=7 * week)
+    days = [first + timedelta(days=d) for d in range(7)]
+    entries: dict[date, list[dict]] = {d: [] for d in days}
+
+    def add(start: datetime, end: datetime, label: str, kind: str, sid: str | None = None) -> None:
+        start, end = start.astimezone(zone), end.astimezone(zone)
+        if start.date() in entries:
+            entries[start.date()].append(
+                {"start": f"{start:%H:%M}", "end": f"{end:%H:%M}", "label": label, "kind": kind, "id": sid}
+            )
+
+    exams = {x.exam for x in plan.subjects}
+    for e in plan.events:
+        kind = "exam" if e.start in exams else ("typed" if e.source == "typed" else "calendar")
+        add(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end), e.summary, kind)
+    for s in plan.history + plan.sessions:
+        label = f"{KIND_LABELS.get(s.kind, s.kind)}: {s.title}"
+        add(datetime.fromisoformat(s.start), datetime.fromisoformat(s.end), label, "study", session_id(s))
+    return {
+        "week": week,
+        "days": [
+            {
+                "label": _when(datetime.combine(d, time(0, 0), tzinfo=zone), local).removesuffix(" 00:00"),
+                "entries": sorted(entries[d], key=lambda x: x["start"]),
+            }
+            for d in days
+        ],
+    }
 
 
 # --------------------------------------------------------------------------- #

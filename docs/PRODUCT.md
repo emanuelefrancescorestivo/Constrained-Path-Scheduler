@@ -46,27 +46,28 @@ around it; that is a search, not a proof.
   off, exam practice, self-testing on fading material, free time left free; a
   semester in about a hundredth of a second; says what to do in each session and
   which deadlines are at risk.
-- A calendar feed that follows the timetable's link and continues from today.
-- The research planner (FSRS value functions and AO*) behind a switch, with the
-  benchmark that shows why the product does not need it (AUDIT.md item 36).
+- **The hosted app** (`cps web`, `src/cps/web`): setup from a link in a few screens,
+  a phone-first Today page and week, a calendar feed whose events say what to do and
+  link to a one-tap report (done, skipped, hard) that changes the plan at once, a
+  privacy page, deletion on request and 30 days after the last exam. Built and
+  tested; not deployed yet (`docs/ROADMAP.md`, checkpoint C1; `docs/DEPLOY.md`).
+- Deadlines from Moodle's calendar link, kept in step with it.
+- The research planner (FSRS value functions and AO*) behind a switch in the
+  Streamlit workbench, with the benchmark that shows why the product does not need
+  it (AUDIT.md item 36).
 
 ## What does not exist, in the order it matters
 
-1. **A hosted service.** Everything runs on the student's own machine; a student
-   will not install Python. Needed: a server, a domain, HTTPS, and the feed reachable
-   by Google Calendar.
-2. **Feedback in one tap.** Each calendar event should carry "done / skipped / took
-   longer" links; today the plan assumes every session happened.
-3. **A front end built for it.** Streamlit is right for a prototype and wrong for a
-   product: a phone-first "today" view and onboarding in two minutes.
-4. **Writing into Google Calendar directly**, instead of a subscribed feed that
+1. **Running somewhere.** The hosted app is ready for a small host in the EU; the
+   account, the payment and the privacy notice are the owner's (C1, C2).
+2. **Evidence.** No student has used it. The pilot below is the next step.
+3. **Writing into Google Calendar directly**, instead of a subscribed feed that
    Google refreshes on its own schedule. Needs Google's verification of the app,
    because calendar scopes are sensitive
    ([Google: sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)).
-5. **Capturing tasks in words** ("stats report, due the 20th, about six hours"),
+4. **Capturing tasks in words** ("stats report, due the 20th, about six hours"),
    with a language model: a provider, an API key and a cost per student.
-6. **Deadlines from the learning platform**: Moodle and similar tools export a
-   calendar of assignments, which the same link reader could take.
+5. **Other learning platforms**, and Moodle in languages other than English.
 
 ## What people might pay for (hypotheses)
 

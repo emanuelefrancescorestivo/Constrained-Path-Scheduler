@@ -493,3 +493,13 @@ over the fixed-0.90 rule. What changes is what the product runs: the assistant
 planner never modelled (deadlines, a weekly budget, days off, exam practice); the
 planner stays as the research reference and a switch in the app. Status: resolved by
 the choice of engine; the comparison is a benchmark.
+
+**37. The web app refused its own forms in a real browser.** The hosted app
+(`cps.web`) refused a POST whose `Origin` named another host, to stop a page on
+another site from sending its forms. Its answers also say `Referrer-Policy:
+no-referrer`, so that a plan's secret address never leaves in a referrer; under that
+policy Chromium sends `Origin: null` with the site's own form posts, and every
+"Start" was refused with 403. The tests had passed, because the test client sends no
+`Origin`; found in the first browser run at phone width. The check now reads
+`Sec-Fetch-Site`, which browsers send for this purpose, and refuses "cross-site" and
+"same-site"; a test sends each header as Chromium did. Status: fixed.

@@ -87,39 +87,51 @@ synthetic four-month semester to try the page on.
 `docs/ARCHITECTURE.md` has the data flow as a diagram; `docs/METHOD.md` has the
 mathematics and the admissibility arguments.
 
-## Keep the plan in your calendar
+## The hosted app
 
-A downloaded `plan.ics` is a snapshot. The web page can also publish the plan as a
-calendar feed, an address your calendar app subscribes to (Google Calendar: Other
-calendars, From URL; Apple Calendar: New Calendar Subscription; Outlook: Subscribe
-from web). The feed asks to be read again every six hours. When it is read and its
-plan is older than that, `cps serve` reads your timetable's link again and plans from
-today in the background, counting the sessions already behind you as done; the next
-read gets the new plan. If the timetable's server is down, the last plan stays. No account, no sign-in, nothing that needs Google's approval.
+`cps web` is the product as students would use it: one server for the pages, the
+calendar feeds and the reports, built for a phone and for a pilot on a small host
+(`docs/DEPLOY.md`, `render.yaml`).
 
 ```bash
-cps serve                      # answers http://localhost:8765/feed/<token>.ics
-streamlit run app.py           # plan, then "Publish as a calendar feed"
+pip install -e ".[web]"
+cps web                        # http://127.0.0.1:8000
 ```
+
+1. **Start**: paste the timetable's link (or choose its file). The exams in it are
+   found; the week starts at 15 hours with Sundays off, both stated defaults.
+2. **Settings**: check the exams, add deadlines (or the learning platform's calendar
+   link, and Moodle's assignments and quizzes arrive by themselves at a guessed 2
+   hours each), busy times, weekly hours, days off. Saving plans at once.
+3. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
+   Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
+4. **After each session**: its calendar event links to a page that asks how it went.
+   Done, skipped or hard, in one tap; the plan changes at once. A hard self-test
+   comes back sooner; hard deadline work gets one more session.
+
+No account and no password: the two addresses are the keys, as with any calendar
+subscription link, and the page says so. No cookies, no scripts, no trackers; the
+log names routes, never the secret addresses; a link in an event never changes
+anything by being opened, only the button on its page does. Plans are deleted 30
+days after their last exam or deadline, or at once from Settings. `src/cps/web/app.py`
+lists the rest of the security model.
 
 What it does not do yet, said plainly:
 
-- **On your own machine, only your own machine can read it.** Google Calendar and
-  Notion Calendar fetch feeds from Google's servers, so they need the feed server on
-  the internet. Apple Calendar or Outlook on the same computer can read it locally.
-- **It does not know what you actually did.** Past sessions count as done as planned;
-  reporting a missed one on the page changes the page's plan, not the feed.
-- **The address is the only key.** Anyone with it can read the plan, as with any
-  calendar subscription link. The store keeps your timetable's link, your activities
-  and the plan in plain JSON files; "Stop publishing" deletes them.
+- **It runs nowhere yet.** Hosting it is the owner's step (C1 in
+  `docs/ROADMAP.md`); until then, only a calendar app on the same machine can read
+  a feed, since Google Calendar reads feeds from Google's servers.
+- **Sessions you do not report count as done.** The plan cannot tell a skipped
+  session from a forgotten report.
+- **Google Calendar reads a subscribed feed on its own schedule**, often hours
+  apart, so a change reaches the calendar late; the Today page is always current.
+  Writing into Google Calendar directly needs Google's verification (Phase 2).
+- **Moodle only, in English.** Other platforms, and Moodle in other languages, name
+  their events differently.
 
-**Publishing feeds.** To let Google Calendar read a feed, run the web page and
-`cps serve` on one internet-facing machine that shares a directory, behind HTTPS
-(any reverse proxy), with `CPS_FEED_DIR` set to that directory and `CPS_FEED_URL` to
-the public address of the feed server. Leave `CPS_ALLOW_PRIVATE_LINKS` unset there:
-it is what stops the server from being made to read addresses on its own network.
-Which host to use, and whether to open it to other people, is a decision this
-repository does not make for you.
+The Streamlit page (`app.py`) is the workbench: the research planner, the recall
+curves, the drag-and-drop week. It can still publish a feed for `cps serve` to
+answer on the same machine; reports do not reach those feeds.
 
 ## Results
 
@@ -224,9 +236,11 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 | `widgets/` | the drag-and-drop week calendar the page draws with (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
 | `src/cps/assistant.py` | the assistant's rules: deadlines, budget, days off, exam practice, self-testing |
-| `src/cps/cli.py` | `cps inspect`, `cps plan` and `cps serve` |
+| `src/cps/web/` | the hosted app (`cps web`): pages, feeds, one-tap reports, templates and CSS |
+| `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
+| `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
 | `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
-| `src/cps/feed.py` | the feed server calendar apps subscribe to |
+| `src/cps/feed.py` | the feed server calendar apps subscribe to, and background refresh |
 | `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
 | `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
 | `src/cps/clock.py` | cost to reach a subject's target before its exam |
@@ -241,9 +255,9 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 ## Checking it yourself
 
 ```bash
-pip install -e ".[dev,app]"
-pytest                                    # 298 passed, 14 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 312 passed, 1 xfailed, 93% coverage
+pip install -e ".[dev,app,web]"
+pytest                                    # 361 passed, 14 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 375 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

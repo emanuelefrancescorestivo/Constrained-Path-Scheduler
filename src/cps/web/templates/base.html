@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Study plan{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}">Study plan</a>
+  {% if token %}
+  <nav aria-label="Your plan">
+    <a href="/p/{{ token }}" {% if tab == 'today' %}aria-current="page"{% endif %}>Today</a>
+    <a href="/p/{{ token }}/week" {% if tab == 'week' %}aria-current="page"{% endif %}>Week</a>
+    <a href="/p/{{ token }}/settings" {% if tab == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+    <a href="/p/{{ token }}/feed" {% if tab == 'feed' %}aria-current="page"{% endif %}>Calendar</a>
+  </nav>
+  {% endif %}
+</header>
+<main>
+{% block main %}{% endblock %}
+</main>
+<footer><a href="/privacy">Privacy</a> · no cookies, no trackers</footer>
+</body>
+</html>

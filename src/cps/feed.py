@@ -5,7 +5,7 @@ A calendar app (Google Calendar "From URL", Apple Calendar "New Calendar
 Subscription", Notion Calendar through the Google or Apple account it shows, Outlook
 "Subscribe from web") reads a URL every few hours and shows what it finds. That is
 all a feed needs: one address per plan, `/feed/<token>.ics`, answered from the
-subscription store `service` writes. No account and no sign-in, which is why this
+store (`cps.store`, one SQLite file) `service` writes. No account and no sign-in, which is why this
 is step one before any Google integration: nothing here needs Google's approval.
 
 When a feed is read and its plan is older than `service.FEED_REFRESH`, the answer is
@@ -24,7 +24,6 @@ from __future__ import annotations
 import os
 import re
 import sys
-import threading
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -54,11 +53,8 @@ class FeedApp:
     ) -> None:
         self.store = Path(store)
         self.age = age
-        self.background = background
         self.clock = clock
-        self.fetch = fetch
-        self._running: set[str] = set()
-        self._lock = threading.Lock()
+        self.refresher = service.Refresher(store, background=background, clock=clock, fetch=fetch)
 
     def __call__(self, environ: dict, start_response: StartResponse) -> Iterable[bytes]:
         method = environ.get("REQUEST_METHOD", "GET")
@@ -84,29 +80,8 @@ class FeedApp:
         return _answer(start_response, "200 OK", b"" if method == "HEAD" else body, headers)
 
     def refresh(self, token: str) -> None:
-        """Refresh one feed, in the background unless told otherwise; a feed already
-        being refreshed is left alone."""
-        with self._lock:
-            if token in self._running:
-                return
-            self._running.add(token)
-        if self.background:
-            threading.Thread(target=self._refresh, args=(token,), daemon=True).start()
-        else:
-            self._refresh(token)
-
-    def _refresh(self, token: str) -> None:
-        try:
-            current = service.load_subscription(self.store, token)
-            if current is None:
-                return
-            fresh = service.refresh_subscription(current, now=self.clock(), fetch=self.fetch)
-            # Deleted while the plan was being made: do not bring it back.
-            if service.load_subscription(self.store, token) is not None:
-                service.save_subscription(self.store, fresh)
-        finally:
-            with self._lock:
-                self._running.discard(token)
+        """Refresh one feed (`service.Refresher`)."""
+        self.refresher.refresh(token)
 
 
 def _answer(
