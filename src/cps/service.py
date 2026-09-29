@@ -63,6 +63,7 @@ from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling
 from .timegrid import SLOTS_PER_DAY
 
 OUTCOMES = ("recalled", "lapsed", "skipped")
+ASSESSMENT_SEARCH_DAYS = 366
 
 LIMITATIONS = (
     "The memory model uses population-default FSRS-4.5 parameters, not parameters fitted to you.",
@@ -328,10 +329,11 @@ def analyse_calendar(
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
 
-    Without `days` the horizon runs to the latest assessment found in the next 120
-    days, including its day, or 21 days if there is none. Assessments are looked
-    for over at least 120 days whatever the horizon, because `make_plan` extends a
-    horizon that ends before an exam.
+    Without `days` the horizon runs to the latest assessment found in the next year,
+    including its day, or 21 days if there is none. Assessments are looked for over
+    at least a year whatever the horizon, because `make_plan` extends a horizon
+    that ends before an exam. (It was 120 days, which missed the end of a semester:
+    AUDIT.md item 32.)
     """
     if ics is None and not busy_rows:
         busy_rows = ()
@@ -347,7 +349,7 @@ def analyse_calendar(
 
     if days is not None and days < 1:
         raise InvalidInput("the horizon must be at least one day")
-    found = find_deadlines(_events(text, rows, start, max(days or 0, 120), tz))
+    found = find_deadlines(_events(text, rows, start, max(days or 0, ASSESSMENT_SEARCH_DAYS), tz))
     if days is None:
         latest = max((_days_after(start, d.when) for d in found), default=21.0)
         days = max(1, math.ceil(latest - 1e-9))

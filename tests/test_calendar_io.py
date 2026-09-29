@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from cps.calendar_io import (
+    BusyEvent,
     BusyRow,
     busy_from_table,
     busy_grid,
@@ -446,3 +447,104 @@ def test_one_off_rows_and_exam_detection():
 def test_bad_rows_say_what_is_wrong(row, message):
     with pytest.raises(ValueError, match=message):
         busy_from_table([row], date(2026, 3, 2), 7, "Europe/Rome")
+
+
+# --------------------------------------------------------------------------- #
+# A university timetable export (ADE / Hyperplanning style)
+# --------------------------------------------------------------------------- #
+# Synthetic, in the shape of a real export: "Course, Grp: TYPE ., Salle: Room",
+# exams marked by the group EXAMEN, a cancelled lecture with STATUS:CANCELLED.
+# Found when the owner ran the planner on his own timetable (AUDIT.md items 29-32).
+
+ADE_STYLE = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//EN
+BEGIN:VEVENT
+UID:l1@test
+DTSTART;TZID=Europe/Paris:20260930T090000
+DTEND;TZID=Europe/Paris:20260930T103000
+SUMMARY: Advanced Statistics, Grp: CM ., Salle: Salle 2   Estrapade
+END:VEVENT
+BEGIN:VEVENT
+UID:l2@test
+DTSTART;TZID=Europe/Paris:20261203T153000
+DTEND;TZID=Europe/Paris:20261203T170000
+SUMMARY: Ethics & Philosophy of AI, Grp: CM ., Salle: Salle 4   Estrapade, COURS ANNULE
+STATUS:CANCELLED
+END:VEVENT
+BEGIN:VEVENT
+UID:e1@test
+DTSTART;TZID=Europe/Paris:20270125T134500
+DTEND;TZID=Europe/Paris:20270125T164500
+SUMMARY: Computer Programming 3, Grp: EXAMEN ., Salle: Salle 5   Estrapade
+CATEGORIES:EXAMEN
+END:VEVENT
+BEGIN:VEVENT
+UID:e2@test
+DTSTART;TZID=Europe/Paris:20270129T134500
+DTEND;TZID=Europe/Paris:20270129T154500
+SUMMARY: Deep Learning 1, Grp: EXAMEN ., Salle: Salle 2   Estrapade
+CATEGORIES:EXAMEN
+END:VEVENT
+END:VCALENDAR
+"""
+PARIS = ZoneInfo("Europe/Paris")
+
+
+def ade_events(days: int = 150):
+    begin = datetime.combine(date(2026, 9, 29), time(0, 0), tzinfo=PARIS)
+    return expand_events(ADE_STYLE, begin, begin + timedelta(days=days), PARIS)
+
+
+def test_an_exam_is_named_after_its_course_not_its_room():
+    """AUDIT.md item 30. The subject used to be the whole title, room and group
+    included: "Computer Programming 3, Grp: EN ., Salle: Salle 5 Estrapade"."""
+    assert [d.subject for d in find_deadlines(ade_events())] == [
+        "Computer Programming 3",
+        "Deep Learning 1",
+    ]
+
+
+def test_a_keyword_inside_a_longer_keyword_is_not_matched():
+    """AUDIT.md item 29. "exam" was found inside "EXAMEN", and stripping it left
+    "EN" in the subject. Keywords now match whole words, longest first."""
+    found = find_deadlines(ade_events())
+    assert all("EN ." not in d.subject and "Grp" not in d.subject for d in found)
+    assert all(d.summary.strip().startswith(d.subject) for d in found)
+
+
+@pytest.mark.parametrize(
+    "title, subject",
+    [
+        ("Analysis exam", "Analysis"),
+        ("Final - Economics", "Economics"),
+        ("Esame di Fisica", "Fisica"),
+        ("Exam: Linear Algebra, Room 3", "Linear Algebra"),
+        ("EXAMEN - Analyse 3 | Amphi B", "Analyse 3"),
+        ("Midterms: Probability", "Probability"),
+    ],
+)
+def test_assessment_titles_in_other_shapes_keep_working(title, subject):
+    event = BusyEvent(
+        datetime(2026, 3, 20, 9, tzinfo=LONDON), datetime(2026, 3, 20, 12, tzinfo=LONDON), title
+    )
+    assert [d.subject for d in find_deadlines([event])] == [subject]
+
+
+def test_a_word_that_only_contains_a_keyword_is_not_an_exam():
+    """Whole words: "Examination techniques seminar" is not an exam of anything,
+    and "Contest" does not contain the word "test"."""
+    titles = ("Contest registration", "Latest news", "Finalist dinner")
+    events = [
+        BusyEvent(datetime(2026, 3, d, 9, tzinfo=LONDON), datetime(2026, 3, d, 10, tzinfo=LONDON), t)
+        for d, t in zip((2, 3, 4), titles, strict=True)
+    ]
+    assert find_deadlines(events) == []
+
+
+def test_a_cancelled_event_does_not_block_time():
+    """AUDIT.md item 31. RFC 5545 STATUS:CANCELLED; the export also says "COURS
+    ANNULE" in the title. A cancelled lecture is free time."""
+    summaries = [e.summary for e in ade_events()]
+    assert not any("ANNULE" in s for s in summaries)
+    assert any("Advanced Statistics" in s for s in summaries)

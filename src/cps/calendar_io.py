@@ -51,6 +51,7 @@ Four decisions that matter, all of which are easy to get silently wrong
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
@@ -176,6 +177,10 @@ def expand_events(
     component: Any
     for component in calendar.walk("VEVENT"):
         if "DTSTART" not in component:
+            continue
+        # RFC 5545 STATUS:CANCELLED: the lecture is not happening, so its time is
+        # free (AUDIT.md item 31).
+        if str(component.get("STATUS", "")).strip().upper() == "CANCELLED":
             continue
         start, was_date = _as_datetime(component["DTSTART"].dt, zone)
         end = _event_end(component, start, was_date, zone)
@@ -469,16 +474,22 @@ def find_deadlines(
     classifier that silently mislabels "Test-driven development lecture" as an
     exam would be worse, not better. Earliest occurrence wins per subject, since
     that is the deadline that binds.
+
+    Keywords match whole words, plural allowed, longest first, so "EXAMEN" is the
+    keyword "examen" and never "exam" followed by "EN" (AUDIT.md item 29). The
+    subject is the course name: see `_course_name`.
     """
-    lowered = tuple(k.lower() for k in keywords)
+    patterns = [
+        (k, re.compile(rf"(?<!\w){re.escape(k)}s?(?!\w)", re.IGNORECASE))
+        for k in sorted({k.lower() for k in keywords}, key=len, reverse=True)
+    ]
     found: dict[str, Deadline] = {}
     for event in events:
         title = event.summary
-        haystack = title.lower()
-        hit = next((k for k in lowered if k in haystack), None)
-        if hit is None:
+        match = next((m for _, p in patterns if (m := p.search(title))), None)
+        if match is None:
             continue
-        subject = _strip_keyword(title, hit) or title
+        subject = _course_name(title, match) or title.strip()
         existing = found.get(subject.casefold())
         if existing is None or event.start < existing.when:
             found[subject.casefold()] = Deadline(subject=subject, when=event.start, summary=title)
@@ -489,18 +500,33 @@ def find_deadlines(
 # "Examen de physique", "Exam of Analysis".
 _CONNECTIVES = ("di", "del", "della", "dello", "de", "du", "des", "of", "in", "für", "d'")
 
+# What separates the fields of a decorated title: "Course, Grp: TYPE ., Salle: Room"
+# (ADE and Hyperplanning exports), "EXAMEN - Course | Room", "Exam: Course, Room".
+# A dash separates only with spaces around it, so "Semi-supervised learning" stays whole.
+_FIELD_SEPARATORS = re.compile(r"\s*[,;|]\s*|\s+[-–—]\s+|:\s+")
 
-def _strip_keyword(title: str, keyword: str) -> str:
-    lowered = title.lower()
-    index = lowered.find(keyword)
-    remainder = (title[:index] + " " + title[index + len(keyword) :]).strip()
-    remainder = remainder.strip(" -–—:,·|").strip()
-    head, _, tail = remainder.partition(" ")
+
+def _course_name(title: str, keyword: re.Match[str]) -> str:
+    """The course an assessment title is about.
+
+    Remove the keyword, split what remains into fields, and take the first field
+    that contains a letter. University timetable exports decorate titles with the
+    group and the room, and the course name comes first; a hand-made "Analysis
+    exam" has one field. A course name that itself contains a comma loses its tail,
+    a visible mistake the user can correct in the subjects table.
+    """
+    remainder = title[: keyword.start()] + " " + title[keyword.end() :]
+    fields = [f.strip(" .-–—:·") for f in _FIELD_SEPARATORS.split(remainder)]
+    field = next((f for f in fields if any(c.isalpha() for c in f)), "")
+    for label in ("grp", "group", "groupe", "salle", "room"):
+        if field.lower().startswith(label + ":"):
+            return ""
+    head, _, tail = field.partition(" ")
     if tail and head.lower() in _CONNECTIVES:
-        remainder = tail.strip()
-    elif remainder.lower().startswith("d'") and len(remainder) > 2:
-        remainder = remainder[2:].strip()
-    return remainder
+        field = tail.strip()
+    elif field.lower().startswith("d'") and len(field) > 2:
+        field = field[2:].strip()
+    return " ".join(field.split())
 
 
 # --------------------------------------------------------------------------- #

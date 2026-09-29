@@ -269,3 +269,29 @@ def test_an_unreadable_calendar_or_zone_is_a_typed_error():
             tz=TZ,
             busy_rows=[{"label": "x", "weekday": "Funday", "start": "9", "end": "10"}],
         )
+
+
+def test_exams_at_the_end_of_a_semester_are_found():
+    """AUDIT.md item 32. Assessments were looked for over 120 days, so a plan
+    started on 29 September missed every exam after 26 January: four of six in the
+    owner's own timetable. They are now looked for over a year."""
+    ics = b"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//EN
+BEGIN:VEVENT
+UID:e1@test
+DTSTART;TZID=Europe/Paris:20270125T134500
+DTEND;TZID=Europe/Paris:20270125T164500
+SUMMARY: Computer Programming 3, Grp: EXAMEN ., Salle: Salle 5
+END:VEVENT
+BEGIN:VEVENT
+UID:e2@test
+DTSTART;TZID=Europe/Paris:20270129T134500
+DTEND;TZID=Europe/Paris:20270129T154500
+SUMMARY: Deep Learning 1, Grp: EXAMEN ., Salle: Salle 2
+END:VEVENT
+END:VCALENDAR
+"""
+    report = service.analyse_calendar(ics, start=date(2026, 9, 29), tz="Europe/Paris")
+    assert [a.subject for a in report.assessments] == ["Computer Programming 3", "Deep Learning 1"]
+    assert report.days == 123  # to the last exam, including its day

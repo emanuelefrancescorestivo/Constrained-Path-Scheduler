@@ -392,3 +392,38 @@ workload rises quickly above it [ref:anki-manual]; that is all. The claim is
 withdrawn everywhere; what remains is that the optimum lies below Anki's default,
 which is what a workload-minimising retention should do and is a weaker statement.
 The test keeps its range as a sanity check chosen here and says so. Status: fixed.
+
+**29. A keyword was found inside a longer one.** Found on the owner's own timetable,
+exported from his university's scheduling system: every exam title reads
+`Course, Grp: EXAMEN ., Salle: Room`. `find_deadlines` tried the keywords in list
+order and matched substrings, so "exam" was found inside "EXAMEN" before "examen"
+was tried, and stripping it left "EN" in the subject name. Fixed: keywords match
+whole words, plural allowed, longest first. "Contest" no longer contains the word
+"test", nor "Finalist" the word "final". Status: fixed.
+
+**30. The subject was the whole title, room and group included.** Same timetable:
+the subjects table showed "Computer Programming 3, Grp: EN ., Salle: Salle 5
+Estrapade". Fixed in `calendar_io._course_name`: remove the keyword, split what
+remains at field separators (comma, semicolon, pipe, a dash with spaces around it,
+a colon followed by a space), and take the first field that contains a letter.
+Hand-made titles ("Analysis exam", "Final - Economics", "Esame di Fisica") give the
+same names as before. A course name that itself contains a comma loses its tail,
+which the user sees and can correct in the subjects table. Status: fixed.
+
+**31. A cancelled lecture still blocked its time.** The export marks a cancelled
+class with `STATUS:CANCELLED` (RFC 5545) and "COURS ANNULE" in the title;
+`expand_events` ignored the status. Fixed: cancelled events are skipped. Status:
+fixed.
+
+**32. Exams at the end of a semester were not found.** `service.analyse_calendar`
+looked for assessments over the next 120 days. Started on 29 September, that ends
+on 26 January, and the owner's exams run from 25 to 29 January: two of six were
+found. Now a year (`ASSESSMENT_SEARCH_DAYS = 366`). Status: fixed.
+
+Checked on the owner's timetable, which is not in the repository: 260 events, all
+six exams found and correctly named, 246 free blocks of 60 minutes, a plan of 30
+sessions reaching every target. The synthetic `ADE_STYLE` calendar in
+`tests/test_calendar_io.py` reproduces the format for the tests. One consequence
+left as it is and disclosed: planning six subjects over four months took 38
+seconds on the development machine, because each of about 246 blocks runs a window
+search over six subjects.

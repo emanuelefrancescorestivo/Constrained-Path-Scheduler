@@ -148,8 +148,8 @@ included; `docs/REFERENCES.md` says how every reference was checked.
 
 ```bash
 pip install -e ".[dev,app]"
-pytest                                    # 219 passed, 12 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 231 passed, 1 xfailed, 94% coverage
+pytest                                    # 230 passed, 12 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 242 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
