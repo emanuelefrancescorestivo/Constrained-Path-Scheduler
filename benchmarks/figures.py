@@ -15,6 +15,7 @@ benchmark it comes from, and printed, so a figure can be checked against a run
    weights), not a measurement of students.
 2. planner-vs-schedulers: benchmarks/replanning.py, 100 seeds, with standard errors.
 3. search-vs-rules: benchmarks/rule_vs_planner.py, the semester, one run.
+4. pipeline: how the pieces fit together; a diagram, no numbers.
 
 Colours are the first three slots of a categorical palette checked for colour-blind
 separation in both themes; every series is also named in text, never by colour alone.
@@ -452,13 +453,95 @@ def draw_rules(out: dict, theme: Theme) -> Svg:
 
 
 # --------------------------------------------------------------------------- #
+# 4. How the pieces fit together (a diagram: no numbers)
+# --------------------------------------------------------------------------- #
+
+PIPELINE = (
+    (
+        "Your timetable",
+        ("a .ics file or its link:", "ADE, Hyperplanning, Google"),
+        "calendar_io.py, sources.py",
+    ),
+    (
+        "What it says",
+        ("courses, lectures, exams,", "and the free time left"),
+        "calendar_io.py, timegrid.py",
+    ),
+    (
+        "The assistant plans",
+        ("deadlines, exam practice,", "self-tests as recall fades"),
+        "assistant.py, memory.py",
+    ),
+    ("In your calendar", ("a feed to subscribe to,", "a week you can drag"), "feed.py, web/"),
+)
+
+
+def draw_pipeline(theme: Theme) -> Svg:
+    width, height = 800, 300
+    svg = Svg(width, height, theme, "How the study planner works, from timetable to calendar")
+    header(svg, "From your timetable back to your calendar", "Every front end calls one API, cps.service.")
+    box_w, box_h, gap, top = 176, 96, 24, 96
+    left = (width - 4 * box_w - 3 * gap) / 2
+    accent = theme.series[0]
+    centres = []
+    for i, (title, lines, modules) in enumerate(PIPELINE):
+        x0 = left + i * (box_w + gap)
+        colour = accent if i == 2 else theme.muted
+        svg.add(
+            f'<rect x="{x0:.1f}" y="{top}" width="{box_w}" height="{box_h}" rx="10" '
+            f'fill="{theme.surface}" stroke="{colour}" stroke-width="{2 if i == 2 else 1.2}"/>'
+        )
+        svg.text(x0 + 12, top + 24, title, size=13, weight=650)
+        for k, line in enumerate(lines):
+            svg.text(x0 + 12, top + 44 + 16 * k, line, size=11, colour=theme.muted)
+        svg.text(x0 + 12, top + box_h - 10, modules, size=10, colour=theme.muted)
+        centres.append(x0 + box_w / 2)
+        if i:
+            ax = x0 - gap + 4
+            svg.line(ax, top + box_h / 2, x0 - 6, top + box_h / 2, theme.muted, 1.5)
+            svg.add(f'<path d="M{x0 - 4:.1f},{top + box_h / 2:.1f} l-7,-4.5 v9 z" fill="{theme.muted}"/>')
+    # The report loop: a session marked done, skipped or hard replans at once.
+    y_loop = top + box_h + 26
+    x_from, x_to = centres[3], centres[2]
+    svg.path(
+        [(x_from, top + box_h + 2), (x_from, y_loop), (x_to, y_loop), (x_to, top + box_h + 8)],
+        accent,
+        1.5,
+    )
+    svg.add(f'<path d="M{x_to:.1f},{top + box_h + 3:.1f} l-4.5,7 h9 z" fill="{accent}"/>')
+    svg.text(
+        (x_from + x_to) / 2,
+        y_loop + 16,
+        "one tap after each session: done, skipped, hard",
+        size=11,
+        colour=theme.muted,
+        anchor="middle",
+    )
+    # The research reference sits beside the product, not inside it.
+    rx, ry, rw, rh = left, y_loop + 34, 2 * box_w + gap, 34
+    svg.add(
+        f'<rect x="{rx:.1f}" y="{ry:.1f}" width="{rw}" height="{rh}" rx="8" fill="none" '
+        f'stroke="{theme.muted}" stroke-width="1" stroke-dasharray="4 4"/>'
+    )
+    svg.text(rx + 12, ry + 21, "Research reference: FSRS + AO* search (plan.py, rolling.py)", size=11)
+    svg.text(
+        rx + rw + 12,
+        ry + 21,
+        "checks that the assistant's rules are good enough",
+        size=11,
+        colour=theme.muted,
+    )
+    return svg
+
+
+# --------------------------------------------------------------------------- #
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--only", choices=("spacing", "planner", "rules"), default=None)
+    parser.add_argument("--only", choices=("spacing", "planner", "rules", "pipeline"), default=None)
     parser.add_argument("--out", type=Path, default=OUT)
     args = parser.parse_args(argv)
     ensure_utf8_output()
@@ -492,6 +575,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         for theme in THEMES:
             draw_rules(out, theme).save(args.out / f"search-vs-rules-{theme.name}.svg")
+    if args.only in (None, "pipeline"):
+        for theme in THEMES:
+            draw_pipeline(theme).save(args.out / f"pipeline-{theme.name}.svg")
     return 0
 
 

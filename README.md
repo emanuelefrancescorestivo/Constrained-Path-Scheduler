@@ -15,7 +15,17 @@ simulation with error bars, an independent implementation, or a benchmark you ca
 run. Where this is going as a product, and what it still lacks, is in
 `docs/PRODUCT.md`.
 
-![The planner on the sample calendar: a football session dragged onto Thursday, and the plan week by week](docs/app-screenshot.png)
+<p align="center">
+  <img alt="The plan screen on a laptop, on the synthetic sample semester: today's next session (deadline work on a Deep Learning project report, with the reason), what comes up, and the week with lectures in light colours and study sessions in full colours, one colour per course" src="docs/app-week.png" width="72%">
+  &nbsp;
+  <img alt="The Today page on a phone: the sessions and hours of study in the next 7 days, the next session and what comes up" src="docs/app-today-phone.png" width="22%">
+</p>
+<p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 14 October 2026 with one deadline added.</sub></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/pipeline-dark.svg">
+  <img alt="From the timetable (an .ics file or its link) to what it says (courses, lectures, exams, free time), to the assistant's plan, back into the student's calendar; a one-tap report after each session replans; the research planner (FSRS and AO* search) is a reference beside it" src="docs/figures/pipeline-light.svg" width="800">
+</picture>
 
 ## Why spaced self-testing
 
@@ -159,7 +169,7 @@ What it does not do yet, said plainly:
   their events differently.
 
 The Streamlit page (`app.py`) is the workbench: the research planner, the recall
-curves, the drag-and-drop week. It can still publish a feed for `cps serve` to
+curves, the drag-and-drop week ([screenshot](docs/app-screenshot.png)). It can still publish a feed for `cps serve` to
 answer on the same machine; reports do not reach those feeds.
 
 ## Results
@@ -262,11 +272,21 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 36 in all, including a planner that put
+those defects and every one found since, 39 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
 included; `docs/REFERENCES.md` says how every reference was checked.
+
+## How it was built
+
+The December 2025 prototype, kept unchanged in `archive/2025-prototype/`, is where
+this started. The rebuild was written with an AI coding assistant (Claude Code) as
+a pair programmer, and the commit history shows which commits it wrote. It works
+to the rules in `CLAUDE.md`: every number in a document is reproduced by code, every
+defect found goes into `AUDIT.md` before or with its fix, and no test is loosened to
+get a green build. The questions, the decisions on scope and method, and the checks
+in a real browser are the owner's.
 
 ## Repository
 

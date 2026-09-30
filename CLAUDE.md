@@ -4,23 +4,19 @@ A study planner. It reads a student's calendar export (`.ics`), finds their exam
 and works out when to study, using the FSRS memory model and AO* search over the
 free calendar slots. The plan goes back out as an `.ics`.
 
-Owner: Emanuele Restivo, PSL University, Paris. The goal is a real, publishable
-project (GitHub, LinkedIn, internship applications), possibly a product later.
-His philosophy is substance over appearance: an honest limitation is worth more
-than an impressive number.
+This file is the working agreement for AI coding assistants on this repository
+(Claude Code reads it). The rule behind all of it: an honest limitation is worth
+more than an impressive number.
 
-## Working with Emanuele
+## Conventions
 
-- He writes in Italian and English. Reply in the language of his message.
-  Everything written to disk (code, comments, docs, commits) is English.
-- He wants to understand the method. Explain each non-obvious decision: what you
-  chose, what you rejected, why.
-- Deliver complete working slices with the reasoning inline. Do not stop for
-  approval at every step. Ask only when the decision is his: scope, license,
-  naming, new dependencies, accounts or credentials, publishing.
-- His machine is Windows (PowerShell), Python 3.13, VS Code. Do not assume bash.
-  Call the venv interpreter directly (`.venv\Scripts\python -m pytest`), which
-  works whatever shell Claude Code is using.
+- Everything written to disk (code, comments, docs, commits) is English.
+- Explain each non-obvious decision in the change itself: what was chosen, what
+  was rejected, why.
+- Deliver complete working slices. Ask the maintainer before changing scope,
+  licence, naming, dependencies, accounts or credentials, or anything published.
+- The maintainer works on Windows (PowerShell), Python 3.13. Do not assume bash:
+  call the venv interpreter directly (`.venv\Scripts\python -m pytest`).
 
 ## Commands
 

@@ -518,3 +518,14 @@ front ends: its grid had seven columns written into the stylesheet, and on a tou
 screen a swipe to scroll ended in a cancelled pointer that it treated as a tap, which
 added a block. Checked in Chromium at desktop and phone sizes: drag, move, tap,
 report page, no console error. Status: fixed.
+
+**39. On a phone, the calendar cuts course names mid-word and at the bottom of a
+block.** Found while taking the README's screenshots of `cps web` at 390 px (the
+sample semester, three-day view): "Computer Programming 3" wraps as "Programmin / g
+3", and a 90-minute block whose title needs five lines loses the last one ("Work on:
+Deep Learning project report" ends at "project"). The desktop week is not affected.
+Allowing hyphenation and breaking only whole words changed nothing in headless
+Chromium: the word is wider than the column. A fix needs a decision on what a block
+shows when its title does not fit (a shorter label per course, a smaller type size
+on phones, or an ellipsis with the full title in the popover), and a check in a real
+phone browser. Status: open.
