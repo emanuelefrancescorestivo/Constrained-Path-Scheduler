@@ -529,3 +529,13 @@ Chromium: the word is wider than the column. A fix needs a decision on what a bl
 shows when its title does not fit (a shorter label per course, a smaller type size
 on phones, or an ellipsis with the full title in the popover), and a check in a real
 phone browser. Status: open.
+
+Fixed with the Apple-style redesign, by all three: in a column under 120 px a block
+shows the short name (the course, without "Self-test:" or the group and room); its
+lines are clamped to the block's height, the last ending in an ellipsis; and when a
+single word is wider than the block (two blocks side by side), it shows one line with
+an ellipsis instead of a word cut in two. The full title is in the tooltip and the
+popover. Checked in Chromium at 390 px on the sample semester's lecture days: 14
+blocks, no word wider than its block, no title past its block's bottom (the check
+measures each word with the block's own font). A real phone browser has not been
+tried. Status: fixed in Chromium; open for a real phone.

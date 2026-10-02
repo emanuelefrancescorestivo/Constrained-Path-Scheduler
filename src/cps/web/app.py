@@ -96,6 +96,15 @@ def _nice_date(value: str) -> str:
     return f"{moment:%a} {moment.day} {moment:%b %Y}, {moment:%H:%M}"
 
 
+# What a task change says once it is done, by the `saved` query parameter.
+TASK_NOTICES = {
+    "added": "Added. The plan has made room for it.",
+    "finished": "Done. Its remaining sessions are free time again.",
+    "reopened": "Reopened. What is left is planned again.",
+    "deleted": "Deleted.",
+}
+
+
 @dataclass
 class Config:
     """Everything the app needs from outside. `from_env` reads a deployment's."""
@@ -196,6 +205,11 @@ def create_app(config: Config | None = None) -> FastAPI:
     # ---------------------------------------------------------------- helpers
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
+        token = context.get("token")
+        if token and "courses" not in context:
+            # Every page of a plan carries the new-task sheet, which suggests courses.
+            subscription = service.load_subscription(store, token)
+            context["courses"] = service.course_names(subscription) if subscription else []
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -286,20 +300,20 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}", response_class=HTMLResponse)
-    def today(request: Request, token: str, reported: str | None = None, saved: int = 0) -> HTMLResponse:
+    def today(request: Request, token: str, reported: str | None = None, saved: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
         return plan_page(
-            request, subscription, "today", reported=OUTCOME_WORDS.get(reported or ""), saved=bool(saved)
+            request, subscription, "today", reported=OUTCOME_WORDS.get(reported or ""), saved=_notice(saved)
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
-    def week(request: Request, token: str, new: int = 0) -> HTMLResponse:
+    def week(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return plan_page(request, subscription, "calendar", new=bool(new))
+        return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved))
 
     @app.get("/p/{token}/panel", response_class=HTMLResponse)
     def panel(request: Request, token: str) -> HTMLResponse:
@@ -490,6 +504,33 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
 
+    def back_to(token: str, where: str, **query: Any) -> str:
+        """Where a task form returns to: the page it was sent from, among the
+        plan's own pages only (never an address taken from the form)."""
+        path = {"tasks": f"/p/{token}/tasks", "calendar": f"/p/{token}/week"}.get(where, f"/p/{token}")
+        extra = "&".join(f"{k}={v}" for k, v in query.items())
+        return f"{path}?{extra}" if extra else path
+
+    def tasks_page(
+        request: Request, subscription: service.Subscription, status: int = 200, **context: Any
+    ) -> HTMLResponse:
+        return page(
+            request,
+            "tasks.html",
+            status,
+            token=subscription.token,
+            view=service.tasks_view(subscription, config.clock()),
+            tab="tasks",
+            **context,
+        )
+
+    @app.get("/p/{token}/tasks", response_class=HTMLResponse)
+    def tasks(request: Request, token: str, saved: str | None = None) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return tasks_page(request, subscription, saved=TASK_NOTICES.get(saved or ""))
+
     @app.post("/p/{token}/tasks", response_class=HTMLResponse)
     async def add_task(request: Request, token: str) -> Response:
         subscription = load(token)
@@ -497,27 +538,59 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=10)
+        form = await request.form(max_files=0, max_fields=12)
         name = str(form.get("name") or "").strip()
+        where = str(form.get("back") or "")
         try:
-            if not name:
-                raise service.InvalidInput("give the deadline a name")
+            other = str(form.get("hours_other") or "").strip()
+            hours = forms._number(other or str(form.get("hours") or "2"), name or "the task")
             task = service.TaskSpec(
                 name,
                 str(form.get("due") or "").replace("T", " ").strip(),
-                forms._number(str(form.get("hours") or "2"), name),
+                hours,
                 str(form.get("course") or "").strip(),
             )
-
-            def add(current: service.Subscription) -> service.Subscription:
-                tasks = [service.TaskSpec(**t) for t in current.options.get("tasks", ())]
-                return service.revise_subscription(current, tasks=[*tasks, task], now=config.clock())
-
-            service.update_subscription(store, token, add)
+            service.update_subscription(
+                store, token, lambda current: service.add_task(current, task, now=config.clock())
+            )
         except service.ServiceError as error:
+            if where == "tasks":
+                return tasks_page(request, subscription, 400, task_error=str(error))
             return plan_page(request, subscription, "today", 400, task_error=str(error))
         service.log_event(store, token, "task")
-        return RedirectResponse(f"/p/{token}?saved=1", 303)
+        return RedirectResponse(back_to(token, where, saved="added"), 303)
+
+    @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)
+    async def task_done(request: Request, token: str) -> Response:
+        return await task_change(request, token, "done")
+
+    @app.post("/p/{token}/tasks/delete", response_class=HTMLResponse)
+    async def task_delete(request: Request, token: str) -> Response:
+        return await task_change(request, token, "delete")
+
+    async def task_change(request: Request, token: str, kind: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        name = str(form.get("name") or "")
+        where = str(form.get("back") or "")
+        finished = str(form.get("done") or "1") == "1"
+        try:
+            if kind == "delete":
+                change = lambda current: service.delete_task(current, name, now=config.clock())  # noqa: E731
+            else:
+                change = lambda current: service.set_task_done(  # noqa: E731
+                    current, name, finished, now=config.clock()
+                )
+            service.update_subscription(store, token, change)
+        except service.ServiceError as error:
+            return tasks_page(request, subscription, 400, task_error=str(error))
+        notice = "deleted" if kind == "delete" else ("finished" if finished else "reopened")
+        service.log_event(store, token, notice)
+        return RedirectResponse(back_to(token, where, saved=notice), 303)
 
     @app.get("/p/{token}/feed", response_class=HTMLResponse)
     def feed_page(request: Request, token: str, new: int = 0) -> HTMLResponse:
@@ -613,6 +686,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     return app
+
+
+def _notice(saved: str) -> str | None:
+    if saved == "1":
+        return "Saved. The plan has changed to match."
+    return TASK_NOTICES.get(saved)
 
 
 def _same_origin(request: Request) -> bool:

@@ -107,7 +107,11 @@ report, deadlines, exams: HTML from `/p/<token>/panel`) beside the calendar
 `/p/<token>/activities`, and moves, unpins or reports a session at
 `/p/<token>/sessions/<id>/…`; each answer is the replanned calendar, and the panel is
 fetched again. Without scripts, every form still works by full page loads and the
-week is a list (`/p/<token>/agenda`). It reads forms and JSON, calls
+week is a list (`/p/<token>/agenda`). Tasks have their own page and a new-task sheet on
+every page (the `popover` attribute opens it without a script); forms marked
+`data-async` are sent in the background by `ui.js`, which puts in place the parts of the
+answering page this one also has, so the server stays the only place a page's content
+is decided. It reads forms and JSON, calls
 `service`, and fills templates; a test fails if it imports anything from `cps` but
 `service`. The page models (`today_view`, `agenda`, `setup_view`, `calendar_view`,
 `course_colours`) are in `service`, and so are the rules for moving a session

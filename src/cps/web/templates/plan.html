@@ -5,7 +5,7 @@
 <div class="plan" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}">
   <aside class="panel" aria-label="Today">
     {% if reported %}<p class="notice notice-ok" role="status">Recorded: {{ reported }}. The plan has changed to match.</p>{% endif %}
-    {% if saved %}<p class="notice notice-ok" role="status">Saved. The plan has changed to match.</p>{% endif %}
+    {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
   <section class="board" aria-label="Calendar">
@@ -19,12 +19,19 @@
     </div>
     {% endif %}
     <div class="board-bar" id="calendar-bar" hidden>
-      <button type="button" class="btn btn-sm" data-go="today">Today</button>
-      <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="Earlier days">‹</button>
-      <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="Later days">›</button>
       <span class="range" id="calendar-range" aria-live="polite"></span>
       <span class="spacer"></span>
-      <button type="button" class="btn btn-sm" data-go="busy" aria-label="Add a busy time">+ <span class="wide-only">Busy time</span></button>
+      <div class="segmented" role="group" aria-label="Days shown">
+        <button type="button" data-view="1">Day</button>
+        <button type="button" data-view="3">3 Days</button>
+        <button type="button" data-view="7">Week</button>
+      </div>
+      <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="Earlier days">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button type="button" class="btn btn-sm" data-go="today">Today</button>
+      <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="Later days">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">Block time</button>
     </div>
     <div id="calendar">
       <div class="board-fallback">

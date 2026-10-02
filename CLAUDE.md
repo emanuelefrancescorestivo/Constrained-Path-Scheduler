@@ -24,8 +24,8 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 391 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 405 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 401 passed, 14 deselected, 1 xfailed, about 45 s
+    pytest -m "slow or not slow" --cov=cps   # all 415 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -53,13 +53,17 @@ more than an impressive number.
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop week, one-tap reports, privacy; only calls `service`; every page works without its one script |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, privacy; only calls `service`; every page works without its scripts |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `sweep` / `backup`; UTF-8 output hardening |
 
-The hosted app's front end is `web/static/`: `style.css` (tokens, light and dark,
-eight course colours), `calendar.js` (the calendar: draw, drag, popovers) and
-`app.js` (the plan screen: the panel is server-rendered HTML, fetched again after
-each change). Plain JavaScript modules, no build step, no framework, layout and
+The hosted app's front end is `web/static/`, in the manner of Apple's interface
+guidelines (system font, grouped lists, translucent bars, sheets): `style.css`
+(tokens, light and dark, seven course colours checked for colour-blind separation;
+red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week, draw,
+drag, popovers, titles that fit, AUDIT 39), `app.js` (the plan screen: the panel is
+server-rendered HTML, fetched again after each change) and `ui.js` (every page:
+forms sent in the background with the page's own HTML as the answer, the new-task
+sheet, Undo, the N key). Plain JavaScript modules, no build step, no framework, layout and
 input only: every decision comes back from `service` as JSON or HTML. They must work
 under the app's Content-Security-Policy: styles through the CSSOM (or classes, such
 as the `w0`..`w100` progress widths), no inline script or style. `widgets/` (next to

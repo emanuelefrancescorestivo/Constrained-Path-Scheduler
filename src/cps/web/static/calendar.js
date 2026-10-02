@@ -99,15 +99,40 @@ export class Calendar {
     this.scrolled = null;
     this.pop = null;
     this.loadedAt = Date.now();
-    window.matchMedia("(max-width: 900px)").addEventListener("change", () => this.load());
-    window.matchMedia("(max-width: 520px)").addEventListener("change", () => this.load());
+    this.view = this.savedView();
+    window.matchMedia("(max-width: 900px)").addEventListener("change", () => {
+      this.view = this.savedView();
+      this.load();
+    });
+    window.addEventListener("resize", () => this.fitLabels());
     setInterval(() => this.placeNow(), 60 * 1000);
   }
 
+  // Day, 3 days or a week: the viewer's last choice on this device, else what the
+  // screen suits. Kept in the browser only; an unavailable storage just forgets.
+  savedView() {
+    try {
+      const kept = Number(window.localStorage.getItem(`cps-view-${narrow() ? "narrow" : "wide"}`));
+      if ([1, 3, 7].includes(kept)) return kept;
+    } catch {
+      /* private browsing, blocked storage: use the default */
+    }
+    return narrow() ? 3 : 7;
+  }
+
+  setView(days) {
+    this.view = days;
+    try {
+      window.localStorage.setItem(`cps-view-${narrow() ? "narrow" : "wide"}`, String(days));
+    } catch {
+      /* not kept; the choice still applies now */
+    }
+    this.scrolled = null;
+    this.load();
+  }
+
   get count() {
-    if (window.matchMedia("(max-width: 520px)").matches) return 3;
-    if (narrow()) return 5;
-    return 7;
+    return this.view;
   }
 
   query() {
@@ -185,9 +210,11 @@ export class Calendar {
     head.style.gridTemplateColumns = columns;
     days.forEach((day) => {
       const [wd, dn] = [day.label.slice(0, 3), day.date.slice(8, 10).replace(/^0/, "")];
+      const weekend = day.weekday === "Sat" || day.weekday === "Sun";
       head.append(
-        h("div", { class: `cal-day${day.date === data.now.date ? " today" : ""}${day.in_horizon ? "" : " out"}` },
-          h("span", { class: "wd" }, wd), h("span", { class: "dn" }, dn)),
+        h("div", {
+          class: `cal-day${day.date === data.now.date ? " today" : ""}${day.in_horizon ? "" : " out"}${weekend ? " weekend" : ""}`,
+        }, h("span", { class: "wd" }, wd), h("span", { class: "dn" }, dn)),
       );
     });
 
@@ -195,6 +222,7 @@ export class Calendar {
     body.style.gridTemplateColumns = columns;
     body.style.height = `${height}px`;
     const gutter = h("div", { class: "cal-gutter" });
+    this.gutter = gutter;
     for (let m = this.top + 60; m < this.bottom; m += 60) {
       const label = h("div", { class: "cal-hour" }, toClock(m));
       label.style.top = `${(m - this.top) * PX}px`;
@@ -251,6 +279,7 @@ export class Calendar {
       data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
     this.root.replaceChildren(h("div", { class: "cal" }, head, scroll, legend.childElementCount ? legend : null));
     this.placeNow();
+    this.fitLabels();
 
     if (this.scrolled !== null) scroll.scrollTop = this.scrolled;
     else {
@@ -259,18 +288,57 @@ export class Calendar {
     }
     const first = days[0].label;
     const last = days[days.length - 1].label;
-    this.onRange(`${first.slice(4)} – ${last.slice(4)}`);
+    this.onRange(days.length === 1 ? first : `${first.slice(4)} – ${last.slice(4)}`, this.view);
   }
 
   placeNow() {
     if (!this.data || !this.columns) return;
-    this.root.querySelectorAll(".cal-now").forEach((n) => n.remove());
+    this.root.querySelectorAll(".cal-now, .cal-now-label").forEach((n) => n.remove());
     const d = this.data.days.findIndex((day) => day.date === this.data.now.date);
     const minute = this.data.now.minute + (Date.now() - this.loadedAt) / 60000;
     if (d < 0 || minute < this.top || minute > this.bottom) return;
     const line = h("div", { class: "cal-now", "aria-hidden": "true" });
     line.style.top = `${(minute - this.top) * PX}px`;
     this.columns[d].append(line);
+    // As Apple Calendar does: the time itself, in red, in the hour gutter.
+    const label = h("div", { class: "cal-now-label", "aria-hidden": "true" }, toClock(Math.floor(minute)));
+    label.style.top = `${(minute - this.top) * PX}px`;
+    this.gutter.append(label);
+    this.root.querySelectorAll(".cal-hour").forEach((hour) => {
+      const near = Math.abs(parseFloat(hour.style.top) - (minute - this.top) * PX) < 12;
+      hour.style.visibility = near ? "hidden" : "";
+    });
+  }
+
+  // What a block shows when its title does not fit (AUDIT.md item 39): in a narrow
+  // column the short name (the course, not "Self-test: …" or the room); lines
+  // clamped to the block's height, the last one ending in an ellipsis; and if a
+  // single word is wider than the block, one line with an ellipsis instead of a
+  // word cut in two. The full title is in the popover and the tooltip.
+  fitLabels() {
+    if (!this.columns || !this.columns.length) return;
+    const narrowColumns = this.columns[0].clientWidth < 120;
+    const ruler = (this.ruler = this.ruler || document.createElement("canvas").getContext("2d"));
+    this.root.querySelectorAll(".ev:not(.ghost)").forEach((node) => {
+      const label = node.querySelector(".l");
+      if (!label) return;
+      label.textContent = narrowColumns && node.dataset.short ? node.dataset.short : node.dataset.full;
+      node.classList.remove("tight");
+      const style = getComputedStyle(label);
+      ruler.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const room = node.clientWidth - parseFloat(getComputedStyle(node).paddingLeft) - parseFloat(getComputedStyle(node).paddingRight);
+      const widest = Math.max(...label.textContent.split(/\s+/).map((w) => ruler.measureText(w).width));
+      if (widest > room + 0.5) {
+        node.classList.add("tight");
+        label.style.webkitLineClamp = "";
+        return;
+      }
+      const time = node.querySelector(".t");
+      const timeHeight = time && getComputedStyle(time).display !== "none" ? time.offsetHeight : 0;
+      const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.25;
+      const lines = Math.max(1, Math.floor((node.clientHeight - 6 - timeHeight) / lineHeight));
+      label.style.webkitLineClamp = String(lines);
+    });
   }
 
   box(box, d) {
@@ -287,17 +355,27 @@ export class Calendar {
     const tall = (to - from) * PX;
     if (tall < 34) cls += " short";
     let label = box.label;
+    let short = "";
     if (box.kind === "own") {
       const kind = this.kindLabel(this.data.activities[box.row].kind);
       if (kind.toLowerCase() !== label.toLowerCase()) label = `${label} · ${kind}`;
+      short = box.label;
+    } else if (box.kind === "study") {
+      short = box.session_kind === "task" ? box.title : box.course || box.title;
+    } else if (box.kind === "calendar" && box.course) {
+      short = box.course;
     }
+    const span = `${toClock(box.start)}–${toClock(box.end)}`;
     const node = h("div", {
       class: cls,
       tabindex: "0",
       role: "button",
+      title: `${label}\n${span}`,
+      "data-full": label,
+      "data-short": short || null,
       "aria-label": `${label}, ${this.data.days[d].label}, ${toClock(box.start)} to ${toClock(box.end)}`,
     },
-    h("span", { class: "t" }, `${toClock(box.start)}–${toClock(box.end)}`),
+    h("span", { class: "t" }, span),
     h("span", { class: "l" }, label));
     node.style.top = `${(from - this.top) * PX}px`;
     node.style.height = `${Math.max(tall - 2, 16)}px`;

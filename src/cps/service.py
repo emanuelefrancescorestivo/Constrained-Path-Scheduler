@@ -614,6 +614,7 @@ class TaskSpec:
     due: datetime | date | str
     hours: float
     course: str = ""
+    done: bool = False  # finished: nothing more is planned for it
 
     def due_datetime(self, zone: ZoneInfo) -> datetime:
         return SubjectSpec(self.name, self.due).exam_datetime(zone)
@@ -629,6 +630,7 @@ class TaskView:
     scheduled: int = 0  # blocks done or planned before the due date
     finish: str | None = None  # start of the last block planned for it
     at_risk: bool = False  # some of the work does not fit before the due date
+    done: bool = False  # the student finished it; its remaining blocks are freed
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -1534,7 +1536,10 @@ class Subscription:
 
 def _task_dict(task: TaskSpec) -> dict:
     due = task.due.isoformat() if isinstance(task.due, date | datetime) else task.due
-    return {"name": task.name, "due": due, "hours": task.hours, "course": task.course}
+    out: dict[str, Any] = {"name": task.name, "due": due, "hours": task.hours, "course": task.course}
+    if task.done:
+        out["done"] = True
+    return out
 
 
 def _spec_dict(spec: SubjectSpec) -> dict:
@@ -1832,6 +1837,44 @@ def unpin_session(subscription: Subscription, sid: str, *, now: datetime | None 
     ]
     changed = replace(subscription, options={**subscription.options, "pins": pins})
     return refresh_subscription(changed, now=now, reread=False)
+
+
+def _task_specs(subscription: Subscription) -> list[TaskSpec]:
+    return [TaskSpec(**t) for t in subscription.options.get("tasks", ())]
+
+
+def _find_task(subscription: Subscription, name: str) -> int:
+    for i, t in enumerate(subscription.options.get("tasks", ())):
+        if t["name"].casefold() == name.strip().casefold():
+            return i
+    raise InvalidInput(f"there is no task called {name!r} any more")
+
+
+def add_task(subscription: Subscription, task: TaskSpec, *, now: datetime | None = None) -> Subscription:
+    """A new deadline, planned at once (`revise_subscription`)."""
+    if not task.name.strip():
+        raise InvalidInput("give the task a name")
+    return revise_subscription(subscription, tasks=[*_task_specs(subscription), task], now=now)
+
+
+def set_task_done(
+    subscription: Subscription, name: str, done: bool = True, *, now: datetime | None = None
+) -> Subscription:
+    """Mark a task finished, or not. A finished task keeps its history but nothing
+    more is planned for it, and the time it would have taken goes back to the rest
+    of the plan; reopening it plans what is left again."""
+    tasks = _task_specs(subscription)
+    i = _find_task(subscription, name)
+    tasks[i] = replace(tasks[i], done=done)
+    return revise_subscription(subscription, tasks=tasks, now=now, strict=False)
+
+
+def delete_task(subscription: Subscription, name: str, *, now: datetime | None = None) -> Subscription:
+    """Remove a task altogether. One imported from a learning platform stays
+    removed: the platform's next reading does not bring it back."""
+    tasks = _task_specs(subscription)
+    del tasks[_find_task(subscription, name)]
+    return revise_subscription(subscription, tasks=tasks, now=now, strict=False)
 
 
 def revise_subscription(
@@ -2224,9 +2267,9 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     return _session_card(session, zone, local, subscription.outcomes)
 
 
-# How many course colours the pages have (CSS classes c0 to c7): enough to tell a
-# semester's courses apart; beyond that, colours repeat.
-COURSE_PALETTE = 8
+# How many course colours the pages have (CSS classes c0 to c6): enough to tell a
+# semester's courses apart; beyond that, colours repeat. Red is kept for exams.
+COURSE_PALETTE = 7
 
 
 def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]:
@@ -2248,6 +2291,14 @@ def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]
             seen[name.casefold()] = len(seen) % COURSE_PALETTE
             ordered.append((name, seen[name.casefold()]))
     return ordered
+
+
+def course_names(subscription: Subscription) -> list[str]:
+    """The courses a student can name a task after: those with an exam, then the
+    other courses in the timetable, in the order of their colours."""
+    if subscription.plan is None:
+        return [s["name"] for s in subscription.subjects]
+    return [name for name, _ in course_colours(PlanReport.from_dict(subscription.plan))]
 
 
 def calendar_view(
@@ -2419,27 +2470,7 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         "sessions": len(coming),
         "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
     }
-    done_blocks: dict[str, int] = {}
-    for x in plan.history:
-        if x.kind == "task" and x.outcome != "skipped":
-            done_blocks[x.title] = done_blocks.get(x.title, 0) + 1
-    view["tasks"] = [
-        {
-            "name": t.name,
-            "course": t.course,
-            "due": _when(datetime.fromisoformat(t.due).astimezone(zone), local),
-            "days": max((datetime.fromisoformat(t.due) - now) / timedelta(days=1), 0.0),
-            "planned": f"{t.scheduled} of {t.blocks} blocks",
-            "done": done_blocks.get(t.name, 0),
-            "blocks": t.blocks,
-            "percent": round(100 * min(done_blocks.get(t.name, 0) / t.blocks, 1.0)) if t.blocks else 100,
-            "finish": _when(datetime.fromisoformat(t.finish).astimezone(zone), local) if t.finish else "",
-            "at_risk": t.at_risk,
-            "past": datetime.fromisoformat(t.due) < now,
-            "color": colours.get(t.course.casefold()),
-        }
-        for t in sorted(plan.tasks, key=lambda t: t.due)
-    ]
+    view["tasks"] = [t for t in _task_rows(subscription, plan, now, colours) if not t["finished"]]
     view["exams"] = [
         {
             "name": x.name,
@@ -2463,6 +2494,105 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         for w in plan.warnings
         if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
     ]
+    return view
+
+
+def _task_rows(
+    subscription: Subscription, plan: PlanReport, now: datetime, colours: Mapping[str, int]
+) -> list[dict]:
+    """Every task of the plan as the pages show it: open ones by due date, then the
+    finished ones, most recent first."""
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    hours = {t["name"]: t["hours"] for t in subscription.options.get("tasks", ())}
+    imported = set(subscription.options.get("imported", {}).values())
+    worked: dict[str, int] = {}
+    for x in plan.history:
+        if x.kind == "task" and x.outcome != "skipped":
+            worked[x.title] = worked.get(x.title, 0) + 1
+    coming: dict[str, list[SessionView]] = {}
+    for x in plan.sessions:
+        if x.kind == "task":
+            coming.setdefault(x.title, []).append(x)
+    rows = []
+    for t in plan.tasks:
+        due = datetime.fromisoformat(t.due).astimezone(zone)
+        ahead = coming.get(t.name, [])
+        done_blocks = worked.get(t.name, 0)
+        if t.done:
+            status = "done"
+        elif due < local:
+            status = "late"
+        elif t.at_risk:
+            status = "at risk"
+        else:
+            status = "on track"
+        nxt = datetime.fromisoformat(ahead[0].start).astimezone(zone) if ahead else None
+        progress = min(done_blocks / t.blocks, 1.0) if t.blocks else 1.0
+        rows.append(
+            {
+                "name": t.name,
+                "course": t.course,
+                "color": colours.get(t.course.casefold()),
+                "due": _when(due, local),
+                "due_value": f"{due:%Y-%m-%dT%H:%M}",
+                "days": (due - local) / timedelta(days=1),
+                "hours": hours.get(t.name, 0.0),
+                "blocks": t.blocks,
+                "sessions_done": done_blocks,
+                "sessions_planned": len(ahead),
+                "next": _when(nxt, local) if nxt else "",
+                "percent": 100 if t.done else round(100 * progress),
+                "finish": _when(datetime.fromisoformat(t.finish).astimezone(zone), local) if t.finish else "",
+                "at_risk": t.at_risk,
+                "past": due < local,
+                "finished": t.done,
+                "status": status,
+                "imported": t.name in imported,
+            }
+        )
+    rows.sort(key=lambda r: (r["finished"], -r["days"] if r["finished"] else r["days"]))
+    return rows
+
+
+def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the Tasks page shows: every deadline with where its work stands, and
+    a count of what needs attention."""
+    now = now or datetime.now(UTC)
+    view: dict = {"planned": subscription.plan is not None, "error": subscription.error, "rows": []}
+    if subscription.plan is not None:
+        plan = PlanReport.from_dict(subscription.plan)
+        colours = {name.casefold(): index for name, index in course_colours(plan)}
+        view["rows"] = _task_rows(subscription, plan, now, colours)
+    else:
+        view["rows"] = [
+            {
+                "name": t["name"],
+                "course": t.get("course", ""),
+                "color": None,
+                "due": str(t["due"])[:16].replace("T", " "),
+                "due_value": str(t["due"])[:16].replace(" ", "T"),
+                "days": 0.0,
+                "hours": t["hours"],
+                "blocks": 0,
+                "sessions_done": 0,
+                "sessions_planned": 0,
+                "next": "",
+                "percent": 100 if t.get("done") else 0,
+                "finish": "",
+                "at_risk": False,
+                "past": False,
+                "finished": bool(t.get("done")),
+                "status": "done" if t.get("done") else "not planned",
+                "imported": False,
+            }
+            for t in subscription.options.get("tasks", ())
+        ]
+    rows = view["rows"]
+    view["open"] = sum(not r["finished"] for r in rows)
+    view["at_risk"] = sum(r["status"] in ("at risk", "late") for r in rows)
+    view["this_week"] = sum(not r["finished"] and 0 <= r["days"] < 7 for r in rows)
+    view["finished"] = sum(r["finished"] for r in rows)
     return view
 
 
@@ -2603,6 +2733,7 @@ def make_schedule(
             due=_iso(due),
             due_day=day,
             blocks=blocks_for_hours(t.hours, report.block_minutes),
+            done=t.done,
         )
         for t, due, day in dues
     )
@@ -2633,7 +2764,8 @@ def _assist(
     prefs = settings.preferences
     minutes = settings.block_minutes
     zone = _zone(settings.tz)
-    names = {s["name"] for s in specs} | {t.name for t in tasks}
+    # A finished task's pins go with it: nothing more is planned for it.
+    names = {s["name"] for s in specs} | {t.name for t in tasks if not t.done}
     courses = {s.get("subject", s["name"]) for s in specs}
     pinned_views: list[BlockView] = []
     forced: list[Pin] = []
@@ -2686,7 +2818,10 @@ def _assist(
         )
         for s in specs
     }
-    work = [Task(t.name, t.due_day, max(t.blocks - done_task.get(t.name, 0), 0), t.course) for t in tasks]
+    work = [
+        Task(t.name, t.due_day, 0 if t.done else max(t.blocks - done_task.get(t.name, 0), 0), t.course)
+        for t in tasks
+    ]
     first_weekday = settings.start.weekday()
     week_used: dict[int, int] = {}
     for h in counted:
@@ -2787,7 +2922,7 @@ def _assist(
         mine = [
             x for x in history + sessions if x.kind == "task" and x.title == t.name and x.outcome != "skipped"
         ]
-        left = result.task_left.get(t.name, 0)
+        left = 0 if t.done else result.task_left.get(t.name, 0)
         task_views.append(
             replace(t, scheduled=len(mine), finish=mine[-1].start if mine else None, at_risk=left > 0)
         )

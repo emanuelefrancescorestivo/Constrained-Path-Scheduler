@@ -6,6 +6,17 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Tasks the way Motion handles them: a new-task sheet on every page (the + button, or
+  the N key) with one-tap due dates and durations; a Tasks page with each task's
+  sessions done and the next one; a task ticked off frees its remaining sessions, with
+  an Undo; tasks deleted from a menu (`service.add_task`, `set_task_done`,
+  `delete_task`, `tasks_view`).
+- The hosted app restyled in the manner of Apple's interface guidelines: system font,
+  grey grouped backgrounds and inset lists, translucent bars, a segmented control,
+  iOS-style fields, pills and sheets, a dark capsule for confirmations; the calendar
+  in the manner of Apple Calendar (tinted events with a colour bar, today and the
+  current time in red, Day / 3 Days / Week, ← → and T). Seven course colours checked
+  for colour-blind separation in both themes. Every page still works without scripts.
 - Figures in the README, drawn by `benchmarks/figures.py` from the code behind their
   numbers, as SVG in light and dark (no plotting dependency): what the memory model
   predicts for spaced self-testing, cramming and a single study session; the planner
@@ -87,6 +98,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- On a phone, calendar blocks no longer cut a course name mid-word or lose its last
+  line: short names in narrow columns, lines clamped with an ellipsis, one line when a
+  word is wider than its block (AUDIT item 39).
 - A class cancelled only in its title ("COURS ANNULE") no longer blocks time
   (item 34).
 - Exams are found in a real university timetable export (ADE / Hyperplanning
