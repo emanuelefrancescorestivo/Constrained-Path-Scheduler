@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Tasks · Study plan{% endblock %}
+{% block main %}
+<div id="tasks">
+<div class="page-title">
+  <h1>Tasks</h1>
+  <p>{{ view.open }} open{% if view.at_risk %} · <span class="error">{{ view.at_risk }} need{{ 's' if view.at_risk == 1 }} attention</span>{% endif %}{% if view.this_week %} · {{ view.this_week }} due this week{% endif %}</p>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if task_error %}<p class="alert" role="alert">{{ task_error }}</p>{% endif %}
+{% if view.error and not view.planned %}<p class="alert" role="alert">{{ view.error }}</p>{% endif %}
+
+{% set open_rows = view.rows | rejectattr("finished") | list %}
+{% set done_rows = view.rows | selectattr("finished") | list %}
+<div class="card">
+  {% if open_rows %}
+  <ul class="tasks">
+    {% for t in open_rows %}{% with back='tasks' %}{% include "_task.html" %}{% endwith %}{% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty"><b>Nothing due</b>Add homework, a report or a project, and the plan finds time for it.</div>
+  {% endif %}
+  <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">New task</button></p>
+</div>
+<p class="hint">Tick a task when it is finished: its remaining sessions become free time. Press <span class="kbd">N</span> anywhere for a new task.</p>
+
+{% if done_rows %}
+<div class="section">
+  <div class="section-title"><h2>Done</h2><small>{{ done_rows | length }}</small></div>
+  <div class="card">
+    <ul class="tasks">
+      {% for t in done_rows %}{% with back='tasks' %}{% include "_task.html" %}{% endwith %}{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="section">
+  <div class="section-title"><h2>From your learning platform</h2></div>
+  <div class="card"><p class="muted">Moodle's assignments and quizzes can arrive here by themselves: paste its calendar link in <a href="/p/{{ token }}/settings#deadlines">Settings</a>.</p></div>
+</div>
+</div>
+{% endblock %}

@@ -16,11 +16,11 @@ run. Where this is going as a product, and what it still lacks, is in
 `docs/PRODUCT.md`.
 
 <p align="center">
-  <img alt="The plan screen on a laptop, on the synthetic sample semester: today's next session (deadline work on a Deep Learning project report, with the reason), what comes up, and the week with lectures in light colours and study sessions in full colours, one colour per course" src="docs/app-week.png" width="72%">
+  <img alt="The plan screen on a laptop, on the synthetic sample semester: today's next session (deadline work on a statistics problem sheet, with the reason), what comes up, and the week with lectures in a faint tint of their course's colour and study sessions in a stronger tint, a red line at the current time" src="docs/app-week.png" width="72%">
   &nbsp;
   <img alt="The Today page on a phone: the sessions and hours of study in the next 7 days, the next session and what comes up" src="docs/app-today-phone.png" width="22%">
 </p>
-<p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 14 October 2026 with one deadline added.</sub></p>
+<p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 2 October 2026 with two deadlines added.</sub></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/pipeline-dark.svg">
@@ -133,23 +133,27 @@ cps web                        # http://127.0.0.1:8000
    link, and Moodle's assignments and quizzes arrive by themselves at a guessed 2
    hours each), weekly hours, days off.
 3. **Your plan**: one screen, the calendar beside what is next, what to report,
-   deadlines with their progress and exams with their countdown. Each course has a
-   colour: its lectures lightly, its study sessions fully. Drag on empty time (tap,
-   on a phone) to block training, work, a commute or time off. Drag a study session
-   to move it: it stays where you put it, and the rest of the plan makes room at once;
-   a move onto a lecture, into the past or past a deadline is refused with the reason.
-   Click any session for what to do, why, "done, skipped, hard", and moving it by date
-   and time. Seven days on a wide screen, five on a tablet, three on a phone, with
-   tabs at the bottom.
-4. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
+   tasks with their progress and exams with their countdown. Each course has a
+   colour: its lectures a faint tint, its study sessions a stronger one; a red line
+   marks the time. Drag on empty time (tap, on a phone) to block training, work, a
+   commute or time off. Drag a study session to move it: it stays where you put it,
+   and the rest of the plan makes room at once; a move onto a lecture, into the past
+   or past a deadline is refused with the reason. Click any session for what to do,
+   why, "done, skipped, hard", and moving it by date and time. Day, three days or a
+   week (← → to move, T for today); tabs at the bottom on a phone.
+4. **Tasks**, as in Motion: a new-task sheet on every page (the + button, or N) with
+   one-tap due dates and durations; the Tasks page lists each with its sessions done
+   and the next one; tick it off when it is finished and its remaining sessions become
+   free time (with an Undo).
+5. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
-5. **After each session**: its calendar event links to a page that asks how it went.
+6. **After each session**: its calendar event links to a page that asks how it went.
    Done, skipped or hard, in one tap; the plan changes at once. A hard self-test
    comes back sooner; hard deadline work gets one more session.
 
 No account and no password: the two addresses are the keys, as with any calendar
 subscription link, and the page says so. No cookies, no trackers, nothing loaded
-from another site; one script, the calendar's, and every page works without it; the
+from another site; the scripts are the site's own, and every page works without them; the
 log names routes, never the secret addresses; a link in an event never changes
 anything by being opened, only the button on its page does. Plans are deleted 30
 days after their last exam or deadline, or at once from Settings. `src/cps/web/app.py`
@@ -316,8 +320,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web]"
-pytest                                    # 391 passed, 14 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 405 passed, 1 xfailed, 93% coverage
+pytest                                    # 401 passed, 14 deselected (slow), 1 xfailed, ~45 s
+pytest -m "slow or not slow" --cov=cps    # everything: 415 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

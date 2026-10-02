@@ -1,0 +1,36 @@
+{# One task, as in Reminders: a ring to tick it off. `t` from service.tasks_view,
+   `token`, `back` (the page to return to). #}
+<li class="task {% if t.color is not none %}c{{ t.color }}{% else %}cn{% endif %}{% if t.finished %} finished{% endif %}">
+  <form method="post" action="/p/{{ token }}/tasks/done" data-async>
+    <input type="hidden" name="name" value="{{ t.name }}">
+    <input type="hidden" name="done" value="{{ '0' if t.finished else '1' }}">
+    <input type="hidden" name="back" value="{{ back }}">
+    <button type="submit" class="tick" aria-label="{% if t.finished %}Reopen{% else %}Mark done{% endif %}: {{ t.name }}">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>
+    </button>
+  </form>
+  <div class="grow">
+    <div class="name">{{ t.name }}
+      {% if t.status == 'at risk' %}<span class="badge badge-risk">At risk</span>
+      {% elif t.status == 'late' %}<span class="badge badge-risk">Past due</span>
+      {% elif not t.finished and t.days < 2 %}<span class="badge badge-warn">Due soon</span>{% endif %}
+      {% if t.imported %}<span class="badge">Moodle</span>{% endif %}
+    </div>
+    <div class="meta">{% if t.finished %}Done{% else %}Due {{ t.due }}{% endif %}{% if t.course %} · {{ t.course }}{% endif %}{% if t.hours %} · {{ t.hours | round(1) | string | replace('.0', '') }} h{% endif %}</div>
+    {% if not t.finished and t.blocks %}
+    <div class="meta">{{ t.sessions_done }} of {{ t.blocks }} sessions done{% if t.next %} · next {{ t.next }}{% endif %}</div>
+    <div class="progress"><span class="w{{ (t.percent // 10) * 10 }}"></span></div>
+    {% endif %}
+  </div>
+  <details class="menu">
+    <summary aria-label="More for {{ t.name }}">···</summary>
+    <div class="menu-items">
+      <a href="/p/{{ token }}/settings#deadlines">Edit in Settings</a>
+      <form method="post" action="/p/{{ token }}/tasks/delete" data-async>
+        <input type="hidden" name="name" value="{{ t.name }}">
+        <input type="hidden" name="back" value="{{ back }}">
+        <button type="submit" class="destructive">Delete task</button>
+      </form>
+    </div>
+  </details>
+</li>

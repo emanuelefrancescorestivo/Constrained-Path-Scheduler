@@ -242,7 +242,8 @@ def test_a_deadline_added_from_today(web, planned):
         data={"name": "Reading", "due": "2026-10-05T09:00", "hours": "3", "course": "Ethics"},
         follow_redirects=False,
     )
-    assert answer.headers["location"] == f"/p/{planned}?saved=1"
+    assert answer.headers["location"] == f"/p/{planned}?saved=added"
+    assert "Added. The plan has made room for it." in web.get(answer.headers["location"]).text
     assert [t["name"] for t in _subscription(web, planned).options["tasks"]] == ["Stats report", "Reading"]
     bad = web.post(f"/p/{planned}/tasks", data={"name": "Late", "due": "2020-01-01T09:00", "hours": "1"})
     assert bad.status_code == 400 and "before the start" in unescape(bad.text)
@@ -616,7 +617,7 @@ def _movable(web, token) -> dict:
 def test_the_calendar_colours_each_course_and_says_what_can_move(web, planned):
     data = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=7").json()
     legend = {entry["course"]: entry["color"] for entry in data["legend"]}
-    assert legend["Computer Programming 3"] == 0 and len(set(legend.values())) == len(legend) <= 8
+    assert legend["Computer Programming 3"] == 0 and len(set(legend.values())) == len(legend) <= 7
     lectures = [i for i in data["items"] if i["kind"] == "calendar" and i["course"] == "Algebra 3"]
     reviews = [i for i in data["items"] if i["kind"] == "study" and i["course"] == "Algebra 3"]
     assert lectures and reviews and {i["color"] for i in lectures + reviews} == {legend["Algebra 3"]}
@@ -670,4 +671,90 @@ def test_the_panel_is_the_plan_pages_panel(web, planned):
     panel = web.get(f"/p/{planned}/panel").text
     assert panel.strip() and panel.strip().split("\n")[0] in page
     assert "Tuesday 29 September" in panel and "sessions in the next 7 days" in panel
-    assert "Stats report" in panel and "Deadlines" in panel
+    assert "Stats report" in panel and ">Tasks<" in panel
+
+
+# --------------------------------------------------------------------------- #
+# Tasks, as in Motion: a list, a new-task sheet, ticked off when done
+# --------------------------------------------------------------------------- #
+
+
+def test_the_tasks_page_lists_every_task_with_where_it_stands(web, planned):
+    page = web.get(f"/p/{planned}/tasks")
+    assert page.status_code == 200
+    text = unescape(page.text)
+    assert "<h1>Tasks</h1>" in text and "1 open" in text and "Stats report" in text
+    assert "0 of 4 sessions done" in text and "next " in text
+    assert f'action="/p/{planned}/tasks/done"' in page.text
+
+
+def test_every_page_of_a_plan_has_the_new_task_sheet(web, planned):
+    for path in ("", "/week", "/tasks", "/settings", "/feed"):
+        page = web.get(f"/p/{planned}{path}").text
+        assert 'id="quick-add" class="sheet" popover' in page, path
+        assert 'popovertarget="quick-add"' in page
+        assert '<option value="Computer Programming 3">' in page  # courses suggested
+    assert 'id="quick-add"' not in web.get("/").text  # not before there is a plan
+
+
+def test_a_task_added_from_the_sheet_with_a_duration_pill_or_other_hours(web, planned):
+    first = web.post(
+        f"/p/{planned}/tasks",
+        data={"name": "Reading", "due": "2026-10-05T23:59", "hours": "4", "hours_other": "", "back": "tasks"},
+        follow_redirects=False,
+    )
+    assert first.headers["location"] == f"/p/{planned}/tasks?saved=added"
+    second = web.post(
+        f"/p/{planned}/tasks",
+        data={
+            "name": "Slides",
+            "due": "2026-10-06T12:00",
+            "hours": "2",
+            "hours_other": "1.5",
+            "back": "calendar",
+        },
+        follow_redirects=False,
+    )
+    assert second.headers["location"] == f"/p/{planned}/week?saved=added"
+    hours = {t["name"]: t["hours"] for t in _subscription(web, planned).options["tasks"]}
+    assert hours == {"Stats report": 6.0, "Reading": 4.0, "Slides": 1.5}
+    bad = web.post(f"/p/{planned}/tasks", data={"name": "", "due": "2026-10-06T12:00", "back": "tasks"})
+    assert bad.status_code == 400 and "give the task a name" in bad.text and "<h1>Tasks</h1>" in bad.text
+
+
+def test_a_task_ticked_off_frees_its_sessions_and_can_be_reopened(web, planned):
+    before = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=7").json()
+    assert any(i.get("session_kind") == "task" for i in before["items"])
+    done = web.post(
+        f"/p/{planned}/tasks/done",
+        data={"name": "Stats report", "done": "1", "back": "tasks"},
+        follow_redirects=False,
+    )
+    assert done.headers["location"] == f"/p/{planned}/tasks?saved=finished"
+    after = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=7").json()
+    assert not any(i.get("session_kind") == "task" for i in after["items"])
+    page = unescape(web.get(done.headers["location"]).text)
+    assert "Done. Its remaining sessions are free time again." in page and "0 open" in page
+    assert web.store.events(planned)[-1]["kind"] == "finished"
+    web.post(f"/p/{planned}/tasks/done", data={"name": "Stats report", "done": "0", "back": "today"})
+    assert "done" not in _subscription(web, planned).options["tasks"][0]
+    assert web.store.events(planned)[-1]["kind"] == "reopened"
+
+
+def test_a_task_is_deleted_and_an_unknown_one_is_refused(web, planned):
+    gone = web.post(
+        f"/p/{planned}/tasks/delete", data={"name": "Stats report", "back": "tasks"}, follow_redirects=False
+    )
+    assert gone.headers["location"] == f"/p/{planned}/tasks?saved=deleted"
+    assert _subscription(web, planned).options["tasks"] == []
+    again = web.post(f"/p/{planned}/tasks/delete", data={"name": "Stats report"})
+    assert again.status_code == 400 and "no task called" in unescape(again.text)
+
+
+def test_task_forms_go_back_only_to_the_plans_own_pages(web, planned):
+    answer = web.post(
+        f"/p/{planned}/tasks/done",
+        data={"name": "Stats report", "done": "1", "back": "https://evil.example/"},
+        follow_redirects=False,
+    )
+    assert answer.headers["location"] == f"/p/{planned}?saved=finished"

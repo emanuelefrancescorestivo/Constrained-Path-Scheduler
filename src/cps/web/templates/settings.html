@@ -125,9 +125,9 @@ you want to study. Next, you will see your week.</p>
   <label for="weekly_hours">Study hours a week at most (empty: no limit)</label>
   <input id="weekly_hours" name="weekly_hours" type="number" min="1" max="80" step="0.5" value="{{ values.weekly_hours or '' }}" inputmode="decimal">
   <p class="label">Days off</p>
-  <div class="days">
+  <div class="pills" role="group" aria-label="Days off">
   {% for d in values.weekdays %}
-    <label class="check"><input type="checkbox" name="rest" value="{{ d }}"{% if d in values.rest_days %} checked{% endif %}> {{ d }}</label>
+    <label class="pill"><input type="checkbox" name="rest" value="{{ d }}"{% if d in values.rest_days %} checked{% endif %}><span>{{ d }}</span></label>
   {% endfor %}
   </div>
   <div class="row">
