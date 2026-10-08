@@ -74,6 +74,10 @@ the rate limits are in memory for that reason.
 - **Logs** show method, route, status and time, never a plan's address.
 - **A release**: merge to `main`, wait for CI, then Manual Deploy in the dashboard
   **(check)**.
+- **Read the pilot's numbers** once a week: from the service's shell **(check)**,
+  `cps metrics --db /var/data/cps.sqlite` (or `--json`). Active students, sessions confirmed,
+  return on the 7th and 30th day, streaks, the network, the month's AI spending
+  (DECISIONS.md D15).
 - **Restore** a backup: stop the service, copy `/var/data/backups/cps-<date>.sqlite`
   over `/var/data/cps.sqlite` from the service's shell **(check)**, start it again.
 - **Delete everything**: delete the service and its disk in the dashboard.

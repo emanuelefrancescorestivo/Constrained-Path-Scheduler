@@ -52,7 +52,7 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
       least once a day during the pilot (docs/DEPLOY.md).
 - [x] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
       (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
-- [ ] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
+- [x] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

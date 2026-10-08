@@ -3825,6 +3825,130 @@ def review_with_ai(
     return {**review, "text": text, "by": "ai"}
 
 
+# --------------------------------------------------------------------------- #
+# The pilot's measures (DECISIONS.md D15; docs/STRATEGY.md "How we will know")
+
+
+def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
+    """What the pilot reads week by week, from the event log, the plans and the
+    network's tables, on the server: nothing runs in a student's browser.
+
+    - plans: set up in all, and those set up in the last 30 days;
+    - active: plans opened (a `visit`) in the last 7 and 30 days;
+    - north star: plans with a session confirmed (done or hard, or a focus session
+      logged) in the last 7 days, as a share of plans set up;
+    - confirmed: planned sessions of the last 7 days reported done or hard, of
+      those planned (unreported ones count as not confirmed);
+    - return: of the plans set up at least 7 (30) days ago, those opened on the
+      7th (30th) day after;
+    - streaks: current streaks, and how many reach 3 and 7 days;
+    - guardrail: plans whose last 7 days held more study (done, hard and logged)
+      than their own weekly limit, which should stay at zero;
+    - network, focus and AI: what was shared, cheered and spent."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    week_ago, month_ago = now - timedelta(days=7), now - timedelta(days=30)
+    events = where.all_events((now - timedelta(days=400)).isoformat(timespec="seconds"))
+    started = {t: datetime.fromisoformat(at) for t, at, kind, _detail in events if kind == "start"}
+    visits: dict[str, set[date]] = {}
+    for t, at, kind, _detail in events:
+        if kind == "visit":
+            visits.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+    tokens = where.tokens()
+
+    def active(since: datetime) -> int:
+        return sum(1 for t in tokens if any(d >= since.date() for d in visits.get(t, ())))
+
+    def returned(days: int) -> tuple[int, int]:
+        eligible = [t for t in tokens if t in started and started[t] <= now - timedelta(days=days)]
+        back = [t for t in eligible if (started[t] + timedelta(days=days)).date() in visits.get(t, set())]
+        return len(back), len(eligible)
+
+    planned = confirmed = over_limit = 0
+    north = 0
+    streaks = []
+    for token in tokens:
+        subscription = load_subscription(store, token)
+        if subscription is None:
+            continue
+        logged = logged_sessions(store, subscription)
+        sessions = progress_sessions(subscription)
+        recent = [x for x in sessions if week_ago <= x.start <= now]
+        planned += len(recent)
+        done = [x for x in recent if x.report in ("done", "hard")]
+        confirmed += len(done)
+        logged_recent = [x for x in logged if x.start.date() >= week_ago.date()]
+        if done or logged_recent:
+            north += 1
+        limit = {**DEFAULT_PREFERENCES, **subscription.options.get("preferences", {})}["weekly_hours"]
+        studied = sum(x.minutes for x in done + logged_recent) / 60
+        if limit and studied > limit:
+            over_limit += 1
+        if subscription.plan is not None:
+            first = min(
+                [date.fromisoformat(subscription.options["start"]), *(x.start.date() for x in logged)]
+            )
+            zone = _zone(subscription.options["tz"])
+            streaks.append(_progress.streak(sessions + logged, first, now.astimezone(zone).date()).current)
+    with where.connection() as db:
+
+        def count(sql: str, *args: object) -> int:
+            return int(db.execute(sql, args).fetchone()[0])
+
+        since = week_ago.astimezone(UTC).isoformat()
+        network = {
+            "profiles": count("SELECT COUNT(*) FROM profiles"),
+            "follows": count("SELECT COUNT(*) FROM follows WHERE status = 'accepted'"),
+            "sessions_shared": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND visibility != 'me' AND created >= ?",
+                since,
+            ),
+            "sessions_private": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND visibility = 'me' AND created >= ?",
+                since,
+            ),
+            "explanations": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'explain' AND created >= ?", since
+            ),
+            "kudos": count("SELECT COUNT(*) FROM kudos WHERE created >= ?", since),
+            "comments": count("SELECT COUNT(*) FROM comments WHERE created >= ?", since),
+            "reports_open": count("SELECT COUNT(DISTINCT target) FROM reports WHERE resolved = 0"),
+            "timed": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND created >= ? "
+                "AND json_extract(data, '$.timed')",
+                since,
+            ),
+            "focus_checked": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND created >= ? "
+                "AND json_extract(data, '$.checked')",
+                since,
+            ),
+        }
+    month = now.astimezone(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    streaks.sort()
+    return {
+        "at": now.astimezone(UTC).isoformat(timespec="minutes"),
+        "plans": len(tokens),
+        "new_30": sum(1 for t in tokens if t in started and started[t] >= month_ago),
+        "active_7": active(week_ago),
+        "active_30": active(month_ago),
+        "north_star": north,
+        "planned_7": planned,
+        "confirmed_7": confirmed,
+        "return_7": returned(7),
+        "return_30": returned(30),
+        "streaks": {
+            "median": streaks[len(streaks) // 2] if streaks else 0,
+            "longest": streaks[-1] if streaks else 0,
+            "at_least_3": sum(1 for x in streaks if x >= 3),
+            "at_least_7": sum(1 for x in streaks if x >= 7),
+        },
+        "over_limit": over_limit,
+        "network": network,
+        "ai": {**_ai.usage(where, month), "cap": _ai.monthly_cap(), "available": ai_available()},
+    }
+
+
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:
     """One week as a list of days, each with its busy events and sessions in time
     order: what a phone shows instead of a grid. Week 0 is the one holding `now`."""

@@ -195,6 +195,15 @@ the last 7 and 30 days, the share of planned sessions confirmed, streak lengths,
 buddies connected, AI calls and their cost. `cps metrics` prints it. No analytics
 script runs in a student's browser (D6).
 
+**Built (step E6).** Buddies became the network (D16), so the network's counts
+replace them: profiles, accepted follows, sessions shared and kept private,
+explanations, kudos, comments, open reports, timed and checked focus sessions. Also
+the north star (plans with a session confirmed or logged in 7 days), return on the
+7th and 30th day after setup, and the guardrail (plans whose last 7 days held more
+study than their own weekly limit). Return is measured from a `start` event, so
+plans made before the event log existed are not counted in it. With a pilot of 10
+to 20 students these are counts to read and ask about, not rates to test.
+
 ## The study network (2026-10-08, later the same day)
 
 The owner widened the social side after D11: "it should work like a social

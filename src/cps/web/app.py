@@ -936,7 +936,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 error=str(error),
                 tab="community",
             )
-        service.log_event(store, token, "report", kind)
+        service.log_event(store, token, "flagged", kind)
         blocked = form.get("block") == "1"
         return RedirectResponse(f"/p/{token}/community?saved={'blocked' if blocked else 'reported'}", 303)
 

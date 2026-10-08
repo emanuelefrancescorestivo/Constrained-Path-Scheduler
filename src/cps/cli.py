@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import errno
+import json
 import os
 import sys
 from datetime import date, datetime
@@ -162,6 +163,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sweep = sub.add_parser("sweep", help="delete the plans whose retention has passed")
     sweep.add_argument("--db", type=Path, default=service.FEED_STORE)
+
+    metrics = sub.add_parser("metrics", help="the pilot's measures, from the store (DECISIONS.md D15)")
+    metrics.add_argument("--db", type=Path, default=service.FEED_STORE)
+    metrics.add_argument("--json", action="store_true", help="print them as JSON")
 
     backup = sub.add_parser("backup", help="copy the store while it is in use; keep a week of copies")
     backup.add_argument("--db", type=Path, default=service.FEED_STORE)
@@ -333,6 +338,43 @@ def command_sweep(args) -> int:
     return 0
 
 
+def _share(part: int, whole: int) -> str:
+    return f"{part} of {whole}" + (f" ({100 * part / whole:.0f}%)" if whole else "")
+
+
+def command_metrics(args) -> int:
+    """The pilot's numbers, week by week (D15). With 10 to 20 students they are
+    counts to read and ask about, not rates to test."""
+    m = service.engagement(args.db)
+    if args.json:
+        print(json.dumps(m, indent=2))
+        return 0
+    net, ai, st = m["network"], m["ai"], m["streaks"]
+    lines = [
+        f"at {m['at']} (UTC)",
+        f"plans set up             {m['plans']} ({m['new_30']} in the last 30 days)",
+        f"active, last 7 days      {_share(m['active_7'], m['plans'])}",
+        f"active, last 30 days     {_share(m['active_30'], m['plans'])}",
+        f"north star               {_share(m['north_star'], m['plans'])} confirmed a session in 7 days",
+        f"sessions confirmed       {_share(m['confirmed_7'], m['planned_7'])} planned in the last 7 days",
+        f"back on day 7            {_share(*m['return_7'])} of those set up 7 or more days ago",
+        f"back on day 30           {_share(*m['return_30'])} of those set up 30 or more days ago",
+        f"streaks                  median {st['median']}, longest {st['longest']}, "
+        f"{st['at_least_3']} at 3 days or more, {st['at_least_7']} at 7 or more",
+        f"over their weekly limit  {m['over_limit']} (should be 0)",
+        f"network                  {net['profiles']} profiles, {net['follows']} follows",
+        f"  last 7 days            {net['sessions_shared']} sessions shared, {net['sessions_private']} kept "
+        f"private, {net['explanations']} explanations, {net['kudos']} kudos, {net['comments']} comments",
+        f"  focus, last 7 days     {net['timed']} timed, {net['focus_checked']} with the focus checked",
+        f"  reports open           {net['reports_open']}",
+        f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "
+        f"${ai['dollars']:.2f} of ${ai['cap']:.2f}"
+        + ("" if ai["available"] else " (no key on this machine)"),
+    ]
+    print("\n".join(lines))
+    return 0
+
+
 def command_backup(args) -> int:
     from .store import Store
 
@@ -370,6 +412,7 @@ def main(argv: list[str] | None = None) -> int:
         "web": command_web,
         "sweep": command_sweep,
         "backup": command_backup,
+        "metrics": command_metrics,
     }[args.command]
     try:
         code = command(args)

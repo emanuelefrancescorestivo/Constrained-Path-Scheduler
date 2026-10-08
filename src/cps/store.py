@@ -318,6 +318,17 @@ class Store:
                 self._forget(db, token)
         return len(tokens)
 
+    def tokens(self) -> list[str]:
+        with self._connect() as db:
+            return [t for (t,) in db.execute("SELECT token FROM subscriptions ORDER BY token")]
+
+    def all_events(self, since: str) -> list[tuple[str, str, str, str]]:
+        """(token, at, kind, detail) since an ISO time, for the pilot's measures."""
+        with self._connect() as db:
+            return db.execute(
+                "SELECT token, at, kind, detail FROM events WHERE at >= ? ORDER BY id", (since,)
+            ).fetchall()
+
     def count(self) -> int:
         with self._connect() as db:
             return int(db.execute("SELECT COUNT(*) FROM subscriptions").fetchone()[0])

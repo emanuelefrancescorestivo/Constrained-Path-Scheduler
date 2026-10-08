@@ -6,6 +6,13 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The pilot's measures (D15): `cps metrics` (or `--json`) reads the store and prints
+  plans set up, students active in 7 and 30 days, the north star (a session
+  confirmed in 7 days), sessions confirmed of those planned, return on the 7th and
+  30th day, streaks, plans over their own weekly limit, the network's activity and
+  the month's AI spending against the cap (`service.engagement`). A moderation
+  report is now logged as `flagged`, not `report`, so that it is not counted as a
+  session's report (AUDIT.md item 44).
 - AI, opt-in and capped (D12). A line in the new-task sheet: type the task in words
   ("stats report for Friday, about 6 h", "rapport de stats pour vendredi 18h, 6
   heures") and "Fill in" puts a name, a due date, hours and a course in the fields, to

@@ -597,3 +597,12 @@ they were kept without a reason, which the privacy page does not allow. Fixed: e
 photo is checked before any is written (`social.create_post`). Status: fixed; files
 left by the earlier code, on a store that has run it, are not swept.
 
+**44. A report on a post was logged as a session's report.** Found while writing the
+pilot's measures (step E6): the moderation step logged a student reporting a post or
+a comment as the event `report`, the kind the event log already used for a session
+reported done, skipped or hard, so every moderation report would have counted as a
+session report in the pilot's numbers. No measure read the log yet, and nothing was
+hosted. Fixed: a moderation report is logged as `flagged`. Status: fixed; a store
+that ran the earlier code holds such events under `report`, with a post or comment
+kind (`post`, `comment`) as their detail, which tells them apart.
+
