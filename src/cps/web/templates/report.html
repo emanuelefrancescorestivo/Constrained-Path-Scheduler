@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Report") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/post/{{ item.post }}">{{ _("Back") }}</a></p>
+<div class="page-title">
+  <h1>{% if item.kind == "comment" %}{{ _("Report a comment") }}{% else %}{{ _("Report a post") }}{% endif %}</h1>
+  <p>{{ _("The owner of this service reads every report. Three reports from different people hide it until then.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<div class="card quote">
+  <p class="kicker">{% if item.author %}@{{ item.author.handle }}{% endif %}</p>
+  <p>{{ item.summary | truncate(240) }}</p>
+</div>
+<form method="post" action="/p/{{ token }}/report/{{ item.kind }}/{{ item.target }}">
+  <fieldset class="card section">
+    <legend>{{ _("What is wrong?") }}</legend>
+    {% for key, words in reasons.items() %}
+    <label class="check radio-row"><input type="radio" name="reason" value="{{ key }}" required> {{ _(words) }}</label>
+    {% endfor %}
+  </fieldset>
+  {% if item.author %}
+  <div class="card section">
+    <label class="check"><input type="checkbox" name="block" value="1"> {{ _("Also block @{handle}: neither of you will see the other.", handle=item.author.handle) }}</label>
+  </div>
+  {% endif %}
+  <div class="row-end"><a class="btn" href="/p/{{ token }}/post/{{ item.post }}">{{ _("Cancel") }}</a><button type="submit" class="btn btn-danger">{{ _("Report") }}</button></div>
+</form>
+{% endblock %}

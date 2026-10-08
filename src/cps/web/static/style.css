@@ -700,6 +700,7 @@ td.d { display: table-cell; padding: 0; }
 .post { position: relative; }
 .post + .post { margin-top: 12px; }
 .post-head { display: flex; align-items: flex-start; gap: 10px; }
+.post-head .grow { flex: 1; min-width: 0; }
 .post-head h3 { margin: 2px 0 0; font-size: 1.1rem; }
 .post-head .badge { flex: none; }
 .post-title { margin: 6px 0 0; font-weight: 600; }
@@ -763,6 +764,14 @@ td.d { display: table-cell; padding: 0; }
 .post .kicker { margin: 0; font-size: 0.82rem; color: var(--muted); font-weight: 500; }
 .post .kicker a { color: var(--text); font-weight: 600; }
 .post-link { color: inherit; }
+.quote p { margin: 0; }
+.quote .kicker { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+label.radio-row { display: flex; margin: 0; padding: 10px 0; }
+label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
+.reasons { margin: 10px 0 0; padding-left: 18px; font-size: 0.92rem; }
+.comment-report { flex: none; font-size: 0.82rem; color: var(--muted); align-self: flex-start; margin-top: 2px; }
+.person-head { position: relative; }
+.person-menu { position: absolute; top: 12px; right: 12px; }
 .explain-tag { margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); font-weight: 500; }
 .post-actions { display: flex; gap: 4px; margin: 12px -8px -6px; padding-top: 6px; border-top: 0.5px solid var(--line); }
 .post-actions form { margin: 0; }

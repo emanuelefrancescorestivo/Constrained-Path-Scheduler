@@ -3473,6 +3473,7 @@ def post_view(
                 "author": author.public() if author else None,
                 "when": format_date(datetime.fromisoformat(c.created).astimezone(zone).date(), "short"),
                 "can_delete": subscription.token in (c.token, post.token),
+                "mine": c.token == subscription.token,
             }
         )
     can_comment = social.get_profile(where, subscription.token) is not None
@@ -3509,6 +3510,7 @@ def people_view(store: str | os.PathLike, subscription: Subscription, query: str
     return {
         "query": query,
         "found": [p.public() for p in found],
+        "blocked": [p.public() for p in social.blocked_by(where, token)],
         **{name: [p.public() for p in people] for name, people in circle.items()},
     }
 
@@ -3516,6 +3518,108 @@ def people_view(store: str | os.PathLike, subscription: Subscription, query: str
 def leave_network(store: str | os.PathLike, token: str) -> None:
     """Leave the network; the diary stays, visible only to the student."""
     social.leave(_store(store), token)
+
+
+REPORT_REASONS = social.REPORT_REASONS
+
+
+def report_view(
+    store: str | os.PathLike, subscription: Subscription, kind: str, target_id: str
+) -> dict | None:
+    """What the report page shows: the item, in a line, and its author."""
+    where = _store(store)
+    found = social._target(where, kind, target_id)
+    if found is None or not social.may_see(where, subscription.token, found[0]):
+        return None
+    post, comment = found
+    author = social.get_profile(where, comment.token if comment else post.token)
+    if comment:
+        summary = comment.body
+    elif post.kind == "explain":
+        summary = post.data.get("concept", "")
+    else:
+        summary = " · ".join(x for x in (post.data.get("course", ""), post.data.get("title", "")) if x)
+    return {
+        "kind": kind,
+        "target": target_id,
+        "post": post.id,
+        "summary": summary,
+        "author": author.public() if author else None,
+        "mine": subscription.token == (comment.token if comment else post.token),
+    }
+
+
+def report(store: str | os.PathLike, token: str, kind: str, target_id: str, reason: str) -> bool:
+    """Report a post or a comment (D20); True if it is now hidden for review."""
+    where = _store(store)
+    if social.get_profile(where, token) is None:
+        raise InvalidInput(_("choose a handle first, in your profile"))
+    return bool(_social(lambda: social.report(where, token, kind, target_id, reason)))
+
+
+def block(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    _social(lambda: social.block(where, token, _person_token(where, handle)))
+
+
+def unblock(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unblock(where, token, _person_token(where, handle))
+
+
+def moderation_view(store: str | os.PathLike) -> list[dict]:
+    """The owner's queue (D20): each reported item with what it says, its photos,
+    its author's handle, and the reasons given."""
+    where = _store(store)
+    out = []
+    for item in social.pending_reports(where):
+        author = social.get_profile(where, item.author)
+        d = item.post.data
+        if item.comment:
+            text = item.comment.body
+            title = _("Comment on: {what}", what=d.get("concept") or d.get("course", ""))
+        else:
+            text = "\n".join(x for x in (d.get("title", ""), d.get("note", ""), d.get("text", "")) if x)
+            title = d.get("concept") or d.get("course", "")
+        out.append(
+            {
+                "kind": item.kind,
+                "target": item.target,
+                "title": title,
+                "text": text,
+                "photos": [] if item.comment else list(d.get("photos", [])),
+                "author": author.handle if author else "",
+                "visibility": item.post.visibility,
+                "hidden": (item.comment.hidden if item.comment else item.post.hidden),
+                "reasons": [
+                    (_(REPORT_REASONS[r]), n) for r, n in item.reasons.items() if r in REPORT_REASONS
+                ],
+                "reporters": item.reporters,
+                "first": item.first[:10],
+            }
+        )
+    return out
+
+
+def moderate(store: str | os.PathLike, kind: str, target_id: str, keep: bool) -> bool:
+    """The owner keeps or removes a reported item; the decision goes to the event
+    log, on the author's plan, for the record the Digital Services Act asks for."""
+    author = social.review(_store(store), kind, target_id, keep)
+    if author is None:
+        return False
+    log_event(store, author, "moderated", f"{kind} {'kept' if keep else 'removed'}")
+    return True
+
+
+def admin_photo(store: str | os.PathLike, name: str) -> tuple[bytes, str] | None:
+    """A reported post's photo, for the owner's review, whoever the post is for."""
+    where = _store(store)
+    if social.photo_post(where, name) is None:
+        return None
+    path = where.photos / name
+    if not path.is_file():
+        return None
+    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
 
 
 def _person_token(store: Store, handle: str) -> str:

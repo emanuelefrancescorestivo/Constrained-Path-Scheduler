@@ -734,3 +734,165 @@ def leave(store: Store, token: str) -> None:
             "DELETE FROM profiles WHERE token = :t",
         ):
             db.execute(statement, {"t": token})
+
+
+# --------------------------------------------------------------------------- #
+# Moderation (D20): reports, hiding at three reporters, blocks, the owner's review
+# --------------------------------------------------------------------------- #
+
+REPORT_REASONS = {
+    "spam": "Spam or advertising",
+    "unkind": "Insulting or harassing",
+    "copied": "Not their own work",
+    "exam": "Exam papers or answers",
+    "private": "Someone's private information",
+    "other": "Something else against the guidelines",
+}
+HIDE_AFTER = 3  # different people reporting the same thing hide it until reviewed
+
+
+def _target(store: Store, kind: str, target_id: str) -> tuple[Post, Comment | None] | None:
+    """The post reported, or the comment and its post."""
+    if kind == "post":
+        post = get_post(store, target_id)
+        return (post, None) if post else None
+    if kind == "comment":
+        with store.connection() as db:
+            row = db.execute(
+                "SELECT id, post, token, created, body, hidden FROM comments WHERE id = ?", (target_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        comment = Comment(row[0], row[1], row[2], row[3], row[4], bool(row[5]))
+        post = get_post(store, comment.post)
+        return (post, comment) if post else None
+    return None
+
+
+def report(
+    store: Store, reporter: str, kind: str, target_id: str, reason: str, now: datetime | None = None
+) -> bool:
+    """Report a post or a comment one can see and did not write. One report per
+    person per item; the item is hidden once `HIDE_AFTER` people have reported it
+    and nobody has reviewed it. Returns whether it is now hidden."""
+    if reason not in REPORT_REASONS:
+        raise SocialError(_("choose a reason"))
+    found = _target(store, kind, target_id)
+    if found is None or not may_see(store, reporter, found[0]):
+        raise SocialError(_("this post is not, or no longer, visible to you"))
+    post, comment = found
+    author = comment.token if comment else post.token
+    if author == reporter:
+        raise SocialError(_("you cannot report what you wrote; delete it instead"))
+    table = "comments" if comment else "posts"
+    with store.connection() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO reports (target, kind, reporter, reason, created) VALUES (?, ?, ?, ?, ?)",
+            (target_id, kind, reporter, reason, _now(now)),
+        )
+        (count,) = db.execute(
+            "SELECT COUNT(DISTINCT reporter) FROM reports WHERE target = ? AND resolved = 0", (target_id,)
+        ).fetchone()
+        if count >= HIDE_AFTER:
+            db.execute(f"UPDATE {table} SET hidden = 1 WHERE id = ?", (target_id,))
+    return count >= HIDE_AFTER
+
+
+def block(store: Store, blocker: str, blocked: str, now: datetime | None = None) -> None:
+    """Neither sees the other's posts or comments any more, and follows between
+    them end. The blocked person is not told."""
+    if blocker == blocked:
+        raise SocialError(_("you cannot block yourself"))
+    with store.connection() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO blocks (blocker, blocked, created) VALUES (?, ?, ?)",
+            (blocker, blocked, _now(now)),
+        )
+        db.execute(
+            "DELETE FROM follows WHERE (follower = ? AND followed = ?) OR (follower = ? AND followed = ?)",
+            (blocker, blocked, blocked, blocker),
+        )
+
+
+def unblock(store: Store, blocker: str, blocked: str) -> None:
+    with store.connection() as db:
+        db.execute("DELETE FROM blocks WHERE blocker = ? AND blocked = ?", (blocker, blocked))
+
+
+def blocked_by(store: Store, token: str) -> list[Profile]:
+    with store.connection() as db:
+        rows = db.execute(
+            f"SELECT {_PROFILE} FROM profiles WHERE token IN (SELECT blocked FROM blocks WHERE blocker = ?) "
+            "ORDER BY handle",
+            (token,),
+        ).fetchall()
+    return [Profile(*r) for r in rows]
+
+
+@dataclass(frozen=True)
+class Reported:
+    """An item waiting for the owner's review: what it is, who wrote it, why it was
+    reported and by how many people."""
+
+    kind: str
+    target: str
+    post: Post
+    comment: Comment | None
+    author: str
+    reasons: dict[str, int]
+    reporters: int
+    first: str
+
+
+def pending_reports(store: Store) -> list[Reported]:
+    """Every reported item not yet reviewed, the most reported first."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT target, kind, reason, reporter, created FROM reports WHERE resolved = 0 ORDER BY created"
+        ).fetchall()
+    grouped: dict[tuple[str, str], list[tuple[str, str, str]]] = {}
+    for target, kind, reason, reporter, created in rows:
+        grouped.setdefault((target, kind), []).append((reason, reporter, created))
+    out = []
+    for (target, kind), reports in grouped.items():
+        found = _target(store, kind, target)
+        if found is None:
+            continue
+        post, comment = found
+        reasons: dict[str, int] = {}
+        for reason, _reporter, _created in reports:
+            reasons[reason] = reasons.get(reason, 0) + 1
+        out.append(
+            Reported(
+                kind=kind,
+                target=target,
+                post=post,
+                comment=comment,
+                author=comment.token if comment else post.token,
+                reasons=reasons,
+                reporters=len({r for _, r, _ in reports}),
+                first=reports[0][2],
+            )
+        )
+    return sorted(out, key=lambda r: (-r.reporters, r.first))
+
+
+def review(store: Store, kind: str, target_id: str, keep: bool) -> str | None:
+    """The owner's decision on a reported item: keep it (shown again, its reports
+    closed) or remove it (deleted, with its photos, comments and kudos). Returns
+    the author's token, or None if the item is gone."""
+    found = _target(store, kind, target_id)
+    if found is None:
+        return None
+    post, comment = found
+    author = comment.token if comment else post.token
+    with store.connection() as db:
+        db.execute("UPDATE reports SET resolved = 1 WHERE target = ?", (target_id,))
+        if keep:
+            table = "comments" if comment else "posts"
+            db.execute(f"UPDATE {table} SET hidden = 0 WHERE id = ?", (target_id,))
+        elif comment:
+            db.execute("DELETE FROM comments WHERE id = ?", (target_id,))
+    if not keep and comment is None:
+        delete_post(store, post.token, post.id)
+    return author

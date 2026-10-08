@@ -18,7 +18,7 @@
   {% else %}
     {% if follows_me %}<span class="badge">{{ _("Follows you") }}</span>{% endif %}
     {% if follow_state == "accepted" %}
-    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm" aria-pressed="true">{{ _("Following") }}</button></form>
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm" title="{{ _('Unfollow') }}">{{ _("Following") }}</button></form>
     {% elif follow_state == "pending" %}
     <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm">{{ _("Requested · withdraw") }}</button></form>
     {% else %}
@@ -26,6 +26,14 @@
     {% endif %}
   {% endif %}
   </div>
+  {% if not me and profile %}
+  <details class="menu person-menu">
+    <summary aria-label="{{ _('More') }}">···</summary>
+    <div class="menu-items">
+      <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/block"><button type="submit" class="destructive">{{ _("Block @{handle}", handle=person.handle) }}</button></form>
+    </div>
+  </details>
+  {% endif %}
   {% if not me and follow_state != "accepted" %}<p class="hint">{{ _("They see your request and choose. Until then you see only what they share with everyone.") }}</p>{% endif %}
 </section>
 

@@ -74,6 +74,7 @@ def indirect_sentences() -> set[str]:
         *(word for _, word in web.FAMILIARITY),
         *web.TASK_NOTICES.values(),
         *web.NETWORK_NOTICES.values(),
+        *service.REPORT_REASONS.values(),
         *service.EFFORT_WORDS.values(),
         *service.PROGRESS_WORDS.values(),
     }

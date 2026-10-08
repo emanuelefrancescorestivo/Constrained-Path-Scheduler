@@ -1086,3 +1086,54 @@ def test_the_network_pages_in_french(web, planned):
     page = unescape(web.get(f"/p/{planned}/community?tab=explore").text)
     assert "Communauté" in page and "Explorer" in page and "Filière" in page
     assert "Règles de la communauté" in unescape(web.get("/guidelines?lang=fr").text)
+
+
+def test_report_block_and_the_owners_review(tmp_path, clock):
+    key = "k" * 30
+    config = Config(store=tmp_path, clock=clock, background=False, sweep_every=None, admin_token=key)
+    with TestClient(create_app(config)) as web:
+        authors = [_start(web) for _ in range(4)]
+        for token, handle in zip(authors, ("ada", "bob", "cleo", "eve"), strict=True):
+            _profile(web, token, handle)
+        ada = authors[0]
+        web.post(
+            f"/p/{ada}/log",
+            data={
+                "course": "Algebra 3",
+                "title": "Past paper",
+                "effort": "5",
+                "progress": "3",
+                "visibility": "everyone",
+            },
+        )
+        feed = unescape(web.get(f"/p/{authors[1]}/community?tab=explore").text)
+        post = re.search(r'id="post-([^"]+)"', feed).group(1)
+        assert f"/p/{authors[1]}/report/post/{post}" in feed  # in the post's menu
+        assert f"/p/{ada}/report/post/" not in unescape(web.get(f"/p/{ada}/community?tab=explore").text)
+        form = unescape(web.get(f"/p/{authors[1]}/report/post/{post}").text)
+        assert "Exam papers or answers" in form and "Also block @ada" in form
+        none = web.post(f"/p/{authors[1]}/report/post/{post}", data={})
+        assert none.status_code == 400 and "choose a reason" in unescape(none.text)
+        sent = web.post(
+            f"/p/{authors[1]}/report/post/{post}",
+            data={"reason": "exam", "block": "1"},
+            follow_redirects=False,
+        )
+        assert sent.headers["location"].endswith("saved=blocked")
+        assert "Past paper" not in unescape(web.get(f"/p/{authors[1]}/community?tab=explore").text)
+        assert "@ada" in unescape(web.get(f"/p/{authors[1]}/people").text)  # under Blocked, to undo
+        for token in authors[2:]:
+            web.post(f"/p/{token}/report/post/{post}", data={"reason": "exam"})
+        assert "Past paper" not in unescape(web.get(f"/p/{authors[2]}/community?tab=explore").text)
+        assert "Hidden while it is reviewed" in unescape(web.get(f"/p/{ada}/progress").text)
+        # The review page exists only at the owner's key.
+        assert web.get("/admin/" + "x" * 30).status_code == 404
+        queue = unescape(web.get(f"/admin/{key}").text)
+        assert "Past paper" in queue and "3 people" in queue and "Exam papers or answers" in queue
+        web.post(f"/admin/{key}/review", data={"kind": "post", "target": post, "decision": "keep"})
+        assert "Nothing to review" in unescape(web.get(f"/admin/{key}").text)
+        assert "Past paper" in unescape(web.get(f"/p/{authors[2]}/community?tab=explore").text)
+    with TestClient(
+        create_app(Config(store=tmp_path, clock=clock, background=False, sweep_every=None))
+    ) as web:
+        assert web.get(f"/admin/{key}").status_code == 404  # no key set, no page

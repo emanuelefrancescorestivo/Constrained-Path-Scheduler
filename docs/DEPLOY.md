@@ -37,11 +37,16 @@ the rate limits are in memory for that reason.
 2. **Blueprint.** Dashboard, New, Blueprint **(check)**. Pick the repository and the
    `main` branch. Render reads `render.yaml` and lists one web service, `study-plan`,
    with a disk.
-3. **Two settings.** Render asks for the values marked `sync: false`:
+3. **Three settings.** Render asks for the values marked `sync: false`:
    - `CPS_CONTACT`: the e-mail address students can write to about their data. It
      appears on the privacy page.
    - `CPS_BASE_URL`: leave empty, unless a custom domain is added later. The app then
      uses the address Render gives it (`RENDER_EXTERNAL_URL`).
+   - `CPS_ADMIN_TOKEN`: a long random string (24 characters or more; for example the
+     output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`). The
+     page where you review what students report is `/admin/<that string>`; keep it
+     as private as a password. Left empty, there is no review page, and reported
+     posts stay hidden after three reports until you set it (DECISIONS.md D20).
 4. **Deploy.** Apply. The build installs the package with the `web` extra; the log
    should end with `serving on http://0.0.0.0:<port>` and the health check turning
    green. If the build says Python 3.13 is not available in that form, set

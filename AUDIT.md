@@ -587,3 +587,13 @@ screen, where the tab bar is, and the form's own content was drawn over it, so a
 reached a label instead. The Python tests could not see it; a click in Chromium
 could. Fixed: on pages with the tab bar the button sticks above it, and above the
 form's content. Status: fixed in Chromium; a real phone not tried.
+
+**43. A post whose second photo was refused left its first photo on disk.** Found
+while writing the network's tests (step E4b): `create_post` cleaned and wrote each
+photo in turn, so when a later photo was refused (not a JPEG or PNG, too large), the
+earlier ones were already files with no post, kept until nothing (no plan, no sweep)
+would ever delete them. Nobody could see them (a photo's address needs its post), but
+they were kept without a reason, which the privacy page does not allow. Fixed: every
+photo is checked before any is written (`social.create_post`). Status: fixed; files
+left by the earlier code, on a store that has run it, are not swept.
+

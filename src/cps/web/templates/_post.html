@@ -9,6 +9,7 @@
       <p class="kicker">{% if p.author %}<a href="/p/{{ token }}/u/{{ p.author.handle }}">@{{ p.author.handle }}</a>{% if p.author.university %} · {{ p.author.university }}{% endif %} · {% endif %}{{ p.when }}</p>
       <h3>{% if p.kudos is defined %}<a class="post-link" href="/p/{{ token }}/post/{{ p.id }}">{% endif %}{% if p.kind == "explain" %}{{ p.concept }}{% else %}{{ p.course }}{% endif %}{% if p.kudos is defined %}</a>{% endif %}</h3>
     </div>
+    {% if p.mine and p.hidden %}<span class="badge badge-warn">{{ _("Hidden while it is reviewed") }}</span>{% endif %}
     {% if p.mine %}<span class="badge vis-{{ p.visibility }}" title="{{ _('Who sees it') }}">{% if p.visibility == 'me' %}{{ _("Only me") }}{% elif p.visibility == 'followers' %}{{ _("Followers") }}{% else %}{{ _("Everyone") }}{% endif %}</span>{% endif %}
   {% if p.mine %}
   <details class="menu">
@@ -18,6 +19,14 @@
       <form method="post" action="/p/{{ token }}/posts/{{ p.id }}/visibility"><input type="hidden" name="visibility" value="{{ value }}"><button type="submit">{{ _("Show to: {who}", who=_(word)) }}</button></form>
       {% endif %}{% endfor %}
       <form method="post" action="/p/{{ token }}/posts/{{ p.id }}/delete"><button type="submit" class="destructive">{{ _("Delete") }}</button></form>
+    </div>
+  </details>
+  {% elif p.kudos is defined %}
+  <details class="menu">
+    <summary aria-label="{{ _('More') }}">···</summary>
+    <div class="menu-items">
+      <a href="/p/{{ token }}/report/post/{{ p.id }}">{{ _("Report") }}</a>
+      {% if p.author %}<form method="post" action="/p/{{ token }}/u/{{ p.author.handle }}/block"><button type="submit" class="destructive">{{ _("Block @{handle}", handle=p.author.handle) }}</button></form>{% endif %}
     </div>
   </details>
   {% endif %}

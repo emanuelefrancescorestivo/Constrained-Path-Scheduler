@@ -283,6 +283,20 @@ ends. The owner reviews reports at `/admin/<CPS_ADMIN_TOKEN>`: keep (and clear t
 reports) or remove. Community guidelines at `/guidelines`: your own work only, no
 exam papers you were asked not to share, no other people's faces or names, be kind.
 
+**Built (step E4c).** Reasons: spam or advertising, insulting or harassing, not
+their own work, exam papers or answers, someone's private information, something
+else. One report per person per item; the third different person hides it, from
+everyone but its author, who sees "Hidden while it is reviewed". Reporting needs a
+handle (so that three reports are three people with a profile, not three throwaway
+plans; a plan costs nothing, so this is a speed bump, not a guarantee). The review
+page lists the most reported first, with the text, the photos and the reasons; "Keep
+it" shows the item again and closes its reports, "Remove it" deletes it with its
+photos. Each decision is written to the event log on the author's plan. The key is
+`CPS_ADMIN_TOKEN`, at least 24 characters, compared in constant time; without it
+there is no page (404). A block is silent: the blocked person is not told. Rejected:
+telling the reported author who reported (retaliation), and a page that lists the
+hidden items for everyone (it would advertise them).
+
 **Why.** Under the EU's Digital Services Act a hosting service needs a way to be told
 of illegal content and to act on it; this is that, at a pilot's size. Automatic
 screening by a model was the alternative; the owner chose to review reports in

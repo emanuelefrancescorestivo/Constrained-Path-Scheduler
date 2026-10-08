@@ -269,3 +269,79 @@ def test_search_finds_people_by_handle_university_or_programme(tmp_path, people)
     assert [p["handle"] for p in service.people_view(tmp_path, ada, "histoire")["found"]] == ["cleo"]
     assert service.people_view(tmp_path, ada, "ada")["found"] == []  # not oneself
     assert service.people_view(tmp_path, ada, "a")["found"] == []  # too short to mean anything
+
+
+def test_three_reports_hide_a_post_until_the_owner_reviews_it(tmp_path, people):
+    ada, bob, cleo, dan = people
+    eve = _plan(tmp_path)
+    _join(tmp_path, eve, "eve")
+    post = _post(tmp_path, ada, "everyone")
+    with pytest.raises(service.InvalidInput, match="choose a reason"):
+        service.report(tmp_path, bob.token, "post", post.id, "boring")
+    with pytest.raises(service.InvalidInput, match="cannot report what you wrote"):
+        service.report(tmp_path, ada.token, "post", post.id, "spam")
+    with pytest.raises(service.InvalidInput, match="choose a handle"):
+        service.report(tmp_path, dan.token, "post", post.id, "spam")
+    assert service.report(tmp_path, bob.token, "post", post.id, "spam") is False
+    assert service.report(tmp_path, bob.token, "post", post.id, "unkind") is False  # one per person
+    assert service.report(tmp_path, cleo.token, "post", post.id, "copied") is False
+    assert service.report(tmp_path, eve.token, "post", post.id, "spam") is True  # the third person
+    assert service.post_view(tmp_path, dan, post.id) is None  # hidden from everyone
+    assert service.community_view(tmp_path, dan, tab="explore", now=NOW)["posts"] == []
+    assert service.post_view(tmp_path, ada, post.id)["post"]["hidden"]  # but not from its author
+    queue = service.moderation_view(tmp_path)
+    assert len(queue) == 1 and queue[0]["reporters"] == 3 and queue[0]["author"] == "ada"
+    assert dict(queue[0]["reasons"]) == {"Spam or advertising": 2, "Not their own work": 1}
+    # Kept: shown again, and its reports are closed.
+    assert service.moderate(tmp_path, "post", post.id, keep=True)
+    assert service.post_view(tmp_path, dan, post.id) is not None and service.moderation_view(tmp_path) == []
+    assert Store(tmp_path).events(ada.token)[-1]["kind"] == "moderated"
+    # Reported again and removed: gone, with its photos.
+    for who in (bob, cleo, eve):
+        service.report(tmp_path, who.token, "post", post.id, "exam")
+    assert service.moderate(tmp_path, "post", post.id, keep=False)
+    assert social.get_post(Store(tmp_path), post.id) is None
+    assert not service.moderate(tmp_path, "post", post.id, keep=False)  # nothing left to decide
+
+
+def test_a_reported_comment_is_reviewed_on_its_own(tmp_path, people):
+    ada, bob, cleo, _ = people
+    eve = _plan(tmp_path)
+    _join(tmp_path, eve, "eve")
+    post = _post(tmp_path, ada, "everyone")
+    service.add_comment(tmp_path, bob.token, post.id, "buy cheap essays at example.com")
+    comment = service.post_view(tmp_path, ada, post.id)["comments"][0]["id"]
+    item = service.report_view(tmp_path, ada, "comment", comment)
+    assert item["summary"].startswith("buy cheap") and item["author"]["handle"] == "bob" and not item["mine"]
+    for who in (ada, cleo, eve):
+        service.report(tmp_path, who.token, "comment", comment, "spam")
+    assert service.post_view(tmp_path, cleo, post.id)["comments"] == []
+    assert len(service.post_view(tmp_path, bob, post.id)["comments"]) == 1  # its author still sees it
+    assert service.moderation_view(tmp_path)[0]["kind"] == "comment"
+    service.moderate(tmp_path, "comment", comment, keep=False)
+    assert service.post_view(tmp_path, bob, post.id)["comments"] == []
+    assert service.post_view(tmp_path, cleo, post.id) is not None  # the post stays
+
+
+def test_a_block_works_both_ways_and_ends_follows(tmp_path, people):
+    ada, _, cleo, _ = people
+    shared = _post(tmp_path, ada, "everyone")
+    followers_only = _post(tmp_path, ada, "followers")
+    cleos = _post(tmp_path, cleo, "everyone")
+    service.add_comment(tmp_path, cleo.token, shared.id, "from cleo")
+    service.block(tmp_path, ada.token, "cleo")
+    for post in (shared, followers_only):
+        assert service.post_view(tmp_path, cleo, post.id) is None
+    assert service.post_view(tmp_path, ada, cleos.id) is None  # nor the other way
+    assert service.post_view(tmp_path, ada, shared.id)["comments"] == []
+    assert service.people_view(tmp_path, ada)["followers"] == []  # the follow ended
+    assert [p["handle"] for p in service.people_view(tmp_path, ada)["blocked"]] == ["cleo"]
+    assert service.person_view(tmp_path, cleo, "ada") is None
+    assert service.people_view(tmp_path, cleo, "ada")["found"] == []
+    with pytest.raises(service.InvalidInput, match="cannot follow"):
+        service.follow(tmp_path, cleo.token, "ada")
+    with pytest.raises(service.InvalidInput, match="yourself"):
+        service.block(tmp_path, ada.token, "ada")
+    service.unblock(tmp_path, ada.token, "cleo")
+    assert service.post_view(tmp_path, cleo, shared.id) is not None
+    assert service.post_view(tmp_path, cleo, followers_only.id) is None  # the follow does not come back

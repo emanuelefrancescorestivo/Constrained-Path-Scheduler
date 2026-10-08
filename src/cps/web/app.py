@@ -33,6 +33,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import secrets
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -107,6 +108,8 @@ NETWORK_NOTICES = {
     "profile": "Profile saved.",
     "posted": "Posted.",
     "left": "You have left the network. Your diary is still here, visible only to you.",
+    "reported": "Thank you. The report is with the owner of this service.",
+    "blocked": "Blocked. Neither of you sees the other any more; undo it in People.",
 }
 TASK_NOTICES = {
     "added": "Added. The plan has made room for it.",
@@ -131,6 +134,7 @@ class Config:
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
+    admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
 
     @classmethod
     def from_env(cls) -> Config:
@@ -140,6 +144,7 @@ class Config:
             base_url=os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or None,
             contact=os.environ.get("CPS_CONTACT") or None,
             backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
+            admin_token=os.environ.get("CPS_ADMIN_TOKEN") or None,
         )
 
 
@@ -877,6 +882,103 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         service.log_event(store, token, "explained", post.visibility)
         return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+
+    @app.get("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
+    def report_form(request: Request, token: str, kind: str, target: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        item = service.report_view(store, subscription, kind, target)
+        if item is None or item["mine"]:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this post is not, or no longer, visible to you"),
+                token=token,
+            )
+        return page(
+            request, "report.html", token=token, item=item, reasons=service.REPORT_REASONS, tab="community"
+        )
+
+    @app.post("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
+    async def report_send(request: Request, token: str, kind: str, target: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        item = service.report_view(store, subscription, kind, target)
+        try:
+            if item is None:
+                raise service.InvalidInput(
+                    service.translate("this post is not, or no longer, visible to you")
+                )
+            service.report(store, token, kind, target, str(form.get("reason") or ""))
+            if form.get("block") == "1" and item["author"]:
+                service.block(store, token, item["author"]["handle"])
+        except service.ServiceError as error:
+            if item is None:
+                return refused(request, token, error)
+            return page(
+                request,
+                "report.html",
+                400,
+                token=token,
+                item=item,
+                reasons=service.REPORT_REASONS,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "report", kind)
+        blocked = form.get("block") == "1"
+        return RedirectResponse(f"/p/{token}/community?saved={'blocked' if blocked else 'reported'}", 303)
+
+    @app.post("/p/{token}/u/{handle}/block")
+    async def block(request: Request, token: str, handle: str) -> Response:
+        done = await circle_change(
+            request, token, lambda: service.block(store, token, handle), f"/p/{token}/community?saved=blocked"
+        )
+        return done
+
+    @app.post("/p/{token}/u/{handle}/unblock")
+    async def unblock(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.unblock(store, token, handle), f"/p/{token}/people"
+        )
+
+    # ------------------------------------------------------------ the owner's review
+
+    def admin_key(key: str) -> bool:
+        """Whether `key` is the owner's review key (CPS_ADMIN_TOKEN). Without one
+        set, or with one too short to be secret, there is no review page."""
+        expected = config.admin_token or ""
+        return len(expected) >= 24 and secrets.compare_digest(key.encode(), expected.encode())
+
+    @app.get("/admin/{key}", response_class=HTMLResponse)
+    def admin(request: Request, key: str, saved: str = "") -> HTMLResponse:
+        if not admin_key(key):
+            return missing(request)
+        notice = service.translate("Done.") if saved else None
+        return page(request, "admin.html", key=key, items=service.moderation_view(store), saved=notice)
+
+    @app.post("/admin/{key}/review")
+    async def admin_review(request: Request, key: str) -> Response:
+        if not admin_key(key):
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=4)
+        keep = form.get("decision") == "keep"
+        service.moderate(store, str(form.get("kind") or ""), str(form.get("target") or ""), keep)
+        return RedirectResponse(f"/admin/{key}?saved=1", 303)
+
+    @app.get("/admin/{key}/m/{name}")
+    def admin_photo(key: str, name: str) -> Response:
+        found = service.admin_photo(store, name) if admin_key(key) else None
+        if found is None:
+            return Response("not found\n", 404, media_type="text/plain")
+        return Response(found[0], media_type=found[1], headers={"Cache-Control": "no-store"})
 
     @app.post("/p/{token}/review/seen")
     async def review_seen(request: Request, token: str) -> Response:

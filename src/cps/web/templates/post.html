@@ -18,6 +18,7 @@
         <span class="meta">{% if c.author %}<a href="/p/{{ token }}/u/{{ c.author.handle }}">@{{ c.author.handle }}</a>{% else %}{{ _("someone who left") }}{% endif %} · {{ c.when }}</span>
         <p class="comment-body">{{ c.body }}</p>
       </div>
+      {% if not c.mine %}<a class="comment-report" href="/p/{{ token }}/report/comment/{{ c.id }}">{{ _("Report") }}</a>{% endif %}
       {% if c.can_delete %}
       <form method="post" action="/p/{{ token }}/comments/{{ c.id }}/delete">
         <input type="hidden" name="next" value="{{ here }}#comments">

@@ -6,6 +6,14 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Moderation for the network (D20). Every post (its ··· menu) and every comment can
+  be reported, with a reason; the third different person to report something hides
+  it from everyone but its author until the owner reviews it at
+  `/admin/<CPS_ADMIN_TOKEN>` and keeps or removes it; each decision goes to the event
+  log. Anyone can block someone, from a post or a profile: neither sees the other,
+  follows between them end, nobody is told; People lists the blocked, to undo.
+  Guidelines and the privacy page say how it works (`service.report`, `block`,
+  `moderation_view`, `moderate`; `social.report`, `review`).
 - The study network itself (D16, D19). A Community tab with two feeds: Following
   (one's own shared posts and those of people one follows) and Explore (posts shared
   with everyone, across universities, filtered by university, programme, course and
@@ -153,6 +161,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A post whose second photo was refused no longer leaves its first photo on disk
+  (AUDIT.md item 43).
 - On a phone, a long form's Save button sat under the tab bar (AUDIT.md item 42);
   the effort scale no longer makes the log page wider than the screen.
 - The timetable reader was fitted to one university's export (AUDIT.md item 41). It

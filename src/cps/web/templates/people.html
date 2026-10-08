@@ -48,4 +48,15 @@
 </div>
 {% endif %}
 {% endfor %}
+
+{% if view.blocked %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Blocked") }}</h2></div>
+  <div class="card"><ul class="list people">
+  {% for person in view.blocked %}{% call person_row(person, token) %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unblock"><button type="submit" class="btn btn-plain btn-sm">{{ _("Unblock") }}</button></form>
+  {% endcall %}{% endfor %}
+  </ul></div>
+</div>
+{% endif %}
 {% endblock %}

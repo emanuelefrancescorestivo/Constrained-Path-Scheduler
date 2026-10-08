@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Reports to review") }}{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("Reports to review") }}</h1>
+  <p>{{ _n("{n} item waiting", "{n} items waiting", items | length) }}</p>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% for item in items %}
+<article class="card post">
+  <header class="post-head">
+    <div class="grow">
+      <p class="kicker">{% if item.kind == "comment" %}{{ _("Comment") }}{% else %}{{ _("Post") }}{% endif %} · @{{ item.author }} · {{ item.first }}{% if item.hidden %} · <b>{{ _("hidden") }}</b>{% endif %}</p>
+      <h3>{{ item.title }}</h3>
+    </div>
+    <span class="badge badge-risk">{{ _n("{n} person", "{n} people", item.reporters) }}</span>
+  </header>
+  {% if item.text %}<p class="post-note">{{ item.text }}</p>{% endif %}
+  {% if item.photos %}<div class="photos n{{ item.photos | length }}">{% for name in item.photos %}<a href="/admin/{{ key }}/m/{{ name }}"><img src="/admin/{{ key }}/m/{{ name }}" alt="{{ _('Photo {n}', n=loop.index) }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+  <ul class="reasons">{% for words, n in item.reasons %}<li>{{ words }} <span class="muted">× {{ n }}</span></li>{% endfor %}</ul>
+  <form method="post" action="/admin/{{ key }}/review" class="row-end">
+    <input type="hidden" name="kind" value="{{ item.kind }}"><input type="hidden" name="target" value="{{ item.target }}">
+    <button type="submit" name="decision" value="keep" class="btn">{{ _("Keep it") }}</button>
+    <button type="submit" name="decision" value="remove" class="btn btn-danger">{{ _("Remove it") }}</button>
+  </form>
+</article>
+{% else %}
+<div class="card empty"><b>{{ _("Nothing to review") }}</b>{{ _("Reports appear here as students send them.") }}</div>
+{% endfor %}
+{% endblock %}
