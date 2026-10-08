@@ -364,7 +364,8 @@ def command_metrics(args) -> int:
         f"over their weekly limit  {m['over_limit']} (should be 0)",
         f"network                  {net['profiles']} profiles, {net['follows']} follows",
         f"  last 7 days            {net['sessions_shared']} sessions shared, {net['sessions_private']} kept "
-        f"private, {net['explanations']} explanations, {net['kudos']} kudos, {net['comments']} comments",
+        f"private, {net['explanations']} explanations, {net['notes']} notes, {net['kudos']} kudos and "
+        f"helpful marks, {net['comments']} comments",
         f"  focus, last 7 days     {net['timed']} timed, {net['focus_checked']} with the focus checked",
         f"  reports open           {net['reports_open']}",
         f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "

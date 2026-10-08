@@ -835,6 +835,33 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .act.given { color: var(--accent); }
 .act.given svg { fill: currentColor; }
 .act-count { font-variant-numeric: tabular-nums; }
+.act-static { cursor: default; }
+.act-static:hover { background: transparent; }
+
+/* -- the notes library (D26) ----------------------------------------------- */
+.lede { color: var(--muted); margin: 0 0 14px; font-size: 0.95rem; max-width: 46rem; }
+.badge-top { background: var(--accent); color: var(--on-accent); }
+.badge-top::before { content: "★ "; content: "★ " / ""; }
+.library { display: grid; gap: 10px; }
+.note-row { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; }
+.note-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none !important; }
+.note-thumb {
+  flex: none; width: 64px; height: 84px; border-radius: 8px; object-fit: cover; background: var(--fill-4);
+  box-shadow: 0 0 0 0.5px var(--line);
+}
+.note-text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.note-text .kicker { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.note-title { font-weight: 600; font-size: 1.02rem; line-height: 1.3; overflow-wrap: anywhere; }
+.note-meta { font-size: 0.82rem; color: var(--muted); overflow-wrap: anywhere; }
+.note-text .badge { margin-top: 4px; white-space: normal; }
+.note-act { flex: none; }
+.note-act form { margin: 0; }
+.filters-notes select { min-width: 0; }
+.photos.n5, .photos.n6, .photos.n7, .photos.n8 { grid-template-columns: repeat(4, 1fr); }
+.photos.n5 img, .photos.n6 img, .photos.n7 img, .photos.n8 img { aspect-ratio: 3 / 4; height: auto; }
+label.check.check-long { display: flex; align-items: flex-start; margin: 0; line-height: 1.4; }
+label.check.check-long input { margin-top: 3px; flex: none; }
+.person-notes { margin: 6px 0 0; font-size: 0.9rem; color: var(--muted); font-weight: 500; }
 .comments .comment-body { margin: 2px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 .comments .meta a { color: var(--text); font-weight: 600; }
 .comment-form textarea { width: 100%; }
@@ -969,6 +996,10 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   .board-bar .segmented { order: 2; width: 100%; }
   .board-bar .segmented button { flex: 1; }
   .filters { grid-template-columns: 1fr 1fr; }
+  /* The helpful button keeps its icon and count; its word stays for screen readers. */
+  .note-act .act-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .note-row { padding: 10px 6px 10px 10px; gap: 4px; }
+  .note-thumb { width: 54px; height: 72px; }
   .tiles { grid-template-columns: 1fr 1fr; }
   .meter-row, .spark-row { grid-template-columns: 7.2rem 1fr 4.4rem; font-size: 0.84rem; gap: 8px; }
   .hbars li { grid-template-columns: minmax(5rem, 8rem) 1fr 3.8rem; }

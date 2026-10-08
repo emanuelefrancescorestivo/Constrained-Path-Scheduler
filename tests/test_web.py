@@ -1080,6 +1080,60 @@ def test_explain_it_simply_and_leaving_the_network(web, planned):
     assert web.get(f"/p/{other}/u/ada").status_code == 404
 
 
+def test_the_notes_library_from_sharing_to_the_months_top(web, planned):
+    form = unescape(web.get(f"/p/{planned}/notes/new").text)
+    assert 'data-max-photos="8"' in form and 'value="everyone" disabled' in form
+    _profile(web, planned, "ada")
+    page = unescape(web.get(f"/p/{planned}/notes").text)
+    assert "No notes here yet" in page and f'href="/p/{planned}/notes/new"' in page
+    assert 'aria-current="page">Notes' in page
+    fields = {"course": "Algebra 3", "title": "Eigenvalues in one page", "note": "Definitions, two examples."}
+    refused = web.post(
+        f"/p/{planned}/notes/new", data=fields, files=[("photos", ("p1.jpg", TINY_JPEG, "image/jpeg"))]
+    )
+    assert refused.status_code == 400 and "your own notes, in your own words" in unescape(refused.text)
+    assert 'value="Eigenvalues in one page"' in refused.text  # what was typed is kept
+    posted = web.post(
+        f"/p/{planned}/notes/new",
+        data={**fields, "own_work": "1"},
+        files=[("photos", (f"p{i}.jpg", TINY_JPEG, "image/jpeg")) for i in range(2)],
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=posted")
+    mine = unescape(web.get(posted.headers["location"]).text)
+    assert "Eigenvalues in one page" in mine and "2 pages" in mine and "0 helpful marks" in mine
+    assert "/kudos" not in mine  # nobody marks their own notes
+    post_id = posted.headers["location"].split("/")[-1].split("?")[0]
+    readers = []
+    for handle in ("bob", "cleo"):
+        reader = _start(web)
+        _profile(web, reader, handle)
+        readers.append(reader)
+        library = unescape(web.get(f"/p/{reader}/notes?course=algebra").text)
+        assert "Eigenvalues in one page" in library and "@ada" in library and "Helpful" in library
+        marked = web.post(
+            f"/p/{reader}/post/{post_id}/kudos",
+            data={"next": f"/p/{reader}/notes"},
+            follow_redirects=False,
+        )
+        assert marked.status_code == 303 and marked.headers["location"] == f"/p/{reader}/notes"
+    library = unescape(web.get(f"/p/{readers[0]}/notes").text)
+    assert "No. 1 this month" in library and 'aria-pressed="true"' in library
+    assert "Eigenvalues" not in unescape(web.get(f"/p/{readers[0]}/notes?uni=milano").text)
+    newest = unescape(web.get(f"/p/{readers[0]}/notes?sort=new").text)
+    assert '<option value="new" selected>' in newest
+    explore = unescape(web.get(f"/p/{readers[0]}/community?tab=explore&kind=notes").text)
+    assert "Eigenvalues in one page" in explore and f'href="/p/{readers[0]}/notes"' in explore
+    profile = unescape(web.get(f"/p/{readers[0]}/u/ada").text)
+    assert "Shared 1 set of notes · marked helpful 2 times" in profile
+    guidelines = unescape(web.get("/guidelines").text)
+    assert 'id="notes"' in guidelines and "owner@example.org" in guidelines
+    web.post(f"/p/{readers[1]}/language", data={"lang": "fr"})
+    french = unescape(web.get(f"/p/{readers[1]}/notes").text)
+    assert "Partager des notes" in french and "N° 1 du mois" in french
+    assert [e["detail"] for e in web.store.events(planned) if e["kind"] == "notes"] == ["everyone"]
+
+
 def test_the_network_pages_in_french(web, planned):
     web.post(f"/p/{planned}/language", data={"lang": "fr"})
     _profile(web, planned, "ada")

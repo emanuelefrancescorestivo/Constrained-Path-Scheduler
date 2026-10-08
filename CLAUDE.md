@@ -24,8 +24,8 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 516 passed, 14 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 530 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 522 passed, 14 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 536 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -55,12 +55,12 @@ more than an impressive number.
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words (D10) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
-| `social.py` | the study network's tables: posts (sessions, explanations), photos stripped of metadata, follows, kudos, comments, reports, blocks; who may see what (D16 to D20) |
+| `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course (D16 to D20, D26) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles), appearance (Automatic, Light, Dark), privacy; only calls `service`; every page works without its scripts |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library), appearance (Automatic, Light, Dark), privacy; only calls `service`; every page works without its scripts |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface

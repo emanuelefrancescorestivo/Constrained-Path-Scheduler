@@ -60,8 +60,9 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E8 Appearance**: Automatic, Light or Dark per plan (D21).
 - [x] **E9 The recall question**: a self-test asks how much was recalled; FSRS's four
       grades feed the plan and the forecast (D25).
-- [ ] **E10 The notes library**: own notes by course, "helpful" marks, recognition,
-      no money (D26).
+- [x] **E10 The notes library**: own notes by course, "helpful" marks, the month's
+      top three per course, a line on the profile, no money (D26). Before it opens to
+      the public (owner): a lawyer's view of students' notes and copyright in France.
 - [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): "in simple
       words" inside the session log; flashcards; a group of friends with a shared
       weekly goal.

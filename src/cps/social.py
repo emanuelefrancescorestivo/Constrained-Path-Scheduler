@@ -29,8 +29,9 @@ from .i18n import _
 from .store import Store
 
 VISIBILITIES = ("me", "followers", "everyone")
-KINDS = ("session", "explain")
+KINDS = ("session", "explain", "notes")
 MAX_PHOTOS = 4
+MAX_NOTE_PHOTOS = 8  # a page of notes per photo; a set of notes has more pages (D26)
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 MAX_PHOTO_SIDE = 8000
 LIMITS = {"course": 80, "title": 120, "note": 1000, "concept": 120, "text": 1200}
@@ -212,8 +213,9 @@ def create_post(
     if visibility not in VISIBILITIES:
         raise SocialError(_("choose who sees it: only you, your followers, or everyone"))
     photos = [p for p in photos if p]
-    if len(photos) > MAX_PHOTOS:
-        raise SocialError(_("at most {n} photos", n=MAX_PHOTOS))
+    most = MAX_NOTE_PHOTOS if kind == "notes" else MAX_PHOTOS
+    if len(photos) > most:
+        raise SocialError(_("at most {n} photos", n=most))
     clean: dict = {}
     if kind == "session":
         clean["course"] = _text(data.get("course", ""), "course", required=True)
@@ -231,6 +233,18 @@ def create_post(
         )
         if data.get("sid"):
             clean["sid"] = str(data["sid"])[:32]
+    elif kind == "notes":
+        # A student's own notes, for the library (D26): a course and a title, a few
+        # words about them, the pages as photos, and the student's word that they
+        # are their own.
+        clean["course"] = _text(data.get("course", ""), "course", required=True)
+        clean["title"] = _text(data.get("title", ""), "title", required=True)
+        clean["note"] = _text(data.get("note", ""), "note")
+        if not data.get("own_work"):
+            raise SocialError(_("say that these are your own notes, in your own words"))
+        if not photos:
+            raise SocialError(_("add at least one photo of your notes"))
+        clean["own_work"] = True
     else:
         clean["concept"] = _text(data.get("concept", ""), "concept", required=True)
         clean["course"] = _text(data.get("course", ""), "course")
@@ -612,6 +626,8 @@ def toggle_kudos(store: Store, token: str, post: Post, now: datetime | None = No
         raise SocialError(_("this post is not, or no longer, visible to you"))
     if get_profile(store, token) is None and post.token != token:
         raise SocialError(_("choose a handle first, in your profile"))
+    if post.kind == "notes" and post.token == token:
+        raise SocialError(_("others mark your notes helpful; you cannot mark your own"))
     with store.connection() as db:
         gone = db.execute("DELETE FROM kudos WHERE post = ? AND token = ?", (post.id, token)).rowcount
         if not gone:
@@ -896,3 +912,102 @@ def review(store: Store, kind: str, target_id: str, keep: bool) -> str | None:
     if not keep and comment is None:
         delete_post(store, post.token, post.id)
     return author
+
+
+# --------------------------------------------------------------------------- #
+# The notes library (D26): own notes by course, "helpful" marks, the month's top
+# --------------------------------------------------------------------------- #
+
+TOP_NOTES = 3  # recognised per course and month
+TOP_MIN_MARKS = 2  # and only with at least this many helpful marks that month
+
+
+@dataclass(frozen=True)
+class LibraryNote:
+    post: Post
+    marks: int  # helpful marks in all
+    month: int  # helpful marks this month
+
+
+def notes_library(
+    store: Store,
+    viewer: str,
+    *,
+    month_start: str,
+    course: str = "",
+    university: str = "",
+    programme: str = "",
+    sort: str = "helpful",
+    limit: int = 60,
+) -> list[LibraryNote]:
+    """Notes the viewer may see (everyone's, followed people's, their own), found by
+    course, university and programme, the most helpful this month first, or the
+    newest."""
+    order = "month DESC, marks DESC, p.created DESC" if sort == "helpful" else "p.created DESC"
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT {", ".join("p." + c.strip() for c in _COLUMNS.split(","))},
+                   (SELECT COUNT(*) FROM kudos k WHERE k.post = p.id) AS marks,
+                   (SELECT COUNT(*) FROM kudos k WHERE k.post = p.id AND k.created >= :month) AS month
+            FROM posts p LEFT JOIN profiles a ON a.token = p.token
+            WHERE p.kind = 'notes'
+              AND (p.token = :v OR (p.hidden = 0
+                   AND p.token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
+                   AND p.token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
+                   AND (p.visibility = 'everyone' OR (p.visibility = 'followers' AND p.token IN
+                        (SELECT followed FROM follows WHERE follower = :v AND status = 'accepted')))))
+              AND (:course = '' OR LOWER(json_extract(p.data, '$.course')) LIKE :course)
+              AND (:uni = '' OR LOWER(COALESCE(a.university, '')) LIKE :uni)
+              AND (:prog = '' OR LOWER(COALESCE(a.programme, '')) LIKE :prog)
+            ORDER BY {order} LIMIT :n
+            """,
+            {
+                "v": viewer,
+                "month": month_start,
+                "course": f"%{course.strip().lower()}%" if course.strip() else "",
+                "uni": f"%{university.strip().lower()}%" if university.strip() else "",
+                "prog": f"%{programme.strip().lower()}%" if programme.strip() else "",
+                "n": limit,
+            },
+        ).fetchall()
+    return [LibraryNote(_row(r[:8]), int(r[8]), int(r[9])) for r in rows]
+
+
+def top_notes(store: Store, month_start: str) -> dict[str, int]:
+    """The month's most helpful notes shared with everyone, per course (its name,
+    ignoring case): post id -> rank, 1 to `TOP_NOTES`, for notes with at least
+    `TOP_MIN_MARKS` helpful marks this month. Notes are ranked, never people."""
+    with store.connection() as db:
+        rows = db.execute(
+            """
+            SELECT p.id, LOWER(TRIM(json_extract(p.data, '$.course'))) AS course, COUNT(k.post) AS month
+            FROM posts p JOIN kudos k ON k.post = p.id AND k.created >= ?
+            WHERE p.kind = 'notes' AND p.visibility = 'everyone' AND p.hidden = 0
+            GROUP BY p.id HAVING month >= ?
+            ORDER BY course, month DESC, MIN(k.created)
+            """,
+            (month_start, TOP_MIN_MARKS),
+        ).fetchall()
+    ranks: dict[str, int] = {}
+    seen: dict[str, int] = {}
+    for post_id, course, _month in rows:
+        seen[course] = seen.get(course, 0) + 1
+        if seen[course] <= TOP_NOTES:
+            ranks[post_id] = seen[course]
+    return ranks
+
+
+def notes_recognition(store: Store, token: str) -> tuple[int, int]:
+    """(notes shared with others, helpful marks they received): the one line of
+    recognition a profile shows (D26)."""
+    with store.connection() as db:
+        shared, marks = db.execute(
+            """
+            SELECT COUNT(DISTINCT p.id), (SELECT COUNT(*) FROM kudos k JOIN posts q ON q.id = k.post
+                                          WHERE q.token = :t AND q.kind = 'notes' AND q.visibility != 'me')
+            FROM posts p WHERE p.token = :t AND p.kind = 'notes' AND p.visibility != 'me' AND p.hidden = 0
+            """,
+            {"t": token},
+        ).fetchone()
+    return int(shared), int(marks or 0)

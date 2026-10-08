@@ -63,6 +63,7 @@ PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
 MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
 MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
+MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 64 * 1024  # notes have up to eight pages (D26)
 SWEEP_EVERY = timedelta(hours=6)
 
 SECURITY_HEADERS = {
@@ -308,7 +309,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
-        return page(request, "guidelines.html")
+        return page(request, "guidelines.html", contact=config.contact)
 
     @app.post("/start")
     async def start(request: Request) -> Response:
@@ -707,7 +708,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return too_many(request)
         form = await request.form(max_files=0, max_fields=3)
         try:
-            service.toggle_kudos(store, token, post_id)
+            service.toggle_kudos(store, token, post_id, now=config.clock())
         except service.ServiceError as error:
             return refused(request, token, error)
         return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
@@ -914,6 +915,79 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tab="community",
             )
         service.log_event(store, token, "explained", post.visibility)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+
+    @app.get("/p/{token}/notes", response_class=HTMLResponse)
+    def notes_library(
+        request: Request,
+        token: str,
+        course: str = "",
+        uni: str = "",
+        prog: str = "",
+        sort: str = "helpful",
+        saved: str = "",
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.library_view(
+            store,
+            subscription,
+            filters={"course": course, "uni": uni, "prog": prog},
+            sort=sort,
+            now=config.clock(),
+        )
+        return page(request, "notes.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.get("/p/{token}/notes/new", response_class=HTMLResponse)
+    def notes_form(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request,
+            "notes_new.html",
+            token=token,
+            draft={},
+            profile=service.profile_of(store, token),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/notes/new", response_class=HTMLResponse)
+    async def notes_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        profile = service.profile_of(store, token)
+
+        def again(status: int, error: str, draft: dict) -> HTMLResponse:
+            return page(
+                request,
+                "notes_new.html",
+                status,
+                token=token,
+                draft=draft,
+                profile=profile,
+                error=error,
+                tab="community",
+            )
+
+        if int(request.headers.get("content-length") or 0) > MAX_NOTES_UPLOAD:
+            return again(
+                413,
+                service.translate("These photos are too large together; send fewer or smaller ones."),
+                {},
+            )
+        form = await request.form(max_files=service.social.MAX_NOTE_PHOTOS, max_fields=10)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            post = service.post_notes(store, subscription, fields, photos, now=config.clock())
+        except service.ServiceError as error:
+            return again(400, str(error), fields)
+        service.log_event(store, token, "notes", post.visibility)
         return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
 
     @app.get("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)

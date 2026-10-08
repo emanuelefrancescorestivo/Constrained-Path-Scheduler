@@ -615,3 +615,14 @@ counted in the north star. Nothing was hosted, so no number was wrong anywhere i
 was read. Fixed: the measure uses `progress.Session.confirmed`, the one definition
 the streak already uses, which now also counts a self-test's recall answer.
 Status: fixed.
+
+**46. A form with more photos than it takes dropped the extra ones without a word.**
+Found while building the notes library (step E10): the browser script that shrinks
+photos before sending them (`web/static/log.js`) sent the first four files chosen
+and ignored the rest, so a student who chose five photos of a session lost the fifth
+and was told nothing; without the script, the server refused the form instead. It
+mattered more for notes, whose pages are the content. Fixed: the script reads the
+form's limit (`data-max-photos`, four, or eight for notes) and refuses a choice over
+it with a message, before anything is sent. Status: fixed; checked in Chromium, not
+by the Python tests, which do not run JavaScript.
+

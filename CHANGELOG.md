@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The notes library (D26), chosen by the owner from docs/ANALYTICS.md §4 (option B):
+  Community gets a Notes tab where students share their own notes of a course as
+  photos of the pages (up to eight), with their word that the notes are their own.
+  Others mark them "Helpful" (an author cannot mark their own); the library finds
+  notes by course, university and programme, the most helpful this month first, or
+  the newest; each month the three notes of each course with the most helpful marks,
+  from at least two people, carry "No. 1 this month" to "No. 3". A profile says how
+  many notes were shared and how often they were marked helpful. The guidelines gain
+  a section on notes and, with a contact address set, a line for rights holders.
+  Recognition only: no points, no money. `cps metrics` counts notes shared.
 - The recall question (D25), chosen by the owner from docs/ANALYTICS.md: a
   self-test now asks "How much could you recall, without your notes?" (Nothing,
   Some, Most, All, or Skipped) on Today, on the session's page and in the calendar.
@@ -201,6 +211,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A form with more photos than it takes no longer drops the extra ones silently in
+  the browser; it says so before sending (AUDIT item 46).
 - The pilot's north star now counts sessions reported hard (AUDIT.md item 45).
 - A post whose second photo was refused no longer leaves its first photo on disk
   (AUDIT.md item 43).

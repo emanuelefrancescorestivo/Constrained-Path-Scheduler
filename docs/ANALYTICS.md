@@ -171,3 +171,9 @@ C can wait for the paid tier and the pilot's evidence. The owner decides.
 
 Proposed next, for the owner to choose: recall on self-tests (§3), the notes library
 (§4), "in simple words" inside the session log, flashcards, a cooperative group goal.
+
+**Built next, on the owner's choice:** the recall question (D25) and the notes
+library, option B of §4 (D26). The legal check of §4 is still to be done.
+
+<p align="center"><img alt="The notes library on a phone: the Notes tab of Community, filters by course, university and programme, and notes from students in Milan and Lyon, each with a thumbnail of its first page, its course, title, author, pages and date, a helpful count, and a No. 1 this month badge" src="app-notes-phone.png" width="40%"></p>
+<p align="center"><sub>Synthetic students and handwritten-style pages made for the screenshot; not real data.</sub></p>

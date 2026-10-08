@@ -11,6 +11,13 @@
   <li>{{ _("No faces or names of other people without their agreement, and nothing from your private life you would not show a classmate.") }}</li>
 </ul>
 
+<h2 id="notes">{{ _("Notes") }}</h2>
+<ul>
+  <li>{{ _("Share notes you wrote yourself, in your own words: a summary, worked examples, a sheet of the proofs to know. Not the lecturer's slides or handouts, not pages of a book, not someone else's notes, even with their name on them.") }}</li>
+  <li>{{ _("Mark notes helpful when they helped you, not to help a friend up the list. Each month the three notes of a course with the most helpful marks, from at least two people, are marked for everyone to find. Notes are ranked, never people, and nothing is paid.") }}</li>
+  {% if contact %}<li>{{ _("If you hold the rights to something posted here, write to {contact} and say which post it is; the owner of this service reads every message and removes what should not be here.", contact=contact) }}</li>{% endif %}
+</ul>
+
 <h2>{{ _("Be kind") }}</h2>
 <ul>
   <li>{{ _("Comment on the work, not on the person. A slow session is still a session.") }}</li>

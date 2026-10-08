@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_people.html" import avatar %}
-{% block title %}{% if post.kind == "explain" %}{{ post.concept }}{% else %}{{ post.course }}{% endif %} · {{ _("Study plan") }}{% endblock %}
+{% block title %}{% if post.kind == "explain" %}{{ post.concept }}{% elif post.kind == "notes" %}{{ post.title }}{% else %}{{ post.course }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {% set here = request.url.path %}
 <p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
@@ -33,7 +33,7 @@
   {% if can_comment %}
   <form method="post" action="/p/{{ token }}/post/{{ post.id }}/comments" class="card comment-form">
     <label for="comment-body" class="sr-only">{{ _("Your comment") }}</label>
-    <textarea id="comment-body" name="body" rows="2" maxlength="600" required placeholder="{% if post.kind == 'explain' %}{{ _('A question, or what made it click…') }}{% else %}{{ _('Say something encouraging, or ask how they did it…') }}{% endif %}">{{ draft or '' }}</textarea>
+    <textarea id="comment-body" name="body" rows="2" maxlength="600" required placeholder="{% if post.kind == 'explain' %}{{ _('A question, or what made it click…') }}{% elif post.kind == 'notes' %}{{ _('What helped, or a question about a page…') }}{% else %}{{ _('Say something encouraging, or ask how they did it…') }}{% endif %}">{{ draft or '' }}</textarea>
     <div class="row-end"><button type="submit" class="btn btn-primary btn-sm">{{ _("Comment") }}</button></div>
   </form>
   {% else %}

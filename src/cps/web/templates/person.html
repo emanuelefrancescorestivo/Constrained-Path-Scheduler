@@ -9,6 +9,7 @@
   <h1>@{{ person.handle }}</h1>
   <p class="person-where">{{ person.university }}{% if person.programme %} · {{ person.programme }}{% endif %}</p>
   {% if person.bio %}<p class="person-bio">{{ person.bio }}</p>{% endif %}
+  {% if notes.shared %}<p class="person-notes">{{ _n("Shared {n} set of notes", "Shared {n} sets of notes", notes.shared) }}{% if notes.helpful %} · {{ _n("marked helpful {n} time", "marked helpful {n} times", notes.helpful) }}{% endif %}</p>{% endif %}
   <div class="person-actions">
   {% if me %}
     <a class="btn btn-sm" href="/p/{{ token }}/profile">{{ _("Edit profile") }}</a>
@@ -38,7 +39,7 @@
 </section>
 
 <div class="section feed">
-  <div class="section-title"><h2>{% if me %}{{ _("What others can see") }}{% else %}{{ _("Sessions and explanations") }}{% endif %}</h2></div>
+  <div class="section-title"><h2>{% if me %}{{ _("What others can see") }}{% else %}{{ _("Sessions, explanations and notes") }}{% endif %}</h2></div>
   {% for p in posts %}{% include "_post.html" %}{% else %}
   <div class="card empty"><b>{{ _("Nothing to show yet") }}</b>{% if me %}{{ _("Posts you share with followers or everyone appear here.") }}{% else %}{{ _("Nothing shared with you yet.") }}{% endif %}</div>
   {% endfor %}

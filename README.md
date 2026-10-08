@@ -179,6 +179,10 @@ cps web                        # http://127.0.0.1:8000
    a Following feed, an Explore feed across universities and programmes, kudos,
    comments, and "Explain it simply" posts that readers of other subjects mark
    "I got it". Follows are asked for and accepted; nobody's follower count is shown.
+   **Notes**: share your own notes of a course as photos of the pages; others mark
+   them helpful, and each month the three most helpful notes of each course are
+   marked for everyone to find. Notes are ranked, never people, and nothing is paid
+   (D26).
 7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
 8. **After each session**: its calendar event links to a page that asks how it went.
@@ -313,7 +317,7 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 45 in all, including a planner that put
+those defects and every one found since, 46 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
@@ -360,8 +364,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 516 passed, 14 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 530 passed, 1 xfailed, 93% coverage
+pytest                                    # 522 passed, 14 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 536 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

@@ -10,6 +10,7 @@
     <a class="btn btn-sm" href="/p/{{ token }}/people">{{ _("People") }}{% if view.requests %} <span class="count" aria-label="{{ _n('{n} request', '{n} requests', view.requests) }}">{{ view.requests }}</span>{% endif %}</a>
     <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ _("Explain something") }}</a>
     {% endif %}
+    <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a>
   </div>
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
@@ -31,6 +32,7 @@
 <nav class="segmented seg-links" aria-label="{{ _('Feeds') }}">
   <a href="/p/{{ token }}/community" {% if view.tab == 'following' %}aria-current="page"{% endif %}>{{ _("Following") }}</a>
   <a href="/p/{{ token }}/community?tab=explore" {% if view.tab == 'explore' %}aria-current="page"{% endif %}>{{ _("Explore") }}</a>
+  <a href="/p/{{ token }}/notes">{{ _("Notes") }}</a>
 </nav>
 
 {% if view.tab == "explore" %}
@@ -44,6 +46,7 @@
     <option value="">{{ _("Everything") }}</option>
     <option value="session"{% if f.kind == 'session' %} selected{% endif %}>{{ _("Study sessions") }}</option>
     <option value="explain"{% if f.kind == 'explain' %} selected{% endif %}>{{ _("Explanations") }}</option>
+    <option value="notes"{% if f.kind == 'notes' %} selected{% endif %}>{{ _("Notes") }}</option>
   </select>
   <button type="submit" class="btn btn-sm">{{ _("Filter") }}</button>
 </form>

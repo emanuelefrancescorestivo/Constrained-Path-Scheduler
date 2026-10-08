@@ -3439,9 +3439,11 @@ def save_profile(store: str | os.PathLike, token: str, form: Mapping[str, str]) 
 def _cards(
     store: Store, viewer: str, posts: Sequence[social.Post], now: datetime, zone: ZoneInfo
 ) -> list[dict]:
-    """Posts as cards, with their authors, kudos and comment counts."""
+    """Posts as cards, with their authors, kudos and comment counts, and, for notes,
+    their place in the month's top of their course (D26)."""
     kudos = social.kudos_of(store, [p.id for p in posts], viewer)
     comments = social.comment_counts(store, [p.id for p in posts])
+    tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
     authors: dict[str, dict | None] = {}
     out = []
     for post in posts:
@@ -3451,10 +3453,20 @@ def _cards(
         card = post_card(post, viewer=viewer, now=now, zone=zone)
         count, given = kudos.get(post.id, (0, False))
         card.update(
-            author=authors[post.token], kudos=count, kudos_given=given, comments=comments.get(post.id, 0)
+            author=authors[post.token],
+            kudos=count,
+            kudos_given=given,
+            comments=comments.get(post.id, 0),
+            top=tops.get(post.id),
         )
         out.append(card)
     return out
+
+
+def _month_start(now: datetime) -> str:
+    """The first moment of `now`'s month, in UTC, as the network's tables write times."""
+    first = now.astimezone(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return first.isoformat(timespec="seconds")
 
 
 def community_view(
@@ -3542,6 +3554,7 @@ def person_view(
         "me": person.token == subscription.token,
         "follow_state": social.follow_status(where, subscription.token, person.token),
         "follows_me": social.follow_status(where, person.token, subscription.token) == "accepted",
+        "notes": dict(zip(("shared", "helpful"), social.notes_recognition(where, person.token), strict=True)),
         "posts": _cards(where, subscription.token, posts, now, zone),
     }
 
@@ -3701,9 +3714,13 @@ def _visible_post(store: Store, token: str, post_id: str) -> social.Post:
     return post
 
 
-def toggle_kudos(store: str | os.PathLike, token: str, post_id: str) -> bool:
+def toggle_kudos(store: str | os.PathLike, token: str, post_id: str, now: datetime | None = None) -> bool:
+    """Kudos, "I got it", or "helpful" on notes; dated, since the notes library counts
+    this month's helpful marks (D26)."""
     where = _store(store)
-    return bool(_social(lambda: social.toggle_kudos(where, token, _visible_post(where, token, post_id))))
+    return bool(
+        _social(lambda: social.toggle_kudos(where, token, _visible_post(where, token, post_id), now=now))
+    )
 
 
 def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -> None:
@@ -3713,6 +3730,82 @@ def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -
 
 def delete_comment(store: str | os.PathLike, token: str, comment_id: str) -> bool:
     return social.delete_comment(_store(store), token, comment_id)
+
+
+LIBRARY_SORTS = ("helpful", "new")
+
+
+def post_notes(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> social.Post:
+    """Notes for the library (D26): the student's own, by course, with the pages as
+    photos; shared with everyone by default, since the library is for others."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
+    day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
+    data = {
+        "course": form.get("course", ""),
+        "title": form.get("title", ""),
+        "note": form.get("note", ""),
+        "own_work": form.get("own_work") == "1",
+    }
+    post: social.Post = _social(
+        lambda: social.create_post(
+            where,
+            subscription.token,
+            "notes",
+            day=day,
+            visibility=visibility,
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    )
+    return post
+
+
+def library_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    filters: Mapping[str, str] | None = None,
+    sort: str = "helpful",
+    now: datetime | None = None,
+) -> dict:
+    """The notes library: notes by course, university and programme, the month's
+    most helpful first (or the newest), each with its helpful marks and its place
+    in its course's top of the month."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    sort = sort if sort in LIBRARY_SORTS else "helpful"
+    filters = {k: str(v).strip()[:80] for k, v in (filters or {}).items() if k in ("course", "uni", "prog")}
+    found = social.notes_library(
+        where,
+        subscription.token,
+        month_start=_month_start(now),
+        course=filters.get("course", ""),
+        university=filters.get("uni", ""),
+        programme=filters.get("prog", ""),
+        sort=sort,
+    )
+    cards = _cards(where, subscription.token, [n.post for n in found], now, zone)
+    for card, note in zip(cards, found, strict=True):
+        card.update(month=note.month)
+    me = social.get_profile(where, subscription.token)
+    return {
+        "notes": cards,
+        "filters": filters,
+        "sort": sort,
+        "profile": me.public() if me else None,
+        "courses": course_names(subscription),
+    }
 
 
 def post_explanation(
@@ -3954,6 +4047,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
             "explanations": count(
                 "SELECT COUNT(*) FROM posts WHERE kind = 'explain' AND created >= ?", since
             ),
+            "notes": count("SELECT COUNT(*) FROM posts WHERE kind = 'notes' AND created >= ?", since),
             "kudos": count("SELECT COUNT(*) FROM kudos WHERE created >= ?", since),
             "comments": count("SELECT COUNT(*) FROM comments WHERE created >= ?", since),
             "reports_open": count("SELECT COUNT(DISTINCT target) FROM reports WHERE resolved = 0"),

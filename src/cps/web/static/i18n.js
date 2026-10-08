@@ -60,6 +60,7 @@ const FR = {
   "left the app {n} time ({minutes} min)": "app quittée {n} fois ({minutes} min)",
   "left the app {n} times ({minutes} min)": "app quittée {n} fois ({minutes} min)",
   "A photo could not be read. Try a JPEG or a PNG.": "Une photo n'a pas pu être lue. Essaie un JPEG ou un PNG.",
+  "At most {n} photos. Choose fewer.": "{n} photos au plus. Choisis-en moins.",
 };
 
 const CATALOGUES = { fr: FR };

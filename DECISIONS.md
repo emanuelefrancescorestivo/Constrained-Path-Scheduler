@@ -400,7 +400,7 @@ A forecast with decimals.
 ## The recall question and the notes library (2026-10-08, the owner's choice)
 
 After docs/ANALYTICS.md, the owner chose two of its proposals: "build the notes
-library and the recall question".
+library and the recall question" (D25, D26).
 
 ## D25. A self-test asks how much was recalled
 
@@ -426,3 +426,42 @@ cost no more than the old two and say much more.
 precision for "about half"); a second question after Done (an extra tap most would
 skip, leaving the forecast assumed); asking after tasks and practice (they are not
 retrieval).
+
+## D26. The notes library: own notes, "helpful" marks, the month's top per course
+
+**Chosen.** Option B of docs/ANALYTICS.md §4. Notes are a third kind of post: a
+course, a title, a line on what they cover, and the pages as photos (up to eight;
+a session or an explanation keeps four), with the student's word, a required box,
+that they are their own notes in their own words. They are shared with everyone by
+default, since the library is for others, and private without a handle (D16). The
+library (Community, Notes) finds them by course, university and programme, the most
+helpful this month first, or the newest. Others mark notes "Helpful" (the kudos
+table, one per person, dated); an author cannot mark their own. Each calendar month
+the three notes of each course (its name, ignoring case and spaces) with the most
+helpful marks that month, from at least two people, carry "No. 1 this month" to
+"No. 3", among notes shared with everyone and not hidden by reports. A profile says
+"Shared 3 sets of notes · marked helpful 12 times". The guidelines gain a section
+on notes, and, when the owner has set a contact address, a line telling a rights
+holder to write to it; the report reason "Not their own work" already exists, and a
+reported note leaves the top while it is hidden.
+
+**Why.** It is what the owner asked for, rewards as recognition: a note recognised
+for helping others is feedback, which does not lower interest the way an expected
+tangible reward does [ref:deci1999]. Ranking notes and not people keeps D16's
+rejection of leaderboards, and a monthly top per course gives a new student a
+chance every month. Two people at least, so a note is not "top" because one friend
+tapped it. Photos only, because the photo pipeline already strips metadata (D18); a
+PDF would need its own checks.
+
+**Rejected.** Money or points that buy things (D13; option D); a free month of the
+paid tier for top notes (option C), until a paid tier exists and the pilot says
+notes are worth it; ranking authors by marks (a leaderboard of people); counting
+marks of all time for the top (old notes would hold it forever); PDFs (a parser and
+its risks for one format).
+
+**Open, and the owner's.** The copyright position of students' own notes in France
+was read in guides, not in the law; a lawyer should confirm it before the library is
+opened to the public (docs/ANALYTICS.md §4). The takedown route is an e-mail to the
+owner, who removes a post through the review page; there is no form for rights
+holders.
+
