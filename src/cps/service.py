@@ -37,6 +37,7 @@ report says so.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import hashlib
 import math
@@ -55,6 +56,7 @@ import numpy as np
 
 from . import i18n as _i18n
 from . import progress as _progress
+from . import social as social
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -2732,7 +2734,9 @@ def _hours(minutes: int) -> float:
     return round(minutes / 60, 1)
 
 
-def progress_view(subscription: Subscription, now: datetime | None = None) -> dict:
+def progress_view(
+    subscription: Subscription, now: datetime | None = None, logged: Sequence[_progress.Session] = ()
+) -> dict:
     """What the Progress page shows, and the strip on Today: the streak, this week's
     sessions done of planned, the last twelve weeks day by day, milestones, exams
     and tasks. Derived from the plan and the reports every time (D8)."""
@@ -2744,14 +2748,14 @@ def progress_view(subscription: Subscription, now: datetime | None = None) -> di
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
     today = local.date()
-    sessions = progress_sessions(subscription)
+    sessions = progress_sessions(subscription) + list(logged)
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
     run = _progress.streak(sessions, first, today)
     # The weeks since the plan began, at most twelve; a younger plan shows its weeks
     # to come too, four in all, so it is not a sliver.
     weeks = max(4, min(12, (_progress.monday(today) - _progress.monday(first)).days // 7 + 1))
     this_week = _progress.week(sessions, _progress.monday(today), local)
-    done = [s for s in sessions if s.confirmed]
+    done = [s for s in sessions if s.confirmed and s.planned]
     full = _progress.full_weeks(sessions, today)
     colours = {name.casefold(): index for name, index in course_colours(plan)}
     tasks = _task_rows(subscription, plan, now, colours)
@@ -2784,6 +2788,8 @@ def progress_view(subscription: Subscription, now: datetime | None = None) -> di
                 "percent": this_week.percent,
                 "hours_done": _hours(this_week.minutes_done),
                 "hours_planned": _hours(this_week.minutes_planned),
+                "logged": this_week.logged,
+                "hours_logged": _hours(this_week.minutes_logged),
             },
             "grid": [
                 [
@@ -2804,6 +2810,8 @@ def progress_view(subscription: Subscription, now: datetime | None = None) -> di
             "totals": {
                 "sessions": len(done),
                 "hours": _hours(sum(s.minutes for s in done)),
+                "logged": sum(not s.planned for s in sessions),
+                "hours_logged": _hours(sum(s.minutes for s in sessions if not s.planned)),
                 "days": sum(d.state == "studied" for d in run.days),
                 "tasks_finished": sum(t["finished"] for t in tasks),
             },
@@ -2818,7 +2826,12 @@ def progress_view(subscription: Subscription, now: datetime | None = None) -> di
 SUGGESTIONS = ("report", "time_of_day", "lighter", "exam", "all_done", "steady")
 
 
-def weekly_review(subscription: Subscription, now: datetime | None = None, weeks_back: int = 1) -> dict:
+def weekly_review(
+    subscription: Subscription,
+    now: datetime | None = None,
+    weeks_back: int = 1,
+    logged: Sequence[_progress.Session] = (),
+) -> dict:
     """A week in numbers, one suggestion and a paragraph saying both (the template
     that the AI version replaces when it is on, D12). By default the week before
     this one; `weeks_back=0` is this week so far."""
@@ -2828,7 +2841,7 @@ def weekly_review(subscription: Subscription, now: datetime | None = None, weeks
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
-    sessions = progress_sessions(subscription)
+    sessions = progress_sessions(subscription) + list(logged)
     first_day = _progress.monday(local.date()) - timedelta(weeks=weeks_back)
     last_day = first_day + timedelta(days=6)
     week_end = datetime.combine(last_day + timedelta(days=1), time(0, 0), tzinfo=zone)
@@ -2898,6 +2911,16 @@ def weekly_review(subscription: Subscription, now: datetime | None = None, weeks
             done=w.done,
             hours=format_number(w.minutes_done / 60),
         )
+    focus_line = (
+        _n(
+            "You also logged {n} focus session ({hours} h).",
+            "You also logged {n} focus sessions ({hours} h).",
+            w.logged,
+            hours=format_number(w.minutes_logged / 60),
+        )
+        if w.logged
+        else ""
+    )
     streak_line = (
         _n("Your streak is {n} day.", "Your streak is {n} days.", run.current) if run.current else ""
     )
@@ -2929,7 +2952,9 @@ def weekly_review(subscription: Subscription, now: datetime | None = None, weeks
         "exams_soon": [{"name": e["name"], "days": round(e["days"])} for e in soon],
         "suggestion_key": key,
         "suggestion": suggestion,
-        "text": " ".join(x for x in (numbers, streak_line, deadlines, suggestion) if x),
+        "logged": w.logged,
+        "hours_logged": _hours(w.minutes_logged),
+        "text": " ".join(x for x in (numbers, focus_line, streak_line, deadlines, suggestion) if x),
         "by": "rules",
     }
 
@@ -2960,7 +2985,9 @@ def day_word(state: str) -> str:
     return _(DAY_WORDS.get(state, state))
 
 
-def review_for_today(subscription: Subscription, now: datetime | None = None) -> dict | None:
+def review_for_today(
+    subscription: Subscription, now: datetime | None = None, logged: Sequence[_progress.Session] = ()
+) -> dict | None:
     """Last week's review, for the Today page on Monday and Tuesday, unless the
     student hid it or there was nothing planned."""
     now = now or datetime.now(UTC)
@@ -2969,8 +2996,10 @@ def review_for_today(subscription: Subscription, now: datetime | None = None) ->
     local = now.astimezone(_zone(subscription.options["tz"]))
     if local.weekday() > 1:
         return None
-    review = weekly_review(subscription, now)
-    if not review.get("sessions_planned") or subscription.options.get("review_seen") == review["week"]:
+    review = weekly_review(subscription, now, logged=logged)
+    if not (review.get("sessions_planned") or review.get("logged")):
+        return None
+    if subscription.options.get("review_seen") == review["week"]:
         return None
     return review
 
@@ -3004,6 +3033,315 @@ def hide_review(subscription: Subscription, week: str) -> Subscription:
     except ValueError:
         raise InvalidInput(_("{value} is not a week", value=repr(week))) from None
     return replace(subscription, options={**subscription.options, "review_seen": week})
+
+
+# --------------------------------------------------------------------------- #
+# Focus sessions and the diary (DECISIONS.md D17)
+
+# The focus page sends a heartbeat this often; a gap longer than the grace is time
+# away (the page hidden, the phone on another app, the tab closed).
+FOCUS_BEAT = timedelta(seconds=30)
+FOCUS_GRACE = timedelta(seconds=75)
+FOCUS_LONGEST = timedelta(hours=12)
+
+
+def start_focus(
+    subscription: Subscription, course: str, *, sid: str | None = None, now: datetime | None = None
+) -> Subscription:
+    """Start the timer for `course`, or for the plan's session `sid`."""
+    now = now or datetime.now(UTC)
+    if sid:
+        session = find_session(subscription, sid)
+        if session is None:
+            raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
+        course = course or (session.title if session.kind == "task" else session.subject)
+    course = " ".join(str(course or "").split())[: social.LIMITS["course"]]
+    if not course:
+        raise InvalidInput(_("say what you studied"))
+    focus = {
+        "course": course,
+        "sid": sid or "",
+        "started": _iso(now),
+        "last": _iso(now),
+        "away": 0,
+        "interruptions": 0,
+    }
+    focus["beats"] = 0
+    options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
+    return replace(subscription, options={**options, "focus": focus})
+
+
+def _beat(focus: dict, now: datetime) -> dict:
+    gap = now - datetime.fromisoformat(focus["last"])
+    away, interruptions = focus["away"], focus["interruptions"]
+    if focus["beats"] and gap > FOCUS_GRACE:
+        away += round((gap - FOCUS_BEAT).total_seconds())
+        interruptions += 1
+    return {
+        **focus,
+        "last": _iso(now),
+        "away": away,
+        "interruptions": interruptions,
+        "beats": focus["beats"] + 1,
+    }
+
+
+def focus_beat(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """The focus page is open and visible. A gap since the last heartbeat longer
+    than `FOCUS_GRACE` counts as time away, once per gap."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    return replace(
+        subscription, options={**subscription.options, "focus": _beat(focus, now or datetime.now(UTC))}
+    )
+
+
+def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """Stop the timer; what it measured becomes the draft of the session's log.
+    Without a single heartbeat (a browser without the script), the time is the time
+    between start and finish, and the log says the focus was not checked."""
+    now = now or datetime.now(UTC)
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    if focus["beats"]:
+        focus = _beat(focus, now)
+    started = datetime.fromisoformat(focus["started"])
+    elapsed = min(now - started, FOCUS_LONGEST)
+    focused = max(elapsed - timedelta(seconds=focus["away"]), timedelta(minutes=1))
+    draft = {
+        "course": focus["course"],
+        "sid": focus["sid"],
+        "started": focus["started"],
+        "ended": _iso(now),
+        "minutes": max(1, round(focused / timedelta(minutes=1))),
+        "away_minutes": round(focus["away"] / 60),
+        "interruptions": focus["interruptions"],
+        "checked": bool(focus["beats"]),
+        "timed": True,
+    }
+    options = {k: v for k, v in subscription.options.items() if k != "focus"}
+    return replace(subscription, options={**options, "focus_draft": draft})
+
+
+def cancel_focus(subscription: Subscription) -> Subscription:
+    options = {k: v for k, v in subscription.options.items() if k not in ("focus", "focus_draft")}
+    return replace(subscription, options=options)
+
+
+def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the focus page shows: the running session, or what can be started
+    (the courses, and the plan's session now or next)."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    focus = subscription.options.get("focus")
+    view: dict = {"running": bool(focus), "courses": course_names(subscription), "suggested": None}
+    if focus:
+        started = datetime.fromisoformat(focus["started"])
+        view.update(
+            course=focus["course"],
+            started=_iso(started),
+            started_local=f"{started.astimezone(zone):%H:%M}",
+            elapsed=round((now - started).total_seconds()),
+            away_minutes=round(focus["away"] / 60),
+            interruptions=focus["interruptions"],
+            beat=round(FOCUS_BEAT.total_seconds()),
+        )
+    elif subscription.plan is not None:
+        today = today_view(subscription, now)
+        card = today.get("now") or (today.get("next") or [None])[0]
+        if card is not None:
+            view["suggested"] = {
+                "id": card["id"],
+                "title": card["title"],
+                "label": card["label"],
+                "when": card["when"],
+            }
+    return view
+
+
+def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The log form's starting values: the session just timed, or an empty one."""
+    draft = subscription.options.get("focus_draft")
+    if draft:
+        return {**draft}
+    return {
+        "course": "",
+        "sid": "",
+        "minutes": 60,
+        "timed": False,
+        "checked": False,
+        "away_minutes": 0,
+        "interruptions": 0,
+    }
+
+
+def log_session(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> tuple[Subscription, social.Post]:
+    """Keep a study session in the diary, and publish it to whom the student
+    chose. A timed session keeps what the timer measured unless the student
+    changes the minutes, and then it no longer says it was timed. A session started
+    from the plan reports that session done."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    draft = log_draft(subscription, now)
+    minutes = str(form.get("minutes") or draft["minutes"])
+    timed = draft["timed"] and minutes == str(draft["minutes"])
+    data = {
+        "course": form.get("course") or draft["course"],
+        "title": form.get("title", ""),
+        "note": form.get("note", ""),
+        "effort": form.get("effort", ""),
+        "progress": form.get("progress", ""),
+        "minutes": minutes,
+        "timed": timed,
+        "checked": timed and draft["checked"],
+        "away_minutes": draft["away_minutes"] if timed else 0,
+        "interruptions": draft["interruptions"] if timed else 0,
+        "sid": draft.get("sid") or "",
+    }
+    day = (
+        datetime.fromisoformat(draft["started"]).astimezone(zone).date()
+        if draft.get("started")
+        else now.astimezone(zone).date()
+    )
+    try:
+        post = social.create_post(
+            _store(store),
+            subscription.token,
+            "session",
+            day=day.isoformat(),
+            visibility=str(form.get("visibility") or "followers"),
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+    changed = replace(
+        subscription, options={k: v for k, v in subscription.options.items() if k != "focus_draft"}
+    )
+    sid = draft.get("sid")
+    if sid and subscription.outcomes.get(sid) is None:
+        # If the plan has changed since, the diary keeps the session anyway.
+        with contextlib.suppress(InvalidInput):
+            changed = report_session(changed, sid, "done", now=now)
+    return changed, post
+
+
+def logged_sessions(store: str | os.PathLike, subscription: Subscription) -> list[_progress.Session]:
+    """The diary's sessions as `progress` counts them: each makes its day studied."""
+    zone = _zone(subscription.options["tz"])
+    out = []
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        day = date.fromisoformat(post.day)
+        out.append(
+            _progress.Session(
+                start=datetime.combine(day, time(12, 0), tzinfo=zone),
+                minutes=int(post.data.get("minutes", 0)),
+                kind="logged",
+                course=post.data.get("course", ""),
+                report="done",
+            )
+        )
+    return out
+
+
+EFFORT_WORDS = {1: "very easy", 3: "easy", 5: "steady", 7: "hard", 9: "very hard", 10: "all out"}
+PROGRESS_WORDS = {1: "stuck", 2: "a little", 3: "steady", 4: "good", 5: "a breakthrough"}
+
+
+def duration_words(minutes: int) -> str:
+    """ "45 min", "1 h 20", "2 h": how long a session lasted, as a person says it."""
+    if minutes < 60:
+        return _("{n} min", n=minutes)
+    hours, rest = divmod(minutes, 60)
+    return _("{h} h {m}", h=hours, m=f"{rest:02d}") if rest else _("{h} h", h=hours)
+
+
+def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: ZoneInfo) -> dict:
+    """A post as the pages draw it, for `viewer` (a token, or None): its photos'
+    addresses carry the viewer's page, which is how the server knows who asks."""
+    d = post.data
+    when = date.fromisoformat(post.day)
+    prefix = f"/p/{viewer}/m/" if viewer else "/m/"
+    card = {
+        **post.to_dict(),
+        "mine": viewer == post.token,
+        "when": format_date(when, "long"),
+        "photos": [prefix + name for name in d.get("photos", [])],
+    }
+    if post.kind == "session":
+        effort = int(d.get("effort", 0))
+        card["effort_word"] = _(EFFORT_WORDS[max(k for k in EFFORT_WORDS if k <= effort)]) if effort else ""
+        card["progress_word"] = _(PROGRESS_WORDS.get(int(d.get("progress", 0)), ""))
+        card["hours"] = format_number(int(d.get("minutes", 0)) / 60)
+        card["duration"] = duration_words(int(d.get("minutes", 0)))
+        if d.get("timed") and d.get("checked"):
+            card["focus"] = (
+                _n(
+                    "left the app {n} time ({minutes} min)",
+                    "left the app {n} times ({minutes} min)",
+                    d.get("interruptions", 0),
+                    minutes=d.get("away_minutes", 0),
+                )
+                if d.get("interruptions")
+                else _("focused the whole time")
+            )
+        elif d.get("timed"):
+            card["focus"] = _("timed, focus not checked")
+        else:
+            card["focus"] = _("not timed")
+    return card
+
+
+def diary_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The diary: one's own sessions and explanations, newest first, with this
+    week's focus time."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    posts = social.posts_of(_store(store), subscription.token)
+    monday = _progress.monday(now.astimezone(zone).date())
+    week = [p for p in posts if p.kind == "session" and date.fromisoformat(p.day) >= monday]
+    efforts = [int(p.data["effort"]) for p in week]
+    return {
+        "posts": [post_card(p, viewer=subscription.token, now=now, zone=zone) for p in posts],
+        "week": {
+            "sessions": len(week),
+            "hours": format_number(sum(int(p.data["minutes"]) for p in week) / 60),
+            "effort": format_number(sum(efforts) / len(efforts)) if efforts else "",
+        },
+    }
+
+
+def delete_post(store: str | os.PathLike, token: str, post_id: str) -> bool:
+    return social.delete_post(_store(store), token, post_id)
+
+
+def set_post_visibility(store: str | os.PathLike, token: str, post_id: str, visibility: str) -> bool:
+    try:
+        return social.set_visibility(_store(store), token, post_id, visibility)
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def photo_for(store: str | os.PathLike, viewer: str | None, name: str) -> tuple[bytes, str] | None:
+    """A post's photo, for someone allowed to see the post (D18)."""
+    where = _store(store)
+    post = social.photo_post(where, name)
+    if post is None or not social.may_see(where, viewer, post):
+        return None
+    path = where.photos / name
+    if not path.is_file():
+        return None
+    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
 
 
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:

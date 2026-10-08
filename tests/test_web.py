@@ -893,3 +893,79 @@ def test_pages_without_a_plan_follow_the_browser_or_the_address(web):
     assert '<html lang="fr">' in web.get("/", headers={"Accept-Language": "fr"}).text
     # Nothing is remembered: no cookie is set to carry the choice.
     assert "set-cookie" not in web.get("/?lang=fr").headers
+
+
+# --------------------------------------------------------------------------- #
+# Focus sessions and the diary (DECISIONS.md D17, D18)
+# --------------------------------------------------------------------------- #
+
+TINY_JPEG = (
+    b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+    b"\xff\xe1\x00\x14Exif\x00\x00GPS 48.84 N\x00"
+    b"\xff\xc0\x00\x11\x08\x00\x10\x00\x10\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01"
+    b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00pixels\xff\xd9"
+)
+
+
+def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clock):
+    page = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "Start this session" in page or "Start the timer" in page
+    web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3"})
+    running = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "Finish" in running and "/static/focus.js" in running and "Algebra 3" in running
+    assert "A session is running" in unescape(web.get(f"/p/{planned}").text)
+    for minute in range(0, 50):
+        clock.now = MORNING + timedelta(seconds=30 * minute)
+        assert web.post(f"/p/{planned}/focus/beat").status_code == 200
+    clock.now = MORNING + timedelta(minutes=45)  # 20 minutes without a beat: away
+    beat = web.post(f"/p/{planned}/focus/beat").json()
+    assert beat["interruptions"] == 1 and beat["away_minutes"] >= 19
+    finished = web.post(f"/p/{planned}/focus/finish", follow_redirects=False)
+    assert finished.headers["location"].endswith("/log")
+    form = unescape(web.get(f"/p/{planned}/log").text)
+    assert "left the app 1 time" in form and 'name="effort"' in form
+    saved = web.post(
+        f"/p/{planned}/log",
+        data={
+            "course": "Algebra 3",
+            "title": "Sheet 2",
+            "effort": "6",
+            "progress": "4",
+            "visibility": "followers",
+        },
+        files=[("photos", ("notes.jpg", TINY_JPEG, "image/jpeg"))],
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303 and saved.headers["location"].endswith("?saved=logged#diary")
+    diary = unescape(web.get(saved.headers["location"]).text)
+    assert "Saved in your diary." in diary and "Sheet 2" in diary and "6/10" in diary
+    photo = re.search(r'src="(/p/[^"]+/m/[^"]+)"', diary).group(1)
+    shown = web.get(photo)
+    assert shown.status_code == 200 and shown.headers["content-type"] == "image/jpeg"
+    assert b"GPS" not in shown.content and shown.headers["x-content-type-options"] == "nosniff"
+    # Followers-only: not at the public address, and not to another plan.
+    name = photo.rsplit("/", 1)[1]
+    assert web.get(f"/m/{name}").status_code == 404
+    other = _start(web)
+    assert web.get(f"/p/{other}/m/{name}").status_code == 404
+    # The day counts for the streak even with nothing planned; the post can go.
+    post = re.search(r'id="post-([^"]+)"', diary).group(1)
+    web.post(f"/p/{planned}/posts/{post}/visibility", data={"visibility": "everyone"})
+    assert web.get(f"/m/{name}").status_code == 200
+    web.post(f"/p/{planned}/posts/{post}/delete")
+    assert web.get(f"/m/{name}").status_code == 404
+    assert "Nothing logged yet" in unescape(web.get(f"/p/{planned}/progress").text)
+
+
+def test_a_log_with_a_mistake_is_shown_again_as_typed(web, planned):
+    answer = web.post(
+        f"/p/{planned}/log", data={"course": "Algebra 3", "title": "Kept", "effort": "12", "progress": "3"}
+    )
+    text = unescape(answer.text)
+    assert answer.status_code == 400 and "Effort is a number from 1 to 10" in text and 'value="Kept"' in text
+    bad = web.post(
+        f"/p/{planned}/log",
+        data={"course": "x", "effort": "5", "progress": "3"},
+        files=[("photos", ("x.svg", b"<svg onload=alert(1)>", "image/svg+xml"))],
+    )
+    assert bad.status_code == 400 and "JPEG or a PNG" in unescape(bad.text)

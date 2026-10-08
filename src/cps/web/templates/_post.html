@@ -1,0 +1,35 @@
+{# One post: a study session or an explanation. `p` from service.post_card, `token`. #}
+<article class="card post" id="post-{{ p.id }}">
+  <header class="post-head">
+    <div class="grow">
+      <p class="kicker">{% if p.author %}<a href="/p/{{ token }}/u/{{ p.author.handle }}">@{{ p.author.handle }}</a>{% if p.author.university %} · {{ p.author.university }}{% endif %} · {% endif %}{{ p.when }}</p>
+      <h3>{% if p.kind == "explain" %}{{ p.concept }}{% else %}{{ p.course }}{% endif %}</h3>
+    </div>
+    <span class="badge vis-{{ p.visibility }}" title="{{ _('Who sees it') }}">{% if p.visibility == 'me' %}{{ _("Only me") }}{% elif p.visibility == 'followers' %}{{ _("Followers") }}{% else %}{{ _("Everyone") }}{% endif %}</span>
+  {% if p.mine %}
+  <details class="menu">
+    <summary aria-label="{{ _('More') }}">···</summary>
+    <div class="menu-items">
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}{% if value != p.visibility %}
+      <form method="post" action="/p/{{ token }}/posts/{{ p.id }}/visibility"><input type="hidden" name="visibility" value="{{ value }}"><button type="submit">{{ _("Show to: {who}", who=_(word)) }}</button></form>
+      {% endif %}{% endfor %}
+      <form method="post" action="/p/{{ token }}/posts/{{ p.id }}/delete"><button type="submit" class="destructive">{{ _("Delete") }}</button></form>
+    </div>
+  </details>
+  {% endif %}
+  </header>
+  {% if p.kind == "session" %}
+  {% if p.title %}<p class="post-title">{{ p.title }}</p>{% endif %}
+  <dl class="post-stats">
+    <div><dt>{{ _("Time") }}</dt><dd>{{ p.duration }}</dd></div>
+    <div><dt>{{ _("Effort") }}</dt><dd>{{ p.effort }}/10 <small>{{ p.effort_word }}</small></dd></div>
+    <div><dt>{{ _("Progress") }}</dt><dd>{{ p.progress_word }}</dd></div>
+  </dl>
+  <p class="post-focus">{{ p.focus }}</p>
+  {% if p.note %}<p class="post-note">{{ p.note }}</p>{% endif %}
+  {% else %}
+  {% if p.course %}<p class="kicker">{{ p.course }}</p>{% endif %}
+  <p class="post-note">{{ p.text }}</p>
+  {% endif %}
+  {% if p.photos %}<div class="photos n{{ p.photos | length }}">{% for src in p.photos %}<a href="{{ src }}"><img src="{{ src }}" alt="{{ _('Photo {n}', n=loop.index) }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+</article>

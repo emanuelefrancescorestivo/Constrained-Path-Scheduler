@@ -61,6 +61,7 @@ HERE = Path(__file__).parent
 PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
 MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
+MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
 SWEEP_EVERY = timedelta(hours=6)
 
 SECURITY_HEADERS = {
@@ -350,10 +351,12 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def panel_context(subscription: service.Subscription) -> dict[str, Any]:
         now = config.clock()
+        logged = service.logged_sessions(store, subscription)
         return {
             "view": service.today_view(subscription, now),
-            "progress": service.progress_view(subscription, now),
-            "review": service.review_for_today(subscription, now),
+            "progress": service.progress_view(subscription, now, logged=logged),
+            "review": service.review_for_today(subscription, now, logged=logged),
+            "focus": subscription.options.get("focus"),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -391,15 +394,188 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         service.log_visit(store, token)
         now = config.clock()
+        logged = service.logged_sessions(store, subscription)
         return page(
             request,
             "progress.html",
             token=token,
-            view=service.progress_view(subscription, now),
-            review=service.weekly_review(subscription, now),
+            view=service.progress_view(subscription, now, logged=logged),
+            review=service.weekly_review(subscription, now, logged=logged),
+            diary=service.diary_view(store, subscription, now),
             saved=_notice(saved),
             tab="progress",
         )
+
+    # ------------------------------------------------------------ focus sessions
+
+    @app.get("/p/{token}/focus", response_class=HTMLResponse)
+    def focus(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return page(
+            request,
+            "focus.html",
+            token=token,
+            focus=service.focus_view(subscription, config.clock()),
+            tab="focus",
+        )
+
+    async def focus_change(
+        request: Request,
+        token: str,
+        change: Callable[[service.Subscription, Any], service.Subscription],
+        kind: str,
+    ) -> Response | service.Subscription:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        try:
+            fresh = service.update_subscription(store, token, lambda current: change(current, form))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        if fresh is None:
+            return missing(request)
+        service.log_event(store, token, kind)
+        return fresh
+
+    @app.post("/p/{token}/focus/start")
+    async def focus_start(request: Request, token: str) -> Response:
+        def change(current: service.Subscription, form: Any) -> service.Subscription:
+            sid = str(form.get("sid") or "") or None
+            return service.start_focus(current, str(form.get("course") or ""), sid=sid, now=config.clock())
+
+        done = await focus_change(request, token, change, "focus")
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.post("/p/{token}/focus/beat")
+    def focus_beat(request: Request, token: str) -> Response:
+        """The focus page's heartbeat (focus.js): it is open and visible."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        try:
+            fresh = service.update_subscription(
+                store, token, lambda current: service.focus_beat(current, now=config.clock())
+            )
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 409)
+        view = service.focus_view(fresh, config.clock()) if fresh else {}
+        return JSONResponse({k: view.get(k) for k in ("elapsed", "away_minutes", "interruptions")})
+
+    @app.post("/p/{token}/focus/finish")
+    async def focus_finish(request: Request, token: str) -> Response:
+        done = await focus_change(
+            request,
+            token,
+            lambda current, form: service.finish_focus(current, now=config.clock()),
+            "focus done",
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/log", 303)
+
+    @app.post("/p/{token}/focus/cancel")
+    async def focus_cancel(request: Request, token: str) -> Response:
+        done = await focus_change(
+            request, token, lambda current, form: service.cancel_focus(current), "focus off"
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.get("/p/{token}/log", response_class=HTMLResponse)
+    def log_form(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "log.html",
+            token=token,
+            draft=service.log_draft(subscription, config.clock()),
+            tab="focus",
+        )
+
+    @app.post("/p/{token}/log", response_class=HTMLResponse)
+    async def log_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        if int(request.headers.get("content-length") or 0) > MAX_POST_UPLOAD:
+            return page(
+                request,
+                "log.html",
+                413,
+                token=token,
+                draft=service.log_draft(subscription, config.clock()),
+                error=service.translate("These photos are too large together; send fewer or smaller ones."),
+                tab="focus",
+            )
+        form = await request.form(max_files=service.social.MAX_PHOTOS, max_fields=20)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            holder: dict[str, Any] = {}
+
+            def change(current: service.Subscription) -> service.Subscription:
+                fresh, post = service.log_session(store, current, fields, photos, now=config.clock())
+                holder["post"] = post
+                return fresh
+
+            service.update_subscription(store, token, change)
+        except service.ServiceError as error:
+            draft = {**service.log_draft(subscription, config.clock()), **fields}
+            return page(request, "log.html", 400, token=token, draft=draft, error=str(error), tab="focus")
+        service.log_event(store, token, "logged", fields.get("visibility", ""))
+        return RedirectResponse(f"/p/{token}/progress?saved=logged#diary", 303)
+
+    @app.post("/p/{token}/posts/{post_id}/delete")
+    def post_delete(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.delete_post(store, token, post_id)
+        return RedirectResponse(f"/p/{token}/progress?saved=deleted#diary", 303)
+
+    @app.post("/p/{token}/posts/{post_id}/visibility")
+    async def post_visibility(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.set_post_visibility(store, token, post_id, str(form.get("visibility") or ""))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        return RedirectResponse(f"/p/{token}/progress?saved=1#diary", 303)
+
+    def photo_response(viewer: str | None, name: str) -> Response:
+        found = service.photo_for(store, viewer, name)
+        if found is None:
+            return Response("not found\n", 404, media_type="text/plain")
+        data, kind = found
+        return Response(data, media_type=kind, headers={"Cache-Control": "private, max-age=86400"})
+
+    @app.get("/p/{token}/m/{name}")
+    def own_photo(token: str, name: str) -> Response:
+        return photo_response(token if load(token) is not None else None, name)
+
+    @app.get("/m/{name}")
+    def public_photo(name: str) -> Response:
+        return photo_response(None, name)
 
     @app.post("/p/{token}/review/seen")
     async def review_seen(request: Request, token: str) -> Response:
@@ -828,6 +1004,8 @@ def _html(text: str, /, **values: Any) -> Markup:
 def _notice(saved: str) -> str | None:
     if saved == "1":
         return service.translate("Saved. The plan has changed to match.")
+    if saved == "logged":
+        return service.translate("Saved in your diary.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
     notice = TASK_NOTICES.get(saved)

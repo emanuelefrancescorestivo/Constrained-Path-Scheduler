@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Log a session") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/log.js"></script>{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("How was it?") }}</h1>
+  {% if draft.timed %}<p>{{ _n("{n} minute focused", "{n} minutes focused", draft.minutes | int) }}{% if draft.checked %} · {% if draft.interruptions %}{{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", draft.interruptions | int, minutes=draft.away_minutes) }}{% else %}{{ _("focused the whole time") }}{% endif %}{% else %} · {{ _("timed, focus not checked") }}{% endif %}</p>{% endif %}
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/log" enctype="multipart/form-data" class="log-form" id="log-form">
+  <div class="card">
+    <label for="log-course">{{ _("Course") }}</label>
+    <input id="log-course" name="course" value="{{ draft.course }}" required list="qa-courses" autocomplete="off">
+    <label for="log-title">{{ _("What did you do?") }}</label>
+    <input id="log-title" name="title" value="{{ draft.title or '' }}" maxlength="120" placeholder="{{ _('Problem sheet 2, chapter 4, past paper 2024…') }}">
+    <label for="log-minutes">{{ _("Minutes") }}</label>
+    <input id="log-minutes" name="minutes" type="number" min="1" max="960" value="{{ draft.minutes }}" inputmode="numeric">
+    {% if draft.timed %}<p class="hint">{{ _("From the timer. Change it and the session no longer says it was timed.") }}</p>{% endif %}
+  </div>
+
+  <fieldset class="card section">
+    <legend>{{ _("Perceived effort") }}</legend>
+    <div class="scale" role="radiogroup" aria-label="{{ _('Perceived effort, 1 to 10') }}">
+      {% for n in range(1, 11) %}<label class="pill"><input type="radio" name="effort" value="{{ n }}" required{% if (draft.effort | string) == (n | string) %} checked{% endif %}><span>{{ n }}</span></label>{% endfor %}
+    </div>
+    <p class="scale-ends"><span>{{ _("very easy") }}</span><span>{{ _("all out") }}</span></p>
+  </fieldset>
+
+  <fieldset class="card section">
+    <legend>{{ _("Progress") }}</legend>
+    <div class="pills" role="radiogroup" aria-label="{{ _('How far you got') }}">
+      {% for n, word in ((1, "stuck"), (2, "a little"), (3, "steady"), (4, "good"), (5, "a breakthrough")) %}<label class="pill"><input type="radio" name="progress" value="{{ n }}" required{% if (draft.progress | string) == (n | string) %} checked{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+    </div>
+  </fieldset>
+
+  <div class="card section">
+    <label for="log-note">{{ _("Notes for yourself (or your followers)") }}</label>
+    <textarea id="log-note" name="note" rows="3" maxlength="1000" placeholder="{{ _('What clicked, what is still unclear, what is next…') }}">{{ draft.note or '' }}</textarea>
+    <label for="log-photos">{{ _("Photos of your notes or exercises (up to 4)") }}</label>
+    <input id="log-photos" name="photos" type="file" accept="image/jpeg,image/png,image/*" multiple>
+    <p class="hint">{{ _("Your own work only. Photos are made smaller and their location data removed before they are kept.") }}</p>
+  </div>
+
+  <fieldset class="card section">
+    <legend>{{ _("Who sees it") }}</legend>
+    <div class="pills" role="radiogroup">
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or 'followers') == value %} checked{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+    </div>
+    <p class="hint">{{ _("Every session stays in your diary, whoever sees it.") }}</p>
+  </fieldset>
+  <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Save") }}</button></div>
+</form>
+{% if courses %}<datalist id="qa-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+{% endblock %}

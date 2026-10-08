@@ -6,6 +6,20 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Focus sessions and a study diary, the first step of the study network
+  (DECISIONS.md D16 to D20, which replace D11's study buddies after the owner asked
+  for "a social network, like Strava"). A Focus tab: a full-screen timer for a
+  course or for the plan's session, the screen kept awake where the browser allows;
+  a heartbeat every 30 seconds, so that time away from the page is counted and shown
+  on the session ("left the app twice (6 min)"), and a session without the script
+  says its focus was not checked; a web page cannot block other apps, and native
+  blocking is a later step. Then the log: what was done, perceived effort 1 to 10,
+  progress 1 to 5, a note, up to four photos (made smaller and stripped of metadata
+  in the browser, stripped again on the server), and who sees it (only me,
+  followers, everyone). Every session goes to the diary on the Progress page, makes
+  its day studied for the streak, and reports the plan's session it was started
+  from. Deleting a post or a plan deletes its photos (`cps.social`,
+  `service.start_focus`, `focus_beat`, `finish_focus`, `log_session`, `diary_view`).
 - A reason to come back every day (docs/STRATEGY.md; DECISIONS.md D8, D9). A Progress
   tab: the week's sessions done of planned in a ring, the streak and the best one,
   the weeks since the plan began day by day, milestones, each exam's readiness. On
@@ -123,6 +137,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- On a phone, a long form's Save button sat under the tab bar (AUDIT.md item 42);
+  the effort scale no longer makes the log page wider than the screen.
 - The timetable reader was fitted to one university's export (AUDIT.md item 41). It
   now reads exams and courses in eleven systems' and countries' shapes (ADE,
   Hyperplanning, Celcat, Outlook with course codes, Italian, German, Spanish, Dutch,

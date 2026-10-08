@@ -5,6 +5,12 @@
   {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
+  {% if show_why and not card.reported and token %}
+  <form method="post" action="/p/{{ token }}/focus/start" class="start-focus">
+    <input type="hidden" name="sid" value="{{ card.id }}">
+    <button class="btn btn-sm btn-tinted">{{ _("Start focus") }}</button>
+  </form>
+  {% endif %}
   {% if card.started %}
   <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes" data-report>
     {% for value, word in outcome_words.items() %}

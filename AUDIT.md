@@ -579,3 +579,11 @@ written from how each system is documented to name events, not real exports; one
 real export (ADE) has been read; and keyword reading fails visibly on a shape no
 one has seen, which the settings page lets the student correct. Status: fixed for
 these shapes; open for real exports from other universities.
+
+**42. On a phone, a long form's Save button sat under the tab bar.** Found in the
+browser run of the session log at 390 px: the button that sticks to the bottom of a
+long form (Settings' "Save and plan", the log's "Save") stuck to the bottom of the
+screen, where the tab bar is, and the form's own content was drawn over it, so a tap
+reached a label instead. The Python tests could not see it; a click in Chromium
+could. Fixed: on pages with the tab bar the button sticks above it, and above the
+form's content. Status: fixed in Chromium; a real phone not tried.

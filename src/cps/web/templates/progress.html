@@ -58,6 +58,15 @@
   </div>
 </div>
 
+<p class="section"><a class="btn btn-primary btn-block" href="/p/{{ token }}/focus">{{ _("Start a focus session") }}</a></p>
+
+<div class="section" id="diary">
+  <div class="section-title"><h2>{{ _("Your diary") }}</h2>{% if diary.week.sessions %}<small>{{ _n("{n} session this week", "{n} sessions this week", diary.week.sessions) }} · {{ diary.week.hours }} h{% if diary.week.effort %} · {{ _("effort {n}/10", n=diary.week.effort) }}{% endif %}</small>{% endif %}</div>
+  {% for p in diary.posts %}{% include "_post.html" %}{% else %}
+  <div class="card empty"><b>{{ _("Nothing logged yet") }}</b>{{ _("Time a session, then say how it went: it lands here, with your notes and photos.") }}</div>
+  {% endfor %}
+</div>
+
 {% if review and review.planned %}
 <div class="section">
   <div class="section-title"><h2>{{ _("Last week") }}</h2></div>

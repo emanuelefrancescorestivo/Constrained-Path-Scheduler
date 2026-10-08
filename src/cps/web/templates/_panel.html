@@ -5,6 +5,7 @@
 </div>
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
+{% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 {% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
 

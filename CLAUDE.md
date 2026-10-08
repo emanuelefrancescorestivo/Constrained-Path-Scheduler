@@ -24,8 +24,8 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 451 passed, 14 deselected, 1 xfailed, about 70 s
-    pytest -m "slow or not slow" --cov=cps   # all 465 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 459 passed, 14 deselected, 1 xfailed, about 75 s
+    pytest -m "slow or not slow" --cov=cps   # all 473 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -52,6 +52,7 @@ more than an impressive number.
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words (D10) |
+| `social.py` | the study network's tables: posts (sessions, explanations), photos stripped of metadata, follows, kudos, comments, reports, blocks; who may see what (D16 to D20) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |

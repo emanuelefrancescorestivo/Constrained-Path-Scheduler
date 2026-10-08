@@ -51,6 +51,9 @@ const FR = {
   "No connection to the server. Try again.": "Pas de connexion au serveur. Réessaie.",
   "Reopened: {name}.": "Rouvert : {name}.",
   "Could not reopen it.": "Impossible de le rouvrir.",
+  "left the app {n} time ({minutes} min)": "app quittée {n} fois ({minutes} min)",
+  "left the app {n} times ({minutes} min)": "app quittée {n} fois ({minutes} min)",
+  "A photo could not be read. Try a JPEG or a PNG.": "Une photo n'a pas pu être lue. Essaie un JPEG ou un PNG.",
 };
 
 const CATALOGUES = { fr: FR };

@@ -20,6 +20,7 @@ Three properties matter more than speed:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -48,7 +49,89 @@ CREATE TABLE IF NOT EXISTS events (
     detail TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS events_by_token ON events (token);
+
+-- The study network (DECISIONS.md D16 to D20). Rows belong to a plan's token and
+-- go with it (`delete`, `sweep`). Post and comment ids are random.
+CREATE TABLE IF NOT EXISTS profiles (
+    token      TEXT PRIMARY KEY,
+    handle     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    university TEXT NOT NULL DEFAULT '',
+    programme  TEXT NOT NULL DEFAULT '',
+    bio        TEXT NOT NULL DEFAULT '',
+    created    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS posts (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    created    TEXT NOT NULL,
+    day        TEXT NOT NULL,
+    visibility TEXT NOT NULL,
+    data       TEXT NOT NULL,
+    hidden     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS posts_by_token ON posts (token, created);
+CREATE INDEX IF NOT EXISTS posts_by_visibility ON posts (visibility, created);
+CREATE TABLE IF NOT EXISTS photos (
+    name TEXT PRIMARY KEY,
+    post TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS follows (
+    follower TEXT NOT NULL,
+    followed TEXT NOT NULL,
+    status   TEXT NOT NULL,
+    created  TEXT NOT NULL,
+    PRIMARY KEY (follower, followed)
+);
+CREATE TABLE IF NOT EXISTS kudos (
+    post    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    PRIMARY KEY (post, token)
+);
+CREATE TABLE IF NOT EXISTS comments (
+    id      TEXT PRIMARY KEY,
+    post    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    body    TEXT NOT NULL,
+    hidden  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS comments_by_post ON comments (post, created);
+CREATE TABLE IF NOT EXISTS reports (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    target   TEXT NOT NULL,
+    kind     TEXT NOT NULL,
+    reporter TEXT NOT NULL,
+    reason   TEXT NOT NULL,
+    created  TEXT NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (target, reporter)
+);
+CREATE TABLE IF NOT EXISTS blocks (
+    blocker TEXT NOT NULL,
+    blocked TEXT NOT NULL,
+    created TEXT NOT NULL,
+    PRIMARY KEY (blocker, blocked)
+);
 """
+
+# What deleting a plan removes from the network: its own rows, and what others
+# left on its posts (comments, kudos, reports on them).
+_FORGET = (
+    "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM reports WHERE target IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM reports WHERE target IN (SELECT id FROM comments WHERE token = :t)",
+    "DELETE FROM photos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM posts WHERE token = :t",
+    "DELETE FROM comments WHERE token = :t",
+    "DELETE FROM kudos WHERE token = :t",
+    "DELETE FROM reports WHERE reporter = :t",
+    "DELETE FROM follows WHERE follower = :t OR followed = :t",
+    "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
+    "DELETE FROM profiles WHERE token = :t",
+)
 
 
 class Conflict(Exception):
@@ -82,6 +165,27 @@ class Store:
                 yield db
         finally:
             db.close()
+
+    @property
+    def photos(self) -> Path:
+        """Where posts' photos are kept, next to the database (DECISIONS.md D18)."""
+        return self.path.parent / "photos"
+
+    def connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
+        """A connection in a transaction, for the modules that keep their own tables
+        here (`cps.social`)."""
+        return self._connect()
+
+    def _forget(self, db: sqlite3.Connection, token: str) -> None:
+        photos = [
+            name
+            for (data,) in db.execute("SELECT data FROM posts WHERE token = ?", (token,))
+            for name in json.loads(data).get("photos", [])
+        ]
+        for statement in _FORGET:
+            db.execute(statement, {"t": token})
+        for name in photos:
+            (self.photos / name).unlink(missing_ok=True)
 
     @staticmethod
     def valid(token: str) -> bool:
@@ -149,6 +253,7 @@ class Store:
         with self._connect() as db:
             gone = db.execute("DELETE FROM subscriptions WHERE token = ?", (token,)).rowcount
             db.execute("DELETE FROM events WHERE token = ?", (token,))
+            self._forget(db, token)
         return bool(gone)
 
     def log(self, token: str, kind: str, detail: str = "") -> None:
@@ -194,6 +299,7 @@ class Store:
             for token in tokens:
                 db.execute("DELETE FROM subscriptions WHERE token = ?", (token,))
                 db.execute("DELETE FROM events WHERE token = ?", (token,))
+                self._forget(db, token)
         return len(tokens)
 
     def count(self) -> int:

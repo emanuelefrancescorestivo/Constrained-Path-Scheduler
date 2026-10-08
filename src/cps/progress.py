@@ -14,6 +14,8 @@ rules, in one place:
 * Today is **today** until it is studied: it cannot be missed before it is over.
 * The streak counts studied days since the last missed day; rest and forgiven
   days pass it on unchanged.
+* A focus session the student logged (kind "logged", DECISIONS.md D17) makes its
+  day studied, planned or not; it is not part of what the plan planned.
 
 The planner's own rule that a session not reported counts as done (so a
 forgotten tap does not derail a plan) does not apply here: a streak that grows
@@ -48,6 +50,10 @@ class Session:
     @property
     def confirmed(self) -> bool:
         return self.report in CONFIRMED
+
+    @property
+    def planned(self) -> bool:
+        return self.kind != "logged"
 
 
 @dataclass(frozen=True)
@@ -94,12 +100,13 @@ def streak(sessions: Sequence[Session], first: date, today: date) -> Streak:
     day = first
     while day <= today:
         items = days.get(day, [])
+        planned = [s for s in items if s.planned]
         done = sum(s.confirmed for s in items)
         if done:
             state = "studied"
             run += 1
             best = max(best, run)
-        elif not items:
+        elif not planned:
             state = "rest"
         elif day == today:
             state = "today"
@@ -109,15 +116,15 @@ def streak(sessions: Sequence[Session], first: date, today: date) -> Streak:
         else:
             state = "missed"
             run = 0
-        out.append(Day(day, state, len(items), done))
+        out.append(Day(day, state, len(planned), done))
         day += timedelta(days=1)
-    todays = days.get(today, [])
+    todays = [s for s in days.get(today, []) if s.planned]
     goal = next((g for g in STREAK_GOALS if g > run), run + 1)
     return Streak(
         current=run,
         best=best,
         today_planned=len(todays),
-        today_done=any(s.confirmed for s in todays),
+        today_done=any(s.confirmed for s in days.get(today, [])),
         goal=goal,
         days=tuple(out),
     )
@@ -141,7 +148,7 @@ def grid(sessions: Sequence[Session], first: date, today: date, weeks: int = 12)
             elif day < first:
                 row.append(Day(day, "before", 0, 0))
             else:
-                items = days.get(day, [])
+                items = [s for s in days.get(day, []) if s.planned]
                 row.append(Day(day, "future", len(items), 0))
         rows.append(row)
     return rows
@@ -160,6 +167,8 @@ class Week:
     minutes_planned: int
     days_studied: int
     sessions: tuple[Session, ...]
+    logged: int = 0  # focus sessions the student logged
+    minutes_logged: int = 0
 
     @property
     def percent(self) -> int | None:
@@ -172,7 +181,9 @@ class Week:
 def week(sessions: Sequence[Session], first: date, now: datetime) -> Week:
     """The week starting on the Monday `first`, as of `now` (local)."""
     end = first + timedelta(days=7)
-    items = tuple(s for s in sessions if first <= s.start.date() < end)
+    within = [s for s in sessions if first <= s.start.date() < end]
+    items = tuple(s for s in within if s.planned)
+    logged = [s for s in within if not s.planned]
     past = [s for s in items if s.start <= now]
     return Week(
         first=first,
@@ -182,8 +193,10 @@ def week(sessions: Sequence[Session], first: date, now: datetime) -> Week:
         waiting=sum(s.report is None for s in past),
         minutes_done=sum(s.minutes for s in items if s.confirmed),
         minutes_planned=sum(s.minutes for s in items),
-        days_studied=len({s.start.date() for s in items if s.confirmed}),
+        days_studied=len({s.start.date() for s in within if s.confirmed}),
         sessions=items,
+        logged=len(logged),
+        minutes_logged=sum(s.minutes for s in logged),
     )
 
 
@@ -191,7 +204,7 @@ def full_weeks(sessions: Sequence[Session], today: date) -> int:
     """Weeks before this one with at least FULL_WEEK sessions, all confirmed."""
     weeks: dict[date, list[Session]] = {}
     for s in sessions:
-        if s.start.date() < monday(today):
+        if s.planned and s.start.date() < monday(today):
             weeks.setdefault(monday(s.start.date()), []).append(s)
     return sum(len(v) >= FULL_WEEK and all(s.confirmed for s in v) for v in weeks.values())
 
