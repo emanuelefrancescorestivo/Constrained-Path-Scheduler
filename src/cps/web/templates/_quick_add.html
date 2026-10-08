@@ -9,6 +9,12 @@
       <button type="submit" class="btn btn-plain"><b>{{ _("Add") }}</b></button>
     </div>
     <div class="sheet-body">
+      <div class="typed">
+        <label class="visually-hidden" for="qa-words">{{ _("Type the task in one line") }}</label>
+        <input id="qa-words" name="words" maxlength="200" autocomplete="off" enterkeyhint="go" placeholder="{{ _('Stats report for Friday, about 6 h') }}">
+        <button type="submit" class="btn btn-sm btn-tinted" formaction="/p/{{ token }}/tasks/understand" formnovalidate data-understand>{{ _("Fill in") }}</button>
+      </div>
+      <p class="hint typed-note" hidden></p>
       <label class="visually-hidden" for="qa-name">{{ _("What needs doing") }}</label>
       <input id="qa-name" name="name" class="title-input" required autocomplete="off" placeholder="{{ _('Statistics report, problem sheet…') }}">
       <div class="sheet-group">

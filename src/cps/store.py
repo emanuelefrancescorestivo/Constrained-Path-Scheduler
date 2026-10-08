@@ -108,6 +108,17 @@ CREATE TABLE IF NOT EXISTS reports (
     resolved INTEGER NOT NULL DEFAULT 0,
     UNIQUE (target, reporter)
 );
+CREATE TABLE IF NOT EXISTS ai_usage (
+    created       TEXT NOT NULL,
+    token         TEXT NOT NULL,
+    feature       TEXT NOT NULL,
+    model         TEXT NOT NULL,
+    input_tokens  INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cost          REAL NOT NULL,
+    ok            INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ai_usage_by_time ON ai_usage (created);
 CREATE TABLE IF NOT EXISTS blocks (
     blocker TEXT NOT NULL,
     blocked TEXT NOT NULL,
@@ -133,6 +144,9 @@ _FORGET = (
     "DELETE FROM follows WHERE follower = :t OR followed = :t",
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
     "DELETE FROM profiles WHERE token = :t",
+    # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
+    # plan it was (D12).
+    "UPDATE ai_usage SET token = '' WHERE token = :t",
 )
 
 

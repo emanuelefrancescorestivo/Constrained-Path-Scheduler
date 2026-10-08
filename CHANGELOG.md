@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- AI, opt-in and capped (D12). A line in the new-task sheet: type the task in words
+  ("stats report for Friday, about 6 h", "rapport de stats pour vendredi 18h, 6
+  heures") and "Fill in" puts a name, a due date, hours and a course in the fields, to
+  check before adding; without scripts, a page with the form filled in. Rules read
+  it always (`ai.read_task`); with `ANTHROPIC_API_KEY` set and AI turned on in
+  Settings, Claude reads it (structured outputs, low effort) and writes the weekly
+  review's paragraph, kept per week and numbers. A ledger (`ai_usage`) counts every
+  call's tokens and dollars; the monthly cap (`CPS_AI_MONTHLY_CAP_USD`, default 10)
+  and twenty calls per student a day stop calls; any refusal, error or answer out of
+  bounds gives the rules' answer. Anthropic's SDK is the optional `ai` extra.
 - Moderation for the network (D20). Every post (its ··· menu) and every comment can
   be reported, with a reason; the third different person to report something hides
   it from everyone but its author until the owner reviews it at

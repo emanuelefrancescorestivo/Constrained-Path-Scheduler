@@ -54,6 +54,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from . import ai as _ai
 from . import i18n as _i18n
 from . import progress as _progress
 from . import social as social
@@ -3702,6 +3703,126 @@ def post_explanation(
         )
     )
     return post
+
+
+# --------------------------------------------------------------------------- #
+# AI, opt-in and capped (DECISIONS.md D12)
+
+
+def ai_available() -> bool:
+    """Whether this server can ask a model at all: a key, the SDK, a priced model."""
+    return _ai.from_env() is not None
+
+
+def ai_on(subscription: Subscription) -> bool:
+    return bool(subscription.options.get("ai"))
+
+
+def set_ai(subscription: Subscription, on: bool) -> Subscription:
+    """Turn AI on or off for a plan. Off is the default: what a student types is
+    sent to a processor in the United States only after they say yes."""
+    return replace(subscription, options={**subscription.options, "ai": bool(on)})
+
+
+def understand_task(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    words: str,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict:
+    """A task typed in one line, as the new-task form's fields, to check before
+    adding: read by rules, and by the model when AI is on and allowed. Where the
+    model leaves a field empty, the rules' reading stays."""
+    now = now or datetime.now(UTC)
+    words = " ".join(str(words).split())[:200]
+    if not words:
+        raise InvalidInput(_("type the task in a few words"))
+    tz = subscription.options["tz"]
+    local = now.astimezone(_zone(tz))
+    courses = course_names(subscription)
+    guess = _ai.read_task(words, today=local.date(), courses=courses)
+    by = "rules"
+    model = (provider or _ai.from_env()) if ai_on(subscription) else None
+    if model is not None:
+        system, prompt = _ai.task_prompt(words, local, tz, courses)
+        data = _ai.ask(
+            _store(store),
+            subscription.token,
+            model,
+            "task",
+            system=system,
+            prompt=prompt,
+            schema=_ai.TASK_SCHEMA,
+            max_tokens=1500,
+            now=now,
+        )
+        read = _ai.task_from_answer(data, today=local.date(), courses=courses) if data else None
+        if read is not None:
+            guess = _ai.TaskGuess(
+                name=read.name,
+                due=read.due or guess.due,
+                hours=read.hours or guess.hours,
+                course=read.course or guess.course,
+            )
+            by = "ai"
+    note = (
+        _("Read by AI: check it before adding.")
+        if by == "ai"
+        else _("Read from your words: check it before adding.")
+    )
+    if not guess.due:
+        note += " " + _("No date found: choose one.")
+    return {**guess.as_dict(), "by": by, "note": note}
+
+
+def review_with_ai(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    review: dict | None,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict | None:
+    """The weekly review with its paragraph written by the model, when AI is on and
+    allowed; else as the rules wrote it. A paragraph is kept with the plan, keyed by
+    the week, the language and the numbers it was written from, so a page view does
+    not ask again, and a late report (new numbers) gets a new paragraph."""
+    if not review or not review.get("planned") or not ai_on(subscription):
+        return review
+    now = now or datetime.now(UTC)
+    lang = language_of(subscription)
+    system, prompt = _ai.review_prompt(review, {"fr": "French"}.get(lang, "English"))
+    key = f"{review['week']}:{lang}:{hashlib.sha256(prompt.encode()).hexdigest()[:12]}"
+    kept = subscription.options.get("review_ai") or {}
+    if key in kept:
+        return {**review, "text": kept[key], "by": "ai"}
+    model = provider or _ai.from_env()
+    if model is None:
+        return review
+    data = _ai.ask(
+        _store(store),
+        subscription.token,
+        model,
+        "review",
+        system=system,
+        prompt=prompt,
+        schema=_ai.REVIEW_SCHEMA,
+        max_tokens=1500,
+        now=now,
+    )
+    text = _ai.paragraph_from_answer(data) if data else None
+    if text is None:
+        return review
+
+    def keep(current: Subscription) -> Subscription:
+        recent = {k: v for k, v in (current.options.get("review_ai") or {}).items() if k >= review["week"]}
+        return replace(current, options={**current.options, "review_ai": {**recent, key: text}})
+
+    with contextlib.suppress(ServiceError):
+        update_subscription(store, subscription.token, keep)
+    return {**review, "text": text, "by": "ai"}
 
 
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:

@@ -148,7 +148,9 @@ cps web                        # http://127.0.0.1:8000
    why, "done, skipped, hard", and moving it by date and time. Day, three days or a
    week (← → to move, T for today); tabs at the bottom on a phone.
 4. **Tasks**, as in Motion: a new-task sheet on every page (the + button, or N) with
-   one-tap due dates and durations; the Tasks page lists each with its sessions done
+   one-tap due dates and durations, and a line to type it in words ("stats report for
+   Friday, about 6 h", or in French) that fills the fields in to check; by rules, or
+   by a model if the server has a key and the student turns AI on (D12, capped); the Tasks page lists each with its sessions done
    and the next one; tick it off when it is finished and its remaining sessions become
    free time (with an Undo).
 5. **Progress**, a reason to come back (`docs/STRATEGY.md`): the week's sessions done
@@ -345,9 +347,9 @@ in a real browser are the owner's.
 ## Checking it yourself
 
 ```bash
-pip install -e ".[dev,app,web]"
-pytest                                    # 475 passed, 14 deselected (slow), 1 xfailed, ~85 s
-pytest -m "slow or not slow" --cov=cps    # everything: 489 passed, 1 xfailed, 93% coverage
+pip install -e ".[dev,app,web,ai]"
+pytest                                    # 505 passed, 14 deselected (slow), 1 xfailed, ~90 s
+pytest -m "slow or not slow" --cov=cps    # everything: 519 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

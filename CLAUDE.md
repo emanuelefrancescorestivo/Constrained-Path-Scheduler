@@ -20,12 +20,12 @@ more than an impressive number.
 
 ## Commands
 
-    pip install -e ".[dev,app,web]"         # app = streamlit (app.py); web = the hosted app
+    pip install -e ".[dev,app,web,ai]"      # app = streamlit (app.py); web = the hosted app; ai = Anthropic's SDK
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 475 passed, 14 deselected, 1 xfailed, about 85 s
-    pytest -m "slow or not slow" --cov=cps   # all 489 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 505 passed, 14 deselected, 1 xfailed, about 90 s
+    pytest -m "slow or not slow" --cov=cps   # all 519 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -52,6 +52,7 @@ more than an impressive number.
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words (D10) |
+| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations), photos stripped of metadata, follows, kudos, comments, reports, blocks; who may see what (D16 to D20) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
@@ -138,6 +139,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
   owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.
+- AI (D12) has run only against a fake provider: no model answer has been tried on
+  real sentences. With no `ANTHROPIC_API_KEY`, the rules answer, as they do whenever
+  the model is off, over the cap or wrong.
 - Moodle deadlines are read from English event names only; their hours are a guess
   (2 h) until the student changes them.
 - FSRS weights are population defaults; a subject's starting stability and

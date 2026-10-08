@@ -59,6 +59,10 @@ document.addEventListener("submit", async (event) => {
   const form = event.target.closest("form[data-async]");
   if (!form) return;
   event.preventDefault();
+  if (event.submitter && event.submitter.hasAttribute("data-understand")) {
+    await understand(form, event.submitter);
+    return;
+  }
   const task = form.closest(".task");
   const finishing = form.action.endsWith("/tasks/done") && form.elements.done && form.elements.done.value === "1";
   if (task && finishing) task.classList.add("ticking"); // the tick shows at once
@@ -91,6 +95,48 @@ document.addEventListener("submit", async (event) => {
     form.querySelectorAll("button").forEach((b) => (b.disabled = false));
   }
 });
+
+// A task typed in one line: the server reads it (rules, or the model when AI is
+// on, D12) and the sheet's fields are filled in, to check before adding.
+async function understand(form, button) {
+  const words = form.elements.words.value.trim();
+  if (!words) {
+    form.elements.words.focus();
+    return;
+  }
+  button.disabled = true;
+  try {
+    const answer = await fetch(button.formAction, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      body: new URLSearchParams({ words }),
+    });
+    const read = await answer.json();
+    if (!answer.ok) {
+      toast(read.message || t("That did not work. Try again."), { bad: true });
+      return;
+    }
+    form.elements.name.value = read.name;
+    if (read.due) {
+      form.elements.due.value = read.due;
+      form.querySelectorAll("[data-due]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+    }
+    if (read.hours) {
+      const pill = [...form.querySelectorAll('input[name="hours"]')].find((r) => Number(r.value) === read.hours);
+      form.querySelectorAll('input[name="hours"]').forEach((r) => (r.checked = r === pill));
+      form.elements.hours_other.value = pill ? "" : String(read.hours);
+    }
+    if (read.course) form.elements.course.value = read.course;
+    const note = form.querySelector(".typed-note");
+    note.textContent = read.note;
+    note.hidden = false;
+    (read.due ? form.elements.name : form.elements.due).focus();
+  } catch {
+    toast(t("No connection to the server. Try again."), { bad: true });
+  } finally {
+    button.disabled = false;
+  }
+}
 
 async function reopen(form, name) {
   const undo = document.createElement("form");
@@ -140,6 +186,14 @@ if (sheet && !("popover" in HTMLElement.prototype)) {
     if (other.value) sheet.querySelectorAll('input[name="hours"]').forEach((r) => (r.checked = false));
   });
   sheet.querySelectorAll('input[name="hours"]').forEach((r) => r.addEventListener("change", () => (other.value = "")));
+  // Return in the one-line field reads the line, rather than adding a task without a name.
+  const words = sheet.querySelector('input[name="words"]');
+  words.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      sheet.querySelector("[data-understand]").click();
+    }
+  });
   sheet.addEventListener("toggle", (event) => {
     if (event.newState === "open") setTimeout(() => sheet.querySelector('input[name="name"]').focus(), 30);
   });

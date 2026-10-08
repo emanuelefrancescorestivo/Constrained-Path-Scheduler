@@ -123,7 +123,7 @@ an optional `ai` extra; the core does not import it). The model is a setting,
 million input and output tokens, Anthropic's price list as cached on 2026-10-06);
 Claude Haiku 5.5 (`claude-haiku-5-5`, $0.10 and $0.50) is the cheaper choice the
 owner can make. Answers are constrained by a JSON schema (structured outputs), at
-low effort, with Anthropic's server-side refusal fallback on. Every call's
+low effort. Every call's
 tokens and cost are written to an `ai_usage` table; the cap, `CPS_AI_MONTHLY_CAP_USD`
 (default 10), is checked against the month's total plus the call's worst case
 before each call. The API bills in dollars, so the cap is in dollars.
@@ -141,7 +141,27 @@ privacy page names it.
 **Rejected.** AI tutoring or quiz generation (free elsewhere, costly here); AI on by
 default (consent first); a provider-neutral HTTP shim (the official SDK handles
 retries, timeouts and errors; another provider can implement the same small
-interface later); students' own keys (almost none have one).
+interface later); students' own keys (almost none have one). Also rejected, while
+building it: Anthropic's server-side refusal fallback, which this decision first
+named. The rules are already the fallback here, and a fallback model is billed at its
+own rates, which the ledger would have to know to keep the cap honest.
+
+**Built (step E5).** `cps.ai`: `read_task` (the rules: dates, weekdays, "in 3 days",
+"12/10" day first unless the first number cannot be a month, times, hours or minutes
+of work, the course sharing a word's first four letters; English and French);
+`AnthropicProvider` (the SDK, a 20-second timeout, one retry, effort low, a JSON
+schema); `ask` (the ledger, `ai_usage`: the cap checked against the month's spending
+plus the call's worst case, counting every byte of the prompt as a token and every
+output token as used; twenty calls per student per rolling day); what is accepted
+back (a due date from today to a year ahead, hours from 0 to 200, a course from the
+student's list, a paragraph of 20 to 700 characters), else the rules. A review's
+paragraph is kept with the plan, keyed by week, language and the numbers it was
+written from. In the new-task sheet, a one-line field and "Fill in"; without scripts,
+a page with the form filled in. Settings: on or off, with what is sent. Deleting a
+plan keeps its calls' costs in the ledger (the month's cap) and removes the plan's
+token from them. Measured: nothing yet; no key has been used in this repository, and
+the model's answers have not been tried against real sentences (the tests use a fake
+provider).
 
 ## D13. The free core is decided now and never shrinks
 

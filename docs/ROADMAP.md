@@ -50,7 +50,7 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E4c Moderation**: report, hide, block, the owner's review page (D20).
 - [ ] **C4 (owner)** Set `CPS_ADMIN_TOKEN` on the host and read `/admin/<token>` at
       least once a day during the pilot (docs/DEPLOY.md).
-- [ ] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
+- [x] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
       (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
 - [ ] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in

@@ -192,6 +192,16 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("The pages and what each session says to do, in your calendar too.") }}</p>
+<h2 class="section" id="ai">{{ _("AI") }}</h2>
+{% if ai.available %}
+<form method="post" action="/p/{{ token }}/ai" class="card">
+  <p>{% if ai.on %}{{ _("AI is on. It reads the tasks you type in one line, and writes your weekly review's paragraph.") }}{% else %}{{ _("AI is off. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}{% endif %}</p>
+  <p class="hint">{{ _("When it is on, the line you type (with today's date, your time zone and your course names) and your weekly review's numbers (with course and exam names) are sent to Anthropic, which makes the Claude models. Nothing else: not your timetable, not your plan's address, nothing from the network.") }}</p>
+  <div class="row-end"><button type="submit" name="on" value="{{ '0' if ai.on else '1' }}" class="btn{% if not ai.on %} btn-primary{% endif %}">{% if ai.on %}{{ _("Turn AI off") }}{% else %}{{ _("Turn AI on") }}{% endif %}</button></div>
+</form>
+{% else %}
+<p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
+{% endif %}
 <h2 class="section">{{ _("Your data") }}</h2>
 <p><a href="/p/{{ token }}/delete">{{ _("Delete my plan and all my data") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a></p>
 </div>

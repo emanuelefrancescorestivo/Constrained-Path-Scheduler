@@ -370,7 +370,9 @@ def create_app(config: Config | None = None) -> FastAPI:
         return {
             "view": service.today_view(subscription, now),
             "progress": service.progress_view(subscription, now, logged=logged),
-            "review": service.review_for_today(subscription, now, logged=logged),
+            "review": service.review_with_ai(
+                store, subscription, service.review_for_today(subscription, now, logged=logged), now=now
+            ),
             "focus": subscription.options.get("focus"),
         }
 
@@ -415,7 +417,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             "progress.html",
             token=token,
             view=service.progress_view(subscription, now, logged=logged),
-            review=service.weekly_review(subscription, now, logged=logged),
+            review=service.review_with_ai(
+                store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
+            ),
             diary=service.diary_view(store, subscription, now),
             saved=_notice(saved),
             tab="progress",
@@ -1165,6 +1169,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             empty_rows=forms.EMPTY_ROWS,
             tab="settings",
             saved=_notice(saved),
+            ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -1199,6 +1204,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 empty_rows=forms.EMPTY_ROWS,
                 error=str(error),
                 tab="settings",
+                ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             )
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
@@ -1258,6 +1264,43 @@ def create_app(config: Config | None = None) -> FastAPI:
             return plan_page(request, subscription, "today", 400, task_error=str(error))
         service.log_event(store, token, "task")
         return RedirectResponse(back_to(token, where, saved="added"), 303)
+
+    @app.post("/p/{token}/tasks/understand", response_class=HTMLResponse)
+    async def understand_task(request: Request, token: str) -> Response:
+        """A task typed in one line, read into the new-task form's fields (D12). The
+        sheet's script asks for JSON and fills its fields; without the script the
+        answer is a page with the same form, filled in, to check and add."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=12)
+        words = str(form.get("words") or "")
+        wants_json = "application/json" in request.headers.get("accept", "")
+        try:
+            read = service.understand_task(store, subscription, words, now=config.clock())
+        except service.ServiceError as error:
+            if wants_json:
+                return JSONResponse(error.to_dict(), 400)
+            return tasks_page(request, subscription, 400, task_error=str(error))
+        service.log_event(store, token, "understood", read["by"])
+        if wants_json:
+            return JSONResponse(read)
+        return page(request, "task_new.html", token=token, read=read, words=words, tab="tasks")
+
+    @app.post("/p/{token}/ai")
+    async def ai_setting(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        on = form.get("on") == "1"
+        try:
+            service.update_subscription(store, token, lambda current: service.set_ai(current, on))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "ai", "on" if on else "off")
+        return RedirectResponse(f"/p/{token}/settings?saved=ai#ai", 303)
 
     @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)
     async def task_done(request: Request, token: str) -> Response:
@@ -1411,6 +1454,8 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved in your diary.")
     if saved in NETWORK_NOTICES:
         return service.translate(NETWORK_NOTICES[saved])
+    if saved == "ai":
+        return service.translate("Saved.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
     notice = TASK_NOTICES.get(saved)

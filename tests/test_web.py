@@ -1137,3 +1137,66 @@ def test_report_block_and_the_owners_review(tmp_path, clock):
         create_app(Config(store=tmp_path, clock=clock, background=False, sweep_every=None))
     ) as web:
         assert web.get(f"/admin/{key}").status_code == 404  # no key set, no page
+
+
+def test_a_task_typed_in_one_line_is_read_into_the_form(web, planned):
+    sheet = unescape(web.get(f"/p/{planned}/tasks").text)
+    assert 'formaction="/p/' in sheet and "data-understand" in sheet and "Fill in" in sheet
+    # With the script: JSON, to fill the sheet's fields in place.
+    read = web.post(
+        f"/p/{planned}/tasks/understand",
+        data={"words": "stats report for Friday, about 6 h"},
+        headers={"Accept": "application/json"},
+    ).json()
+    assert read["name"] == "Stats report" and read["due"] == "2026-10-02T23:59" and read["hours"] == 6
+    assert read["course"] == "Advanced Statistics" and read["by"] == "rules"
+    assert (
+        web.post(
+            f"/p/{planned}/tasks/understand", data={"words": " "}, headers={"Accept": "application/json"}
+        ).status_code
+        == 400
+    )
+    # Without it: a page with the form filled in, which adds the task.
+    page = unescape(
+        web.post(f"/p/{planned}/tasks/understand", data={"words": "essay due 12/10 (4 hours)"}).text
+    )
+    assert 'value="Essay"' in page and 'value="2026-10-12T23:59"' in page and 'value="4.0"' in page
+    added = web.post(
+        f"/p/{planned}/tasks",
+        data={"back": "tasks", "name": "Essay", "due": "2026-10-12T23:59", "hours_other": "4"},
+        follow_redirects=False,
+    )
+    assert added.status_code == 303 and "Essay" in unescape(web.get(f"/p/{planned}/tasks").text)
+
+
+def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypatch):
+    from cps import ai
+
+    assert "AI is not set up on this server" in unescape(web.get(f"/p/{planned}/settings").text)
+
+    class Model:
+        model = ai.DEFAULT_MODEL
+
+        def ask(self, system, prompt, schema, max_tokens):
+            return ai.fake_answer(
+                {"name": "Statistics report", "due": "2026-10-09T12:00", "hours": 5, "course": ""}
+            )
+
+    monkeypatch.setattr(ai, "from_env", lambda: Model())
+    settings = unescape(web.get(f"/p/{planned}/settings").text)
+    assert "AI is off." in settings and "Turn AI on" in settings and "Anthropic" in settings
+    ask = {"words": "stats report", "headers": {"Accept": "application/json"}}
+    assert (
+        web.post(
+            f"/p/{planned}/tasks/understand", data={"words": ask["words"]}, headers=ask["headers"]
+        ).json()["by"]
+        == "rules"
+    )
+    web.post(f"/p/{planned}/ai", data={"on": "1"})
+    assert "AI is on." in unescape(web.get(f"/p/{planned}/settings").text)
+    read = web.post(
+        f"/p/{planned}/tasks/understand", data={"words": ask["words"]}, headers=ask["headers"]
+    ).json()
+    assert read["by"] == "ai" and read["name"] == "Statistics report" and "Read by AI" in read["note"]
+    web.post(f"/p/{planned}/ai", data={"on": "0"})
+    assert "AI is off." in unescape(web.get(f"/p/{planned}/settings").text)
