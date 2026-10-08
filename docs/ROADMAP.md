@@ -36,6 +36,21 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
       settings, go through setup on a phone with one's own timetable.
 - [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.
 
+## Phase 1b: a reason to come back every day
+
+Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
+
+- [ ] **E1 Progress and a forgiving streak.** A Progress tab, the week's ring, the
+      streak on Today (D8, D9).
+- [ ] **E2 The weekly review.** Last week in numbers, a paragraph and one suggestion.
+- [ ] **E3 French.** The app in French and English, chosen per plan (D10).
+- [ ] **E4 Study buddies.** Up to five friends, by invite code (D11).
+- [ ] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
+      (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
+- [ ] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
+- [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
+      docs/MARKET.md §4.
+
 ## Phase 2: once the pilot runs
 
 - [ ] **W10 Writing into Google Calendar directly.** (owner: a Google Cloud project and

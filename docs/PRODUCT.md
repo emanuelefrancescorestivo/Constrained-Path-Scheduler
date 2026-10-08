@@ -4,6 +4,12 @@
 owner's. Market facts are sourced; everything about what people would pay for is a
 hypothesis to test, and is written as one.*
 
+The market analysis behind it is `docs/MARKET.md`; how the product earns a daily
+visit is `docs/STRATEGY.md`; the screens are `docs/DESIGN.md`; the decisions that
+follow from the owner's answers of 2026-10-08 (France first, French and English;
+a free pilot, then freemium; private study buddies; AI on a capped budget) are
+D8 to D15 in `DECISIONS.md`.
+
 ## In one sentence
 
 Paste your university timetable's link, add your deadlines, and get a realistic
