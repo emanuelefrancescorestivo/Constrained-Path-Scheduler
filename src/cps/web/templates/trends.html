@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_charts.html" import columns, line, spark, key %}
+{% block title %}{{ _("Trends") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set t = view.tiles %}
+<p class="back"><a href="/p/{{ token }}/progress">{{ _("Progress") }}</a></p>
+<div class="page-title title-row">
+  <div><h1>{{ _("Trends") }}</h1><p>{{ _("Since {day}", day=view.since) }}</p></div>
+  <nav class="segmented seg-links trend-range" aria-label="{{ _('Period') }}">
+    {% for value, word in view.spans %}<a href="/p/{{ token }}/trends?span={{ value }}"{% if view.span == value %} aria-current="page"{% endif %}>{{ word }}</a>{% endfor %}
+  </nav>
+</div>
+
+{% macro delta(now, before, unit="") %}{% if before is none %}{{ _("first week: no average yet") }}{% else %}{% set d = now - before %}{{ "+" if d >= 0 else "−" }}{{ (d if d >= 0 else -d) | hours }}{{ unit }} {{ _("vs your 4-week average") }}{% endif %}{% endmacro %}
+
+<section class="tiles" aria-label="{{ _('This week') }}">
+  <div class="tile"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value">{{ t.hours.value | hours }} h</b><span class="tile-sub">{{ delta(t.hours.value, t.hours.average, " h") }}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Sessions kept, last 4 weeks") }}</span><b class="tile-value">{% if t.kept.value is none %}–{% else %}{{ t.kept.value }} %{% endif %}</b><span class="tile-sub">{% if t.kept.before is not none %}{{ _("{n} % the 4 weeks before", n=t.kept.before) }}{% else %}{{ _("of the planned sessions already past") }}{% endif %}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Study load this week") }}</span><b class="tile-value">{{ t.load.value | round | int }}</b><span class="tile-sub">{{ delta(t.load.value, t.load.average) }}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Streak") }}</span><b class="tile-value">{{ _n("{n} day", "{n} days", t.streak.value) }}</b><span class="tile-sub">{{ _("Best: {n}", n=t.streak.best) }}</span></div>
+</section>
+{% if t.direction %}<p class="trend-words">{% if t.direction == "up" %}{{ _("Your study time is rising: the last 4 weeks are above the 4 before.") }}{% elif t.direction == "down" %}{{ _("Your study time is lower than in the 4 weeks before. A lighter week is fine; the plan adapts.") }}{% else %}{{ _("Your study time is steady: the last 4 weeks match the 4 before.") }}{% endif %}</p>{% endif %}
+
+{% if view.forecast %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Exam forecast") }}</h2></div>
+  {% for f in view.forecast %}
+  <article class="card forecast {% if f.color is not none %}c{{ f.color }}{% else %}cn{% endif %}">
+    <div class="card-title"><h3>{{ f.name }}</h3><span class="meta">{{ f.when }} · {{ _n("in {n} day", "in {n} days", f.days) }}</span></div>
+    <div class="meter-row"><span>{{ _("With your plan") }}</span><div class="meter"><span class="fill w{{ (f.with_plan // 10) * 10 }}"></span></div><b>{{ f.with_plan }} %</b></div>
+    <div class="meter-row"><span>{{ _("If you stopped today") }}</span><div class="meter"><span class="fill-muted w{{ (f.if_stopped // 10) * 10 }}"></span></div><b>{{ f.if_stopped }} %</b></div>
+    {% if f.path | length > 1 %}<div class="spark-row"><span class="meta">{{ _("Built so far, week by week") }}</span>{{ spark(f.path, _("Predicted recall on exam day from the sessions done, week by week: {values}", values=f.path | join(" %, ") ~ " %")) }}<b class="spark-ends">{{ f.path[0] }} → {{ f.path[-1] }} %</b></div>{% endif %}
+  </article>
+  {% endfor %}
+  <p class="hint">{{ _("Predicted recall of the course's topics on exam day, by the FSRS memory model with average memory, not yours, and a guessed start; rounded to 5 %. A session reported done counts as recalled, hard as forgotten, and one not reported as done.") }}</p>
+</div>
+{% endif %}
+
+{% set ws = view.weeks %}
+{% set labels = ws | map(attribute="label") | list %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Hours studied per week") }}</h2></div>
+  <div class="card">
+    {% set c = charts.columns(ws | map(attribute="hours") | list, labels, current=ws | map(attribute="current") | list, average=ws | map(attribute="hours_avg") | list, limit=view.limit) %}
+    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {hours} h", day=w.first, hours=w.hours | hours)) %}{% endfor %}
+    {{ columns(c, texts, _("Hours studied per week"), [(c.top | hours) ~ " h", ((c.top / 2) | hours) ~ " h"], None) }}
+    <p class="chart-legend">{{ key("bar") }}{{ _("hours: planned sessions done and focus sessions logged") }} {{ key("now") }}{{ _("this week") }} {{ key("avg") }}{{ _("your 4-week average") }} {{ key("limit") }}{{ _("your weekly limit ({hours} h)", hours=view.limit | hours) }}</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("Sessions kept") }}</h2></div>
+  <div class="card">
+    {% set c = charts.line(ws | map(attribute="kept") | list, labels) %}
+    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {done} of {past} planned sessions done", day=w.first, done=w.done, past=w.planned_past)) %}{% endfor %}
+    {{ line(c, texts, _("Share of planned sessions done, week by week"), None) }}
+    <p class="chart-legend">{{ _("Planned sessions done, of those already past.") }}</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("Study load") }}</h2></div>
+  <div class="card">
+    {% set c = charts.columns(ws | map(attribute="load") | list, labels, current=ws | map(attribute="current") | list, average=ws | map(attribute="load_avg") | list) %}
+    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: load {load} from {n} logged sessions", day=w.first, load=w.load, n=w.logged)) %}{% endfor %}
+    {{ columns(c, texts, _("Study load per week"), [c.top | round | int, (c.top / 2) | round | int], None) }}
+    <p class="chart-legend">{{ key("bar") }}{{ _("minutes × perceived effort (1 to 10) of the sessions you logged") }} {{ key("avg") }}{{ _("your 4-week average") }}</p>
+    <p class="hint">{{ _("How much and how hard you worked, the way coaches score training. It does not measure what you learned, and sessions reported without a log have no effort, so they count in hours only.") }}</p>
+  </div>
+</div>
+
+<details class="card table-view">
+  <summary>{{ _("See the numbers") }}</summary>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th scope="col">{{ _("Week of") }}</th><th scope="col">{{ _("Hours") }}</th><th scope="col">{{ _("4-week average") }}</th><th scope="col">{{ _("Kept") }}</th><th scope="col">{{ _("Load") }}</th><th scope="col">{{ _("Logged") }}</th><th scope="col">{{ _("Effort") }}</th></tr></thead>
+    <tbody>{% for w in ws %}<tr{% if w.current %} class="now"{% endif %}><th scope="row">{{ w.first }}</th><td>{{ w.hours | hours }}</td><td>{{ w.hours_avg | hours }}</td><td>{% if w.kept is none %}–{% else %}{{ w.kept }} %{% endif %}</td><td>{{ w.load }}</td><td>{{ w.logged }}</td><td>{% if w.effort is none %}–{% else %}{{ w.effort | hours }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+</details>
+
+{% if view.courses %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("By course") }}</h2><small>{{ _("hours, since {day}", day=view.since) }}</small></div>
+  {% set most = (view.courses | map(attribute="hours") | max) or 1 %}
+  <ul class="card hbars">
+    {% for x in view.courses %}<li class="{% if x.color is not none %}c{{ x.color }}{% else %}cn{% endif %}"><span class="hbar-name">{{ x.name }}</span><span class="hbar"><span class="w{{ ((100 * x.hours / most) // 10 * 10) | int }}"></span></span><b>{{ x.hours | hours }} h</b></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("When you keep your sessions") }}</h2></div>
+  <ul class="card hbars">
+    {% for p in view.parts %}<li class="ca"><span class="hbar-name">{{ p.part }}</span><span class="hbar"><span class="w{{ ((p.kept or 0) // 10 * 10) | int }}"></span></span><b>{% if p.kept is none %}–{% else %}{{ _("{done} of {past}", done=p.done, past=p.past) }}{% endif %}</b></li>{% endfor %}
+  </ul>
+</div>
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("Focus") }}</h2></div>
+  {% set fo = view.focus %}
+  <p class="card">{% if fo.logged %}{{ _n("{n} focus session logged", "{n} focus sessions logged", fo.logged) }}: {{ _("{timed} timed, {checked} with the focus checked, {clean} without leaving the page.", timed=fo.timed, checked=fo.checked, clean=fo.uninterrupted) }}{% if fo.effort is not none %} {{ _("Average effort {n}/10.", n=fo.effort | hours) }}{% endif %}{% else %}{{ _("No focus session logged in this period.") }} <a href="/p/{{ token }}/focus">{{ _("Start one") }}</a>{% endif %}</p>
+</div>
+{% endblock %}

@@ -330,3 +330,69 @@ hidden items for everyone (it would advertise them).
 of illegal content and to act on it; this is that, at a pilot's size. Automatic
 screening by a model was the alternative; the owner chose to review reports in
 person.
+
+## Analytics and appearance (2026-10-08, later the same day)
+
+The owner asked for a light mode, "more analytics: people love feeling in control,
+especially of their progress, and love to see trajectory", and a discussion of a
+notebook page and of a notes library with rewards. `docs/ANALYTICS.md` is the
+analysis behind D21 to D24; the notes library is left to the owner (its §4).
+
+## D21. Appearance: Automatic, Light or Dark, chosen per plan
+
+**Chosen.** Settings has Appearance: Automatic (the device's setting, the default),
+Light or Dark. The choice is kept with the plan, like the language (D10), so it
+holds on every device the student opens the plan on. The page carries it as
+`data-theme` on `<html>`; the stylesheet's dark tokens apply when the device is
+dark and the plan does not say Light, or when the plan says Dark. Pages without a
+plan (home, privacy) follow the device.
+
+**Rejected.** A switch kept in the browser's storage: it would differ from one device
+to the next, and applying it before the first paint needs an inline script, which the
+Content-Security-Policy forbids. A cookie: the app has none (D6).
+
+## D22. Trends: the student's own trajectory, never a comparison
+
+**Chosen.** A Trends page, and a trajectory card at the top of Progress. One range
+(4 weeks, 12 weeks, the semester) scopes everything on the page. In order: the exam
+forecast (D24); hours studied per week (planned sessions done plus focus sessions
+logged), the current week marked, with the 4-week average and the weekly limit
+drawn on the same axis; the share of planned sessions kept per week; study load
+(D23); hours per course; the share kept by morning, afternoon and evening; focus
+sessions timed and checked. Stat tiles lead with this week against the student's
+own 4-week average. Charts are SVG drawn on the server from `service.trends_view`,
+coloured by the stylesheet's tokens (so they follow D21), each mark with its value
+as a tooltip (`<title>`), each chart with a table of its numbers below it.
+
+**Rejected.** Percentiles or comparisons with other students (D16); one composite
+score (it cannot say what to change); minute-level screen-time charts; a charting
+library (a script dependency for what static SVG does, and pages must work without
+scripts).
+
+## D23. Study load: minutes times perceived effort
+
+**Chosen.** The load of a logged session is its minutes times its perceived effort
+(1 to 10), the session-RPE method coaches use [ref:foster2001]; a week's load is the
+sum, shown with its 4-week average. Only logged sessions have an effort, so planned
+sessions reported done count in hours, not in load, and the page says so. It is
+labelled as a description of how much and how hard the student worked, not of what
+they learned: the method is validated for sport, not for study.
+
+**Rejected.** Points (D13). Guessing an effort for sessions reported without one.
+
+## D24. The exam forecast, and what one session adds
+
+**Chosen.** For each exam still to come, the average predicted recall of its topics
+on exam day: **if the plan is followed** (the plan's own `recall_at_exam`), and **if
+nothing more were done** (the memory states the reported sessions leave, from
+`_replay`, decayed to the exam). Their trajectory is drawn week by week by replaying
+the sessions reported up to each week's end. On each upcoming self-test, the topic's
+predicted recall on exam day with that session and without it, "if no other review
+followed". Every figure is rounded to 5 % and labelled as an estimate of the FSRS
+model with population-average weights and a guessed starting state (topics start
+"seen once and shaky"), which counts a session reported done as recalled, "hard" as
+forgotten, and an unreported one as done. This is the notebook's "revise today, +22 %
+boost", computed rather than invented.
+
+**Rejected.** Tips with invented percentages (exercise, diet; `docs/ANALYTICS.md` §3).
+A forecast with decimals.

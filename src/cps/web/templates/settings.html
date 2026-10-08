@@ -192,6 +192,13 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("The pages and what each session says to do, in your calendar too.") }}</p>
+<h2 class="section" id="appearance">{{ _("Appearance") }}</h2>
+<form method="post" action="/p/{{ token }}/appearance" class="pills" aria-label="{{ _('Appearance') }}">
+  {% for value, word in (("auto", _("Automatic")), ("light", _("Light")), ("dark", _("Dark"))) %}
+  <button type="submit" name="theme" value="{{ value }}" class="btn btn-sm"{% if (theme or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic follows your device's light or dark setting.") }}</p>
 <h2 class="section" id="ai">{{ _("AI") }}</h2>
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">

@@ -51,6 +51,9 @@ Added in this stage:
 | **milestone row** | reached milestones, and the next one with "2 days to go" | no badges, no unlock animation |
 | **review card** | last week's numbers, one paragraph, one suggestion | "written by AI" when it was |
 | **post card** | a focus session (course, what was done, time, effort, progress, whether the focus was checked, note, photos) or an explanation; the author's avatar, handle and university; Kudos (or "I got it" on an explanation) and Comment | the counts are of kudos and comments on this post, never of followers; a kudos tap is sent in the background and the bar is replaced in place |
+| **stat tile** | a label, this week's value, and the student's own 4-week average beside it | deltas in muted text, never red or green: no guilt |
+| **column chart** | a value per week, the current week in the accent and the earlier ones a tint of it, the 4-week average as a line and the weekly limit as a hairline on the same axis | SVG stretched to the width, text in HTML, a tooltip on each column, a table below (D22) |
+| **meter** | the exam forecast: with the plan, and if the student stopped today, in the course's colour | rounded to 5 %, labelled as a model's estimate (D24) |
 | **avatar** | the handle's first letter on one of the seven course colours | no photos of people, so no faces to moderate |
 | **person row** | avatar, handle, university and programme, one action (Accept, Unfollow, Remove) | an inset list, as in iOS Settings |
 | **typed task field** | one line in the new-task sheet: type a sentence, the fields below fill in | the fields stay editable; nothing is saved without "Add" |
@@ -70,6 +73,12 @@ add a busy time. Unchanged in this stage.
 **Progress** (`/p/<token>/progress`, new tab). The ring and the streak, large; the
 day grid; "Start focus"; the diary (every session logged, whoever sees it);
 milestones; each exam's readiness; the weekly review.
+
+**Trends** (`/p/<token>/trends`; D22). The period (4 weeks, 12 weeks, the semester),
+four stat tiles, a sentence on the direction, the exam forecast per course, hours
+per week, sessions kept, study load, the numbers as a table, hours per course, the
+parts of the day sessions are kept, focus. Progress shows a trajectory card linking
+here.
 
 **Focus** (`/p/<token>/focus`, the tab bar's centre). A course, or the plan's next
 session, and Start; then the full-screen timer and Finish; then the log (D17).
@@ -101,7 +110,8 @@ explanation, a sketch; for everyone by default.
 leaves the phone's tab bar for Community; it stays in the wide screen's top bar,
 under Today's "Tasks, See all", and behind the + button.
 
-**Settings.** Adds the language, and AI: on or off, with what is sent and to whom.
+**Settings.** Adds the language, the appearance (Automatic, Light, Dark; D21), and
+AI: on or off, with what is sent and to whom.
 
 ## Writing
 

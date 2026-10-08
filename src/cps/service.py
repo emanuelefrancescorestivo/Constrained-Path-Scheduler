@@ -58,6 +58,7 @@ from . import ai as _ai
 from . import i18n as _i18n
 from . import progress as _progress
 from . import social as social
+from . import trends as _trends
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -2314,11 +2315,13 @@ def _session_card(
     now: datetime,
     outcomes: Mapping[str, str],
     colours: Mapping[str, int] | None = None,
+    gains: Mapping[str, dict] | None = None,
 ) -> dict:
     start = datetime.fromisoformat(s.start).astimezone(zone)
     end = datetime.fromisoformat(s.end).astimezone(zone)
     sid = session_id(s)
     return {
+        "gain": (gains or {}).get(sid),
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
         "title": s.title if s.kind == "task" else s.subject,
@@ -2343,9 +2346,10 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
         return None
-    zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
     local = (now or datetime.now(UTC)).astimezone(zone)
-    return _session_card(session, zone, local, subscription.outcomes)
+    return _session_card(session, zone, local, subscription.outcomes, gains=session_gains(plan))
 
 
 # How many course colours the pages have (CSS classes c0 to c6): enough to tell a
@@ -2524,8 +2528,10 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     local = now.astimezone(zone)
     view["today"] = format_date(local.date())
     colours = {name.casefold(): index for name, index in course_colours(plan)}
+    gains = session_gains(plan)
     cards = [
-        _session_card(s, zone, local, subscription.outcomes, colours) for s in plan.history + plan.sessions
+        _session_card(s, zone, local, subscription.outcomes, colours, gains)
+        for s in plan.history + plan.sessions
     ]
     moments = [
         (datetime.fromisoformat(s.start).astimezone(zone), datetime.fromisoformat(s.end).astimezone(zone))
@@ -3003,6 +3009,21 @@ def review_for_today(
     if subscription.options.get("review_seen") == review["week"]:
         return None
     return review
+
+
+THEMES = ("auto", "light", "dark")
+
+
+def theme_of(subscription: Subscription | None) -> str:
+    """How a plan's pages look (D21): "auto" follows the device."""
+    theme = (subscription.options.get("theme") if subscription else None) or "auto"
+    return theme if theme in THEMES else "auto"
+
+
+def set_theme(subscription: Subscription, theme: str) -> Subscription:
+    if theme not in THEMES:
+        raise InvalidInput(_("choose Automatic, Light or Dark"))
+    return replace(subscription, options={**subscription.options, "theme": theme})
 
 
 def language_of(subscription: Subscription) -> str:
@@ -3946,6 +3967,222 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "over_limit": over_limit,
         "network": network,
         "ai": {**_ai.usage(where, month), "cap": _ai.monthly_cap(), "available": ai_available()},
+    }
+
+
+# --------------------------------------------------------------------------- #
+# The exam forecast and the trajectory (DECISIONS.md D22 to D24)
+
+_REVIEW_KINDS = ("review", "first review")
+
+
+def _five(share: float) -> int:
+    """A model's estimate as a percentage rounded to 5: no false precision (D24)."""
+    return int(5 * round(100 * max(0.0, min(1.0, share)) / 5))
+
+
+def _recall_at_exam(members: Sequence[dict], states: Mapping[str, tuple[MemoryState, float]]) -> float:
+    values = [
+        retrievability(max(m["exam_day"] - states[m["name"]][1], 0.0), states[m["name"]][0].stability)
+        for m in members
+        if m["name"] in states
+    ]
+    return sum(values) / len(values) if values else 0.0
+
+
+def session_gains(plan: PlanReport) -> dict[str, dict]:
+    """For each self-test, its topic's predicted recall on exam day without it and
+    with it, if no other review followed (D24). The memory states are carried
+    through the whole timeline: reported sessions as reported, the rest as planned,
+    so a session under way (already in the plan's history) has its gain too."""
+    exam_day = {s["name"]: s["exam_day"] for s in plan.specs}
+    states = {
+        s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
+    }
+    out: dict[str, dict] = {}
+    for session in sorted(plan.history + plan.sessions, key=lambda x: x.start_day):
+        if session.title not in states or session.outcome == "skipped":
+            continue
+        memory, last = states[session.title]
+        elapsed = max(session.start_day - last, 0.0)
+        exam = exam_day[session.title]
+        if session.kind in _REVIEW_KINDS and session.start_day < exam:
+            after = review(memory, elapsed, Grade.GOOD)
+            out[session_id(session)] = {
+                "without": _five(retrievability(max(exam - last, 0.0), memory.stability)),
+                "with": _five(retrievability(max(exam - session.start_day, 0.0), after.stability)),
+            }
+        grade = Grade.AGAIN if session.outcome == "lapsed" else Grade.GOOD
+        states[session.title] = (review(memory, elapsed, grade), session.start_day)
+    return out
+
+
+def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> list[dict]:
+    """Each exam still to come: its topics' predicted recall on exam day if the plan
+    is followed and if nothing more were done, and, for each Monday in `weeks`, what
+    the sessions reported by the end of that week had built (D24)."""
+    zone = _zone(plan.settings.tz)
+    start = plan.settings.start
+    groups: dict[str, list[dict]] = {}
+    for spec in plan.specs:
+        groups.setdefault(spec.get("subject", spec["name"]), []).append(spec)
+    current = _replay(plan.specs, plan.history)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    out = []
+    for subject in sorted(plan.subjects, key=lambda x: x.exam):
+        exam = datetime.fromisoformat(subject.exam)
+        members = groups.get(subject.name, [])
+        if exam <= now or not members:
+            continue
+        path = []
+        for first in weeks:
+            end_of_week = datetime.combine(first + timedelta(days=7), time(0, 0), tzinfo=zone)
+            if end_of_week > exam + timedelta(days=7):
+                break
+            day = _days_after(start, min(end_of_week, now.astimezone(zone)))
+            states = _replay(plan.specs, [h for h in plan.history if h.start_day <= day])
+            path.append(_five(_recall_at_exam(members, states)))
+        out.append(
+            {
+                "name": subject.name,
+                "when": format_date(exam.astimezone(zone).date(), "short"),
+                "days": max(0, (exam.astimezone(zone).date() - now.astimezone(zone).date()).days),
+                "with_plan": _five(subject.recall_at_exam),
+                "if_stopped": _five(_recall_at_exam(members, current)),
+                "path": path,
+                "topics": len(members),
+                "color": colours.get(subject.name.casefold()),
+            }
+        )
+    return out
+
+
+RANGES = {"4": 4, "12": 12, "all": None}
+
+
+def _diary_work(store: str | os.PathLike, subscription: Subscription) -> list[_trends.Logged]:
+    zone = _zone(subscription.options["tz"])
+    out = []
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        d = post.data
+        out.append(
+            _trends.Logged(
+                start=datetime.combine(date.fromisoformat(post.day), time(12, 0), tzinfo=zone),
+                minutes=int(d.get("minutes", 0)),
+                effort=int(d.get("effort", 0)),
+                progress=int(d.get("progress", 0)),
+                course=str(d.get("course", "")),
+                timed=bool(d.get("timed")),
+                checked=bool(d.get("checked")),
+                interruptions=int(d.get("interruptions", 0)),
+            )
+        )
+    return out
+
+
+def trends_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, span: str = "12"
+) -> dict:
+    """The Trends page (D22): this week against the student's own 4-week average,
+    the exam forecast, and week-by-week hours, sessions kept and study load, with
+    hours per course, the share kept by part of day and focus over the range."""
+    now = now or datetime.now(UTC)
+    span = span if span in RANGES else "12"
+    zone = _zone(subscription.options["tz"])
+    local = now.astimezone(zone)
+    sessions = progress_sessions(subscription)
+    work = _diary_work(store, subscription)
+    first = min([date.fromisoformat(subscription.options["start"]), *(x.start.date() for x in work)])
+    # The averages need the weeks before the range too.
+    length = RANGES[span]
+    shown = _trends.mondays(first, local.date(), length)
+    wider = _trends.mondays(first, local.date(), None if length is None else length + _trends.AVERAGE_WEEKS)
+    weeks_all = _trends.weekly(sessions, work, wider, local)
+    hours_avg = _trends.rolling([w.hours for w in weeks_all])
+    load_avg = _trends.rolling([float(w.load) for w in weeks_all])
+    offset = len(weeks_all) - len(shown)
+    weeks = weeks_all[offset:]
+    prefs = {**DEFAULT_PREFERENCES, **subscription.options.get("preferences", {})}
+    hours_now, hours_before = _trends.against_average(weeks_all, "hours")
+    load_now, load_before = _trends.against_average(weeks_all, "load")
+    done_weeks = weeks_all[:-1]
+    kept_recent = [w for w in done_weeks[-_trends.AVERAGE_WEEKS :] if w.planned_past]
+    kept_earlier = [
+        w for w in done_weeks[-2 * _trends.AVERAGE_WEEKS : -_trends.AVERAGE_WEEKS] if w.planned_past
+    ]
+
+    def share(ws: Sequence[_trends.Week]) -> int | None:
+        planned = sum(w.planned_past for w in ws)
+        return round(100 * sum(w.done for w in ws) / planned) if planned else None
+
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    known = [name for name, _i in course_colours(plan)] if plan else []
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    in_range = [x for x in work if x.start.date() >= shown[0]] if shown else []
+    words = {"morning": _("morning"), "afternoon": _("afternoon"), "evening": _("evening")}
+    run = _progress.streak(
+        sessions + [_progress.Session(x.start, x.minutes, "logged", x.course, "done") for x in work],
+        first,
+        local.date(),
+    )
+    return {
+        "span": span,
+        "spans": [("4", _("4 weeks")), ("12", _("12 weeks")), ("all", _("Semester"))],
+        "since": format_date(shown[0], "short") if shown else "",
+        "limit": prefs["weekly_hours"],
+        "tiles": {
+            "hours": {"value": hours_now, "average": hours_before},
+            "load": {"value": load_now, "average": load_before},
+            "kept": {"value": share(kept_recent), "before": share(kept_earlier)},
+            "streak": {"value": run.current, "best": run.best},
+            "direction": _trends.direction(
+                [w.hours for w in done_weeks[-_trends.AVERAGE_WEEKS :]],
+                [w.hours for w in done_weeks[-2 * _trends.AVERAGE_WEEKS : -_trends.AVERAGE_WEEKS]],
+            ),
+        },
+        "weeks": [
+            {
+                "label": format_date(w.first, "day_short"),
+                "first": format_date(w.first, "short"),
+                "current": w.current,
+                "hours": w.hours,
+                "hours_avg": hours_avg[offset + i],
+                "kept": w.kept,
+                "done": w.done,
+                "planned_past": w.planned_past,
+                "load": w.load,
+                "load_avg": load_avg[offset + i],
+                "logged": w.logged,
+                "effort": w.effort,
+                "progress": w.progress,
+            }
+            for i, w in enumerate(weeks)
+        ],
+        "courses": [
+            {"name": name, "hours": hours, "color": colours.get(name.casefold())}
+            for name, hours in _trends.by_course(sessions, work, shown[0], local, known)
+        ]
+        if shown
+        else [],
+        "parts": [
+            {
+                "part": words[part],
+                "done": done,
+                "past": past,
+                "kept": round(100 * done / past) if past else None,
+            }
+            for part, done, past in _trends.by_part_of_day(sessions, shown[0], local)
+        ]
+        if shown
+        else [],
+        "focus": {
+            "logged": len(in_range),
+            "timed": sum(x.timed for x in in_range),
+            "checked": sum(x.checked for x in in_range),
+            "uninterrupted": sum(x.checked and not x.interruptions for x in in_range),
+            "effort": sum(x.effort for x in in_range) / len(in_range) if in_range else None,
+        },
+        "forecast": forecast(plan, now, shown) if plan else [],
     }
 
 

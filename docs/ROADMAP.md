@@ -53,6 +53,15 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
       (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
 - [x] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
+- [x] **E7 Analytics** (owner, 2026-10-08: "more analytics, people love to see
+      trajectory"): docs/ANALYTICS.md; Trends with the exam forecast, hours, sessions
+      kept, study load, courses, parts of the day, focus; each self-test's gain on
+      exam day (D22 to D24).
+- [x] **E8 Appearance**: Automatic, Light or Dark per plan (D21).
+- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3 and §4): recall on
+      self-tests ("how much could you recall", FSRS's four grades); a notes library
+      with "helpful" marks and recognition, no money; "in simple words" inside the
+      session log; flashcards; a group of friends with a shared weekly goal.
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

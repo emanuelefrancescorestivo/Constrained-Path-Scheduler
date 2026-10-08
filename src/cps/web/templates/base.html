@@ -1,13 +1,18 @@
 <!doctype html>
-<html lang="{{ lang() }}">
+<html lang="{{ lang() }}"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
+{% if theme in ("light", "dark") %}
+<meta name="color-scheme" content="{{ theme }}">
+<meta name="theme-color" content="{{ '#000000' if theme == 'dark' else '#f2f2f7' }}">
+{% else %}
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+{% endif %}
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>

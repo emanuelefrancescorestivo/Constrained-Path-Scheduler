@@ -6,6 +6,22 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Analytics and appearance (docs/ANALYTICS.md; D21 to D24), after the owner asked for
+  a light mode and "more analytics: people love to see trajectory". A Trends page,
+  for 4 weeks, 12 weeks or the semester: this week against the student's own 4-week
+  average (hours, sessions kept, study load, streak), whether study time is rising;
+  the exam forecast per course (predicted recall on exam day with the plan and if
+  the student stopped today, and how the sessions done built it week by week, from
+  the FSRS model, rounded to 5 % and labelled as an estimate); hours per week with
+  the 4-week average and the weekly limit; sessions kept per week; study load
+  (minutes × perceived effort of logged sessions, the session-RPE method); hours per
+  course; the share kept by morning, afternoon and evening; focus. Charts are SVG
+  drawn on the server, with a tooltip on each mark and a table of the numbers, and
+  follow light and dark. Progress gets a trajectory card. Each self-test says what
+  it adds to its topic's recall on exam day ("55 % without this session, 80 % with
+  it"): the notebook's "revise today, +22 %" computed, not invented. Settings gets
+  Appearance: Automatic, Light or Dark, kept with the plan (`cps.trends`,
+  `service.trends_view`, `forecast`, `session_gains`, `web/charts.py`).
 - The pilot's measures (D15): `cps metrics` (or `--json`) reads the store and prints
   plans set up, students active in 7 and 30 days, the north star (a session
   confirmed in 7 days), sessions confirmed of those planned, return on the 7th and

@@ -27,6 +27,11 @@ run. Where this is going as a product, and what it still lacks, is in
 </p>
 <p align="center"><sub>The Community tab (8 October 2026), with five invented students at five universities and a drawn page of notes; none of it is real data.</sub></p>
 
+<p align="center">
+  <img alt="The Trends page on a laptop: four stat tiles (hours this week, sessions kept, study load, streak), the exam forecast for three courses with the plan and if the student stopped today, and hours studied per week rising towards the weekly limit, with the 4-week average" src="docs/app-trends.png" width="72%">
+</p>
+<p align="center"><sub>Trends on 3 December 2026 for a synthetic student: <code>examples/sample-semester.ics</code>, sessions reported at random for ten weeks, focus sessions logged; not real data.</sub></p>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/pipeline-dark.svg">
   <img alt="From the timetable (an .ics file or its link) to what it says (courses, lectures, exams, free time), to the assistant's plan, back into the student's calendar; a one-tap report after each session replans; the research planner (FSRS and AO* search) is a reference beside it" src="docs/figures/pipeline-light.svg" width="800">
@@ -159,7 +164,12 @@ cps web                        # http://127.0.0.1:8000
    one suggestion (sessions skipped at the same time of day, a week much heavier than
    what was done, an exam close). The streak forgives: days off are neutral, one day a
    week without a report is forgiven, a late report counts on its day, and a lost
-   streak is never announced (DECISIONS.md, D9).
+   streak is never announced (DECISIONS.md, D9). **Trends** show the trajectory:
+   hours per week against your own 4-week average and weekly limit, sessions kept,
+   study load (minutes × effort), courses, the time of day you keep sessions, and an
+   exam forecast from the memory model (predicted recall on exam day with the plan,
+   and if you stopped today); each self-test says what it adds on exam day. Light,
+   dark or automatic, in Settings.
 6. **Focus and Community**, a study network in Strava's shape (DECISIONS.md, D16 to
    D19): start a timer for a course or the plan's session; the page counts the time
    you spend away from it and says so on the session (a web page cannot block other
@@ -348,8 +358,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 506 passed, 14 deselected (slow), 1 xfailed, ~90 s
-pytest -m "slow or not slow" --cov=cps    # everything: 520 passed, 1 xfailed, 93% coverage
+pytest                                    # 512 passed, 14 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 526 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

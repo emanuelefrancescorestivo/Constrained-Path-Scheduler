@@ -5,6 +5,7 @@
   {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
+  {% if show_why and card.gain and card.reported != "skipped" %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}
   {% if show_why and not card.reported and token %}
   <form method="post" action="/p/{{ token }}/focus/start" class="start-focus">
     <input type="hidden" name="sid" value="{{ card.id }}">

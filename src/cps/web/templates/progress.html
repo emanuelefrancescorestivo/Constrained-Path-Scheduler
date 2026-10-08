@@ -33,6 +33,24 @@
   </div>
 </div>
 
+{% if trend %}
+{% from "_charts.html" import columns %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Your trajectory") }}</h2><a href="/p/{{ token }}/trends">{{ _("See trends") }}</a></div>
+  <a class="card trajectory link-card" href="/p/{{ token }}/trends">
+    <div class="tile-stack"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value">{{ trend.tiles.hours.value | hours }} h</b></div>
+    {% set ws = trend.weeks %}
+    {% set c = charts.columns(ws | map(attribute="hours") | list, ws | map(attribute="label") | list, current=ws | map(attribute="current") | list, average=ws | map(attribute="hours_avg") | list) %}
+    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {hours} h", day=w.first, hours=w.hours | hours)) %}{% endfor %}
+    {{ columns(c, texts, _("Hours studied per week"), ["", ""], None, mini=True) }}
+    <div class="trajectory-foot">
+      <span>{% if trend.tiles.hours.average is none %}{{ _("first week: no average yet") }}{% else %}{{ _("4-week average: {hours} h", hours=trend.tiles.hours.average | hours) }}{% endif %}</span>
+      {% if trend.forecast %}{% set f = trend.forecast[0] %}<span>{{ _("{name}: {n} % predicted on exam day with your plan", name=f.name, n=f.with_plan) }}</span>{% endif %}
+    </div>
+  </a>
+</div>
+{% endif %}
+
 <div class="section">
   <div class="section-title"><h2>{% if view.grid | length < 12 %}{{ _("Since {day}", day=view.since) }}{% else %}{{ _("The last twelve weeks") }}{% endif %}</h2><small>{{ _n("{n} day studied", "{n} days studied", view.totals.days) }}</small></div>
   <div class="card days-card">

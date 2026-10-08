@@ -54,7 +54,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import forms
+from . import charts, forms
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -156,6 +156,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     changes = Limiter(*config.change_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
+    templates.env.globals["charts"] = charts
     templates.env.globals["familiarity"] = FAMILIARITY
     templates.env.filters["nice_date"] = _nice_date
     templates.env.filters["hours"] = service.format_number
@@ -244,10 +245,12 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
-        if token and "courses" not in context:
-            # Every page of a plan carries the new-task sheet, which suggests courses.
+        if token and ("courses" not in context or "theme" not in context):
+            # Every page of a plan carries the new-task sheet, which suggests courses,
+            # and the plan's appearance (D21).
             subscription = service.load_subscription(store, token)
-            context["courses"] = service.course_names(subscription) if subscription else []
+            context.setdefault("courses", service.course_names(subscription) if subscription else [])
+            context.setdefault("theme", service.theme_of(subscription))
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -421,7 +424,22 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
             ),
             diary=service.diary_view(store, subscription, now),
+            trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
             saved=_notice(saved),
+            tab="progress",
+        )
+
+    @app.get("/p/{token}/trends", response_class=HTMLResponse)
+    def trends(request: Request, token: str, span: str = "12") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return page(
+            request,
+            "trends.html",
+            token=token,
+            view=service.trends_view(store, subscription, config.clock(), span),
             tab="progress",
         )
 
@@ -1027,6 +1045,19 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "language", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=language", 303)
 
+    @app.post("/p/{token}/appearance")
+    async def appearance(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("theme") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_theme(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "theme", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
         """The week as a list of days: the calendar for a browser without scripts."""
@@ -1454,7 +1485,7 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved in your diary.")
     if saved in NETWORK_NOTICES:
         return service.translate(NETWORK_NOTICES[saved])
-    if saved == "ai":
+    if saved in ("ai", "theme"):
         return service.translate("Saved.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")

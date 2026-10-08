@@ -1200,3 +1200,51 @@ def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypat
     assert read["by"] == "ai" and read["name"] == "Statistics report" and "Read by AI" in read["note"]
     web.post(f"/p/{planned}/ai", data={"on": "0"})
     assert "AI is off." in unescape(web.get(f"/p/{planned}/settings").text)
+
+
+def test_appearance_is_automatic_light_or_dark_per_plan(web, planned):
+    page = web.get(f"/p/{planned}/settings").text
+    assert "data-theme" not in page.split("<head>")[0] and 'content="light dark"' in page
+    assert 'name="theme" value="auto" class="btn btn-sm" aria-pressed="true"' in page
+    web.post(f"/p/{planned}/appearance", data={"theme": "dark"})
+    for path in ("", "/settings", "/progress", "/community", "/tasks"):
+        html = web.get(f"/p/{planned}{path}").text
+        assert (
+            '<html lang="en" data-theme="dark">' in html
+            and '<meta name="color-scheme" content="dark">' in html
+        )
+    web.post(f"/p/{planned}/appearance", data={"theme": "light"})
+    assert 'data-theme="light"' in web.get(f"/p/{planned}").text
+    bad = web.post(f"/p/{planned}/appearance", data={"theme": "sepia"})
+    assert bad.status_code == 400 and "Automatic, Light or Dark" in unescape(bad.text)
+    web.post(f"/p/{planned}/appearance", data={"theme": "auto"})
+    assert "data-theme" not in web.get(f"/p/{planned}").text
+    assert "data-theme" not in web.get("/").text  # without a plan, the device decides
+
+
+def test_the_trends_page_and_the_trajectory_card(web, planned):
+    progress = unescape(web.get(f"/p/{planned}/progress").text)
+    assert "Your trajectory" in progress and f"/p/{planned}/trends" in progress
+    page = unescape(web.get(f"/p/{planned}/trends").text)
+    for words in (
+        "Trends",
+        "Studied this week",
+        "Exam forecast",
+        "With your plan",
+        "If you stopped today",
+        "Hours studied per week",
+        "Sessions kept",
+        "Study load",
+        "See the numbers",
+        "<svg",
+        "<table",
+    ):
+        assert words in page, words
+    assert 'aria-current="page">12 weeks' in page and "style=" not in page  # nothing the CSP would block
+    assert 'aria-current="page">4 weeks' in unescape(web.get(f"/p/{planned}/trends?span=4").text)
+    # A self-test's page says what it adds to exam day, in whole fives.
+    plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
+    test = next(s for s in plan.sessions if s.kind in ("review", "first review"))
+    shown = unescape(web.get(f"/s/{planned}/{service.session_id(test)}").text)
+    gain = re.search(r"this topic: <b>(\d+)\xa0%</b> without this session, <b>(\d+)\xa0%</b> with it", shown)
+    assert gain and int(gain.group(2)) >= int(gain.group(1)) and int(gain.group(1)) % 5 == 0
