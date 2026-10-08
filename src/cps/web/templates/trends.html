@@ -32,7 +32,7 @@
     {% if f.path | length > 1 %}<div class="spark-row"><span class="meta">{{ _("Built so far, week by week") }}</span>{{ spark(f.path, _("Predicted recall on exam day from the sessions done, week by week: {values}", values=f.path | join(" %, ") ~ " %")) }}<b class="spark-ends">{{ f.path[0] }} → {{ f.path[-1] }} %</b></div>{% endif %}
   </article>
   {% endfor %}
-  <p class="hint">{{ _("Predicted recall of the course's topics on exam day, by the FSRS memory model with average memory, not yours, and a guessed start; rounded to 5 %. A session reported done counts as recalled, hard as forgotten, and one not reported as done.") }}</p>
+  <p class="hint">{{ _("Predicted recall of the course's topics on exam day, by the FSRS memory model with average memory, not yours, and a guessed start; rounded to 5 %. A self-test you answered counts as you said (nothing, some, most, all); one reported done counts as recalled, hard as forgotten, and one not reported as done.") }}</p>
 </div>
 {% endif %}
 
@@ -59,6 +59,20 @@
 </div>
 
 <div class="section">
+  <div class="section-title"><h2>{{ _("Recall on self-tests") }}</h2><small>{{ _n("{n} answer", "{n} answers", ws | sum(attribute="answers")) }}</small></div>
+  <div class="card">
+    {% if ws | sum(attribute="answers") %}
+    {% set c = charts.line(ws | map(attribute="recall") | list, labels) %}
+    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: recall {n} % over {k} self-tests", day=w.first, n=w.recall if w.recall is not none else "–", k=w.answers)) %}{% endfor %}
+    {{ line(c, texts, _("How much you recalled on self-tests, week by week"), None) }}
+    <p class="chart-legend">{{ _("Your answers after each self-test: nothing 0, some 33, most 67, all 100. This is the measured part of the exam forecast.") }}</p>
+    {% else %}
+    <p class="muted">{{ _("After each self-test, say how much you could recall without your notes. Your answers appear here, and the exam forecast uses them instead of assuming every session went well.") }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section">
   <div class="section-title"><h2>{{ _("Study load") }}</h2></div>
   <div class="card">
     {% set c = charts.columns(ws | map(attribute="load") | list, labels, current=ws | map(attribute="current") | list, average=ws | map(attribute="load_avg") | list) %}
@@ -73,8 +87,8 @@
   <summary>{{ _("See the numbers") }}</summary>
   <div class="table-scroll">
   <table>
-    <thead><tr><th scope="col">{{ _("Week of") }}</th><th scope="col">{{ _("Hours") }}</th><th scope="col">{{ _("4-week average") }}</th><th scope="col">{{ _("Kept") }}</th><th scope="col">{{ _("Load") }}</th><th scope="col">{{ _("Logged") }}</th><th scope="col">{{ _("Effort") }}</th></tr></thead>
-    <tbody>{% for w in ws %}<tr{% if w.current %} class="now"{% endif %}><th scope="row">{{ w.first }}</th><td>{{ w.hours | hours }}</td><td>{{ w.hours_avg | hours }}</td><td>{% if w.kept is none %}–{% else %}{{ w.kept }} %{% endif %}</td><td>{{ w.load }}</td><td>{{ w.logged }}</td><td>{% if w.effort is none %}–{% else %}{{ w.effort | hours }}{% endif %}</td></tr>{% endfor %}</tbody>
+    <thead><tr><th scope="col">{{ _("Week of") }}</th><th scope="col">{{ _("Hours") }}</th><th scope="col">{{ _("4-week average") }}</th><th scope="col">{{ _("Kept") }}</th><th scope="col">{{ _("Recall") }}</th><th scope="col">{{ _("Load") }}</th><th scope="col">{{ _("Logged") }}</th><th scope="col">{{ _("Effort") }}</th></tr></thead>
+    <tbody>{% for w in ws %}<tr{% if w.current %} class="now"{% endif %}><th scope="row">{{ w.first }}</th><td>{{ w.hours | hours }}</td><td>{{ w.hours_avg | hours }}</td><td>{% if w.kept is none %}–{% else %}{{ w.kept }} %{% endif %}</td><td>{% if w.recall is none %}–{% else %}{{ w.recall }} %{% endif %}</td><td>{{ w.load }}</td><td>{{ w.logged }}</td><td>{% if w.effort is none %}–{% else %}{{ w.effort | hours }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table>
   </div>
 </details>

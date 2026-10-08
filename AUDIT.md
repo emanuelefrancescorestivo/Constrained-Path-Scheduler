@@ -606,3 +606,12 @@ hosted. Fixed: a moderation report is logged as `flagged`. Status: fixed; a stor
 that ran the earlier code holds such events under `report`, with a post or comment
 kind (`post`, `comment`) as their detail, which tells them apart.
 
+
+**45. The pilot's north star did not count sessions reported hard.** Found while
+adding the recall question (step E9): `service.engagement` counted a session as
+confirmed when its report was "done" or "hard", but a session reported hard is
+stored as "struggled", so a student whose only report in a week was hard was not
+counted in the north star. Nothing was hosted, so no number was wrong anywhere it
+was read. Fixed: the measure uses `progress.Session.confirmed`, the one definition
+the streak already uses, which now also counts a self-test's recall answer.
+Status: fixed.

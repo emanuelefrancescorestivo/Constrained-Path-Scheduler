@@ -1248,3 +1248,25 @@ def test_the_trends_page_and_the_trajectory_card(web, planned):
     shown = unescape(web.get(f"/s/{planned}/{service.session_id(test)}").text)
     gain = re.search(r"this topic: <b>(\d+)\xa0%</b> without this session, <b>(\d+)\xa0%</b> with it", shown)
     assert gain and int(gain.group(2)) >= int(gain.group(1)) and int(gain.group(1)) % 5 == 0
+
+
+def test_a_self_test_asks_how_much_was_recalled(web, planned, clock):
+    plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
+    test = next(s for s in plan.sessions if s.kind in ("review", "first review"))
+    task = next(s for s in plan.sessions if s.kind == "task")
+    clock.now = datetime.fromisoformat(max(test.end, task.end)) + timedelta(minutes=5)
+    shown = unescape(web.get(f"/s/{planned}/{service.session_id(test)}").text)
+    assert "How much could you recall, without your notes?" in shown
+    for value in ("forgot", "some", "most", "all", "skipped"):
+        assert f'name="outcome" value="{value}"' in shown
+    assert 'value="struggled"' not in shown  # "hard" is for tasks and practice
+    other = unescape(web.get(f"/s/{planned}/{service.session_id(task)}").text)
+    assert 'value="struggled"' in other and 'value="most"' not in other
+    answered = web.post(
+        f"/s/{planned}/{service.session_id(test)}", data={"outcome": "most"}, follow_redirects=False
+    )
+    assert answered.headers["location"].endswith("?reported=most")
+    assert "Recorded: Most" in unescape(web.get(answered.headers["location"]).text)
+    assert _subscription(web, planned).outcomes[service.session_id(test)] == "most"
+    wrong = web.post(f"/s/{planned}/{service.session_id(task)}", data={"outcome": "all"})
+    assert wrong.status_code == 400 and "only a self-test" in unescape(wrong.text)

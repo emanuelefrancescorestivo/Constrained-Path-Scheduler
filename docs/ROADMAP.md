@@ -58,10 +58,13 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
       kept, study load, courses, parts of the day, focus; each self-test's gain on
       exam day (D22 to D24).
 - [x] **E8 Appearance**: Automatic, Light or Dark per plan (D21).
-- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3 and §4): recall on
-      self-tests ("how much could you recall", FSRS's four grades); a notes library
-      with "helpful" marks and recognition, no money; "in simple words" inside the
-      session log; flashcards; a group of friends with a shared weekly goal.
+- [x] **E9 The recall question**: a self-test asks how much was recalled; FSRS's four
+      grades feed the plan and the forecast (D25).
+- [ ] **E10 The notes library**: own notes by course, "helpful" marks, recognition,
+      no money (D26).
+- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): "in simple
+      words" inside the session log; flashcards; a group of friends with a shared
+      weekly goal.
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

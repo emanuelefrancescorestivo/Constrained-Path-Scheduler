@@ -82,6 +82,14 @@ OUTCOME_WORDS = {
     "skipped": "Skipped",
     "struggled": "Hard",
 }
+# A self-test asks how much was recalled instead (DECISIONS.md D25).
+RECALL_WORDS = {
+    "forgot": "Nothing",
+    "some": "Some",
+    "most": "Most",
+    "all": "All",
+    "skipped": "Skipped",
+}
 
 
 FAMILIARITY = (
@@ -156,6 +164,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     changes = Limiter(*config.change_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
+    templates.env.globals["recall_words"] = RECALL_WORDS
     templates.env.globals["charts"] = charts
     templates.env.globals["familiarity"] = FAMILIARITY
     templates.env.filters["nice_date"] = _nice_date
@@ -388,7 +397,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             subscription,
             "today",
-            reported=service.translate(OUTCOME_WORDS[reported]) if reported in OUTCOME_WORDS else None,
+            reported=service.translate({**OUTCOME_WORDS, **RECALL_WORDS}[reported])
+            if reported in {**OUTCOME_WORDS, **RECALL_WORDS}
+            else None,
             saved=_notice(saved),
         )
 

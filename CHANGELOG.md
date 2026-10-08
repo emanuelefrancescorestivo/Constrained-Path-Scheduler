@@ -6,6 +6,13 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The recall question (D25), chosen by the owner from docs/ANALYTICS.md: a
+  self-test now asks "How much could you recall, without your notes?" (Nothing,
+  Some, Most, All, or Skipped) on Today, on the session's page and in the calendar.
+  The answer is an FSRS grade kept on the session, so the next review of that topic,
+  the exam forecast and each session's gain use what was recalled; recalling nothing
+  brings the topic back sooner. Trends shows recall week by week. Tasks and exam
+  practice keep Done, Skipped, Hard.
 - Analytics and appearance (docs/ANALYTICS.md; D21 to D24), after the owner asked for
   a light mode and "more analytics: people love to see trajectory". A Trends page,
   for 4 weeks, 12 weeks or the semester: this week against the student's own 4-week
@@ -194,6 +201,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The pilot's north star now counts sessions reported hard (AUDIT.md item 45).
 - A post whose second photo was refused no longer leaves its first photo on disk
   (AUDIT.md item 43).
 - On a phone, a long form's Save button sat under the tab bar (AUDIT.md item 42);

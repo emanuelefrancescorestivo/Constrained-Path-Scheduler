@@ -41,8 +41,9 @@
         <div class="grow">
           <div class="title">{{ card.label }}</div>
           <div class="meta">{{ card.when }}–{{ card.until }}</div>
-          <form method="post" action="/s/{{ token }}/{{ card.id }}" class="mini-outcomes" data-report>
-            {% for value, word in outcome_words.items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ _(word) }}</button>{% endfor %}
+          {% if card.self_test %}<div class="meta">{{ _("How much could you recall?") }}</div>{% endif %}
+          <form method="post" action="/s/{{ token }}/{{ card.id }}" class="mini-outcomes" data-report{% if card.self_test %} data-recall{% endif %}>
+            {% for value, word in (recall_words if card.self_test else outcome_words).items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ _(word) }}</button>{% endfor %}
           </form>
         </div>
       </li>

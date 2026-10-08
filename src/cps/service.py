@@ -528,6 +528,9 @@ class SessionView:
     kind: str = "review"  # "review", "first review", "task", "practice"
     detail: str = ""  # what to do in the block (the assistant says; the planner does not)
     pinned: bool = False  # the student put it at this time (`move_session`)
+    # How much a self-test recalled, as the student answered (D25): "again", "hard",
+    # "good" or "easy", FSRS's grades; "" when not answered (the outcome decides).
+    grade: str = ""
 
     @property
     def title(self) -> str:
@@ -1108,8 +1111,7 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
         if session.outcome == "skipped" or session.title not in state:
             continue  # a task or exam practice: nothing to remember
         memory, last = state[session.title]
-        grade = Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
-        state[session.title] = (review(memory, session.start_day - last, grade), session.start_day)
+        state[session.title] = (review(memory, session.start_day - last, _grade(session)), session.start_day)
     return state
 
 
@@ -1523,7 +1525,20 @@ FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
 # Kept 30 days after the last exam or deadline, then deleted (docs/ROADMAP.md, D6).
 RETENTION = timedelta(days=30)
 # What a student can report about a session.
-REPORTS = ("done", "skipped", "struggled")
+REPORTS = ("done", "skipped", "struggled", "forgot", "some", "most", "all")
+# A self-test's answer to "how much could you recall, without your notes?" (D25),
+# as FSRS's four grades: the forecast then uses what the student recalled instead
+# of assuming every session went well.
+RECALL_GRADES = {"forgot": "again", "some": "hard", "most": "good", "all": "easy"}
+_GRADES = {"again": Grade.AGAIN, "hard": Grade.HARD, "good": Grade.GOOD, "easy": Grade.EASY}
+
+
+def _grade(session: SessionView) -> Grade:
+    """The grade a reported session gives its topic: the answer to the recall
+    question when there is one, else good if recalled and again if forgotten."""
+    if session.grade in _GRADES:
+        return _GRADES[session.grade]
+    return Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
 
 
 @dataclass(frozen=True)
@@ -1765,6 +1780,9 @@ def _as_reported(session: SessionView, report: str | None) -> SessionView:
         return session
     if report == "skipped":
         return replace(session, outcome="skipped")
+    if report in RECALL_GRADES and session.kind in ("review", "first review"):
+        grade = RECALL_GRADES[report]
+        return replace(session, outcome="lapsed" if grade == "again" else "recalled", grade=grade)
     if report == "struggled" and session.kind in ("review", "first review"):
         return replace(session, outcome="lapsed")
     return replace(session, outcome="recalled")
@@ -1788,6 +1806,10 @@ def report_session(
     session = find_session(subscription, sid)
     if session is None:
         raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
+    if report in RECALL_GRADES and session.kind not in ("review", "first review"):
+        raise InvalidInput(
+            _("only a self-test asks how much you recalled; this one is done, skipped or hard")
+        )
     now = now or datetime.now(UTC)
     settings = PlanReport.from_dict(subscription.plan or {}).settings
     if session.start_day > _days_after(settings.start, now.astimezone(_zone(settings.tz))):
@@ -2322,6 +2344,7 @@ def _session_card(
     sid = session_id(s)
     return {
         "gain": (gains or {}).get(sid),
+        "self_test": s.kind in ("review", "first review"),
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
         "title": s.title if s.kind == "task" else s.subject,
@@ -3896,7 +3919,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         sessions = progress_sessions(subscription)
         recent = [x for x in sessions if week_ago <= x.start <= now]
         planned += len(recent)
-        done = [x for x in recent if x.report in ("done", "hard")]
+        done = [x for x in recent if x.confirmed]
         confirmed += len(done)
         logged_recent = [x for x in logged if x.start.date() >= week_ago.date()]
         if done or logged_recent:
@@ -3993,8 +4016,9 @@ def _recall_at_exam(members: Sequence[dict], states: Mapping[str, tuple[MemorySt
 def session_gains(plan: PlanReport) -> dict[str, dict]:
     """For each self-test, its topic's predicted recall on exam day without it and
     with it, if no other review followed (D24). The memory states are carried
-    through the whole timeline: reported sessions as reported, the rest as planned,
-    so a session under way (already in the plan's history) has its gain too."""
+    through the whole timeline: reported sessions as reported (an answered self-test
+    with the grade its answer gives, D25), the rest as planned, so a session under
+    way (already in the plan's history) has its gain too."""
     exam_day = {s["name"]: s["exam_day"] for s in plan.specs}
     states = {
         s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
@@ -4006,14 +4030,13 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
         memory, last = states[session.title]
         elapsed = max(session.start_day - last, 0.0)
         exam = exam_day[session.title]
+        after = review(memory, elapsed, _grade(session))
         if session.kind in _REVIEW_KINDS and session.start_day < exam:
-            after = review(memory, elapsed, Grade.GOOD)
             out[session_id(session)] = {
                 "without": _five(retrievability(max(exam - last, 0.0), memory.stability)),
                 "with": _five(retrievability(max(exam - session.start_day, 0.0), after.stability)),
             }
-        grade = Grade.AGAIN if session.outcome == "lapsed" else Grade.GOOD
-        states[session.title] = (review(memory, elapsed, grade), session.start_day)
+        states[session.title] = (after, session.start_day)
     return out
 
 
@@ -4155,6 +4178,8 @@ def trends_view(
                 "logged": w.logged,
                 "effort": w.effort,
                 "progress": w.progress,
+                "answers": w.answers,
+                "recall": w.recall,
             }
             for i, w in enumerate(weeks)
         ],

@@ -5,7 +5,7 @@
   {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
-  {% if show_why and card.gain and card.reported != "skipped" %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}
+  {% if show_why and card.gain and card.reported != "skipped" %}{% if card.reported in recall_words %}<p class="gain">{{ _h("After your answer, this topic is at <b>{with_it}</b> on exam day if no other review followed; the plan takes it from there (a model's estimate).", with_it=card.gain["with"] ~ " %") }}</p>{% else %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}{% endif %}
   {% if show_why and not card.reported and token %}
   <form method="post" action="/p/{{ token }}/focus/start" class="start-focus">
     <input type="hidden" name="sid" value="{{ card.id }}">
@@ -13,8 +13,9 @@
   </form>
   {% endif %}
   {% if card.started %}
-  <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes" data-report>
-    {% for value, word in outcome_words.items() %}
+  {% if card.self_test %}<p class="label recall-ask">{{ _("How much could you recall, without your notes?") }}</p>{% endif %}
+  <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes{% if card.self_test %} recall{% endif %}" data-report{% if card.self_test %} data-recall{% endif %}>
+    {% for value, word in (recall_words if card.self_test else outcome_words).items() %}
     <button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ _(word) }}</button>
     {% endfor %}
   </form>

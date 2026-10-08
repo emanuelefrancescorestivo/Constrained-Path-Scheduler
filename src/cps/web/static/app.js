@@ -42,7 +42,10 @@ function wirePanel() {
       const outcome = event.submitter ? event.submitter.value : "done";
       const sid = form.action.split("/").pop();
       const word = event.submitter ? event.submitter.textContent.trim().toLowerCase() : outcome;
-      await calendar.change(`sessions/${sid}/report`, { outcome }, t("Recorded: {word}. The plan has adjusted.", { word }));
+      const said = form.hasAttribute("data-recall") && outcome !== "skipped"
+        ? t("Recorded. Your exam forecast now uses what you recalled.")
+        : t("Recorded: {word}. The plan has adjusted.", { word });
+      await calendar.change(`sessions/${sid}/report`, { outcome }, said);
     });
   });
 }

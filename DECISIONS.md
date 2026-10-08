@@ -396,3 +396,33 @@ boost", computed rather than invented.
 
 **Rejected.** Tips with invented percentages (exercise, diet; `docs/ANALYTICS.md` §3).
 A forecast with decimals.
+
+## The recall question and the notes library (2026-10-08, the owner's choice)
+
+After docs/ANALYTICS.md, the owner chose two of its proposals: "build the notes
+library and the recall question".
+
+## D25. A self-test asks how much was recalled
+
+**Chosen.** A self-test's report is no longer Done or Hard but the answer to "How
+much could you recall, without your notes?": Nothing, Some, Most or All (and
+Skipped). The answers are FSRS's four grades (again, hard, good, easy) and are kept
+on the reported session (`SessionView.grade`), so the memory replay, the plan's
+next review of that topic, the exam forecast and each session's gain use what the
+student recalled. Recalling nothing brings the topic back sooner than recalling
+all of it. Any answer counts as done for the streak (the self-test happened). The
+Trends page shows recall week by week, from nothing (0) to all (100), as the
+measured part of the forecast. Tasks and exam practice keep Done, Skipped, Hard;
+"done" and "hard" stay valid on a self-test, for links in calendar events made
+before.
+
+**Why.** Perceived progress is a feeling, and learners judge what they know
+generously while the material is in front of them [ref:koriat2005]; a self-test is
+the measure that holds up [ref:adesope2017]. Until now every self-test reported
+done counted as recalled, so the forecast assumed success. Four answers in one tap
+cost no more than the old two and say much more.
+
+**Rejected.** A score typed as a number or a percentage (slower, and false
+precision for "about half"); a second question after Done (an extra tap most would
+skip, leaving the forecast assumed); asking after tasks and practice (they are not
+retrieval).

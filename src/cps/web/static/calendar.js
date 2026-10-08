@@ -15,7 +15,10 @@ import { t } from "./i18n.js";
 
 const KIND_WORDS = { "first review": "Self-test", review: "Self-test", task: "Deadline work", practice: "Exam practice" };
 const OUTCOMES = [["done", "Done"], ["skipped", "Skipped"], ["struggled", "Hard"]];
-const MARKS = { done: "✓", skipped: "–", struggled: "!" };
+// A self-test asks how much was recalled instead (DECISIONS.md D25).
+const RECALL = [["forgot", "Nothing"], ["some", "Some"], ["most", "Most"], ["all", "All"], ["skipped", "Skipped"]];
+const SELF_TESTS = ["review", "first review"];
+const MARKS = { done: "✓", skipped: "–", struggled: "!", forgot: "!", some: "~", most: "✓", all: "✓" };
 
 const toMin = (clock) => {
   const [h, m] = String(clock || "0:0").split(":").map(Number);
@@ -671,13 +674,16 @@ export class Calendar {
       box.why ? h("p", { class: "hint" }, box.why) : null,
     ];
     if (box.started) {
-      parts.push(h("hr"), h("p", { class: "label" }, t("How did it go?")),
-        h("div", { class: "outcomes" }, OUTCOMES.map(([value, word]) => h("button", {
+      const recall = SELF_TESTS.includes(box.session_kind);
+      parts.push(h("hr"), h("p", { class: "label" }, recall ? t("How much could you recall, without your notes?") : t("How did it go?")),
+        h("div", { class: `outcomes${recall ? " recall" : ""}` }, (recall ? RECALL : OUTCOMES).map(([value, word]) => h("button", {
           type: "button",
           class: "btn btn-sm",
           "aria-pressed": box.reported === value ? "true" : "false",
           onclick: () => this.change(`sessions/${box.id}/report`, { outcome: value },
-            t("Recorded: {word}. The plan has adjusted.", { word: t(word).toLowerCase() })),
+            recall && value !== "skipped"
+              ? t("Recorded. Your exam forecast now uses what you recalled.")
+              : t("Recorded: {word}. The plan has adjusted.", { word: t(word).toLowerCase() })),
         }, t(word)))));
     }
     if (box.movable) {

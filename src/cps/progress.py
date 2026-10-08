@@ -6,8 +6,10 @@ about them; nothing is stored, so it always agrees with the calendar. The
 rules, in one place:
 
 * A day is **studied** when at least one of its sessions was reported done or
-  hard ("struggled"). Reports count on the day the session was, whenever the
-  tap came: a late report repairs a day honestly.
+  hard ("struggled"), or, for a self-test, answered with how much was recalled
+  (nothing, some, most, all: it was done, whatever the answer). Reports count on
+  the day the session was, whenever the tap came: a late report repairs a day
+  honestly.
 * A day with nothing planned is **rest**: it neither extends nor breaks a streak.
 * A day with sessions planned and none reported done is **missed**, except the
   first such day of each week (Monday to Sunday), which is **forgiven**.
@@ -30,7 +32,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-CONFIRMED = ("done", "struggled")
+RECALLED = ("forgot", "some", "most", "all")  # a self-test's answer (DECISIONS.md D25)
+CONFIRMED = ("done", "struggled", *RECALLED)
 STREAK_GOALS = (3, 7, 14, 30, 60, 100)
 # A full week: at least this many sessions planned, all reported done or hard.
 FULL_WEEK = 3

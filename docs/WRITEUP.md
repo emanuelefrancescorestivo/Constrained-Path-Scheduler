@@ -70,7 +70,7 @@ test and reported the best state it had seen anywhere in the search tree, while 
 greedy baseline was scored where it finished. And the heuristic added hours to days,
 so its admissibility, the property that makes A* optimal, could not even be stated.
 The calendar parser was a stub; nothing had ever been run on a real timetable.
-`AUDIT.md` lists these and every defect found since, 44 in all.
+`AUDIT.md` lists these and every defect found since, 45 in all.
 
 ## How the rebuild is arranged
 

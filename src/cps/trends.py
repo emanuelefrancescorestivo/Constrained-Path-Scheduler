@@ -20,6 +20,9 @@ from .progress import Session, monday, part_of_day
 
 AVERAGE_WEEKS = 4  # the "your 4-week average" every comparison uses
 PARTS = ("morning", "afternoon", "evening")
+# How much a self-test recalled, as the student answered (DECISIONS.md D25), on a
+# scale from nothing to all.
+RECALL_SCORE = {"forgot": 0.0, "some": 1 / 3, "most": 2 / 3, "all": 1.0}
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,8 @@ class Week:
     logged: int
     effort: float | None  # mean perceived effort of the logged sessions
     progress: float | None
+    answers: int = 0  # self-tests answered with how much was recalled
+    recall: int | None = None  # their mean, from nothing (0) to all (100)
 
     @property
     def kept(self) -> int | None:
@@ -80,6 +85,7 @@ def weekly(
         planned = [s for s in sessions if s.planned and first <= s.start.date() < end]
         past = [s for s in planned if s.start <= now]
         mine = [x for x in logged if first <= x.start.date() < end]
+        answered = [RECALL_SCORE[s.report] for s in past if s.report in RECALL_SCORE]
         minutes = sum(s.minutes for s in planned if s.confirmed) + sum(x.minutes for x in mine)
         out.append(
             Week(
@@ -93,6 +99,8 @@ def weekly(
                 logged=len(mine),
                 effort=sum(x.effort for x in mine) / len(mine) if mine else None,
                 progress=sum(x.progress for x in mine) / len(mine) if mine else None,
+                answers=len(answered),
+                recall=round(100 * sum(answered) / len(answered)) if answered else None,
             )
         )
     return out

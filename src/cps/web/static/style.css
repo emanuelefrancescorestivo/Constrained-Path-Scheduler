@@ -374,7 +374,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .list .meta { font-size: 0.85rem; color: var(--muted); }
 .list .dot { margin-top: 6px; }
 .card > .list { margin: -4px 0; }
-.mini-outcomes { display: flex; gap: 6px; margin-top: 8px; }
+.mini-outcomes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 6px; }
 .stat { background: var(--surface); border-radius: var(--radius); padding: 11px 14px; }
 .stat b { display: block; font-size: 1.45rem; letter-spacing: -0.03em; font-weight: 700; }
@@ -462,6 +462,10 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .session-card .why { font-size: 0.85rem; color: var(--muted); }
 .session-card .badge { margin-top: 6px; }
 .outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+/* A self-test's answer: how much was recalled, then Skipped on its own line (D25) */
+.outcomes.recall { grid-template-columns: repeat(4, 1fr); }
+.outcomes.recall button[value="skipped"] { grid-column: 1 / -1; background: transparent; }
+.recall-ask { margin: 14px 0 -4px; }
 
 /* -- popovers, sheets, the toast ------------------------------------------------- */
 .pop {
