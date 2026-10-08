@@ -40,9 +40,9 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
 
 Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 
-- [ ] **E1 Progress and a forgiving streak.** A Progress tab, the week's ring, the
+- [x] **E1 Progress and a forgiving streak.** A Progress tab, the week's ring, the
       streak on Today (D8, D9).
-- [ ] **E2 The weekly review.** Last week in numbers, a paragraph and one suggestion.
+- [x] **E2 The weekly review.** Last week in numbers, a paragraph and one suggestion.
 - [ ] **E3 French.** The app in French and English, chosen per plan (D10).
 - [ ] **E4 Study buddies.** Up to five friends, by invite code (D11).
 - [ ] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).

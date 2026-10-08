@@ -24,14 +24,15 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 401 passed, 14 deselected, 1 xfailed, about 45 s
-    pytest -m "slow or not slow" --cov=cps   # all 415 + 1 xfailed, 93% coverage, about 2 min; CI runs this
+    pytest                                   # 419 passed, 14 deselected, 1 xfailed, about 60 s
+    pytest -m "slow or not slow" --cov=cps   # all 433 + 1 xfailed, 93% coverage, about 2 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
     python benchmarks/rule_vs_planner.py     # the research planner against one-line rules
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
+    python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -49,6 +50,8 @@ more than an impressive number.
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
+| `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
+| `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words (D10) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |

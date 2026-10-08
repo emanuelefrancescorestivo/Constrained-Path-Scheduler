@@ -47,7 +47,7 @@ Added in this stage:
 |---|---|---|
 | **ring** | sessions done of planned, this week | an SVG circle with `pathLength="100"` whose `stroke-dasharray` attribute carries the share (an SVG attribute, not a style, so the Content-Security-Policy's ban on inline style holds); the number is written beside it, so the ring is never the only carrier of the value |
 | **streak chip** | the streak in days, a flame-free mark | words, not emoji; a best streak beside it on Progress |
-| **day grid** | the last twelve weeks, one square per day: studied (green, three shades by sessions), forgiven, missed, rest, future | a `<table>` with a text label per cell for screen readers; colour plus shape (a dot for forgiven) |
+| **day grid** | the weeks since the plan began (four at least, counting weeks to come; twelve at most), one square per day: studied (green, three shades by sessions), forgiven, missed, rest, future | a `<table>` with a text label per cell for screen readers; colour plus shape (a dot for forgiven) |
 | **milestone row** | reached milestones, and the next one with "2 days to go" | no badges, no unlock animation |
 | **review card** | last week's numbers, one paragraph, one suggestion | "written by AI" when it was |
 | **buddy card** | name, streak, the week's ring, "studied today", a Cheer button | nothing else about the friend |

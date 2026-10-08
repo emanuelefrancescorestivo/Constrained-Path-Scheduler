@@ -88,3 +88,67 @@ against the publisher's page before anything is published, and they say so.
 - doi: 10.1177/1529100612453266
 - status: unchecked
 - checked against: a search engine's index of journals.sagepub.com, pubmed.ncbi.nlm.nih.gov and psychologicalscience.org, and ScienceDaily's report of the publisher's press release (2013-01-10), 2026-09-29: ten techniques reviewed; practice testing and distributed practice rated high utility; summarization, highlighting, the keyword mnemonic, imagery for text and rereading rated low. The publisher's page, PubMed and ERIC were blocked from the build environment, so the full text was not read.
+
+The entries below are the evidence behind the product's engagement design
+(docs/MARKET.md §3, DECISIONS.md D9 and D12). All were found by web search on
+2026-10-08 from an environment that could search but not open pages, so all are
+**unchecked**. Where a source gave surnames only, the entry gives surnames only.
+
+### lally2010
+- authors: P. Lally; C. van Jaarsveld; H. Potts; J. Wardle
+- title: How are habits formed: Modelling habit formation in the real world
+- year: 2010
+- venue: European Journal of Social Psychology 40, pages 998–1009
+- doi: 10.1002/ejsp.674
+- status: unchecked
+- checked against: a search engine's index of UCL's news release (August 2009), the British Psychological Society's Research Digest and secondary summaries, 2026-10-08: 96 participants, a daily behaviour for 84 days, time to automaticity 18 to 254 days (median 66 among good model fits), missing one opportunity did not materially affect habit formation. The publisher's page was not reachable.
+
+### silverman2023
+- authors: Jackie Silverman; Alixandra Barasch
+- title: On or Off Track: How (Broken) Streaks Affect Consumer Decisions
+- year: 2023
+- venue: Journal of Consumer Research
+- doi: 10.1093/jcr/ucac029
+- status: unchecked
+- checked against: a search engine's index of the University of Delaware repository (udspace.udel.edu), the University of Colorado's faculty pages and news release, 2026-10-08: seven studies; intact streaks shown in logs increase later engagement relative to broken ones; the effect is larger when people blame themselves and smaller when the streak can be repaired. The full text was not read.
+
+### gollwitzer2006
+- authors: Gollwitzer; Sheeran
+- title: Implementation intentions and goal achievement: A meta-analysis of effects and processes
+- year: 2006
+- venue: Advances in Experimental Social Psychology 38, pages 69–119
+- doi: 10.1016/S0065-2601(06)38002-1
+- status: unchecked
+- checked against: a search engine's index of the University of Konstanz repository (kops.uni-konstanz.de) and secondary summaries, 2026-10-08: 94 tests, d = 0.65 for goal attainment. The chapter itself was not read.
+
+### hamari2014
+- authors: Hamari; Koivisto; Sarsa
+- title: Does Gamification Work? A Literature Review of Empirical Studies on Gamification
+- year: 2014
+- venue: Proceedings of the 47th Hawaii International Conference on System Sciences (HICSS)
+- status: unchecked
+- checked against: a search engine's index of Aalto University's research portal and the authors' research group's page (gamification-research.org), 2026-10-08: mostly positive effects, dependent on context and users; novelty effects among the recurring caveats. The paper's count of 24 studies comes from a secondary summary.
+
+### koivisto2019
+- authors: Koivisto; Hamari
+- title: The rise of motivational information systems: A review of gamification research
+- year: 2019
+- venue: journal article, as recorded by the University of Turku repository (utupub.fi); the journal was not confirmed from the publisher
+- status: unchecked
+- checked against: a search engine's index of utupub.fi and research.utu.fi, 2026-10-08: 819 studies reviewed; results lean positive with a remarkable amount of mixed results.
+
+### castro2025
+- authors: Castro; Valença
+- title: Teaching or Manipulating? On the Adoption of Bright and Deceptive Patterns by Duolingo
+- year: 2025
+- venue: Brazilian Symposium on Human Factors in Computing Systems (IHC), SBC Open Library (sol.sbc.org.br)
+- status: unchecked
+- checked against: a search engine's index of sol.sbc.org.br and deceptive.design, 2026-10-08: a qualitative review of Duolingo's interface finding manipulative patterns (excessive notifications, emotionally charged visuals) next to ethical ones. The year is the search summary's.
+
+### hepi2025
+- authors: Josh Freeman
+- title: Student Generative AI Survey 2025
+- year: 2025
+- venue: Higher Education Policy Institute (HEPI) and Kortext, hepi.ac.uk
+- status: unchecked
+- checked against: a search engine's index of hepi.ac.uk, 2026-10-08: 1,041 UK undergraduates surveyed by Savanta; 92 % use AI in some form, 88 % for assessments; deterred by fear of being accused of cheating (53 %) and false results (51 %).

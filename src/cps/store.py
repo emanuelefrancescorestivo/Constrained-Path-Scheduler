@@ -158,6 +158,22 @@ class Store:
                 (token, _now(), kind, detail),
             )
 
+    def log_daily(self, token: str, kind: str, detail: str = "") -> bool:
+        """Log `kind` once per token per day (UTC); True if this was the first
+        today. A page's visits count as one a day (DECISIONS.md, D15)."""
+        stamp = _now()
+        with self._connect() as db:
+            added = db.execute(
+                """
+                INSERT INTO events (token, at, kind, detail)
+                SELECT ?, ?, ?, ? WHERE NOT EXISTS (
+                    SELECT 1 FROM events WHERE token = ? AND kind = ? AND substr(at, 1, 10) = ?
+                )
+                """,
+                (token, stamp, kind, detail, token, kind, stamp[:10]),
+            ).rowcount
+        return bool(added)
+
     def events(self, token: str) -> list[dict]:
         with self._connect() as db:
             rows = db.execute(

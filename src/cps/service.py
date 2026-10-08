@@ -53,6 +53,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from . import progress as _progress
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -68,6 +69,8 @@ from .calendar_io import (
     find_lectures,
     plan_to_ics,
 )
+from .i18n import _, _n, format_date
+from .i18n import number as format_number
 from .memory import (
     Grade,
     MemoryState,
@@ -2104,6 +2107,11 @@ def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "")
     _store(store).log(token, kind, detail)
 
 
+def log_visit(store: str | os.PathLike, token: str) -> bool:
+    """A student opened their plan today; logged once a day (D15)."""
+    return _store(store).log_daily(token, "visit")
+
+
 def events(store: str | os.PathLike, token: str) -> list[dict]:
     return _store(store).events(token)
 
@@ -2471,7 +2479,24 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
     }
     view["tasks"] = [t for t in _task_rows(subscription, plan, now, colours) if not t["finished"]]
-    view["exams"] = [
+    view["exams"] = _exam_rows(plan, now, colours)
+    # A subject short of its target already says so in its status line; other
+    # warnings (practice that does not fit, work that does not fit) stay.
+    shown = tuple(f"{x.name}: " for x in plan.subjects)
+    view["warnings"] = [
+        w
+        for w in plan.warnings
+        if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
+    ]
+    return view
+
+
+def _exam_rows(plan: PlanReport, now: datetime, colours: Mapping[str, int]) -> list[dict]:
+    """The exams still to come, soonest first, with how many of their topics are on
+    track."""
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    return [
         {
             "name": x.name,
             "when": _when(datetime.fromisoformat(x.exam).astimezone(zone), local),
@@ -2486,15 +2511,6 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         for x in sorted(plan.subjects, key=lambda x: x.exam)
         if datetime.fromisoformat(x.exam) > now
     ]
-    # A subject short of its target already says so in its status line; other
-    # warnings (practice that does not fit, work that does not fit) stay.
-    shown = tuple(f"{x.name}: " for x in plan.subjects)
-    view["warnings"] = [
-        w
-        for w in plan.warnings
-        if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
-    ]
-    return view
 
 
 def _task_rows(
@@ -2594,6 +2610,306 @@ def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["this_week"] = sum(not r["finished"] and 0 <= r["days"] < 7 for r in rows)
     view["finished"] = sum(r["finished"] for r in rows)
     return view
+
+
+# --------------------------------------------------------------------------- #
+# Progress, the streak and the weekly review (DECISIONS.md, D8 and D9)
+
+
+def progress_sessions(subscription: Subscription) -> list[_progress.Session]:
+    """Every session of the plan, past and to come, as `progress` counts them:
+    local start, length, kind, course, and what the student reported."""
+    if subscription.plan is None:
+        return []
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    out = []
+    for s in plan.history + plan.sessions:
+        start = datetime.fromisoformat(s.start).astimezone(zone)
+        end = datetime.fromisoformat(s.end).astimezone(zone)
+        out.append(
+            _progress.Session(
+                start=start,
+                minutes=round((end - start) / timedelta(minutes=1)),
+                kind=s.kind,
+                course=s.subject,
+                report=subscription.outcomes.get(session_id(s)),
+            )
+        )
+    return out
+
+
+MILESTONES = (
+    ("first", "First session done"),
+    ("streak_3", "3 days in a row"),
+    ("streak_7", "A week in a row"),
+    ("full_week", "A full week: every session done"),
+    ("streak_14", "Two weeks in a row"),
+    ("streak_30", "30 days in a row"),
+)
+
+
+def _milestones(best: int, sessions_done: int, full_weeks: int) -> list[dict]:
+    reached = {
+        "first": sessions_done >= 1,
+        "streak_3": best >= 3,
+        "streak_7": best >= 7,
+        "full_week": full_weeks >= 1,
+        "streak_14": best >= 14,
+        "streak_30": best >= 30,
+    }
+    return [{"key": key, "label": _(label), "reached": reached[key]} for key, label in MILESTONES]
+
+
+def _hours(minutes: int) -> float:
+    return round(minutes / 60, 1)
+
+
+def progress_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the Progress page shows, and the strip on Today: the streak, this week's
+    sessions done of planned, the last twelve weeks day by day, milestones, exams
+    and tasks. Derived from the plan and the reports every time (D8)."""
+    now = now or datetime.now(UTC)
+    view: dict = {"planned": subscription.plan is not None, "error": subscription.error}
+    if subscription.plan is None:
+        return view
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    today = local.date()
+    sessions = progress_sessions(subscription)
+    first = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    run = _progress.streak(sessions, first, today)
+    # The weeks since the plan began, at most twelve; a younger plan shows its weeks
+    # to come too, four in all, so it is not a sliver.
+    weeks = max(4, min(12, (_progress.monday(today) - _progress.monday(first)).days // 7 + 1))
+    this_week = _progress.week(sessions, _progress.monday(today), local)
+    done = [s for s in sessions if s.confirmed]
+    full = _progress.full_weeks(sessions, today)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    tasks = _task_rows(subscription, plan, now, colours)
+    if run.today_done:
+        today_line = _("Today counts. See you tomorrow.")
+    elif run.today_planned:
+        today_line = _n(
+            "One session today makes it {n} day in a row.",
+            "One session today makes it {n} days in a row.",
+            run.current + 1,
+        )
+    else:
+        today_line = _("Nothing planned today: a rest day keeps your streak as it is.")
+    view.update(
+        {
+            "streak": {
+                "current": run.current,
+                "best": run.best,
+                "goal": run.goal,
+                "to_go": run.goal - run.current,
+                "today_planned": run.today_planned,
+                "today_done": run.today_done,
+                "line": today_line,
+            },
+            "week": {
+                "planned": this_week.planned,
+                "done": this_week.done,
+                "skipped": this_week.skipped,
+                "waiting": this_week.waiting,
+                "percent": this_week.percent,
+                "hours_done": _hours(this_week.minutes_done),
+                "hours_planned": _hours(this_week.minutes_planned),
+            },
+            "grid": [
+                [
+                    {
+                        "date": d.day.isoformat(),
+                        "label": format_date(d.day, "short"),
+                        "state": d.state,
+                        "level": d.level,
+                        "planned": d.planned,
+                        "done": d.done,
+                        "today": d.day == today,
+                    }
+                    for d in row
+                ]
+                for row in _progress.grid(sessions, first, today, weeks=weeks)
+            ],
+            "since": format_date(_progress.monday(first), "day"),
+            "totals": {
+                "sessions": len(done),
+                "hours": _hours(sum(s.minutes for s in done)),
+                "days": sum(d.state == "studied" for d in run.days),
+                "tasks_finished": sum(t["finished"] for t in tasks),
+            },
+            "milestones": _milestones(run.best, len(done), full),
+            "exams": _exam_rows(plan, now, colours),
+        }
+    )
+    return view
+
+
+# Which suggestion a weekly review makes: the first that applies, in this order.
+SUGGESTIONS = ("report", "time_of_day", "lighter", "exam", "all_done", "steady")
+
+
+def weekly_review(subscription: Subscription, now: datetime | None = None, weeks_back: int = 1) -> dict:
+    """A week in numbers, one suggestion and a paragraph saying both (the template
+    that the AI version replaces when it is on, D12). By default the week before
+    this one; `weeks_back=0` is this week so far."""
+    now = now or datetime.now(UTC)
+    if subscription.plan is None:
+        return {"planned": False}
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    sessions = progress_sessions(subscription)
+    first_day = _progress.monday(local.date()) - timedelta(weeks=weeks_back)
+    last_day = first_day + timedelta(days=6)
+    week_end = datetime.combine(last_day + timedelta(days=1), time(0, 0), tzinfo=zone)
+    w = _progress.week(sessions, first_day, min(local, week_end))
+    start = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    run = _progress.streak(sessions, start, min(local.date(), last_day))
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    due = [
+        t
+        for t in _task_rows(subscription, plan, now, colours)
+        if first_day <= date.fromisoformat(t["due_value"][:10]) <= last_day
+    ]
+    met = [t for t in due if t["finished"] or t["percent"] >= 100]
+    soon = [e for e in _exam_rows(plan, week_end, colours) if 0 <= e["days"] <= 14]
+    skipped_when: dict[str, int] = {}
+    for x in w.sessions:
+        if x.report == "skipped":
+            part = _progress.part_of_day(x.start)
+            skipped_when[part] = skipped_when.get(part, 0) + 1
+    worst = max(skipped_when.items(), key=lambda kv: kv[1], default=("", 0))
+    share = w.done / w.planned if w.planned else 1.0
+    past = sum(x.start <= min(local, week_end) for x in w.sessions)
+    if w.planned and past and w.waiting / past > 0.5:
+        key = "report"
+        suggestion = _(
+            "Most sessions were not reported. "
+            "A tap on Done after each one keeps your plan and your streak true."
+        )
+    elif worst[1] >= 2:
+        key = "time_of_day"
+        part = {"morning": _("morning"), "afternoon": _("afternoon"), "evening": _("evening")}[worst[0]]
+        suggestion = _(
+            "{n} {part} sessions were skipped. "
+            "If that time does not work, change the hours you study in Settings.",
+            n=worst[1],
+            part=part,
+        )
+    elif w.planned >= 4 and share < 0.5:
+        key = "lighter"
+        suggestion = _(
+            "A week you keep beats a heavy one you skip: try a weekly limit near the {hours} h you did, "
+            "in Settings.",
+            hours=max(1, round(w.minutes_done / 60)),
+        )
+    elif soon:
+        key = "exam"
+        exam = soon[0]
+        suggestion = _n(
+            "{name} is in {n} day: exam practice is in your plan.",
+            "{name} is in {n} days: exam practice is in your plan.",
+            max(1, round(exam["days"])),
+            name=exam["name"],
+        )
+    elif w.planned and w.done >= w.planned:
+        key = "all_done"
+        suggestion = _("Every session done. The same again this week.")
+    else:
+        key = "steady"
+        suggestion = _("Keep the rhythm: one session at a time.")
+    if not w.planned:
+        numbers = _("Nothing was planned that week.")
+    else:
+        numbers = _n(
+            "You did {done} of {n} planned session ({hours} h).",
+            "You did {done} of {n} planned sessions ({hours} h).",
+            w.planned,
+            done=w.done,
+            hours=format_number(w.minutes_done / 60),
+        )
+    streak_line = (
+        _n("Your streak is {n} day.", "Your streak is {n} days.", run.current) if run.current else ""
+    )
+    deadlines = (
+        _n(
+            "{met} of {n} deadline met.",
+            "{met} of {n} deadlines met.",
+            len(due),
+            met=len(met),
+        )
+        if due
+        else ""
+    )
+    return {
+        "planned": True,
+        "week": first_day.isoformat(),
+        "label": _("Week of {day}", day=format_date(first_day, "day")),
+        "sessions_planned": w.planned,
+        "sessions_done": w.done,
+        "skipped": w.skipped,
+        "waiting": w.waiting,
+        "percent": w.percent,
+        "hours_done": _hours(w.minutes_done),
+        "hours_planned": _hours(w.minutes_planned),
+        "days_studied": w.days_studied,
+        "streak": run.current,
+        "deadlines": len(due),
+        "deadlines_met": len(met),
+        "exams_soon": [{"name": e["name"], "days": round(e["days"])} for e in soon],
+        "suggestion_key": key,
+        "suggestion": suggestion,
+        "text": " ".join(x for x in (numbers, streak_line, deadlines, suggestion) if x),
+        "by": "rules",
+    }
+
+
+# The front ends translate through these (they import nothing but this module).
+translate = _
+translate_plural = _n
+
+
+DAY_WORDS = {
+    "studied": "studied",
+    "forgiven": "forgiven",
+    "missed": "not reported",
+    "rest": "rest",
+    "today": "today",
+    "future": "to come",
+    "before": "before your plan",
+}
+
+
+def day_word(state: str) -> str:
+    """A day's state in the grid, in words, for screen readers."""
+    return _(DAY_WORDS.get(state, state))
+
+
+def review_for_today(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Last week's review, for the Today page on Monday and Tuesday, unless the
+    student hid it or there was nothing planned."""
+    now = now or datetime.now(UTC)
+    if subscription.plan is None:
+        return None
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    if local.weekday() > 1:
+        return None
+    review = weekly_review(subscription, now)
+    if not review.get("sessions_planned") or subscription.options.get("review_seen") == review["week"]:
+        return None
+    return review
+
+
+def hide_review(subscription: Subscription, week: str) -> Subscription:
+    """The student read the review of the week starting `week` (a Monday)."""
+    try:
+        date.fromisoformat(week)
+    except ValueError:
+        raise InvalidInput(f"{week!r} is not a week") from None
+    return replace(subscription, options={**subscription.options, "review_seen": week})
 
 
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:

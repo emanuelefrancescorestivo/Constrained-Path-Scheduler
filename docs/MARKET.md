@@ -78,7 +78,7 @@ longer, and a third of daily users have a "Friend Streak"
 seen through search excerpts, not opened). In seven experiments, an intact streak shown
 in a log raised later engagement relative to a broken one; the harm was larger when
 people blamed themselves for the break, and smaller when they could repair it
-([Silverman and Barasch, *Journal of Consumer Research* 2023](https://udspace.udel.edu/items/42ce576b-8e1f-429a-8541-e29e48dbcfbb)).
+([Silverman and Barasch, *Journal of Consumer Research* 2023](https://udspace.udel.edu/items/42ce576b-8e1f-429a-8541-e29e48dbcfbb)) [ref:silverman2023].
 One author's advice: do not tell people their streak broke, offer a fresh goal
 ([CU Boulder](https://www.colorado.edu/business/news/2023/04/20/research-streaks-marketing-tech-barasch)).
 
@@ -87,20 +87,20 @@ al.'s study of 96 people repeating a daily behaviour, the time to reach automati
 ranged from 18 to 254 days (a median of 66 among those the model fitted), and missing
 one opportunity did not materially affect the process
 ([UCL](https://www.ucl.ac.uk/news/2009/aug/how-long-does-it-take-form-habit);
-*European Journal of Social Psychology* 40, 2010).
+*European Journal of Social Psychology* 40, 2010) [ref:lally2010].
 
 **Deciding when and where works.** Across 94 tests, "if-then" plans of when and where
 to act raised goal attainment by d = 0.65
-([Gollwitzer and Sheeran 2006](https://kops.uni-konstanz.de/entities/publication/2e749bfb-8533-437c-8203-7e788c910c5f)).
+([Gollwitzer and Sheeran 2006](https://kops.uni-konstanz.de/entities/publication/2e749bfb-8533-437c-8203-7e788c910c5f)) [ref:gollwitzer2006].
 A calendar event that says what to do at 14:00 is such a plan; this project already
 makes one per session.
 
 **Gamification helps sometimes.** A review of 24 empirical studies found mostly
 positive but context-dependent effects, with novelty effects as a recurring caveat
-([Hamari, Koivisto and Sarsa 2014](https://research.aalto.fi/fi/publications/does-gamification-work-a-literature-review-of-empirical-studies-o/)).
+([Hamari, Koivisto and Sarsa 2014](https://research.aalto.fi/fi/publications/does-gamification-work-a-literature-review-of-empirical-studies-o/)) [ref:hamari2014].
 The authors' later review of 819 studies leans positive with "remarkable" amounts
 of mixed results
-([Koivisto and Hamari 2019](https://www.utupub.fi/items/42fd7508-27b2-4ead-aba2-b94e3a73eb04/full)).
+([Koivisto and Hamari 2019](https://www.utupub.fi/items/42fd7508-27b2-4ead-aba2-b94e3a73eb04/full)) [ref:koivisto2019].
 Points and badges are not a strategy.
 
 **Streaks can turn into anxiety.** Interviews and Reddit studies of Duolingo users
@@ -109,7 +109,7 @@ describe a shift from learning to protecting the streak
 [Utrecht thesis](https://studenttheses.uu.nl/handle/20.500.12932/48993)). A review of
 Duolingo's interface found manipulative patterns, such as excessive notifications,
 next to honest ones
-([Castro and Valença 2025](https://sol.sbc.org.br/index.php/ihc/article/view/37677)).
+([Castro and Valença 2025](https://sol.sbc.org.br/index.php/ihc/article/view/37677)) [ref:castro2025].
 These are qualitative studies; no one has measured the harm.
 
 **Other people help, if they are friends.** Research on studying in another person's
@@ -123,7 +123,7 @@ as YPT shows, reward the wrong thing for a planner whose point is a sustainable 
 **Students use AI already, and fear two things.** In a 2025 survey of 1,041 UK
 undergraduates, 92 % used AI in some form and 88 % for assessed work; what put them
 off was being accused of cheating (53 %) and false results (51 %)
-([HEPI 2025](https://www.hepi.ac.uk/reports/student-generative-ai-survey-2025/)). That is
+([HEPI 2025](https://www.hepi.ac.uk/reports/student-generative-ai-survey-2025/)) [ref:hepi2025]. That is
 a UK survey; no French equivalent was found.
 
 ## 4. Review mining

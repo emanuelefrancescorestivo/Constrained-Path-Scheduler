@@ -31,7 +31,7 @@ tests, Gollwitzer and Sheeran 2006). Notifications of our own are deliberately a
 ## What this stage adds
 
 1. **Progress** (D8). A Progress tab: the week's ring (sessions done of those
-   planned), the streak and the best one, a calendar of the last twelve weeks, each
+   planned), the streak and the best one, a calendar of the weeks since the plan began, each
    exam's readiness, tasks finished, and a few milestones (first session, three-,
    seven-, fourteen- and thirty-day streaks, a full week). On Today: the streak and
    the ring, small, above the next session.

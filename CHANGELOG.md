@@ -6,6 +6,24 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A reason to come back every day (docs/STRATEGY.md; DECISIONS.md D8, D9). A Progress
+  tab: the week's sessions done of planned in a ring, the streak and the best one,
+  the weeks since the plan began day by day, milestones, each exam's readiness. On
+  Today, the ring and the streak in a strip, and on Mondays and Tuesdays last week's
+  review: its numbers, a paragraph and one suggestion chosen by rules (sessions not
+  reported, sessions skipped at the same time of day, a week much heavier than what
+  was done, an exam close, everything done). The streak counts days with a session
+  reported done or hard; days with nothing planned are neutral; one day a week
+  without a report is forgiven; a late report counts on its day; a lost streak is
+  never announced (`progress.py`, `service.progress_view`, `weekly_review`). Each
+  plan's daily visit is logged once, for the pilot's measures (D15).
+- `cps.i18n`: the sentences the new pages write go through `_()` and `_n()`, ready
+  for French (D10).
+- The market analysis (`docs/MARKET.md`), the engagement strategy
+  (`docs/STRATEGY.md`), the design system (`docs/DESIGN.md`), the decisions that
+  follow from the owner's answers (`DECISIONS.md`), and `benchmarks/reviews.py`, which
+  codes competitors' App Store reviews by theme (not run yet: Apple's servers were
+  out of reach of the sandbox it was written in).
 - Tasks the way Motion handles them: a new-task sheet on every page (the + button, or
   the N key) with one-tap due dates and durations; a Tasks page with each task's
   sessions done and the next one; a task ticked off frees its remaining sessions, with

@@ -91,6 +91,12 @@ def planned(web):
     return token
 
 
+def _last_change(web, token):
+    """The kind of the last event that changed the plan (a page's daily `visit` is
+    not a change)."""
+    return [e for e in web.store.events(token) if e["kind"] != "visit"][-1]["kind"]
+
+
 def _subscription(web, token) -> service.Subscription:
     return service.load_subscription(web.store.path, token)
 
@@ -558,7 +564,7 @@ def test_a_busy_time_drawn_on_the_calendar_moves_the_plan(web, planned):
     assert [i for i in after["items"] if i["kind"] == "study"], "the work moves to other days"
     stored = _subscription(web, planned)
     assert stored.busy_rows[0]["kind"] == "timeoff" and stored.busy_rows[0]["date"] == day["date"]
-    assert web.store.events(planned)[-1]["kind"] == "activities"
+    assert _last_change(web, planned) == "activities"
 
 
 def test_busy_times_can_be_drawn_before_any_exam_is_known(web, planned):
@@ -634,7 +640,7 @@ def test_a_session_dragged_on_the_calendar_moves_and_stays(web, planned):
     assert answer.status_code == 200, answer.text
     moved = [i for i in answer.json()["items"] if i["kind"] == "study" and i["pinned"]]
     assert [(i["label"], i["at"][:16]) for i in moved] == [(item["label"], "2026-10-04T10:00")]
-    assert web.store.events(planned)[-1]["kind"] == "move"
+    assert _last_change(web, planned) == "move"
     panel = web.get(f"/p/{planned}/panel").text
     assert "<html" not in panel  # a fragment, for the page to put in place
     assert "Placed by you" in panel or ">placed<" in panel
@@ -670,7 +676,7 @@ def test_the_panel_is_the_plan_pages_panel(web, planned):
     page = web.get(f"/p/{planned}").text
     panel = web.get(f"/p/{planned}/panel").text
     assert panel.strip() and panel.strip().split("\n")[0] in page
-    assert "Tuesday 29 September" in panel and "sessions in the next 7 days" in panel
+    assert "Tuesday 29 September" in panel and 'class="strip"' in panel and "this week" in panel
     assert "Stats report" in panel and ">Tasks<" in panel
 
 
@@ -735,10 +741,10 @@ def test_a_task_ticked_off_frees_its_sessions_and_can_be_reopened(web, planned):
     assert not any(i.get("session_kind") == "task" for i in after["items"])
     page = unescape(web.get(done.headers["location"]).text)
     assert "Done. Its remaining sessions are free time again." in page and "0 open" in page
-    assert web.store.events(planned)[-1]["kind"] == "finished"
+    assert _last_change(web, planned) == "finished"
     web.post(f"/p/{planned}/tasks/done", data={"name": "Stats report", "done": "0", "back": "today"})
     assert "done" not in _subscription(web, planned).options["tasks"][0]
-    assert web.store.events(planned)[-1]["kind"] == "reopened"
+    assert _last_change(web, planned) == "reopened"
 
 
 def test_a_task_is_deleted_and_an_unknown_one_is_refused(web, planned):
@@ -758,3 +764,73 @@ def test_task_forms_go_back_only_to_the_plans_own_pages(web, planned):
         follow_redirects=False,
     )
     assert answer.headers["location"] == f"/p/{planned}?saved=finished"
+
+
+# --------------------------------------------------------------------------- #
+# Progress, the streak and the weekly review (DECISIONS.md, D8 and D9)
+# --------------------------------------------------------------------------- #
+
+MONDAY = datetime(2026, 10, 5, 6, 0, tzinfo=UTC)  # 08:00 in Paris, the second Monday
+
+
+def _first_week(web, token):
+    plan = service.PlanReport.from_dict(_subscription(web, token).plan)
+    return [s for s in plan.sessions if datetime.fromisoformat(s.start) < MONDAY]
+
+
+def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock):
+    clock.now = MONDAY
+    sessions = _first_week(web, planned)
+    assert len(sessions) >= 3
+    empty = web.get(f"/p/{planned}/progress")
+    assert empty.status_code == 200 and '<b class="big">0</b>' in empty.text
+    for s in sessions:
+        answer = web.post(
+            f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"}, follow_redirects=False
+        )
+        assert answer.status_code == 303
+    page = web.get(f"/p/{planned}/progress")
+    text = unescape(page.text)
+    days = len({datetime.fromisoformat(s.start).date() for s in sessions})
+    assert f'<b class="big">{days}</b>' in text and f"{days} days studied" in text
+    assert "First session done" in text and 'class="reached"' in text and "Since 28 September" in text
+    assert text.count('<td class="d d-') == 4 * 7 and "d-studied" in text
+    assert "Week of 28 September" in text and "Every session done." in text
+    for word in ("lost", "broke", "missed your"):  # D9: a lost streak is never announced
+        assert word not in text.lower()
+    # This week's ring has no arc until a session of this week is done; then the arc
+    # is an SVG attribute, which the Content-Security-Policy allows, not a style.
+    assert 'class="ring-arc"' not in page.text
+    plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
+    this_week = next(s for s in plan.sessions if datetime.fromisoformat(s.start) >= MONDAY)
+    clock.now = datetime.fromisoformat(this_week.end).astimezone(UTC)
+    web.post(f"/s/{planned}/{service.session_id(this_week)}", data={"outcome": "done"})
+    page = web.get(f"/p/{planned}/progress")
+    assert 'class="ring-arc"' in page.text and "stroke-dasharray=" in page.text
+    assert " style=" not in page.text
+
+
+def test_today_shows_the_streak_and_on_monday_last_week_s_review_until_hidden(web, planned, clock):
+    clock.now = MONDAY
+    for s in _first_week(web, planned):
+        web.post(f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"})
+    today = unescape(web.get(f"/p/{planned}").text)
+    assert 'class="strip"' in today and "in a row" in today
+    assert "Week of 28 September" in today and "Hide until next week" in today
+    # The panel the page fetches again after each change carries the same strip.
+    assert 'class="strip"' in web.get(f"/p/{planned}/panel").text
+    hidden = web.post(f"/p/{planned}/review/seen", data={"week": "2026-09-28"}, follow_redirects=False)
+    assert hidden.status_code == 303
+    assert "Hide until next week" not in web.get(f"/p/{planned}").text
+    assert web.post(f"/p/{planned}/review/seen", data={"week": "soon"}).status_code == 400
+    # From Wednesday, the review lives on the Progress page only.
+    clock.now = MONDAY + timedelta(days=2)
+    assert "Hide until next week" not in web.get(f"/p/{planned}").text
+
+
+def test_a_visit_is_counted_once_a_day(web, planned, clock):
+    for _ in range(3):
+        web.get(f"/p/{planned}")
+    web.get(f"/p/{planned}/progress")
+    visits = [e for e in web.store.events(planned) if e["kind"] == "visit"]
+    assert len(visits) == 1 and visits[0]["detail"] == ""

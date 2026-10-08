@@ -5,6 +5,9 @@
 </div>
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} The plan shown is the last one that could be made.{% endif %}</p>{% endif %}
 
+{% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
+{% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
+
 {% if not view.planned %}
 <div class="card">
   <h2>Nothing to plan yet</h2>
@@ -12,11 +15,6 @@
   <p><a class="btn btn-primary" href="/p/{{ token }}/settings">Add exams</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">New task</button></p>
 </div>
 {% else %}
-
-<div class="stat-row">
-  <div class="stat"><b>{{ view.week.sessions }}</b><span>sessions in the next 7 days</span></div>
-  <div class="stat"><b>{{ view.week.hours | round(1) | string | replace('.0', '') }} h</b><span>of study in the next 7 days</span></div>
-</div>
 
 <div class="section">
 {% if view.now %}
@@ -33,7 +31,7 @@
 {% set asked = view.unreported | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
 {% if asked %}
 <div class="section">
-  <div class="section-title"><h2>How did these go?</h2><small>{{ asked | length }}</small></div>
+  <div class="section-title" id="reports"><h2>How did these go?</h2><small>{{ asked | length }}</small></div>
   <div class="card">
     <ul class="list">
     {% for card in asked[:5] %}

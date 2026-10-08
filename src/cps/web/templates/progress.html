@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_ring.html" import ring %}
+{% block title %}{{ _("Progress") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("Progress") }}</h1>
+  {% if view.planned %}<p>{{ view.streak.line }}</p>{% endif %}
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if not view.planned %}
+<div class="card"><h2>{{ _("Nothing to count yet") }}</h2>
+<p class="muted">{{ _("Your progress appears here once there is a plan: add an exam or a deadline.") }}</p>
+<p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a></p></div>
+{% else %}
+{% set w = view.week %}{% set st = view.streak %}
+<div class="hero">
+  <div class="card hero-ring">
+    {{ ring(w.percent, "lg", _("{done} of {planned} sessions this week", done=w.done, planned=w.planned)) }}
+    <div>
+      <b class="big">{{ w.done }}<small>/{{ w.planned }}</small></b>
+      <span>{{ _("sessions done this week") }}</span>
+      <span class="muted">{{ _("{done} h of {planned} h", done=w.hours_done | hours, planned=w.hours_planned | hours) }}</span>
+      {% if w.waiting %}<a href="/p/{{ token }}#reports" class="muted">{{ _n("{n} waiting for a tap", "{n} waiting for a tap", w.waiting) }}</a>{% endif %}
+    </div>
+  </div>
+  <div class="card hero-streak">
+    <span class="streak-mark big{% if st.today_done %} lit{% endif %}" aria-hidden="true"></span>
+    <div>
+      <b class="big">{{ st.current }}</b>
+      <span>{{ _n("day in a row", "days in a row", st.current) }}</span>
+      <span class="muted">{{ _("Best: {n}", n=st.best) }} · {{ _n("{n} day to a {goal}-day streak", "{n} days to a {goal}-day streak", st.to_go, goal=st.goal) }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><h2>{% if view.grid | length < 12 %}{{ _("Since {day}", day=view.since) }}{% else %}{{ _("The last twelve weeks") }}{% endif %}</h2><small>{{ _n("{n} day studied", "{n} days studied", view.totals.days) }}</small></div>
+  <div class="card days-card">
+    <table class="days" aria-label="{{ _('Days studied, week by week') }}">
+      <tbody>
+      {% for weekday in range(7) %}
+      <tr>
+        <th scope="row">{{ view.grid[0][weekday].label.split(' ')[0] if weekday in (0, 2, 4) else '' }}</th>
+        {% for row in view.grid %}{% set d = row[weekday] %}
+        <td class="d d-{{ d.state }} l{{ d.level }}{% if d.today %} is-today{% endif %}" title="{{ d.label }}"><span class="visually-hidden">{{ d.label }}: {{ day_word(d.state) }}</span></td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="day-legend">
+      <span><i class="d d-studied l2"></i>{{ _("studied") }}</span>
+      <span><i class="d d-forgiven"></i>{{ _("forgiven") }}</span>
+      <span><i class="d d-missed"></i>{{ _("not reported") }}</span>
+      <span><i class="d d-rest"></i>{{ _("rest") }}</span>
+    </p>
+    <p class="hint">{{ _("One day a week without a report is forgiven, and a day off in your plan never counts against you. Reporting a session late still counts on its day.") }}</p>
+  </div>
+</div>
+
+{% if review and review.planned %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Last week") }}</h2></div>
+  {% include "_review.html" %}
+</div>
+{% endif %}
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("Milestones") }}</h2><small>{{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h</small></div>
+  <div class="card">
+    <ul class="list milestones">
+    {% for m in view.milestones %}
+      <li class="{{ 'reached' if m.reached else '' }}">
+        <span class="check" aria-hidden="true"></span>
+        <div class="grow"><div class="title">{{ m.label }}</div></div>
+        <span class="visually-hidden">{{ _("reached") if m.reached else _("not yet") }}</span>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{% if view.exams %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Exams") }}</h2></div>
+  <div class="card">
+    <ul class="list">
+    {% for e in view.exams %}
+      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
+        <span class="dot"></span>
+        <div class="grow">
+          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
+          <div class="meta">{{ _("{ready} of {n} topics on track", ready=e.topics_ready, n=e.topics) }}</div>
+          <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

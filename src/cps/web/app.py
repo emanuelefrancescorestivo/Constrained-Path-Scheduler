@@ -142,6 +142,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
     templates.env.globals["familiarity"] = FAMILIARITY
     templates.env.filters["nice_date"] = _nice_date
+    templates.env.filters["hours"] = service.format_number
+    templates.env.globals["_"] = service.translate
+    templates.env.globals["_n"] = service.translate_plural
+    templates.env.globals["day_word"] = service.day_word
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -287,17 +291,26 @@ def create_app(config: Config | None = None) -> FastAPI:
         token = subscription.token
         if subscription.source_url and service.is_stale(subscription, config.clock()):
             feeds.refresh(token)
+        service.log_visit(store, token)
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         return page(
             request,
             "plan.html",
             status,
             token=token,
-            view=service.today_view(subscription, config.clock()),
             first=today.isoformat(),
             tab=tab,
+            **panel_context(subscription),
             **context,
         )
+
+    def panel_context(subscription: service.Subscription) -> dict[str, Any]:
+        now = config.clock()
+        return {
+            "view": service.today_view(subscription, now),
+            "progress": service.progress_view(subscription, now),
+            "review": service.review_for_today(subscription, now),
+        }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
     def today(request: Request, token: str, reported: str | None = None, saved: str = "") -> HTMLResponse:
@@ -321,9 +334,36 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
+        return page(request, "_panel.html", token=token, **panel_context(subscription))
+
+    @app.get("/p/{token}/progress", response_class=HTMLResponse)
+    def progress(request: Request, token: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        now = config.clock()
         return page(
-            request, "_panel.html", token=token, view=service.today_view(subscription, config.clock())
+            request,
+            "progress.html",
+            token=token,
+            view=service.progress_view(subscription, now),
+            review=service.weekly_review(subscription, now),
+            saved=_notice(saved),
+            tab="progress",
         )
+
+    @app.post("/p/{token}/review/seen")
+    async def review_seen(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        week = str(form.get("week") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.hide_review(current, week))
+        except service.ServiceError as error:
+            return page(request, "message.html", 400, title="Not saved", message=str(error), token=token)
+        return RedirectResponse(f"/p/{token}", 303)
 
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
