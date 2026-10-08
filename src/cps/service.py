@@ -3177,6 +3177,19 @@ def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
     }
 
 
+def _sharing(store: str | os.PathLike, token: str, chosen: str | None, default: str) -> str:
+    """Who a post goes to. Sharing needs a handle (D16): without a profile nobody
+    could follow the author or tell who wrote it, so a post with no choice made
+    stays private, and a choice to share is refused with the way to fix it."""
+    has_profile = social.get_profile(_store(store), token) is not None
+    visibility = str(chosen or (default if has_profile else "me"))
+    if visibility != "me" and not has_profile:
+        raise InvalidInput(
+            _("to share with others, choose a handle in your profile first; or keep it for yourself")
+        )
+    return visibility
+
+
 def log_session(
     store: str | os.PathLike,
     subscription: Subscription,
@@ -3207,6 +3220,7 @@ def log_session(
         "interruptions": draft["interruptions"] if timed else 0,
         "sid": draft.get("sid") or "",
     }
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
     day = (
         datetime.fromisoformat(draft["started"]).astimezone(zone).date()
         if draft.get("started")
@@ -3218,7 +3232,7 @@ def log_session(
             subscription.token,
             "session",
             day=day.isoformat(),
-            visibility=str(form.get("visibility") or "followers"),
+            visibility=visibility,
             data=data,
             photos=photos,
             now=now,
@@ -3326,6 +3340,7 @@ def delete_post(store: str | os.PathLike, token: str, post_id: str) -> bool:
 
 
 def set_post_visibility(store: str | os.PathLike, token: str, post_id: str, visibility: str) -> bool:
+    visibility = _sharing(store, token, visibility, "me")
     try:
         return social.set_visibility(_store(store), token, post_id, visibility)
     except social.SocialError as error:
@@ -3342,6 +3357,247 @@ def photo_for(store: str | os.PathLike, viewer: str | None, name: str) -> tuple[
     if not path.is_file():
         return None
     return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
+
+
+# --------------------------------------------------------------------------- #
+# The study network (DECISIONS.md D16, D19)
+
+
+def _social(call: Callable[[], Any]) -> Any:
+    """`call`, with the network's refusals as the service's own."""
+    try:
+        return call()
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def profile_of(store: str | os.PathLike, token: str) -> dict | None:
+    profile = social.get_profile(_store(store), token)
+    return profile.public() if profile else None
+
+
+def save_profile(store: str | os.PathLike, token: str, form: Mapping[str, str]) -> dict:
+    profile = _social(
+        lambda: social.set_profile(
+            _store(store),
+            token,
+            handle=str(form.get("handle", "")),
+            university=str(form.get("university", "")),
+            programme=str(form.get("programme", "")),
+            bio=str(form.get("bio", "")),
+            old_enough=form.get("old_enough") == "1",
+        )
+    )
+    return profile.public()
+
+
+def _cards(
+    store: Store, viewer: str, posts: Sequence[social.Post], now: datetime, zone: ZoneInfo
+) -> list[dict]:
+    """Posts as cards, with their authors, kudos and comment counts."""
+    kudos = social.kudos_of(store, [p.id for p in posts], viewer)
+    comments = social.comment_counts(store, [p.id for p in posts])
+    authors: dict[str, dict | None] = {}
+    out = []
+    for post in posts:
+        if post.token not in authors:
+            found = social.get_profile(store, post.token)
+            authors[post.token] = found.public() if found else None
+        card = post_card(post, viewer=viewer, now=now, zone=zone)
+        count, given = kudos.get(post.id, (0, False))
+        card.update(
+            author=authors[post.token], kudos=count, kudos_given=given, comments=comments.get(post.id, 0)
+        )
+        out.append(card)
+    return out
+
+
+def community_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    tab: str = "following",
+    filters: Mapping[str, str] | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """The network's two feeds: people one follows, and Explore (everyone's posts
+    across universities, by university, programme, course and kind)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    filters = {
+        k: str(v).strip() for k, v in (filters or {}).items() if k in ("uni", "prog", "course", "kind")
+    }
+    if tab == "explore":
+        posts = social.feed_explore(
+            where,
+            token,
+            university=filters.get("uni", ""),
+            programme=filters.get("prog", ""),
+            course=filters.get("course", ""),
+            kind=filters.get("kind", ""),
+        )
+    else:
+        tab = "following"
+        posts = social.feed_following(where, token)
+    me = social.get_profile(where, token)
+    return {
+        "tab": tab,
+        "filters": filters,
+        "posts": _cards(where, token, posts, now, zone),
+        "profile": me.public() if me else None,
+        "requests": len(social.relations(where, token)["requests"]) if me else 0,
+    }
+
+
+def post_view(
+    store: str | os.PathLike, subscription: Subscription, post_id: str, now: datetime | None = None
+) -> dict | None:
+    """One post with its comments, if the student may see it."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    post = social.get_post(where, post_id)
+    if post is None or not social.may_see(where, subscription.token, post):
+        return None
+    zone = _zone(subscription.options["tz"])
+    card = _cards(where, subscription.token, [post], now, zone)[0]
+    comments = []
+    for c in social.comments_on(where, subscription.token, post):
+        author = social.get_profile(where, c.token)
+        comments.append(
+            {
+                "id": c.id,
+                "body": c.body,
+                "hidden": c.hidden,
+                "author": author.public() if author else None,
+                "when": format_date(datetime.fromisoformat(c.created).astimezone(zone).date(), "short"),
+                "can_delete": subscription.token in (c.token, post.token),
+            }
+        )
+    can_comment = social.get_profile(where, subscription.token) is not None
+    return {"post": card, "comments": comments, "can_comment": can_comment}
+
+
+def person_view(
+    store: str | os.PathLike, subscription: Subscription, handle: str, now: datetime | None = None
+) -> dict | None:
+    """Someone's profile as the student sees it: what they show, and the posts the
+    student may see. No follower counts (D16)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    person = social.profile_by_handle(where, handle)
+    if person is None or social.blocked_between(where, subscription.token, person.token):
+        return None
+    zone = _zone(subscription.options["tz"])
+    posts = social.posts_by(where, subscription.token, person.token)
+    return {
+        "person": person.public(),
+        "me": person.token == subscription.token,
+        "follow_state": social.follow_status(where, subscription.token, person.token),
+        "follows_me": social.follow_status(where, person.token, subscription.token) == "accepted",
+        "posts": _cards(where, subscription.token, posts, now, zone),
+    }
+
+
+def people_view(store: str | os.PathLike, subscription: Subscription, query: str = "") -> dict:
+    """The student's own circle (requests, followers, following) and a search."""
+    where = _store(store)
+    token = subscription.token
+    found = social.search_profiles(where, token, query) if query else []
+    circle = social.relations(where, token)
+    return {
+        "query": query,
+        "found": [p.public() for p in found],
+        **{name: [p.public() for p in people] for name, people in circle.items()},
+    }
+
+
+def leave_network(store: str | os.PathLike, token: str) -> None:
+    """Leave the network; the diary stays, visible only to the student."""
+    social.leave(_store(store), token)
+
+
+def _person_token(store: Store, handle: str) -> str:
+    person = social.profile_by_handle(store, handle)
+    if person is None:
+        raise InvalidInput(_("there is nobody called @{handle}", handle=handle.lstrip("@")))
+    return person.token
+
+
+def follow(store: str | os.PathLike, token: str, handle: str) -> str:
+    where = _store(store)
+    return str(_social(lambda: social.ask_to_follow(where, token, _person_token(where, handle))))
+
+
+def unfollow(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unfollow(where, token, _person_token(where, handle))
+
+
+def answer_follow(store: str | os.PathLike, token: str, handle: str, accept: bool) -> None:
+    where = _store(store)
+    social.answer_request(where, token, _person_token(where, handle), accept)
+
+
+def remove_follower(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unfollow(where, _person_token(where, handle), token)
+
+
+def _visible_post(store: Store, token: str, post_id: str) -> social.Post:
+    post = social.get_post(store, post_id)
+    if post is None or not social.may_see(store, token, post):
+        raise InvalidInput(_("this post is not, or no longer, visible to you"))
+    return post
+
+
+def toggle_kudos(store: str | os.PathLike, token: str, post_id: str) -> bool:
+    where = _store(store)
+    return bool(_social(lambda: social.toggle_kudos(where, token, _visible_post(where, token, post_id))))
+
+
+def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -> None:
+    where = _store(store)
+    _social(lambda: social.add_comment(where, token, _visible_post(where, token, post_id), body))
+
+
+def delete_comment(store: str | os.PathLike, token: str, comment_id: str) -> bool:
+    return social.delete_comment(_store(store), token, comment_id)
+
+
+def post_explanation(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> social.Post:
+    """An "explain it simply" post (D19): a concept, its course, an explanation
+    for someone who studies something else."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
+    day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
+    data = {
+        "concept": form.get("concept", ""),
+        "course": form.get("course", ""),
+        "text": form.get("text", ""),
+    }
+    post: social.Post = _social(
+        lambda: social.create_post(
+            where,
+            subscription.token,
+            "explain",
+            day=day,
+            visibility=visibility,
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    )
+    return post
 
 
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:

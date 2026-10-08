@@ -50,7 +50,9 @@ Added in this stage:
 | **day grid** | the weeks since the plan began (four at least, counting weeks to come; twelve at most), one square per day: studied (green, three shades by sessions), forgiven, missed, rest, future | a `<table>` with a text label per cell for screen readers; colour plus shape (a dot for forgiven) |
 | **milestone row** | reached milestones, and the next one with "2 days to go" | no badges, no unlock animation |
 | **review card** | last week's numbers, one paragraph, one suggestion | "written by AI" when it was |
-| **buddy card** | name, streak, the week's ring, "studied today", a Cheer button | nothing else about the friend |
+| **post card** | a focus session (course, what was done, time, effort, progress, whether the focus was checked, note, photos) or an explanation; the author's avatar, handle and university; Kudos (or "I got it" on an explanation) and Comment | the counts are of kudos and comments on this post, never of followers; a kudos tap is sent in the background and the bar is replaced in place |
+| **avatar** | the handle's first letter on one of the seven course colours | no photos of people, so no faces to moderate |
+| **person row** | avatar, handle, university and programme, one action (Accept, Unfollow, Remove) | an inset list, as in iOS Settings |
 | **typed task field** | one line in the new-task sheet: type a sentence, the fields below fill in | the fields stay editable; nothing is saved without "Add" |
 
 ## Screens
@@ -66,24 +68,46 @@ add a busy time. Unchanged in this stage.
 **Tasks** (`/p/<token>/tasks`). Unchanged, except the new-task sheet's typed field.
 
 **Progress** (`/p/<token>/progress`, new tab). The ring and the streak, large; the
-day grid; milestones; each exam's readiness; the weekly review; study buddies, or an
-invitation to add one.
+day grid; "Start focus"; the diary (every session logged, whoever sees it);
+milestones; each exam's readiness; the weekly review.
 
-**Study buddies** (`/p/<token>/buddies`). The buddy cards; "Invite" makes a code and a
-link to share; "Enter a code"; the name buddies see; what is shared, in one
-sentence; Leave.
+**Focus** (`/p/<token>/focus`, the tab bar's centre). A course, or the plan's next
+session, and Start; then the full-screen timer and Finish; then the log (D17).
 
-**Join** (`/join/<code>`). Who invited you (their chosen name), the code, where to
-enter it, and "Make your plan" for someone new.
+**Community** (`/p/<token>/community`, new tab; D16). Without a handle, a card that
+says what joining means and "Choose a handle", above the feeds. A segmented control:
+Following (one's own shared posts and those of people one follows) and Explore
+(everyone-posts, filtered by university, programme, course and kind). "People" with
+the number of follow requests, and "Explain something".
 
-**Settings.** Adds the language, the name buddies see, and AI: on or off, with what
-is sent and to whom.
+**Post** (`/p/<token>/post/<id>`). The card, then its comments and a comment box;
+the author of a comment and the author of the post can delete it.
+
+**Profile** (`/p/<token>/profile`). Handle, university, programme, a line about
+oneself, "I am 15 or older", a link to the guidelines; "Leave the network" keeps
+the diary.
+
+**A person** (`/p/<token>/u/<handle>`). Avatar, handle, university and programme,
+bio; Follow, Requested, or Following; "Follows you"; the posts the viewer may see.
+No follower counts.
+
+**People** (`/p/<token>/people`). Search by handle, university or programme; those
+asking to follow (Accept, Decline); following; followers (Remove); requests waiting.
+
+**Explain it simply** (`/p/<token>/explain`; D19). The idea, its course, the
+explanation, a sketch; for everyone by default.
+
+**Tab bar.** Today, Calendar, Focus, Community, Progress: five, as iOS allows. Tasks
+leaves the phone's tab bar for Community; it stays in the wide screen's top bar,
+under Today's "Tasks, See all", and behind the + button.
+
+**Settings.** Adds the language, and AI: on or off, with what is sent and to whom.
 
 ## Writing
 
 - Second person, present tense, short sentences. French uses *tu*.
 - Numbers as numerals, units spelled out once ("6 h of study").
-- A button says what it does: "Add", "Cheer", "Leave", not "OK".
+- A button says what it does: "Add", "Follow", "Leave the network", not "OK".
 - No exclamation marks in the interface; at most one, in a milestone.
 - Never blame: "Nothing reported yesterday" rather than "You missed yesterday".
 

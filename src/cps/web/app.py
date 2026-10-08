@@ -102,6 +102,12 @@ def _nice_date(value: str) -> str:
 
 
 # What a task change says once it is done, by the `saved` query parameter.
+NETWORK_NOTICES = {
+    "joined": "Welcome. Here is what students are sharing; follow the ones you like.",
+    "profile": "Profile saved.",
+    "posted": "Posted.",
+    "left": "You have left the network. Your diary is still here, visible only to you.",
+}
 TASK_NOTICES = {
     "added": "Added. The plan has made room for it.",
     "finished": "Done. Its remaining sessions are free time again.",
@@ -282,6 +288,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.get("/privacy", response_class=HTMLResponse)
     def privacy(request: Request) -> HTMLResponse:
         return page(request, "privacy.html", contact=config.contact, retention=service.RETENTION.days)
+
+    @app.get("/guidelines", response_class=HTMLResponse)
+    def guidelines(request: Request) -> HTMLResponse:
+        return page(request, "guidelines.html")
 
     @app.post("/start")
     async def start(request: Request) -> Response:
@@ -499,6 +509,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "log.html",
             token=token,
             draft=service.log_draft(subscription, config.clock()),
+            profile=service.profile_of(store, token),
             tab="focus",
         )
 
@@ -516,6 +527,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 413,
                 token=token,
                 draft=service.log_draft(subscription, config.clock()),
+                profile=service.profile_of(store, token),
                 error=service.translate("These photos are too large together; send fewer or smaller ones."),
                 tab="focus",
             )
@@ -533,7 +545,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.update_subscription(store, token, change)
         except service.ServiceError as error:
             draft = {**service.log_draft(subscription, config.clock()), **fields}
-            return page(request, "log.html", 400, token=token, draft=draft, error=str(error), tab="focus")
+            return page(
+                request,
+                "log.html",
+                400,
+                token=token,
+                draft=draft,
+                profile=service.profile_of(store, token),
+                error=str(error),
+                tab="focus",
+            )
         service.log_event(store, token, "logged", fields.get("visibility", ""))
         return RedirectResponse(f"/p/{token}/progress?saved=logged#diary", 303)
 
@@ -576,6 +597,286 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.get("/m/{name}")
     def public_photo(name: str) -> Response:
         return photo_response(None, name)
+
+    # ---------------------------------------------------------- the study network
+
+    def refused(request: Request, token: str, error: Exception, status: int = 400) -> HTMLResponse:
+        return page(
+            request,
+            "message.html",
+            status,
+            title=service.translate("Not saved"),
+            message=str(error),
+            token=token,
+        )
+
+    def back(form: Any, token: str, fallback: str) -> str:
+        """Where a form asks to return to, if it is one of this plan's own pages."""
+        target = str(form.get("next") or "")
+        own = f"/p/{token}"
+        if (
+            target == own or target.startswith(own + "/") or target.startswith(own + "?")
+        ) and "//" not in target:
+            return target
+        return fallback
+
+    @app.get("/p/{token}/community", response_class=HTMLResponse)
+    def community(
+        request: Request,
+        token: str,
+        tab: str = "following",
+        uni: str = "",
+        prog: str = "",
+        course: str = "",
+        kind: str = "",
+        saved: str = "",
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.community_view(
+            store,
+            subscription,
+            tab=tab,
+            filters={"uni": uni, "prog": prog, "course": course, "kind": kind},
+            now=config.clock(),
+        )
+        return page(request, "community.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.get("/p/{token}/post/{post_id}", response_class=HTMLResponse)
+    def post_page(request: Request, token: str, post_id: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.post_view(store, subscription, post_id, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this post is not, or no longer, visible to you"),
+                token=token,
+            )
+        return page(request, "post.html", token=token, **view, saved=_notice(saved), tab="community")
+
+    @app.post("/p/{token}/post/{post_id}/kudos")
+    async def kudos(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.toggle_kudos(store, token, post_id)
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
+
+    @app.post("/p/{token}/post/{post_id}/comments")
+    async def comment(request: Request, token: str, post_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        body = str(form.get("body") or "")
+        try:
+            service.add_comment(store, token, post_id, body)
+        except service.ServiceError as error:
+            view = service.post_view(store, subscription, post_id, config.clock())
+            if view is None:
+                return refused(request, token, error)
+            return page(
+                request, "post.html", 400, token=token, **view, error=str(error), draft=body, tab="community"
+            )
+        service.log_event(store, token, "comment")
+        return RedirectResponse(f"/p/{token}/post/{post_id}#comments", 303)
+
+    @app.post("/p/{token}/comments/{comment_id}/delete")
+    async def comment_delete(request: Request, token: str, comment_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        service.delete_comment(store, token, comment_id)
+        return RedirectResponse(back(form, token, f"/p/{token}/community"), 303)
+
+    @app.get("/p/{token}/profile", response_class=HTMLResponse)
+    def profile(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        current = service.profile_of(store, token)
+        return page(
+            request, "profile.html", token=token, profile=current, values=current or {}, tab="community"
+        )
+
+    @app.post("/p/{token}/profile", response_class=HTMLResponse)
+    async def profile_save(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=8)
+        fields = {k: str(v) for k, v in form.items()}
+        before = service.profile_of(store, token)
+        try:
+            saved = service.save_profile(store, token, fields)
+        except service.ServiceError as error:
+            return page(
+                request,
+                "profile.html",
+                400,
+                token=token,
+                profile=before,
+                values=fields,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "profile", "new" if before is None else "changed")
+        if before is None:
+            return RedirectResponse(f"/p/{token}/community?tab=explore&saved=joined", 303)
+        return RedirectResponse(f"/p/{token}/u/{saved['handle']}?saved=profile", 303)
+
+    @app.post("/p/{token}/profile/leave")
+    def profile_leave(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.leave_network(store, token)
+        service.log_event(store, token, "profile", "left")
+        return RedirectResponse(f"/p/{token}/progress?saved=left#diary", 303)
+
+    @app.get("/p/{token}/people", response_class=HTMLResponse)
+    def people(request: Request, token: str, q: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "people.html",
+            token=token,
+            profile=service.profile_of(store, token),
+            view=service.people_view(store, subscription, q[:80]),
+            tab="community",
+        )
+
+    @app.get("/p/{token}/u/{handle}", response_class=HTMLResponse)
+    def person(request: Request, token: str, handle: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.person_view(store, subscription, handle, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("there is nobody called @{handle}", handle=handle[:40]),
+                token=token,
+            )
+        return page(
+            request,
+            "person.html",
+            token=token,
+            **view,
+            profile=service.profile_of(store, token),
+            saved=_notice(saved),
+            tab="progress" if view["me"] else "community",
+        )
+
+    async def circle_change(
+        request: Request, token: str, change: Callable[[], Any], fallback: str
+    ) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            change()
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, fallback), 303)
+
+    @app.post("/p/{token}/u/{handle}/follow")
+    async def follow(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.follow(store, token, handle), f"/p/{token}/u/{handle}"
+        )
+
+    @app.post("/p/{token}/u/{handle}/unfollow")
+    async def unfollow(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.unfollow(store, token, handle), f"/p/{token}/u/{handle}"
+        )
+
+    @app.post("/p/{token}/requests/{handle}")
+    async def answer_request(request: Request, token: str, handle: str) -> Response:
+        form = await request.form(max_files=0, max_fields=3)
+        accept = form.get("answer") == "accept"
+        return await circle_change(
+            request, token, lambda: service.answer_follow(store, token, handle, accept), f"/p/{token}/people"
+        )
+
+    @app.post("/p/{token}/followers/{handle}/remove")
+    async def remove_follower(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.remove_follower(store, token, handle), f"/p/{token}/people"
+        )
+
+    @app.get("/p/{token}/explain", response_class=HTMLResponse)
+    def explain_form(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request,
+            "explain.html",
+            token=token,
+            draft={},
+            profile=service.profile_of(store, token),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/explain", response_class=HTMLResponse)
+    async def explain_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        profile = service.profile_of(store, token)
+        if int(request.headers.get("content-length") or 0) > MAX_POST_UPLOAD:
+            error = service.translate("These photos are too large together; send fewer or smaller ones.")
+            return page(
+                request,
+                "explain.html",
+                413,
+                token=token,
+                draft={},
+                profile=profile,
+                error=error,
+                tab="community",
+            )
+        form = await request.form(max_files=service.social.MAX_PHOTOS, max_fields=10)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            post = service.post_explanation(store, subscription, fields, photos, now=config.clock())
+        except service.ServiceError as error:
+            return page(
+                request,
+                "explain.html",
+                400,
+                token=token,
+                draft=fields,
+                profile=profile,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "explained", post.visibility)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
 
     @app.post("/p/{token}/review/seen")
     async def review_seen(request: Request, token: str) -> Response:
@@ -1006,6 +1307,8 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved. The plan has changed to match.")
     if saved == "logged":
         return service.translate("Saved in your diary.")
+    if saved in NETWORK_NOTICES:
+        return service.translate(NETWORK_NOTICES[saved])
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
     notice = TASK_NOTICES.get(saved)

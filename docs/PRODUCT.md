@@ -7,7 +7,7 @@ hypothesis to test, and is written as one.*
 The market analysis behind it is `docs/MARKET.md`; how the product earns a daily
 visit is `docs/STRATEGY.md`; the screens are `docs/DESIGN.md`; the decisions that
 follow from the owner's answers of 2026-10-08 (France first, French and English;
-a free pilot, then freemium; private study buddies; AI on a capped budget) are
+a free pilot, then freemium; a study network, Strava's shape, without a leaderboard (D16, which replaced private study buddies); AI on a capped budget) are
 D8 to D15 in `DECISIONS.md`.
 
 ## In one sentence

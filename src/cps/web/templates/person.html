@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_people.html" import avatar %}
+{% block title %}@{{ person.handle }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set here = request.url.path %}
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+<section class="card person-head">
+  {{ avatar(person, "lg") }}
+  <h1>@{{ person.handle }}</h1>
+  <p class="person-where">{{ person.university }}{% if person.programme %} · {{ person.programme }}{% endif %}</p>
+  {% if person.bio %}<p class="person-bio">{{ person.bio }}</p>{% endif %}
+  <div class="person-actions">
+  {% if me %}
+    <a class="btn btn-sm" href="/p/{{ token }}/profile">{{ _("Edit profile") }}</a>
+    <a class="btn btn-sm" href="/p/{{ token }}/people">{{ _("People") }}</a>
+  {% elif not profile %}
+    <a class="btn btn-primary btn-sm" href="/p/{{ token }}/profile">{{ _("Choose a handle to follow") }}</a>
+  {% else %}
+    {% if follows_me %}<span class="badge">{{ _("Follows you") }}</span>{% endif %}
+    {% if follow_state == "accepted" %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm" aria-pressed="true">{{ _("Following") }}</button></form>
+    {% elif follow_state == "pending" %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm">{{ _("Requested · withdraw") }}</button></form>
+    {% else %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/follow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-primary btn-sm">{{ _("Follow") }}</button></form>
+    {% endif %}
+  {% endif %}
+  </div>
+  {% if not me and follow_state != "accepted" %}<p class="hint">{{ _("They see your request and choose. Until then you see only what they share with everyone.") }}</p>{% endif %}
+</section>
+
+<div class="section feed">
+  <div class="section-title"><h2>{% if me %}{{ _("What others can see") }}{% else %}{{ _("Sessions and explanations") }}{% endif %}</h2></div>
+  {% for p in posts %}{% include "_post.html" %}{% else %}
+  <div class="card empty"><b>{{ _("Nothing to show yet") }}</b>{% if me %}{{ _("Posts you share with followers or everyone appear here.") }}{% else %}{{ _("Nothing shared with you yet.") }}{% endif %}</div>
+  {% endfor %}
+</div>
+{% endblock %}

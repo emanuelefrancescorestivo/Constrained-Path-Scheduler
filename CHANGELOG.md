@@ -6,6 +6,22 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The study network itself (D16, D19). A Community tab with two feeds: Following
+  (one's own shared posts and those of people one follows) and Explore (posts shared
+  with everyone, across universities, filtered by university, programme, course and
+  kind). A profile is a handle, a university, a programme and a line about oneself,
+  with a declaration of being 15 or older; the plan's secret link stays the only
+  sign-in, and nothing of the plan is shown. Follows are requests the other person
+  accepts; followers can be removed. Kudos (one per person per post, given in the
+  background), comments (deleted by their author or the post's), and "Explain it
+  simply": an idea from one's course explained for a student of something else,
+  which readers mark "I got it". Sharing needs a handle; without one a post stays
+  private. "Leave the network" removes the profile, follows, kudos and comments and
+  keeps the diary, private. Person pages show no follower counts. Community
+  guidelines at `/guidelines`. On a phone, Community takes the Tasks tab's place
+  (Tasks stays on Today and behind the + button). `service.community_view`,
+  `post_view`, `person_view`, `people_view`, `save_profile`, `follow`,
+  `toggle_kudos`, `add_comment`, `post_explanation`, `leave_network`.
 - Focus sessions and a study diary, the first step of the study network
   (DECISIONS.md D16 to D20, which replace D11's study buddies after the owner asked
   for "a social network, like Strava"). A Focus tab: a full-screen timer for a

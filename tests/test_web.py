@@ -924,6 +924,19 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
     assert finished.headers["location"].endswith("/log")
     form = unescape(web.get(f"/p/{planned}/log").text)
     assert "left the app 1 time" in form and 'name="effort"' in form
+    # Without a handle only "Only me" can be chosen; sharing needs a profile (D16).
+    assert 'value="followers" disabled' in form
+    refused = web.post(
+        f"/p/{planned}/log",
+        data={"course": "Algebra 3", "effort": "6", "progress": "4", "visibility": "everyone"},
+    )
+    assert refused.status_code == 400 and "choose a handle" in unescape(refused.text)
+    joined = web.post(
+        f"/p/{planned}/profile",
+        data={"handle": "@Ada.L", "university": "Lyon 1", "programme": "L2 Maths", "old_enough": "1"},
+        follow_redirects=False,
+    )
+    assert joined.headers["location"].endswith("/community?tab=explore&saved=joined")
     saved = web.post(
         f"/p/{planned}/log",
         data={
@@ -969,3 +982,107 @@ def test_a_log_with_a_mistake_is_shown_again_as_typed(web, planned):
         files=[("photos", ("x.svg", b"<svg onload=alert(1)>", "image/svg+xml"))],
     )
     assert bad.status_code == 400 and "JPEG or a PNG" in unescape(bad.text)
+
+
+def _profile(web, token, handle, **extra):
+    form = {"handle": handle, "university": "Lyon 1", "programme": "L2 Maths", "old_enough": "1", **extra}
+    return web.post(f"/p/{token}/profile", data=form, follow_redirects=False)
+
+
+def test_two_students_follow_and_cheer_each_other(web, planned):
+    page = unescape(web.get(f"/p/{planned}/community").text)
+    assert "Choose a handle" in page and 'aria-current="page">Community' in page
+    refused = _profile(web, planned, "ab")
+    assert refused.status_code == 400 and "3 to 20 letters" in unescape(refused.text)
+    assert 'value="ab"' in refused.text  # what was typed is kept
+    assert _profile(web, planned, "ada").headers["location"].endswith("tab=explore&saved=joined")
+    other = _start(web)
+    assert _profile(web, other, "Bob", university="Politecnico di Milano").status_code == 303
+    assert _profile(web, other, "ADA").status_code == 400  # taken, whatever the case
+    web.post(
+        f"/p/{planned}/log",
+        data={
+            "course": "Algebra 3",
+            "title": "Sheet 3",
+            "effort": "7",
+            "progress": "4",
+            "visibility": "followers",
+        },
+    )
+    # Bob finds Ada, sees nothing of hers, asks to follow; she accepts.
+    found = unescape(web.get(f"/p/{other}/people?q=lyon").text)
+    assert "@ada" in found and f"/p/{other}/u/ada" in found
+    profile = unescape(web.get(f"/p/{other}/u/ada").text)
+    assert "Lyon 1 · L2 Maths" in profile and "Sheet 3" not in profile and ">Follow<" in profile
+    web.post(f"/p/{other}/u/ada/follow", data={"next": f"/p/{other}/u/ada"})
+    assert "Requested" in unescape(web.get(f"/p/{other}/u/ada").text)
+    circle = unescape(web.get(f"/p/{planned}/people").text)
+    assert "Asking to follow you" in circle and "@bob" in circle
+    assert 'class="count"' in web.get(f"/p/{planned}/community").text
+    web.post(f"/p/{planned}/requests/bob", data={"answer": "accept"})
+    feed = unescape(web.get(f"/p/{other}/community").text)
+    assert "Sheet 3" in feed and "@ada" in feed
+    post = re.search(r'id="post-([^"]+)"', feed).group(1)
+    # Kudos, back to the page it came from; a foreign "next" is ignored.
+    given = web.post(
+        f"/p/{other}/post/{post}/kudos",
+        data={"next": f"/p/{other}/community#post-{post}"},
+        follow_redirects=False,
+    )
+    assert given.headers["location"] == f"/p/{other}/community#post-{post}"
+    away = web.post(
+        f"/p/{other}/post/{post}/kudos", data={"next": "https://evil.example/"}, follow_redirects=False
+    )
+    assert away.headers["location"] == f"/p/{other}/post/{post}"
+    web.post(f"/p/{other}/post/{post}/kudos", data={"next": "//evil.example/"})
+    assert 'aria-pressed="true"' in web.get(f"/p/{other}/community").text
+    commented = web.post(f"/p/{other}/post/{post}/comments", data={"body": "Bravo, keep going!"})
+    assert "Bravo, keep going!" in unescape(commented.text)
+    empty = web.post(f"/p/{other}/post/{post}/comments", data={"body": "  "})
+    assert empty.status_code == 400 and "write something" in unescape(empty.text)
+    # Ada sees the comment and the kudos; she deletes the comment on her post.
+    mine = unescape(web.get(f"/p/{planned}/post/{post}").text)
+    assert "Bravo, keep going!" in mine and "1 comment" in mine and 'act-count">1<' in mine
+    comment = re.search(r"/comments/([^/]+)/delete", mine).group(1)
+    web.post(f"/p/{planned}/comments/{comment}/delete", data={"next": f"/p/{planned}/post/{post}"})
+    assert "Bravo" not in unescape(web.get(f"/p/{planned}/post/{post}").text)
+    # Removed, Bob no longer sees the post; its address says so.
+    web.post(f"/p/{planned}/followers/bob/remove")
+    gone = web.get(f"/p/{other}/post/{post}")
+    assert gone.status_code == 404 and "no longer, visible" in unescape(gone.text)
+
+
+def test_explain_it_simply_and_leaving_the_network(web, planned):
+    form = unescape(web.get(f"/p/{planned}/explain").text)
+    assert 'value="everyone" disabled' in form and "choose a handle" in form
+    _profile(web, planned, "ada")
+    posted = web.post(
+        f"/p/{planned}/explain",
+        data={
+            "concept": "Eigenvalues",
+            "course": "Algebra 3",
+            "text": "A direction a matrix only stretches.",
+        },
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=posted")
+    page = unescape(web.get(posted.headers["location"]).text)
+    assert "Posted." in page and "Eigenvalues" in page and "I got it" in page and "Explained simply" in page
+    other = _start(web)
+    explore = unescape(web.get(f"/p/{other}/community?tab=explore&kind=explain&uni=lyon").text)
+    assert "Eigenvalues" in explore and 'value="lyon"' in explore
+    assert "Eigenvalues" not in unescape(web.get(f"/p/{other}/community?tab=explore&kind=session").text)
+    left = web.post(f"/p/{planned}/profile/leave", follow_redirects=False)
+    assert left.headers["location"].endswith("saved=left#diary")
+    diary = unescape(web.get(left.headers["location"]).text)
+    assert "You have left the network" in diary and "Eigenvalues" in diary
+    assert "Eigenvalues" not in unescape(web.get(f"/p/{other}/community?tab=explore").text)
+    assert web.get(f"/p/{other}/u/ada").status_code == 404
+
+
+def test_the_network_pages_in_french(web, planned):
+    web.post(f"/p/{planned}/language", data={"lang": "fr"})
+    _profile(web, planned, "ada")
+    page = unescape(web.get(f"/p/{planned}/community?tab=explore").text)
+    assert "Communauté" in page and "Explorer" in page and "Filière" in page
+    assert "Règles de la communauté" in unescape(web.get("/guidelines?lang=fr").text)

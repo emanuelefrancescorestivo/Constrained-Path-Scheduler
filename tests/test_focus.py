@@ -167,6 +167,9 @@ def test_photos_lose_their_metadata_and_only_images_are_kept():
 def test_photos_are_shown_to_whom_the_post_allows_and_go_with_the_plan(sub, tmp_path):
     form = {"course": "Algebra 3", "effort": "6", "progress": "3", "minutes": "50", "visibility": "me"}
     _, private = service.log_session(tmp_path, sub, form, [_jpeg()], now=NOW)
+    with pytest.raises(service.InvalidInput, match="choose a handle"):  # sharing needs a profile
+        service.log_session(tmp_path, sub, {**form, "visibility": "everyone"}, now=NOW)
+    service.save_profile(tmp_path, sub.token, {"handle": "ada", "university": "Lyon 1", "old_enough": "1"})
     _, public = service.log_session(tmp_path, sub, {**form, "visibility": "everyone"}, [_png()], now=NOW)
     mine, theirs = private.data["photos"][0], public.data["photos"][0]
     assert service.photo_for(tmp_path, sub.token, mine)[1] == "image/jpeg"

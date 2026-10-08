@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_people.html" import avatar %}
+{% block title %}{% if post.kind == "explain" %}{{ post.concept }}{% else %}{{ post.course }}{% endif %} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set here = request.url.path %}
+<p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% set p = post %}{% include "_post.html" %}
+
+<div class="section" id="comments">
+  <div class="section-title"><h2>{{ _n("{n} comment", "{n} comments", comments | length) }}</h2></div>
+  {% if comments %}
+  <div class="card"><ul class="list comments">
+    {% for c in comments %}
+    <li>
+      {% if c.author %}{{ avatar(c.author) }}{% else %}<span class="avatar" aria-hidden="true">?</span>{% endif %}
+      <div class="grow">
+        <span class="meta">{% if c.author %}<a href="/p/{{ token }}/u/{{ c.author.handle }}">@{{ c.author.handle }}</a>{% else %}{{ _("someone who left") }}{% endif %} · {{ c.when }}</span>
+        <p class="comment-body">{{ c.body }}</p>
+      </div>
+      {% if c.can_delete %}
+      <form method="post" action="/p/{{ token }}/comments/{{ c.id }}/delete">
+        <input type="hidden" name="next" value="{{ here }}#comments">
+        <button type="submit" class="btn btn-destructive btn-sm" aria-label="{{ _('Delete this comment') }}">{{ _("Delete") }}</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul></div>
+  {% endif %}
+  {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+  {% if can_comment %}
+  <form method="post" action="/p/{{ token }}/post/{{ post.id }}/comments" class="card comment-form">
+    <label for="comment-body" class="sr-only">{{ _("Your comment") }}</label>
+    <textarea id="comment-body" name="body" rows="2" maxlength="600" required placeholder="{% if post.kind == 'explain' %}{{ _('A question, or what made it click…') }}{% else %}{{ _('Say something encouraging, or ask how they did it…') }}{% endif %}">{{ draft or '' }}</textarea>
+    <div class="row-end"><button type="submit" class="btn btn-primary btn-sm">{{ _("Comment") }}</button></div>
+  </form>
+  {% else %}
+  <p class="card muted">{{ _h('To comment, <a href="{href}">choose a handle</a> first.', href="/p/" ~ token ~ "/profile") }}</p>
+  {% endif %}
+</div>
+{% endblock %}

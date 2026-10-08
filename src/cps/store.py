@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS blocks (
 # What deleting a plan removes from the network: its own rows, and what others
 # left on its posts (comments, kudos, reports on them).
 _FORGET = (
+    "DELETE FROM reports WHERE target IN (SELECT c.id FROM comments c JOIN posts p ON p.id = c.post "
+    "WHERE p.token = :t)",
     "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM reports WHERE target IN (SELECT id FROM posts WHERE token = :t)",

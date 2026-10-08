@@ -15,9 +15,11 @@ own choice: "me", "followers" or "everyone".
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import secrets
+import sqlite3
 import struct
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -122,7 +124,10 @@ def clean_photo(data: bytes) -> tuple[bytes, str]:
 
 
 def save_photo(store: Store, data: bytes) -> str:
-    cleaned, ext = clean_photo(data)
+    return _keep_photo(store, *clean_photo(data))
+
+
+def _keep_photo(store: Store, cleaned: bytes, ext: str) -> str:
     store.photos.mkdir(parents=True, exist_ok=True)
     name = f"{_new_id()}.{ext}"
     (store.photos / name).write_bytes(cleaned)
@@ -230,7 +235,8 @@ def create_post(
         clean["concept"] = _text(data.get("concept", ""), "concept", required=True)
         clean["course"] = _text(data.get("course", ""), "course")
         clean["text"] = _text(data.get("text", ""), "text", required=True)
-    names = [save_photo(store, p) for p in photos]  # checked before anything is stored
+    cleaned = [clean_photo(p) for p in photos]  # all checked before any is kept
+    names = [_keep_photo(store, *c) for c in cleaned]
     clean["photos"] = names
     post = Post(_new_id(), token, kind, _now(now), day, visibility, clean)
     with store.connection() as db:
@@ -266,6 +272,7 @@ def delete_post(store: Store, token: str, post_id: str) -> bool:
     if post is None or post.token != token:
         return False
     with store.connection() as db:
+        db.execute("DELETE FROM reports WHERE target IN (SELECT id FROM comments WHERE post = ?)", (post_id,))
         db.execute("DELETE FROM comments WHERE post = ?", (post_id,))
         db.execute("DELETE FROM kudos WHERE post = ?", (post_id,))
         db.execute("DELETE FROM reports WHERE target = ?", (post_id,))
@@ -327,3 +334,403 @@ def blocked_between(store: Store, a: str, b: str) -> bool:
             (a, b, b, a),
         ).fetchone()
     return row is not None
+
+
+# --------------------------------------------------------------------------- #
+# Profiles (D16)
+# --------------------------------------------------------------------------- #
+
+HANDLE = re.compile(r"[a-z0-9_.]{3,20}")
+RESERVED = frozenset(
+    {"admin", "administrator", "moderator", "support", "help", "staff", "official", "studyplan"}
+)
+PROFILE_LIMITS = {"university": 80, "programme": 80, "bio": 280}
+
+
+@dataclass(frozen=True)
+class Profile:
+    token: str
+    handle: str
+    university: str
+    programme: str
+    bio: str
+    created: str
+
+    def public(self) -> dict:
+        """What anyone in the network may see: never the token."""
+        return {
+            "handle": self.handle,
+            "university": self.university,
+            "programme": self.programme,
+            "bio": self.bio,
+            # The avatar: the handle's first letter on one of the seven colours.
+            "initial": self.handle[:1].upper(),
+            "hue": f"c{sum(self.handle.encode()) % 7}",
+        }
+
+
+_PROFILE = "token, handle, university, programme, bio, created"
+
+
+def get_profile(store: Store, token: str) -> Profile | None:
+    with store.connection() as db:
+        row = db.execute(f"SELECT {_PROFILE} FROM profiles WHERE token = ?", (token,)).fetchone()
+    return Profile(*row) if row else None
+
+
+def profile_by_handle(store: Store, handle: str) -> Profile | None:
+    with store.connection() as db:
+        row = db.execute(
+            f"SELECT {_PROFILE} FROM profiles WHERE handle = ?", (handle.lstrip("@"),)
+        ).fetchone()
+    return Profile(*row) if row else None
+
+
+def set_profile(
+    store: Store,
+    token: str,
+    *,
+    handle: str,
+    university: str,
+    programme: str,
+    bio: str = "",
+    old_enough: bool,
+    now: datetime | None = None,
+) -> Profile:
+    """Create or change a profile. The handle is unique (ignoring case), the
+    student says they are 15 or older (D16)."""
+    handle = handle.strip().lstrip("@").lower()
+    if not HANDLE.fullmatch(handle):
+        raise SocialError(_("a handle is 3 to 20 letters, digits, _ or ."))
+    if handle in RESERVED:
+        raise SocialError(_("that handle is reserved; choose another"))
+    if not old_enough:
+        raise SocialError(_("the network is for people aged 15 or older"))
+    values = {
+        "university": " ".join(university.split()),
+        "programme": " ".join(programme.split()),
+        "bio": bio.strip(),
+    }
+    for field, limit in PROFILE_LIMITS.items():
+        if len(values[field]) > limit:
+            raise SocialError(_("at most {n} characters here", n=limit))
+    if not values["university"]:
+        raise SocialError(_("say which university you are at"))
+    taken = profile_by_handle(store, handle)
+    if taken is not None and taken.token != token:
+        raise SocialError(_("@{handle} is taken; choose another", handle=handle))
+    with store.connection() as db, contextlib.suppress(sqlite3.IntegrityError):
+        db.execute(
+            """
+            INSERT INTO profiles (token, handle, university, programme, bio, created)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (token) DO UPDATE SET
+                handle = excluded.handle, university = excluded.university,
+                programme = excluded.programme, bio = excluded.bio
+            """,
+            (token, handle, values["university"], values["programme"], values["bio"], _now(now)),
+        )
+    profile = get_profile(store, token)
+    if profile is None or profile.handle != handle:  # taken between the check and the write
+        raise SocialError(_("@{handle} is taken; choose another", handle=handle))
+    return profile
+
+
+def search_profiles(store: Store, viewer: str, query: str, limit: int = 20) -> list[Profile]:
+    """People by handle, university or programme, not counting those blocked
+    either way."""
+    like = f"%{query.strip().lstrip('@').lower()}%"
+    if len(like) < 4:
+        return []
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT {_PROFILE} FROM profiles
+            WHERE token != :v AND (handle LIKE :q OR LOWER(university) LIKE :q OR LOWER(programme) LIKE :q)
+              AND token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
+              AND token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
+            ORDER BY handle LIMIT :n
+            """,
+            {"v": viewer, "q": like, "n": limit},
+        ).fetchall()
+    return [Profile(*r) for r in rows]
+
+
+# --------------------------------------------------------------------------- #
+# Follows: asked for, accepted by the person followed (D16)
+# --------------------------------------------------------------------------- #
+
+
+def follow_status(store: Store, follower: str, followed: str) -> str | None:
+    """ "accepted", "pending" or None."""
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT status FROM follows WHERE follower = ? AND followed = ?", (follower, followed)
+        ).fetchone()
+    return row[0] if row else None
+
+
+def ask_to_follow(store: Store, follower: str, followed: str, now: datetime | None = None) -> str:
+    if follower == followed:
+        raise SocialError(_("you cannot follow yourself"))
+    if get_profile(store, follower) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    if blocked_between(store, follower, followed):
+        raise SocialError(_("you cannot follow this person"))
+    with store.connection() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO follows (follower, followed, status, created) VALUES (?, ?, 'pending', ?)",
+            (follower, followed, _now(now)),
+        )
+    return follow_status(store, follower, followed) or "pending"
+
+
+def answer_request(store: Store, followed: str, follower: str, accept: bool) -> None:
+    with store.connection() as db:
+        if accept:
+            db.execute(
+                "UPDATE follows SET status = 'accepted' "
+                "WHERE follower = ? AND followed = ? AND status = 'pending'",
+                (follower, followed),
+            )
+        else:
+            db.execute("DELETE FROM follows WHERE follower = ? AND followed = ?", (follower, followed))
+
+
+def unfollow(store: Store, follower: str, followed: str) -> None:
+    """Stop following, withdraw a request, or (called the other way round) remove
+    a follower."""
+    with store.connection() as db:
+        db.execute("DELETE FROM follows WHERE follower = ? AND followed = ?", (follower, followed))
+
+
+def relations(store: Store, token: str) -> dict[str, list[Profile]]:
+    """Who asks to follow, who follows, who is followed: for the student only."""
+    out: dict[str, list[Profile]] = {}
+    queries = {
+        "requests": "SELECT follower FROM follows WHERE followed = ? AND status = 'pending'",
+        "followers": "SELECT follower FROM follows WHERE followed = ? AND status = 'accepted'",
+        "following": "SELECT followed FROM follows WHERE follower = ? AND status = 'accepted'",
+        "asked": "SELECT followed FROM follows WHERE follower = ? AND status = 'pending'",
+    }
+    with store.connection() as db:
+        for name, query in queries.items():
+            tokens = [t for (t,) in db.execute(query, (token,))]
+            rows = [
+                db.execute(f"SELECT {_PROFILE} FROM profiles WHERE token = ?", (t,)).fetchone()
+                for t in tokens
+            ]
+            out[name] = sorted((Profile(*r) for r in rows if r), key=lambda p: p.handle)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Feeds, kudos and comments
+# --------------------------------------------------------------------------- #
+
+_VISIBLE_TO_FOLLOWERS = """
+    p.hidden = 0
+    AND p.token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
+    AND p.token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
+"""
+
+
+def feed_following(store: Store, viewer: str, limit: int = 30, before: str | None = None) -> list[Post]:
+    """One's own shared posts and those of people one follows (accepted) that
+    they show to followers or everyone, newest first. Posts kept for oneself stay
+    in the diary."""
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT p.id, p.token, p.kind, p.created, p.day, p.visibility, p.data, p.hidden FROM posts p
+            WHERE ((p.token = :v AND p.visibility != 'me') OR (
+                    p.visibility IN ('followers', 'everyone')
+                    AND p.token IN (SELECT followed FROM follows WHERE follower = :v AND status = 'accepted')
+                    AND {_VISIBLE_TO_FOLLOWERS}))
+              AND (:before IS NULL OR p.created < :before)
+            ORDER BY p.created DESC LIMIT :n
+            """,
+            {"v": viewer, "before": before, "n": limit},
+        ).fetchall()
+    return [_row(r) for r in rows]
+
+
+def feed_explore(
+    store: Store,
+    viewer: str,
+    *,
+    university: str = "",
+    programme: str = "",
+    course: str = "",
+    kind: str = "",
+    author: str | None = None,
+    limit: int = 30,
+    before: str | None = None,
+) -> list[Post]:
+    """Everyone-posts across universities and programmes, newest first, filtered
+    by the author's university and programme, the post's course and kind."""
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT p.id, p.token, p.kind, p.created, p.day, p.visibility, p.data, p.hidden
+            FROM posts p JOIN profiles a ON a.token = p.token
+            WHERE p.visibility = 'everyone' AND {_VISIBLE_TO_FOLLOWERS}
+              AND (:uni = '' OR LOWER(a.university) LIKE :uni)
+              AND (:prog = '' OR LOWER(a.programme) LIKE :prog)
+              AND (:course = '' OR LOWER(json_extract(p.data, '$.course')) LIKE :course)
+              AND (:kind = '' OR p.kind = :kind)
+              AND (:author IS NULL OR p.token = :author)
+              AND (:before IS NULL OR p.created < :before)
+            ORDER BY p.created DESC LIMIT :n
+            """,
+            {
+                "v": viewer,
+                "uni": f"%{university.lower()}%" if university else "",
+                "prog": f"%{programme.lower()}%" if programme else "",
+                "course": f"%{course.lower()}%" if course else "",
+                "kind": kind if kind in KINDS else "",
+                "author": author,
+                "before": before,
+                "n": limit,
+            },
+        ).fetchall()
+    return [_row(r) for r in rows]
+
+
+def posts_by(store: Store, viewer: str, author: str, limit: int = 30) -> list[Post]:
+    """What `viewer` may see of `author`'s posts, newest first."""
+    with store.connection() as db:
+        rows = db.execute(
+            f"SELECT {_COLUMNS} FROM posts WHERE token = ? ORDER BY created DESC LIMIT ?", (author, limit * 3)
+        ).fetchall()
+    return [p for p in map(_row, rows) if may_see(store, viewer, p)][:limit]
+
+
+def toggle_kudos(store: Store, token: str, post: Post, now: datetime | None = None) -> bool:
+    """Give kudos, or take them back; True if given. One per person per post."""
+    if not may_see(store, token, post):
+        raise SocialError(_("this post is not, or no longer, visible to you"))
+    if get_profile(store, token) is None and post.token != token:
+        raise SocialError(_("choose a handle first, in your profile"))
+    with store.connection() as db:
+        gone = db.execute("DELETE FROM kudos WHERE post = ? AND token = ?", (post.id, token)).rowcount
+        if not gone:
+            db.execute(
+                "INSERT INTO kudos (post, token, created) VALUES (?, ?, ?)", (post.id, token, _now(now))
+            )
+    return not gone
+
+
+def kudos_of(store: Store, post_ids: Iterable[str], viewer: str) -> dict[str, tuple[int, bool]]:
+    """Per post: how many kudos, and whether `viewer` gave one."""
+    ids = list(post_ids)
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    with store.connection() as db:
+        counts = dict(
+            db.execute(f"SELECT post, COUNT(*) FROM kudos WHERE post IN ({marks}) GROUP BY post", ids)
+        )
+        mine = {
+            p
+            for (p,) in db.execute(
+                f"SELECT post FROM kudos WHERE token = ? AND post IN ({marks})", [viewer, *ids]
+            )
+        }
+    return {i: (counts.get(i, 0), i in mine) for i in ids}
+
+
+MAX_COMMENT = 600
+
+
+@dataclass(frozen=True)
+class Comment:
+    id: str
+    post: str
+    token: str
+    created: str
+    body: str
+    hidden: bool
+
+
+def add_comment(store: Store, token: str, post: Post, body: str, now: datetime | None = None) -> Comment:
+    if not may_see(store, token, post):
+        raise SocialError(_("this post is not, or no longer, visible to you"))
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    body = body.strip()
+    if not body:
+        raise SocialError(_("write something"))
+    if len(body) > MAX_COMMENT:
+        raise SocialError(_("at most {n} characters here", n=MAX_COMMENT))
+    comment = Comment(_new_id(), post.id, token, _now(now), body, False)
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO comments (id, post, token, created, body, hidden) VALUES (?, ?, ?, ?, ?, 0)",
+            (comment.id, post.id, token, comment.created, body),
+        )
+    return comment
+
+
+def comments_on(store: Store, viewer: str, post: Post) -> list[Comment]:
+    """A post's comments, oldest first, without hidden ones (except one's own) and
+    without those across a block."""
+    with store.connection() as db:
+        rows = db.execute(
+            """
+            SELECT id, post, token, created, body, hidden FROM comments c
+            WHERE c.post = :p AND (c.hidden = 0 OR c.token = :v)
+              AND c.token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
+              AND c.token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
+            ORDER BY c.created
+            """,
+            {"p": post.id, "v": viewer},
+        ).fetchall()
+    return [Comment(i, p, t, c, b, bool(h)) for i, p, t, c, b, h in rows]
+
+
+def comment_counts(store: Store, post_ids: Iterable[str]) -> dict[str, int]:
+    ids = list(post_ids)
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    with store.connection() as db:
+        return dict(
+            db.execute(
+                f"SELECT post, COUNT(*) FROM comments WHERE hidden = 0 AND post IN ({marks}) GROUP BY post",
+                ids,
+            )
+        )
+
+
+def delete_comment(store: Store, token: str, comment_id: str) -> bool:
+    """A comment goes when its author deletes it, or the author of the post."""
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT c.token, p.token FROM comments c JOIN posts p ON p.id = c.post WHERE c.id = ?",
+            (comment_id,),
+        ).fetchone()
+        if row is None or token not in row:
+            return False
+        db.execute("DELETE FROM reports WHERE target = ?", (comment_id,))
+        db.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
+    return True
+
+
+def leave(store: Store, token: str) -> None:
+    """Leave the network and keep the diary: the profile, follows both ways,
+    kudos and comments given go; one's own posts stay, visible only to oneself,
+    with what others left on them removed."""
+    with store.connection() as db:
+        for statement in (
+            "DELETE FROM reports WHERE target IN (SELECT c.id FROM comments c JOIN posts p ON p.id = c.post "
+            "WHERE p.token = :t)",
+            "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+            "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+            "UPDATE posts SET visibility = 'me' WHERE token = :t",
+            "DELETE FROM comments WHERE token = :t",
+            "DELETE FROM kudos WHERE token = :t",
+            "DELETE FROM follows WHERE follower = :t OR followed = :t",
+            "DELETE FROM profiles WHERE token = :t",
+        ):
+            db.execute(statement, {"t": token})

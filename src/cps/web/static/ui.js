@@ -2,7 +2,8 @@
 //
 // - Forms marked data-async are sent in the background. The server answers as it
 //   would a plain form (a redirect to the page), and the parts of that page this
-//   one also has (#panel, #tasks) are put in place; its notice becomes a toast.
+//   one also has (#panel, #tasks, or the form's own data-region) are put in place;
+//   its notice becomes a toast, unless the form is data-quiet (a kudos tap).
 // - Ticking a task off says so at once, and offers to undo.
 // - The new-task sheet gets one-tap due dates, and the N key opens it.
 // - A "cps:changed" event tells the plan screen to redraw its calendar.
@@ -41,7 +42,7 @@ async function send(form, submitter) {
   const data = new FormData(form, submitter);
   const response = await fetch(form.action, { method: "POST", body: new URLSearchParams(data) });
   const page = new DOMParser().parseFromString(await response.text(), "text/html");
-  for (const selector of REGIONS) {
+  for (const selector of form.dataset.region ? [form.dataset.region] : REGIONS) {
     const here = document.querySelector(selector);
     const there = page.querySelector(selector);
     if (here && there) {
@@ -79,7 +80,7 @@ document.addEventListener("submit", async (event) => {
       toast(t("Done: {name}. Its remaining sessions are free again.", { name }), {
         action: { label: t("Undo"), run: () => reopen(form, name) },
       });
-    } else {
+    } else if (!("quiet" in form.dataset)) {
       toast(answer.message || t("Saved."));
     }
     document.dispatchEvent(new CustomEvent("cps:changed"));

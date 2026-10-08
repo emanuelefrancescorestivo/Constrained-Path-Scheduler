@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your profile") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{% if profile %}{{ _("Your profile") }}{% else %}{{ _("Join the network") }}{% endif %}</h1>
+  <p>{{ _("This is all other students see of you. Your plan, calendar and secret link are never shown.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/profile" class="card form-grid">
+  <label for="pf-handle">{{ _("Handle") }}</label>
+  <div class="handle-input"><span aria-hidden="true">@</span><input id="pf-handle" name="handle" value="{{ values.handle or '' }}" required pattern="@?[A-Za-z0-9_.]{3,20}" maxlength="21" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="pf-handle-hint"></div>
+  <p class="hint" id="pf-handle-hint">{{ _("3 to 20 letters, digits, _ or . Not your real name unless you want it to be.") }}</p>
+  <label for="pf-uni">{{ _("University") }}</label>
+  <input id="pf-uni" name="university" value="{{ values.university or '' }}" required maxlength="80" placeholder="{{ _('Université Lyon 1, Politecnico di Milano…') }}">
+  <p class="hint">{{ _("Typed by you and not checked, as everyone's is.") }}</p>
+  <label for="pf-prog">{{ _("Programme") }}</label>
+  <input id="pf-prog" name="programme" value="{{ values.programme or '' }}" maxlength="80" placeholder="{{ _('Licence 2 Maths, MSc Physics…') }}">
+  <label for="pf-bio">{{ _("About you (optional)") }}</label>
+  <textarea id="pf-bio" name="bio" rows="2" maxlength="280">{{ values.bio or '' }}</textarea>
+  <label class="check"><input type="checkbox" name="old_enough" value="1" required{% if profile or values.old_enough %} checked{% endif %}> {{ _("I am 15 or older") }}</label>
+  <p class="hint">{{ _h('By joining you agree to the <a href="{href}">community guidelines</a>: your own work only, kindness, no copied exam material.', href="/guidelines") }}</p>
+  <div class="row-end"><button type="submit" class="btn btn-primary">{% if profile %}{{ _("Save") }}{% else %}{{ _("Join") }}{% endif %}</button></div>
+</form>
+{% if profile %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Leave the network") }}</h2></div>
+  <form method="post" action="/p/{{ token }}/profile/leave" class="card">
+    <p class="muted">{{ _("Your handle, follows, kudos and comments go. Your sessions stay in your diary, visible only to you.") }}</p>
+    <div class="row-end"><button type="submit" class="btn btn-destructive">{{ _("Leave the network") }}</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

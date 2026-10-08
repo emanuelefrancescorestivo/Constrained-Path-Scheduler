@@ -22,6 +22,11 @@ run. Where this is going as a product, and what it still lacks, is in
 </p>
 <p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 2 October 2026 with two deadlines added (left) and, with sessions reported for two weeks, on Monday 12 October (right).</sub></p>
 
+<p align="center">
+  <img alt="The Community tab on a phone: the Following feed with a focus session from a student at TU München (an hour and a half on dynamic programming, effort 8 of 10, a breakthrough, focused the whole time, a photo of handwritten notes), with three kudos and two comments" src="docs/app-community-phone.png" width="26%">
+</p>
+<p align="center"><sub>The Community tab (8 October 2026), with five invented students at five universities and a drawn page of notes; none of it is real data.</sub></p>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/pipeline-dark.svg">
   <img alt="From the timetable (an .ics file or its link) to what it says (courses, lectures, exams, free time), to the assistant's plan, back into the student's calendar; a one-tap report after each session replans; the research planner (FSRS and AO* search) is a reference beside it" src="docs/figures/pipeline-light.svg" width="800">
@@ -153,9 +158,18 @@ cps web                        # http://127.0.0.1:8000
    what was done, an exam close). The streak forgives: days off are neutral, one day a
    week without a report is forgiven, a late report counts on its day, and a lost
    streak is never announced (DECISIONS.md, D9).
-6. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
+6. **Focus and Community**, a study network in Strava's shape (DECISIONS.md, D16 to
+   D19): start a timer for a course or the plan's session; the page counts the time
+   you spend away from it and says so on the session (a web page cannot block other
+   apps). Then say how it went: what you did, effort out of 10, progress, notes,
+   photos of your own work, and who sees it. Every session goes to your diary and
+   counts for the streak. With a handle, a university and a programme you can share:
+   a Following feed, an Explore feed across universities and programmes, kudos,
+   comments, and "Explain it simply" posts that readers of other subjects mark
+   "I got it". Follows are asked for and accepted; nobody's follower count is shown.
+7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
-7. **After each session**: its calendar event links to a page that asks how it went.
+8. **After each session**: its calendar event links to a page that asks how it went.
    Done, skipped or hard, in one tap; the plan changes at once. A hard self-test
    comes back sooner; hard deadline work gets one more session.
 
@@ -332,8 +346,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web]"
-pytest                                    # 459 passed, 14 deselected (slow), 1 xfailed, ~75 s
-pytest -m "slow or not slow" --cov=cps    # everything: 473 passed, 1 xfailed, 93% coverage
+pytest                                    # 471 passed, 14 deselected (slow), 1 xfailed, ~80 s
+pytest -m "slow or not slow" --cov=cps    # everything: 485 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

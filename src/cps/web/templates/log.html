@@ -7,7 +7,7 @@
   {% if draft.timed %}<p>{{ _n("{n} minute focused", "{n} minutes focused", draft.minutes | int) }}{% if draft.checked %} · {% if draft.interruptions %}{{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", draft.interruptions | int, minutes=draft.away_minutes) }}{% else %}{{ _("focused the whole time") }}{% endif %}{% else %} · {{ _("timed, focus not checked") }}{% endif %}</p>{% endif %}
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
-<form method="post" action="/p/{{ token }}/log" enctype="multipart/form-data" class="log-form" id="log-form">
+<form method="post" action="/p/{{ token }}/log" enctype="multipart/form-data" class="log-form with-photos" id="log-form">
   <div class="card">
     <label for="log-course">{{ _("Course") }}</label>
     <input id="log-course" name="course" value="{{ draft.course }}" required list="qa-courses" autocomplete="off">
@@ -44,9 +44,10 @@
   <fieldset class="card section">
     <legend>{{ _("Who sees it") }}</legend>
     <div class="pills" role="radiogroup">
-      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or 'followers') == value %} checked{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or ('followers' if profile else 'me')) == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
     </div>
-    <p class="hint">{{ _("Every session stays in your diary, whoever sees it.") }}</p>
+    {% if profile %}<p class="hint">{{ _("Every session stays in your diary, whoever sees it.") }}</p>
+    {% else %}<p class="hint">{{ _h('To share sessions, <a href="{href}">choose a handle</a>. Until then they stay in your diary, for you only.', href="/p/" ~ token ~ "/profile") }}</p>{% endif %}
   </fieldset>
   <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Save") }}</button></div>
 </form>

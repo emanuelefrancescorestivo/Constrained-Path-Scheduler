@@ -19,7 +19,7 @@ is true.
 | **cue** | a calendar event at the session's time, in the calendar the student already checks; the event says what to do | yes (the feed) |
 | **action** | study, then one tap: done, hard, or skipped, from the event or from Today | yes (reports) |
 | **reward** | at once: the day counts, the week's ring fills, the streak grows by one, the plan adapts; on Monday, last week in a paragraph | **this stage** (progress, streak, review) |
-| **investment** | each report makes the plan fit better (a hard topic returns sooner); tasks added; a friend who will see the week | reports exist; **buddies, task capture in words: this stage** |
+| **investment** | each report makes the plan fit better (a hard topic returns sooner); tasks added; the diary grows; followers who will see the next session | reports exist; **diary, network, task capture in words: this stage** |
 
 This is the shape of habit-forming products in general (cue, routine, reward,
 investment). What is particular here is that the cue is not ours: it is the
@@ -42,19 +42,28 @@ tests, Gollwitzer and Sheeran 2006). Notifications of our own are deliberately a
    suggestion chosen by rules from what happened (sessions skipped at the same time
    of day, a week much heavier than what was done, an exam close). Written by the
    model when AI is on (D12), by a template otherwise.
-4. **Study buddies** (D11). Up to five friends, invited by code; each sees the
-   other's streak, the week's ring, whether they studied today, and can cheer once a
-   day.
-5. **Tasks typed in words** (D12). "rapport de stats pour vendredi, 6 h" becomes a
+4. **Focus and the diary** (D17, D18). A timer that counts time away from the page
+   honestly, then a log of the session: what was done, effort, progress, notes,
+   photos of one's own work. Every session stays in the diary and makes its day
+   studied.
+5. **The study network** (D16, D19, D20; it replaced D11's private buddies when the
+   owner asked for "a social network, like Strava"). Profiles with a handle, a
+   university and a programme; follows that are asked for and accepted; a Following
+   feed and an Explore feed across universities and programmes; kudos and comments;
+   "Explain it simply", where a student explains one idea to students of other
+   subjects (learning by teaching; the evidence is still to be checked, D19). Each
+   post says who sees it.
+6. **Tasks typed in words** (D12). "rapport de stats pour vendredi, 6 h" becomes a
    task in the new-task sheet, to check before saving.
-6. **French** (D10). Every page in French or English; the plan remembers the choice.
+7. **French** (D10). Every page in French or English; the plan remembers the choice.
 
 ## Rules we keep, because the alternatives work and we will not use them
 
 - **No guilt.** No message about a lost streak, no sad mascot, no "you broke it".
   When a streak ends, the page shows the best streak and the next milestone.
 - **No currency, no store, no loot.** Nothing to buy, earn or spend.
-- **No public ranking.** Buddies see each other's own progress, not a league table.
+- **No public ranking.** No league table, no follower counts on profiles, no feed
+  sorted by hours: the network shows work, not popularity (D16).
 - **Nothing rewards studying beyond the plan.** The ring fills at the planned amount;
   extra hours earn nothing; the plan's weekly limit stays the student's.
 - **No rating prompts, no countdown offers, no trial that turns into a charge.**
@@ -67,7 +76,7 @@ tests, Gollwitzer and Sheeran 2006). Notifications of our own are deliberately a
 | moment | risk | answer |
 |---|---|---|
 | day 0, setup | gives up before seeing a plan | two-minute setup from a link (exists); the first session's tap is the first streak day |
-| weeks 1 to 3 | the novelty fades (Hamari et al. 2014 name novelty as a recurring caveat) | the weekly review shows a first full week; a buddy invited in week 1 |
+| weeks 1 to 3 | the novelty fades (Hamari et al. 2014 name novelty as a recurring caveat) | the weekly review shows a first full week; first followers, kudos on the first shared session |
 | mid-semester | deadlines pile up | at-risk warnings (exist), tasks typed in words |
 | the exams | stress; the plan is all exam practice | readiness per exam on Progress; rest days stay neutral |
 | after the exams | churn: the reason to open it is gone | a semester summary (later), and an offer to start the next semester from the new timetable link |

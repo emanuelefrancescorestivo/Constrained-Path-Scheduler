@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_people.html" import person_row %}
+{% block title %}{{ _("People") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
+<div class="page-title"><h1>{{ _("People") }}</h1></div>
+{% if not profile %}
+<p class="card">{{ _h('To follow people, <a href="{href}">choose a handle</a> first.', href="/p/" ~ token ~ "/profile") }}</p>
+{% endif %}
+<form method="get" action="/p/{{ token }}/people" class="search" role="search">
+  <input type="search" name="q" value="{{ view.query }}" placeholder="{{ _('Handle, university or programme') }}" aria-label="{{ _('Find people') }}" maxlength="80" autocapitalize="none">
+  <button type="submit" class="btn btn-sm">{{ _("Search") }}</button>
+</form>
+{% if view.query %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Found") }}</h2></div>
+  {% if view.found %}<div class="card"><ul class="list people">{% for person in view.found %}{{ person_row(person, token) }}{% endfor %}</ul></div>
+  {% else %}<p class="card muted">{{ _("Nobody matches. Try part of a handle, or a university's name.") }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if view.requests %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Asking to follow you") }}</h2></div>
+  <div class="card"><ul class="list people">
+  {% for person in view.requests %}{% call person_row(person, token) %}
+    <form method="post" action="/p/{{ token }}/requests/{{ person.handle }}"><button type="submit" name="answer" value="accept" class="btn btn-primary btn-sm">{{ _("Accept") }}</button> <button type="submit" name="answer" value="decline" class="btn btn-sm">{{ _("Decline") }}</button></form>
+  {% endcall %}{% endfor %}
+  </ul></div>
+</div>
+{% endif %}
+
+{% for name, title, empty in (("following", _("Following"), _("You follow nobody yet. Find people in Explore or above.")), ("followers", _("Your followers"), _("Nobody follows you yet.")), ("asked", _("Waiting for an answer"), "")) %}
+{% if view[name] or empty %}
+<div class="section">
+  <div class="section-title"><h2>{{ title }}</h2>{% if view[name] %}<small>{{ view[name] | length }}</small>{% endif %}</div>
+  {% if view[name] %}
+  <div class="card"><ul class="list people">
+  {% for person in view[name] %}{% call person_row(person, token) %}
+    {% if name == "followers" %}
+    <form method="post" action="/p/{{ token }}/followers/{{ person.handle }}/remove"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
+    {% else %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/unfollow"><input type="hidden" name="next" value="/p/{{ token }}/people"><button type="submit" class="btn btn-plain btn-sm">{% if name == "asked" %}{{ _("Withdraw") }}{% else %}{{ _("Unfollow") }}{% endif %}</button></form>
+    {% endif %}
+  {% endcall %}{% endfor %}
+  </ul></div>
+  {% else %}<p class="card muted">{{ empty }}</p>{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

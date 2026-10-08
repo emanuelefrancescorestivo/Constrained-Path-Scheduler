@@ -1,11 +1,15 @@
-{# One post: a study session or an explanation. `p` from service.post_card, `token`. #}
+{# One post: a study session or an explanation. `p` from service.post_card (with
+   author, kudos and comments in the network's pages), `token`, and `here`, the
+   page to come back to after a tap. #}
+{% from "_people.html" import avatar %}
 <article class="card post" id="post-{{ p.id }}">
   <header class="post-head">
+    {% if p.author %}{{ avatar(p.author) }}{% endif %}
     <div class="grow">
       <p class="kicker">{% if p.author %}<a href="/p/{{ token }}/u/{{ p.author.handle }}">@{{ p.author.handle }}</a>{% if p.author.university %} · {{ p.author.university }}{% endif %} · {% endif %}{{ p.when }}</p>
-      <h3>{% if p.kind == "explain" %}{{ p.concept }}{% else %}{{ p.course }}{% endif %}</h3>
+      <h3>{% if p.kudos is defined %}<a class="post-link" href="/p/{{ token }}/post/{{ p.id }}">{% endif %}{% if p.kind == "explain" %}{{ p.concept }}{% else %}{{ p.course }}{% endif %}{% if p.kudos is defined %}</a>{% endif %}</h3>
     </div>
-    <span class="badge vis-{{ p.visibility }}" title="{{ _('Who sees it') }}">{% if p.visibility == 'me' %}{{ _("Only me") }}{% elif p.visibility == 'followers' %}{{ _("Followers") }}{% else %}{{ _("Everyone") }}{% endif %}</span>
+    {% if p.mine %}<span class="badge vis-{{ p.visibility }}" title="{{ _('Who sees it') }}">{% if p.visibility == 'me' %}{{ _("Only me") }}{% elif p.visibility == 'followers' %}{{ _("Followers") }}{% else %}{{ _("Everyone") }}{% endif %}</span>{% endif %}
   {% if p.mine %}
   <details class="menu">
     <summary aria-label="{{ _('More') }}">···</summary>
@@ -28,8 +32,20 @@
   <p class="post-focus">{{ p.focus }}</p>
   {% if p.note %}<p class="post-note">{{ p.note }}</p>{% endif %}
   {% else %}
-  {% if p.course %}<p class="kicker">{{ p.course }}</p>{% endif %}
+  <p class="explain-tag"><span class="badge badge-accent">{{ _("Explained simply") }}</span>{% if p.course %} {{ p.course }}{% endif %}</p>
   <p class="post-note">{{ p.text }}</p>
   {% endif %}
   {% if p.photos %}<div class="photos n{{ p.photos | length }}">{% for src in p.photos %}<a href="{{ src }}"><img src="{{ src }}" alt="{{ _('Photo {n}', n=loop.index) }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+  {% if p.kudos is defined %}
+  <footer class="post-actions" id="acts-{{ p.id }}">
+    <form method="post" action="/p/{{ token }}/post/{{ p.id }}/kudos" data-async data-region="#acts-{{ p.id }}" data-quiet>
+      <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
+      <button type="submit" class="act{% if p.kudos_given %} given{% endif %}" aria-pressed="{{ 'true' if p.kudos_given else 'false' }}">
+        {% if p.kind == "explain" %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>{{ _("I got it") }}{% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg>{{ _("Kudos") }}{% endif %}
+        {% if p.kudos %}<span class="act-count">{{ p.kudos }}</span>{% endif %}
+      </button>
+    </form>
+    <a class="act" href="/p/{{ token }}/post/{{ p.id }}#comments"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 18.5 6 15a7.5 7.5 0 1 1 3 3z"/></svg>{{ _("Comment") }}{% if p.comments %}<span class="act-count">{{ p.comments }}</span>{% endif %}</a>
+  </footer>
+  {% endif %}
 </article>

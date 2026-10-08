@@ -1,11 +1,11 @@
-// The log form: photos made smaller and re-encoded in the browser before they are
+// The forms with photos (a session, an explanation): photos made smaller and re-encoded in the browser before they are
 // sent (DECISIONS.md D18). Drawing a photo on a canvas and saving it as JPEG keeps
 // the picture and drops its metadata, the phone's GPS position among it. Without
 // this script the form still sends the files, and the server strips metadata.
 import { t } from "./i18n.js";
 import { toast } from "./ui.js";
 
-const form = document.getElementById("log-form");
+const form = document.querySelector("form.with-photos");
 const MAX_SIDE = 1600;
 
 async function shrink(file) {

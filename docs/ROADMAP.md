@@ -45,7 +45,7 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E2 The weekly review.** Last week in numbers, a paragraph and one suggestion.
 - [x] **E3 French.** The app in French and English, chosen per plan (D10).
 - [x] **E4a Focus sessions and the diary** (D17, D18).
-- [ ] **E4b The study network**: profiles, follows, feeds, kudos, comments, "explain it
+- [x] **E4b The study network**: profiles, follows, feeds, kudos, comments, "explain it
       simply" (D16, D19).
 - [ ] **E4c Moderation**: report, hide, block, the owner's review page (D20).
 - [ ] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).

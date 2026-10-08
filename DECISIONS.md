@@ -211,6 +211,18 @@ moderation first, D20). An e-mail or university-e-mail sign-in (an e-mail servic
 operate; the owner chose the handle and the secret link, with the weakness that
 anyone can claim any university, stated on the profile page). Follower counts.
 
+**Built (step E4b).** Sharing needs a handle: without a profile nobody could follow
+the author or tell who wrote a post, so a post with no choice made stays "only me"
+and a choice to share is refused with the way to fix it. The Following feed leaves
+out one's own "only me" posts (they are in the diary). Explore shows only authors
+with a profile. "Leave the network" deletes the profile, follows both ways, kudos
+and comments given, and what others left on one's posts, and turns one's posts
+"only me": the diary survives, the network forgets. On a phone the tab bar keeps
+five tabs (Today, Calendar, Focus, Community, Progress); Tasks moves off it, and
+stays on Today, in the wide top bar and behind the + button. Rejected: a sixth tab
+(iOS stops at five), and Community inside Progress (the feed is the daily reason to
+open the network; one tap, not two).
+
 **Stored.** In the same SQLite file, tables of their own: `profiles`, `follows`,
 `posts`, `kudos`, `comments`, `reports`, `blocks`. Post and comment ids are random,
 not sequential. Deleting a plan, by request or by expiry, deletes its profile, posts,
@@ -255,7 +267,8 @@ came, under `Content-Type: image/jpeg` and `nosniff`.
 **Chosen.** A second kind of post: a concept, the course it comes from, and an
 explanation written for someone who studies something else (at most 1,200
 characters), with an optional photo. Readers answer "I got it" or ask a question in
-the comments. Explore can show explanations alone.
+the comments. Explore can show explanations alone. Shared with everyone by default,
+since an explanation is written for strangers; a session's default stays followers.
 
 **Why.** Explaining to a non-specialist is the Feynman technique; the research on
 learning by teaching is in docs/MARKET.md §3 once checked. It also gives the network a
@@ -272,4 +285,5 @@ exam papers you were asked not to share, no other people's faces or names, be ki
 
 **Why.** Under the EU's Digital Services Act a hosting service needs a way to be told
 of illegal content and to act on it; this is that, at a pilot's size. Automatic
-screening by a model was the alternative; the owner chose to review himself.
+screening by a model was the alternative; the owner chose to review reports in
+person.
