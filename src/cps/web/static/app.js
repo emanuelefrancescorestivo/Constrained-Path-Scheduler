@@ -3,6 +3,7 @@
 // again, so there is one place where what it says is decided. Without this
 // script, every form on the page still works, by full page loads.
 import { Calendar } from "./calendar.js";
+import { t } from "./i18n.js";
 import { toast } from "./ui.js";
 
 const plan = document.querySelector(".plan");
@@ -41,7 +42,7 @@ function wirePanel() {
       const outcome = event.submitter ? event.submitter.value : "done";
       const sid = form.action.split("/").pop();
       const word = event.submitter ? event.submitter.textContent.trim().toLowerCase() : outcome;
-      await calendar.change(`sessions/${sid}/report`, { outcome }, `Recorded: ${word}. The plan has adjusted.`);
+      await calendar.change(`sessions/${sid}/report`, { outcome }, t("Recorded: {word}. The plan has adjusted.", { word }));
     });
   });
 }

@@ -11,6 +11,8 @@
 const SNAP = 15; // minutes
 const PX = 0.9; // pixels per minute: 54 px an hour
 const GUTTER = 52; // px
+import { t } from "./i18n.js";
+
 const KIND_WORDS = { "first review": "Self-test", review: "Self-test", task: "Deadline work", practice: "Exam practice" };
 const OUTCOMES = [["done", "Done"], ["skipped", "Skipped"], ["struggled", "Hard"]];
 const MARKS = { done: "✓", skipped: "–", struggled: "!" };
@@ -151,7 +153,7 @@ export class Calendar {
     } catch {
       /* said below */
     }
-    if (!response.ok) throw new Error(answer.message || `The server answered ${response.status}.`);
+    if (!response.ok) throw new Error(answer.message || t("The server answered {status}.", { status: response.status }));
     return answer;
   }
 
@@ -275,7 +277,7 @@ export class Calendar {
 
     const scroll = h("div", { class: "cal-scroll" }, body);
     const used = new Set(data.items.map((i) => i.color).filter((c) => c !== null && c !== undefined));
-    const legend = h("div", { class: "legend", "aria-label": "Courses" },
+    const legend = h("div", { class: "legend", "aria-label": t("Courses") },
       data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
     this.root.replaceChildren(h("div", { class: "cal" }, head, scroll, legend.childElementCount ? legend : null));
     this.placeNow();
@@ -373,7 +375,7 @@ export class Calendar {
       title: `${label}\n${span}`,
       "data-full": label,
       "data-short": short || null,
-      "aria-label": `${label}, ${this.data.days[d].label}, ${toClock(box.start)} to ${toClock(box.end)}`,
+      "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) }),
     },
     h("span", { class: "t" }, span),
     h("span", { class: "l" }, label));
@@ -419,7 +421,7 @@ export class Calendar {
   }
 
   kindLabel(kind) {
-    return (this.data.kinds.find((k) => k.id === kind) || { label: "Busy" }).label;
+    return (this.data.kinds.find((k) => k.id === kind) || { label: t("Busy") }).label;
   }
 
   // -- dragging ----------------------------------------------------------------
@@ -498,7 +500,7 @@ export class Calendar {
       const day = this.data.days[d];
       if (box.kind === "study") {
         this.change(`sessions/${box.id}/move`, { to: `${day.date}T${toClock(start)}` },
-          "Moved. It stays there; the rest of the plan has made room.");
+          t("Moved. It stays there; the rest of the plan has made room."));
       } else {
         const rows = this.data.activities.map((r) => ({ ...r }));
         const row = rows[box.row];
@@ -506,7 +508,7 @@ export class Calendar {
         row.end = toClock(end);
         if (row.date) row.date = day.date;
         else row.weekday = day.weekday;
-        this.saveActivities(rows, "Saved. The plan has moved around it.");
+        this.saveActivities(rows, t("Saved. The plan has moved around it."));
       }
     };
     const cancel = (e) => {
@@ -647,8 +649,8 @@ export class Calendar {
           h("p", { class: "kicker" }, `${day.label} · ${toClock(box.start)}–${toClock(box.end)}`),
           h("h3", {}, box.label))),
       h("p", { class: "muted" }, box.kind === "exam"
-        ? "An exam from your timetable. Practice sessions are planned in the two weeks before it."
-        : "From your timetable. Nothing is planned at the same time."),
+        ? t("An exam from your timetable. Practice sessions are planned in the two weeks before it.")
+        : t("From your timetable. Nothing is planned at the same time.")),
     ], box.label);
   }
 
@@ -656,7 +658,7 @@ export class Calendar {
     const colour = box.color === null || box.color === undefined ? "cn" : `c${box.color}`;
     const d = this.data.days.findIndex((day) => day.date === box.at.slice(0, 10));
     const day = d >= 0 ? this.data.days[d].label : box.at.slice(0, 10);
-    const kind = KIND_WORDS[box.session_kind] || "Study";
+    const kind = t(KIND_WORDS[box.session_kind] || "Study");
     const parts = [
       h("div", { class: `pop-head ${colour}` },
         h("span", { class: "colour-bar" }),
@@ -664,47 +666,47 @@ export class Calendar {
           h("p", { class: "kicker" }, `${kind} · ${day} · ${toClock(box.start)}–${toClock(box.end)}`),
           h("h3", {}, box.label),
           box.title && !box.label.endsWith(box.title) ? h("p", { class: "muted" }, box.title) : null,
-          box.pinned ? h("span", { class: "badge badge-accent" }, "Placed by you") : null)),
+          box.pinned ? h("span", { class: "badge badge-accent" }, t("Placed by you")) : null)),
       box.detail ? h("p", {}, box.detail) : null,
       box.why ? h("p", { class: "hint" }, box.why) : null,
     ];
     if (box.started) {
-      parts.push(h("hr"), h("p", { class: "label" }, "How did it go?"),
+      parts.push(h("hr"), h("p", { class: "label" }, t("How did it go?")),
         h("div", { class: "outcomes" }, OUTCOMES.map(([value, word]) => h("button", {
           type: "button",
           class: "btn btn-sm",
           "aria-pressed": box.reported === value ? "true" : "false",
           onclick: () => this.change(`sessions/${box.id}/report`, { outcome: value },
-            `Recorded: ${word.toLowerCase()}. The plan has adjusted.`),
-        }, word))));
+            t("Recorded: {word}. The plan has adjusted.", { word: t(word).toLowerCase() })),
+        }, t(word)))));
     }
     if (box.movable) {
-      const date = h("input", { type: "date", value: box.at.slice(0, 10), "aria-label": "Date" });
-      const time = h("input", { type: "time", step: "900", value: toClock(box.start), "aria-label": "Start" });
-      parts.push(h("hr"), h("p", { class: "label" }, "Move it"),
+      const date = h("input", { type: "date", value: box.at.slice(0, 10), "aria-label": t("Date") });
+      const time = h("input", { type: "time", step: "900", value: toClock(box.start), "aria-label": t("Start") });
+      parts.push(h("hr"), h("p", { class: "label" }, t("Move it")),
         h("div", { class: "row" }, h("div", {}, date), h("div", {}, time)),
-        h("p", { class: "hint" }, narrow() ? "It stays where you put it." : "Or drag it on the calendar. It stays where you put it."),
+        h("p", { class: "hint" }, narrow() ? t("It stays where you put it.") : t("Or drag it on the calendar. It stays where you put it.")),
         h("div", { class: "pop-actions" },
           box.pinned ? h("button", {
             type: "button",
             class: "btn btn-ghost left",
-            onclick: () => this.change(`sessions/${box.id}/unpin`, {}, "The plan chooses its time again."),
-          }, "Let the plan choose") : null,
+            onclick: () => this.change(`sessions/${box.id}/unpin`, {}, t("The plan chooses its time again.")),
+          }, t("Let the plan choose")) : null,
           h("button", {
             type: "button",
             class: "btn btn-primary",
             onclick: () => this.change(`sessions/${box.id}/move`, { to: `${date.value}T${time.value}` },
-              "Moved. It stays there; the rest of the plan has made room."),
-          }, "Move")));
+              t("Moved. It stays there; the rest of the plan has made room.")),
+          }, t("Move"))));
     }
-    parts.push(h("p", { class: "hint" }, h("a", { href: `/s/${this.token}/${box.id}` }, "Open this session's page")));
+    parts.push(h("p", { class: "hint" }, h("a", { href: `/s/${this.token}/${box.id}` }, t("Open this session's page"))));
     this.openPop(anchor, parts, box.label);
   }
 
   activityForm(row, d, isNew, anchor) {
     const day = this.data.days[d];
     let kind = row.kind || "other";
-    const name = h("input", { type: "text", value: isNew ? "" : row.label, placeholder: this.kindLabel(kind), "aria-label": "Name" });
+    const name = h("input", { type: "text", value: isNew ? "" : row.label, placeholder: this.kindLabel(kind), "aria-label": t("Name") });
     const chips = this.data.kinds.map((k) => h("button", {
       type: "button",
       class: "btn btn-sm",
@@ -715,8 +717,8 @@ export class Calendar {
         event.currentTarget.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === event.currentTarget ? "true" : "false"));
       },
     }, k.label));
-    const from = h("input", { type: "time", step: "900", value: row.start, "aria-label": "From" });
-    const to = h("input", { type: "time", step: "900", value: row.end === "24:00" ? "23:59" : row.end, "aria-label": "To" });
+    const from = h("input", { type: "time", step: "900", value: row.start, "aria-label": t("From") });
+    const to = h("input", { type: "time", step: "900", value: row.end === "24:00" ? "23:59" : row.end, "aria-label": t("To") });
     const weekly = h("input", { type: "checkbox", id: "weekly", checked: isNew ? true : !row.date });
     const save = () => {
       const rows = this.data.activities.map((r) => ({ ...r }));
@@ -730,28 +732,28 @@ export class Calendar {
       };
       if (isNew) rows.push(edited);
       else rows[row.index] = edited;
-      this.saveActivities(rows, isNew ? "Blocked. The plan has moved around it." : "Saved. The plan has moved around it.");
+      this.saveActivities(rows, isNew ? t("Blocked. The plan has moved around it.") : t("Saved. The plan has moved around it."));
     };
     const form = h("form", { onsubmit: (event) => { event.preventDefault(); save(); } },
       h("div", { class: "pop-head" }, h("div", { class: "grow" },
         h("p", { class: "kicker" }, day.label),
-        h("h3", {}, isNew ? "Block this time" : "Busy time"))),
-      h("label", { for: "busy-name" }, "What"), Object.assign(name, { id: "busy-name" }),
-      h("div", { class: "kinds", role: "group", "aria-label": "Kind" }, chips),
-      h("div", { class: "row" }, h("div", {}, h("label", {}, "From"), from), h("div", {}, h("label", {}, "To"), to)),
-      h("label", { class: "check", for: "weekly" }, weekly, `Every ${day.label.slice(0, 3)}`),
+        h("h3", {}, isNew ? t("Block this time") : t("Busy time")))),
+      h("label", { for: "busy-name" }, t("What")), Object.assign(name, { id: "busy-name" }),
+      h("div", { class: "kinds", role: "group", "aria-label": t("Kind") }, chips),
+      h("div", { class: "row" }, h("div", {}, h("label", {}, t("From")), from), h("div", {}, h("label", {}, t("To")), to)),
+      h("label", { class: "check", for: "weekly" }, weekly, t("Every {day}", { day: day.label.split(" ")[0] })),
       h("div", { class: "pop-actions" },
         isNew ? null : h("button", {
           type: "button",
           class: "btn btn-ghost left",
           onclick: () => {
             const rows = this.data.activities.filter((_, i) => i !== row.index);
-            this.saveActivities(rows, "Removed. That time is free again.");
+            this.saveActivities(rows, t("Removed. That time is free again."));
           },
-        }, "Delete"),
-        h("button", { type: "button", class: "btn", onclick: () => this.closePop() }, "Cancel"),
-        h("button", { type: "submit", class: "btn btn-primary" }, isNew ? "Block it" : "Save")));
-    this.openPop(anchor, form, isNew ? "Block this time" : "Busy time");
+        }, t("Delete")),
+        h("button", { type: "button", class: "btn", onclick: () => this.closePop() }, t("Cancel")),
+        h("button", { type: "submit", class: "btn btn-primary" }, isNew ? t("Block it") : t("Save"))));
+    this.openPop(anchor, form, isNew ? t("Block this time") : t("Busy time"));
   }
 
   openCreate(d, from, to, anchor) {

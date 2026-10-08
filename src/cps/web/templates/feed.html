@@ -1,36 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Connect your calendar · Study plan{% endblock %}
+{% block title %}{{ _("Connect your calendar") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {% if new %}{% set step = 4 %}{% include "_steps.html" %}{% endif %}
-<h1>{% if new %}Put your plan in your calendar{% else %}Connect your calendar{% endif %}</h1>
-<p class="muted">Subscribe once: every study session appears next to your timetable, updates by
-itself, and has a link to say how it went.</p>
-{% if not planned %}<p class="notice">There is nothing planned yet: add an exam or a deadline in Settings first.</p>{% endif %}
+<h1>{% if new %}{{ _("Put your plan in your calendar") }}{% else %}{{ _("Connect your calendar") }}{% endif %}</h1>
+<p class="muted">{{ _("Subscribe once: every study session appears next to your timetable, updates by itself, and has a link to say how it went.") }}</p>
+{% if not planned %}<p class="notice">{{ _("There is nothing planned yet: add an exam or a deadline in Settings first.") }}</p>{% endif %}
 
 <div class="card section">
-  <div class="card-title"><h2>Your calendar's address</h2></div>
-  <input readonly value="{{ feed }}" aria-label="Calendar subscription address" class="copy">
-  <p><a class="btn btn-primary" href="{{ webcal }}">Open in my calendar app</a></p>
+  <div class="card-title"><h2>{{ _("Your calendar's address") }}</h2></div>
+  <input readonly value="{{ feed }}" aria-label="{{ _('Calendar subscription address') }}" class="copy">
+  <p><a class="btn btn-primary" href="{{ webcal }}">{{ _("Open in my calendar app") }}</a></p>
   <dl>
     <dt>Google Calendar</dt>
-    <dd>On a computer: Other calendars, +, From URL, and paste the address. It then shows on
-    your phone too. Google reads subscribed calendars on its own schedule, often hours apart,
-    so a change can take that long to appear; this site is always up to date.</dd>
-    <dt>iPhone, iPad or Mac</dt>
-    <dd>Tap "Open in my calendar app", or Settings, Calendar, Accounts, Add Account, Other,
-    Add Subscribed Calendar.</dd>
+    <dd>{{ _("On a computer: Other calendars, +, From URL, and paste the address. It then shows on your phone too. Google reads subscribed calendars on its own schedule, often hours apart, so a change can take that long to appear; this site is always up to date.") }}</dd>
+    <dt>{{ _("iPhone, iPad or Mac") }}</dt>
+    <dd>{{ _("Tap \"Open in my calendar app\", or Settings, Calendar, Accounts, Add Account, Other, Add Subscribed Calendar.") }}</dd>
     <dt>Outlook</dt>
-    <dd>Add calendar, Subscribe from web.</dd>
+    <dd>{{ _("Add calendar, Subscribe from web.") }}</dd>
     <dt>Notion Calendar</dt>
-    <dd>Subscribe in the Google or Apple calendar it shows.</dd>
+    <dd>{{ _("Subscribe in the Google or Apple calendar it shows.") }}</dd>
   </dl>
 </div>
 
 <div class="card section">
-  <div class="card-title"><h2>This page's address</h2></div>
-  <p class="muted">Bookmark it, or add it to your phone's home screen: it is your key to your
-  plan. Anyone with it can see and change your plan, so keep it to yourself.</p>
-  <input readonly value="{{ page_url }}" aria-label="Your plan's address" class="copy">
+  <div class="card-title"><h2>{{ _("This page's address") }}</h2></div>
+  <p class="muted">{{ _("Bookmark it, or add it to your phone's home screen: it is your key to your plan. Anyone with it can see and change your plan, so keep it to yourself.") }}</p>
+  <input readonly value="{{ page_url }}" aria-label="{{ _('Your plan\'s address') }}" class="copy">
 </div>
-<p class="section"><a class="btn btn-primary" href="/p/{{ token }}">{% if new %}Done: go to my plan{% else %}Back to my plan{% endif %}</a></p>
+<p class="section"><a class="btn btn-primary" href="/p/{{ token }}">{% if new %}{{ _("Done: go to my plan") }}{% else %}{{ _("Back to my plan") }}{% endif %}</a></p>
 {% endblock %}

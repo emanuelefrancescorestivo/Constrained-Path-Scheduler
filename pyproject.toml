@@ -63,6 +63,10 @@ ignore = [
     "RUF001", "RUF002", "RUF003",  # the docs use real typography: en dashes, primes, pi
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# A translation catalogue is one sentence per line; wrapping them would hide them.
+"src/cps/locales/*.py" = ["E501"]
+
 [tool.mypy]
 # No python_version: numpy's stubs need 3.12 syntax, so mypy checks with the
 # interpreter it runs on. CI runs 3.11 to 3.13 for the tests themselves.

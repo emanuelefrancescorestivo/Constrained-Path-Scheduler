@@ -9,6 +9,8 @@
 //
 // Layout and input only: what a change means is decided by the server.
 
+import { t } from "./i18n.js";
+
 const REGIONS = ["#panel", "#tasks"];
 let toastTimer = null;
 
@@ -63,7 +65,7 @@ document.addEventListener("submit", async (event) => {
   try {
     const answer = await send(form, event.submitter);
     if (!answer.ok) {
-      toast(answer.message || "That did not work. Try again.", { bad: true });
+      toast(answer.message || t("That did not work. Try again."), { bad: true });
       if (task) task.classList.remove("ticking");
       return;
     }
@@ -74,15 +76,15 @@ document.addEventListener("submit", async (event) => {
     }
     const name = form.elements.name ? form.elements.name.value : "";
     if (finishing) {
-      toast(`Done: ${name}. Its remaining sessions are free again.`, {
-        action: { label: "Undo", run: () => reopen(form, name) },
+      toast(t("Done: {name}. Its remaining sessions are free again.", { name }), {
+        action: { label: t("Undo"), run: () => reopen(form, name) },
       });
     } else {
-      toast(answer.message || "Saved.");
+      toast(answer.message || t("Saved."));
     }
     document.dispatchEvent(new CustomEvent("cps:changed"));
   } catch {
-    toast("No connection to the server. Try again.", { bad: true });
+    toast(t("No connection to the server. Try again."), { bad: true });
     if (task) task.classList.remove("ticking");
   } finally {
     form.querySelectorAll("button").forEach((b) => (b.disabled = false));
@@ -101,7 +103,7 @@ async function reopen(form, name) {
     undo.append(input);
   }
   const answer = await send(undo, null);
-  toast(answer.ok ? `Reopened: ${name}.` : answer.message || "Could not reopen it.", { bad: !answer.ok });
+  toast(answer.ok ? t("Reopened: {name}.", { name }) : answer.message || t("Could not reopen it."), { bad: !answer.ok });
   document.dispatchEvent(new CustomEvent("cps:changed"));
 }
 

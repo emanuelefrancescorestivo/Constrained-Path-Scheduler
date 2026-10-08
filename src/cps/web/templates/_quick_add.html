@@ -1,45 +1,45 @@
 {# The new-task sheet, on every page of a plan. The popover attribute opens it
    without a script; ui.js adds the date shortcuts and sends it without a reload. #}
-<div id="quick-add" class="sheet" popover aria-label="New task">
+<div id="quick-add" class="sheet" popover aria-label="{{ _('New task') }}">
   <form method="post" action="/p/{{ token }}/tasks" data-async>
     <input type="hidden" name="back" value="{{ tab or '' }}">
     <div class="sheet-head">
-      <button type="button" class="btn btn-plain" popovertarget="quick-add" popovertargetaction="hide">Cancel</button>
-      <h2>New task</h2>
-      <button type="submit" class="btn btn-plain"><b>Add</b></button>
+      <button type="button" class="btn btn-plain" popovertarget="quick-add" popovertargetaction="hide">{{ _("Cancel") }}</button>
+      <h2>{{ _("New task") }}</h2>
+      <button type="submit" class="btn btn-plain"><b>{{ _("Add") }}</b></button>
     </div>
     <div class="sheet-body">
-      <label class="visually-hidden" for="qa-name">What needs doing</label>
-      <input id="qa-name" name="name" class="title-input" required autocomplete="off" placeholder="Statistics report, problem sheet…">
+      <label class="visually-hidden" for="qa-name">{{ _("What needs doing") }}</label>
+      <input id="qa-name" name="name" class="title-input" required autocomplete="off" placeholder="{{ _('Statistics report, problem sheet…') }}">
       <div class="sheet-group">
         <div class="sheet-row">
-          <label class="label" for="qa-due">Due</label>
+          <label class="label" for="qa-due">{{ _("Due") }}</label>
           <div class="grow">
             <input id="qa-due" name="due" type="datetime-local" required>
             <div class="quick-dates" hidden>
-              <button type="button" class="btn btn-sm" data-due="1">Tomorrow</button>
-              <button type="button" class="btn btn-sm" data-due="3">In 3 days</button>
-              <button type="button" class="btn btn-sm" data-due="7">Next week</button>
-              <button type="button" class="btn btn-sm" data-due="14">In 2 weeks</button>
+              <button type="button" class="btn btn-sm" data-due="1">{{ _("Tomorrow") }}</button>
+              <button type="button" class="btn btn-sm" data-due="3">{{ _("In 3 days") }}</button>
+              <button type="button" class="btn btn-sm" data-due="7">{{ _("Next week") }}</button>
+              <button type="button" class="btn btn-sm" data-due="14">{{ _("In 2 weeks") }}</button>
             </div>
           </div>
         </div>
         <div class="sheet-row">
-          <span class="label" id="qa-hours-label">Work</span>
+          <span class="label" id="qa-hours-label">{{ _("Work") }}</span>
           <div class="grow pills" role="radiogroup" aria-labelledby="qa-hours-label">
             {% for h, word in ((1, "1 h"), (2, "2 h"), (4, "4 h"), (8, "8 h")) %}
             <label class="pill"><input type="radio" name="hours" value="{{ h }}"{% if h == 2 %} checked{% endif %}><span>{{ word }}</span></label>
             {% endfor %}
-            <input class="other-hours" name="hours_other" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="Other" aria-label="Other number of hours">
+            <input class="other-hours" name="hours_other" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="{{ _('Other') }}" aria-label="{{ _('Other number of hours') }}">
           </div>
         </div>
         <div class="sheet-row">
-          <label class="label" for="qa-course">Course</label>
-          <div class="grow"><input id="qa-course" name="course" placeholder="Optional" list="qa-courses" autocomplete="off"></div>
+          <label class="label" for="qa-course">{{ _("Course") }}</label>
+          <div class="grow"><input id="qa-course" name="course" placeholder="{{ _('Optional') }}" list="qa-courses" autocomplete="off"></div>
         </div>
       </div>
       {% if courses %}<datalist id="qa-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
-      <p class="hint">It is planned at once, earliest deadline first, within your hours; if it cannot fit before it is due, you are told now, not the night before.</p>
+      <p class="hint">{{ _("It is planned at once, earliest deadline first, within your hours; if it cannot fit before it is due, you are told now, not the night before.") }}</p>
     </div>
   </form>
 </div>

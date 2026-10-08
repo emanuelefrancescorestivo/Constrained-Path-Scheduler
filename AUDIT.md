@@ -539,3 +539,18 @@ popover. Checked in Chromium at 390 px on the sample semester's lecture days: 14
 blocks, no word wider than its block, no title past its block's bottom (the check
 measures each word with the block's own font). A real phone browser has not been
 tried. Status: fixed in Chromium; open for a real phone.
+
+**40. The hosted app is in French and English; some of what it shows is not.**
+Found while translating the app (DECISIONS.md, D10), by listing every sentence a
+student can read and where it is written. Translated: every page and the scripts'
+messages, what each session says to do and why, the plan's warnings, the errors a
+student meets in the app (setup, tasks, moving and reporting sessions, a timetable
+link that cannot be read), dates and numbers, and the calendar feed's events.
+`tests/test_i18n.py` fails if a marked sentence has no French. Still in English:
+the Streamlit workbench and the CLI (research tools, by choice); the research
+planner's explanations (the product runs the assistant); errors about a busy time
+typed in the settings' table (`calendar_io` writes them); and anything a plan wrote
+before it was made again in the new language, which happens at its next refresh or
+change. Course names and timetable titles stay as the university wrote them. The
+French was written by the AI assistant that built this, and no French speaker has
+reviewed it yet. Status: open until a French speaker has read every screen.

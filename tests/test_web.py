@@ -834,3 +834,62 @@ def test_a_visit_is_counted_once_a_day(web, planned, clock):
     web.get(f"/p/{planned}/progress")
     visits = [e for e in web.store.events(planned) if e["kind"] == "visit"]
     assert len(visits) == 1 and visits[0]["detail"] == ""
+
+
+# --------------------------------------------------------------------------- #
+# French (DECISIONS.md, D10)
+# --------------------------------------------------------------------------- #
+
+
+def test_a_plan_started_in_french_is_french_and_can_switch(web, clock):
+    home = web.get("/", headers={"Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"}).text
+    assert '<html lang="fr">' in home and "Planifier mon semestre" in home
+    assert 'value="fr"' in home  # the start form carries the language
+    files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+    started = web.post(
+        "/start", data={"tz": "Europe/Paris", "lang": "fr"}, files=files, follow_redirects=False
+    )
+    token = started.headers["location"].split("/")[2]
+    assert _subscription(web, token).options["lang"] == "fr"
+    _setup(web, token, t0_name="Rapport de stats", t0_due="2026-10-10T18:00", t0_hours="6")
+    # Every page of the plan speaks French, whatever the browser says.
+    for path in ("", "/tasks", "/progress", "/settings", "/feed"):
+        page = unescape(web.get(f"/p/{token}{path}", headers={"Accept-Language": "en"}).text)
+        assert '<html lang="fr">' in page, path
+        for english in (">Settings<", ">Tasks<", ">Today<", "New task<"):
+            assert english not in page, (path, english)
+    today = unescape(web.get(f"/p/{token}").text)
+    assert "Aujourd'hui" in today and "mardi 29 septembre" in today
+    # What each session says to do is written in French when the plan is made.
+    plan = service.PlanReport.from_dict(_subscription(web, token).plan)
+    first = plan.sessions[0]
+    assert first.detail.startswith(("Travailler sur", "Première révision", "Teste-toi")), first.detail
+    assert "Pour le" in unescape(web.get(f"/p/{token}/tasks").text)
+    # The calendar feed is French too.
+    feed = web.get(f"/feed/{token}.ics").content.decode("utf-8")
+    assert "Travailler sur" in feed or "Première révision" in feed
+    # A report survives a change of language: sessions are named by language-free ids.
+    clock.now = datetime.fromisoformat(first.end).astimezone(UTC)
+    sid = service.session_id(first)
+    web.post(f"/s/{token}/{sid}", data={"outcome": "done"})
+    switched = web.post(f"/p/{token}/language", data={"lang": "en"}, follow_redirects=False)
+    assert switched.status_code == 303 and switched.headers["location"].endswith("/settings?saved=language")
+    after = _subscription(web, token)
+    assert after.options["lang"] == "en" and after.outcomes[sid] == "done"
+    page = unescape(web.get(switched.headers["location"]).text)
+    assert '<html lang="en">' in page and "Language changed." in page
+    assert (
+        service.PlanReport.from_dict(after.plan)
+        .sessions[0]
+        .detail.startswith(("Work on", "First review", "Test yourself"))
+    )
+    assert web.post(f"/p/{token}/language", data={"lang": "de"}).status_code == 400
+
+
+def test_pages_without_a_plan_follow_the_browser_or_the_address(web):
+    assert '<html lang="en">' in web.get("/privacy").text
+    french = unescape(web.get("/privacy?lang=fr").text)
+    assert '<html lang="fr">' in french and "Ce qui est conservé" in french
+    assert '<html lang="fr">' in web.get("/", headers={"Accept-Language": "fr"}).text
+    # Nothing is remembered: no cookie is set to carry the choice.
+    assert "set-cookie" not in web.get("/?lang=fr").headers

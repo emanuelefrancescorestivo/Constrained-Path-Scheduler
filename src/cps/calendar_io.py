@@ -681,10 +681,14 @@ def plan_to_ics(
     calendar_name: str = "Study plan",
     uid_prefix: str = "",
     refresh: timedelta | None = None,
+    summaries: Sequence[str] | None = None,
 ) -> str:
     """Turn scheduled blocks into an importable calendar.
 
-    `sessions` is (absolute slot index, subject, rationale). The rationale goes
+    `sessions` is (absolute slot index, subject, rationale). `summaries`, if given,
+    are the events' titles in the student's language; the UID is made from the
+    subject either way, so that a change of language updates the events instead of
+    duplicating them. The rationale goes
     into the event description on purpose: a schedule a student does not
     understand is a schedule they will not follow, and "review 3 of 4 — timed for
     85% recall, the point where a review is worth most" is the difference between
@@ -707,10 +711,10 @@ def plan_to_ics(
         calendar.add("x-published-ttl", vDuration(refresh))
 
     midnight = datetime.combine(start_date, time(0, 0), tzinfo=zone)
-    for slot, subject, rationale in sessions:
+    for index, (slot, subject, rationale) in enumerate(sessions):
         begin = midnight + timedelta(minutes=slot * minutes_per_slot)
         event = Event()
-        event.add("summary", f"Study: {subject}")
+        event.add("summary", summaries[index] if summaries is not None else f"Study: {subject}")
         event.add("dtstart", begin)
         event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
         event.add("description", rationale)

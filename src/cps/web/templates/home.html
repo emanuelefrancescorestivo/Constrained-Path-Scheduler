@@ -1,40 +1,37 @@
 {% extends "base.html" %}
-{% block title %}Study plan: your timetable, your deadlines, your week{% endblock %}
+{% block title %}{{ _("Study plan: your timetable, your deadlines, your week") }}{% endblock %}
 {% block main %}
 <section class="hero">
   {% set step = 1 %}{% include "_steps.html" %}
-  <h1>Your semester, planned around your life.</h1>
-  <p class="lead">Paste your timetable's link. Your exams are found, your deadlines fitted in,
-  and every study session lands in the calendar you already use, with what to do in it.
-  Your week changes? The plan follows.</p>
+  <h1>{{ _("Your semester, planned around your life.") }}</h1>
+  <p class="lead">{{ _("Paste your timetable's link. Your exams are found, your deadlines fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
 </section>
 
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 
 <form method="post" action="/start" enctype="multipart/form-data" class="card">
-  <label for="link">Your timetable's link</label>
-  <input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="https://… or webcal://…" value="{{ link or '' }}">
-  <p class="hint">From ADE, Hyperplanning or your university's timetable (the export or
-  subscription address), or Google Calendar's secret address in iCal format.</p>
+  <input type="hidden" name="lang" value="{{ lang() }}">
+  <label for="link">{{ _("Your timetable's link") }}</label>
+  <input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="{{ _('https://… or webcal://…') }}" value="{{ link or '' }}">
+  <p class="hint">{{ _("From ADE, Hyperplanning or your university's timetable (the export or subscription address), or Google Calendar's secret address in iCal format.") }}</p>
   <details>
-    <summary>No link? Use a calendar file</summary>
-    <label for="file">Calendar file (.ics)</label>
+    <summary>{{ _("No link? Use a calendar file") }}</summary>
+    <label for="file">{{ _("Calendar file (.ics)") }}</label>
     <input id="file" name="file" type="file" accept=".ics,text/calendar">
   </details>
   <details>
-    <summary>Time zone: {{ tz or 'Europe/Paris' }}</summary>
-    <label for="tz">Time zone</label>
+    <summary>{{ _("Time zone: {zone}", zone=tz or 'Europe/Paris') }}</summary>
+    <label for="tz">{{ _("Time zone") }}</label>
     <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off">
   </details>
-  <p><button type="submit" class="btn btn-primary btn-block">Plan my semester</button></p>
-  <p class="hint">No account, no password: your plan lives at a private address you keep, like a
-  calendar subscription link. <a href="/privacy">What is stored, and for how long.</a></p>
+  <p><button type="submit" class="btn btn-primary btn-block">{{ _("Plan my semester") }}</button></p>
+  <p class="hint">{{ _("No account, no password: your plan lives at a private address you keep, like a calendar subscription link.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
 </form>
 
 <ul class="features">
-  <li><strong>Deadlines first</strong>Earliest due first, with a warning early enough to act when one will not fit.</li>
-  <li><strong>Study that sticks</strong>Short self-tests when material starts to fade, timed practice before each exam.</li>
-  <li><strong>Your hours, your days off</strong>A weekly budget you choose; the rest of your time stays free.</li>
-  <li><strong>One tap after each session</strong>Done, skipped or hard: the plan adjusts at once.</li>
+  <li><strong>{{ _("Deadlines first") }}</strong>{{ _("Earliest due first, with a warning early enough to act when one will not fit.") }}</li>
+  <li><strong>{{ _("Study that sticks") }}</strong>{{ _("Short self-tests when material starts to fade, timed practice before each exam.") }}</li>
+  <li><strong>{{ _("Your hours, your days off") }}</strong>{{ _("A weekly budget you choose; the rest of your time stays free.") }}</li>
+  <li><strong>{{ _("Progress you can see") }}</strong>{{ _("One tap after each session, a streak that forgives a day off, and last week in a paragraph every Monday.") }}</li>
 </ul>
 {% endblock %}

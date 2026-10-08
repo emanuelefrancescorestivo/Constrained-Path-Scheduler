@@ -121,6 +121,8 @@ def format_date(day: date, style: str = "long") -> str:
         return f"{_SHORT_DAYS[lang][day.weekday()]} {day.day} {_SHORT_MONTHS[lang][day.month - 1]}"
     if style == "day":
         return f"{day.day} {_MONTHS[lang][day.month - 1]}"
+    if style == "day_short":
+        return f"{day.day} {_SHORT_MONTHS[lang][day.month - 1]}"
     if style == "month":
         return f"{_MONTHS[lang][day.month - 1]} {day.year}"
     first = "1er" if lang == "fr" and day.day == 1 else str(day.day)

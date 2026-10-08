@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -47,6 +48,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from starlette.datastructures import UploadFile
 
 from cps import service
@@ -55,6 +57,8 @@ from . import forms
 from .limits import Limiter
 
 HERE = Path(__file__).parent
+# A plan's pages and its sessions' pages: the language is the plan's.
+PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
 MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
 SWEEP_EVERY = timedelta(hours=6)
@@ -93,7 +97,7 @@ def _nice_date(value: str) -> str:
         moment = datetime.fromisoformat(str(value).replace(" ", "T"))
     except ValueError:
         return str(value)
-    return f"{moment:%a} {moment.day} {moment:%b %Y}, {moment:%H:%M}"
+    return f"{service.format_day(moment.date(), 'short')} {moment.year}, {moment:%H:%M}"
 
 
 # What a task change says once it is done, by the `saved` query parameter.
@@ -146,6 +150,9 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["_"] = service.translate
     templates.env.globals["_n"] = service.translate_plural
     templates.env.globals["day_word"] = service.day_word
+    templates.env.globals["_h"] = _html
+    templates.env.globals["lang"] = service.current_language
+    templates.env.globals["languages"] = service.LANGUAGES
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -187,10 +194,25 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.middleware("http")
     async def guard(request: Request, call_next: Callable) -> Response:
         began = time.perf_counter()
-        if request.method == "POST" and not _same_origin(request):
-            response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
-        else:
-            response = await call_next(request)
+        # The language (D10): a plan's own, else a `lang` asked for in the address,
+        # else the browser's. No cookie.
+        lang = None
+        if not request.url.path.startswith("/static/"):
+            found = PLAN_PATH.match(request.url.path)
+            if found:
+                lang = service.plan_language(store, found.group(1))
+        chosen = service.activate_language(
+            service.pick_language(
+                lang, request.query_params.get("lang"), request.headers.get("accept-language")
+            )
+        )
+        try:
+            if request.method == "POST" and not _same_origin(request):
+                response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
+            else:
+                response = await call_next(request)
+        finally:
+            service.deactivate_language(chosen)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
         if not request.url.path.startswith("/static/"):
@@ -227,13 +249,21 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "message.html",
             404,
-            title="Not found",
-            message="This address is not, or no longer, a study plan. Plans are deleted 30 days "
-            "after their last exam or deadline, or when their owner deletes them.",
+            title=service.translate("Not found"),
+            message=service.translate(
+                "This address is not, or no longer, a study plan. Plans are deleted 30 days "
+                "after their last exam or deadline, or when their owner deletes them."
+            ),
         )
 
     def too_many(request: Request) -> HTMLResponse:
-        return page(request, "message.html", 429, title="Slow down", message="Too many requests; try later.")
+        return page(
+            request,
+            "message.html",
+            429,
+            title=service.translate("Slow down"),
+            message=service.translate("Too many requests; try later."),
+        )
 
     def client(request: Request) -> str:
         return request.client.host if request.client else "unknown"
@@ -255,10 +285,12 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.post("/start")
     async def start(request: Request) -> Response:
         if int(request.headers.get("content-length") or 0) > MAX_UPLOAD + 64 * 1024:
-            return page(request, "home.html", 413, error="That file is too large for a timetable.")
+            return page(
+                request, "home.html", 413, error=service.translate("That file is too large for a timetable.")
+            )
         if not starts.allow(client(request)):
             return too_many(request)
-        form = await request.form(max_files=1, max_fields=10)
+        form = await request.form(max_files=1, max_fields=11)
         link = str(form.get("link") or "").strip() or None
         tz = str(form.get("tz") or "Europe/Paris").strip()
         upload = form.get("file")
@@ -266,12 +298,24 @@ def create_app(config: Config | None = None) -> FastAPI:
         if isinstance(upload, UploadFile) and upload.filename:
             ics = await upload.read(MAX_UPLOAD + 1)
             if len(ics) > MAX_UPLOAD:
-                return page(request, "home.html", 413, error="That file is too large for a timetable.")
+                return page(
+                    request,
+                    "home.html",
+                    413,
+                    error=service.translate("That file is too large for a timetable."),
+                )
         try:
             if link is None and ics is None:
-                raise service.InvalidInput("paste your timetable's link, or choose its file")
+                raise service.InvalidInput(
+                    service.translate("paste your timetable's link, or choose its file")
+                )
             subscription = service.start_subscription(
-                tz=tz, source_url=link, ics=None if link else ics, now=config.clock(), fetch=config.fetch
+                tz=tz,
+                source_url=link,
+                ics=None if link else ics,
+                now=config.clock(),
+                fetch=config.fetch,
+                lang=str(form.get("lang") or "") or None,
             )
         except service.ServiceError as error:
             return page(request, "home.html", 400, error=str(error), link=link or "", tz=tz)
@@ -318,7 +362,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         return plan_page(
-            request, subscription, "today", reported=OUTCOME_WORDS.get(reported or ""), saved=_notice(saved)
+            request,
+            subscription,
+            "today",
+            reported=service.translate(OUTCOME_WORDS[reported]) if reported in OUTCOME_WORDS else None,
+            saved=_notice(saved),
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
@@ -362,8 +410,39 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             service.update_subscription(store, token, lambda current: service.hide_review(current, week))
         except service.ServiceError as error:
-            return page(request, "message.html", 400, title="Not saved", message=str(error), token=token)
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
         return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/p/{token}/language")
+    async def language(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("lang") or "")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_language(current, chosen, now=config.clock())
+            )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        service.log_event(store, token, "language", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=language", 303)
 
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
@@ -494,7 +573,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await session_change(request, token, sid, start, days, change, "report")
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
-    def settings(request: Request, token: str, new: int = 0) -> HTMLResponse:
+    def settings(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -506,6 +585,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             new=bool(new),
             empty_rows=forms.EMPTY_ROWS,
             tab="settings",
+            saved=_notice(saved),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -569,7 +649,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return tasks_page(request, subscription, saved=TASK_NOTICES.get(saved or ""))
+        return tasks_page(request, subscription, saved=_notice(saved or ""))
 
     @app.post("/p/{token}/tasks", response_class=HTMLResponse)
     async def add_task(request: Request, token: str) -> Response:
@@ -678,9 +758,11 @@ def create_app(config: Config | None = None) -> FastAPI:
                 request,
                 "message.html",
                 404,
-                title="Session not found",
-                message="This session is no longer in your plan: the plan has changed since. "
-                "Your calendar shows the new one after its next refresh.",
+                title=service.translate("Session not found"),
+                message=service.translate(
+                    "This session is no longer in your plan: the plan has changed since. "
+                    "Your calendar shows the new one after its next refresh."
+                ),
                 token=token,
             )
         return page(request, "session.html", token=token, card=card)
@@ -700,7 +782,14 @@ def create_app(config: Config | None = None) -> FastAPI:
                 lambda current: service.report_session(current, sid, outcome, now=config.clock()),
             )
         except service.ServiceError as error:
-            return page(request, "message.html", 400, title="Not recorded", message=str(error), token=token)
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not recorded"),
+                message=str(error),
+                token=token,
+            )
         if done is None:
             return missing(request)
         service.log_event(store, token, "report", outcome)
@@ -719,19 +808,30 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(
             request,
             "message.html",
-            title="Deleted",
-            message="Your plan, your timetable, your deadlines and everything you reported are "
-            "deleted. Remove the calendar subscription from your calendar app too: it will "
-            "stop updating now.",
+            title=service.translate("Deleted"),
+            message=service.translate(
+                "Your plan, your timetable, your deadlines and everything you reported are "
+                "deleted. Remove the calendar subscription from your calendar app too: it will "
+                "stop updating now."
+            ),
         )
 
     return app
 
 
+def _html(text: str, /, **values: Any) -> Markup:
+    """A translated sentence that holds markup (a link, a key in bold): the
+    sentence is the catalogue's, trusted; the values are escaped."""
+    return Markup(service.translate(text)).format(**values)
+
+
 def _notice(saved: str) -> str | None:
     if saved == "1":
-        return "Saved. The plan has changed to match."
-    return TASK_NOTICES.get(saved)
+        return service.translate("Saved. The plan has changed to match.")
+    if saved == "language":
+        return service.translate("Language changed. Your sessions are described in it from now on.")
+    notice = TASK_NOTICES.get(saved)
+    return service.translate(notice) if notice else None
 
 
 def _same_origin(request: Request) -> bool:

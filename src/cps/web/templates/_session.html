@@ -1,14 +1,14 @@
 {# One session as a card: `card` from service.today_view, `token`, `show_why`. #}
 <article class="card session-card {% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}">
   <p class="kicker"><span class="dot"></span>{{ card.kind }} · {{ card.when }}–{{ card.until }}</p>
-  <h3>{{ card.title }}</h3>
-  {% if card.pinned %}<span class="badge badge-accent">Placed by you</span>{% endif %}
+  <h3>{{ card.title }}</h3>{% if card.topic %}<p class="meta">{{ card.topic }}</p>{% endif %}
+  {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
   {% if card.started %}
   <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes" data-report>
     {% for value, word in outcome_words.items() %}
-    <button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+    <button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ _(word) }}</button>
     {% endfor %}
   </form>
   {% endif %}

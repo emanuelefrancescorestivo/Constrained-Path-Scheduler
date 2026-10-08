@@ -53,6 +53,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from . import i18n as _i18n
 from . import progress as _progress
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
@@ -69,7 +70,8 @@ from .calendar_io import (
     find_lectures,
     plan_to_ics,
 )
-from .i18n import _, _n, format_date
+from .i18n import _, _n, format_date, pick, use
+from .i18n import current as current_language
 from .i18n import number as format_number
 from .memory import (
     Grade,
@@ -195,7 +197,9 @@ class SubjectSpec:
                 raise InvalidInput(f"{self.name}: {exc}") from exc
         if self.familiarity is not None:
             return familiarity_prior(int(self.familiarity)), f"familiarity {int(self.familiarity)}"
-        raise InvalidInput(f"{self.name}: give a familiarity from 1 to 5, or a stability and a difficulty")
+        raise InvalidInput(
+            _("{name}: give a familiarity from 1 to 5, or a stability and a difficulty", name=self.name)
+        )
 
     def exam_datetime(self, zone: ZoneInfo) -> datetime:
         value = self.exam
@@ -203,7 +207,9 @@ class SubjectSpec:
             try:
                 value = datetime.fromisoformat(value.strip())
             except ValueError as exc:
-                raise InvalidInput(f"{self.name}: {self.exam!r} is not a date like 2026-06-15") from exc
+                raise InvalidInput(
+                    _("{name}: {value} is not a date like 2026-06-15", name=self.name, value=repr(self.exam))
+                ) from exc
         if isinstance(value, datetime):
             return value.replace(tzinfo=zone) if value.tzinfo is None else value.astimezone(zone)
         if isinstance(value, date):
@@ -215,7 +221,9 @@ def _zone(name: str) -> ZoneInfo:
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError) as exc:
-        raise InvalidInput(f"unknown time zone {name!r}; use an IANA name such as Europe/Rome") from exc
+        raise InvalidInput(
+            _("unknown time zone {zone}; use a name such as Europe/Paris", zone=repr(name))
+        ) from exc
 
 
 def _days_after(start: date, when: datetime) -> float:
@@ -399,9 +407,9 @@ def analyse_calendar(
     except ValueError as exc:
         raise InvalidInput(str(exc)) from exc
     if not 0 <= study_window[0] < study_window[1] <= 24:
-        raise InvalidInput("the study window must run from an earlier to a later hour, within 0 to 24")
+        raise InvalidInput(_("the study window must run from an earlier to a later hour, within 0 to 24"))
     if blocks_per_day < 1 or block_minutes < 30:
-        raise InvalidInput("use at least one block a day of at least 30 minutes")
+        raise InvalidInput(_("use at least one block a day of at least 30 minutes"))
     text = decode_ics(ics) if ics is not None else None
 
     if days is not None and days < 1:
@@ -642,12 +650,12 @@ class TaskView:
 def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
     """Specs to plain starting states with exam days, validated: one per subject."""
     if not subjects:
-        raise InvalidInput("add at least one subject with an exam date")
+        raise InvalidInput(_("add at least one subject with an exam date"))
     names = [s.name.strip() for s in subjects]
     if any(not n for n in names):
-        raise InvalidInput("every subject needs a name")
+        raise InvalidInput(_("every subject needs a name"))
     if len(set(n.casefold() for n in names)) != len(names):
-        raise InvalidInput("two subjects have the same name")
+        raise InvalidInput(_("two subjects have the same name"))
     zone = _zone(report.tz)
     found = {a.subject.casefold(): a.when for a in report.assessments}
     resolved: list[dict[str, Any]] = []
@@ -718,8 +726,10 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     **spec,
                     "name": f"{spec['subject']} · taught before {report.start:%d %b}",
                     "topic": f"taught before {report.start:%d %b}",
-                    "note": f"Review what was taught before {report.start:%d %b}.",
-                    "about": f"what was taught before {report.start:%d %b}",
+                    "note": _(
+                        "Review what was taught before {day}.", day=format_date(report.start, "day_short")
+                    ),
+                    "about": _("what was taught before {day}", day=format_date(report.start, "day")),
                     "target_days": _week_target(spec["exam_day"]),
                 }
             )
@@ -739,8 +749,10 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     **spec,
                     "name": f"{spec['subject']} · {label}",
                     "topic": label,
-                    "note": f"Review the lectures of the {label}.",
-                    "about": f"the lectures of the {label}",
+                    "note": _(
+                        "Review the lectures of the week of {day}.", day=format_date(monday, "day_short")
+                    ),
+                    "about": _("the lectures of the week of {day}", day=format_date(monday, "day")),
                     "stability": lecture_memory.stability,
                     "difficulty": lecture_memory.difficulty,
                     "last_review_day": available,
@@ -1144,15 +1156,17 @@ def export_ics(
     `include_history` adds the sessions already behind, which a subscribed feed
     keeps so that they do not vanish from the person's calendar once done.
     """
-    shown = (plan.history if include_history else ()) + plan.sessions
+    shown = [s for s in (plan.history if include_history else ()) + plan.sessions if s.outcome != "skipped"]
     text = plan_to_ics(
-        [(s.slot, s.title, s.rationale) for s in shown if s.outcome != "skipped"],
+        [(s.slot, s.title, s.rationale) for s in shown],
         plan.settings.start,
         plan.settings.tz,
         slots_per_day=plan.settings.slots_per_day,
         block_slots=max(1, plan.settings.block_minutes // (24 * 60 // plan.settings.slots_per_day)),
         uid_prefix=uid_prefix,
         refresh=refresh,
+        calendar_name=_("Study plan"),
+        summaries=[f"{_('Study')}: {topic_words(s.title)}" for s in shown],
     )
     return text.encode("utf-8")
 
@@ -1339,7 +1353,7 @@ def calendar_week(
     for when, name in exams.items():
         if when not in shown_exams:
             moment = datetime.fromisoformat(when)
-            place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam", course=name)
+            place(moment, moment + timedelta(hours=1), _("Exam: {name}", name=name), "exam", course=name)
     for begin, end, label, session in sessions:
         extra: dict[str, Any] = {}
         if isinstance(session, SessionView):
@@ -1348,7 +1362,7 @@ def calendar_week(
                 "id": session_id(session),
                 "detail": session.detail,
                 "why": session.rationale,
-                "title": session.title,
+                "title": topic_words(session.title),
                 "session_kind": session.kind,
                 "pinned": session.pinned,
                 "course": session.subject,
@@ -1360,7 +1374,7 @@ def calendar_week(
         "days": [
             {
                 "date": d.isoformat(),
-                "label": d.strftime("%a %d %b"),
+                "label": format_date(d, "short"),
                 "weekday": WEEKDAY_NAMES[d.weekday()],
                 "in_horizon": 0 <= (d - start).days < days,
             }
@@ -1383,7 +1397,25 @@ def session_label(session: SessionView) -> str:
     """ "Self-test: Algebra 3", "Work on: Stats report", "Practice: Analysis 3"."""
     what = session.title if session.kind == "task" else session.subject
     verb = _SESSION_VERBS.get(session.kind)
-    return f"{verb}: {what}" if verb else session.title
+    return _("{verb}: {what}", verb=_(verb), what=what) if verb else topic_words(session.title)
+
+
+_MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_TOPIC_WEEK = re.compile(r"(week of|taught before) (\d{1,2}) (" + "|".join(_MONTH_ABBR) + r")")
+
+
+def topic_words(title: str) -> str:
+    """A topic's name in the current language. Topic names are identifiers (a
+    session's id is made from its title, so a report survives a change of
+    language): "Algebra 3 · week of 05 Oct" is stored in English and shown as
+    "Algebra 3 · semaine du 5 oct." in French."""
+
+    def say(match: re.Match[str]) -> str:
+        day = date(2000, _MONTH_ABBR.index(match.group(3)) + 1, int(match.group(2)))
+        phrase = _("week of {day}") if match.group(1) == "week of" else _("taught before {day}")
+        return phrase.format(day=format_date(day, "day_short"))
+
+    return _TOPIC_WEEK.sub(say, title)
 
 
 def short_title(summary: str) -> str:
@@ -1577,6 +1609,7 @@ def new_subscription(
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
     require_plan: bool = True,
+    lang: str | None = None,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
@@ -1585,7 +1618,7 @@ def new_subscription(
     The calendar last read is kept (`ics_text`), also for a link, so that a
     feedback tap replans at once from it instead of waiting for the network."""
     if source_url is None and ics is None and not busy_rows:
-        raise InvalidInput("give a calendar link, a calendar file or your week")
+        raise InvalidInput(_("give a calendar link, a calendar file or your week"))
     rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
     subscription = Subscription(
         token=secrets.token_urlsafe(24),
@@ -1606,6 +1639,7 @@ def new_subscription(
             "engine": engine,
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
+            "lang": pick(lang) if lang else current_language(),
         },
     )
     if plan is not None:
@@ -1618,6 +1652,20 @@ def new_subscription(
 
 
 def refresh_subscription(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+    reread: bool = True,
+) -> Subscription:
+    """`_refresh`, in the student's language: what each session says to do, and
+    the plan's warnings, are written when the plan is made (D10). A background
+    refresh has no request to take the language from."""
+    with use(subscription.options.get("lang") or current_language()):
+        return _refresh(subscription, now=now, fetch=fetch, reread=reread)
+
+
+def _refresh(
     subscription: Subscription,
     *,
     now: datetime | None = None,
@@ -1732,16 +1780,16 @@ def report_session(
     """Record what happened at a session and plan again at once, from the calendar
     last read: no network, so a tap is answered immediately."""
     if report not in REPORTS:
-        raise InvalidInput(f"a session is {', '.join(REPORTS)}, not {report!r}")
+        raise InvalidInput(_("a session is done, skipped or hard, not {value}", value=repr(report)))
     session = find_session(subscription, sid)
     if session is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
     now = now or datetime.now(UTC)
     settings = PlanReport.from_dict(subscription.plan or {}).settings
     if session.start_day > _days_after(settings.start, now.astimezone(_zone(settings.tz))):
         # What happens at a session is known once it has started. Skipping one ahead
         # of time is blocking its time out, which is an activity, not a report.
-        raise InvalidInput("this session has not started yet; report it once it has")
+        raise InvalidInput(_("this session has not started yet; report it once it has"))
     options = subscription.options
     if report == "struggled" and session.kind == "task":
         block_hours = options["block_minutes"] / 60
@@ -1772,35 +1820,48 @@ def move_session(
     now = now or datetime.now(UTC)
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     old_start, old_end = _local(session.start, zone), _local(session.end, zone)
     if session not in plan.sessions or old_start <= now:
-        raise InvalidInput("this session has already started; report it instead of moving it")
+        raise InvalidInput(_("this session has already started; report it instead of moving it"))
     begin = _local(start, zone).replace(second=0, microsecond=0)
     end = begin + (old_end - old_start)
     if begin <= now:
-        raise InvalidInput("that time is already past")
+        raise InvalidInput(_("that time is already past"))
     if _days_after(plan.settings.start, begin) >= plan.settings.horizon_days:
-        raise InvalidInput("that is after the end of your plan")
+        raise InvalidInput(_("that is after the end of your plan"))
     for event in plan.events:
         lo, hi = _local(event.start, zone), _local(event.end, zone)
         if lo < end and begin < hi:
-            raise InvalidInput(f"that time is taken: {short_title(event.summary)}, {lo:%H:%M}–{hi:%H:%M}")
+            raise InvalidInput(
+                _(
+                    "that time is taken: {what}, {start}–{end}",
+                    what=short_title(event.summary),
+                    start=f"{lo:%H:%M}",
+                    end=f"{hi:%H:%M}",
+                )
+            )
     limit = None
     if session.kind == "task":
         task = next((t for t in plan.tasks if t.name == session.title), None)
-        limit = (_local(task.due, zone), "it is due") if task else None
+        limit = (_local(task.due, zone), _("it is due")) if task else None
     else:
         subject = next((x for x in plan.subjects if x.name == session.subject), None)
-        limit = (_local(subject.exam, zone), "the exam") if subject else None
+        limit = (_local(subject.exam, zone), _("the exam")) if subject else None
     if limit is not None and end > limit[0]:
-        raise InvalidInput(f"that is after {limit[1]} ({limit[0]:%a %d %b %H:%M})")
+        raise InvalidInput(
+            _(
+                "that is after {limit} ({when})",
+                limit=limit[1],
+                when=f"{format_date(limit[0].date(), 'short')} {limit[0]:%H:%M}",
+            )
+        )
     if session.kind in ("review", "first review"):
         spec = next((x for x in plan.specs if x["name"] == session.title), None)
         if spec is not None and _days_after(plan.settings.start, begin) < spec.get("available_day", 0.0):
-            raise InvalidInput("those lectures have not been taught yet at that time")
+            raise InvalidInput(_("those lectures have not been taught yet at that time"))
     pins = [dict(p) for p in subscription.options.get("pins", ())]
     origin = session.start
     for p in list(pins):
@@ -1809,7 +1870,9 @@ def move_session(
             pins.remove(p)
     for p in pins:
         if _local(p["start"], zone) < end and begin < _local(p["end"], zone):
-            raise InvalidInput(f"that time is taken by another session you placed: {p['title']}")
+            raise InvalidInput(
+                _("that time is taken by another session you placed: {title}", title=p["title"])
+            )
     pins.append(
         {
             "kind": session.kind,
@@ -1831,7 +1894,7 @@ def unpin_session(subscription: Subscription, sid: str, *, now: datetime | None 
     """Give a moved session back to the planner: it goes wherever the rules put it."""
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
     zone = _zone(subscription.options["tz"])
     pins = [
         p
@@ -1850,13 +1913,13 @@ def _find_task(subscription: Subscription, name: str) -> int:
     for i, t in enumerate(subscription.options.get("tasks", ())):
         if t["name"].casefold() == name.strip().casefold():
             return i
-    raise InvalidInput(f"there is no task called {name!r} any more")
+    raise InvalidInput(_("there is no task called {name} any more", name=repr(name)))
 
 
 def add_task(subscription: Subscription, task: TaskSpec, *, now: datetime | None = None) -> Subscription:
     """A new deadline, planned at once (`revise_subscription`)."""
     if not task.name.strip():
-        raise InvalidInput("give the task a name")
+        raise InvalidInput(_("give the task a name"))
     return revise_subscription(subscription, tasks=[*_task_specs(subscription), task], now=now)
 
 
@@ -1920,7 +1983,9 @@ def revise_subscription(
         if url:
             changed = sync_deadlines(changed, now=now, fetch=fetch)
             if changed.options.get("deadlines_error"):
-                raise InvalidInput(f"the learning platform's link: {changed.options['deadlines_error']}")
+                raise InvalidInput(
+                    _("the learning platform's link: {error}", error=changed.options["deadlines_error"])
+                )
     fresh = refresh_subscription(changed, now=now, reread=False)
     if fresh.error and strict:
         raise InvalidInput(fresh.error)
@@ -2029,13 +2094,13 @@ def feed_ics(subscription: Subscription, base_url: str | None = None) -> bytes:
     app's `base_url`, each event also says what to do and carries the link where the
     student reports how it went."""
     if subscription.plan is None:
-        raise InvalidInput("this feed has no plan yet")
+        raise InvalidInput(_("this feed has no plan yet"))
     plan = PlanReport.from_dict(subscription.plan)
     if base_url is not None:
 
         def described(s: SessionView) -> SessionView:
-            parts = [s.detail, f"Why: {s.rationale}" if s.detail else s.rationale]
-            parts.append(f"Done, skipped or hard? {session_url(base_url, subscription.token, s)}")
+            parts = [s.detail, _("Why: {why}", why=s.rationale) if s.detail else s.rationale]
+            parts.append(_("Done, skipped or hard? {url}", url=session_url(base_url, subscription.token, s)))
             return replace(s, rationale="\n\n".join(p for p in parts if p))
 
         plan = replace(
@@ -2205,6 +2270,7 @@ def start_subscription(
     ics: bytes | None = None,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    lang: str | None = None,
 ) -> Subscription:
     """The hosted product's first step: a timetable and nothing else. The link is
     read once; every exam found in it becomes a subject; the week starts from the
@@ -2213,7 +2279,7 @@ def start_subscription(
     if source_url:
         ics = fetch(source_url.strip())
     if ics is None:
-        raise InvalidInput("give your timetable's link or its file")
+        raise InvalidInput(_("give your timetable's link or its file"))
     today = now.astimezone(_zone(tz)).date()
     report = analyse_calendar(ics, start=today, tz=tz)
     return new_subscription(
@@ -2226,13 +2292,16 @@ def start_subscription(
         preferences=DEFAULT_PREFERENCES,
         now=now,
         require_plan=False,
+        lang=lang,
     )
 
 
 def _when(moment: datetime, now: datetime) -> str:
     """A time as a person says it, relative to `now` (both local)."""
     days = (moment.date() - now.date()).days
-    day = {0: "Today", 1: "Tomorrow", -1: "Yesterday"}.get(days, moment.strftime("%a %d %b"))
+    day = {0: _("Today"), 1: _("Tomorrow"), -1: _("Yesterday")}.get(days) or format_date(
+        moment.date(), "short"
+    )
     return f"{day} {moment:%H:%M}"
 
 
@@ -2250,8 +2319,9 @@ def _session_card(
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
         "title": s.title if s.kind == "task" else s.subject,
+        "topic": topic_words(s.topic.removeprefix(f"{s.subject} · ")) if s.kind != "task" and s.topic else "",
         "label": session_label(s),
-        "kind": KIND_LABELS.get(s.kind, s.kind),
+        "kind": _(KIND_LABELS.get(s.kind, s.kind)),
         "when": _when(start, now),
         "day": _when(start, now).rsplit(" ", 1)[0],
         "time": f"{start:%H:%M}–{end:%H:%M}",
@@ -2361,7 +2431,7 @@ def calendar_view(
             }
             for r in subscription.busy_rows
         ],
-        "kinds": [{"id": k, "label": label} for k, label in ACTIVITY_KINDS],
+        "kinds": [{"id": k, "label": _(label)} for k, label in ACTIVITY_KINDS],
         "hours": [7, 23],
         "window": list(options["study_window"]),
         "first": first.isoformat(),
@@ -2449,7 +2519,7 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
-    view["today"] = f"{local:%A} {local.day} {local:%B}"
+    view["today"] = format_date(local.date())
     colours = {name.casefold(): index for name, index in course_colours(plan)}
     cards = [
         _session_card(s, zone, local, subscription.outcomes, colours) for s in plan.history + plan.sessions
@@ -2483,11 +2553,8 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     # A subject short of its target already says so in its status line; other
     # warnings (practice that does not fit, work that does not fit) stay.
     shown = tuple(f"{x.name}: " for x in plan.subjects)
-    view["warnings"] = [
-        w
-        for w in plan.warnings
-        if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
-    ]
+    said = ("predicted below", "does not reach the target", _("are predicted below"))
+    view["warnings"] = [w for w in plan.warnings if not (w.startswith(shown) and any(x in w for x in said))]
     return view
 
 
@@ -2870,6 +2937,11 @@ def weekly_review(subscription: Subscription, now: datetime | None = None, weeks
 # The front ends translate through these (they import nothing but this module).
 translate = _
 translate_plural = _n
+LANGUAGES = _i18n.LANGUAGES
+activate_language = _i18n.activate
+deactivate_language = _i18n.deactivate
+pick_language = _i18n.pick
+format_day = _i18n.format_date
 
 
 DAY_WORDS = {
@@ -2903,12 +2975,34 @@ def review_for_today(subscription: Subscription, now: datetime | None = None) ->
     return review
 
 
+def language_of(subscription: Subscription) -> str:
+    """The language a plan's pages and calendar events are written in (D10)."""
+    return pick(subscription.options.get("lang"))
+
+
+def set_language(subscription: Subscription, lang: str, *, now: datetime | None = None) -> Subscription:
+    """Change a plan's language. The plan is made again from the calendar last read,
+    so that what each session says to do is written in the new language; what the
+    student reported is kept (sessions are named by language-free ids)."""
+    if lang not in _i18n.LANGUAGES:
+        raise InvalidInput(_("{value} is not a language this app speaks", value=repr(lang)))
+    changed = replace(subscription, options={**subscription.options, "lang": lang})
+    return refresh_subscription(changed, now=now, reread=False) if subscription.plan is not None else changed
+
+
+def plan_language(store: str | os.PathLike, token: str) -> str | None:
+    """The language of the plan at `token`, or None if there is none (the web app
+    asks before it answers a request about that plan)."""
+    subscription = load_subscription(store, token)
+    return language_of(subscription) if subscription is not None else None
+
+
 def hide_review(subscription: Subscription, week: str) -> Subscription:
     """The student read the review of the week starting `week` (a Monday)."""
     try:
         date.fromisoformat(week)
     except ValueError:
-        raise InvalidInput(f"{week!r} is not a week") from None
+        raise InvalidInput(_("{value} is not a week", value=repr(week))) from None
     return replace(subscription, options={**subscription.options, "review_seen": week})
 
 
@@ -2916,7 +3010,7 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
     """One week as a list of days, each with its busy events and sessions in time
     order: what a phone shows instead of a grid. Week 0 is the one holding `now`."""
     if subscription.plan is None:
-        raise InvalidInput("there is no plan yet: add an exam or a deadline in the settings")
+        raise InvalidInput(_("there is no plan yet: add an exam or a deadline in the settings"))
     now = now or datetime.now(UTC)
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
@@ -2985,28 +3079,40 @@ def make_schedule(
     exam.
     """
     if not subjects and not tasks:
-        raise InvalidInput("add a subject with an exam, or a task with a deadline")
+        raise InvalidInput(_("add a subject with an exam, or a task with a deadline"))
     if weekly_hours is not None and weekly_hours <= 0:
-        raise InvalidInput("the weekly hours must be positive, or left out for no limit")
+        raise InvalidInput(_("the weekly hours must be positive, or left out for no limit"))
     unknown = [d for d in rest_days if d not in WEEKDAY_NAMES]
     if unknown:
-        raise InvalidInput(f"days off must be among {', '.join(WEEKDAY_NAMES)}, not {', '.join(unknown)}")
+        raise InvalidInput(
+            _(
+                "days off must be among {days}, not {wrong}",
+                days=", ".join(WEEKDAY_NAMES),
+                wrong=", ".join(unknown),
+            )
+        )
     if len(set(rest_days)) >= 7:
-        raise InvalidInput("leave at least one day of the week for studying")
+        raise InvalidInput(_("leave at least one day of the week for studying"))
     if practice_days < 0 or practice_hours < 0:
-        raise InvalidInput("exam practice cannot be negative")
+        raise InvalidInput(_("exam practice cannot be negative"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
-        raise InvalidInput("every task needs a name of its own")
+        raise InvalidInput(_("every task needs a name of its own"))
     if any(not t.hours > 0 for t in tasks):
-        raise InvalidInput("every task needs a positive number of hours")
+        raise InvalidInput(_("every task needs a positive number of hours"))
     zone = _zone(report.tz)
     dues = []
     for t in tasks:
         due = t.due_datetime(zone)
         day = _days_after(report.start, due)
         if day <= 0:
-            raise ExamInPast(f"{t.name} is due ({due:%Y-%m-%d %H:%M}) before the start of the plan")
+            raise ExamInPast(
+                _(
+                    "{name} is due ({when}) before the start of the plan",
+                    name=t.name,
+                    when=f"{due:%Y-%m-%d %H:%M}",
+                )
+            )
         dues.append((t, due, day))
 
     if subjects:
@@ -3224,13 +3330,22 @@ def _assist(
         )
         if not ready:
             warnings.append(
-                f"{name}: {len(members) - sum(ok)} of {len(members)} topics are predicted below "
-                f"{settings.retention:.0%} at the exam. More hours a week, or fewer days off, "
-                f"would change that."
+                _(
+                    "{name}: {below} of {n} topics are predicted below {target} at the exam. "
+                    "More hours a week, or fewer days off, would change that.",
+                    name=name,
+                    below=len(members) - sum(ok),
+                    n=len(members),
+                    target=f"{settings.retention:.0%}",
+                )
             )
         if result.practice_left.get(name):
             warnings.append(
-                f"{name}: {result.practice_left[name]} block(s) of exam practice did not fit before the exam."
+                _(
+                    "{name}: {n} block(s) of exam practice did not fit before the exam.",
+                    name=name,
+                    n=result.practice_left[name],
+                )
             )
 
     task_views = []
@@ -3244,9 +3359,13 @@ def _assist(
         )
         if left:
             warnings.append(
-                f"{t.name}: {left} block(s) of work do not fit before it is due "
-                f"({t.due[:16].replace('T', ' ')}). More hours a week, fewer days off or an "
-                f"earlier start would change that."
+                _(
+                    "{name}: {n} block(s) of work do not fit before it is due ({when}). "
+                    "More hours a week, fewer days off or an earlier start would change that.",
+                    name=t.name,
+                    n=left,
+                    when=t.due[:16].replace("T", " "),
+                )
             )
     return PlanReport(
         settings=settings,

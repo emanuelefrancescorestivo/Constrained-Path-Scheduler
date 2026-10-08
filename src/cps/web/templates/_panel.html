@@ -1,37 +1,37 @@
 {# The panel beside the calendar: redrawn by the page after every change. #}
 <div class="hello">
-  <h1>Today</h1>
+  <h1>{{ _("Today") }}</h1>
   {% if view.today %}<p>{{ view.today }}</p>{% endif %}
 </div>
-{% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} The plan shown is the last one that could be made.{% endif %}</p>{% endif %}
+{% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 {% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
 
 {% if not view.planned %}
 <div class="card">
-  <h2>Nothing to plan yet</h2>
-  <p class="muted">Add an exam or a deadline, and the plan appears here and on the calendar.</p>
-  <p><a class="btn btn-primary" href="/p/{{ token }}/settings">Add exams</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">New task</button></p>
+  <h2>{{ _("Nothing to plan yet") }}</h2>
+  <p class="muted">{{ _("Add an exam or a deadline, and the plan appears here and on the calendar.") }}</p>
+  <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">{{ _("New task") }}</button></p>
 </div>
 {% else %}
 
 <div class="section">
 {% if view.now %}
-<div class="section-title"><h2>Now</h2></div>
+<div class="section-title"><h2>{{ _("Now") }}</h2></div>
 {% with card=view.now, show_why=true %}{% include "_session.html" %}{% endwith %}
 {% elif view.next %}
-<div class="section-title"><h2>Up next</h2></div>
+<div class="section-title"><h2>{{ _("Up next") }}</h2></div>
 {% with card=view.next[0], show_why=true %}{% include "_session.html" %}{% endwith %}
 {% else %}
-<div class="card"><h3>Nothing planned after now</h3><p class="muted">Add a task or an exam to plan for.</p></div>
+<div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
 {% endif %}
 </div>
 
 {% set asked = view.unreported | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
 {% if asked %}
 <div class="section">
-  <div class="section-title" id="reports"><h2>How did these go?</h2><small>{{ asked | length }}</small></div>
+  <div class="section-title" id="reports"><h2>{{ _("How did these go?") }}</h2><small>{{ asked | length }}</small></div>
   <div class="card">
     <ul class="list">
     {% for card in asked[:5] %}
@@ -41,27 +41,27 @@
           <div class="title">{{ card.label }}</div>
           <div class="meta">{{ card.when }}–{{ card.until }}</div>
           <form method="post" action="/s/{{ token }}/{{ card.id }}" class="mini-outcomes" data-report>
-            {% for value, word in outcome_words.items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ word }}</button>{% endfor %}
+            {% for value, word in outcome_words.items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ _(word) }}</button>{% endfor %}
           </form>
         </div>
       </li>
     {% endfor %}
     </ul>
   </div>
-  <p class="hint">Sessions you do not answer count as done.</p>
+  <p class="hint">{{ _("Sessions you do not answer count as done in your plan; your streak counts only what you report.") }}</p>
 </div>
 {% endif %}
 
 {% set later = (view.next if view.now else view.next[1:])[:4] %}
 {% if later %}
 <div class="section">
-  <div class="section-title"><h2>Coming up</h2></div>
+  <div class="section-title"><h2>{{ _("Coming up") }}</h2></div>
   <div class="card">
     <ul class="list">
     {% for card in later %}
       <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}">
         <span class="dot"></span>
-        <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">placed</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
+        <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">{{ _("placed") }}</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
       </li>
     {% endfor %}
     </ul>
@@ -71,37 +71,37 @@
 {% endif %}
 
 <div class="section">
-  <div class="section-title"><h2>Tasks</h2><a href="/p/{{ token }}/tasks">See all</a></div>
+  <div class="section-title"><h2>{{ _("Tasks") }}</h2><a href="/p/{{ token }}/tasks">{{ _("See all") }}</a></div>
   <div class="card">
     {% set upcoming = view.tasks | rejectattr("past") | list %}
     {% if upcoming %}
     <ul class="tasks">
     {% for t in upcoming[:5] %}{% with back='today' %}{% include "_task.html" %}{% endwith %}{% endfor %}
     </ul>
-    {% else %}<p class="muted">No task due. Homework, a report, a project: add it and the plan finds the time.</p>{% endif %}
+    {% else %}<p class="muted">{{ _("No task due. Homework, a report, a project: add it and the plan finds the time.") }}</p>{% endif %}
     {% if task_error %}<p class="error" role="alert">{{ task_error }}</p>{% endif %}
-    <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">New task</button></p>
+    <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
   </div>
 </div>
 
 {% if view.exams %}
 <div class="section">
-  <div class="section-title"><h2>Exams</h2><a href="/p/{{ token }}/settings">Edit</a></div>
+  <div class="section-title"><h2>{{ _("Exams") }}</h2><a href="/p/{{ token }}/settings">{{ _("Edit") }}</a></div>
   <div class="card">
     <ul class="list">
     {% for e in view.exams %}
       <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
         <span class="dot"></span>
         <div class="grow">
-          <div class="title">{{ e.name }} <span class="badge">in {{ e.days | round | int }} days</span></div>
-          <div class="meta">{{ e.when }} · {{ e.topics_ready }} of {{ e.topics }} topic{{ 's' if e.topics != 1 }} on track</div>
+          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
+          <div class="meta">{{ e.when }} · {{ _n("{ready} of {n} topic on track", "{ready} of {n} topics on track", e.topics, ready=e.topics_ready) }}</div>
           <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
         </div>
       </li>
     {% endfor %}
     </ul>
   </div>
-  <p class="hint">"On track": predicted at your target recall on exam day, if the plan is followed.</p>
+  <p class="hint">{{ _("\"On track\": predicted at your target recall on exam day, if the plan is followed.") }}</p>
 </div>
 {% endif %}
 

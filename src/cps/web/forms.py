@@ -32,7 +32,9 @@ def _number(value: str, name: str) -> float:
     try:
         return float(value.replace(",", "."))
     except ValueError:
-        raise service.InvalidInput(f"{name}: {value!r} is not a number") from None
+        raise service.InvalidInput(
+            service.translate("{name}: {value} is not a number", name=name, value=repr(value))
+        ) from None
 
 
 def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, Any]:
@@ -82,16 +84,16 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         elif s["exam"]:
             exam = s["exam"]
         else:
-            raise service.InvalidInput(f"{s['name']}: give the exam's date")
+            raise service.InvalidInput(service.translate("{name}: give the exam's date", name=s["name"]))
         subjects.append(service.SubjectSpec(s["name"], exam, familiarity=int(s["familiarity"])))
     tasks = []
     for t in values["tasks"]:
         if not t["due"]:
-            raise service.InvalidInput(f"{t['name']}: give the date it is due")
+            raise service.InvalidInput(service.translate("{name}: give the date it is due", name=t["name"]))
         hours = _number(t["hours"] or "2", t["name"])
         tasks.append(service.TaskSpec(t["name"], t["due"].replace("T", " "), hours, t["course"]))
     weekly = values["weekly_hours"]
-    weekly_hours = _number(str(weekly), "weekly hours") if str(weekly).strip() else None
+    weekly_hours = _number(str(weekly), service.translate("weekly hours")) if str(weekly).strip() else None
     return {
         "subjects": subjects,
         "tasks": tasks,
@@ -100,12 +102,14 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         "preferences": {
             "weekly_hours": weekly_hours or None,
             "rest_days": list(values["rest_days"]),
-            "practice_hours": _number(str(values["practice_hours"] or 0), "exam practice"),
+            "practice_hours": _number(str(values["practice_hours"] or 0), service.translate("exam practice")),
         },
         "study_window": (
-            _number(str(values["study_window"][0]), "from"),
-            _number(str(values["study_window"][1]), "to"),
+            _number(str(values["study_window"][0]), service.translate("Study from")),
+            _number(str(values["study_window"][1]), service.translate("until")),
         ),
-        "blocks_per_day": int(_number(str(values["blocks_per_day"]), "blocks a day")),
-        "block_minutes": int(_number(str(values["block_minutes"]), "block length")),
+        "blocks_per_day": int(
+            _number(str(values["blocks_per_day"]), service.translate("Sessions a day at most"))
+        ),
+        "block_minutes": int(_number(str(values["block_minutes"]), service.translate("Session length"))),
     }

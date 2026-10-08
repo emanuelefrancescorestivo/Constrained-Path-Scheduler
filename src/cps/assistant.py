@@ -55,6 +55,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from .i18n import _, _n
 from .memory import Grade, MemoryState, retrievability, review
 from .plan import Block
 
@@ -240,7 +241,7 @@ def schedule(
 
         # 1. A deadline that is getting close: earliest-deadline-first feasibility.
         if free_tasks and tight(here, open_tasks):
-            choice = _task_session(block, free_tasks[0], left, "a deadline is close")
+            choice = _task_session(block, free_tasks[0], left, _("a deadline is close"))
 
         # 2. Exam practice in the last days before an exam.
         if choice is None:
@@ -262,12 +263,18 @@ def schedule(
                     "practice",
                     exam.course,
                     f"Exam practice: {exam.course}",
-                    "Do a past paper or exam-style problems under exam conditions, timed and "
-                    "without notes. Then mark it and write down what you missed: that list is "
-                    "what the next sessions are for.",
-                    f"The exam is in {exam.day - now:.0f} days; practice under exam conditions "
-                    f"is what prepares for it ({exam.practice_blocks - practice[exam.course]} of "
-                    f"{exam.practice_blocks}).",
+                    _(
+                        "Do a past paper or exam-style problems under exam conditions, timed and "
+                        "without notes. Then mark it and write down what you missed: that list is "
+                        "what the next sessions are for."
+                    ),
+                    _(
+                        "The exam is in {days} days; practice under exam conditions is what "
+                        "prepares for it ({done} of {n}).",
+                        days=f"{exam.day - now:.0f}",
+                        done=exam.practice_blocks - practice[exam.course],
+                        n=exam.practice_blocks,
+                    ),
                 )
 
         # 3. Self-testing on the taught topic that is being forgotten most.
@@ -291,8 +298,12 @@ def schedule(
                     topic.course,
                     topic.name,
                     _review_text(topic, first),
-                    f"Predicted recall of {topic.note or topic.name} is down to about "
-                    f"{recall:.0%}; testing yourself now is when it helps most.",
+                    _(
+                        "Predicted recall of {what} is down to about {recall}; testing yourself "
+                        "now is when it helps most.",
+                        what=topic.note or topic.name,
+                        recall=f"{recall:.0%}",
+                    ),
                     recall=recall,
                     stability_before=memory.stability,
                     stability_after=after.stability,
@@ -300,7 +311,7 @@ def schedule(
 
         # 4. Working ahead on the task due soonest.
         if choice is None and free_tasks:
-            choice = _task_session(block, free_tasks[0], left, "nothing else needs this block")
+            choice = _task_session(block, free_tasks[0], left, _("nothing else needs this block"))
 
         if choice is None:
             continue  # 5. free time
@@ -327,7 +338,7 @@ def _pinned_session(
     any review does; the work of a task or practice was counted when the schedule
     began."""
     now = pin.block.start_day
-    why = "You put it here."
+    why = _("You put it here.")
     topic = topics.get(pin.title)
     if pin.kind in ("review", "first review") and topic is not None:
         memory, last = state[topic.name]
@@ -355,12 +366,16 @@ def _pinned_session(
             "practice",
             pin.course,
             pin.title,
-            "Do a past paper or exam-style problems under exam conditions, timed and without "
-            "notes. Then mark it and write down what you missed.",
-            f"{why} The exam is in {days:.0f} days.",
+            _(
+                "Do a past paper or exam-style problems under exam conditions, timed and without "
+                "notes. Then mark it and write down what you missed."
+            ),
+            _("{why} The exam is in {days} days.", why=why, days=f"{days:.0f}"),
             pinned=True,
         )
-    return Session(pin.block, pin.kind, pin.course, pin.title, f"Work on {pin.title}.", why, pinned=True)
+    return Session(
+        pin.block, pin.kind, pin.course, pin.title, _("Work on {name}.", name=pin.title), why, pinned=True
+    )
 
 
 def _task_session(block: Block, task: Task, left: dict[str, int], reason: str) -> Session:
@@ -372,27 +387,34 @@ def _task_session(block: Block, task: Task, left: dict[str, int], reason: str) -
         "task",
         task.course,
         task.name,
-        f"Work on {task.name}."
+        _("Work on {name}.", name=task.name)
+        + " "
         + (
-            f" {remaining} more block{'s' if remaining != 1 else ''} planned before it is due."
+            _n(
+                "{n} more block planned before it is due.",
+                "{n} more blocks planned before it is due.",
+                remaining,
+            )
             if remaining
-            else " This is the last block planned for it."
+            else _("This is the last block planned for it.")
         ),
-        f"Due in {days:.0f} day{'s' if round(days) != 1 else ''}; {reason}.",
+        _n("Due in {n} day; {reason}.", "Due in {n} days; {reason}.", round(days), reason=reason),
     )
 
 
 def _review_text(topic: Topic, first: bool) -> str:
     what = topic.note or topic.name
     if first:
-        return (
-            f"First review of {what}. Without your notes, write down the main ideas, definitions "
+        return _(
+            "First review of {what}. Without your notes, write down the main ideas, definitions "
             "and methods you remember; then check against your notes and fill the gaps. Redo one "
-            "worked example."
+            "worked example.",
+            what=what,
         )
-    return (
-        f"Test yourself on {what}: recall first, from a blank page or by explaining it aloud, "
-        "then check. Do one or two exercises from that week's tutorial."
+    return _(
+        "Test yourself on {what}: recall first, from a blank page or by explaining it aloud, "
+        "then check. Do one or two exercises from that week's tutorial.",
+        what=what,
     )
 
 

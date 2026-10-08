@@ -1,41 +1,39 @@
 {% extends "base.html" %}
-{% block title %}{% if tab == 'calendar' %}Calendar{% else %}Today{% endif %} · Study plan{% endblock %}
+{% block title %}{% if tab == 'calendar' %}{{ _("Calendar") }}{% else %}{{ _("Today") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="/static/app.js"></script>{% endblock %}
 {% block body %}
 <div class="plan" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}">
-  <aside class="panel" aria-label="Today">
-    {% if reported %}<p class="notice notice-ok" role="status">Recorded: {{ reported }}. The plan has changed to match.</p>{% endif %}
+  <aside class="panel" aria-label="{{ _('Today') }}">
+    {% if reported %}<p class="notice notice-ok" role="status">{{ _("Recorded: {word}. The plan has changed to match.", word=reported) }}</p>{% endif %}
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
-  <section class="board" aria-label="Calendar">
+  <section class="board" aria-label="{{ _('Calendar') }}">
     {% if new %}
     <div class="notice" role="note">
       {% set step = 3 %}{% include "_steps.html" %}
-      <p><strong>Your week.</strong> Your timetable is already here, and the plan with it.
-      Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening
-      off. Drag a study session to move it. The plan rearranges itself as you go.</p>
-      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1">Next: put it in your calendar</a></p>
+      <p>{{ _h("<strong>Your week.</strong> Your timetable is already here, and the plan with it. Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening off. Drag a study session to move it. The plan rearranges itself as you go.") }}</p>
+      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1">{{ _("Next: put it in your calendar") }}</a></p>
     </div>
     {% endif %}
     <div class="board-bar" id="calendar-bar" hidden>
       <span class="range" id="calendar-range" aria-live="polite"></span>
       <span class="spacer"></span>
-      <div class="segmented" role="group" aria-label="Days shown">
-        <button type="button" data-view="1">Day</button>
-        <button type="button" data-view="3">3 Days</button>
-        <button type="button" data-view="7">Week</button>
+      <div class="segmented" role="group" aria-label="{{ _('Days shown') }}">
+        <button type="button" data-view="1">{{ _("Day") }}</button>
+        <button type="button" data-view="3">{{ _("3 Days") }}</button>
+        <button type="button" data-view="7">{{ _("Week") }}</button>
       </div>
-      <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="Earlier days">
+      <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="{{ _('Earlier days') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <button type="button" class="btn btn-sm" data-go="today">Today</button>
-      <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="Later days">
+      <button type="button" class="btn btn-sm" data-go="today">{{ _("Today") }}</button>
+      <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="{{ _('Later days') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-      <button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">Block time</button>
+      <button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">{{ _("Block time") }}</button>
     </div>
     <div id="calendar">
       <div class="board-fallback">
-        <p>The calendar needs JavaScript. <a href="/p/{{ token }}/agenda">See the week as a list</a>, and add busy times in <a href="/p/{{ token }}/settings">Settings</a>.</p>
+        <p>{{ _h("The calendar needs JavaScript. <a href=\"{agenda}\">See the week as a list</a>, and add busy times in <a href=\"{settings}\">Settings</a>.", agenda="/p/" ~ token ~ "/agenda", settings="/p/" ~ token ~ "/settings") }}</p>
       </div>
     </div>
   </section>

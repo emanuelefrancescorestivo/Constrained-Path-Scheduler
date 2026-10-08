@@ -35,6 +35,8 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urlunsplit
 
+from .i18n import _
+
 MAX_BYTES = 5 * 1024 * 1024  # a year of a busy timetable is well under 1 MB
 TIMEOUT = 20.0
 MAX_REDIRECTS = 5
@@ -53,9 +55,9 @@ def normalise(url: str) -> str:
     if scheme == "webcal":
         parts = parts._replace(scheme="https")
     elif scheme not in ("http", "https"):
-        raise SourceError("the link must start with https://, http:// or webcal://")
+        raise SourceError(_("the link must start with https://, http:// or webcal://"))
     if not parts.hostname:
-        raise SourceError("the link has no host name")
+        raise SourceError(_("the link has no host name"))
     return urlunsplit(parts)
 
 
@@ -67,11 +69,13 @@ def check_public(url: str) -> None:
     try:
         infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror as exc:
-        raise SourceError(f"the host {host!r} could not be found") from exc
+        raise SourceError(_("the host {host} could not be found", host=repr(host))) from exc
     for info in infos:
         address = ipaddress.ip_address(str(info[4][0]).split("%", 1)[0])
         if not address.is_global or address.is_multicast:
-            raise SourceError(f"the host {host!r} is not on the public internet, so it is not read")
+            raise SourceError(
+                _("the host {host} is not on the public internet, so it is not read", host=repr(host))
+            )
 
 
 class _Redirects(urllib.request.HTTPRedirectHandler):
@@ -84,7 +88,7 @@ class _Redirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         self.count += 1
         if self.count > MAX_REDIRECTS:
-            raise SourceError("the link redirects too many times")
+            raise SourceError(_("the link redirects too many times"))
         newurl = normalise(newurl)
         if not self.allow_private:
             check_public(newurl)
@@ -105,15 +109,21 @@ def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TI
     except SourceError:
         raise
     except urllib.error.HTTPError as exc:
-        raise SourceError(f"the link answered with an error ({exc.code} {exc.reason})") from exc
+        raise SourceError(
+            _("the link answered with an error ({code} {reason})", code=exc.code, reason=exc.reason)
+        ) from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         reason = getattr(exc, "reason", exc)
-        raise SourceError(f"the link could not be read ({reason})") from exc
+        raise SourceError(_("the link could not be read ({reason})", reason=reason)) from exc
     if len(body) > MAX_BYTES:
-        raise SourceError(f"the calendar behind the link is larger than {MAX_BYTES // (1024 * 1024)} MB")
+        raise SourceError(
+            _("the calendar behind the link is larger than {mb} MB", mb=MAX_BYTES // (1024 * 1024))
+        )
     if b"BEGIN:VCALENDAR" not in body[:4096].upper():
         raise SourceError(
-            "the link does not lead to a calendar (.ics); use the export or subscription "
-            "address, not the address of the web page"
+            _(
+                "the link does not lead to a calendar (.ics); use the export or subscription "
+                "address, not the address of the web page"
+            )
         )
     return body

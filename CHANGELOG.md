@@ -17,8 +17,15 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   without a report is forgiven; a late report counts on its day; a lost streak is
   never announced (`progress.py`, `service.progress_view`, `weekly_review`). Each
   plan's daily visit is logged once, for the pilot's measures (D15).
-- `cps.i18n`: the sentences the new pages write go through `_()` and `_n()`, ready
-  for French (D10).
+- The hosted app in French and English (D10). The language is the plan's (chosen on
+  the home page, changed in Settings), else the browser's; no cookie. Every page, the
+  scripts' messages, what each session says to do, the plan's warnings, the errors a
+  student meets, dates and numbers, and the calendar feed's events. Sessions keep
+  language-free ids, so a report survives a change of language and calendar apps
+  update events instead of duplicating them. `cps.i18n` (`_()`, `_n()`, dates and
+  numbers in each language's words), `cps/locales/fr.py`, `static/i18n.js`;
+  `tests/test_i18n.py` fails on a sentence without French. What stays English is
+  AUDIT.md item 40; the French has not been reviewed by a French speaker yet.
 - The market analysis (`docs/MARKET.md`), the engagement strategy
   (`docs/STRATEGY.md`), the design system (`docs/DESIGN.md`), the decisions that
   follow from the owner's answers (`DECISIONS.md`), and `benchmarks/reviews.py`, which
