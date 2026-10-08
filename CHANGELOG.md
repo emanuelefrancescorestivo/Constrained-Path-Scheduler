@@ -123,6 +123,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The timetable reader was fitted to one university's export (AUDIT.md item 41). It
+  now reads exams and courses in eleven systems' and countries' shapes (ADE,
+  Hyperplanning, Celcat, Outlook with course codes, Italian, German, Spanish, Dutch,
+  Portuguese, US, Japanese), checked by `tests/test_generality.py`; the start page
+  takes the device's time zone. CLAUDE.md gains rule 13: no heuristic fitted to one
+  calendar.
 - On a phone, calendar blocks no longer cut a course name mid-word or lose its last
   line: short names in narrow columns, lines clamped with an ellipsis, one line when a
   word is wider than its block (AUDIT item 39).

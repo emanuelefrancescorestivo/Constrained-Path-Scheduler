@@ -554,3 +554,28 @@ before it was made again in the new language, which happens at its next refresh 
 change. Course names and timetable titles stay as the university wrote them. The
 French was written by the AI assistant that built this, and no French speaker has
 reviewed it yet. Status: open until a French speaker has read every screen.
+
+**41. The timetable reader was fitted to one university's export.** The owner asked
+for it not to be ("don't overfit on my calendar; the algorithm has to be general").
+Found by `tests/test_generality.py`, which builds a synthetic semester in the shape
+of eleven systems and countries (ADE, Hyperplanning, Celcat, an Outlook export with
+course codes, Italian, German, Spanish, Dutch, Portuguese, US and Japanese
+timetables) and asks for the exams, each lecture's course, and a plan. Only the ADE
+shape passed. The causes: exam words missing ("examination", "appello", "Prüfung",
+"tentamen", "exame", "épreuve", "devoir surveillé"); words that qualify the exam
+left in the course's name ("Examen terminal - Mathématiques" was the course
+"terminal", "Examen final de Cálculo" was "final de Cálculo"); brackets naming the
+kind of event kept ("Algebra 3 (Lecture)" was not "Algebra 3"); kinds of class
+unknown in Italian, Dutch and US timetables ("esercitazione", "hoorcollege",
+"discussion"); and "Final Cut Pro workshop" taken for an exam. Also, the start page
+proposed Paris time to everyone. Fixed: the exam words; every exam word removed from
+the course's name, then qualifiers, connectives and kinds of class trimmed from its
+ends; brackets dropped when all they say is the kind of event; "final", "test" and
+"quiz" not counted in a title that names a kind of class; the time zone taken from
+the device. All eleven shapes pass, with a plan inside the student's hours in each
+time zone, plus an all-day exam, a personal calendar with no exams, and course
+names that only contain an exam word. Still true: these are synthetic semesters
+written from how each system is documented to name events, not real exports; one
+real export (ADE) has been read; and keyword reading fails visibly on a shape no
+one has seen, which the settings page lets the student correct. Status: fixed for
+these shapes; open for real exports from other universities.

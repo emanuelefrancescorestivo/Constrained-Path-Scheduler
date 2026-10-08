@@ -106,7 +106,9 @@ standards ask for, and the only kind that answers whether people would pay.
 
 - Motion, Reclaim or a university timetable vendor could add the student half.
 - Students' willingness to pay is untested.
-- Timetable exports differ between universities; ADE is the one tested, on one
-  real export.
+- Timetable exports differ between universities. One real export (ADE) has been
+  read; eleven synthetic semesters in other systems' and countries' shapes pass
+  (`tests/test_generality.py`, AUDIT.md item 41), which is not the same as real
+  exports.
 - The memory model is fitted on flashcards; the assistant only uses it to rank what
   is fading, and makes no promise about stability.

@@ -174,3 +174,102 @@ day a plan's page is opened, which is what "active" means. `service.engagement` 
 the last 7 and 30 days, the share of planned sessions confirmed, streak lengths,
 buddies connected, AI calls and their cost. `cps metrics` prints it. No analytics
 script runs in a student's browser (D6).
+
+## The study network (2026-10-08, later the same day)
+
+The owner widened the social side after D11: "it should work like a social
+network, as on Strava": a student times a session, the device stays on it, and
+afterwards publishes it (a photo of notes or exercises, the subject, perceived effort
+and progress), others comment; an "explain it simply" section; a personal diary that
+keeps momentum; international, across programmes and universities. His answers to
+the four questions this raised: **web focus mode now, native blocking later; each post
+chooses who sees it, followers by default; a public handle, university and programme,
+signing in stays the secret link; report, hide and block, with the owner reviewing.**
+D16 to D20 follow; D16 replaces D11.
+
+## D16. A study network, Strava's shape, without a leaderboard (replaces D11)
+
+**Chosen.** A profile is a handle (unique, 3 to 20 letters, digits, `_` or `.`), a
+university and a programme, typed by the student, and a declaration of being 15 or
+older (the age of consent to data processing in France). Following is asymmetric and
+asked for: a follow request is accepted or not by the person followed, so that
+"followers" means people one accepted. A post is a focus session (D17) or an
+explanation (D19), and says who may see it: only me, followers, or everyone; followers
+by default. Two feeds: Following (chronological, people one follows and oneself) and
+Explore (everyone-posts, filterable by university, programme and course,
+chronological). Kudos, one per person per post, and comments. No ranking of people
+by hours or by anything else, and no counts of followers shown on profiles: the
+network shows work, not popularity.
+
+**Why.** Strava's loop is record, publish, receive kudos and comments; a diary of
+one's own activities keeps the history visible. The rules of docs/STRATEGY.md still
+hold: nothing rewards hours beyond a plan, nothing is bought, no public table of
+people.
+
+**Rejected.** Public by default (photos of notes in public from the first day;
+moderation first, D20). An e-mail or university-e-mail sign-in (an e-mail service to
+operate; the owner chose the handle and the secret link, with the weakness that
+anyone can claim any university, stated on the profile page). Follower counts.
+
+**Stored.** In the same SQLite file, tables of their own: `profiles`, `follows`,
+`posts`, `kudos`, `comments`, `reports`, `blocks`. Post and comment ids are random,
+not sequential. Deleting a plan, by request or by expiry, deletes its profile, posts,
+comments, kudos, follows, reports it made and photos.
+
+## D17. Focus sessions in the browser: a timer that tells the truth
+
+**Chosen.** "Start" opens a full-screen timer for a course (or for a session of the
+plan). The page keeps the screen awake where the browser allows (Wake Lock) and
+records every time it is left (the page hidden), and for how long; the session's
+focused time is the time on the page. Finishing opens the log: what was done, perceived
+effort from 1 to 10, progress from 1 to 5, a note, photos, who sees it. A session
+started from the plan reports that session done. A session can also be logged
+without the timer, and says "not timed".
+
+**Why not blocking.** A web page cannot block other apps on a phone or a laptop. Real
+blocking needs native apps (iOS's Screen Time API, which Apple must grant; Android's
+special permissions) and is a later step the owner chose to defer. What the web can do
+honestly is make leaving visible: an interrupted session says so on its post, as
+Forest's tree dies when the app is left.
+
+**Consequence for D9.** A day with a logged focus session is a studied day, whether
+or not the plan had something that day.
+
+## D18. Photos: made small and stripped in the browser, checked again on the server
+
+**Chosen.** Up to four photos per post. The page shrinks each photo in the browser to
+at most 1600 pixels and re-encodes it as JPEG, which drops its metadata (a phone's
+photo can carry its GPS position). The server accepts JPEG or PNG only, at most 3 MB
+each, strips JPEG `APPn` and PNG ancillary metadata chunks itself (so a photo sent
+without the script is cleaned too), and stores it next to the database under a random
+name. A photo is served only to someone who may see its post, with the same security
+headers as the pages. No new dependency: no image library is needed to remove
+metadata segments.
+
+**Known gap.** The daily backup copies the database, not the photos (docs/DEPLOY.md
+says so). A photo is not re-encoded on the server, so a crafted file is served as it
+came, under `Content-Type: image/jpeg` and `nosniff`.
+
+## D19. "Explain it simply"
+
+**Chosen.** A second kind of post: a concept, the course it comes from, and an
+explanation written for someone who studies something else (at most 1,200
+characters), with an optional photo. Readers answer "I got it" or ask a question in
+the comments. Explore can show explanations alone.
+
+**Why.** Explaining to a non-specialist is the Feynman technique; the research on
+learning by teaching is in docs/MARKET.md §3 once checked. It also gives the network a
+reason to read posts from other programmes.
+
+## D20. Moderation for the pilot: report, hide, block, the owner reviews
+
+**Chosen.** Every post and comment has "Report" (a reason from a short list). Content
+reported by three different people is hidden at once, pending review. Anyone can block
+someone: neither then sees the other's posts or comments, and a follow between them
+ends. The owner reviews reports at `/admin/<CPS_ADMIN_TOKEN>`: keep (and clear the
+reports) or remove. Community guidelines at `/guidelines`: your own work only, no
+exam papers you were asked not to share, no other people's faces or names, be kind.
+
+**Why.** Under the EU's Digital Services Act a hosting service needs a way to be told
+of illegal content and to act on it; this is that, at a pilot's size. Automatic
+screening by a model was the alternative; the owner chose to review himself.

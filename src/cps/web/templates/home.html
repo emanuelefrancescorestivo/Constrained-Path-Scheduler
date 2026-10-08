@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Study plan: your timetable, your deadlines, your week") }}{% endblock %}
+{% block head %}<script type="module" src="/static/home.js"></script>{% endblock %}
 {% block main %}
 <section class="hero">
   {% set step = 1 %}{% include "_steps.html" %}
@@ -22,7 +23,7 @@
   <details>
     <summary>{{ _("Time zone: {zone}", zone=tz or 'Europe/Paris') }}</summary>
     <label for="tz">{{ _("Time zone") }}</label>
-    <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off">
+    <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off"{% if error %} data-chosen="1"{% endif %}>
   </details>
   <p><button type="submit" class="btn btn-primary btn-block">{{ _("Plan my semester") }}</button></p>
   <p class="hint">{{ _("No account, no password: your plan lives at a private address you keep, like a calendar subscription link.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
