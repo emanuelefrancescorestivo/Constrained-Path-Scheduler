@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import secrets
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -40,23 +42,28 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import forms
+from . import charts, forms
 from .limits import Limiter
 
 HERE = Path(__file__).parent
+# A plan's pages and its sessions' pages: the language is the plan's.
+PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
 MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
+MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
+MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 64 * 1024  # notes have up to eight pages (D26)
 SWEEP_EVERY = timedelta(hours=6)
 
 SECURITY_HEADERS = {
@@ -76,6 +83,14 @@ OUTCOME_WORDS = {
     "skipped": "Skipped",
     "struggled": "Hard",
 }
+# A self-test asks how much was recalled instead (DECISIONS.md D25).
+RECALL_WORDS = {
+    "forgot": "Nothing",
+    "some": "Some",
+    "most": "Most",
+    "all": "All",
+    "skipped": "Skipped",
+}
 
 
 FAMILIARITY = (
@@ -93,10 +108,29 @@ def _nice_date(value: str) -> str:
         moment = datetime.fromisoformat(str(value).replace(" ", "T"))
     except ValueError:
         return str(value)
-    return f"{moment:%a} {moment.day} {moment:%b %Y}, {moment:%H:%M}"
+    return f"{service.format_day(moment.date(), 'short')} {moment.year}, {moment:%H:%M}"
 
 
 # What a task change says once it is done, by the `saved` query parameter.
+NETWORK_NOTICES = {
+    "joined": "Welcome. Here is what students are sharing; follow the ones you like.",
+    "profile": "Profile saved.",
+    "posted": "Posted.",
+    "left": "You have left the network. Your diary is still here, visible only to you.",
+    "reported": "Thank you. The report is with the owner of this service.",
+    "blocked": "Blocked. Neither of you sees the other any more; undo it in People.",
+    "group": "Group created. Invite your friends by their handle.",
+    "invited": "Invitation sent. They choose whether to join.",
+    "joined_group": "You joined the group.",
+    "left_group": "You left the group.",
+    "group_saved": "Saved.",
+}
+CARD_NOTICES = {
+    "card_saved": "Saved.",
+    "card_deleted": "Deleted.",
+}
+# The four answers to a card, as its buttons say them (D29).
+CARD_WORDS = {"again": "Again", "hard": "Hard", "good": "Good", "easy": "Easy"}
 TASK_NOTICES = {
     "added": "Added. The plan has made room for it.",
     "finished": "Done. Its remaining sessions are free time again.",
@@ -120,6 +154,7 @@ class Config:
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
+    admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
 
     @classmethod
     def from_env(cls) -> Config:
@@ -129,6 +164,7 @@ class Config:
             base_url=os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or None,
             contact=os.environ.get("CPS_CONTACT") or None,
             backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
+            admin_token=os.environ.get("CPS_ADMIN_TOKEN") or None,
         )
 
 
@@ -140,8 +176,17 @@ def create_app(config: Config | None = None) -> FastAPI:
     changes = Limiter(*config.change_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
+    templates.env.globals["recall_words"] = RECALL_WORDS
+    templates.env.globals["charts"] = charts
     templates.env.globals["familiarity"] = FAMILIARITY
     templates.env.filters["nice_date"] = _nice_date
+    templates.env.filters["hours"] = service.format_number
+    templates.env.globals["_"] = service.translate
+    templates.env.globals["_n"] = service.translate_plural
+    templates.env.globals["day_word"] = service.day_word
+    templates.env.globals["_h"] = _html
+    templates.env.globals["lang"] = service.current_language
+    templates.env.globals["languages"] = service.LANGUAGES
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -183,10 +228,25 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.middleware("http")
     async def guard(request: Request, call_next: Callable) -> Response:
         began = time.perf_counter()
-        if request.method == "POST" and not _same_origin(request):
-            response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
-        else:
-            response = await call_next(request)
+        # The language (D10): a plan's own, else a `lang` asked for in the address,
+        # else the browser's. No cookie.
+        lang = None
+        if not request.url.path.startswith("/static/"):
+            found = PLAN_PATH.match(request.url.path)
+            if found:
+                lang = service.plan_language(store, found.group(1))
+        chosen = service.activate_language(
+            service.pick_language(
+                lang, request.query_params.get("lang"), request.headers.get("accept-language")
+            )
+        )
+        try:
+            if request.method == "POST" and not _same_origin(request):
+                response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
+            else:
+                response = await call_next(request)
+        finally:
+            service.deactivate_language(chosen)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
         if not request.url.path.startswith("/static/"):
@@ -206,10 +266,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
-        if token and "courses" not in context:
-            # Every page of a plan carries the new-task sheet, which suggests courses.
+        if token and ("courses" not in context or "theme" not in context or "motion" not in context):
+            # Every page of a plan carries the new-task sheet, which suggests courses,
+            # and the plan's appearance (D21) and motion (D30).
             subscription = service.load_subscription(store, token)
-            context["courses"] = service.course_names(subscription) if subscription else []
+            context.setdefault("courses", service.course_names(subscription) if subscription else [])
+            context.setdefault("theme", service.theme_of(subscription))
+            context.setdefault("motion", service.motion_of(subscription))
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -223,13 +286,21 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "message.html",
             404,
-            title="Not found",
-            message="This address is not, or no longer, a study plan. Plans are deleted 30 days "
-            "after their last exam or deadline, or when their owner deletes them.",
+            title=service.translate("Not found"),
+            message=service.translate(
+                "This address is not, or no longer, a study plan. Plans are deleted 30 days "
+                "after their last exam or deadline, or when their owner deletes them."
+            ),
         )
 
     def too_many(request: Request) -> HTMLResponse:
-        return page(request, "message.html", 429, title="Slow down", message="Too many requests; try later.")
+        return page(
+            request,
+            "message.html",
+            429,
+            title=service.translate("Slow down"),
+            message=service.translate("Too many requests; try later."),
+        )
 
     def client(request: Request) -> str:
         return request.client.host if request.client else "unknown"
@@ -248,13 +319,19 @@ def create_app(config: Config | None = None) -> FastAPI:
     def privacy(request: Request) -> HTMLResponse:
         return page(request, "privacy.html", contact=config.contact, retention=service.RETENTION.days)
 
+    @app.get("/guidelines", response_class=HTMLResponse)
+    def guidelines(request: Request) -> HTMLResponse:
+        return page(request, "guidelines.html", contact=config.contact)
+
     @app.post("/start")
     async def start(request: Request) -> Response:
         if int(request.headers.get("content-length") or 0) > MAX_UPLOAD + 64 * 1024:
-            return page(request, "home.html", 413, error="That file is too large for a timetable.")
+            return page(
+                request, "home.html", 413, error=service.translate("That file is too large for a timetable.")
+            )
         if not starts.allow(client(request)):
             return too_many(request)
-        form = await request.form(max_files=1, max_fields=10)
+        form = await request.form(max_files=1, max_fields=11)
         link = str(form.get("link") or "").strip() or None
         tz = str(form.get("tz") or "Europe/Paris").strip()
         upload = form.get("file")
@@ -262,12 +339,24 @@ def create_app(config: Config | None = None) -> FastAPI:
         if isinstance(upload, UploadFile) and upload.filename:
             ics = await upload.read(MAX_UPLOAD + 1)
             if len(ics) > MAX_UPLOAD:
-                return page(request, "home.html", 413, error="That file is too large for a timetable.")
+                return page(
+                    request,
+                    "home.html",
+                    413,
+                    error=service.translate("That file is too large for a timetable."),
+                )
         try:
             if link is None and ics is None:
-                raise service.InvalidInput("paste your timetable's link, or choose its file")
+                raise service.InvalidInput(
+                    service.translate("paste your timetable's link, or choose its file")
+                )
             subscription = service.start_subscription(
-                tz=tz, source_url=link, ics=None if link else ics, now=config.clock(), fetch=config.fetch
+                tz=tz,
+                source_url=link,
+                ics=None if link else ics,
+                now=config.clock(),
+                fetch=config.fetch,
+                lang=str(form.get("lang") or "") or None,
             )
         except service.ServiceError as error:
             return page(request, "home.html", 400, error=str(error), link=link or "", tz=tz)
@@ -287,17 +376,31 @@ def create_app(config: Config | None = None) -> FastAPI:
         token = subscription.token
         if subscription.source_url and service.is_stale(subscription, config.clock()):
             feeds.refresh(token)
+        service.log_visit(store, token)
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         return page(
             request,
             "plan.html",
             status,
             token=token,
-            view=service.today_view(subscription, config.clock()),
             first=today.isoformat(),
             tab=tab,
+            **panel_context(subscription),
             **context,
         )
+
+    def panel_context(subscription: service.Subscription) -> dict[str, Any]:
+        now = config.clock()
+        logged = service.logged_sessions(store, subscription)
+        return {
+            "view": service.today_view(subscription, now),
+            "progress": service.progress_view(subscription, now, logged=logged),
+            "review": service.review_with_ai(
+                store, subscription, service.review_for_today(subscription, now, logged=logged), now=now
+            ),
+            "focus": subscription.options.get("focus"),
+            "cards_due": service.cards_due(store, subscription, now),
+        }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
     def today(request: Request, token: str, reported: str | None = None, saved: str = "") -> HTMLResponse:
@@ -305,7 +408,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         return plan_page(
-            request, subscription, "today", reported=OUTCOME_WORDS.get(reported or ""), saved=_notice(saved)
+            request,
+            subscription,
+            "today",
+            reported=service.translate({**OUTCOME_WORDS, **RECALL_WORDS}[reported])
+            if reported in {**OUTCOME_WORDS, **RECALL_WORDS}
+            else None,
+            saved=_notice(saved),
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
@@ -321,9 +430,993 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
+        return page(request, "_panel.html", token=token, **panel_context(subscription))
+
+    @app.get("/p/{token}/progress", response_class=HTMLResponse)
+    def progress(request: Request, token: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        now = config.clock()
+        logged = service.logged_sessions(store, subscription)
         return page(
-            request, "_panel.html", token=token, view=service.today_view(subscription, config.clock())
+            request,
+            "progress.html",
+            token=token,
+            view=service.progress_view(subscription, now, logged=logged),
+            review=service.review_with_ai(
+                store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
+            ),
+            diary=service.diary_view(store, subscription, now),
+            trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
+            groups=service.groups_view(store, subscription, now)["groups"],
+            saved=_notice(saved),
+            tab="progress",
         )
+
+    @app.get("/p/{token}/trends", response_class=HTMLResponse)
+    def trends(request: Request, token: str, span: str = "12") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return page(
+            request,
+            "trends.html",
+            token=token,
+            view=service.trends_view(store, subscription, config.clock(), span),
+            tab="progress",
+        )
+
+    # ------------------------------------------------------------ focus sessions
+
+    @app.get("/p/{token}/focus", response_class=HTMLResponse)
+    def focus(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return page(
+            request,
+            "focus.html",
+            token=token,
+            focus=service.focus_view(subscription, config.clock()),
+            cards_due=service.cards_due(store, subscription, config.clock()),
+            tab="focus",
+        )
+
+    async def focus_change(
+        request: Request,
+        token: str,
+        change: Callable[[service.Subscription, Any], service.Subscription],
+        kind: str,
+    ) -> Response | service.Subscription:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        try:
+            fresh = service.update_subscription(store, token, lambda current: change(current, form))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        if fresh is None:
+            return missing(request)
+        service.log_event(store, token, kind)
+        return fresh
+
+    @app.post("/p/{token}/focus/start")
+    async def focus_start(request: Request, token: str) -> Response:
+        def change(current: service.Subscription, form: Any) -> service.Subscription:
+            sid = str(form.get("sid") or "") or None
+            return service.start_focus(current, str(form.get("course") or ""), sid=sid, now=config.clock())
+
+        done = await focus_change(request, token, change, "focus")
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.post("/p/{token}/focus/beat")
+    def focus_beat(request: Request, token: str) -> Response:
+        """The focus page's heartbeat (focus.js): it is open and visible."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        try:
+            fresh = service.update_subscription(
+                store, token, lambda current: service.focus_beat(current, now=config.clock())
+            )
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 409)
+        view = service.focus_view(fresh, config.clock()) if fresh else {}
+        return JSONResponse({k: view.get(k) for k in ("elapsed", "away_minutes", "interruptions")})
+
+    @app.post("/p/{token}/focus/finish")
+    async def focus_finish(request: Request, token: str) -> Response:
+        done = await focus_change(
+            request,
+            token,
+            lambda current, form: service.finish_focus(current, now=config.clock()),
+            "focus done",
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/log", 303)
+
+    @app.post("/p/{token}/focus/cancel")
+    async def focus_cancel(request: Request, token: str) -> Response:
+        done = await focus_change(
+            request, token, lambda current, form: service.cancel_focus(current), "focus off"
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.get("/p/{token}/log", response_class=HTMLResponse)
+    def log_form(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "log.html",
+            token=token,
+            draft=service.log_draft(subscription, config.clock()),
+            profile=service.profile_of(store, token),
+            tab="focus",
+        )
+
+    @app.post("/p/{token}/log", response_class=HTMLResponse)
+    async def log_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        if int(request.headers.get("content-length") or 0) > MAX_POST_UPLOAD:
+            return page(
+                request,
+                "log.html",
+                413,
+                token=token,
+                draft=service.log_draft(subscription, config.clock()),
+                profile=service.profile_of(store, token),
+                error=service.translate("These photos are too large together; send fewer or smaller ones."),
+                tab="focus",
+            )
+        form = await request.form(max_files=service.social.MAX_PHOTOS, max_fields=20)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            holder: dict[str, Any] = {}
+
+            def change(current: service.Subscription) -> service.Subscription:
+                fresh, post = service.log_session(store, current, fields, photos, now=config.clock())
+                holder["post"] = post
+                return fresh
+
+            service.update_subscription(store, token, change)
+        except service.ServiceError as error:
+            draft = {**service.log_draft(subscription, config.clock()), **fields}
+            return page(
+                request,
+                "log.html",
+                400,
+                token=token,
+                draft=draft,
+                profile=service.profile_of(store, token),
+                error=str(error),
+                tab="focus",
+            )
+        service.log_event(store, token, "logged", fields.get("visibility", ""))
+        return RedirectResponse(f"/p/{token}/progress?saved=logged#diary", 303)
+
+    @app.post("/p/{token}/posts/{post_id}/delete")
+    def post_delete(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.delete_post(store, token, post_id)
+        return RedirectResponse(f"/p/{token}/progress?saved=deleted#diary", 303)
+
+    @app.post("/p/{token}/posts/{post_id}/visibility")
+    async def post_visibility(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.set_post_visibility(store, token, post_id, str(form.get("visibility") or ""))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        return RedirectResponse(f"/p/{token}/progress?saved=1#diary", 303)
+
+    def photo_response(viewer: str | None, name: str) -> Response:
+        found = service.photo_for(store, viewer, name)
+        if found is None:
+            return Response("not found\n", 404, media_type="text/plain")
+        data, kind = found
+        return Response(data, media_type=kind, headers={"Cache-Control": "private, max-age=86400"})
+
+    @app.get("/p/{token}/m/{name}")
+    def own_photo(token: str, name: str) -> Response:
+        return photo_response(token if load(token) is not None else None, name)
+
+    @app.get("/m/{name}")
+    def public_photo(name: str) -> Response:
+        return photo_response(None, name)
+
+    # ---------------------------------------------------------- the study network
+
+    def refused(request: Request, token: str, error: Exception, status: int = 400) -> HTMLResponse:
+        return page(
+            request,
+            "message.html",
+            status,
+            title=service.translate("Not saved"),
+            message=str(error),
+            token=token,
+        )
+
+    def back(form: Any, token: str, fallback: str) -> str:
+        """Where a form asks to return to, if it is one of this plan's own pages."""
+        target = str(form.get("next") or "")
+        own = f"/p/{token}"
+        if (
+            target == own or target.startswith(own + "/") or target.startswith(own + "?")
+        ) and "//" not in target:
+            return target
+        return fallback
+
+    @app.get("/p/{token}/community", response_class=HTMLResponse)
+    def community(
+        request: Request,
+        token: str,
+        tab: str = "following",
+        uni: str = "",
+        prog: str = "",
+        course: str = "",
+        kind: str = "",
+        saved: str = "",
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.community_view(
+            store,
+            subscription,
+            tab=tab,
+            filters={"uni": uni, "prog": prog, "course": course, "kind": kind},
+            now=config.clock(),
+        )
+        return page(request, "community.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.get("/p/{token}/post/{post_id}", response_class=HTMLResponse)
+    def post_page(request: Request, token: str, post_id: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.post_view(store, subscription, post_id, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this post is not, or no longer, visible to you"),
+                token=token,
+            )
+        return page(request, "post.html", token=token, **view, saved=_notice(saved), tab="community")
+
+    @app.post("/p/{token}/post/{post_id}/kudos")
+    async def kudos(request: Request, token: str, post_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.toggle_kudos(store, token, post_id, now=config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
+
+    @app.post("/p/{token}/post/{post_id}/comments")
+    async def comment(request: Request, token: str, post_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        body = str(form.get("body") or "")
+        try:
+            service.add_comment(store, token, post_id, body)
+        except service.ServiceError as error:
+            view = service.post_view(store, subscription, post_id, config.clock())
+            if view is None:
+                return refused(request, token, error)
+            return page(
+                request, "post.html", 400, token=token, **view, error=str(error), draft=body, tab="community"
+            )
+        service.log_event(store, token, "comment")
+        return RedirectResponse(f"/p/{token}/post/{post_id}#comments", 303)
+
+    @app.post("/p/{token}/comments/{comment_id}/delete")
+    async def comment_delete(request: Request, token: str, comment_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        service.delete_comment(store, token, comment_id)
+        return RedirectResponse(back(form, token, f"/p/{token}/community"), 303)
+
+    @app.get("/p/{token}/profile", response_class=HTMLResponse)
+    def profile(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        current = service.profile_of(store, token)
+        return page(
+            request, "profile.html", token=token, profile=current, values=current or {}, tab="community"
+        )
+
+    @app.post("/p/{token}/profile", response_class=HTMLResponse)
+    async def profile_save(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=8)
+        fields = {k: str(v) for k, v in form.items()}
+        before = service.profile_of(store, token)
+        try:
+            saved = service.save_profile(store, token, fields)
+        except service.ServiceError as error:
+            return page(
+                request,
+                "profile.html",
+                400,
+                token=token,
+                profile=before,
+                values=fields,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "profile", "new" if before is None else "changed")
+        if before is None:
+            return RedirectResponse(f"/p/{token}/community?tab=explore&saved=joined", 303)
+        return RedirectResponse(f"/p/{token}/u/{saved['handle']}?saved=profile", 303)
+
+    @app.post("/p/{token}/profile/leave")
+    def profile_leave(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.leave_network(store, token)
+        service.log_event(store, token, "profile", "left")
+        return RedirectResponse(f"/p/{token}/progress?saved=left#diary", 303)
+
+    @app.get("/p/{token}/people", response_class=HTMLResponse)
+    def people(request: Request, token: str, q: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "people.html",
+            token=token,
+            profile=service.profile_of(store, token),
+            view=service.people_view(store, subscription, q[:80]),
+            tab="community",
+        )
+
+    @app.get("/p/{token}/u/{handle}", response_class=HTMLResponse)
+    def person(request: Request, token: str, handle: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.person_view(store, subscription, handle, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("there is nobody called @{handle}", handle=handle[:40]),
+                token=token,
+            )
+        return page(
+            request,
+            "person.html",
+            token=token,
+            **view,
+            profile=service.profile_of(store, token),
+            saved=_notice(saved),
+            tab="progress" if view["me"] else "community",
+        )
+
+    async def circle_change(
+        request: Request, token: str, change: Callable[[], Any], fallback: str
+    ) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            change()
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, fallback), 303)
+
+    @app.post("/p/{token}/u/{handle}/follow")
+    async def follow(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.follow(store, token, handle), f"/p/{token}/u/{handle}"
+        )
+
+    @app.post("/p/{token}/u/{handle}/unfollow")
+    async def unfollow(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.unfollow(store, token, handle), f"/p/{token}/u/{handle}"
+        )
+
+    @app.post("/p/{token}/requests/{handle}")
+    async def answer_request(request: Request, token: str, handle: str) -> Response:
+        form = await request.form(max_files=0, max_fields=3)
+        accept = form.get("answer") == "accept"
+        return await circle_change(
+            request, token, lambda: service.answer_follow(store, token, handle, accept), f"/p/{token}/people"
+        )
+
+    @app.post("/p/{token}/followers/{handle}/remove")
+    async def remove_follower(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.remove_follower(store, token, handle), f"/p/{token}/people"
+        )
+
+    @app.get("/p/{token}/explain", response_class=HTMLResponse)
+    def explain_form(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request,
+            "explain.html",
+            token=token,
+            draft={},
+            profile=service.profile_of(store, token),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/explain", response_class=HTMLResponse)
+    async def explain_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        profile = service.profile_of(store, token)
+        if int(request.headers.get("content-length") or 0) > MAX_POST_UPLOAD:
+            error = service.translate("These photos are too large together; send fewer or smaller ones.")
+            return page(
+                request,
+                "explain.html",
+                413,
+                token=token,
+                draft={},
+                profile=profile,
+                error=error,
+                tab="community",
+            )
+        form = await request.form(max_files=service.social.MAX_PHOTOS, max_fields=10)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            post = service.post_explanation(store, subscription, fields, photos, now=config.clock())
+        except service.ServiceError as error:
+            return page(
+                request,
+                "explain.html",
+                400,
+                token=token,
+                draft=fields,
+                profile=profile,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "explained", post.visibility)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+
+    @app.get("/p/{token}/notes", response_class=HTMLResponse)
+    def notes_library(
+        request: Request,
+        token: str,
+        course: str = "",
+        uni: str = "",
+        prog: str = "",
+        sort: str = "helpful",
+        saved: str = "",
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.library_view(
+            store,
+            subscription,
+            filters={"course": course, "uni": uni, "prog": prog},
+            sort=sort,
+            now=config.clock(),
+        )
+        return page(request, "notes.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.get("/p/{token}/notes/new", response_class=HTMLResponse)
+    def notes_form(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request,
+            "notes_new.html",
+            token=token,
+            draft={},
+            profile=service.profile_of(store, token),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/notes/new", response_class=HTMLResponse)
+    async def notes_save(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        profile = service.profile_of(store, token)
+
+        def again(status: int, error: str, draft: dict) -> HTMLResponse:
+            return page(
+                request,
+                "notes_new.html",
+                status,
+                token=token,
+                draft=draft,
+                profile=profile,
+                error=error,
+                tab="community",
+            )
+
+        if int(request.headers.get("content-length") or 0) > MAX_NOTES_UPLOAD:
+            return again(
+                413,
+                service.translate("These photos are too large together; send fewer or smaller ones."),
+                {},
+            )
+        form = await request.form(max_files=service.social.MAX_NOTE_PHOTOS, max_fields=10)
+        fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
+        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        try:
+            post = service.post_notes(store, subscription, fields, photos, now=config.clock())
+        except service.ServiceError as error:
+            return again(400, str(error), fields)
+        service.log_event(store, token, "notes", post.visibility)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+
+    # ------------------------------------------------------------ study groups (D28)
+
+    @app.get("/p/{token}/groups", response_class=HTMLResponse)
+    def groups(request: Request, token: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.groups_view(store, subscription, config.clock())
+        return page(request, "groups.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.post("/p/{token}/groups", response_class=HTMLResponse)
+    async def group_create(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            group = service.create_group(store, token, fields, now=config.clock())
+        except service.ServiceError as error:
+            view = service.groups_view(store, subscription, config.clock())
+            return page(
+                request,
+                "groups.html",
+                400,
+                token=token,
+                view=view,
+                error=str(error),
+                draft=fields,
+                tab="community",
+            )
+        service.log_event(store, token, "group", "created")
+        return RedirectResponse(f"/p/{token}/groups/{group.id}?saved=group", 303)
+
+    def group_page(
+        request: Request, token: str, group_id: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.group_view(store, subscription, group_id, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this group is not, or no longer, yours"),
+                token=token,
+            )
+        return page(request, "group.html", status, token=token, view=view, tab="community", **extra)
+
+    @app.get("/p/{token}/groups/{group_id}", response_class=HTMLResponse)
+    def group(request: Request, token: str, group_id: str, saved: str = "") -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return group_page(request, token, group_id, saved=_notice(saved))
+
+    async def group_change(
+        request: Request, token: str, group_id: str, change: Callable[[dict], Any], done: str
+    ) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            change(fields)
+        except service.ServiceError as error:
+            return group_page(request, token, group_id, 400, error=str(error), draft=fields)
+        return RedirectResponse(done, 303)
+
+    @app.post("/p/{token}/groups/{group_id}/invite", response_class=HTMLResponse)
+    async def group_invite(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.invite_to_group(
+                store, token, group_id, f.get("handle", ""), now=config.clock()
+            ),
+            f"/p/{token}/groups/{group_id}?saved=invited",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/settings", response_class=HTMLResponse)
+    async def group_settings(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.change_group(store, token, group_id, f),
+            f"/p/{token}/groups/{group_id}?saved=group_saved",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/remove/{handle}", response_class=HTMLResponse)
+    async def group_remove(request: Request, token: str, group_id: str, handle: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.remove_from_group(store, token, group_id, handle),
+            f"/p/{token}/groups/{group_id}",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/answer", response_class=HTMLResponse)
+    async def group_answer(request: Request, token: str, group_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        accept = form.get("answer") == "accept"
+        try:
+            joined = service.answer_group(store, token, group_id, accept, now=config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        if joined:
+            service.log_event(store, token, "group", "joined")
+            return RedirectResponse(f"/p/{token}/groups/{group_id}?saved=joined_group", 303)
+        return RedirectResponse(f"/p/{token}/groups", 303)
+
+    @app.post("/p/{token}/groups/{group_id}/leave")
+    def group_leave(request: Request, token: str, group_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.leave_group(store, token, group_id)
+        service.log_event(store, token, "group", "left")
+        return RedirectResponse(f"/p/{token}/groups?saved=left_group", 303)
+
+    # ------------------------------------------------------------ flashcards (D29)
+
+    def cards_page(
+        request: Request, subscription: service.Subscription, course: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        view = service.cards_view(store, subscription, config.clock(), course=course[:80])
+        return page(request, "cards.html", status, token=subscription.token, view=view, tab="focus", **extra)
+
+    @app.get("/p/{token}/cards", response_class=HTMLResponse)
+    def cards_list(
+        request: Request, token: str, course: str = "", saved: str = "", added: int = 0
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        notice = service.translate_plural("{n} card added.", "{n} cards added.", added) if added else None
+        if saved in CARD_NOTICES:
+            notice = service.translate(CARD_NOTICES[saved])
+        return cards_page(request, subscription, course, saved=notice)
+
+    @app.post("/p/{token}/cards", response_class=HTMLResponse)
+    async def cards_add(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            added = service.add_cards(store, subscription, fields, now=config.clock())
+        except service.ServiceError as error:
+            return cards_page(
+                request, subscription, fields.get("course", ""), 400, error=str(error), draft=fields
+            )
+        service.log_event(store, token, "cards", str(added))
+        course = quote(fields.get("course", "").strip())
+        return RedirectResponse(f"/p/{token}/cards?course={course}&added={added}", 303)
+
+    @app.get("/p/{token}/cards/review", response_class=HTMLResponse)
+    def cards_review(request: Request, token: str, course: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.card_review_view(store, subscription, config.clock(), course=course[:80])
+        return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="focus")
+
+    @app.post("/p/{token}/cards/{card_id}/answer")
+    async def cards_answer(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        course = str(form.get("course") or "")[:80]
+        try:
+            service.answer_card(
+                store, subscription, card_id, str(form.get("grade") or ""), now=config.clock()
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(f"/p/{token}/cards/review?course={quote(course)}", 303)
+
+    @app.get("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
+    def card_page(request: Request, token: str, card_id: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        card = service.card_view(store, subscription, card_id)
+        if card is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this card is not, or no longer, there"),
+                token=token,
+            )
+        return page(request, "card.html", token=token, card=card, draft=card, tab="focus")
+
+    @app.post("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
+    async def card_save(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=5)
+        fields = {k: str(v) for k, v in form.items()}
+        card = service.card_view(store, subscription, card_id)
+        try:
+            service.edit_card(store, subscription, card_id, fields)
+        except service.ServiceError as error:
+            if card is None:
+                return refused(request, token, error)
+            return page(
+                request, "card.html", 400, token=token, card=card, draft=fields, error=str(error), tab="focus"
+            )
+        return RedirectResponse(
+            f"/p/{token}/cards?course={quote(fields.get('course', ''))}&saved=card_saved", 303
+        )
+
+    @app.post("/p/{token}/cards/{card_id}/delete")
+    def card_delete(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        card = service.card_view(store, subscription, card_id)
+        service.delete_card(store, subscription, card_id)
+        course = quote(card["course"]) if card else ""
+        return RedirectResponse(f"/p/{token}/cards?course={course}&saved=card_deleted", 303)
+
+    @app.get("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
+    def report_form(request: Request, token: str, kind: str, target: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        item = service.report_view(store, subscription, kind, target)
+        if item is None or item["mine"]:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this post is not, or no longer, visible to you"),
+                token=token,
+            )
+        return page(
+            request, "report.html", token=token, item=item, reasons=service.REPORT_REASONS, tab="community"
+        )
+
+    @app.post("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
+    async def report_send(request: Request, token: str, kind: str, target: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        item = service.report_view(store, subscription, kind, target)
+        try:
+            if item is None:
+                raise service.InvalidInput(
+                    service.translate("this post is not, or no longer, visible to you")
+                )
+            service.report(store, token, kind, target, str(form.get("reason") or ""))
+            if form.get("block") == "1" and item["author"]:
+                service.block(store, token, item["author"]["handle"])
+        except service.ServiceError as error:
+            if item is None:
+                return refused(request, token, error)
+            return page(
+                request,
+                "report.html",
+                400,
+                token=token,
+                item=item,
+                reasons=service.REPORT_REASONS,
+                error=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "flagged", kind)
+        blocked = form.get("block") == "1"
+        return RedirectResponse(f"/p/{token}/community?saved={'blocked' if blocked else 'reported'}", 303)
+
+    @app.post("/p/{token}/u/{handle}/block")
+    async def block(request: Request, token: str, handle: str) -> Response:
+        done = await circle_change(
+            request, token, lambda: service.block(store, token, handle), f"/p/{token}/community?saved=blocked"
+        )
+        return done
+
+    @app.post("/p/{token}/u/{handle}/unblock")
+    async def unblock(request: Request, token: str, handle: str) -> Response:
+        return await circle_change(
+            request, token, lambda: service.unblock(store, token, handle), f"/p/{token}/people"
+        )
+
+    # ------------------------------------------------------------ the owner's review
+
+    def admin_key(key: str) -> bool:
+        """Whether `key` is the owner's review key (CPS_ADMIN_TOKEN). Without one
+        set, or with one too short to be secret, there is no review page."""
+        expected = config.admin_token or ""
+        return len(expected) >= 24 and secrets.compare_digest(key.encode(), expected.encode())
+
+    @app.get("/admin/{key}", response_class=HTMLResponse)
+    def admin(request: Request, key: str, saved: str = "") -> HTMLResponse:
+        if not admin_key(key):
+            return missing(request)
+        notice = service.translate("Done.") if saved else None
+        return page(request, "admin.html", key=key, items=service.moderation_view(store), saved=notice)
+
+    @app.post("/admin/{key}/review")
+    async def admin_review(request: Request, key: str) -> Response:
+        if not admin_key(key):
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=4)
+        keep = form.get("decision") == "keep"
+        service.moderate(store, str(form.get("kind") or ""), str(form.get("target") or ""), keep)
+        return RedirectResponse(f"/admin/{key}?saved=1", 303)
+
+    @app.get("/admin/{key}/m/{name}")
+    def admin_photo(key: str, name: str) -> Response:
+        found = service.admin_photo(store, name) if admin_key(key) else None
+        if found is None:
+            return Response("not found\n", 404, media_type="text/plain")
+        return Response(found[0], media_type=found[1], headers={"Cache-Control": "no-store"})
+
+    @app.post("/p/{token}/review/seen")
+    async def review_seen(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        week = str(form.get("week") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.hide_review(current, week))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/p/{token}/language")
+    async def language(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("lang") or "")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_language(current, chosen, now=config.clock())
+            )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        service.log_event(store, token, "language", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=language", 303)
+
+    @app.post("/p/{token}/appearance")
+    async def appearance(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("theme") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_theme(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "theme", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
+    @app.post("/p/{token}/motion")
+    async def motion(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("motion") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_motion(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "motion", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
 
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
@@ -454,7 +1547,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await session_change(request, token, sid, start, days, change, "report")
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
-    def settings(request: Request, token: str, new: int = 0) -> HTMLResponse:
+    def settings(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -466,6 +1559,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             new=bool(new),
             empty_rows=forms.EMPTY_ROWS,
             tab="settings",
+            saved=_notice(saved),
+            ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -500,6 +1595,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 empty_rows=forms.EMPTY_ROWS,
                 error=str(error),
                 tab="settings",
+                ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             )
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
@@ -529,7 +1625,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return tasks_page(request, subscription, saved=TASK_NOTICES.get(saved or ""))
+        return tasks_page(request, subscription, saved=_notice(saved or ""))
 
     @app.post("/p/{token}/tasks", response_class=HTMLResponse)
     async def add_task(request: Request, token: str) -> Response:
@@ -559,6 +1655,43 @@ def create_app(config: Config | None = None) -> FastAPI:
             return plan_page(request, subscription, "today", 400, task_error=str(error))
         service.log_event(store, token, "task")
         return RedirectResponse(back_to(token, where, saved="added"), 303)
+
+    @app.post("/p/{token}/tasks/understand", response_class=HTMLResponse)
+    async def understand_task(request: Request, token: str) -> Response:
+        """A task typed in one line, read into the new-task form's fields (D12). The
+        sheet's script asks for JSON and fills its fields; without the script the
+        answer is a page with the same form, filled in, to check and add."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=12)
+        words = str(form.get("words") or "")
+        wants_json = "application/json" in request.headers.get("accept", "")
+        try:
+            read = service.understand_task(store, subscription, words, now=config.clock())
+        except service.ServiceError as error:
+            if wants_json:
+                return JSONResponse(error.to_dict(), 400)
+            return tasks_page(request, subscription, 400, task_error=str(error))
+        service.log_event(store, token, "understood", read["by"])
+        if wants_json:
+            return JSONResponse(read)
+        return page(request, "task_new.html", token=token, read=read, words=words, tab="tasks")
+
+    @app.post("/p/{token}/ai")
+    async def ai_setting(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        on = form.get("on") == "1"
+        try:
+            service.update_subscription(store, token, lambda current: service.set_ai(current, on))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "ai", "on" if on else "off")
+        return RedirectResponse(f"/p/{token}/settings?saved=ai#ai", 303)
 
     @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)
     async def task_done(request: Request, token: str) -> Response:
@@ -638,9 +1771,11 @@ def create_app(config: Config | None = None) -> FastAPI:
                 request,
                 "message.html",
                 404,
-                title="Session not found",
-                message="This session is no longer in your plan: the plan has changed since. "
-                "Your calendar shows the new one after its next refresh.",
+                title=service.translate("Session not found"),
+                message=service.translate(
+                    "This session is no longer in your plan: the plan has changed since. "
+                    "Your calendar shows the new one after its next refresh."
+                ),
                 token=token,
             )
         return page(request, "session.html", token=token, card=card)
@@ -660,7 +1795,14 @@ def create_app(config: Config | None = None) -> FastAPI:
                 lambda current: service.report_session(current, sid, outcome, now=config.clock()),
             )
         except service.ServiceError as error:
-            return page(request, "message.html", 400, title="Not recorded", message=str(error), token=token)
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not recorded"),
+                message=str(error),
+                token=token,
+            )
         if done is None:
             return missing(request)
         service.log_event(store, token, "report", outcome)
@@ -679,19 +1821,36 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(
             request,
             "message.html",
-            title="Deleted",
-            message="Your plan, your timetable, your deadlines and everything you reported are "
-            "deleted. Remove the calendar subscription from your calendar app too: it will "
-            "stop updating now.",
+            title=service.translate("Deleted"),
+            message=service.translate(
+                "Your plan, your timetable, your deadlines and everything you reported are "
+                "deleted. Remove the calendar subscription from your calendar app too: it will "
+                "stop updating now."
+            ),
         )
 
     return app
 
 
+def _html(text: str, /, **values: Any) -> Markup:
+    """A translated sentence that holds markup (a link, a key in bold): the
+    sentence is the catalogue's, trusted; the values are escaped."""
+    return Markup(service.translate(text)).format(**values)
+
+
 def _notice(saved: str) -> str | None:
     if saved == "1":
-        return "Saved. The plan has changed to match."
-    return TASK_NOTICES.get(saved)
+        return service.translate("Saved. The plan has changed to match.")
+    if saved == "logged":
+        return service.translate("Saved in your diary.")
+    if saved in NETWORK_NOTICES:
+        return service.translate(NETWORK_NOTICES[saved])
+    if saved in ("ai", "theme"):
+        return service.translate("Saved.")
+    if saved == "language":
+        return service.translate("Language changed. Your sessions are described in it from now on.")
+    notice = TASK_NOTICES.get(saved)
+    return service.translate(notice) if notice else None
 
 
 def _same_origin(request: Request) -> bool:

@@ -18,9 +18,19 @@ run. Where this is going as a product, and what it still lacks, is in
 <p align="center">
   <img alt="The plan screen on a laptop, on the synthetic sample semester: today's next session (deadline work on a statistics problem sheet, with the reason), what comes up, and the week with lectures in a faint tint of their course's colour and study sessions in a stronger tint, a red line at the current time" src="docs/app-week.png" width="72%">
   &nbsp;
-  <img alt="The Today page on a phone: the sessions and hours of study in the next 7 days, the next session and what comes up" src="docs/app-today-phone.png" width="22%">
+  <img alt="The Today page on a phone: this week's sessions done of planned in a ring, a two-day streak, last week's review with one suggestion, and the next session" src="docs/app-today-phone.png" width="22%">
 </p>
-<p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 2 October 2026 with two deadlines added.</sub></p>
+<p align="center"><sub><code>cps web</code> on <code>examples/sample-semester.ics</code> (synthetic), as it looks on 2 October 2026 with two deadlines added (left) and, with sessions reported for two weeks, on Monday 12 October (right).</sub></p>
+
+<p align="center">
+  <img alt="The Community tab on a phone: the Following feed with a focus session from a student at TU München (an hour and a half on dynamic programming, effort 8 of 10, a breakthrough, focused the whole time, a photo of handwritten notes), with three kudos and two comments" src="docs/app-community-phone.png" width="26%">
+</p>
+<p align="center"><sub>The Community tab (8 October 2026), with five invented students at five universities and a drawn page of notes; none of it is real data.</sub></p>
+
+<p align="center">
+  <img alt="The Trends page on a laptop: four stat tiles (hours this week, sessions kept, study load, streak), the exam forecast for three courses with the plan and if the student stopped today, and hours studied per week rising towards the weekly limit, with the 4-week average" src="docs/app-trends.png" width="72%">
+</p>
+<p align="center"><sub>Trends on 3 December 2026 for a synthetic student: <code>examples/sample-semester.ics</code>, sessions reported at random for ten weeks, focus sessions logged; not real data.</sub></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/pipeline-dark.svg">
@@ -120,12 +130,30 @@ mathematics and the admissibility arguments.
 
 `cps web` is the product as students would use it: one server for the pages, the
 calendar feeds and the reports, built for a phone and for a pilot on a small host
-(`docs/DEPLOY.md`, `render.yaml`).
+(`docs/DEPLOY.md`, `render.yaml`), in French and English (the language is the plan's;
+what is still English is AUDIT.md item 40).
 
 ```bash
 pip install -e ".[web]"
 cps web                        # http://127.0.0.1:8000
 ```
+
+**To look around without setting anything up**, `cps demo` makes a store of made-up
+students (you are @alex, on the sample timetable, with weeks of history, classmates
+at five universities, notes, a study group, flashcards), prints a link per student,
+and serves it. Everything in it is invented. On Windows (PowerShell), from the
+repository:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\python -m pip install -e ".[web]"
+.venv\Scripts\cps demo                     # open the link printed for @alex
+.venv\Scripts\cps demo --host 0.0.0.0      # also from a phone on the same Wi-Fi
+.venv\Scripts\cps demo --fresh             # throw the demo away and make it again
+```
+
+The sample timetable is the autumn semester 2026-27; outside its weeks the demo's
+clock stands on 19 November 2026 and runs forward from there.
 
 1. **Start**: paste the timetable's link (or choose its file). The exams in it are
    found; the week starts at 15 hours with Sundays off, both stated defaults.
@@ -142,14 +170,51 @@ cps web                        # http://127.0.0.1:8000
    why, "done, skipped, hard", and moving it by date and time. Day, three days or a
    week (← → to move, T for today); tabs at the bottom on a phone.
 4. **Tasks**, as in Motion: a new-task sheet on every page (the + button, or N) with
-   one-tap due dates and durations; the Tasks page lists each with its sessions done
+   one-tap due dates and durations, and a line to type it in words ("stats report for
+   Friday, about 6 h", or in French) that fills the fields in to check; by rules, or
+   by a model if the server has a key and the student turns AI on (D12, capped); the Tasks page lists each with its sessions done
    and the next one; tick it off when it is finished and its remaining sessions become
    free time (with an Undo).
-5. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
+5. **Progress**, a reason to come back (`docs/STRATEGY.md`): the week's sessions done
+   in a ring, a streak of days studied, the weeks since the plan began day by day,
+   milestones, each exam's readiness, and on Mondays last week in a paragraph with
+   one suggestion (sessions skipped at the same time of day, a week much heavier than
+   what was done, an exam close). The streak forgives: days off are neutral, one day a
+   week without a report is forgiven, a late report counts on its day, and a lost
+   streak is never announced (DECISIONS.md, D9). **Trends** show the trajectory:
+   hours per week against your own 4-week average and weekly limit, sessions kept,
+   study load (minutes × effort), courses, the time of day you keep sessions, and an
+   exam forecast from the memory model (predicted recall on exam day with the plan,
+   and if you stopped today); each self-test says what it adds on exam day. Light,
+   dark or automatic, in Settings.
+6. **Focus and Community**, a study network in Strava's shape (DECISIONS.md, D16 to
+   D19): start a timer for a course or the plan's session; the page counts the time
+   you spend away from it and says so on the session (a web page cannot block other
+   apps). Then say how it went: what you did, effort out of 10, progress, notes,
+   photos of your own work, and who sees it. Every session goes to your diary and
+   counts for the streak. With a handle, a university and a programme you can share:
+   a Following feed, an Explore feed across universities and programmes, kudos,
+   comments, and "Explain it simply" posts that readers of other subjects mark
+   "I got it". Follows are asked for and accepted; nobody's follower count is shown.
+   **Notes**: share your own notes of a course as photos of the pages; others mark
+   them helpful, and each month the three most helpful notes of each course are
+   marked for everyone to find. Notes are ranked, never people, and nothing is paid
+   (D26). **Groups**: a few friends share one weekly goal in hours; the group sees
+   its total and who has studied this week, never one person's hours (D28).
+   **Flashcards**: your own cards, each scheduled by the same memory model as the
+   plan and brought back just before you would forget it (D29).
+7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
-6. **After each session**: its calendar event links to a page that asks how it went.
-   Done, skipped or hard, in one tap; the plan changes at once. A hard self-test
-   comes back sooner; hard deadline work gets one more session.
+8. **After each session**: its calendar event links to a page that asks how it went.
+   Done, skipped or hard, in one tap; the plan changes at once. A self-test asks
+   how much you could recall without your notes (nothing, some, most, all), and the
+   memory model takes the answer as it is: what you could not recall comes back
+   sooner. Hard deadline work gets one more session.
+9. **Motion with a job** (D30): pages arrive and the tab's pill slides, rings and
+   charts draw themselves, a report changes the page in one movement and the
+   sessions the plan moved slide to their new slots in the calendar, and a full
+   week or a milestone gets a burst of confetti, once. Nothing moves if your device
+   asks for reduced motion, or if you choose Motion: Reduced in Settings.
 
 No account and no password: the two addresses are the keys, as with any calendar
 subscription link, and the page says so. No cookies, no trackers, nothing loaded
@@ -262,7 +327,8 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 - **Its estimates are estimates.** The value it plans with is 0.1 to 0.7 blocks
   optimistic against simulation; readiness is 90% ± 3%, not a guarantee.
 - **The assistant trusts your estimates.** How long a task takes is yours to say,
-  and a session counts as done until you report otherwise.
+  and a session counts as done until you report otherwise. The streak does not:
+  it counts only the sessions you report done or hard.
 - **A topic is a week of one subject.** One study block reviews a week of lectures,
   fresh lectures start "seen once and shaky", and the lecture itself is not counted
   as a review. These are simplifications, and the app lists them.
@@ -276,7 +342,7 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 39 in all, including a planner that put
+those defects and every one found since, 48 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
@@ -300,6 +366,8 @@ in a real browser are the owner's.
 | `widgets/` | the Streamlit workbench's drag-and-drop week (JavaScript, no build step) |
 | `src/cps/service.py` | the one API every front end uses |
 | `src/cps/assistant.py` | the assistant's rules: deadlines, budget, days off, exam practice, self-testing |
+| `src/cps/progress.py` | the streak, the week's ring and the day grid, derived from the plan and the reports |
+| `src/cps/i18n.py`, `locales/` | French and English: one catalogue keyed by the English sentence |
 | `src/cps/web/` | the hosted app (`cps web`): the plan screen and its calendar (`static/calendar.js`), setup, feeds, one-tap reports |
 | `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
@@ -313,21 +381,23 @@ in a real browser are the owner's.
 | `src/cps/budget.py` | the superseded block-budget continuation (AUDIT item 20) |
 | `src/cps/legacy.py` | the January 2026 model, kept as a failing test |
 | `benchmarks/` | the scripts behind every number that is not in `demo.py` |
-| `docs/` | method, process, architecture, write-up, references, product |
+| `docs/` | method, process, architecture, write-up, references, product, market, strategy, design |
+| `DECISIONS.md` | architecture and product decisions after the roadmap's D1 to D7 |
 | `archive/2025-prototype/` | the December 2025 prototype and reports, unchanged |
 
 ## Checking it yourself
 
 ```bash
-pip install -e ".[dev,app,web]"
-pytest                                    # 401 passed, 14 deselected (slow), 1 xfailed, ~45 s
-pytest -m "slow or not slow" --cov=cps    # everything: 415 passed, 1 xfailed, 93% coverage
+pip install -e ".[dev,app,web,ai]"
+pytest                                    # 544 passed, 15 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 559 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
 python benchmarks/semester.py             # a semester, with and without lectures as topics
 python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
 python benchmarks/figures.py              # the README's figures, from the runs above
+python benchmarks/reviews.py              # competitors' App Store reviews, coded by theme
 ```
 
 CI runs all of it on Ubuntu and Windows, Python 3.11 to 3.13. The one expected

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_people.html" import avatar %}
+{% block title %}{{ _("Community") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set here = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") %}
+<div class="page-title title-row">
+  <h1>{{ _("Community") }}</h1>
+  <div class="title-actions">
+    {% if view.profile %}
+    <a class="btn btn-sm" href="/p/{{ token }}/people">{{ _("People") }}{% if view.requests %} <span class="count" aria-label="{{ _n('{n} request', '{n} requests', view.requests) }}">{{ view.requests }}</span>{% endif %}</a>
+    <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ _("Explain something") }}</a>
+    {% endif %}
+    <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a>
+  </div>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+
+{% if not view.profile %}
+<section class="card join">
+  <span class="join-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16.5" cy="8" r="2.6"/><path d="M2.5 19c.6-3.2 3-5 5.5-5s4.9 1.8 5.5 5M13.5 14.2c.9-.8 1.9-1.2 3-1.2 2.2 0 4.2 1.5 4.8 4.5"/></svg></span>
+  <h2>{{ _("Study alongside students everywhere") }}</h2>
+  <p>{{ _("See what students at other universities and in other programmes are working on, cheer them on, and explain what you study in words anyone can follow.") }}</p>
+  <ul class="join-points">
+    <li>{{ _("You choose a handle. Your plan and your secret link stay private.") }}</li>
+    <li>{{ _("Each post says who sees it: only you, your followers, or everyone.") }}</li>
+    <li>{{ _("Nobody follows you unless you accept.") }}</li>
+  </ul>
+  <a class="btn btn-primary btn-lg" href="/p/{{ token }}/profile">{{ _("Choose a handle") }}</a>
+</section>
+{% endif %}
+
+{% set nav = view.tab %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
+
+{% if view.tab == "explore" %}
+{% set f = view.filters %}
+<form class="filters" method="get" action="/p/{{ token }}/community" role="search">
+  <input type="hidden" name="tab" value="explore">
+  <input name="uni" value="{{ f.uni or '' }}" placeholder="{{ _('University') }}" aria-label="{{ _('University') }}" maxlength="80">
+  <input name="prog" value="{{ f.prog or '' }}" placeholder="{{ _('Programme') }}" aria-label="{{ _('Programme') }}" maxlength="80">
+  <input name="course" value="{{ f.course or '' }}" placeholder="{{ _('Course') }}" aria-label="{{ _('Course') }}" maxlength="80">
+  <select name="kind" aria-label="{{ _('Kind of post') }}">
+    <option value="">{{ _("Everything") }}</option>
+    <option value="session"{% if f.kind == 'session' %} selected{% endif %}>{{ _("Study sessions") }}</option>
+    <option value="explain"{% if f.kind == 'explain' %} selected{% endif %}>{{ _("Explanations") }}</option>
+    <option value="notes"{% if f.kind == 'notes' %} selected{% endif %}>{{ _("Notes") }}</option>
+  </select>
+  <button type="submit" class="btn btn-sm">{{ _("Filter") }}</button>
+</form>
+{% endif %}
+
+<div class="feed">
+{% for p in view.posts %}{% include "_post.html" %}{% else %}
+<div class="card empty">
+  {% if view.tab == "explore" %}
+  <b>{{ _("Nothing here yet") }}</b>{% if view.filters.values() | select | list %}{{ _("No post matches these filters. Try fewer words.") }}{% else %}{{ _("When students share with everyone, their sessions and explanations appear here.") }}{% endif %}
+  {% else %}
+  <b>{{ _("Your feed is quiet") }}</b>{{ _("Sessions you share, and those of the people you follow, appear here. Find people in Explore.") }}
+  <p><a class="btn btn-tinted" href="/p/{{ token }}/community?tab=explore">{{ _("Explore") }}</a></p>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+{% endblock %}

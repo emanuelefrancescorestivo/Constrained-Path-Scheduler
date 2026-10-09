@@ -37,11 +37,24 @@ the rate limits are in memory for that reason.
 2. **Blueprint.** Dashboard, New, Blueprint **(check)**. Pick the repository and the
    `main` branch. Render reads `render.yaml` and lists one web service, `study-plan`,
    with a disk.
-3. **Two settings.** Render asks for the values marked `sync: false`:
+3. **Settings.** Render asks for the values marked `sync: false`:
    - `CPS_CONTACT`: the e-mail address students can write to about their data. It
      appears on the privacy page.
    - `CPS_BASE_URL`: leave empty, unless a custom domain is added later. The app then
      uses the address Render gives it (`RENDER_EXTERNAL_URL`).
+   - `CPS_ADMIN_TOKEN`: a long random string (24 characters or more; for example the
+     output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`). The
+     page where you review what students report is `/admin/<that string>`; keep it
+     as private as a password. Left empty, there is no review page, and reported
+     posts stay hidden after three reports until you set it (DECISIONS.md D20).
+   - `ANTHROPIC_API_KEY` (optional): your key from Anthropic's console, for AI
+     (DECISIONS.md D12). Left empty, there is no AI: tasks typed in words are read
+     by rules and the weekly review uses its template. With it, each student still
+     chooses in Settings. `CPS_AI_MONTHLY_CAP_USD` (default 10) stops calls for the
+     rest of the month once the month's spending would pass it; `CPS_AI_MODEL`
+     (default `claude-opus-5-5`; `claude-haiku-5-5` costs a fortieth as much per
+     token) picks the model. Set a spending limit in Anthropic's console as well:
+     the cap here counts what this server asked for, not what Anthropic billed.
 4. **Deploy.** Apply. The build installs the package with the `web` extra; the log
    should end with `serving on http://0.0.0.0:<port>` and the health check turning
    green. If the build says Python 3.13 is not available in that form, set
@@ -61,6 +74,10 @@ the rate limits are in memory for that reason.
 - **Logs** show method, route, status and time, never a plan's address.
 - **A release**: merge to `main`, wait for CI, then Manual Deploy in the dashboard
   **(check)**.
+- **Read the pilot's numbers** once a week: from the service's shell **(check)**,
+  `cps metrics --db /var/data/cps.sqlite` (or `--json`). Active students, sessions confirmed,
+  return on the 7th and 30th day, streaks, the network, the month's AI spending
+  (DECISIONS.md D15).
 - **Restore** a backup: stop the service, copy `/var/data/backups/cps-<date>.sqlite`
   over `/var/data/cps.sqlite` from the service's shell **(check)**, start it again.
 - **Delete everything**: delete the service and its disk in the dashboard.

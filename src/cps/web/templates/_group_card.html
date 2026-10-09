@@ -1,0 +1,9 @@
+{# A group in a list (the Groups page, Progress): `g` from service._group_card. #}
+<a class="card link-card group-card" href="/p/{{ token }}/groups/{{ g.id }}"{% if g.week.met %} data-celebrate="group-{{ g.id }}-{{ g.weeks[-1].monday }}"{% endif %}>
+  <div class="group-head">
+    <b>{{ g.name }}</b>
+    {% if g.run %}<span class="badge badge-ok">{{ _n("Goal met {n} week in a row", "Goal met {n} weeks in a row", g.run) }}</span>{% endif %}
+  </div>
+  <div class="meter-row group-meter"><span>{{ _("This week") }}</span><div class="meter"><span class="fill w{{ (g.week.percent // 10) * 10 }}"></span></div><b>{{ g.week.hours | hours }} / {{ g.week.goal | hours }} h</b></div>
+  <p class="hint">{% if g.week.met %}{{ _("Goal met this week.") }}{% else %}{{ _("{hours} h to go together.", hours=g.week.left | hours) }}{% endif %} {{ _("{n} of {size} studied this week.", n=g.week.studied, size=g.members | length) }}</p>
+</a>

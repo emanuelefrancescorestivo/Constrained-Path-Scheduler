@@ -1,14 +1,22 @@
 {# One session as a card: `card` from service.today_view, `token`, `show_why`. #}
-<article class="card session-card {% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}">
+<article class="card session-card {% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="s{{ card.id }}">
   <p class="kicker"><span class="dot"></span>{{ card.kind }} · {{ card.when }}–{{ card.until }}</p>
-  <h3>{{ card.title }}</h3>
-  {% if card.pinned %}<span class="badge badge-accent">Placed by you</span>{% endif %}
+  <h3>{{ card.title }}</h3>{% if card.topic %}<p class="meta">{{ card.topic }}</p>{% endif %}
+  {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
+  {% if show_why and card.gain and card.reported != "skipped" %}{% if card.reported in recall_words %}<p class="gain">{{ _h("After your answer, this topic is at <b>{with_it}</b> on exam day if no other review followed; the plan takes it from there (a model's estimate).", with_it=card.gain["with"] ~ " %") }}</p>{% else %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}{% endif %}
+  {% if show_why and not card.reported and token %}
+  <form method="post" action="/p/{{ token }}/focus/start" class="start-focus">
+    <input type="hidden" name="sid" value="{{ card.id }}">
+    <button class="btn btn-sm btn-tinted">{{ _("Start focus") }}</button>
+  </form>
+  {% endif %}
   {% if card.started %}
-  <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes" data-report>
-    {% for value, word in outcome_words.items() %}
-    <button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% if card.self_test %}<p class="label recall-ask">{{ _("How much could you recall, without your notes?") }}</p>{% endif %}
+  <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes{% if card.self_test %} recall{% endif %}" data-report{% if card.self_test %} data-recall{% endif %}>
+    {% for value, word in (recall_words if card.self_test else outcome_words).items() %}
+    <button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ _(word) }}</button>
     {% endfor %}
   </form>
   {% endif %}

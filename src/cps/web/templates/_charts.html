@@ -1,0 +1,41 @@
+{# Charts drawn on the server (DECISIONS.md D22): SVG marks stretched to the width,
+   every text in HTML beside them; each mark carries its value as a tooltip. #}
+
+{% macro columns(c, values_text, label, ticks, legend, mini=False) %}
+<figure class="chart{% if mini %} chart-mini{% endif %}">
+  <div class="chart-plot">
+    {% if not mini %}<div class="yaxis" aria-hidden="true"><span>{{ ticks[0] }}</span><span>{{ ticks[1] }}</span><span>0</span></div>{% endif %}
+    <svg viewBox="0 0 {{ c.w }} {{ c.h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}" focusable="false">
+      {% if not mini %}{% for y in c.grid %}<line class="grid" x1="0" x2="{{ c.w }}" y1="{{ y }}" y2="{{ y }}"/>{% endfor %}{% endif %}
+      {% for b in c.bars %}<g class="col{% if b.current %} now{% endif %}"><rect class="hit" x="{{ b.slot_x }}" y="0" width="{{ b.slot_w }}" height="{{ c.h }}"/>{% if b.d %}<path class="bar" d="{{ b.d }}"/>{% endif %}<title>{{ values_text[loop.index0] }}</title></g>{% endfor %}
+      {% if c.average %}<path class="avg" d="{{ c.average }}"/>{% endif %}
+      {% if c.limit is not none %}<line class="limit" x1="0" x2="{{ c.w }}" y1="{{ c.limit }}" y2="{{ c.limit }}"/>{% endif %}
+    </svg>
+  </div>
+  {% if not mini %}<div class="xaxis" aria-hidden="true">{% for l in c.labels %}<span>{{ l }}</span>{% endfor %}</div>{% endif %}
+  {% if legend %}<figcaption class="chart-legend">{{ legend }}</figcaption>{% endif %}
+</figure>
+{% endmacro %}
+
+{% macro line(c, values_text, label, legend) %}
+<figure class="chart">
+  <div class="chart-plot">
+    <div class="yaxis" aria-hidden="true"><span>100 %</span><span>50 %</span><span>0</span></div>
+    <svg viewBox="0 0 {{ c.w }} {{ c.h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}" focusable="false">
+      {% for y in c.grid %}<line class="grid" x1="0" x2="{{ c.w }}" y1="{{ y }}" y2="{{ y }}"/>{% endfor %}
+      {% if c.area %}<path class="wash" d="{{ c.area }}"/>{% endif %}
+      <path class="trend" d="{{ c.d }}"/>
+      {% for s in c.slots %}<rect class="hit" x="{{ s.x }}" y="0" width="{{ s.w }}" height="{{ c.h }}"><title>{{ values_text[loop.index0] }}</title></rect>{% endfor %}
+    </svg>
+  </div>
+  <div class="xaxis" aria-hidden="true">{% for l in c.labels %}<span>{{ l }}</span>{% endfor %}</div>
+  {% if legend %}<figcaption class="chart-legend">{{ legend }}</figcaption>{% endif %}
+</figure>
+{% endmacro %}
+
+{% macro spark(values, label) %}
+{% set c = charts.sparkline(values) %}
+<svg class="spark" viewBox="0 0 {{ c.w }} {{ c.h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}" focusable="false"><line class="grid" x1="0" x2="{{ c.w }}" y1="{{ c.h }}" y2="{{ c.h }}"/><path class="trend" d="{{ c.d }}"/></svg>
+{% endmacro %}
+
+{% macro key(kind) %}<span class="key key-{{ kind }}" aria-hidden="true"></span>{% endmacro %}

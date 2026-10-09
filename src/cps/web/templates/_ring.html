@@ -1,0 +1,7 @@
+{# A ring for a share of 0 to 100; the value is always written next to it too. #}
+{% macro ring(percent, size="md", label="") -%}
+<svg class="ring ring-{{ size }}{% if percent is not none and percent >= 100 %} full{% endif %}" viewBox="0 0 36 36" role="img" aria-label="{{ label }}">
+  <circle class="ring-track" cx="18" cy="18" r="15.5" pathLength="100"/>
+  {% if percent %}<circle class="ring-arc" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="{{ [percent, 100] | min }} 100" transform="rotate(-90 18 18)"/>{% endif %}
+</svg>
+{%- endmacro %}

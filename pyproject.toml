@@ -38,6 +38,10 @@ app = ["streamlit>=1.64"]
 # needs to read forms and uploads. Tested with FastAPI 0.141, uvicorn 0.54,
 # Jinja2 3.1, python-multipart 0.0.x.
 web = ["fastapi>=0.141", "uvicorn>=0.54", "jinja2>=3.1", "python-multipart>=0.0.20"]
+# AI in the hosted app (DECISIONS.md D12, the owner's answer of 2026-10-08: AI on a
+# small budget with the owner's key): Anthropic's official SDK, imported only when
+# ANTHROPIC_API_KEY is set. Tested with anthropic 1.12.1. Without it, the rules answer.
+ai = ["anthropic>=1.12,<2"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -62,6 +66,10 @@ select = ["F", "E", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = [
     "RUF001", "RUF002", "RUF003",  # the docs use real typography: en dashes, primes, pi
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# A translation catalogue is one sentence per line; wrapping them would hide them.
+"src/cps/locales/*.py" = ["E501"]
 
 [tool.mypy]
 # No python_version: numpy's stubs need 3.12 syntax, so mypy checks with the

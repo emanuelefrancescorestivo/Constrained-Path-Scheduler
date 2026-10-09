@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Explain it simply") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/log.js"></script>{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Explain it simply") }}</h1>
+  <p>{{ _("Pick one idea from your course and explain it to a student of something else entirely. If you can, you understand it.") }}</p>
+</div>
+{% if not profile %}<p class="card">{{ _h('To share an explanation, <a href="{href}">choose a handle</a> first. You can still keep one for yourself.', href="/p/" ~ token ~ "/profile") }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/explain" enctype="multipart/form-data" class="log-form with-photos">
+  <div class="card">
+    <label for="ex-concept">{{ _("The idea") }}</label>
+    <input id="ex-concept" name="concept" value="{{ draft.concept or '' }}" required maxlength="120" placeholder="{{ _('Eigenvalues, opportunity cost, the Krebs cycle…') }}">
+    <label for="ex-course">{{ _("Course") }}</label>
+    <input id="ex-course" name="course" value="{{ draft.course or '' }}" maxlength="80" list="qa-courses" autocomplete="off">
+    <label for="ex-text">{{ _("In simple words") }}</label>
+    <textarea id="ex-text" name="text" rows="7" required maxlength="1200" placeholder="{{ _('No jargon. An example from everyday life helps.') }}">{{ draft.text or '' }}</textarea>
+    <label for="ex-photos">{{ _("A sketch or a diagram (optional, up to 4)") }}</label>
+    <input id="ex-photos" name="photos" type="file" accept="image/jpeg,image/png,image/*" multiple>
+  </div>
+  <fieldset class="card section">
+    <legend>{{ _("Who sees it") }}</legend>
+    <div class="pills" role="radiogroup">
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or ('everyone' if profile else 'me')) == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+    </div>
+    <p class="hint">{{ _("Readers who understood it can say so with one tap.") }}</p>
+  </fieldset>
+  <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Post") }}</button></div>
+</form>
+{% if courses %}<datalist id="qa-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+{% endblock %}

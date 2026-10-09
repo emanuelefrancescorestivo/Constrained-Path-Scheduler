@@ -6,6 +6,155 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- `cps demo`: the hosted app on a store of made-up students, to look around and give
+  feedback: @alex on the sample timetable with weeks of history (reports, focus
+  sessions, a streak, trends), five classmates at other universities with posts,
+  explanations, notes and kudos, a study group with its weeks, an invitation, and
+  flashcards due. Prints a link per student and the review page's, then serves; the
+  store is kept between runs (`--fresh` makes it again) and only a directory it made
+  is ever removed. Outside the sample semester its clock stands on 19 November 2026.
+- Motion (D30): pages arrive with a view transition, and the current tab's pill
+  slides to its place; rings fill, chart columns grow, trend lines draw, meters fill
+  and numbers count up on a page's first paint; a report on Today, a tick or a kudos
+  changes the page in one movement, the ring and numbers moving from their old
+  values; in the calendar, the sessions the plan moved slide to their new slots; a kudos or a helpful mark pops; flashcards slide from one to the next;
+  the focus clock breathes, with a ring going round once a minute; confetti, once,
+  for a full week, a milestone, a group's goal met, the day's flashcards done.
+  Nothing moves when the device asks for reduced motion, or with the new setting
+  Motion: Reduced. No library.
+- Flashcards (D29): a student's own cards by course, written one at a time or pasted
+  one per line (tab or " | "), private. Each card is scheduled by the planner's
+  FSRS-4.5 model and comes back when its predicted recall falls to 90 %. The review
+  screen shows the question, then the answer and four answers (Again, Hard, Good,
+  Easy), each with when the card would come back; it works without scripts, and
+  space and 1 to 4 work as keys. Due cards first, then at most 20 new cards a day;
+  "Again" brings a card back 10 minutes later. Today and Focus say how many cards
+  are waiting; `cps metrics` counts answers.
+- Study groups (D28), the cooperative stand-in for the notebook's leagues: up to
+  eight students with handles and one weekly goal in hours for all of them. Members
+  invite by handle; the invited person accepts or declines. The group's page shows
+  this week's total against the goal, the weeks in a row it was met, the weeks since
+  it began with the goal as a line, and who has studied this week, never one
+  member's hours. Progress shows the student's groups; Community gets a Groups tab
+  with the invitations waiting. Owners rename, change the goal and remove members;
+  blocks, leaving the network and deleting a plan are handled. `cps metrics` counts
+  groups of two or more.
+- "In simple words" (D27): the session log has an optional line for what was
+  learned, said so a student of another subject would follow it; the session's post
+  shows it under its numbers.
+- The notes library (D26), chosen by the owner from docs/ANALYTICS.md §4 (option B):
+  Community gets a Notes tab where students share their own notes of a course as
+  photos of the pages (up to eight), with their word that the notes are their own.
+  Others mark them "Helpful" (an author cannot mark their own); the library finds
+  notes by course, university and programme, the most helpful this month first, or
+  the newest; each month the three notes of each course with the most helpful marks,
+  from at least two people, carry "No. 1 this month" to "No. 3". A profile says how
+  many notes were shared and how often they were marked helpful. The guidelines gain
+  a section on notes and, with a contact address set, a line for rights holders.
+  Recognition only: no points, no money. `cps metrics` counts notes shared.
+- The recall question (D25), chosen by the owner from docs/ANALYTICS.md: a
+  self-test now asks "How much could you recall, without your notes?" (Nothing,
+  Some, Most, All, or Skipped) on Today, on the session's page and in the calendar.
+  The answer is an FSRS grade kept on the session, so the next review of that topic,
+  the exam forecast and each session's gain use what was recalled; recalling nothing
+  brings the topic back sooner. Trends shows recall week by week. Tasks and exam
+  practice keep Done, Skipped, Hard.
+- Analytics and appearance (docs/ANALYTICS.md; D21 to D24), after the owner asked for
+  a light mode and "more analytics: people love to see trajectory". A Trends page,
+  for 4 weeks, 12 weeks or the semester: this week against the student's own 4-week
+  average (hours, sessions kept, study load, streak), whether study time is rising;
+  the exam forecast per course (predicted recall on exam day with the plan and if
+  the student stopped today, and how the sessions done built it week by week, from
+  the FSRS model, rounded to 5 % and labelled as an estimate); hours per week with
+  the 4-week average and the weekly limit; sessions kept per week; study load
+  (minutes × perceived effort of logged sessions, the session-RPE method); hours per
+  course; the share kept by morning, afternoon and evening; focus. Charts are SVG
+  drawn on the server, with a tooltip on each mark and a table of the numbers, and
+  follow light and dark. Progress gets a trajectory card. Each self-test says what
+  it adds to its topic's recall on exam day ("55 % without this session, 80 % with
+  it"): the notebook's "revise today, +22 %" computed, not invented. Settings gets
+  Appearance: Automatic, Light or Dark, kept with the plan (`cps.trends`,
+  `service.trends_view`, `forecast`, `session_gains`, `web/charts.py`).
+- The pilot's measures (D15): `cps metrics` (or `--json`) reads the store and prints
+  plans set up, students active in 7 and 30 days, the north star (a session
+  confirmed in 7 days), sessions confirmed of those planned, return on the 7th and
+  30th day, streaks, plans over their own weekly limit, the network's activity and
+  the month's AI spending against the cap (`service.engagement`). A moderation
+  report is now logged as `flagged`, not `report`, so that it is not counted as a
+  session's report (AUDIT.md item 44).
+- AI, opt-in and capped (D12). A line in the new-task sheet: type the task in words
+  ("stats report for Friday, about 6 h", "rapport de stats pour vendredi 18h, 6
+  heures") and "Fill in" puts a name, a due date, hours and a course in the fields, to
+  check before adding; without scripts, a page with the form filled in. Rules read
+  it always (`ai.read_task`); with `ANTHROPIC_API_KEY` set and AI turned on in
+  Settings, Claude reads it (structured outputs, low effort) and writes the weekly
+  review's paragraph, kept per week and numbers. A ledger (`ai_usage`) counts every
+  call's tokens and dollars; the monthly cap (`CPS_AI_MONTHLY_CAP_USD`, default 10)
+  and twenty calls per student a day stop calls; any refusal, error or answer out of
+  bounds gives the rules' answer. Anthropic's SDK is the optional `ai` extra.
+- Moderation for the network (D20). Every post (its ··· menu) and every comment can
+  be reported, with a reason; the third different person to report something hides
+  it from everyone but its author until the owner reviews it at
+  `/admin/<CPS_ADMIN_TOKEN>` and keeps or removes it; each decision goes to the event
+  log. Anyone can block someone, from a post or a profile: neither sees the other,
+  follows between them end, nobody is told; People lists the blocked, to undo.
+  Guidelines and the privacy page say how it works (`service.report`, `block`,
+  `moderation_view`, `moderate`; `social.report`, `review`).
+- The study network itself (D16, D19). A Community tab with two feeds: Following
+  (one's own shared posts and those of people one follows) and Explore (posts shared
+  with everyone, across universities, filtered by university, programme, course and
+  kind). A profile is a handle, a university, a programme and a line about oneself,
+  with a declaration of being 15 or older; the plan's secret link stays the only
+  sign-in, and nothing of the plan is shown. Follows are requests the other person
+  accepts; followers can be removed. Kudos (one per person per post, given in the
+  background), comments (deleted by their author or the post's), and "Explain it
+  simply": an idea from one's course explained for a student of something else,
+  which readers mark "I got it". Sharing needs a handle; without one a post stays
+  private. "Leave the network" removes the profile, follows, kudos and comments and
+  keeps the diary, private. Person pages show no follower counts. Community
+  guidelines at `/guidelines`. On a phone, Community takes the Tasks tab's place
+  (Tasks stays on Today and behind the + button). `service.community_view`,
+  `post_view`, `person_view`, `people_view`, `save_profile`, `follow`,
+  `toggle_kudos`, `add_comment`, `post_explanation`, `leave_network`.
+- Focus sessions and a study diary, the first step of the study network
+  (DECISIONS.md D16 to D20, which replace D11's study buddies after the owner asked
+  for "a social network, like Strava"). A Focus tab: a full-screen timer for a
+  course or for the plan's session, the screen kept awake where the browser allows;
+  a heartbeat every 30 seconds, so that time away from the page is counted and shown
+  on the session ("left the app twice (6 min)"), and a session without the script
+  says its focus was not checked; a web page cannot block other apps, and native
+  blocking is a later step. Then the log: what was done, perceived effort 1 to 10,
+  progress 1 to 5, a note, up to four photos (made smaller and stripped of metadata
+  in the browser, stripped again on the server), and who sees it (only me,
+  followers, everyone). Every session goes to the diary on the Progress page, makes
+  its day studied for the streak, and reports the plan's session it was started
+  from. Deleting a post or a plan deletes its photos (`cps.social`,
+  `service.start_focus`, `focus_beat`, `finish_focus`, `log_session`, `diary_view`).
+- A reason to come back every day (docs/STRATEGY.md; DECISIONS.md D8, D9). A Progress
+  tab: the week's sessions done of planned in a ring, the streak and the best one,
+  the weeks since the plan began day by day, milestones, each exam's readiness. On
+  Today, the ring and the streak in a strip, and on Mondays and Tuesdays last week's
+  review: its numbers, a paragraph and one suggestion chosen by rules (sessions not
+  reported, sessions skipped at the same time of day, a week much heavier than what
+  was done, an exam close, everything done). The streak counts days with a session
+  reported done or hard; days with nothing planned are neutral; one day a week
+  without a report is forgiven; a late report counts on its day; a lost streak is
+  never announced (`progress.py`, `service.progress_view`, `weekly_review`). Each
+  plan's daily visit is logged once, for the pilot's measures (D15).
+- The hosted app in French and English (D10). The language is the plan's (chosen on
+  the home page, changed in Settings), else the browser's; no cookie. Every page, the
+  scripts' messages, what each session says to do, the plan's warnings, the errors a
+  student meets, dates and numbers, and the calendar feed's events. Sessions keep
+  language-free ids, so a report survives a change of language and calendar apps
+  update events instead of duplicating them. `cps.i18n` (`_()`, `_n()`, dates and
+  numbers in each language's words), `cps/locales/fr.py`, `static/i18n.js`;
+  `tests/test_i18n.py` fails on a sentence without French. What stays English is
+  AUDIT.md item 40; the French has not been reviewed by a French speaker yet.
+- The market analysis (`docs/MARKET.md`), the engagement strategy
+  (`docs/STRATEGY.md`), the design system (`docs/DESIGN.md`), the decisions that
+  follow from the owner's answers (`DECISIONS.md`), and `benchmarks/reviews.py`, which
+  codes competitors' App Store reviews by theme (not run yet: Apple's servers were
+  out of reach of the sandbox it was written in).
 - Tasks the way Motion handles them: a new-task sheet on every page (the + button, or
   the N key) with one-tap due dates and durations; a Tasks page with each task's
   sessions done and the next one; a task ticked off frees its remaining sessions, with
@@ -98,6 +247,23 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Toasts no longer arrive half their width off centre (AUDIT item 48).
+- A session timed from the plan and logged is counted once: Trends' hours, the
+  day's shade on Progress, the weekly review and the pilot's measures counted it
+  twice (AUDIT item 47).
+- A form with more photos than it takes no longer drops the extra ones silently in
+  the browser; it says so before sending (AUDIT item 46).
+- The pilot's north star now counts sessions reported hard (AUDIT.md item 45).
+- A post whose second photo was refused no longer leaves its first photo on disk
+  (AUDIT.md item 43).
+- On a phone, a long form's Save button sat under the tab bar (AUDIT.md item 42);
+  the effort scale no longer makes the log page wider than the screen.
+- The timetable reader was fitted to one university's export (AUDIT.md item 41). It
+  now reads exams and courses in eleven systems' and countries' shapes (ADE,
+  Hyperplanning, Celcat, Outlook with course codes, Italian, German, Spanish, Dutch,
+  Portuguese, US, Japanese), checked by `tests/test_generality.py`; the start page
+  takes the device's time zone. CLAUDE.md gains rule 13: no heuristic fitted to one
+  calendar.
 - On a phone, calendar blocks no longer cut a course name mid-word or lose its last
   line: short names in narrow columns, lines clamped with an ellipsis, one line when a
   word is wider than its block (AUDIT item 39).

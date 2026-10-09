@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Notes") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set here = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") %}
+{% set f = view.filters %}
+<div class="page-title title-row">
+  <h1>{{ _("Community") }}</h1>
+  <div class="title-actions">
+    <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a>
+  </div>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+
+{% set nav = "notes" %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
+
+<p class="lede">{{ _("Students' own notes, by course. Mark the ones that helped you: each month, the three most helpful notes of each course are marked for everyone to find.") }}</p>
+
+<form class="filters filters-notes" method="get" action="/p/{{ token }}/notes" role="search">
+  <input name="course" value="{{ f.course or '' }}" placeholder="{{ _('Course') }}" aria-label="{{ _('Course') }}" maxlength="80" list="lib-courses" autocomplete="off">
+  <input name="uni" value="{{ f.uni or '' }}" placeholder="{{ _('University') }}" aria-label="{{ _('University') }}" maxlength="80">
+  <input name="prog" value="{{ f.prog or '' }}" placeholder="{{ _('Programme') }}" aria-label="{{ _('Programme') }}" maxlength="80">
+  <select name="sort" aria-label="{{ _('Order') }}">
+    <option value="helpful"{% if view.sort == 'helpful' %} selected{% endif %}>{{ _("Most helpful") }}</option>
+    <option value="new"{% if view.sort == 'new' %} selected{% endif %}>{{ _("Newest") }}</option>
+  </select>
+  <button type="submit" class="btn btn-sm">{{ _("Filter") }}</button>
+</form>
+{% if view.courses %}<datalist id="lib-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+
+<div class="library">
+{% for p in view.notes %}
+<article class="card note-row" id="post-{{ p.id }}">
+  <a class="note-main" href="/p/{{ token }}/post/{{ p.id }}">
+    {% if p.photos %}<img class="note-thumb" src="{{ p.photos[0] }}" alt="" loading="lazy">{% endif %}
+    <span class="note-text">
+      <span class="kicker">{{ p.course }}</span>
+      <span class="note-title">{{ p.title }}</span>
+      <span class="note-meta">{% if p.author %}@{{ p.author.handle }}{% if p.author.university %} · {{ p.author.university }}{% endif %} · {% endif %}{{ _n("{n} page", "{n} pages", p.photos | length) }} · {{ p.when }}</span>
+      {% if p.top %}<span class="badge badge-top">{{ _("No. {rank} this month", rank=p.top) }}</span>{% endif %}
+    </span>
+  </a>
+  <div class="note-act" id="acts-{{ p.id }}">
+    {% if p.mine %}
+    <span class="act act-static" title="{{ _('Helpful marks') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V10l4.5-7c1.4 0 2.3 1.2 2 2.5L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.2 21H7zM3 10h4v11H3z"/></svg><span class="act-count">{{ p.kudos }}</span><span class="sr-only">{{ _n("{n} helpful mark", "{n} helpful marks", p.kudos) }}</span></span>
+    {% else %}
+    <form method="post" action="/p/{{ token }}/post/{{ p.id }}/kudos" data-async data-region="#acts-{{ p.id }}" data-quiet>
+      <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
+      <button type="submit" class="act{% if p.kudos_given %} given{% endif %}" aria-pressed="{{ 'true' if p.kudos_given else 'false' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V10l4.5-7c1.4 0 2.3 1.2 2 2.5L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.2 21H7zM3 10h4v11H3z"/></svg><span class="act-word">{{ _("Helpful") }}</span>{% if p.kudos %}<span class="act-count">{{ p.kudos }}</span>{% endif %}</button>
+    </form>
+    {% endif %}
+  </div>
+</article>
+{% else %}
+<div class="card empty">
+  <b>{{ _("No notes here yet") }}</b>{% if f.values() | select | list %}{{ _("No notes match these filters. Try fewer words.") }}{% else %}{{ _("Be the first: share the notes you are proudest of, in your own words.") }}{% endif %}
+  <p><a class="btn btn-tinted" href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a></p>
+</div>
+{% endfor %}
+</div>
+<p class="hint">{{ _h('Only your own notes, in your own words: no slides, handouts, textbook pages or exam papers. See the <a href="{href}">guidelines</a>.', href="/guidelines#notes") }}</p>
+{% endblock %}

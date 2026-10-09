@@ -37,6 +37,7 @@ report says so.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import hashlib
 import math
@@ -53,6 +54,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from . import ai as _ai
+from . import cards as flashcards
+from . import i18n as _i18n
+from . import progress as _progress
+from . import social as social
+from . import trends as _trends
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -68,6 +75,9 @@ from .calendar_io import (
     find_lectures,
     plan_to_ics,
 )
+from .i18n import _, _n, format_date, pick, use
+from .i18n import current as current_language
+from .i18n import number as format_number
 from .memory import (
     Grade,
     MemoryState,
@@ -192,7 +202,9 @@ class SubjectSpec:
                 raise InvalidInput(f"{self.name}: {exc}") from exc
         if self.familiarity is not None:
             return familiarity_prior(int(self.familiarity)), f"familiarity {int(self.familiarity)}"
-        raise InvalidInput(f"{self.name}: give a familiarity from 1 to 5, or a stability and a difficulty")
+        raise InvalidInput(
+            _("{name}: give a familiarity from 1 to 5, or a stability and a difficulty", name=self.name)
+        )
 
     def exam_datetime(self, zone: ZoneInfo) -> datetime:
         value = self.exam
@@ -200,7 +212,9 @@ class SubjectSpec:
             try:
                 value = datetime.fromisoformat(value.strip())
             except ValueError as exc:
-                raise InvalidInput(f"{self.name}: {self.exam!r} is not a date like 2026-06-15") from exc
+                raise InvalidInput(
+                    _("{name}: {value} is not a date like 2026-06-15", name=self.name, value=repr(self.exam))
+                ) from exc
         if isinstance(value, datetime):
             return value.replace(tzinfo=zone) if value.tzinfo is None else value.astimezone(zone)
         if isinstance(value, date):
@@ -212,7 +226,9 @@ def _zone(name: str) -> ZoneInfo:
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError) as exc:
-        raise InvalidInput(f"unknown time zone {name!r}; use an IANA name such as Europe/Rome") from exc
+        raise InvalidInput(
+            _("unknown time zone {zone}; use a name such as Europe/Paris", zone=repr(name))
+        ) from exc
 
 
 def _days_after(start: date, when: datetime) -> float:
@@ -396,9 +412,9 @@ def analyse_calendar(
     except ValueError as exc:
         raise InvalidInput(str(exc)) from exc
     if not 0 <= study_window[0] < study_window[1] <= 24:
-        raise InvalidInput("the study window must run from an earlier to a later hour, within 0 to 24")
+        raise InvalidInput(_("the study window must run from an earlier to a later hour, within 0 to 24"))
     if blocks_per_day < 1 or block_minutes < 30:
-        raise InvalidInput("use at least one block a day of at least 30 minutes")
+        raise InvalidInput(_("use at least one block a day of at least 30 minutes"))
     text = decode_ics(ics) if ics is not None else None
 
     if days is not None and days < 1:
@@ -513,6 +529,9 @@ class SessionView:
     kind: str = "review"  # "review", "first review", "task", "practice"
     detail: str = ""  # what to do in the block (the assistant says; the planner does not)
     pinned: bool = False  # the student put it at this time (`move_session`)
+    # How much a self-test recalled, as the student answered (D25): "again", "hard",
+    # "good" or "easy", FSRS's grades; "" when not answered (the outcome decides).
+    grade: str = ""
 
     @property
     def title(self) -> str:
@@ -639,12 +658,12 @@ class TaskView:
 def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
     """Specs to plain starting states with exam days, validated: one per subject."""
     if not subjects:
-        raise InvalidInput("add at least one subject with an exam date")
+        raise InvalidInput(_("add at least one subject with an exam date"))
     names = [s.name.strip() for s in subjects]
     if any(not n for n in names):
-        raise InvalidInput("every subject needs a name")
+        raise InvalidInput(_("every subject needs a name"))
     if len(set(n.casefold() for n in names)) != len(names):
-        raise InvalidInput("two subjects have the same name")
+        raise InvalidInput(_("two subjects have the same name"))
     zone = _zone(report.tz)
     found = {a.subject.casefold(): a.when for a in report.assessments}
     resolved: list[dict[str, Any]] = []
@@ -715,8 +734,10 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     **spec,
                     "name": f"{spec['subject']} · taught before {report.start:%d %b}",
                     "topic": f"taught before {report.start:%d %b}",
-                    "note": f"Review what was taught before {report.start:%d %b}.",
-                    "about": f"what was taught before {report.start:%d %b}",
+                    "note": _(
+                        "Review what was taught before {day}.", day=format_date(report.start, "day_short")
+                    ),
+                    "about": _("what was taught before {day}", day=format_date(report.start, "day")),
                     "target_days": _week_target(spec["exam_day"]),
                 }
             )
@@ -736,8 +757,10 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     **spec,
                     "name": f"{spec['subject']} · {label}",
                     "topic": label,
-                    "note": f"Review the lectures of the {label}.",
-                    "about": f"the lectures of the {label}",
+                    "note": _(
+                        "Review the lectures of the week of {day}.", day=format_date(monday, "day_short")
+                    ),
+                    "about": _("the lectures of the week of {day}", day=format_date(monday, "day")),
                     "stability": lecture_memory.stability,
                     "difficulty": lecture_memory.difficulty,
                     "last_review_day": available,
@@ -1089,8 +1112,7 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
         if session.outcome == "skipped" or session.title not in state:
             continue  # a task or exam practice: nothing to remember
         memory, last = state[session.title]
-        grade = Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
-        state[session.title] = (review(memory, session.start_day - last, grade), session.start_day)
+        state[session.title] = (review(memory, session.start_day - last, _grade(session)), session.start_day)
     return state
 
 
@@ -1141,15 +1163,17 @@ def export_ics(
     `include_history` adds the sessions already behind, which a subscribed feed
     keeps so that they do not vanish from the person's calendar once done.
     """
-    shown = (plan.history if include_history else ()) + plan.sessions
+    shown = [s for s in (plan.history if include_history else ()) + plan.sessions if s.outcome != "skipped"]
     text = plan_to_ics(
-        [(s.slot, s.title, s.rationale) for s in shown if s.outcome != "skipped"],
+        [(s.slot, s.title, s.rationale) for s in shown],
         plan.settings.start,
         plan.settings.tz,
         slots_per_day=plan.settings.slots_per_day,
         block_slots=max(1, plan.settings.block_minutes // (24 * 60 // plan.settings.slots_per_day)),
         uid_prefix=uid_prefix,
         refresh=refresh,
+        calendar_name=_("Study plan"),
+        summaries=[f"{_('Study')}: {topic_words(s.title)}" for s in shown],
     )
     return text.encode("utf-8")
 
@@ -1336,7 +1360,7 @@ def calendar_week(
     for when, name in exams.items():
         if when not in shown_exams:
             moment = datetime.fromisoformat(when)
-            place(moment, moment + timedelta(hours=1), f"Exam: {name}", "exam", course=name)
+            place(moment, moment + timedelta(hours=1), _("Exam: {name}", name=name), "exam", course=name)
     for begin, end, label, session in sessions:
         extra: dict[str, Any] = {}
         if isinstance(session, SessionView):
@@ -1345,7 +1369,7 @@ def calendar_week(
                 "id": session_id(session),
                 "detail": session.detail,
                 "why": session.rationale,
-                "title": session.title,
+                "title": topic_words(session.title),
                 "session_kind": session.kind,
                 "pinned": session.pinned,
                 "course": session.subject,
@@ -1357,7 +1381,7 @@ def calendar_week(
         "days": [
             {
                 "date": d.isoformat(),
-                "label": d.strftime("%a %d %b"),
+                "label": format_date(d, "short"),
                 "weekday": WEEKDAY_NAMES[d.weekday()],
                 "in_horizon": 0 <= (d - start).days < days,
             }
@@ -1380,7 +1404,25 @@ def session_label(session: SessionView) -> str:
     """ "Self-test: Algebra 3", "Work on: Stats report", "Practice: Analysis 3"."""
     what = session.title if session.kind == "task" else session.subject
     verb = _SESSION_VERBS.get(session.kind)
-    return f"{verb}: {what}" if verb else session.title
+    return _("{verb}: {what}", verb=_(verb), what=what) if verb else topic_words(session.title)
+
+
+_MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_TOPIC_WEEK = re.compile(r"(week of|taught before) (\d{1,2}) (" + "|".join(_MONTH_ABBR) + r")")
+
+
+def topic_words(title: str) -> str:
+    """A topic's name in the current language. Topic names are identifiers (a
+    session's id is made from its title, so a report survives a change of
+    language): "Algebra 3 · week of 05 Oct" is stored in English and shown as
+    "Algebra 3 · semaine du 5 oct." in French."""
+
+    def say(match: re.Match[str]) -> str:
+        day = date(2000, _MONTH_ABBR.index(match.group(3)) + 1, int(match.group(2)))
+        phrase = _("week of {day}") if match.group(1) == "week of" else _("taught before {day}")
+        return phrase.format(day=format_date(day, "day_short"))
+
+    return _TOPIC_WEEK.sub(say, title)
 
 
 def short_title(summary: str) -> str:
@@ -1484,7 +1526,20 @@ FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
 # Kept 30 days after the last exam or deadline, then deleted (docs/ROADMAP.md, D6).
 RETENTION = timedelta(days=30)
 # What a student can report about a session.
-REPORTS = ("done", "skipped", "struggled")
+REPORTS = ("done", "skipped", "struggled", "forgot", "some", "most", "all")
+# A self-test's answer to "how much could you recall, without your notes?" (D25),
+# as FSRS's four grades: the forecast then uses what the student recalled instead
+# of assuming every session went well.
+RECALL_GRADES = {"forgot": "again", "some": "hard", "most": "good", "all": "easy"}
+_GRADES = {"again": Grade.AGAIN, "hard": Grade.HARD, "good": Grade.GOOD, "easy": Grade.EASY}
+
+
+def _grade(session: SessionView) -> Grade:
+    """The grade a reported session gives its topic: the answer to the recall
+    question when there is one, else good if recalled and again if forgotten."""
+    if session.grade in _GRADES:
+        return _GRADES[session.grade]
+    return Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
 
 
 @dataclass(frozen=True)
@@ -1574,6 +1629,7 @@ def new_subscription(
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
     require_plan: bool = True,
+    lang: str | None = None,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
@@ -1582,7 +1638,7 @@ def new_subscription(
     The calendar last read is kept (`ics_text`), also for a link, so that a
     feedback tap replans at once from it instead of waiting for the network."""
     if source_url is None and ics is None and not busy_rows:
-        raise InvalidInput("give a calendar link, a calendar file or your week")
+        raise InvalidInput(_("give a calendar link, a calendar file or your week"))
     rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
     subscription = Subscription(
         token=secrets.token_urlsafe(24),
@@ -1603,6 +1659,7 @@ def new_subscription(
             "engine": engine,
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
+            "lang": pick(lang) if lang else current_language(),
         },
     )
     if plan is not None:
@@ -1615,6 +1672,20 @@ def new_subscription(
 
 
 def refresh_subscription(
+    subscription: Subscription,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+    reread: bool = True,
+) -> Subscription:
+    """`_refresh`, in the student's language: what each session says to do, and
+    the plan's warnings, are written when the plan is made (D10). A background
+    refresh has no request to take the language from."""
+    with use(subscription.options.get("lang") or current_language()):
+        return _refresh(subscription, now=now, fetch=fetch, reread=reread)
+
+
+def _refresh(
     subscription: Subscription,
     *,
     now: datetime | None = None,
@@ -1710,6 +1781,9 @@ def _as_reported(session: SessionView, report: str | None) -> SessionView:
         return session
     if report == "skipped":
         return replace(session, outcome="skipped")
+    if report in RECALL_GRADES and session.kind in ("review", "first review"):
+        grade = RECALL_GRADES[report]
+        return replace(session, outcome="lapsed" if grade == "again" else "recalled", grade=grade)
     if report == "struggled" and session.kind in ("review", "first review"):
         return replace(session, outcome="lapsed")
     return replace(session, outcome="recalled")
@@ -1729,16 +1803,20 @@ def report_session(
     """Record what happened at a session and plan again at once, from the calendar
     last read: no network, so a tap is answered immediately."""
     if report not in REPORTS:
-        raise InvalidInput(f"a session is {', '.join(REPORTS)}, not {report!r}")
+        raise InvalidInput(_("a session is done, skipped or hard, not {value}", value=repr(report)))
     session = find_session(subscription, sid)
     if session is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
+    if report in RECALL_GRADES and session.kind not in ("review", "first review"):
+        raise InvalidInput(
+            _("only a self-test asks how much you recalled; this one is done, skipped or hard")
+        )
     now = now or datetime.now(UTC)
     settings = PlanReport.from_dict(subscription.plan or {}).settings
     if session.start_day > _days_after(settings.start, now.astimezone(_zone(settings.tz))):
         # What happens at a session is known once it has started. Skipping one ahead
         # of time is blocking its time out, which is an activity, not a report.
-        raise InvalidInput("this session has not started yet; report it once it has")
+        raise InvalidInput(_("this session has not started yet; report it once it has"))
     options = subscription.options
     if report == "struggled" and session.kind == "task":
         block_hours = options["block_minutes"] / 60
@@ -1769,35 +1847,48 @@ def move_session(
     now = now or datetime.now(UTC)
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     old_start, old_end = _local(session.start, zone), _local(session.end, zone)
     if session not in plan.sessions or old_start <= now:
-        raise InvalidInput("this session has already started; report it instead of moving it")
+        raise InvalidInput(_("this session has already started; report it instead of moving it"))
     begin = _local(start, zone).replace(second=0, microsecond=0)
     end = begin + (old_end - old_start)
     if begin <= now:
-        raise InvalidInput("that time is already past")
+        raise InvalidInput(_("that time is already past"))
     if _days_after(plan.settings.start, begin) >= plan.settings.horizon_days:
-        raise InvalidInput("that is after the end of your plan")
+        raise InvalidInput(_("that is after the end of your plan"))
     for event in plan.events:
         lo, hi = _local(event.start, zone), _local(event.end, zone)
         if lo < end and begin < hi:
-            raise InvalidInput(f"that time is taken: {short_title(event.summary)}, {lo:%H:%M}–{hi:%H:%M}")
+            raise InvalidInput(
+                _(
+                    "that time is taken: {what}, {start}–{end}",
+                    what=short_title(event.summary),
+                    start=f"{lo:%H:%M}",
+                    end=f"{hi:%H:%M}",
+                )
+            )
     limit = None
     if session.kind == "task":
         task = next((t for t in plan.tasks if t.name == session.title), None)
-        limit = (_local(task.due, zone), "it is due") if task else None
+        limit = (_local(task.due, zone), _("it is due")) if task else None
     else:
         subject = next((x for x in plan.subjects if x.name == session.subject), None)
-        limit = (_local(subject.exam, zone), "the exam") if subject else None
+        limit = (_local(subject.exam, zone), _("the exam")) if subject else None
     if limit is not None and end > limit[0]:
-        raise InvalidInput(f"that is after {limit[1]} ({limit[0]:%a %d %b %H:%M})")
+        raise InvalidInput(
+            _(
+                "that is after {limit} ({when})",
+                limit=limit[1],
+                when=f"{format_date(limit[0].date(), 'short')} {limit[0]:%H:%M}",
+            )
+        )
     if session.kind in ("review", "first review"):
         spec = next((x for x in plan.specs if x["name"] == session.title), None)
         if spec is not None and _days_after(plan.settings.start, begin) < spec.get("available_day", 0.0):
-            raise InvalidInput("those lectures have not been taught yet at that time")
+            raise InvalidInput(_("those lectures have not been taught yet at that time"))
     pins = [dict(p) for p in subscription.options.get("pins", ())]
     origin = session.start
     for p in list(pins):
@@ -1806,7 +1897,9 @@ def move_session(
             pins.remove(p)
     for p in pins:
         if _local(p["start"], zone) < end and begin < _local(p["end"], zone):
-            raise InvalidInput(f"that time is taken by another session you placed: {p['title']}")
+            raise InvalidInput(
+                _("that time is taken by another session you placed: {title}", title=p["title"])
+            )
     pins.append(
         {
             "kind": session.kind,
@@ -1828,7 +1921,7 @@ def unpin_session(subscription: Subscription, sid: str, *, now: datetime | None 
     """Give a moved session back to the planner: it goes wherever the rules put it."""
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
-        raise InvalidInput("this session is no longer in your plan; the plan has changed since")
+        raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
     zone = _zone(subscription.options["tz"])
     pins = [
         p
@@ -1847,13 +1940,13 @@ def _find_task(subscription: Subscription, name: str) -> int:
     for i, t in enumerate(subscription.options.get("tasks", ())):
         if t["name"].casefold() == name.strip().casefold():
             return i
-    raise InvalidInput(f"there is no task called {name!r} any more")
+    raise InvalidInput(_("there is no task called {name} any more", name=repr(name)))
 
 
 def add_task(subscription: Subscription, task: TaskSpec, *, now: datetime | None = None) -> Subscription:
     """A new deadline, planned at once (`revise_subscription`)."""
     if not task.name.strip():
-        raise InvalidInput("give the task a name")
+        raise InvalidInput(_("give the task a name"))
     return revise_subscription(subscription, tasks=[*_task_specs(subscription), task], now=now)
 
 
@@ -1917,7 +2010,9 @@ def revise_subscription(
         if url:
             changed = sync_deadlines(changed, now=now, fetch=fetch)
             if changed.options.get("deadlines_error"):
-                raise InvalidInput(f"the learning platform's link: {changed.options['deadlines_error']}")
+                raise InvalidInput(
+                    _("the learning platform's link: {error}", error=changed.options["deadlines_error"])
+                )
     fresh = refresh_subscription(changed, now=now, reread=False)
     if fresh.error and strict:
         raise InvalidInput(fresh.error)
@@ -2026,13 +2121,13 @@ def feed_ics(subscription: Subscription, base_url: str | None = None) -> bytes:
     app's `base_url`, each event also says what to do and carries the link where the
     student reports how it went."""
     if subscription.plan is None:
-        raise InvalidInput("this feed has no plan yet")
+        raise InvalidInput(_("this feed has no plan yet"))
     plan = PlanReport.from_dict(subscription.plan)
     if base_url is not None:
 
         def described(s: SessionView) -> SessionView:
-            parts = [s.detail, f"Why: {s.rationale}" if s.detail else s.rationale]
-            parts.append(f"Done, skipped or hard? {session_url(base_url, subscription.token, s)}")
+            parts = [s.detail, _("Why: {why}", why=s.rationale) if s.detail else s.rationale]
+            parts.append(_("Done, skipped or hard? {url}", url=session_url(base_url, subscription.token, s)))
             return replace(s, rationale="\n\n".join(p for p in parts if p))
 
         plan = replace(
@@ -2102,6 +2197,11 @@ def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "")
     """Record what happened to a plan (created, changed, a session reported), for the
     pilot's measures. No timetable content, no names."""
     _store(store).log(token, kind, detail)
+
+
+def log_visit(store: str | os.PathLike, token: str) -> bool:
+    """A student opened their plan today; logged once a day (D15)."""
+    return _store(store).log_daily(token, "visit")
 
 
 def events(store: str | os.PathLike, token: str) -> list[dict]:
@@ -2197,6 +2297,7 @@ def start_subscription(
     ics: bytes | None = None,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    lang: str | None = None,
 ) -> Subscription:
     """The hosted product's first step: a timetable and nothing else. The link is
     read once; every exam found in it becomes a subject; the week starts from the
@@ -2205,7 +2306,7 @@ def start_subscription(
     if source_url:
         ics = fetch(source_url.strip())
     if ics is None:
-        raise InvalidInput("give your timetable's link or its file")
+        raise InvalidInput(_("give your timetable's link or its file"))
     today = now.astimezone(_zone(tz)).date()
     report = analyse_calendar(ics, start=today, tz=tz)
     return new_subscription(
@@ -2218,13 +2319,16 @@ def start_subscription(
         preferences=DEFAULT_PREFERENCES,
         now=now,
         require_plan=False,
+        lang=lang,
     )
 
 
 def _when(moment: datetime, now: datetime) -> str:
     """A time as a person says it, relative to `now` (both local)."""
     days = (moment.date() - now.date()).days
-    day = {0: "Today", 1: "Tomorrow", -1: "Yesterday"}.get(days, moment.strftime("%a %d %b"))
+    day = {0: _("Today"), 1: _("Tomorrow"), -1: _("Yesterday")}.get(days) or format_date(
+        moment.date(), "short"
+    )
     return f"{day} {moment:%H:%M}"
 
 
@@ -2234,16 +2338,20 @@ def _session_card(
     now: datetime,
     outcomes: Mapping[str, str],
     colours: Mapping[str, int] | None = None,
+    gains: Mapping[str, dict] | None = None,
 ) -> dict:
     start = datetime.fromisoformat(s.start).astimezone(zone)
     end = datetime.fromisoformat(s.end).astimezone(zone)
     sid = session_id(s)
     return {
+        "gain": (gains or {}).get(sid),
+        "self_test": s.kind in ("review", "first review"),
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
         "title": s.title if s.kind == "task" else s.subject,
+        "topic": topic_words(s.topic.removeprefix(f"{s.subject} · ")) if s.kind != "task" and s.topic else "",
         "label": session_label(s),
-        "kind": KIND_LABELS.get(s.kind, s.kind),
+        "kind": _(KIND_LABELS.get(s.kind, s.kind)),
         "when": _when(start, now),
         "day": _when(start, now).rsplit(" ", 1)[0],
         "time": f"{start:%H:%M}–{end:%H:%M}",
@@ -2262,9 +2370,10 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     session = find_session(subscription, sid)
     if session is None or subscription.plan is None:
         return None
-    zone = _zone(PlanReport.from_dict(subscription.plan).settings.tz)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
     local = (now or datetime.now(UTC)).astimezone(zone)
-    return _session_card(session, zone, local, subscription.outcomes)
+    return _session_card(session, zone, local, subscription.outcomes, gains=session_gains(plan))
 
 
 # How many course colours the pages have (CSS classes c0 to c6): enough to tell a
@@ -2353,7 +2462,7 @@ def calendar_view(
             }
             for r in subscription.busy_rows
         ],
-        "kinds": [{"id": k, "label": label} for k, label in ACTIVITY_KINDS],
+        "kinds": [{"id": k, "label": _(label)} for k, label in ACTIVITY_KINDS],
         "hours": [7, 23],
         "window": list(options["study_window"]),
         "first": first.isoformat(),
@@ -2441,10 +2550,12 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
-    view["today"] = f"{local:%A} {local.day} {local:%B}"
+    view["today"] = format_date(local.date())
     colours = {name.casefold(): index for name, index in course_colours(plan)}
+    gains = session_gains(plan)
     cards = [
-        _session_card(s, zone, local, subscription.outcomes, colours) for s in plan.history + plan.sessions
+        _session_card(s, zone, local, subscription.outcomes, colours, gains)
+        for s in plan.history + plan.sessions
     ]
     moments = [
         (datetime.fromisoformat(s.start).astimezone(zone), datetime.fromisoformat(s.end).astimezone(zone))
@@ -2471,7 +2582,21 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
     }
     view["tasks"] = [t for t in _task_rows(subscription, plan, now, colours) if not t["finished"]]
-    view["exams"] = [
+    view["exams"] = _exam_rows(plan, now, colours)
+    # A subject short of its target already says so in its status line; other
+    # warnings (practice that does not fit, work that does not fit) stay.
+    shown = tuple(f"{x.name}: " for x in plan.subjects)
+    said = ("predicted below", "does not reach the target", _("are predicted below"))
+    view["warnings"] = [w for w in plan.warnings if not (w.startswith(shown) and any(x in w for x in said))]
+    return view
+
+
+def _exam_rows(plan: PlanReport, now: datetime, colours: Mapping[str, int]) -> list[dict]:
+    """The exams still to come, soonest first, with how many of their topics are on
+    track."""
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    return [
         {
             "name": x.name,
             "when": _when(datetime.fromisoformat(x.exam).astimezone(zone), local),
@@ -2486,15 +2611,6 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         for x in sorted(plan.subjects, key=lambda x: x.exam)
         if datetime.fromisoformat(x.exam) > now
     ]
-    # A subject short of its target already says so in its status line; other
-    # warnings (practice that does not fit, work that does not fit) stay.
-    shown = tuple(f"{x.name}: " for x in plan.subjects)
-    view["warnings"] = [
-        w
-        for w in plan.warnings
-        if not (w.startswith(shown) and ("predicted below" in w or "does not reach the target" in w))
-    ]
-    return view
 
 
 def _task_rows(
@@ -2596,11 +2712,1997 @@ def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
     return view
 
 
+# --------------------------------------------------------------------------- #
+# Progress, the streak and the weekly review (DECISIONS.md, D8 and D9)
+
+
+def progress_sessions(subscription: Subscription) -> list[_progress.Session]:
+    """Every session of the plan, past and to come, as `progress` counts them:
+    local start, length, kind, course, and what the student reported."""
+    if subscription.plan is None:
+        return []
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    out = []
+    for s in plan.history + plan.sessions:
+        start = datetime.fromisoformat(s.start).astimezone(zone)
+        end = datetime.fromisoformat(s.end).astimezone(zone)
+        out.append(
+            _progress.Session(
+                start=start,
+                minutes=round((end - start) / timedelta(minutes=1)),
+                kind=s.kind,
+                course=s.subject,
+                report=subscription.outcomes.get(session_id(s)),
+                sid=session_id(s),
+            )
+        )
+    return out
+
+
+MILESTONES = (
+    ("first", "First session done"),
+    ("streak_3", "3 days in a row"),
+    ("streak_7", "A week in a row"),
+    ("full_week", "A full week: every session done"),
+    ("streak_14", "Two weeks in a row"),
+    ("streak_30", "30 days in a row"),
+)
+
+
+def _milestones(best: int, sessions_done: int, full_weeks: int) -> list[dict]:
+    reached = {
+        "first": sessions_done >= 1,
+        "streak_3": best >= 3,
+        "streak_7": best >= 7,
+        "full_week": full_weeks >= 1,
+        "streak_14": best >= 14,
+        "streak_30": best >= 30,
+    }
+    return [{"key": key, "label": _(label), "reached": reached[key]} for key, label in MILESTONES]
+
+
+def _hours(minutes: int) -> float:
+    return round(minutes / 60, 1)
+
+
+def progress_view(
+    subscription: Subscription, now: datetime | None = None, logged: Sequence[_progress.Session] = ()
+) -> dict:
+    """What the Progress page shows, and the strip on Today: the streak, this week's
+    sessions done of planned, the last twelve weeks day by day, milestones, exams
+    and tasks. Derived from the plan and the reports every time (D8)."""
+    now = now or datetime.now(UTC)
+    view: dict = {"planned": subscription.plan is not None, "error": subscription.error}
+    if subscription.plan is None:
+        return view
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    today = local.date()
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged)
+    first = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    run = _progress.streak(sessions, first, today)
+    # The weeks since the plan began, at most twelve; a younger plan shows its weeks
+    # to come too, four in all, so it is not a sliver.
+    weeks = max(4, min(12, (_progress.monday(today) - _progress.monday(first)).days // 7 + 1))
+    this_week = _progress.week(sessions, _progress.monday(today), local)
+    done = [s for s in sessions if s.confirmed and s.planned]
+    full = _progress.full_weeks(sessions, today)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    tasks = _task_rows(subscription, plan, now, colours)
+    if run.today_done:
+        today_line = _("Today counts. See you tomorrow.")
+    elif run.today_planned:
+        today_line = _n(
+            "One session today makes it {n} day in a row.",
+            "One session today makes it {n} days in a row.",
+            run.current + 1,
+        )
+    else:
+        today_line = _("Nothing planned today: a rest day keeps your streak as it is.")
+    view.update(
+        {
+            "streak": {
+                "current": run.current,
+                "best": run.best,
+                "goal": run.goal,
+                "to_go": run.goal - run.current,
+                "today_planned": run.today_planned,
+                "today_done": run.today_done,
+                "line": today_line,
+            },
+            "week": {
+                "first": _progress.monday(today).isoformat(),
+                "planned": this_week.planned,
+                "done": this_week.done,
+                "skipped": this_week.skipped,
+                "waiting": this_week.waiting,
+                "percent": this_week.percent,
+                "hours_done": _hours(this_week.minutes_done),
+                "hours_planned": _hours(this_week.minutes_planned),
+                "logged": this_week.logged,
+                "hours_logged": _hours(this_week.minutes_logged),
+            },
+            "grid": [
+                [
+                    {
+                        "date": d.day.isoformat(),
+                        "label": format_date(d.day, "short"),
+                        "state": d.state,
+                        "level": d.level,
+                        "planned": d.planned,
+                        "done": d.done,
+                        "today": d.day == today,
+                    }
+                    for d in row
+                ]
+                for row in _progress.grid(sessions, first, today, weeks=weeks)
+            ],
+            "since": format_date(_progress.monday(first), "day"),
+            "totals": {
+                "sessions": len(done),
+                "hours": _hours(sum(s.minutes for s in done)),
+                "logged": sum(not s.planned for s in sessions),
+                "hours_logged": _hours(sum(s.minutes for s in sessions if not s.planned)),
+                "days": sum(d.state == "studied" for d in run.days),
+                "tasks_finished": sum(t["finished"] for t in tasks),
+            },
+            "milestones": _milestones(run.best, len(done), full),
+            "exams": _exam_rows(plan, now, colours),
+        }
+    )
+    return view
+
+
+# Which suggestion a weekly review makes: the first that applies, in this order.
+SUGGESTIONS = ("report", "time_of_day", "lighter", "exam", "all_done", "steady")
+
+
+def weekly_review(
+    subscription: Subscription,
+    now: datetime | None = None,
+    weeks_back: int = 1,
+    logged: Sequence[_progress.Session] = (),
+) -> dict:
+    """A week in numbers, one suggestion and a paragraph saying both (the template
+    that the AI version replaces when it is on, D12). By default the week before
+    this one; `weeks_back=0` is this week so far."""
+    now = now or datetime.now(UTC)
+    if subscription.plan is None:
+        return {"planned": False}
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged)
+    first_day = _progress.monday(local.date()) - timedelta(weeks=weeks_back)
+    last_day = first_day + timedelta(days=6)
+    week_end = datetime.combine(last_day + timedelta(days=1), time(0, 0), tzinfo=zone)
+    w = _progress.week(sessions, first_day, min(local, week_end))
+    start = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    run = _progress.streak(sessions, start, min(local.date(), last_day))
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    due = [
+        t
+        for t in _task_rows(subscription, plan, now, colours)
+        if first_day <= date.fromisoformat(t["due_value"][:10]) <= last_day
+    ]
+    met = [t for t in due if t["finished"] or t["percent"] >= 100]
+    soon = [e for e in _exam_rows(plan, week_end, colours) if 0 <= e["days"] <= 14]
+    skipped_when: dict[str, int] = {}
+    for x in w.sessions:
+        if x.report == "skipped":
+            part = _progress.part_of_day(x.start)
+            skipped_when[part] = skipped_when.get(part, 0) + 1
+    worst = max(skipped_when.items(), key=lambda kv: kv[1], default=("", 0))
+    share = w.done / w.planned if w.planned else 1.0
+    past = sum(x.start <= min(local, week_end) for x in w.sessions)
+    if w.planned and past and w.waiting / past > 0.5:
+        key = "report"
+        suggestion = _(
+            "Most sessions were not reported. "
+            "A tap on Done after each one keeps your plan and your streak true."
+        )
+    elif worst[1] >= 2:
+        key = "time_of_day"
+        part = {"morning": _("morning"), "afternoon": _("afternoon"), "evening": _("evening")}[worst[0]]
+        suggestion = _(
+            "{n} {part} sessions were skipped. "
+            "If that time does not work, change the hours you study in Settings.",
+            n=worst[1],
+            part=part,
+        )
+    elif w.planned >= 4 and share < 0.5:
+        key = "lighter"
+        suggestion = _(
+            "A week you keep beats a heavy one you skip: try a weekly limit near the {hours} h you did, "
+            "in Settings.",
+            hours=max(1, round(w.minutes_done / 60)),
+        )
+    elif soon:
+        key = "exam"
+        exam = soon[0]
+        suggestion = _n(
+            "{name} is in {n} day: exam practice is in your plan.",
+            "{name} is in {n} days: exam practice is in your plan.",
+            max(1, round(exam["days"])),
+            name=exam["name"],
+        )
+    elif w.planned and w.done >= w.planned:
+        key = "all_done"
+        suggestion = _("Every session done. The same again this week.")
+    else:
+        key = "steady"
+        suggestion = _("Keep the rhythm: one session at a time.")
+    if not w.planned:
+        numbers = _("Nothing was planned that week.")
+    else:
+        numbers = _n(
+            "You did {done} of {n} planned session ({hours} h).",
+            "You did {done} of {n} planned sessions ({hours} h).",
+            w.planned,
+            done=w.done,
+            hours=format_number(w.minutes_done / 60),
+        )
+    focus_line = (
+        _n(
+            "You also logged {n} focus session ({hours} h).",
+            "You also logged {n} focus sessions ({hours} h).",
+            w.logged,
+            hours=format_number(w.minutes_logged / 60),
+        )
+        if w.logged
+        else ""
+    )
+    streak_line = (
+        _n("Your streak is {n} day.", "Your streak is {n} days.", run.current) if run.current else ""
+    )
+    deadlines = (
+        _n(
+            "{met} of {n} deadline met.",
+            "{met} of {n} deadlines met.",
+            len(due),
+            met=len(met),
+        )
+        if due
+        else ""
+    )
+    return {
+        "planned": True,
+        "week": first_day.isoformat(),
+        "label": _("Week of {day}", day=format_date(first_day, "day")),
+        "sessions_planned": w.planned,
+        "sessions_done": w.done,
+        "skipped": w.skipped,
+        "waiting": w.waiting,
+        "percent": w.percent,
+        "hours_done": _hours(w.minutes_done),
+        "hours_planned": _hours(w.minutes_planned),
+        "days_studied": w.days_studied,
+        "streak": run.current,
+        "deadlines": len(due),
+        "deadlines_met": len(met),
+        "exams_soon": [{"name": e["name"], "days": round(e["days"])} for e in soon],
+        "suggestion_key": key,
+        "suggestion": suggestion,
+        "logged": w.logged,
+        "hours_logged": _hours(w.minutes_logged),
+        "text": " ".join(x for x in (numbers, focus_line, streak_line, deadlines, suggestion) if x),
+        "by": "rules",
+    }
+
+
+# The front ends translate through these (they import nothing but this module).
+translate = _
+translate_plural = _n
+LANGUAGES = _i18n.LANGUAGES
+activate_language = _i18n.activate
+deactivate_language = _i18n.deactivate
+pick_language = _i18n.pick
+format_day = _i18n.format_date
+
+
+DAY_WORDS = {
+    "studied": "studied",
+    "forgiven": "forgiven",
+    "missed": "not reported",
+    "rest": "rest",
+    "today": "today",
+    "future": "to come",
+    "before": "before your plan",
+}
+
+
+def day_word(state: str) -> str:
+    """A day's state in the grid, in words, for screen readers."""
+    return _(DAY_WORDS.get(state, state))
+
+
+def review_for_today(
+    subscription: Subscription, now: datetime | None = None, logged: Sequence[_progress.Session] = ()
+) -> dict | None:
+    """Last week's review, for the Today page on Monday and Tuesday, unless the
+    student hid it or there was nothing planned."""
+    now = now or datetime.now(UTC)
+    if subscription.plan is None:
+        return None
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    if local.weekday() > 1:
+        return None
+    review = weekly_review(subscription, now, logged=logged)
+    if not (review.get("sessions_planned") or review.get("logged")):
+        return None
+    if subscription.options.get("review_seen") == review["week"]:
+        return None
+    return review
+
+
+THEMES = ("auto", "light", "dark")
+
+
+def theme_of(subscription: Subscription | None) -> str:
+    """How a plan's pages look (D21): "auto" follows the device."""
+    theme = (subscription.options.get("theme") if subscription else None) or "auto"
+    return theme if theme in THEMES else "auto"
+
+
+def set_theme(subscription: Subscription, theme: str) -> Subscription:
+    if theme not in THEMES:
+        raise InvalidInput(_("choose Automatic, Light or Dark"))
+    return replace(subscription, options={**subscription.options, "theme": theme})
+
+
+MOTIONS = ("auto", "reduce")
+
+
+def motion_of(subscription: Subscription | None) -> str:
+    """How much a plan's pages move (D30): "auto" animates unless the device asks
+    for reduced motion; "reduce" never animates."""
+    motion = (subscription.options.get("motion") if subscription else None) or "auto"
+    return motion if motion in MOTIONS else "auto"
+
+
+def set_motion(subscription: Subscription, motion: str) -> Subscription:
+    if motion not in MOTIONS:
+        raise InvalidInput(_("choose Automatic or Reduced"))
+    return replace(subscription, options={**subscription.options, "motion": motion})
+
+
+def language_of(subscription: Subscription) -> str:
+    """The language a plan's pages and calendar events are written in (D10)."""
+    return pick(subscription.options.get("lang"))
+
+
+def set_language(subscription: Subscription, lang: str, *, now: datetime | None = None) -> Subscription:
+    """Change a plan's language. The plan is made again from the calendar last read,
+    so that what each session says to do is written in the new language; what the
+    student reported is kept (sessions are named by language-free ids)."""
+    if lang not in _i18n.LANGUAGES:
+        raise InvalidInput(_("{value} is not a language this app speaks", value=repr(lang)))
+    changed = replace(subscription, options={**subscription.options, "lang": lang})
+    return refresh_subscription(changed, now=now, reread=False) if subscription.plan is not None else changed
+
+
+def plan_language(store: str | os.PathLike, token: str) -> str | None:
+    """The language of the plan at `token`, or None if there is none (the web app
+    asks before it answers a request about that plan)."""
+    subscription = load_subscription(store, token)
+    return language_of(subscription) if subscription is not None else None
+
+
+def hide_review(subscription: Subscription, week: str) -> Subscription:
+    """The student read the review of the week starting `week` (a Monday)."""
+    try:
+        date.fromisoformat(week)
+    except ValueError:
+        raise InvalidInput(_("{value} is not a week", value=repr(week))) from None
+    return replace(subscription, options={**subscription.options, "review_seen": week})
+
+
+# --------------------------------------------------------------------------- #
+# Focus sessions and the diary (DECISIONS.md D17)
+
+# The focus page sends a heartbeat this often; a gap longer than the grace is time
+# away (the page hidden, the phone on another app, the tab closed).
+FOCUS_BEAT = timedelta(seconds=30)
+FOCUS_GRACE = timedelta(seconds=75)
+FOCUS_LONGEST = timedelta(hours=12)
+
+
+def start_focus(
+    subscription: Subscription, course: str, *, sid: str | None = None, now: datetime | None = None
+) -> Subscription:
+    """Start the timer for `course`, or for the plan's session `sid`."""
+    now = now or datetime.now(UTC)
+    if sid:
+        session = find_session(subscription, sid)
+        if session is None:
+            raise InvalidInput(_("this session is no longer in your plan; the plan has changed since"))
+        course = course or (session.title if session.kind == "task" else session.subject)
+    course = " ".join(str(course or "").split())[: social.LIMITS["course"]]
+    if not course:
+        raise InvalidInput(_("say what you studied"))
+    focus = {
+        "course": course,
+        "sid": sid or "",
+        "started": _iso(now),
+        "last": _iso(now),
+        "away": 0,
+        "interruptions": 0,
+    }
+    focus["beats"] = 0
+    options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
+    return replace(subscription, options={**options, "focus": focus})
+
+
+def _beat(focus: dict, now: datetime) -> dict:
+    gap = now - datetime.fromisoformat(focus["last"])
+    away, interruptions = focus["away"], focus["interruptions"]
+    if focus["beats"] and gap > FOCUS_GRACE:
+        away += round((gap - FOCUS_BEAT).total_seconds())
+        interruptions += 1
+    return {
+        **focus,
+        "last": _iso(now),
+        "away": away,
+        "interruptions": interruptions,
+        "beats": focus["beats"] + 1,
+    }
+
+
+def focus_beat(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """The focus page is open and visible. A gap since the last heartbeat longer
+    than `FOCUS_GRACE` counts as time away, once per gap."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    return replace(
+        subscription, options={**subscription.options, "focus": _beat(focus, now or datetime.now(UTC))}
+    )
+
+
+def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """Stop the timer; what it measured becomes the draft of the session's log.
+    Without a single heartbeat (a browser without the script), the time is the time
+    between start and finish, and the log says the focus was not checked."""
+    now = now or datetime.now(UTC)
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    if focus["beats"]:
+        focus = _beat(focus, now)
+    started = datetime.fromisoformat(focus["started"])
+    elapsed = min(now - started, FOCUS_LONGEST)
+    focused = max(elapsed - timedelta(seconds=focus["away"]), timedelta(minutes=1))
+    draft = {
+        "course": focus["course"],
+        "sid": focus["sid"],
+        "started": focus["started"],
+        "ended": _iso(now),
+        "minutes": max(1, round(focused / timedelta(minutes=1))),
+        "away_minutes": round(focus["away"] / 60),
+        "interruptions": focus["interruptions"],
+        "checked": bool(focus["beats"]),
+        "timed": True,
+    }
+    options = {k: v for k, v in subscription.options.items() if k != "focus"}
+    return replace(subscription, options={**options, "focus_draft": draft})
+
+
+def cancel_focus(subscription: Subscription) -> Subscription:
+    options = {k: v for k, v in subscription.options.items() if k not in ("focus", "focus_draft")}
+    return replace(subscription, options=options)
+
+
+def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the focus page shows: the running session, or what can be started
+    (the courses, and the plan's session now or next)."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    focus = subscription.options.get("focus")
+    view: dict = {"running": bool(focus), "courses": course_names(subscription), "suggested": None}
+    if focus:
+        started = datetime.fromisoformat(focus["started"])
+        view.update(
+            course=focus["course"],
+            started=_iso(started),
+            started_local=f"{started.astimezone(zone):%H:%M}",
+            elapsed=round((now - started).total_seconds()),
+            away_minutes=round(focus["away"] / 60),
+            interruptions=focus["interruptions"],
+            beat=round(FOCUS_BEAT.total_seconds()),
+        )
+    elif subscription.plan is not None:
+        today = today_view(subscription, now)
+        card = today.get("now") or (today.get("next") or [None])[0]
+        if card is not None:
+            view["suggested"] = {
+                "id": card["id"],
+                "title": card["title"],
+                "label": card["label"],
+                "when": card["when"],
+            }
+    return view
+
+
+def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The log form's starting values: the session just timed, or an empty one."""
+    draft = subscription.options.get("focus_draft")
+    if draft:
+        return {**draft}
+    return {
+        "course": "",
+        "sid": "",
+        "minutes": 60,
+        "timed": False,
+        "checked": False,
+        "away_minutes": 0,
+        "interruptions": 0,
+    }
+
+
+def _sharing(store: str | os.PathLike, token: str, chosen: str | None, default: str) -> str:
+    """Who a post goes to. Sharing needs a handle (D16): without a profile nobody
+    could follow the author or tell who wrote it, so a post with no choice made
+    stays private, and a choice to share is refused with the way to fix it."""
+    has_profile = social.get_profile(_store(store), token) is not None
+    visibility = str(chosen or (default if has_profile else "me"))
+    if visibility != "me" and not has_profile:
+        raise InvalidInput(
+            _("to share with others, choose a handle in your profile first; or keep it for yourself")
+        )
+    return visibility
+
+
+def log_session(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> tuple[Subscription, social.Post]:
+    """Keep a study session in the diary, and publish it to whom the student
+    chose. A timed session keeps what the timer measured unless the student
+    changes the minutes, and then it no longer says it was timed. A session started
+    from the plan reports that session done."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    draft = log_draft(subscription, now)
+    minutes = str(form.get("minutes") or draft["minutes"])
+    timed = draft["timed"] and minutes == str(draft["minutes"])
+    data = {
+        "course": form.get("course") or draft["course"],
+        "title": form.get("title", ""),
+        "note": form.get("note", ""),
+        "simple": form.get("simple", ""),
+        "effort": form.get("effort", ""),
+        "progress": form.get("progress", ""),
+        "minutes": minutes,
+        "timed": timed,
+        "checked": timed and draft["checked"],
+        "away_minutes": draft["away_minutes"] if timed else 0,
+        "interruptions": draft["interruptions"] if timed else 0,
+        "sid": draft.get("sid") or "",
+    }
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
+    day = (
+        datetime.fromisoformat(draft["started"]).astimezone(zone).date()
+        if draft.get("started")
+        else now.astimezone(zone).date()
+    )
+    try:
+        post = social.create_post(
+            _store(store),
+            subscription.token,
+            "session",
+            day=day.isoformat(),
+            visibility=visibility,
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+    changed = replace(
+        subscription, options={k: v for k, v in subscription.options.items() if k != "focus_draft"}
+    )
+    sid = draft.get("sid")
+    if sid and subscription.outcomes.get(sid) is None:
+        # If the plan has changed since, the diary keeps the session anyway.
+        with contextlib.suppress(InvalidInput):
+            changed = report_session(changed, sid, "done", now=now)
+    return changed, post
+
+
+def logged_sessions(store: str | os.PathLike, subscription: Subscription) -> list[_progress.Session]:
+    """The diary's sessions as `progress` counts them: each makes its day studied."""
+    zone = _zone(subscription.options["tz"])
+    out = []
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        day = date.fromisoformat(post.day)
+        out.append(
+            _progress.Session(
+                start=datetime.combine(day, time(12, 0), tzinfo=zone),
+                minutes=int(post.data.get("minutes", 0)),
+                kind="logged",
+                course=post.data.get("course", ""),
+                report="done",
+                sid=str(post.data.get("sid") or ""),
+            )
+        )
+    return out
+
+
+EFFORT_WORDS = {1: "very easy", 3: "easy", 5: "steady", 7: "hard", 9: "very hard", 10: "all out"}
+PROGRESS_WORDS = {1: "stuck", 2: "a little", 3: "steady", 4: "good", 5: "a breakthrough"}
+
+
+def duration_words(minutes: int) -> str:
+    """ "45 min", "1 h 20", "2 h": how long a session lasted, as a person says it."""
+    if minutes < 60:
+        return _("{n} min", n=minutes)
+    hours, rest = divmod(minutes, 60)
+    return _("{h} h {m}", h=hours, m=f"{rest:02d}") if rest else _("{h} h", h=hours)
+
+
+def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: ZoneInfo) -> dict:
+    """A post as the pages draw it, for `viewer` (a token, or None): its photos'
+    addresses carry the viewer's page, which is how the server knows who asks."""
+    d = post.data
+    when = date.fromisoformat(post.day)
+    prefix = f"/p/{viewer}/m/" if viewer else "/m/"
+    card = {
+        **post.to_dict(),
+        "mine": viewer == post.token,
+        "when": format_date(when, "long"),
+        "photos": [prefix + name for name in d.get("photos", [])],
+    }
+    if post.kind == "session":
+        effort = int(d.get("effort", 0))
+        card["effort_word"] = _(EFFORT_WORDS[max(k for k in EFFORT_WORDS if k <= effort)]) if effort else ""
+        card["progress_word"] = _(PROGRESS_WORDS.get(int(d.get("progress", 0)), ""))
+        card["hours"] = format_number(int(d.get("minutes", 0)) / 60)
+        card["duration"] = duration_words(int(d.get("minutes", 0)))
+        if d.get("timed") and d.get("checked"):
+            card["focus"] = (
+                _n(
+                    "left the app {n} time ({minutes} min)",
+                    "left the app {n} times ({minutes} min)",
+                    d.get("interruptions", 0),
+                    minutes=d.get("away_minutes", 0),
+                )
+                if d.get("interruptions")
+                else _("focused the whole time")
+            )
+        elif d.get("timed"):
+            card["focus"] = _("timed, focus not checked")
+        else:
+            card["focus"] = _("not timed")
+    return card
+
+
+def diary_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The diary: one's own sessions and explanations, newest first, with this
+    week's focus time."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    posts = social.posts_of(_store(store), subscription.token)
+    monday = _progress.monday(now.astimezone(zone).date())
+    week = [p for p in posts if p.kind == "session" and date.fromisoformat(p.day) >= monday]
+    efforts = [int(p.data["effort"]) for p in week]
+    return {
+        "posts": [post_card(p, viewer=subscription.token, now=now, zone=zone) for p in posts],
+        "week": {
+            "sessions": len(week),
+            "hours": format_number(sum(int(p.data["minutes"]) for p in week) / 60),
+            "effort": format_number(sum(efforts) / len(efforts)) if efforts else "",
+        },
+    }
+
+
+def delete_post(store: str | os.PathLike, token: str, post_id: str) -> bool:
+    return social.delete_post(_store(store), token, post_id)
+
+
+def set_post_visibility(store: str | os.PathLike, token: str, post_id: str, visibility: str) -> bool:
+    visibility = _sharing(store, token, visibility, "me")
+    try:
+        return social.set_visibility(_store(store), token, post_id, visibility)
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def photo_for(store: str | os.PathLike, viewer: str | None, name: str) -> tuple[bytes, str] | None:
+    """A post's photo, for someone allowed to see the post (D18)."""
+    where = _store(store)
+    post = social.photo_post(where, name)
+    if post is None or not social.may_see(where, viewer, post):
+        return None
+    path = where.photos / name
+    if not path.is_file():
+        return None
+    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
+
+
+# --------------------------------------------------------------------------- #
+# The study network (DECISIONS.md D16, D19)
+
+
+def _social(call: Callable[[], Any]) -> Any:
+    """`call`, with the network's refusals as the service's own."""
+    try:
+        return call()
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def profile_of(store: str | os.PathLike, token: str) -> dict | None:
+    profile = social.get_profile(_store(store), token)
+    return profile.public() if profile else None
+
+
+def save_profile(store: str | os.PathLike, token: str, form: Mapping[str, str]) -> dict:
+    profile = _social(
+        lambda: social.set_profile(
+            _store(store),
+            token,
+            handle=str(form.get("handle", "")),
+            university=str(form.get("university", "")),
+            programme=str(form.get("programme", "")),
+            bio=str(form.get("bio", "")),
+            old_enough=form.get("old_enough") == "1",
+        )
+    )
+    return profile.public()
+
+
+def _cards(
+    store: Store, viewer: str, posts: Sequence[social.Post], now: datetime, zone: ZoneInfo
+) -> list[dict]:
+    """Posts as cards, with their authors, kudos and comment counts, and, for notes,
+    their place in the month's top of their course (D26)."""
+    kudos = social.kudos_of(store, [p.id for p in posts], viewer)
+    comments = social.comment_counts(store, [p.id for p in posts])
+    tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
+    authors: dict[str, dict | None] = {}
+    out = []
+    for post in posts:
+        if post.token not in authors:
+            found = social.get_profile(store, post.token)
+            authors[post.token] = found.public() if found else None
+        card = post_card(post, viewer=viewer, now=now, zone=zone)
+        count, given = kudos.get(post.id, (0, False))
+        card.update(
+            author=authors[post.token],
+            kudos=count,
+            kudos_given=given,
+            comments=comments.get(post.id, 0),
+            top=tops.get(post.id),
+        )
+        out.append(card)
+    return out
+
+
+def _month_start(now: datetime) -> str:
+    """The first moment of `now`'s month, in UTC, as the network's tables write times."""
+    first = now.astimezone(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return first.isoformat(timespec="seconds")
+
+
+def community_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    tab: str = "following",
+    filters: Mapping[str, str] | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """The network's two feeds: people one follows, and Explore (everyone's posts
+    across universities, by university, programme, course and kind)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    filters = {
+        k: str(v).strip() for k, v in (filters or {}).items() if k in ("uni", "prog", "course", "kind")
+    }
+    if tab == "explore":
+        posts = social.feed_explore(
+            where,
+            token,
+            university=filters.get("uni", ""),
+            programme=filters.get("prog", ""),
+            course=filters.get("course", ""),
+            kind=filters.get("kind", ""),
+        )
+    else:
+        tab = "following"
+        posts = social.feed_following(where, token)
+    me = social.get_profile(where, token)
+    return {
+        "tab": tab,
+        "filters": filters,
+        "posts": _cards(where, token, posts, now, zone),
+        "profile": me.public() if me else None,
+        "requests": len(social.relations(where, token)["requests"]) if me else 0,
+        "invitations": len(social.invitations_of(where, token)),
+    }
+
+
+def post_view(
+    store: str | os.PathLike, subscription: Subscription, post_id: str, now: datetime | None = None
+) -> dict | None:
+    """One post with its comments, if the student may see it."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    post = social.get_post(where, post_id)
+    if post is None or not social.may_see(where, subscription.token, post):
+        return None
+    zone = _zone(subscription.options["tz"])
+    card = _cards(where, subscription.token, [post], now, zone)[0]
+    comments = []
+    for c in social.comments_on(where, subscription.token, post):
+        author = social.get_profile(where, c.token)
+        comments.append(
+            {
+                "id": c.id,
+                "body": c.body,
+                "hidden": c.hidden,
+                "author": author.public() if author else None,
+                "when": format_date(datetime.fromisoformat(c.created).astimezone(zone).date(), "short"),
+                "can_delete": subscription.token in (c.token, post.token),
+                "mine": c.token == subscription.token,
+            }
+        )
+    can_comment = social.get_profile(where, subscription.token) is not None
+    return {"post": card, "comments": comments, "can_comment": can_comment}
+
+
+def person_view(
+    store: str | os.PathLike, subscription: Subscription, handle: str, now: datetime | None = None
+) -> dict | None:
+    """Someone's profile as the student sees it: what they show, and the posts the
+    student may see. No follower counts (D16)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    person = social.profile_by_handle(where, handle)
+    if person is None or social.blocked_between(where, subscription.token, person.token):
+        return None
+    zone = _zone(subscription.options["tz"])
+    posts = social.posts_by(where, subscription.token, person.token)
+    return {
+        "person": person.public(),
+        "me": person.token == subscription.token,
+        "follow_state": social.follow_status(where, subscription.token, person.token),
+        "follows_me": social.follow_status(where, person.token, subscription.token) == "accepted",
+        "notes": dict(zip(("shared", "helpful"), social.notes_recognition(where, person.token), strict=True)),
+        "posts": _cards(where, subscription.token, posts, now, zone),
+    }
+
+
+def people_view(store: str | os.PathLike, subscription: Subscription, query: str = "") -> dict:
+    """The student's own circle (requests, followers, following) and a search."""
+    where = _store(store)
+    token = subscription.token
+    found = social.search_profiles(where, token, query) if query else []
+    circle = social.relations(where, token)
+    return {
+        "query": query,
+        "found": [p.public() for p in found],
+        "blocked": [p.public() for p in social.blocked_by(where, token)],
+        **{name: [p.public() for p in people] for name, people in circle.items()},
+    }
+
+
+def leave_network(store: str | os.PathLike, token: str) -> None:
+    """Leave the network; the diary stays, visible only to the student."""
+    social.leave(_store(store), token)
+
+
+# --------------------------------------------------------------------------- #
+# Study groups (D28): a shared weekly goal, nobody ranked
+# --------------------------------------------------------------------------- #
+
+GROUP_WEEKS = 8  # the weeks a group's page shows
+
+
+def _member_hours(
+    store: str | os.PathLike, token: str, mondays: Sequence[date], now: datetime
+) -> list[float]:
+    """A member's hours studied in each week, from their own plan and diary, in
+    their own time zone, as Trends counts them (each session once, AUDIT 47)."""
+    member = load_subscription(store, token)
+    if member is None:
+        return [0.0] * len(mondays)
+    zone = _zone(member.options["tz"])
+    weeks = _trends.weekly(
+        progress_sessions(member), _diary_work(store, member), mondays, now.astimezone(zone)
+    )
+    return [w.hours for w in weeks]
+
+
+def _group_card(
+    path: str | os.PathLike, viewer: str, group: social.Group, now: datetime, zone: ZoneInfo
+) -> dict:
+    """A group as its members see it: this week's hours against the goal, the weeks
+    in a row it was met, the weeks before, and who studied this week. Never one
+    member's hours: the group's total is the number (D28)."""
+    store = _store(path)
+    today = now.astimezone(zone).date()
+    began = datetime.fromisoformat(group.created).astimezone(zone).date()
+    mondays = _trends.mondays(min(began, today), today, None)
+    people = social.members(store, group.id)
+    totals = [0.0] * len(mondays)
+    shown, hidden = [], 0
+    for m in people:
+        if m.joined is None:
+            continue
+        since = _progress.monday(datetime.fromisoformat(m.joined).astimezone(zone).date())
+        hours = [
+            h if monday >= since else 0.0
+            for h, monday in zip(_member_hours(path, m.token, mondays, now), mondays, strict=True)
+        ]
+        totals = [a + b for a, b in zip(totals, hours, strict=True)]
+        if m.token != viewer and social.blocked_between(store, viewer, m.token):
+            hidden += 1  # counted in the total, left out of the list (D20)
+            continue
+        found = social.get_profile(store, m.token)
+        shown.append(
+            {
+                **(found.public() if found else {"handle": "", "university": "", "programme": ""}),
+                "me": m.token == viewer,
+                "owner": m.token == group.owner,
+                "studied": hours[-1] > 0,
+            }
+        )
+    goal = group.goal / 60
+    met = [t >= goal for t in totals]
+    run = 0
+    for i in range(len(met) - 1, -1, -1):
+        if met[i]:
+            run += 1
+        elif i < len(met) - 1:  # this week, not met yet, does not break the run
+            break
+    this_week = totals[-1]
+    invited = []
+    for m in people:
+        if m.joined is None and not social.blocked_between(store, viewer, m.token):
+            found = social.get_profile(store, m.token)
+            if found:
+                invited.append(found.public())
+    recent = list(zip(mondays, totals, met, strict=True))[-GROUP_WEEKS:]
+    return {
+        "id": group.id,
+        "name": group.name,
+        "goal": goal,
+        "owner": group.owner == viewer,
+        "week": {
+            "hours": this_week,
+            "goal": goal,
+            "left": max(0.0, goal - this_week),
+            "percent": min(100, round(100 * this_week / goal)) if goal else 0,
+            "met": this_week >= goal,
+            "studied": sum(x["studied"] for x in shown),
+        },
+        "run": run,
+        "members": shown,
+        "hidden": hidden,
+        "invited": invited,
+        "size": sum(m.joined is not None for m in people),
+        "weeks": [
+            {
+                "label": format_date(monday, "day_short"),
+                "first": format_date(monday, "short"),
+                "monday": monday.isoformat(),
+                "hours": hours,
+                "met": done,
+                "current": monday == _progress.monday(today),
+            }
+            for monday, hours, done in recent
+        ],
+    }
+
+
+def groups_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The student's groups, the invitations waiting, and whether they can make
+    another (D28)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    me = social.get_profile(where, token)
+    mine = social.groups_of(where, token)
+    invitations = []
+    for group, member in social.invitations_of(where, token):
+        by = social.get_profile(where, member.invited_by)
+        invitations.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "goal": group.goal / 60,
+                "by": by.handle if by else "",
+                "size": sum(m.joined is not None for m in social.members(where, group.id)),
+            }
+        )
+    return {
+        "profile": me.public() if me else None,
+        "groups": [_group_card(store, token, g, now, zone) for g in mine],
+        "invitations": invitations,
+        "can_create": me is not None and len(mine) < social.GROUPS_EACH,
+        "most": social.GROUPS_EACH,
+        "size": social.GROUP_SIZE,
+    }
+
+
+def group_view(
+    store: str | os.PathLike, subscription: Subscription, group_id: str, now: datetime | None = None
+) -> dict | None:
+    """One group's page, for its members only."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    group = social.get_group(where, group_id)
+    mine = social.membership(where, subscription.token, group_id) if group else None
+    if group is None or mine is None or mine.joined is None:
+        return None
+    card = _group_card(store, subscription.token, group, now, _zone(subscription.options["tz"]))
+    card["room"] = social.GROUP_SIZE - len(social.members(where, group_id))
+    return card
+
+
+def create_group(
+    store: str | os.PathLike, token: str, form: Mapping[str, str], now: datetime | None = None
+) -> social.Group:
+    where = _store(store)
+    group: social.Group = _social(
+        lambda: social.create_group(where, token, form.get("name", ""), form.get("goal", ""), now=now)
+    )
+    return group
+
+
+def invite_to_group(
+    store: str | os.PathLike, token: str, group_id: str, handle: str, now: datetime | None = None
+) -> dict:
+    where = _store(store)
+    person: social.Profile = _social(lambda: social.invite(where, token, group_id, handle, now=now))
+    return person.public()
+
+
+def answer_group(
+    store: str | os.PathLike, token: str, group_id: str, accept: bool, now: datetime | None = None
+) -> bool:
+    where = _store(store)
+    return bool(_social(lambda: social.answer_invitation(where, token, group_id, accept, now=now)))
+
+
+def leave_group(store: str | os.PathLike, token: str, group_id: str) -> None:
+    social.leave_group(_store(store), token, group_id)
+
+
+def remove_from_group(store: str | os.PathLike, token: str, group_id: str, handle: str) -> None:
+    where = _store(store)
+    _social(lambda: social.remove_member(where, token, group_id, handle))
+
+
+def change_group(store: str | os.PathLike, token: str, group_id: str, form: Mapping[str, str]) -> None:
+    where = _store(store)
+    _social(lambda: social.set_group(where, token, group_id, form.get("name", ""), form.get("goal", "")))
+
+
+# --------------------------------------------------------------------------- #
+# Flashcards (D29): the student's own, scheduled by FSRS
+# --------------------------------------------------------------------------- #
+
+CARD_GRADES = tuple(flashcards.GRADES)
+
+
+def _flash(call: Callable[[], Any]) -> Any:
+    """`call`, with the cards' refusals as the service's own."""
+    try:
+        return call()
+    except flashcards.CardError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def wait_words(delta: timedelta) -> str:
+    """ "in 10 minutes", "in 3 days": when a card comes back, as a person says it."""
+    minutes = max(1, round(delta / timedelta(minutes=1)))
+    if minutes < 60:
+        return _n("in {n} minute", "in {n} minutes", minutes)
+    hours = round(minutes / 60)
+    if hours < 24:
+        return _n("in {n} hour", "in {n} hours", hours)
+    days = round(hours / 24)
+    if days < 45:
+        return _n("in {n} day", "in {n} days", days)
+    months = round(days / 30)
+    return _n("in {n} month", "in {n} months", months)
+
+
+def _card_dict(card: flashcards.Card, now: datetime) -> dict:
+    due = datetime.fromisoformat(card.due) if card.due else None
+    return {
+        "id": card.id,
+        "course": card.course,
+        "front": card.front,
+        "back": card.back,
+        "new": card.new,
+        "reps": card.reps,
+        "lapses": card.lapses,
+        "due": None if due is None else (_("now") if due <= now else wait_words(due - now)),
+    }
+
+
+def cards_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, course: str = ""
+) -> dict:
+    """The flashcards page: a deck per course with its cards due now and new, the
+    cards of the course chosen, and when the next one is due."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    every = flashcards.of(where, token)
+    waiting = flashcards.queue(where, token, now, zone)
+    decks: dict[str, dict] = {}
+    for card in every:
+        deck = decks.setdefault(
+            card.course.casefold(), {"course": card.course, "total": 0, "due": 0, "new": 0}
+        )
+        deck["total"] += 1
+    for card in waiting:
+        deck = decks[card.course.casefold()]
+        deck["new" if card.new else "due"] += 1
+    later = flashcards.next_due(where, token, now)
+    chosen = [c for c in every if course and c.course.casefold() == course.casefold()]
+    return {
+        "decks": sorted(decks.values(), key=lambda d: d["course"].casefold()),
+        "waiting": len(waiting),
+        "total": len(every),
+        "course": chosen[0].course if chosen else course,
+        "cards": [_card_dict(c, now) for c in chosen],
+        "next": wait_words(later - now) if later else None,
+        "today": flashcards.reviewed_today(where, token, now, zone),
+        "courses": course_names(subscription),
+        "new_per_day": flashcards.NEW_PER_DAY,
+    }
+
+
+def card_review_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, course: str = ""
+) -> dict:
+    """The next card to review, with when it would come back after each answer."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    waiting = flashcards.queue(where, subscription.token, now, zone, course)
+    view: dict = {
+        "course": course,
+        "date": now.astimezone(zone).date().isoformat(),
+        "left": len(waiting),
+        "today": flashcards.reviewed_today(where, subscription.token, now, zone),
+        "card": None,
+    }
+    if waiting:
+        card = waiting[0]
+        view["card"] = _card_dict(card, now)
+        view["options"] = []
+        for grade in CARD_GRADES:
+            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now)
+            view["options"].append({"grade": grade, "when": wait_words(due - now)})
+    else:
+        later = flashcards.next_due(where, subscription.token, now, course)
+        view["next"] = wait_words(later - now) if later else None
+    return view
+
+
+def cards_due(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> int:
+    """Cards to review now, new ones within today's allowance: for Today and Focus."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    return len(flashcards.queue(_store(store), subscription.token, now, zone))
+
+
+def add_cards(
+    store: str | os.PathLike, subscription: Subscription, form: Mapping[str, str], now: datetime | None = None
+) -> int:
+    """One card (question and answer), or several pasted one per line."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+
+    def make() -> int:
+        if form.get("paste", "").strip():
+            pairs = flashcards.parse_paste(form["paste"])
+        else:
+            pairs = [(form.get("front", ""), form.get("back", ""))]
+        return len(flashcards.add(where, subscription.token, form.get("course", ""), pairs, now))
+
+    return int(_flash(make))
+
+
+def answer_card(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    card_id: str,
+    grade: str,
+    now: datetime | None = None,
+) -> None:
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    _flash(lambda: flashcards.answer(where, subscription.token, card_id, grade, now))
+
+
+def card_view(store: str | os.PathLike, subscription: Subscription, card_id: str) -> dict | None:
+    card = flashcards.get(_store(store), subscription.token, card_id)
+    return _card_dict(card, datetime.now(UTC)) if card else None
+
+
+def edit_card(
+    store: str | os.PathLike, subscription: Subscription, card_id: str, form: Mapping[str, str]
+) -> None:
+    where = _store(store)
+    _flash(
+        lambda: flashcards.edit(
+            where,
+            subscription.token,
+            card_id,
+            form.get("course", ""),
+            form.get("front", ""),
+            form.get("back", ""),
+        )
+    )
+
+
+def delete_card(store: str | os.PathLike, subscription: Subscription, card_id: str) -> bool:
+    return flashcards.delete(_store(store), subscription.token, card_id)
+
+
+REPORT_REASONS = social.REPORT_REASONS
+
+
+def report_view(
+    store: str | os.PathLike, subscription: Subscription, kind: str, target_id: str
+) -> dict | None:
+    """What the report page shows: the item, in a line, and its author."""
+    where = _store(store)
+    found = social._target(where, kind, target_id)
+    if found is None or not social.may_see(where, subscription.token, found[0]):
+        return None
+    post, comment = found
+    author = social.get_profile(where, comment.token if comment else post.token)
+    if comment:
+        summary = comment.body
+    elif post.kind == "explain":
+        summary = post.data.get("concept", "")
+    else:
+        summary = " · ".join(x for x in (post.data.get("course", ""), post.data.get("title", "")) if x)
+    return {
+        "kind": kind,
+        "target": target_id,
+        "post": post.id,
+        "summary": summary,
+        "author": author.public() if author else None,
+        "mine": subscription.token == (comment.token if comment else post.token),
+    }
+
+
+def report(store: str | os.PathLike, token: str, kind: str, target_id: str, reason: str) -> bool:
+    """Report a post or a comment (D20); True if it is now hidden for review."""
+    where = _store(store)
+    if social.get_profile(where, token) is None:
+        raise InvalidInput(_("choose a handle first, in your profile"))
+    return bool(_social(lambda: social.report(where, token, kind, target_id, reason)))
+
+
+def block(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    _social(lambda: social.block(where, token, _person_token(where, handle)))
+
+
+def unblock(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unblock(where, token, _person_token(where, handle))
+
+
+def moderation_view(store: str | os.PathLike) -> list[dict]:
+    """The owner's queue (D20): each reported item with what it says, its photos,
+    its author's handle, and the reasons given."""
+    where = _store(store)
+    out = []
+    for item in social.pending_reports(where):
+        author = social.get_profile(where, item.author)
+        d = item.post.data
+        if item.comment:
+            text = item.comment.body
+            title = _("Comment on: {what}", what=d.get("concept") or d.get("course", ""))
+        else:
+            text = "\n".join(x for x in (d.get("title", ""), d.get("note", ""), d.get("text", "")) if x)
+            title = d.get("concept") or d.get("course", "")
+        out.append(
+            {
+                "kind": item.kind,
+                "target": item.target,
+                "title": title,
+                "text": text,
+                "photos": [] if item.comment else list(d.get("photos", [])),
+                "author": author.handle if author else "",
+                "visibility": item.post.visibility,
+                "hidden": (item.comment.hidden if item.comment else item.post.hidden),
+                "reasons": [
+                    (_(REPORT_REASONS[r]), n) for r, n in item.reasons.items() if r in REPORT_REASONS
+                ],
+                "reporters": item.reporters,
+                "first": item.first[:10],
+            }
+        )
+    return out
+
+
+def moderate(store: str | os.PathLike, kind: str, target_id: str, keep: bool) -> bool:
+    """The owner keeps or removes a reported item; the decision goes to the event
+    log, on the author's plan, for the record the Digital Services Act asks for."""
+    author = social.review(_store(store), kind, target_id, keep)
+    if author is None:
+        return False
+    log_event(store, author, "moderated", f"{kind} {'kept' if keep else 'removed'}")
+    return True
+
+
+def admin_photo(store: str | os.PathLike, name: str) -> tuple[bytes, str] | None:
+    """A reported post's photo, for the owner's review, whoever the post is for."""
+    where = _store(store)
+    if social.photo_post(where, name) is None:
+        return None
+    path = where.photos / name
+    if not path.is_file():
+        return None
+    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
+
+
+def _person_token(store: Store, handle: str) -> str:
+    person = social.profile_by_handle(store, handle)
+    if person is None:
+        raise InvalidInput(_("there is nobody called @{handle}", handle=handle.lstrip("@")))
+    return person.token
+
+
+def follow(store: str | os.PathLike, token: str, handle: str) -> str:
+    where = _store(store)
+    return str(_social(lambda: social.ask_to_follow(where, token, _person_token(where, handle))))
+
+
+def unfollow(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unfollow(where, token, _person_token(where, handle))
+
+
+def answer_follow(store: str | os.PathLike, token: str, handle: str, accept: bool) -> None:
+    where = _store(store)
+    social.answer_request(where, token, _person_token(where, handle), accept)
+
+
+def remove_follower(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    social.unfollow(where, _person_token(where, handle), token)
+
+
+def _visible_post(store: Store, token: str, post_id: str) -> social.Post:
+    post = social.get_post(store, post_id)
+    if post is None or not social.may_see(store, token, post):
+        raise InvalidInput(_("this post is not, or no longer, visible to you"))
+    return post
+
+
+def toggle_kudos(store: str | os.PathLike, token: str, post_id: str, now: datetime | None = None) -> bool:
+    """Kudos, "I got it", or "helpful" on notes; dated, since the notes library counts
+    this month's helpful marks (D26)."""
+    where = _store(store)
+    return bool(
+        _social(lambda: social.toggle_kudos(where, token, _visible_post(where, token, post_id), now=now))
+    )
+
+
+def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -> None:
+    where = _store(store)
+    _social(lambda: social.add_comment(where, token, _visible_post(where, token, post_id), body))
+
+
+def delete_comment(store: str | os.PathLike, token: str, comment_id: str) -> bool:
+    return social.delete_comment(_store(store), token, comment_id)
+
+
+LIBRARY_SORTS = ("helpful", "new")
+
+
+def post_notes(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> social.Post:
+    """Notes for the library (D26): the student's own, by course, with the pages as
+    photos; shared with everyone by default, since the library is for others."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
+    day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
+    data = {
+        "course": form.get("course", ""),
+        "title": form.get("title", ""),
+        "note": form.get("note", ""),
+        "own_work": form.get("own_work") == "1",
+    }
+    post: social.Post = _social(
+        lambda: social.create_post(
+            where,
+            subscription.token,
+            "notes",
+            day=day,
+            visibility=visibility,
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    )
+    return post
+
+
+def library_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    filters: Mapping[str, str] | None = None,
+    sort: str = "helpful",
+    now: datetime | None = None,
+) -> dict:
+    """The notes library: notes by course, university and programme, the month's
+    most helpful first (or the newest), each with its helpful marks and its place
+    in its course's top of the month."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    sort = sort if sort in LIBRARY_SORTS else "helpful"
+    filters = {k: str(v).strip()[:80] for k, v in (filters or {}).items() if k in ("course", "uni", "prog")}
+    found = social.notes_library(
+        where,
+        subscription.token,
+        month_start=_month_start(now),
+        course=filters.get("course", ""),
+        university=filters.get("uni", ""),
+        programme=filters.get("prog", ""),
+        sort=sort,
+    )
+    cards = _cards(where, subscription.token, [n.post for n in found], now, zone)
+    for card, note in zip(cards, found, strict=True):
+        card.update(month=note.month)
+    me = social.get_profile(where, subscription.token)
+    return {
+        "notes": cards,
+        "filters": filters,
+        "sort": sort,
+        "profile": me.public() if me else None,
+        "courses": course_names(subscription),
+        "invitations": len(social.invitations_of(where, subscription.token)),
+    }
+
+
+def post_explanation(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    form: Mapping[str, str],
+    photos: Sequence[bytes] = (),
+    *,
+    now: datetime | None = None,
+) -> social.Post:
+    """An "explain it simply" post (D19): a concept, its course, an explanation
+    for someone who studies something else."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
+    day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
+    data = {
+        "concept": form.get("concept", ""),
+        "course": form.get("course", ""),
+        "text": form.get("text", ""),
+    }
+    post: social.Post = _social(
+        lambda: social.create_post(
+            where,
+            subscription.token,
+            "explain",
+            day=day,
+            visibility=visibility,
+            data=data,
+            photos=photos,
+            now=now,
+        )
+    )
+    return post
+
+
+# --------------------------------------------------------------------------- #
+# AI, opt-in and capped (DECISIONS.md D12)
+
+
+def ai_available() -> bool:
+    """Whether this server can ask a model at all: a key, the SDK, a priced model."""
+    return _ai.from_env() is not None
+
+
+def ai_on(subscription: Subscription) -> bool:
+    return bool(subscription.options.get("ai"))
+
+
+def set_ai(subscription: Subscription, on: bool) -> Subscription:
+    """Turn AI on or off for a plan. Off is the default: what a student types is
+    sent to a processor in the United States only after they say yes."""
+    return replace(subscription, options={**subscription.options, "ai": bool(on)})
+
+
+def understand_task(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    words: str,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict:
+    """A task typed in one line, as the new-task form's fields, to check before
+    adding: read by rules, and by the model when AI is on and allowed. Where the
+    model leaves a field empty, the rules' reading stays."""
+    now = now or datetime.now(UTC)
+    words = " ".join(str(words).split())[:200]
+    if not words:
+        raise InvalidInput(_("type the task in a few words"))
+    tz = subscription.options["tz"]
+    local = now.astimezone(_zone(tz))
+    courses = course_names(subscription)
+    guess = _ai.read_task(words, today=local.date(), courses=courses)
+    by = "rules"
+    model = (provider or _ai.from_env()) if ai_on(subscription) else None
+    if model is not None:
+        system, prompt = _ai.task_prompt(words, local, tz, courses)
+        data = _ai.ask(
+            _store(store),
+            subscription.token,
+            model,
+            "task",
+            system=system,
+            prompt=prompt,
+            schema=_ai.TASK_SCHEMA,
+            max_tokens=1500,
+            now=now,
+        )
+        read = _ai.task_from_answer(data, today=local.date(), courses=courses) if data else None
+        if read is not None:
+            guess = _ai.TaskGuess(
+                name=read.name,
+                due=read.due or guess.due,
+                hours=read.hours or guess.hours,
+                course=read.course or guess.course,
+            )
+            by = "ai"
+    note = (
+        _("Read by AI: check it before adding.")
+        if by == "ai"
+        else _("Read from your words: check it before adding.")
+    )
+    if not guess.due:
+        note += " " + _("No date found: choose one.")
+    return {**guess.as_dict(), "by": by, "note": note}
+
+
+def review_with_ai(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    review: dict | None,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict | None:
+    """The weekly review with its paragraph written by the model, when AI is on and
+    allowed; else as the rules wrote it. A paragraph is kept with the plan, keyed by
+    the week, the language and the numbers it was written from, so a page view does
+    not ask again, and a late report (new numbers) gets a new paragraph."""
+    if not review or not review.get("planned") or not ai_on(subscription):
+        return review
+    now = now or datetime.now(UTC)
+    lang = language_of(subscription)
+    system, prompt = _ai.review_prompt(review, {"fr": "French"}.get(lang, "English"))
+    key = f"{review['week']}:{lang}:{hashlib.sha256(prompt.encode()).hexdigest()[:12]}"
+    kept = subscription.options.get("review_ai") or {}
+    if key in kept:
+        return {**review, "text": kept[key], "by": "ai"}
+    model = provider or _ai.from_env()
+    if model is None:
+        return review
+    data = _ai.ask(
+        _store(store),
+        subscription.token,
+        model,
+        "review",
+        system=system,
+        prompt=prompt,
+        schema=_ai.REVIEW_SCHEMA,
+        max_tokens=1500,
+        now=now,
+    )
+    text = _ai.paragraph_from_answer(data) if data else None
+    if text is None:
+        return review
+
+    def keep(current: Subscription) -> Subscription:
+        recent = {k: v for k, v in (current.options.get("review_ai") or {}).items() if k >= review["week"]}
+        return replace(current, options={**current.options, "review_ai": {**recent, key: text}})
+
+    with contextlib.suppress(ServiceError):
+        update_subscription(store, subscription.token, keep)
+    return {**review, "text": text, "by": "ai"}
+
+
+# --------------------------------------------------------------------------- #
+# The pilot's measures (DECISIONS.md D15; docs/STRATEGY.md "How we will know")
+
+
+def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
+    """What the pilot reads week by week, from the event log, the plans and the
+    network's tables, on the server: nothing runs in a student's browser.
+
+    - plans: set up in all, and those set up in the last 30 days;
+    - active: plans opened (a `visit`) in the last 7 and 30 days;
+    - north star: plans with a session confirmed (done or hard, or a focus session
+      logged) in the last 7 days, as a share of plans set up;
+    - confirmed: planned sessions of the last 7 days reported done or hard, of
+      those planned (unreported ones count as not confirmed);
+    - return: of the plans set up at least 7 (30) days ago, those opened on the
+      7th (30th) day after;
+    - streaks: current streaks, and how many reach 3 and 7 days;
+    - guardrail: plans whose last 7 days held more study (done, hard and logged)
+      than their own weekly limit, which should stay at zero;
+    - network, focus and AI: what was shared, cheered and spent."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    week_ago, month_ago = now - timedelta(days=7), now - timedelta(days=30)
+    events = where.all_events((now - timedelta(days=400)).isoformat(timespec="seconds"))
+    started = {t: datetime.fromisoformat(at) for t, at, kind, _detail in events if kind == "start"}
+    visits: dict[str, set[date]] = {}
+    for t, at, kind, _detail in events:
+        if kind == "visit":
+            visits.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+    tokens = where.tokens()
+
+    def active(since: datetime) -> int:
+        return sum(1 for t in tokens if any(d >= since.date() for d in visits.get(t, ())))
+
+    def returned(days: int) -> tuple[int, int]:
+        eligible = [t for t in tokens if t in started and started[t] <= now - timedelta(days=days)]
+        back = [t for t in eligible if (started[t] + timedelta(days=days)).date() in visits.get(t, set())]
+        return len(back), len(eligible)
+
+    planned = confirmed = over_limit = 0
+    north = 0
+    streaks = []
+    for token in tokens:
+        subscription = load_subscription(store, token)
+        if subscription is None:
+            continue
+        sessions = progress_sessions(subscription)
+        logged = [
+            x for x in _progress.merge_logged(sessions, logged_sessions(store, subscription)) if not x.planned
+        ]
+        recent = [x for x in sessions if week_ago <= x.start <= now]
+        planned += len(recent)
+        done = [x for x in recent if x.confirmed]
+        confirmed += len(done)
+        logged_recent = [x for x in logged if x.start.date() >= week_ago.date()]
+        if done or logged_recent:
+            north += 1
+        limit = {**DEFAULT_PREFERENCES, **subscription.options.get("preferences", {})}["weekly_hours"]
+        studied = sum(x.minutes for x in done + logged_recent) / 60
+        if limit and studied > limit:
+            over_limit += 1
+        if subscription.plan is not None:
+            first = min(
+                [date.fromisoformat(subscription.options["start"]), *(x.start.date() for x in logged)]
+            )
+            zone = _zone(subscription.options["tz"])
+            streaks.append(_progress.streak(sessions + logged, first, now.astimezone(zone).date()).current)
+    with where.connection() as db:
+
+        def count(sql: str, *args: object) -> int:
+            return int(db.execute(sql, args).fetchone()[0])
+
+        since = week_ago.astimezone(UTC).isoformat()
+        network = {
+            "profiles": count("SELECT COUNT(*) FROM profiles"),
+            "follows": count("SELECT COUNT(*) FROM follows WHERE status = 'accepted'"),
+            "sessions_shared": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND visibility != 'me' AND created >= ?",
+                since,
+            ),
+            "sessions_private": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND visibility = 'me' AND created >= ?",
+                since,
+            ),
+            "explanations": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'explain' AND created >= ?", since
+            ),
+            "notes": count("SELECT COUNT(*) FROM posts WHERE kind = 'notes' AND created >= ?", since),
+            # Flashcards (D29): answers in the last 7 days, and the students who gave them.
+            "card_reviews": count("SELECT COUNT(*) FROM card_reviews WHERE at >= ?", since),
+            "card_students": count("SELECT COUNT(DISTINCT token) FROM card_reviews WHERE at >= ?", since),
+            # Groups with at least two members: a group of one is a goal, not a group (D28).
+            "groups": count(
+                "SELECT COUNT(*) FROM (SELECT grp FROM group_members WHERE joined IS NOT NULL "
+                "GROUP BY grp HAVING COUNT(*) >= 2)"
+            ),
+            "kudos": count("SELECT COUNT(*) FROM kudos WHERE created >= ?", since),
+            "comments": count("SELECT COUNT(*) FROM comments WHERE created >= ?", since),
+            "reports_open": count("SELECT COUNT(DISTINCT target) FROM reports WHERE resolved = 0"),
+            "timed": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND created >= ? "
+                "AND json_extract(data, '$.timed')",
+                since,
+            ),
+            "focus_checked": count(
+                "SELECT COUNT(*) FROM posts WHERE kind = 'session' AND created >= ? "
+                "AND json_extract(data, '$.checked')",
+                since,
+            ),
+        }
+    month = now.astimezone(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    streaks.sort()
+    return {
+        "at": now.astimezone(UTC).isoformat(timespec="minutes"),
+        "plans": len(tokens),
+        "new_30": sum(1 for t in tokens if t in started and started[t] >= month_ago),
+        "active_7": active(week_ago),
+        "active_30": active(month_ago),
+        "north_star": north,
+        "planned_7": planned,
+        "confirmed_7": confirmed,
+        "return_7": returned(7),
+        "return_30": returned(30),
+        "streaks": {
+            "median": streaks[len(streaks) // 2] if streaks else 0,
+            "longest": streaks[-1] if streaks else 0,
+            "at_least_3": sum(1 for x in streaks if x >= 3),
+            "at_least_7": sum(1 for x in streaks if x >= 7),
+        },
+        "over_limit": over_limit,
+        "network": network,
+        "ai": {**_ai.usage(where, month), "cap": _ai.monthly_cap(), "available": ai_available()},
+    }
+
+
+# --------------------------------------------------------------------------- #
+# The exam forecast and the trajectory (DECISIONS.md D22 to D24)
+
+_REVIEW_KINDS = ("review", "first review")
+
+
+def _five(share: float) -> int:
+    """A model's estimate as a percentage rounded to 5: no false precision (D24)."""
+    return int(5 * round(100 * max(0.0, min(1.0, share)) / 5))
+
+
+def _recall_at_exam(members: Sequence[dict], states: Mapping[str, tuple[MemoryState, float]]) -> float:
+    values = [
+        retrievability(max(m["exam_day"] - states[m["name"]][1], 0.0), states[m["name"]][0].stability)
+        for m in members
+        if m["name"] in states
+    ]
+    return sum(values) / len(values) if values else 0.0
+
+
+def session_gains(plan: PlanReport) -> dict[str, dict]:
+    """For each self-test, its topic's predicted recall on exam day without it and
+    with it, if no other review followed (D24). The memory states are carried
+    through the whole timeline: reported sessions as reported (an answered self-test
+    with the grade its answer gives, D25), the rest as planned, so a session under
+    way (already in the plan's history) has its gain too."""
+    exam_day = {s["name"]: s["exam_day"] for s in plan.specs}
+    states = {
+        s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
+    }
+    out: dict[str, dict] = {}
+    for session in sorted(plan.history + plan.sessions, key=lambda x: x.start_day):
+        if session.title not in states or session.outcome == "skipped":
+            continue
+        memory, last = states[session.title]
+        elapsed = max(session.start_day - last, 0.0)
+        exam = exam_day[session.title]
+        after = review(memory, elapsed, _grade(session))
+        if session.kind in _REVIEW_KINDS and session.start_day < exam:
+            out[session_id(session)] = {
+                "without": _five(retrievability(max(exam - last, 0.0), memory.stability)),
+                "with": _five(retrievability(max(exam - session.start_day, 0.0), after.stability)),
+            }
+        states[session.title] = (after, session.start_day)
+    return out
+
+
+def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> list[dict]:
+    """Each exam still to come: its topics' predicted recall on exam day if the plan
+    is followed and if nothing more were done, and, for each Monday in `weeks`, what
+    the sessions reported by the end of that week had built (D24)."""
+    zone = _zone(plan.settings.tz)
+    start = plan.settings.start
+    groups: dict[str, list[dict]] = {}
+    for spec in plan.specs:
+        groups.setdefault(spec.get("subject", spec["name"]), []).append(spec)
+    current = _replay(plan.specs, plan.history)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    out = []
+    for subject in sorted(plan.subjects, key=lambda x: x.exam):
+        exam = datetime.fromisoformat(subject.exam)
+        members = groups.get(subject.name, [])
+        if exam <= now or not members:
+            continue
+        path = []
+        for first in weeks:
+            end_of_week = datetime.combine(first + timedelta(days=7), time(0, 0), tzinfo=zone)
+            if end_of_week > exam + timedelta(days=7):
+                break
+            day = _days_after(start, min(end_of_week, now.astimezone(zone)))
+            states = _replay(plan.specs, [h for h in plan.history if h.start_day <= day])
+            path.append(_five(_recall_at_exam(members, states)))
+        out.append(
+            {
+                "name": subject.name,
+                "when": format_date(exam.astimezone(zone).date(), "short"),
+                "days": max(0, (exam.astimezone(zone).date() - now.astimezone(zone).date()).days),
+                "with_plan": _five(subject.recall_at_exam),
+                "if_stopped": _five(_recall_at_exam(members, current)),
+                "path": path,
+                "topics": len(members),
+                "color": colours.get(subject.name.casefold()),
+            }
+        )
+    return out
+
+
+RANGES = {"4": 4, "12": 12, "all": None}
+
+
+def _diary_work(store: str | os.PathLike, subscription: Subscription) -> list[_trends.Logged]:
+    zone = _zone(subscription.options["tz"])
+    out = []
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        d = post.data
+        out.append(
+            _trends.Logged(
+                start=datetime.combine(date.fromisoformat(post.day), time(12, 0), tzinfo=zone),
+                minutes=int(d.get("minutes", 0)),
+                effort=int(d.get("effort", 0)),
+                progress=int(d.get("progress", 0)),
+                course=str(d.get("course", "")),
+                timed=bool(d.get("timed")),
+                checked=bool(d.get("checked")),
+                interruptions=int(d.get("interruptions", 0)),
+                sid=str(d.get("sid") or ""),
+            )
+        )
+    return out
+
+
+def trends_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, span: str = "12"
+) -> dict:
+    """The Trends page (D22): this week against the student's own 4-week average,
+    the exam forecast, and week-by-week hours, sessions kept and study load, with
+    hours per course, the share kept by part of day and focus over the range."""
+    now = now or datetime.now(UTC)
+    span = span if span in RANGES else "12"
+    zone = _zone(subscription.options["tz"])
+    local = now.astimezone(zone)
+    sessions = progress_sessions(subscription)
+    work = _diary_work(store, subscription)
+    first = min([date.fromisoformat(subscription.options["start"]), *(x.start.date() for x in work)])
+    # The averages need the weeks before the range too.
+    length = RANGES[span]
+    shown = _trends.mondays(first, local.date(), length)
+    wider = _trends.mondays(first, local.date(), None if length is None else length + _trends.AVERAGE_WEEKS)
+    weeks_all = _trends.weekly(sessions, work, wider, local)
+    hours_avg = _trends.rolling([w.hours for w in weeks_all])
+    load_avg = _trends.rolling([float(w.load) for w in weeks_all])
+    offset = len(weeks_all) - len(shown)
+    weeks = weeks_all[offset:]
+    prefs = {**DEFAULT_PREFERENCES, **subscription.options.get("preferences", {})}
+    hours_now, hours_before = _trends.against_average(weeks_all, "hours")
+    load_now, load_before = _trends.against_average(weeks_all, "load")
+    done_weeks = weeks_all[:-1]
+    kept_recent = [w for w in done_weeks[-_trends.AVERAGE_WEEKS :] if w.planned_past]
+    kept_earlier = [
+        w for w in done_weeks[-2 * _trends.AVERAGE_WEEKS : -_trends.AVERAGE_WEEKS] if w.planned_past
+    ]
+
+    def share(ws: Sequence[_trends.Week]) -> int | None:
+        planned = sum(w.planned_past for w in ws)
+        return round(100 * sum(w.done for w in ws) / planned) if planned else None
+
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    known = [name for name, _i in course_colours(plan)] if plan else []
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    in_range = [x for x in work if x.start.date() >= shown[0]] if shown else []
+    words = {"morning": _("morning"), "afternoon": _("afternoon"), "evening": _("evening")}
+    run = _progress.streak(
+        _progress.merge_logged(
+            sessions, [_progress.Session(x.start, x.minutes, "logged", x.course, "done", x.sid) for x in work]
+        ),
+        first,
+        local.date(),
+    )
+    return {
+        "span": span,
+        "spans": [("4", _("4 weeks")), ("12", _("12 weeks")), ("all", _("Semester"))],
+        "since": format_date(shown[0], "short") if shown else "",
+        "limit": prefs["weekly_hours"],
+        "tiles": {
+            "hours": {"value": hours_now, "average": hours_before},
+            "load": {"value": load_now, "average": load_before},
+            "kept": {"value": share(kept_recent), "before": share(kept_earlier)},
+            "streak": {"value": run.current, "best": run.best},
+            "direction": _trends.direction(
+                [w.hours for w in done_weeks[-_trends.AVERAGE_WEEKS :]],
+                [w.hours for w in done_weeks[-2 * _trends.AVERAGE_WEEKS : -_trends.AVERAGE_WEEKS]],
+            ),
+        },
+        "weeks": [
+            {
+                "label": format_date(w.first, "day_short"),
+                "first": format_date(w.first, "short"),
+                "current": w.current,
+                "hours": w.hours,
+                "hours_avg": hours_avg[offset + i],
+                "kept": w.kept,
+                "done": w.done,
+                "planned_past": w.planned_past,
+                "load": w.load,
+                "load_avg": load_avg[offset + i],
+                "logged": w.logged,
+                "effort": w.effort,
+                "progress": w.progress,
+                "answers": w.answers,
+                "recall": w.recall,
+            }
+            for i, w in enumerate(weeks)
+        ],
+        "courses": [
+            {"name": name, "hours": hours, "color": colours.get(name.casefold())}
+            for name, hours in _trends.by_course(sessions, work, shown[0], local, known)
+        ]
+        if shown
+        else [],
+        "parts": [
+            {
+                "part": words[part],
+                "done": done,
+                "past": past,
+                "kept": round(100 * done / past) if past else None,
+            }
+            for part, done, past in _trends.by_part_of_day(sessions, shown[0], local)
+        ]
+        if shown
+        else [],
+        "focus": {
+            "logged": len(in_range),
+            "timed": sum(x.timed for x in in_range),
+            "checked": sum(x.checked for x in in_range),
+            "uninterrupted": sum(x.checked and not x.interruptions for x in in_range),
+            "effort": sum(x.effort for x in in_range) / len(in_range) if in_range else None,
+        },
+        "forecast": forecast(plan, now, shown) if plan else [],
+    }
+
+
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:
     """One week as a list of days, each with its busy events and sessions in time
     order: what a phone shows instead of a grid. Week 0 is the one holding `now`."""
     if subscription.plan is None:
-        raise InvalidInput("there is no plan yet: add an exam or a deadline in the settings")
+        raise InvalidInput(_("there is no plan yet: add an exam or a deadline in the settings"))
     now = now or datetime.now(UTC)
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
@@ -2669,28 +4771,40 @@ def make_schedule(
     exam.
     """
     if not subjects and not tasks:
-        raise InvalidInput("add a subject with an exam, or a task with a deadline")
+        raise InvalidInput(_("add a subject with an exam, or a task with a deadline"))
     if weekly_hours is not None and weekly_hours <= 0:
-        raise InvalidInput("the weekly hours must be positive, or left out for no limit")
+        raise InvalidInput(_("the weekly hours must be positive, or left out for no limit"))
     unknown = [d for d in rest_days if d not in WEEKDAY_NAMES]
     if unknown:
-        raise InvalidInput(f"days off must be among {', '.join(WEEKDAY_NAMES)}, not {', '.join(unknown)}")
+        raise InvalidInput(
+            _(
+                "days off must be among {days}, not {wrong}",
+                days=", ".join(WEEKDAY_NAMES),
+                wrong=", ".join(unknown),
+            )
+        )
     if len(set(rest_days)) >= 7:
-        raise InvalidInput("leave at least one day of the week for studying")
+        raise InvalidInput(_("leave at least one day of the week for studying"))
     if practice_days < 0 or practice_hours < 0:
-        raise InvalidInput("exam practice cannot be negative")
+        raise InvalidInput(_("exam practice cannot be negative"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
-        raise InvalidInput("every task needs a name of its own")
+        raise InvalidInput(_("every task needs a name of its own"))
     if any(not t.hours > 0 for t in tasks):
-        raise InvalidInput("every task needs a positive number of hours")
+        raise InvalidInput(_("every task needs a positive number of hours"))
     zone = _zone(report.tz)
     dues = []
     for t in tasks:
         due = t.due_datetime(zone)
         day = _days_after(report.start, due)
         if day <= 0:
-            raise ExamInPast(f"{t.name} is due ({due:%Y-%m-%d %H:%M}) before the start of the plan")
+            raise ExamInPast(
+                _(
+                    "{name} is due ({when}) before the start of the plan",
+                    name=t.name,
+                    when=f"{due:%Y-%m-%d %H:%M}",
+                )
+            )
         dues.append((t, due, day))
 
     if subjects:
@@ -2908,13 +5022,22 @@ def _assist(
         )
         if not ready:
             warnings.append(
-                f"{name}: {len(members) - sum(ok)} of {len(members)} topics are predicted below "
-                f"{settings.retention:.0%} at the exam. More hours a week, or fewer days off, "
-                f"would change that."
+                _(
+                    "{name}: {below} of {n} topics are predicted below {target} at the exam. "
+                    "More hours a week, or fewer days off, would change that.",
+                    name=name,
+                    below=len(members) - sum(ok),
+                    n=len(members),
+                    target=f"{settings.retention:.0%}",
+                )
             )
         if result.practice_left.get(name):
             warnings.append(
-                f"{name}: {result.practice_left[name]} block(s) of exam practice did not fit before the exam."
+                _(
+                    "{name}: {n} block(s) of exam practice did not fit before the exam.",
+                    name=name,
+                    n=result.practice_left[name],
+                )
             )
 
     task_views = []
@@ -2928,9 +5051,13 @@ def _assist(
         )
         if left:
             warnings.append(
-                f"{t.name}: {left} block(s) of work do not fit before it is due "
-                f"({t.due[:16].replace('T', ' ')}). More hours a week, fewer days off or an "
-                f"earlier start would change that."
+                _(
+                    "{name}: {n} block(s) of work do not fit before it is due ({when}). "
+                    "More hours a week, fewer days off or an earlier start would change that.",
+                    name=t.name,
+                    n=left,
+                    when=t.due[:16].replace("T", " "),
+                )
             )
     return PlanReport(
         settings=settings,

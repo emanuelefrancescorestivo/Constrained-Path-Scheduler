@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Focus") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}{% if focus.running %}<script type="module" src="/static/focus.js"></script>{% endif %}{% endblock %}
+{% block main %}
+{% if focus.running %}
+<section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
+  <p class="focus-course">{{ focus.course }}</p>
+  <div class="focus-dial">
+    <svg class="focus-orbit" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle class="track" cx="50" cy="50" r="49" pathLength="100"/><circle class="sweep" id="focus-sweep" cx="50" cy="50" r="49" pathLength="100" transform="rotate(-90 50 50)"/></svg>
+    <time class="focus-timer" id="focus-timer" aria-live="off">{{ '%d:%02d' % (focus.elapsed // 3600, (focus.elapsed % 3600) // 60) }}</time>
+  </div>
+  <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+  <form method="post" action="/p/{{ token }}/focus/finish"><button class="btn btn-primary btn-lg focus-finish">{{ _("Finish") }}</button></form>
+  <p class="focus-tools" hidden>
+    <button type="button" class="btn btn-sm" id="focus-full">{{ _("Full screen") }}</button>
+  </p>
+  <p class="hint focus-hint">{{ _("Stay on this page: leaving it is counted and shown on your session. Turn on your phone's Focus or Do Not Disturb mode to silence the rest.") }}</p>
+  <form method="post" action="/p/{{ token }}/focus/cancel" class="focus-cancel"><button class="btn btn-sm btn-plain">{{ _("Stop without saving") }}</button></form>
+</section>
+{% else %}
+<div class="page-title">
+  <h1>{{ _("Focus") }}</h1>
+  <p>{{ _("Start the timer, study, then log what you did.") }}</p>
+</div>
+{% if focus.suggested %}
+<form method="post" action="/p/{{ token }}/focus/start" class="card start-planned">
+  <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
+  <p class="kicker">{{ _("From your plan") }} · {{ focus.suggested.when }}</p>
+  <h2>{{ focus.suggested.label }}</h2>
+  <button class="btn btn-primary btn-lg btn-block">{{ _("Start this session") }}</button>
+</form>
+{% endif %}
+<form method="post" action="/p/{{ token }}/focus/start" class="card section">
+  <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>
+  <input id="focus-course" name="course" list="focus-courses" required autocomplete="off" placeholder="{{ _('Course') }}">
+  <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+  <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
+</form>
+<p class="section hint"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
+<a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">
+  <b>{{ _("Flashcards") }}</b>
+  <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span>
+</a>
+{% endif %}
+{% endblock %}

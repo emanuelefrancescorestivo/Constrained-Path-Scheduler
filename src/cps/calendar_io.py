@@ -66,8 +66,11 @@ from .timegrid import SLOTS_PER_DAY, TimeGrid
 
 DEADLINE_KEYWORDS: tuple[str, ...] = (
     "exam",
+    "examination",
     "examen",
+    "exame",
     "esame",
+    "appello",
     "midterm",
     "final",
     "quiz",
@@ -75,9 +78,16 @@ DEADLINE_KEYWORDS: tuple[str, ...] = (
     "controllo",
     "prova",
     "klausur",
+    "prüfung",
+    "tentamen",
     "contrôle",
     "partiel",
+    "épreuve",
+    "devoir surveillé",
 )
+# Words that name an assessment only when nothing in the title says it is a class:
+# "Final Cut Pro workshop" and "Test lab" are not exams; "CS 101 Final" is.
+WEAK_KEYWORDS = frozenset({"final", "test", "quiz"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -506,7 +516,16 @@ def _keyword_patterns(keywords: tuple[str, ...]) -> tuple[re.Pattern[str], ...]:
 
 
 def _assessment_match(title: str, keywords: tuple[str, ...] = DEADLINE_KEYWORDS) -> re.Match[str] | None:
-    return next((m for p in _keyword_patterns(keywords) if (m := p.search(title))), None)
+    """The first assessment word in `title`, longest keyword first, or None. A
+    weak keyword alone (`WEAK_KEYWORDS`) does not count in a title that also names
+    a kind of class."""
+    matches = [m for p in _keyword_patterns(keywords) if (m := p.search(title))]
+    strong = [m for m in matches if m.group(0).casefold().rstrip("s") not in WEAK_KEYWORDS]
+    if strong:
+        return strong[0]
+    if matches and not _SESSION_WORD.search(title):
+        return matches[0]
+    return None
 
 
 # What a learning platform names its deadlines. Moodle's calendar export
@@ -571,7 +590,7 @@ def course_of(title: str) -> str:
     in "Analysis lecture" or "Fisica" in "Lezione di Fisica". A lecture belongs to
     a subject when this equals the subject's name, ignoring case.
     """
-    for field in _FIELD_SEPARATORS.split(title):
+    for field in _FIELD_SEPARATORS.split(_drop_parentheticals(title)):
         words = field.strip(" .-–—:·").split()
         if not any(c.isalpha() for c in "".join(words)):
             continue
@@ -622,10 +641,40 @@ _SESSION_WORDS = (
     "lezioni",
     "vorlesung",
     "übung",
+    "tutorium",
+    "praktikum",
+    "seminario",
+    "esercitazione",
+    "esercitazioni",
+    "laboratorio",
+    "laboratory",
+    "hoorcollege",
+    "werkcollege",
+    "practicum",
+    "practical",
+    "discussion",
+    "recitation",
+    "workshop",
+    "clase",
+    "clases",
     "cm",
     "td",
     "tp",
 )
+_SESSION_WORD = re.compile(
+    r"(?<!\w)(" + "|".join(re.escape(w) for w in _SESSION_WORDS) + r")(?!\w)", re.IGNORECASE
+)
+
+# Words that say which assessment it is, not which course: "Examen terminal",
+# "Examen final de Cálculo", "Esame scritto", "Klausur (schriftlich)".
+_QUALIFIERS = frozenset(
+    {
+        "final", "finale", "finals", "terminal", "terminale", "parcial", "parziale", "partial",
+        "intermediate", "intermédiaire", "written", "écrit", "écrite", "oral", "orale", "scritto",
+        "schriftlich", "schriftliche", "mündlich", "mündliche", "retake", "resit", "rattrapage",
+        "makeup", "make-up",
+    }
+)  # fmt: skip
 
 # "COURS ANNULE", "annulée", "cancelled", "annullata", "entfällt": a session that
 # is not happening, said in its title.
@@ -644,27 +693,52 @@ _CONNECTIVES = ("di", "del", "della", "dello", "de", "du", "des", "of", "in", "f
 _FIELD_SEPARATORS = re.compile(r"\s*[,;|]\s*|\s+[-–—]\s+|:\s+")
 
 
+def _drop_parentheticals(title: str) -> str:
+    """A title without the brackets that say only what kind of event it is:
+    "Algebra 3 (Lecture)", "Probability (Exam)", "Analysis ( )". A bracket that
+    says something else, "Physics (Honours)", stays."""
+
+    def keep(match: re.Match[str]) -> str:
+        words = [w.casefold() for w in re.findall(r"[^\W\d_][\w'-]*", match.group(1))]
+        noise = set(_SESSION_WORDS) | _QUALIFIERS | {k.casefold() for k in DEADLINE_KEYWORDS}
+        return " " if all(w.rstrip("s") in noise or w in noise for w in words) else match.group(0)
+
+    return re.sub(r"\(([^()]*)\)", keep, title)
+
+
 def _course_name(title: str, keyword: re.Match[str]) -> str:
     """The course an assessment title is about.
 
-    Remove the keyword, split what remains into fields, and take the first field
-    that contains a letter. University timetable exports decorate titles with the
-    group and the room, and the course name comes first; a hand-made "Analysis
-    exam" has one field. A course name that itself contains a comma loses its tail,
-    a visible mistake the user can correct in the subjects table.
+    Remove every assessment word (not only the one that matched: "Examen final de
+    Cálculo" has two) and the brackets that only say what kind of event it is,
+    split what remains into fields, and take the first field that still names
+    something once the words that only qualify the assessment ("terminal",
+    "written"), connectives ("de", "di", "of", "d'") and kinds of class are trimmed
+    from its ends. University timetable exports decorate titles with the group and
+    the room, and the course name comes first; a hand-made "Analysis exam" has one
+    field. A course name that itself contains a comma loses its tail, a visible
+    mistake the user can correct in the subjects table.
     """
-    remainder = title[: keyword.start()] + " " + title[keyword.end() :]
-    fields = [f.strip(" .-–—:·") for f in _FIELD_SEPARATORS.split(remainder)]
-    field = next((f for f in fields if any(c.isalpha() for c in f)), "")
-    for label in ("grp", "group", "groupe", "salle", "room"):
-        if field.lower().startswith(label + ":"):
-            return ""
-    head, _, tail = field.partition(" ")
-    if tail and head.lower() in _CONNECTIVES:
-        field = tail.strip()
-    elif field.lower().startswith("d'") and len(field) > 2:
-        field = field[2:].strip()
-    return " ".join(field.split())
+    remainder = title
+    for pattern in _keyword_patterns(DEADLINE_KEYWORDS):
+        remainder = pattern.sub(" ", remainder)
+    remainder = _drop_parentheticals(remainder)
+    trim = _QUALIFIERS | set(_CONNECTIVES) | set(_SESSION_WORDS)
+    for field in _FIELD_SEPARATORS.split(remainder):
+        field = field.strip(" .-–—:·'")
+        if not any(c.isalpha() for c in field):
+            continue
+        for label in ("grp", "group", "groupe", "salle", "room"):
+            if field.lower().startswith(label + ":"):
+                return ""
+        words = field.replace("d'", "d' ").split()
+        while words and words[0].casefold() in trim:
+            words.pop(0)
+        while words and words[-1].casefold() in trim:
+            words.pop()
+        if words:
+            return " ".join(words)
+    return ""
 
 
 # --------------------------------------------------------------------------- #
@@ -681,10 +755,14 @@ def plan_to_ics(
     calendar_name: str = "Study plan",
     uid_prefix: str = "",
     refresh: timedelta | None = None,
+    summaries: Sequence[str] | None = None,
 ) -> str:
     """Turn scheduled blocks into an importable calendar.
 
-    `sessions` is (absolute slot index, subject, rationale). The rationale goes
+    `sessions` is (absolute slot index, subject, rationale). `summaries`, if given,
+    are the events' titles in the student's language; the UID is made from the
+    subject either way, so that a change of language updates the events instead of
+    duplicating them. The rationale goes
     into the event description on purpose: a schedule a student does not
     understand is a schedule they will not follow, and "review 3 of 4 — timed for
     85% recall, the point where a review is worth most" is the difference between
@@ -707,10 +785,10 @@ def plan_to_ics(
         calendar.add("x-published-ttl", vDuration(refresh))
 
     midnight = datetime.combine(start_date, time(0, 0), tzinfo=zone)
-    for slot, subject, rationale in sessions:
+    for index, (slot, subject, rationale) in enumerate(sessions):
         begin = midnight + timedelta(minutes=slot * minutes_per_slot)
         event = Event()
-        event.add("summary", f"Study: {subject}")
+        event.add("summary", summaries[index] if summaries is not None else f"Study: {subject}")
         event.add("dtstart", begin)
         event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
         event.add("description", rationale)

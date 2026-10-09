@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_people.html" import avatar %}
+{% from "_charts.html" import columns %}
+{% block title %}{{ view.name }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/groups">{{ _("Groups") }}</a></p>
+<div class="page-title">
+  <h1>{{ view.name }}</h1>
+  <p>{{ _n("{n} member", "{n} members", view.size) }} · {{ _("{hours} h a week together", hours=view.goal | hours) }}</p>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+<section class="card group-week"{% if view.week.met %} data-celebrate="group-{{ view.id }}-{{ view.weeks[-1].monday }}"{% endif %}>
+  <p class="tile-label">{{ _("This week, all of you") }}</p>
+  <p class="group-total"><b data-count>{{ view.week.hours | hours }} h</b> <span>{{ _("of {hours} h", hours=view.goal | hours) }}</span></p>
+  <div class="meter meter-lg"><span class="fill w{{ (view.week.percent // 10) * 10 }}"></span></div>
+  <p class="hint">{% if view.week.met %}{{ _("Goal met this week.") }}{% else %}{{ _("{hours} h to go together.", hours=view.week.left | hours) }}{% endif %}{% if view.run %} {{ _n("Goal met {n} week in a row", "Goal met {n} weeks in a row", view.run) }}.{% endif %}</p>
+  {% if view.weeks | length > 1 %}
+  {% set ws = view.weeks %}
+  {% set c = charts.columns(ws | map(attribute="hours") | list, ws | map(attribute="label") | list, current=ws | map(attribute="current") | list, limit=view.goal) %}
+  {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {hours} h", day=w.first, hours=w.hours | hours) ~ (" · " ~ _("goal met") if w.met else "")) %}{% endfor %}
+  {{ columns(c, texts, _("Hours studied per week, all members together"), [(c.top | hours) ~ " h", ((c.top / 2) | hours) ~ " h"], _("The line is the group's weekly goal.")) }}
+  {% endif %}
+</section>
+
+<div class="section">
+  <div class="section-title"><h2>{{ _("Members") }}</h2><small>{{ _("who has studied this week") }}</small></div>
+  <ul class="card list group-members">
+    {% for m in view.members %}
+    <li>
+      {{ avatar(m) }}
+      <div class="grow"><a href="/p/{{ token }}/u/{{ m.handle }}">@{{ m.handle }}</a>{% if m.me %} <small>({{ _("you") }})</small>{% endif %}{% if m.owner %} <span class="badge">{{ _("Owner") }}</span>{% endif %}<br><small>{{ m.university }}</small></div>
+      {% if m.studied %}<span class="studied yes">{{ _("studied") }}</span>{% else %}<span class="studied">{{ _("not yet") }}</span>{% endif %}
+    </li>
+    {% endfor %}
+    {% for p in view.invited %}
+    <li class="invited">
+      {{ avatar(p) }}
+      <div class="grow">@{{ p.handle }}<br><small>{{ _("invited, not yet joined") }}</small></div>
+      {% if view.owner %}<form method="post" action="/p/{{ token }}/groups/{{ view.id }}/remove/{{ p.handle }}"><button type="submit" class="btn btn-sm btn-plain">{{ _("Withdraw") }}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if view.hidden %}<p class="hint">{{ _n("{n} member is not shown: one of you blocked the other. Their study still counts.", "{n} members are not shown: one of you blocked the other. Their study still counts.", view.hidden) }}</p>{% endif %}
+  <p class="hint">{{ _("Members see the group's total hours and who has studied this week; never your plan, your courses or your sessions.") }}</p>
+</div>
+
+{% if view.room > 0 %}
+<form method="post" action="/p/{{ token }}/groups/{{ view.id }}/invite" class="card section inline-form">
+  <label for="g-handle">{{ _("Invite by handle") }}</label>
+  <div class="row-input"><input id="g-handle" name="handle" required maxlength="21" autocomplete="off" placeholder="@handle" value="{{ (draft or {}).handle or '' }}"><button type="submit" class="btn btn-primary">{{ _("Invite") }}</button></div>
+  <p class="hint">{{ _n("{n} place left.", "{n} places left.", view.room) }}</p>
+</form>
+{% endif %}
+
+{% if view.owner %}
+<details class="card section group-manage">
+  <summary>{{ _("Manage the group") }}</summary>
+  <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/settings">
+    <label for="g-name">{{ _("Name") }}</label>
+    <input id="g-name" name="name" required maxlength="40" value="{{ view.name }}">
+    <label for="g-goal">{{ _("Weekly goal for the whole group, in hours") }}</label>
+    <input id="g-goal" name="goal" type="number" min="1" max="200" step="0.5" inputmode="decimal" required value="{{ '%g' % view.goal }}">
+    <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
+  </form>
+  {% set others = view.members | rejectattr("me") | list %}
+  {% if others %}
+  <h3>{{ _("Members") }}</h3>
+  <ul class="list">
+    {% for m in others %}
+    <li><span class="grow">@{{ m.handle }}</span><form method="post" action="/p/{{ token }}/groups/{{ view.id }}/remove/{{ m.handle }}"><button type="submit" class="btn btn-sm btn-plain destructive" aria-label="{{ _('Remove @{handle}', handle=m.handle) }}">{{ _("Remove") }}</button></form></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</details>
+{% endif %}
+
+<form method="post" action="/p/{{ token }}/groups/{{ view.id }}/leave" class="section">
+  <button type="submit" class="btn btn-plain destructive">{{ _("Leave the group") }}</button>
+</form>
+{% endblock %}

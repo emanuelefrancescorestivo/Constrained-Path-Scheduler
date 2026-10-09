@@ -1,0 +1,13 @@
+{# The network's small pieces: an avatar, a person in a list. #}
+{% macro avatar(person, size="") %}<span class="avatar {{ person.hue }}{% if size %} avatar-{{ size }}{% endif %}" aria-hidden="true">{{ person.initial }}</span>{% endmacro %}
+
+{% macro person_row(person, token) %}
+<li>
+  {{ avatar(person) }}
+  <a class="grow person-link" href="/p/{{ token }}/u/{{ person.handle }}">
+    <span class="title">@{{ person.handle }}</span>
+    <span class="meta">{{ person.university }}{% if person.programme %} · {{ person.programme }}{% endif %}</span>
+  </a>
+  {% if caller %}<span class="row-actions">{{ caller() }}</span>{% endif %}
+</li>
+{% endmacro %}

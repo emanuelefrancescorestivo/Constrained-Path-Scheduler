@@ -34,8 +34,10 @@ from __future__ import annotations
 import argparse
 import contextlib
 import errno
+import json
 import os
 import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -160,8 +162,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="trust X-Forwarded-For and -Proto from any address: only behind a host's own proxy",
     )
 
+    demo = sub.add_parser("demo", help="try the hosted app on made-up students (needs [web])")
+    demo.add_argument(
+        "--store",
+        type=Path,
+        default=Path(tempfile.gettempdir()) / "cps-demo",
+        help="where the demo store is kept (default: the system's temporary directory)",
+    )
+    demo.add_argument("--fresh", action="store_true", help="throw the demo store away and make it again")
+    demo.add_argument(
+        "--host", default="127.0.0.1", help="0.0.0.0 to open it from a phone on the same network"
+    )
+    demo.add_argument("--port", type=int, default=8000)
+    demo.add_argument("--no-serve", action="store_true", help="make the store and print the links only")
+
     sweep = sub.add_parser("sweep", help="delete the plans whose retention has passed")
     sweep.add_argument("--db", type=Path, default=service.FEED_STORE)
+
+    metrics = sub.add_parser("metrics", help="the pilot's measures, from the store (DECISIONS.md D15)")
+    metrics.add_argument("--db", type=Path, default=service.FEED_STORE)
+    metrics.add_argument("--json", action="store_true", help="print them as JSON")
 
     backup = sub.add_parser("backup", help="copy the store while it is in use; keep a week of copies")
     backup.add_argument("--db", type=Path, default=service.FEED_STORE)
@@ -326,10 +346,102 @@ def command_web(args) -> int:
     return 0
 
 
+def command_demo(args) -> int:
+    """`cps demo`: a store of made-up students (cps.showcase), its links, and the app
+    running on it. The store is kept between runs; --fresh makes it again. Only a
+    directory this command made is ever removed."""
+    import shutil
+
+    from .showcase import MARKER, Showcase, seed
+
+    where: Path = args.store
+    found = Showcase.load(where)
+    if where.exists() and any(where.iterdir()) and found is None:
+        print(f"{where} is not empty and is not a demo store; choose another --store", file=sys.stderr)
+        return 2
+    if found is not None and args.fresh:
+        shutil.rmtree(where)
+        found = None
+    if found is None:
+        where.mkdir(parents=True, exist_ok=True)
+        print(f"making the demo store in {where} (a few seconds)...", flush=True)
+        found = seed(where)
+    shown = "localhost" if args.host in ("0.0.0.0", "::") else args.host
+    base = f"http://{shown}:{args.port}"
+    day = found.clock().astimezone().strftime("%A %d %B %Y")
+    lines = [
+        "",
+        "The demo: everyone in it is made up, and so is the timetable (examples/sample-semester.ics).",
+        f"Its clock stands on {day}." if found.offset_days else "Its clock is today's.",
+        "",
+        f"  You, @alex          {base}/p/{found.you}",
+        *(f"  @{handle:<17}  {base}/p/{token}" for handle, token in found.people.items()),
+        f"  The review page     {base}/admin/{found.admin}",
+        "",
+        f"The store: {where} ({MARKER} says whose plan is whose). Start again with --fresh.",
+    ]
+    if args.host in ("0.0.0.0", "::"):
+        lines.append("From a phone on the same network: replace localhost with this computer's address.")
+    print("\n".join(lines), flush=True)
+    if args.no_serve:
+        return 0
+    import uvicorn
+
+    from .web import Config, create_app
+
+    config = Config(
+        store=where, clock=found.clock, background=False, sweep_every=None, admin_token=found.admin
+    )
+    print(f"\nserving on {base} (Ctrl+C to stop)", flush=True)
+    with contextlib.suppress(KeyboardInterrupt):
+        uvicorn.run(create_app(config), host=args.host, port=args.port, access_log=False, server_header=False)
+    return 0
+
+
 def command_sweep(args) -> int:
     from .store import Store
 
     print(f"deleted {Store(args.db).sweep()} expired plans")
+    return 0
+
+
+def _share(part: int, whole: int) -> str:
+    return f"{part} of {whole}" + (f" ({100 * part / whole:.0f}%)" if whole else "")
+
+
+def command_metrics(args) -> int:
+    """The pilot's numbers, week by week (D15). With 10 to 20 students they are
+    counts to read and ask about, not rates to test."""
+    m = service.engagement(args.db)
+    if args.json:
+        print(json.dumps(m, indent=2))
+        return 0
+    net, ai, st = m["network"], m["ai"], m["streaks"]
+    lines = [
+        f"at {m['at']} (UTC)",
+        f"plans set up             {m['plans']} ({m['new_30']} in the last 30 days)",
+        f"active, last 7 days      {_share(m['active_7'], m['plans'])}",
+        f"active, last 30 days     {_share(m['active_30'], m['plans'])}",
+        f"north star               {_share(m['north_star'], m['plans'])} confirmed a session in 7 days",
+        f"sessions confirmed       {_share(m['confirmed_7'], m['planned_7'])} planned in the last 7 days",
+        f"back on day 7            {_share(*m['return_7'])} of those set up 7 or more days ago",
+        f"back on day 30           {_share(*m['return_30'])} of those set up 30 or more days ago",
+        f"streaks                  median {st['median']}, longest {st['longest']}, "
+        f"{st['at_least_3']} at 3 days or more, {st['at_least_7']} at 7 or more",
+        f"over their weekly limit  {m['over_limit']} (should be 0)",
+        f"network                  {net['profiles']} profiles, {net['follows']} follows, "
+        f"{net['groups']} study groups",
+        f"  last 7 days            {net['sessions_shared']} sessions shared, {net['sessions_private']} kept "
+        f"private, {net['explanations']} explanations, {net['notes']} notes, {net['kudos']} kudos and "
+        f"helpful marks, {net['comments']} comments",
+        f"  focus, last 7 days     {net['timed']} timed, {net['focus_checked']} with the focus checked",
+        f"  cards, last 7 days     {net['card_reviews']} answers by {net['card_students']} students",
+        f"  reports open           {net['reports_open']}",
+        f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "
+        f"${ai['dollars']:.2f} of ${ai['cap']:.2f}"
+        + ("" if ai["available"] else " (no key on this machine)"),
+    ]
+    print("\n".join(lines))
     return 0
 
 
@@ -368,8 +480,10 @@ def main(argv: list[str] | None = None) -> int:
         "plan": command_plan,
         "serve": command_serve,
         "web": command_web,
+        "demo": command_demo,
         "sweep": command_sweep,
         "backup": command_backup,
+        "metrics": command_metrics,
     }[args.command]
     try:
         code = command(args)

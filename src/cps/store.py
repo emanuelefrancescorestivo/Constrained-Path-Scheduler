@@ -20,6 +20,7 @@ Three properties matter more than speed:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -48,7 +49,161 @@ CREATE TABLE IF NOT EXISTS events (
     detail TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS events_by_token ON events (token);
+
+-- The study network (DECISIONS.md D16 to D20). Rows belong to a plan's token and
+-- go with it (`delete`, `sweep`). Post and comment ids are random.
+CREATE TABLE IF NOT EXISTS profiles (
+    token      TEXT PRIMARY KEY,
+    handle     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    university TEXT NOT NULL DEFAULT '',
+    programme  TEXT NOT NULL DEFAULT '',
+    bio        TEXT NOT NULL DEFAULT '',
+    created    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS posts (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    created    TEXT NOT NULL,
+    day        TEXT NOT NULL,
+    visibility TEXT NOT NULL,
+    data       TEXT NOT NULL,
+    hidden     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS posts_by_token ON posts (token, created);
+CREATE INDEX IF NOT EXISTS posts_by_visibility ON posts (visibility, created);
+CREATE TABLE IF NOT EXISTS photos (
+    name TEXT PRIMARY KEY,
+    post TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS follows (
+    follower TEXT NOT NULL,
+    followed TEXT NOT NULL,
+    status   TEXT NOT NULL,
+    created  TEXT NOT NULL,
+    PRIMARY KEY (follower, followed)
+);
+CREATE TABLE IF NOT EXISTS kudos (
+    post    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    PRIMARY KEY (post, token)
+);
+CREATE TABLE IF NOT EXISTS comments (
+    id      TEXT PRIMARY KEY,
+    post    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    body    TEXT NOT NULL,
+    hidden  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS comments_by_post ON comments (post, created);
+CREATE TABLE IF NOT EXISTS reports (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    target   TEXT NOT NULL,
+    kind     TEXT NOT NULL,
+    reporter TEXT NOT NULL,
+    reason   TEXT NOT NULL,
+    created  TEXT NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (target, reporter)
+);
+CREATE TABLE IF NOT EXISTS ai_usage (
+    created       TEXT NOT NULL,
+    token         TEXT NOT NULL,
+    feature       TEXT NOT NULL,
+    model         TEXT NOT NULL,
+    input_tokens  INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cost          REAL NOT NULL,
+    ok            INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ai_usage_by_time ON ai_usage (created);
+CREATE TABLE IF NOT EXISTS blocks (
+    blocker TEXT NOT NULL,
+    blocked TEXT NOT NULL,
+    created TEXT NOT NULL,
+    PRIMARY KEY (blocker, blocked)
+);
+-- Study groups (D28): a few students and a shared weekly goal, in minutes. The
+-- owner is the member who set it up, then the longest-standing member.
+CREATE TABLE IF NOT EXISTS study_groups (
+    id      TEXT PRIMARY KEY,
+    name    TEXT NOT NULL,
+    goal    INTEGER NOT NULL,
+    owner   TEXT,
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_members (
+    grp        TEXT NOT NULL,
+    token      TEXT NOT NULL,
+    invited_by TEXT NOT NULL,
+    invited    TEXT NOT NULL,
+    joined     TEXT,
+    PRIMARY KEY (grp, token)
+);
+CREATE INDEX IF NOT EXISTS group_members_by_token ON group_members (token);
+-- Flashcards (D29): a student's own, private; FSRS-4.5 state per card, NULL until
+-- its first review, and every review kept.
+CREATE TABLE IF NOT EXISTS cards (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    course     TEXT NOT NULL,
+    front      TEXT NOT NULL,
+    back       TEXT NOT NULL,
+    created    TEXT NOT NULL,
+    stability  REAL,
+    difficulty REAL,
+    last       TEXT,
+    due        TEXT,
+    reps       INTEGER NOT NULL DEFAULT 0,
+    lapses     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS cards_by_token ON cards (token, due);
+CREATE TABLE IF NOT EXISTS card_reviews (
+    card    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    at      TEXT NOT NULL,
+    grade   INTEGER NOT NULL,
+    elapsed REAL
+);
+CREATE INDEX IF NOT EXISTS card_reviews_by_token ON card_reviews (token, at);
 """
+
+# Leaving every group (D28): the next member in line owns a group its owner left,
+# and a group nobody is left in goes, with its invitations.
+LEAVE_GROUPS = (
+    "DELETE FROM group_members WHERE token = :t",
+    "UPDATE study_groups SET owner = (SELECT m.token FROM group_members m WHERE m.grp = study_groups.id "
+    "AND m.joined IS NOT NULL ORDER BY m.joined, m.rowid LIMIT 1) WHERE owner = :t",
+    "DELETE FROM group_members WHERE grp IN (SELECT id FROM study_groups WHERE owner IS NULL)",
+    "DELETE FROM study_groups WHERE owner IS NULL",
+)
+
+# What deleting a plan removes from the network: its own rows, and what others
+# left on its posts (comments, kudos, reports on them).
+_FORGET = (
+    "DELETE FROM reports WHERE target IN (SELECT c.id FROM comments c JOIN posts p ON p.id = c.post "
+    "WHERE p.token = :t)",
+    "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM reports WHERE target IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM reports WHERE target IN (SELECT id FROM comments WHERE token = :t)",
+    "DELETE FROM photos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM posts WHERE token = :t",
+    "DELETE FROM comments WHERE token = :t",
+    "DELETE FROM kudos WHERE token = :t",
+    "DELETE FROM reports WHERE reporter = :t",
+    "DELETE FROM follows WHERE follower = :t OR followed = :t",
+    "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
+    "DELETE FROM profiles WHERE token = :t",
+    *LEAVE_GROUPS,
+    "DELETE FROM card_reviews WHERE token = :t",
+    "DELETE FROM cards WHERE token = :t",
+    # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
+    # plan it was (D12).
+    "UPDATE ai_usage SET token = '' WHERE token = :t",
+)
 
 
 class Conflict(Exception):
@@ -82,6 +237,27 @@ class Store:
                 yield db
         finally:
             db.close()
+
+    @property
+    def photos(self) -> Path:
+        """Where posts' photos are kept, next to the database (DECISIONS.md D18)."""
+        return self.path.parent / "photos"
+
+    def connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
+        """A connection in a transaction, for the modules that keep their own tables
+        here (`cps.social`)."""
+        return self._connect()
+
+    def _forget(self, db: sqlite3.Connection, token: str) -> None:
+        photos = [
+            name
+            for (data,) in db.execute("SELECT data FROM posts WHERE token = ?", (token,))
+            for name in json.loads(data).get("photos", [])
+        ]
+        for statement in _FORGET:
+            db.execute(statement, {"t": token})
+        for name in photos:
+            (self.photos / name).unlink(missing_ok=True)
 
     @staticmethod
     def valid(token: str) -> bool:
@@ -149,6 +325,7 @@ class Store:
         with self._connect() as db:
             gone = db.execute("DELETE FROM subscriptions WHERE token = ?", (token,)).rowcount
             db.execute("DELETE FROM events WHERE token = ?", (token,))
+            self._forget(db, token)
         return bool(gone)
 
     def log(self, token: str, kind: str, detail: str = "") -> None:
@@ -157,6 +334,22 @@ class Store:
                 "INSERT INTO events (token, at, kind, detail) VALUES (?, ?, ?, ?)",
                 (token, _now(), kind, detail),
             )
+
+    def log_daily(self, token: str, kind: str, detail: str = "") -> bool:
+        """Log `kind` once per token per day (UTC); True if this was the first
+        today. A page's visits count as one a day (DECISIONS.md, D15)."""
+        stamp = _now()
+        with self._connect() as db:
+            added = db.execute(
+                """
+                INSERT INTO events (token, at, kind, detail)
+                SELECT ?, ?, ?, ? WHERE NOT EXISTS (
+                    SELECT 1 FROM events WHERE token = ? AND kind = ? AND substr(at, 1, 10) = ?
+                )
+                """,
+                (token, stamp, kind, detail, token, kind, stamp[:10]),
+            ).rowcount
+        return bool(added)
 
     def events(self, token: str) -> list[dict]:
         with self._connect() as db:
@@ -178,7 +371,19 @@ class Store:
             for token in tokens:
                 db.execute("DELETE FROM subscriptions WHERE token = ?", (token,))
                 db.execute("DELETE FROM events WHERE token = ?", (token,))
+                self._forget(db, token)
         return len(tokens)
+
+    def tokens(self) -> list[str]:
+        with self._connect() as db:
+            return [t for (t,) in db.execute("SELECT token FROM subscriptions ORDER BY token")]
+
+    def all_events(self, since: str) -> list[tuple[str, str, str, str]]:
+        """(token, at, kind, detail) since an ISO time, for the pilot's measures."""
+        with self._connect() as db:
+            return db.execute(
+                "SELECT token, at, kind, detail FROM events WHERE at >= ? ORDER BY id", (since,)
+            ).fetchall()
 
     def count(self) -> int:
         with self._connect() as db:

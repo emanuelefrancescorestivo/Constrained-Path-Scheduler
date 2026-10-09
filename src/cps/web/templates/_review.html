@@ -1,0 +1,20 @@
+{# The weekly review: its numbers, its paragraph, and who wrote it. #}
+<article class="card review" id="review">
+  <div class="card-title"><h3>{{ review.label }}</h3>{% if review.by == "ai" %}<span class="badge badge-accent">{{ _("written by AI") }}</span>{% endif %}</div>
+  {% if review.sessions_planned and not compact %}
+  <div class="review-numbers">
+    <span><b>{{ review.sessions_done }}/{{ review.sessions_planned }}</b><small>{{ _("sessions") }}</small></span>
+    <span><b>{{ review.hours_done | hours }} h</b><small>{{ _("studied") }}</small></span>
+    <span><b>{{ review.days_studied }}</b><small>{{ _n("day", "days", review.days_studied) }}</small></span>
+    {% if review.deadlines %}<span><b>{{ review.deadlines_met }}/{{ review.deadlines }}</b><small>{{ _("deadlines met") }}</small></span>{% endif %}
+  </div>
+  {% endif %}
+  <p>{{ review.text }}</p>
+  {% if dismiss %}
+  <form method="post" action="/p/{{ token }}/review/seen" class="row-end">
+    <input type="hidden" name="week" value="{{ review.week }}">
+    <a class="btn btn-sm" href="/p/{{ token }}/progress#review">{{ _("See your progress") }}</a>
+    <button class="btn btn-sm btn-plain">{{ _("Hide until next week") }}</button>
+  </form>
+  {% endif %}
+</article>

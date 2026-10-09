@@ -1,6 +1,6 @@
 # Render Blueprint for the hosted pilot (docs/ROADMAP.md, D3; steps in docs/DEPLOY.md).
 # One web service with one disk: the SQLite store and its backups live on the disk,
-# so the service runs as a single instance. Nothing here is a secret; the two
+# so the service runs as a single instance. Nothing here is a secret; the
 # settings marked `sync: false` are typed in Render's dashboard.
 services:
   - type: web
@@ -8,7 +8,7 @@ services:
     runtime: python
     region: frankfurt # data stays in the EU (D6)
     plan: starter # a disk needs a paid instance
-    buildCommand: pip install ".[web]"
+    buildCommand: pip install ".[web,ai]"
     startCommand: cps web --host 0.0.0.0 --behind-proxy --db /var/data/cps.sqlite
     healthCheckPath: /health
     autoDeploy: false # deploy on purpose, from the dashboard, after CI is green
@@ -25,3 +25,9 @@ services:
         sync: false
       - key: CPS_BASE_URL # only with a custom domain; else Render's own address is used
         sync: false
+      - key: CPS_ADMIN_TOKEN # the owner's review page, /admin/<token>; 24 characters or more
+        sync: false
+      - key: ANTHROPIC_API_KEY # optional: AI (D12); empty, the rules answer
+        sync: false
+      - key: CPS_AI_MONTHLY_CAP_USD # dollars a month, all students together
+        value: "10"

@@ -539,3 +539,112 @@ popover. Checked in Chromium at 390 px on the sample semester's lecture days: 14
 blocks, no word wider than its block, no title past its block's bottom (the check
 measures each word with the block's own font). A real phone browser has not been
 tried. Status: fixed in Chromium; open for a real phone.
+
+**40. The hosted app is in French and English; some of what it shows is not.**
+Found while translating the app (DECISIONS.md, D10), by listing every sentence a
+student can read and where it is written. Translated: every page and the scripts'
+messages, what each session says to do and why, the plan's warnings, the errors a
+student meets in the app (setup, tasks, moving and reporting sessions, a timetable
+link that cannot be read), dates and numbers, and the calendar feed's events.
+`tests/test_i18n.py` fails if a marked sentence has no French. Still in English:
+the Streamlit workbench and the CLI (research tools, by choice); the research
+planner's explanations (the product runs the assistant); errors about a busy time
+typed in the settings' table (`calendar_io` writes them); and anything a plan wrote
+before it was made again in the new language, which happens at its next refresh or
+change. Course names and timetable titles stay as the university wrote them. The
+French was written by the AI assistant that built this, and no French speaker has
+reviewed it yet. Status: open until a French speaker has read every screen.
+
+**41. The timetable reader was fitted to one university's export.** The owner asked
+for it not to be ("don't overfit on my calendar; the algorithm has to be general").
+Found by `tests/test_generality.py`, which builds a synthetic semester in the shape
+of eleven systems and countries (ADE, Hyperplanning, Celcat, an Outlook export with
+course codes, Italian, German, Spanish, Dutch, Portuguese, US and Japanese
+timetables) and asks for the exams, each lecture's course, and a plan. Only the ADE
+shape passed. The causes: exam words missing ("examination", "appello", "Prüfung",
+"tentamen", "exame", "épreuve", "devoir surveillé"); words that qualify the exam
+left in the course's name ("Examen terminal - Mathématiques" was the course
+"terminal", "Examen final de Cálculo" was "final de Cálculo"); brackets naming the
+kind of event kept ("Algebra 3 (Lecture)" was not "Algebra 3"); kinds of class
+unknown in Italian, Dutch and US timetables ("esercitazione", "hoorcollege",
+"discussion"); and "Final Cut Pro workshop" taken for an exam. Also, the start page
+proposed Paris time to everyone. Fixed: the exam words; every exam word removed from
+the course's name, then qualifiers, connectives and kinds of class trimmed from its
+ends; brackets dropped when all they say is the kind of event; "final", "test" and
+"quiz" not counted in a title that names a kind of class; the time zone taken from
+the device. All eleven shapes pass, with a plan inside the student's hours in each
+time zone, plus an all-day exam, a personal calendar with no exams, and course
+names that only contain an exam word. Still true: these are synthetic semesters
+written from how each system is documented to name events, not real exports; one
+real export (ADE) has been read; and keyword reading fails visibly on a shape no
+one has seen, which the settings page lets the student correct. Status: fixed for
+these shapes; open for real exports from other universities.
+
+**42. On a phone, a long form's Save button sat under the tab bar.** Found in the
+browser run of the session log at 390 px: the button that sticks to the bottom of a
+long form (Settings' "Save and plan", the log's "Save") stuck to the bottom of the
+screen, where the tab bar is, and the form's own content was drawn over it, so a tap
+reached a label instead. The Python tests could not see it; a click in Chromium
+could. Fixed: on pages with the tab bar the button sticks above it, and above the
+form's content. Status: fixed in Chromium; a real phone not tried.
+
+**43. A post whose second photo was refused left its first photo on disk.** Found
+while writing the network's tests (step E4b): `create_post` cleaned and wrote each
+photo in turn, so when a later photo was refused (not a JPEG or PNG, too large), the
+earlier ones were already files with no post, kept until nothing (no plan, no sweep)
+would ever delete them. Nobody could see them (a photo's address needs its post), but
+they were kept without a reason, which the privacy page does not allow. Fixed: every
+photo is checked before any is written (`social.create_post`). Status: fixed; files
+left by the earlier code, on a store that has run it, are not swept.
+
+**44. A report on a post was logged as a session's report.** Found while writing the
+pilot's measures (step E6): the moderation step logged a student reporting a post or
+a comment as the event `report`, the kind the event log already used for a session
+reported done, skipped or hard, so every moderation report would have counted as a
+session report in the pilot's numbers. No measure read the log yet, and nothing was
+hosted. Fixed: a moderation report is logged as `flagged`. Status: fixed; a store
+that ran the earlier code holds such events under `report`, with a post or comment
+kind (`post`, `comment`) as their detail, which tells them apart.
+
+
+**45. The pilot's north star did not count sessions reported hard.** Found while
+adding the recall question (step E9): `service.engagement` counted a session as
+confirmed when its report was "done" or "hard", but a session reported hard is
+stored as "struggled", so a student whose only report in a week was hard was not
+counted in the north star. Nothing was hosted, so no number was wrong anywhere it
+was read. Fixed: the measure uses `progress.Session.confirmed`, the one definition
+the streak already uses, which now also counts a self-test's recall answer.
+Status: fixed.
+
+**46. A form with more photos than it takes dropped the extra ones without a word.**
+Found while building the notes library (step E10): the browser script that shrinks
+photos before sending them (`web/static/log.js`) sent the first four files chosen
+and ignored the rest, so a student who chose five photos of a session lost the fifth
+and was told nothing; without the script, the server refused the form instead. It
+mattered more for notes, whose pages are the content. Fixed: the script reads the
+form's limit (`data-max-photos`, four, or eight for notes) and refuses a choice over
+it with a message, before anything is sent. Status: fixed; checked in Chromium, not
+by the Python tests, which do not run JavaScript.
+
+**47. A session timed from the plan was counted twice.** Found while building the
+study group's weekly hours on the Trends code (step E12): starting the focus timer
+on a planned session and logging it reports that session done and keeps a logged
+session, and the hours added both. 50 minutes of study on a planned 90-minute
+session showed as 2 h 20 on Trends (hours per week, the tiles, hours per course),
+the day was shaded as two sessions on Progress, the weekly review said "You also
+logged 1 focus session" about the session it had just counted, and the pilot's
+over-the-limit measure counted both. Fixed: a logged session keeps the id of the
+planned session it was timed from (`progress.Session.sid`, `trends.Logged.sid`),
+and `progress.merge_logged` and the Trends sums count it once, as the planned
+session reported done, for its planned length, as any session reported done
+counts. Status: fixed; `tests/test_focus.py` and `tests/test_trends.py` reproduce
+it. The measured minutes still show on the logged session itself.
+
+**48. Every toast arrived off centre.** Found while adding motion (step E14): the
+toast is centred with `transform: translateX(-50%)`, and its entrance animation
+(`pop-in`) animated `transform` without that translation, so for its first 0.2 s
+each toast sat half its width to the right, then jumped to the centre. Fixed: the
+toast's own entrance keeps the translation (`toast-in`), and it sinks away the same
+way. Status: fixed; seen in Chromium, not by the Python tests, which do not run the
+page.
+

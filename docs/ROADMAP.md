@@ -36,6 +36,44 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
       settings, go through setup on a phone with one's own timetable.
 - [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.
 
+## Phase 1b: a reason to come back every day
+
+Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
+
+- [x] **E1 Progress and a forgiving streak.** A Progress tab, the week's ring, the
+      streak on Today (D8, D9).
+- [x] **E2 The weekly review.** Last week in numbers, a paragraph and one suggestion.
+- [x] **E3 French.** The app in French and English, chosen per plan (D10).
+- [x] **E4a Focus sessions and the diary** (D17, D18).
+- [x] **E4b The study network**: profiles, follows, feeds, kudos, comments, "explain it
+      simply" (D16, D19).
+- [x] **E4c Moderation**: report, hide, block, the owner's review page (D20).
+- [ ] **C4 (owner)** Set `CPS_ADMIN_TOKEN` on the host and read `/admin/<token>` at
+      least once a day during the pilot (docs/DEPLOY.md).
+- [x] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
+      (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
+- [x] **E6 Pilot metrics.** `cps metrics` from the event log (D15).
+- [x] **E7 Analytics** (owner, 2026-10-08: "more analytics, people love to see
+      trajectory"): docs/ANALYTICS.md; Trends with the exam forecast, hours, sessions
+      kept, study load, courses, parts of the day, focus; each self-test's gain on
+      exam day (D22 to D24).
+- [x] **E8 Appearance**: Automatic, Light or Dark per plan (D21).
+- [x] **E9 The recall question**: a self-test asks how much was recalled; FSRS's four
+      grades feed the plan and the forecast (D25).
+- [x] **E10 The notes library**: own notes by course, "helpful" marks, the month's
+      top three per course, a line on the profile, no money (D26). Before it opens to
+      the public (owner): a lawyer's view of students' notes and copyright in France.
+- [x] **E11 "In simple words"** inside the session log (D27).
+- [x] **E12 Study groups**: a few friends, one weekly goal in hours, nobody ranked
+      (D28).
+- [x] **E13 Flashcards**: the student's own cards, scheduled by the planner's FSRS
+      model; four answers, keys, 20 new a day (D29).
+- [x] **E14 Motion** (owner: "animations and motions and dynamics"): page
+      transitions, data that draws itself, changes in one movement, confetti at
+      milestones; a Motion setting; reduced motion respected (D30).
+- [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
+      docs/MARKET.md §4.
+
 ## Phase 2: once the pilot runs
 
 - [ ] **W10 Writing into Google Calendar directly.** (owner: a Google Cloud project and

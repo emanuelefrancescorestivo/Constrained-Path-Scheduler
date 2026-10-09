@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{# A task typed in one line, read into the new-task form (D12): the page a browser
+   without scripts gets; with them, the sheet fills itself in place. #}
+{% block title %}{{ _("New task") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/tasks">{{ _("Tasks") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("New task") }}</h1>
+  <p>{{ read.note }}</p>
+</div>
+<form method="post" action="/p/{{ token }}/tasks" class="card form-grid">
+  <input type="hidden" name="back" value="tasks">
+  <p class="kicker">{{ _("You typed: {words}", words=words) }}</p>
+  <label for="tn-name">{{ _("What needs doing") }}</label>
+  <input id="tn-name" name="name" value="{{ read.name }}" required maxlength="120">
+  <label for="tn-due">{{ _("Due") }}</label>
+  <input id="tn-due" name="due" type="datetime-local" value="{{ read.due }}" required>
+  <label for="tn-hours">{{ _("Hours of work") }}</label>
+  <input id="tn-hours" name="hours_other" type="number" min="0.5" step="0.5" inputmode="decimal" value="{{ read.hours or 2 }}">
+  <label for="tn-course">{{ _("Course") }}</label>
+  <input id="tn-course" name="course" value="{{ read.course }}" list="qa-courses" autocomplete="off" placeholder="{{ _('Optional') }}">
+  {% if courses %}<datalist id="qa-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+  <div class="row-end"><a class="btn" href="/p/{{ token }}/tasks">{{ _("Cancel") }}</a><button type="submit" class="btn btn-primary">{{ _("Add") }}</button></div>
+</form>
+{% endblock %}

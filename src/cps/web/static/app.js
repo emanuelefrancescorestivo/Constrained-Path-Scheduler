@@ -3,6 +3,8 @@
 // again, so there is one place where what it says is decided. Without this
 // script, every form on the page still works, by full page loads.
 import { Calendar } from "./calendar.js";
+import { t } from "./i18n.js";
+import { carryOver, transition } from "./motion.js";
 import { toast } from "./ui.js";
 
 const plan = document.querySelector(".plan");
@@ -13,7 +15,14 @@ async function refreshPanel() {
   try {
     const response = await fetch(`/p/${token}/panel`);
     if (response.ok) {
-      panel().innerHTML = await response.text();
+      const html = await response.text();
+      const before = panel().cloneNode(true);
+      // The answered session leaves its list and the others close up; the week's
+      // ring and numbers move from what they were (D30).
+      await transition(() => {
+        panel().innerHTML = html;
+      });
+      carryOver(before, panel());
       wirePanel();
     }
   } catch {
@@ -41,7 +50,10 @@ function wirePanel() {
       const outcome = event.submitter ? event.submitter.value : "done";
       const sid = form.action.split("/").pop();
       const word = event.submitter ? event.submitter.textContent.trim().toLowerCase() : outcome;
-      await calendar.change(`sessions/${sid}/report`, { outcome }, `Recorded: ${word}. The plan has adjusted.`);
+      const said = form.hasAttribute("data-recall") && outcome !== "skipped"
+        ? t("Recorded. Your exam forecast now uses what you recalled.")
+        : t("Recorded: {word}. The plan has adjusted.", { word });
+      await calendar.change(`sessions/${sid}/report`, { outcome }, said);
     });
   });
 }
@@ -49,7 +61,7 @@ function wirePanel() {
 // A task added, finished or deleted elsewhere on the page (ui.js): redraw.
 document.addEventListener("cps:changed", () => {
   wirePanel();
-  calendar.load();
+  calendar.load(true);
 });
 
 bar.hidden = false;

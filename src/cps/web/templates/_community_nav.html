@@ -1,0 +1,8 @@
+{# The Community tabs. Before including: `nav`, one of following, explore, notes,
+   groups; `invites`, the group invitations waiting (D28). #}
+<nav class="segmented seg-links" aria-label="{{ _('Community') }}">
+  <a href="/p/{{ token }}/community"{% if nav == 'following' %} aria-current="page"{% endif %}>{{ _("Following") }}</a>
+  <a href="/p/{{ token }}/community?tab=explore"{% if nav == 'explore' %} aria-current="page"{% endif %}>{{ _("Explore") }}</a>
+  <a href="/p/{{ token }}/notes"{% if nav == 'notes' %} aria-current="page"{% endif %}>{{ _("Notes") }}</a>
+  <a href="/p/{{ token }}/groups"{% if nav == 'groups' %} aria-current="page"{% endif %}>{{ _("Groups") }}{% if invites %} <span class="count" aria-label="{{ _n('{n} invitation', '{n} invitations', invites) }}">{{ invites }}</span>{% endif %}</a>
+</nav>

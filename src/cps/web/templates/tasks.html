@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Tasks · Study plan{% endblock %}
+{% block title %}{{ _("Tasks") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 <div id="tasks">
 <div class="page-title">
-  <h1>Tasks</h1>
-  <p>{{ view.open }} open{% if view.at_risk %} · <span class="error">{{ view.at_risk }} need{{ 's' if view.at_risk == 1 }} attention</span>{% endif %}{% if view.this_week %} · {{ view.this_week }} due this week{% endif %}</p>
+  <h1>{{ _("Tasks") }}</h1>
+  <p>{{ _n("{n} open", "{n} open", view.open) }}{% if view.at_risk %} · <span class="error">{{ _n("{n} needs attention", "{n} need attention", view.at_risk) }}</span>{% endif %}{% if view.this_week %} · {{ _n("{n} due this week", "{n} due this week", view.this_week) }}{% endif %}</p>
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if task_error %}<p class="alert" role="alert">{{ task_error }}</p>{% endif %}
@@ -18,15 +18,15 @@
     {% for t in open_rows %}{% with back='tasks' %}{% include "_task.html" %}{% endwith %}{% endfor %}
   </ul>
   {% else %}
-  <div class="empty"><b>Nothing due</b>Add homework, a report or a project, and the plan finds time for it.</div>
+  <div class="empty"><b>{{ _("Nothing due") }}</b>{{ _("Add homework, a report or a project, and the plan finds time for it.") }}</div>
   {% endif %}
-  <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">New task</button></p>
+  <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
 </div>
-<p class="hint">Tick a task when it is finished: its remaining sessions become free time. Press <span class="kbd">N</span> anywhere for a new task.</p>
+<p class="hint">{{ _h("Tick a task when it is finished: its remaining sessions become free time. Press <span class=\"kbd\">N</span> anywhere for a new task.") }}</p>
 
 {% if done_rows %}
 <div class="section">
-  <div class="section-title"><h2>Done</h2><small>{{ done_rows | length }}</small></div>
+  <div class="section-title"><h2>{{ _("Done") }}</h2><small>{{ done_rows | length }}</small></div>
   <div class="card">
     <ul class="tasks">
       {% for t in done_rows %}{% with back='tasks' %}{% include "_task.html" %}{% endwith %}{% endfor %}
@@ -36,8 +36,8 @@
 {% endif %}
 
 <div class="section">
-  <div class="section-title"><h2>From your learning platform</h2></div>
-  <div class="card"><p class="muted">Moodle's assignments and quizzes can arrive here by themselves: paste its calendar link in <a href="/p/{{ token }}/settings#deadlines">Settings</a>.</p></div>
+  <div class="section-title"><h2>{{ _("From your learning platform") }}</h2></div>
+  <div class="card"><p class="muted">{{ _h("Moodle's assignments and quizzes can arrive here by themselves: paste its calendar link in <a href=\"{url}\">Settings</a>.", url="/p/" ~ token ~ "/settings#deadlines") }}</p></div>
 </div>
 </div>
 {% endblock %}
