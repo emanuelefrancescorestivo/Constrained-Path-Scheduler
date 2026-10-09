@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from .i18n import _
-from .store import Store
+from .store import LEAVE_GROUPS, Store
 
 VISIBILITIES = ("me", "followers", "everyone")
 KINDS = ("session", "explain", "notes")
@@ -752,6 +752,7 @@ def leave(store: Store, token: str) -> None:
             "DELETE FROM kudos WHERE token = :t",
             "DELETE FROM follows WHERE follower = :t OR followed = :t",
             "DELETE FROM profiles WHERE token = :t",
+            *LEAVE_GROUPS,  # a group is for people with a handle (D28)
         ):
             db.execute(statement, {"t": token})
 
@@ -830,6 +831,13 @@ def block(store: Store, blocker: str, blocked: str, now: datetime | None = None)
         )
         db.execute(
             "DELETE FROM follows WHERE (follower = ? AND followed = ?) OR (follower = ? AND followed = ?)",
+            (blocker, blocked, blocked, blocker),
+        )
+        # Invitations between them to a group go too (D28); shared groups stay, and
+        # each is left out of the other's view of the group.
+        db.execute(
+            "DELETE FROM group_members WHERE joined IS NULL AND "
+            "((token = ? AND invited_by = ?) OR (token = ? AND invited_by = ?))",
             (blocker, blocked, blocked, blocker),
         )
 
@@ -1015,3 +1023,214 @@ def notes_recognition(store: Store, token: str) -> tuple[int, int]:
             {"t": token},
         ).fetchone()
     return int(shared), int(marks or 0)
+
+
+# --------------------------------------------------------------------------- #
+# Study groups (D28): a few students, a shared weekly goal, nobody ranked
+# --------------------------------------------------------------------------- #
+
+GROUP_SIZE = 8  # members and invitations together
+GROUPS_EACH = 3  # groups a student belongs to at most
+GOAL_HOURS = (1, 200)  # a group's weekly goal, all members together
+GROUP_NAME = 40
+
+
+@dataclass(frozen=True)
+class Group:
+    id: str
+    name: str
+    goal: int  # minutes a week, all members together
+    owner: str | None
+    created: str
+
+    @property
+    def goal_hours(self) -> float:
+        return self.goal / 60
+
+
+@dataclass(frozen=True)
+class Member:
+    token: str
+    invited_by: str
+    invited: str
+    joined: str | None  # None while the invitation waits
+
+
+def _goal(hours: object) -> int:
+    low, high = GOAL_HOURS
+    try:
+        value = float(str(hours).replace(",", "."))
+    except ValueError:
+        value = -1.0
+    if not low <= value <= high:
+        raise SocialError(_("a weekly goal is from {low} to {high} hours", low=low, high=high))
+    return round(value * 60)
+
+
+def _group_name(name: str) -> str:
+    clean = " ".join(str(name or "").split())
+    if not clean:
+        raise SocialError(_("give the group a name"))
+    if len(clean) > GROUP_NAME:
+        raise SocialError(_("at most {n} characters here", n=GROUP_NAME))
+    return clean
+
+
+def get_group(store: Store, group_id: str) -> Group | None:
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT id, name, goal, owner, created FROM study_groups WHERE id = ?", (group_id,)
+        ).fetchone()
+    return Group(*row) if row else None
+
+
+def members(store: Store, group_id: str) -> list[Member]:
+    """Members first, in the order they joined, then the invitations waiting."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT token, invited_by, invited, joined FROM group_members WHERE grp = ? "
+            "ORDER BY joined IS NULL, joined, rowid",
+            (group_id,),
+        ).fetchall()
+    return [Member(*r) for r in rows]
+
+
+def membership(store: Store, token: str, group_id: str) -> Member | None:
+    found = [m for m in members(store, group_id) if m.token == token]
+    return found[0] if found else None
+
+
+def groups_of(store: Store, token: str) -> list[Group]:
+    """The groups a student belongs to, the oldest first."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT g.id, g.name, g.goal, g.owner, g.created FROM study_groups g "
+            "JOIN group_members m ON m.grp = g.id WHERE m.token = ? AND m.joined IS NOT NULL "
+            "ORDER BY m.joined",
+            (token,),
+        ).fetchall()
+    return [Group(*r) for r in rows]
+
+
+def invitations_of(store: Store, token: str) -> list[tuple[Group, Member]]:
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT g.id, g.name, g.goal, g.owner, g.created, m.token, m.invited_by, m.invited, m.joined "
+            "FROM study_groups g JOIN group_members m ON m.grp = g.id "
+            "WHERE m.token = ? AND m.joined IS NULL ORDER BY m.invited",
+            (token,),
+        ).fetchall()
+    return [(Group(*r[:5]), Member(*r[5:])) for r in rows]
+
+
+def create_group(
+    store: Store, token: str, name: str, goal_hours: object, now: datetime | None = None
+) -> Group:
+    """A group with its creator as its first member and owner. A group is for
+    people with a handle: its members see each other's."""
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    if len(groups_of(store, token)) >= GROUPS_EACH:
+        raise SocialError(_("you are in {n} groups already, the most there can be", n=GROUPS_EACH))
+    group = Group(_new_id(), _group_name(name), _goal(goal_hours), token, _now(now))
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO study_groups (id, name, goal, owner, created) VALUES (?, ?, ?, ?, ?)",
+            (group.id, group.name, group.goal, token, group.created),
+        )
+        db.execute(
+            "INSERT INTO group_members (grp, token, invited_by, invited, joined) VALUES (?, ?, ?, ?, ?)",
+            (group.id, token, token, group.created, group.created),
+        )
+    return group
+
+
+def _member_of(store: Store, token: str, group_id: str) -> Group:
+    group = get_group(store, group_id)
+    mine = membership(store, token, group_id) if group else None
+    if group is None or mine is None or mine.joined is None:
+        raise SocialError(_("this group is not, or no longer, yours"))
+    return group
+
+
+def invite(store: Store, token: str, group_id: str, handle: str, now: datetime | None = None) -> Profile:
+    """Any member may invite someone with a handle; the invited person sees the
+    invitation and chooses, as with a follow (D16)."""
+    _member_of(store, token, group_id)
+    person = profile_by_handle(store, handle.strip())
+    if person is None or blocked_between(store, token, person.token):
+        raise SocialError(_("there is nobody called @{handle}", handle=handle.strip().lstrip("@")[:40]))
+    if membership(store, person.token, group_id) is not None:
+        raise SocialError(_("@{handle} is already in this group, or invited", handle=person.handle))
+    if len(members(store, group_id)) >= GROUP_SIZE:
+        raise SocialError(_("a group has {n} people at most, invitations included", n=GROUP_SIZE))
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO group_members (grp, token, invited_by, invited, joined) VALUES (?, ?, ?, ?, NULL)",
+            (group_id, person.token, token, _now(now)),
+        )
+    return person
+
+
+def answer_invitation(
+    store: Store, token: str, group_id: str, accept: bool, now: datetime | None = None
+) -> bool:
+    """Join the group, or decline (the invitation goes; nobody is told)."""
+    mine = membership(store, token, group_id)
+    if mine is None or mine.joined is not None:
+        raise SocialError(_("this invitation is not, or no longer, there"))
+    if not accept:
+        with store.connection() as db:
+            db.execute("DELETE FROM group_members WHERE grp = ? AND token = ?", (group_id, token))
+        return False
+    if len(groups_of(store, token)) >= GROUPS_EACH:
+        raise SocialError(_("you are in {n} groups already, the most there can be", n=GROUPS_EACH))
+    with store.connection() as db:
+        db.execute(
+            "UPDATE group_members SET joined = ? WHERE grp = ? AND token = ?", (_now(now), group_id, token)
+        )
+    return True
+
+
+def leave_group(store: Store, token: str, group_id: str) -> None:
+    """Leave one group (or take back one's invitation). The next member in line
+    owns a group its owner left; a group with nobody left goes."""
+    where = {"t": token, "g": group_id}
+    with store.connection() as db:
+        db.execute("DELETE FROM group_members WHERE grp = :g AND token = :t", where)
+        db.execute(
+            "UPDATE study_groups SET owner = (SELECT m.token FROM group_members m WHERE m.grp = :g "
+            "AND m.joined IS NOT NULL ORDER BY m.joined, m.rowid LIMIT 1) WHERE id = :g AND owner = :t",
+            where,
+        )
+        db.execute(
+            "DELETE FROM group_members WHERE grp = :g "
+            "AND :g IN (SELECT id FROM study_groups WHERE owner IS NULL)",
+            where,
+        )
+        db.execute("DELETE FROM study_groups WHERE id = :g AND owner IS NULL", where)
+
+
+def remove_member(store: Store, owner: str, group_id: str, handle: str) -> None:
+    """The owner removes a member or withdraws an invitation."""
+    group = _member_of(store, owner, group_id)
+    if group.owner != owner:
+        raise SocialError(_("only the group's owner can do this"))
+    person = profile_by_handle(store, handle)
+    if person is None or person.token == owner or membership(store, person.token, group_id) is None:
+        raise SocialError(_("there is nobody called @{handle} in this group", handle=handle.lstrip("@")[:40]))
+    with store.connection() as db:
+        db.execute("DELETE FROM group_members WHERE grp = ? AND token = ?", (group_id, person.token))
+
+
+def set_group(store: Store, owner: str, group_id: str, name: str, goal_hours: object) -> Group:
+    """The owner renames the group or changes its weekly goal."""
+    group = _member_of(store, owner, group_id)
+    if group.owner != owner:
+        raise SocialError(_("only the group's owner can do this"))
+    changed = Group(group.id, _group_name(name), _goal(goal_hours), group.owner, group.created)
+    with store.connection() as db:
+        db.execute(
+            "UPDATE study_groups SET name = ?, goal = ? WHERE id = ?", (changed.name, changed.goal, group.id)
+        )
+    return changed

@@ -800,6 +800,8 @@ td.d { display: table-cell; padding: 0; }
   flex: 1; text-align: center; padding: 6px 12px; border-radius: 7px; min-height: 30px;
   color: var(--text); font-size: 0.9rem; font-weight: 500; text-decoration: none !important;
 }
+.seg-links a { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.seg-links .count { min-width: 17px; height: 17px; padding: 0 5px; font-size: 0.68rem; vertical-align: 1px; margin-left: 2px; }
 .seg-links a[aria-current="page"] { background: var(--elevated); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); }
 .filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; margin: 0 0 14px; align-items: center; }
 .search { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
@@ -840,6 +842,40 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .act-count { font-variant-numeric: tabular-nums; }
 .act-static { cursor: default; }
 .act-static:hover { background: transparent; }
+
+/* -- study groups (D28) ------------------------------------------------------ */
+.btn.destructive, .btn-plain.destructive { color: var(--danger-text); }
+.group-invite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.group-invite .grow { flex: 1 1 14rem; min-width: 0; }
+.group-invite .hint { margin: 2px 0 0; }
+.inline-actions { display: flex; gap: 8px; margin: 0; }
+.group-card { display: block; margin-bottom: 10px; color: inherit; text-decoration: none !important; }
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.group-head b { font-size: 1.05rem; }
+.group-meter { grid-template-columns: 6rem 1fr auto; margin-top: 10px; }
+.group-card .hint { margin: 4px 0 0; }
+.group-new h2 { margin-top: 0; }
+.group-week .tile-label { margin: 0; }
+.group-total { margin: 2px 0 10px; }
+.group-total b { font-size: 2rem; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.group-total span { color: var(--muted); font-weight: 500; }
+.meter-lg { height: 12px; }
+.group-week .chart { margin-top: 16px; }
+/* A goal to reach, not a ceiling: not the warning colour of the weekly limit. */
+.group-week .chart .limit { stroke: var(--ok); stroke-dasharray: 5 4; }
+.group-manage h3 { font-size: 0.95rem; margin: 18px 0 4px; }
+.group-manage .list > li { align-items: center; padding: 6px 0; }
+.group-manage form { margin: 0; }
+.group-members { padding: 4px 16px; }
+.group-members > li { align-items: center; }
+.group-members form { margin: 0; }
+.group-members .invited { opacity: 0.75; }
+.studied { flex: none; font-size: 0.8rem; font-weight: 600; color: var(--muted); padding: 3px 8px; border-radius: 980px; background: var(--fill-3); }
+.studied.yes { color: var(--ok); background: var(--ok-soft); }
+.studied.yes::before { content: "✓ "; content: "✓ " / ""; }
+.row-input { display: flex; gap: 8px; align-items: center; }
+.row-input input { flex: 1; min-width: 0; }
+.inline-form label { margin-top: 0; }
 
 /* -- the notes library (D26) ----------------------------------------------- */
 .lede { color: var(--muted); margin: 0 0 14px; font-size: 0.95rem; max-width: 46rem; }

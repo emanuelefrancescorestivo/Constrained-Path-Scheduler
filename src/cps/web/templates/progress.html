@@ -51,6 +51,13 @@
 </div>
 {% endif %}
 
+{% if groups %}
+<div class="section">
+  <div class="section-title"><h2>{{ _n("Your group", "Your groups", groups | length) }}</h2><a href="/p/{{ token }}/groups">{{ _("Groups") }}</a></div>
+  {% for g in groups %}{% include "_group_card.html" %}{% endfor %}
+</div>
+{% endif %}
+
 <div class="section">
   <div class="section-title"><h2>{% if view.grid | length < 12 %}{{ _("Since {day}", day=view.since) }}{% else %}{{ _("The last twelve weeks") }}{% endif %}</h2><small>{{ _n("{n} day studied", "{n} days studied", view.totals.days) }}</small></div>
   <div class="card days-card">

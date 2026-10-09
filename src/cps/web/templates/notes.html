@@ -11,11 +11,7 @@
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 
-<nav class="segmented seg-links" aria-label="{{ _('Feeds') }}">
-  <a href="/p/{{ token }}/community">{{ _("Following") }}</a>
-  <a href="/p/{{ token }}/community?tab=explore">{{ _("Explore") }}</a>
-  <a href="/p/{{ token }}/notes" aria-current="page">{{ _("Notes") }}</a>
-</nav>
+{% set nav = "notes" %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
 
 <p class="lede">{{ _("Students' own notes, by course. Mark the ones that helped you: each month, the three most helpful notes of each course are marked for everyone to find.") }}</p>
 

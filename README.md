@@ -182,7 +182,8 @@ cps web                        # http://127.0.0.1:8000
    **Notes**: share your own notes of a course as photos of the pages; others mark
    them helpful, and each month the three most helpful notes of each course are
    marked for everyone to find. Notes are ranked, never people, and nothing is paid
-   (D26).
+   (D26). **Groups**: a few friends share one weekly goal in hours; the group sees
+   its total and who has studied this week, never one person's hours (D28).
 7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
 8. **After each session**: its calendar event links to a page that asks how it went.
@@ -364,8 +365,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 525 passed, 14 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 539 passed, 1 xfailed, 93% coverage
+pytest                                    # 532 passed, 14 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 546 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

@@ -362,7 +362,8 @@ def command_metrics(args) -> int:
         f"streaks                  median {st['median']}, longest {st['longest']}, "
         f"{st['at_least_3']} at 3 days or more, {st['at_least_7']} at 7 or more",
         f"over their weekly limit  {m['over_limit']} (should be 0)",
-        f"network                  {net['profiles']} profiles, {net['follows']} follows",
+        f"network                  {net['profiles']} profiles, {net['follows']} follows, "
+        f"{net['groups']} study groups",
         f"  last 7 days            {net['sessions_shared']} sessions shared, {net['sessions_private']} kept "
         f"private, {net['explanations']} explanations, {net['notes']} notes, {net['kudos']} kudos and "
         f"helpful marks, {net['comments']} comments",

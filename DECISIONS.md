@@ -489,3 +489,39 @@ session would be filled with anything.
 **Rejected.** Making it required; scoring the explanation (by readers or by a
 model): a score of a sentence would reward style, and the AI is opt-in (D12).
 
+## D28. A study group with a shared weekly goal, nobody ranked
+
+**Chosen.** A study group is up to eight students with handles (members and
+invitations together); a student belongs to three at most. Its owner names it and
+sets one weekly goal in hours for all of them together (1 to 200). Any member
+invites by handle; the invited person accepts or declines, as with a follow (D16),
+and nobody is told of a decline. The group's page, for its members only, shows this
+week's total against the goal, "N h to go together", the weeks in a row the goal
+was met (the week in progress does not break the run), the weeks since the group
+began as columns with the goal as a line, and the members, each marked "studied" or
+"not yet" this week. Never one member's hours. A member's study counts from the week
+they joined, in their own time zone, counted as Trends counts it: planned sessions
+reported done or hard, and sessions logged, each once (AUDIT item 47). Progress shows
+the student's groups. The owner renames, changes the goal, removes members and
+withdraws invitations; when the owner leaves, the longest-standing member owns the
+group; the last one out ends it, with its invitations. Leaving the network or
+deleting the plan leaves every group. A block between two members takes away
+invitations between them; in shared groups each is left out of the other's list
+("1 member is not shown") and still counts in the total. `cps metrics` counts
+groups of two or more.
+
+**Why.** The owner's notebook asks for leagues; D16 rejected leagues and rankings,
+and docs/ANALYTICS.md §3 proposed a cooperative group instead. A shared goal turns
+the network's cheering into a reason to study this week, and the run of weeks met is
+a streak a group keeps together. The total, not each person's hours, is what the
+group needs, and it keeps the group from becoming a ranking.
+
+**Rejected.** Leagues, ranks or a member's hours (comparison, D16); a goal per
+member (it becomes eight individual goals and a list of who missed theirs); joining
+by a link (a link travels further than a handle typed by a friend); groups for people
+without handles (members must know who they study with); counting a member's hours
+from before they joined (the group's past weeks would change when someone joins).
+
+**Disclosed.** In a group of two, the total and one's own hours give away the
+other's. The page and the privacy notice say what members see.
+

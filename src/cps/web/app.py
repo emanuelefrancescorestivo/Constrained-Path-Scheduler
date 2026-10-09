@@ -119,6 +119,11 @@ NETWORK_NOTICES = {
     "left": "You have left the network. Your diary is still here, visible only to you.",
     "reported": "Thank you. The report is with the owner of this service.",
     "blocked": "Blocked. Neither of you sees the other any more; undo it in People.",
+    "group": "Group created. Invite your friends by their handle.",
+    "invited": "Invitation sent. They choose whether to join.",
+    "joined_group": "You joined the group.",
+    "left_group": "You left the group.",
+    "group_saved": "Saved.",
 }
 TASK_NOTICES = {
     "added": "Added. The plan has made room for it.",
@@ -437,6 +442,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             ),
             diary=service.diary_view(store, subscription, now),
             trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
+            groups=service.groups_view(store, subscription, now)["groups"],
             saved=_notice(saved),
             tab="progress",
         )
@@ -989,6 +995,141 @@ def create_app(config: Config | None = None) -> FastAPI:
             return again(400, str(error), fields)
         service.log_event(store, token, "notes", post.visibility)
         return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+
+    # ------------------------------------------------------------ study groups (D28)
+
+    @app.get("/p/{token}/groups", response_class=HTMLResponse)
+    def groups(request: Request, token: str, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        view = service.groups_view(store, subscription, config.clock())
+        return page(request, "groups.html", token=token, view=view, saved=_notice(saved), tab="community")
+
+    @app.post("/p/{token}/groups", response_class=HTMLResponse)
+    async def group_create(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            group = service.create_group(store, token, fields, now=config.clock())
+        except service.ServiceError as error:
+            view = service.groups_view(store, subscription, config.clock())
+            return page(
+                request,
+                "groups.html",
+                400,
+                token=token,
+                view=view,
+                error=str(error),
+                draft=fields,
+                tab="community",
+            )
+        service.log_event(store, token, "group", "created")
+        return RedirectResponse(f"/p/{token}/groups/{group.id}?saved=group", 303)
+
+    def group_page(
+        request: Request, token: str, group_id: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.group_view(store, subscription, group_id, config.clock())
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this group is not, or no longer, yours"),
+                token=token,
+            )
+        return page(request, "group.html", status, token=token, view=view, tab="community", **extra)
+
+    @app.get("/p/{token}/groups/{group_id}", response_class=HTMLResponse)
+    def group(request: Request, token: str, group_id: str, saved: str = "") -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        service.log_visit(store, token)
+        return group_page(request, token, group_id, saved=_notice(saved))
+
+    async def group_change(
+        request: Request, token: str, group_id: str, change: Callable[[dict], Any], done: str
+    ) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            change(fields)
+        except service.ServiceError as error:
+            return group_page(request, token, group_id, 400, error=str(error), draft=fields)
+        return RedirectResponse(done, 303)
+
+    @app.post("/p/{token}/groups/{group_id}/invite", response_class=HTMLResponse)
+    async def group_invite(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.invite_to_group(
+                store, token, group_id, f.get("handle", ""), now=config.clock()
+            ),
+            f"/p/{token}/groups/{group_id}?saved=invited",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/settings", response_class=HTMLResponse)
+    async def group_settings(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.change_group(store, token, group_id, f),
+            f"/p/{token}/groups/{group_id}?saved=group_saved",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/remove/{handle}", response_class=HTMLResponse)
+    async def group_remove(request: Request, token: str, group_id: str, handle: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.remove_from_group(store, token, group_id, handle),
+            f"/p/{token}/groups/{group_id}",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/answer", response_class=HTMLResponse)
+    async def group_answer(request: Request, token: str, group_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        accept = form.get("answer") == "accept"
+        try:
+            joined = service.answer_group(store, token, group_id, accept, now=config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        if joined:
+            service.log_event(store, token, "group", "joined")
+            return RedirectResponse(f"/p/{token}/groups/{group_id}?saved=joined_group", 303)
+        return RedirectResponse(f"/p/{token}/groups", 303)
+
+    @app.post("/p/{token}/groups/{group_id}/leave")
+    def group_leave(request: Request, token: str, group_id: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.leave_group(store, token, group_id)
+        service.log_event(store, token, "group", "left")
+        return RedirectResponse(f"/p/{token}/groups?saved=left_group", 303)
 
     @app.get("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
     def report_form(request: Request, token: str, kind: str, target: str) -> HTMLResponse:

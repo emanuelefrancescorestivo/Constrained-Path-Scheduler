@@ -1138,6 +1138,57 @@ def test_the_notes_library_from_sharing_to_the_months_top(web, planned):
     assert [e["detail"] for e in web.store.events(planned) if e["kind"] == "notes"] == ["everyone"]
 
 
+def test_a_study_group_from_starting_it_to_leaving(web, planned, clock):
+    page = unescape(web.get(f"/p/{planned}/groups").text)
+    assert "A group needs a handle" in page and f'action="/p/{planned}/groups"' not in page
+    _profile(web, planned, "ada")
+    refused = web.post(f"/p/{planned}/groups", data={"name": "Thursday library", "goal": "500"})
+    assert refused.status_code == 400 and "from 1 to 200 hours" in unescape(refused.text)
+    assert 'value="Thursday library"' in refused.text  # what was typed is kept
+    made = web.post(
+        f"/p/{planned}/groups", data={"name": "Thursday library", "goal": "2"}, follow_redirects=False
+    )
+    assert made.status_code == 303 and made.headers["location"].endswith("?saved=group")
+    group = made.headers["location"].split("/")[-1].split("?")[0]
+    page = unescape(web.get(made.headers["location"]).text)
+    assert "Group created." in page and "Thursday library" in page and "Owner" in page
+    other = _start(web)
+    _profile(web, other, "bob", university="Politecnico di Milano")
+    missing = web.post(f"/p/{planned}/groups/{group}/invite", data={"handle": "nobody"})
+    assert missing.status_code == 400 and "nobody called @nobody" in unescape(missing.text)
+    sent = web.post(f"/p/{planned}/groups/{group}/invite", data={"handle": "@bob"}, follow_redirects=False)
+    assert sent.headers["location"].endswith("?saved=invited")
+    assert "invited, not yet joined" in unescape(web.get(sent.headers["location"]).text)
+    assert web.get(f"/p/{other}/groups/{group}").status_code == 404  # not a member yet
+    community = unescape(web.get(f"/p/{other}/community").text)
+    assert 'aria-label="1 invitation">1</span>' in community
+    invited = unescape(web.get(f"/p/{other}/groups").text)
+    assert "Invited by @ada" in invited and "Thursday library" in invited
+    joined = web.post(f"/p/{other}/groups/{group}/answer", data={"answer": "accept"}, follow_redirects=False)
+    assert joined.headers["location"].endswith("?saved=joined_group")
+    logged = {"course": "Algebra 3", "effort": "6", "progress": "3", "minutes": "90", "visibility": "me"}
+    assert web.post(f"/p/{other}/log", data=logged, follow_redirects=False).status_code == 303
+    page = unescape(web.get(f"/p/{planned}/groups/{group}").text)
+    assert "1.5 h" in page and "0.5 h to go together." in page
+    assert page.count('class="studied yes"') == 1 and "never your plan" in page
+    progress = unescape(web.get(f"/p/{planned}/progress").text)
+    assert "Your group" in progress and "0.5 h to go together." in progress
+    saved = web.post(
+        f"/p/{planned}/groups/{group}/settings", data={"name": "Library", "goal": "1"}, follow_redirects=False
+    )
+    assert saved.headers["location"].endswith("?saved=group_saved")
+    assert "Goal met this week." in unescape(web.get(f"/p/{other}/groups/{group}").text)
+    web.post(f"/p/{planned}/groups/{group}/remove/bob")
+    assert web.get(f"/p/{other}/groups/{group}").status_code == 404
+    left = web.post(f"/p/{planned}/groups/{group}/leave", follow_redirects=False)
+    assert left.headers["location"].endswith("?saved=left_group")
+    assert web.get(f"/p/{planned}/groups/{group}").status_code == 404  # nobody left: it is gone
+    web.post(f"/p/{other}/language", data={"lang": "fr"})
+    assert "Créer un groupe" in unescape(web.get(f"/p/{other}/groups").text)
+    kinds = [e["detail"] for e in web.store.events(planned) if e["kind"] == "group"]
+    assert kinds == ["created", "left"]
+
+
 def test_the_network_pages_in_french(web, planned):
     web.post(f"/p/{planned}/language", data={"lang": "fr"})
     _profile(web, planned, "ada")

@@ -3508,6 +3508,7 @@ def community_view(
         "posts": _cards(where, token, posts, now, zone),
         "profile": me.public() if me else None,
         "requests": len(social.relations(where, token)["requests"]) if me else 0,
+        "invitations": len(social.invitations_of(where, token)),
     }
 
 
@@ -3579,6 +3580,194 @@ def people_view(store: str | os.PathLike, subscription: Subscription, query: str
 def leave_network(store: str | os.PathLike, token: str) -> None:
     """Leave the network; the diary stays, visible only to the student."""
     social.leave(_store(store), token)
+
+
+# --------------------------------------------------------------------------- #
+# Study groups (D28): a shared weekly goal, nobody ranked
+# --------------------------------------------------------------------------- #
+
+GROUP_WEEKS = 8  # the weeks a group's page shows
+
+
+def _member_hours(
+    store: str | os.PathLike, token: str, mondays: Sequence[date], now: datetime
+) -> list[float]:
+    """A member's hours studied in each week, from their own plan and diary, in
+    their own time zone, as Trends counts them (each session once, AUDIT 47)."""
+    member = load_subscription(store, token)
+    if member is None:
+        return [0.0] * len(mondays)
+    zone = _zone(member.options["tz"])
+    weeks = _trends.weekly(
+        progress_sessions(member), _diary_work(store, member), mondays, now.astimezone(zone)
+    )
+    return [w.hours for w in weeks]
+
+
+def _group_card(
+    path: str | os.PathLike, viewer: str, group: social.Group, now: datetime, zone: ZoneInfo
+) -> dict:
+    """A group as its members see it: this week's hours against the goal, the weeks
+    in a row it was met, the weeks before, and who studied this week. Never one
+    member's hours: the group's total is the number (D28)."""
+    store = _store(path)
+    today = now.astimezone(zone).date()
+    began = datetime.fromisoformat(group.created).astimezone(zone).date()
+    mondays = _trends.mondays(min(began, today), today, None)
+    people = social.members(store, group.id)
+    totals = [0.0] * len(mondays)
+    shown, hidden = [], 0
+    for m in people:
+        if m.joined is None:
+            continue
+        since = _progress.monday(datetime.fromisoformat(m.joined).astimezone(zone).date())
+        hours = [
+            h if monday >= since else 0.0
+            for h, monday in zip(_member_hours(path, m.token, mondays, now), mondays, strict=True)
+        ]
+        totals = [a + b for a, b in zip(totals, hours, strict=True)]
+        if m.token != viewer and social.blocked_between(store, viewer, m.token):
+            hidden += 1  # counted in the total, left out of the list (D20)
+            continue
+        found = social.get_profile(store, m.token)
+        shown.append(
+            {
+                **(found.public() if found else {"handle": "", "university": "", "programme": ""}),
+                "me": m.token == viewer,
+                "owner": m.token == group.owner,
+                "studied": hours[-1] > 0,
+            }
+        )
+    goal = group.goal / 60
+    met = [t >= goal for t in totals]
+    run = 0
+    for i in range(len(met) - 1, -1, -1):
+        if met[i]:
+            run += 1
+        elif i < len(met) - 1:  # this week, not met yet, does not break the run
+            break
+    this_week = totals[-1]
+    invited = []
+    for m in people:
+        if m.joined is None and not social.blocked_between(store, viewer, m.token):
+            found = social.get_profile(store, m.token)
+            if found:
+                invited.append(found.public())
+    recent = list(zip(mondays, totals, met, strict=True))[-GROUP_WEEKS:]
+    return {
+        "id": group.id,
+        "name": group.name,
+        "goal": goal,
+        "owner": group.owner == viewer,
+        "week": {
+            "hours": this_week,
+            "goal": goal,
+            "left": max(0.0, goal - this_week),
+            "percent": min(100, round(100 * this_week / goal)) if goal else 0,
+            "met": this_week >= goal,
+            "studied": sum(x["studied"] for x in shown),
+        },
+        "run": run,
+        "members": shown,
+        "hidden": hidden,
+        "invited": invited,
+        "size": sum(m.joined is not None for m in people),
+        "weeks": [
+            {
+                "label": format_date(monday, "day_short"),
+                "first": format_date(monday, "short"),
+                "hours": hours,
+                "met": done,
+                "current": monday == _progress.monday(today),
+            }
+            for monday, hours, done in recent
+        ],
+    }
+
+
+def groups_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The student's groups, the invitations waiting, and whether they can make
+    another (D28)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    me = social.get_profile(where, token)
+    mine = social.groups_of(where, token)
+    invitations = []
+    for group, member in social.invitations_of(where, token):
+        by = social.get_profile(where, member.invited_by)
+        invitations.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "goal": group.goal / 60,
+                "by": by.handle if by else "",
+                "size": sum(m.joined is not None for m in social.members(where, group.id)),
+            }
+        )
+    return {
+        "profile": me.public() if me else None,
+        "groups": [_group_card(store, token, g, now, zone) for g in mine],
+        "invitations": invitations,
+        "can_create": me is not None and len(mine) < social.GROUPS_EACH,
+        "most": social.GROUPS_EACH,
+        "size": social.GROUP_SIZE,
+    }
+
+
+def group_view(
+    store: str | os.PathLike, subscription: Subscription, group_id: str, now: datetime | None = None
+) -> dict | None:
+    """One group's page, for its members only."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    group = social.get_group(where, group_id)
+    mine = social.membership(where, subscription.token, group_id) if group else None
+    if group is None or mine is None or mine.joined is None:
+        return None
+    card = _group_card(store, subscription.token, group, now, _zone(subscription.options["tz"]))
+    card["room"] = social.GROUP_SIZE - len(social.members(where, group_id))
+    return card
+
+
+def create_group(
+    store: str | os.PathLike, token: str, form: Mapping[str, str], now: datetime | None = None
+) -> social.Group:
+    where = _store(store)
+    group: social.Group = _social(
+        lambda: social.create_group(where, token, form.get("name", ""), form.get("goal", ""), now=now)
+    )
+    return group
+
+
+def invite_to_group(
+    store: str | os.PathLike, token: str, group_id: str, handle: str, now: datetime | None = None
+) -> dict:
+    where = _store(store)
+    person: social.Profile = _social(lambda: social.invite(where, token, group_id, handle, now=now))
+    return person.public()
+
+
+def answer_group(
+    store: str | os.PathLike, token: str, group_id: str, accept: bool, now: datetime | None = None
+) -> bool:
+    where = _store(store)
+    return bool(_social(lambda: social.answer_invitation(where, token, group_id, accept, now=now)))
+
+
+def leave_group(store: str | os.PathLike, token: str, group_id: str) -> None:
+    social.leave_group(_store(store), token, group_id)
+
+
+def remove_from_group(store: str | os.PathLike, token: str, group_id: str, handle: str) -> None:
+    where = _store(store)
+    _social(lambda: social.remove_member(where, token, group_id, handle))
+
+
+def change_group(store: str | os.PathLike, token: str, group_id: str, form: Mapping[str, str]) -> None:
+    where = _store(store)
+    _social(lambda: social.set_group(where, token, group_id, form.get("name", ""), form.get("goal", "")))
 
 
 REPORT_REASONS = social.REPORT_REASONS
@@ -3808,6 +3997,7 @@ def library_view(
         "sort": sort,
         "profile": me.public() if me else None,
         "courses": course_names(subscription),
+        "invitations": len(social.invitations_of(where, subscription.token)),
     }
 
 
@@ -4053,6 +4243,11 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
                 "SELECT COUNT(*) FROM posts WHERE kind = 'explain' AND created >= ?", since
             ),
             "notes": count("SELECT COUNT(*) FROM posts WHERE kind = 'notes' AND created >= ?", since),
+            # Groups with at least two members: a group of one is a goal, not a group (D28).
+            "groups": count(
+                "SELECT COUNT(*) FROM (SELECT grp FROM group_members WHERE joined IS NOT NULL "
+                "GROUP BY grp HAVING COUNT(*) >= 2)"
+            ),
             "kudos": count("SELECT COUNT(*) FROM kudos WHERE created >= ?", since),
             "comments": count("SELECT COUNT(*) FROM comments WHERE created >= ?", since),
             "reports_open": count("SELECT COUNT(DISTINCT target) FROM reports WHERE resolved = 0"),

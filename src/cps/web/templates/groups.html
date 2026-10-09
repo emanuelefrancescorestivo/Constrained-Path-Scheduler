@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Groups") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="page-title"><h1>{{ _("Community") }}</h1></div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% set nav = "groups" %}{% set invites = view.invitations | length %}{% include "_community_nav.html" %}
+
+<p class="lede">{{ _("Study with a few friends towards one weekly goal, in hours, for all of you together. Nobody is ranked: the group sees its total and who has studied this week, nothing more.") }}</p>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+{% if view.invitations %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Invitations") }}</h2></div>
+  {% for i in view.invitations %}
+  <div class="card group-invite">
+    <div class="grow">
+      <b>{{ i.name }}</b>
+      <p class="hint">{% if i.by %}{{ _("Invited by @{handle}", handle=i.by) }} · {% endif %}{{ _n("{n} member", "{n} members", i.size) }} · {{ _("{hours} h a week together", hours=i.goal | hours) }}</p>
+    </div>
+    <form method="post" action="/p/{{ token }}/groups/{{ i.id }}/answer" class="inline-actions">
+      <button type="submit" name="answer" value="decline" class="btn btn-sm">{{ _("Decline") }}</button>
+      <button type="submit" name="answer" value="accept" class="btn btn-sm btn-primary">{{ _("Join") }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="section">
+  {% if view.groups %}<div class="section-title"><h2>{{ _("Your groups") }}</h2></div>{% endif %}
+  {% for g in view.groups %}{% include "_group_card.html" %}{% endfor %}
+</div>
+
+{% if not view.profile %}
+<section class="card join">
+  <h2>{{ _("A group needs a handle") }}</h2>
+  <p>{{ _("Members see each other's handle. Choose one, then start a group or accept an invitation.") }}</p>
+  <a class="btn btn-primary" href="/p/{{ token }}/profile">{{ _("Choose a handle") }}</a>
+</section>
+{% elif view.can_create %}
+<form method="post" action="/p/{{ token }}/groups" class="card section group-new">
+  <h2>{{ _("Start a group") }}</h2>
+  <label for="g-name">{{ _("Name") }}</label>
+  <input id="g-name" name="name" required maxlength="40" value="{{ (draft or {}).name or '' }}" placeholder="{{ _('Library on Thursdays, the L2 maths crew…') }}">
+  <label for="g-goal">{{ _("Weekly goal for the whole group, in hours") }}</label>
+  <input id="g-goal" name="goal" type="number" min="1" max="200" step="0.5" inputmode="decimal" required value="{{ (draft or {}).goal or 10 }}">
+  <p class="hint">{{ _("Then invite up to {n} people by their handle; each chooses whether to join.", n=view.size - 1) }}</p>
+  <button type="submit" class="btn btn-primary">{{ _("Start the group") }}</button>
+</form>
+{% else %}
+<p class="hint">{{ _("You are in {n} groups, the most there can be. Leave one to start another.", n=view.most) }}</p>
+{% endif %}
+{% endblock %}

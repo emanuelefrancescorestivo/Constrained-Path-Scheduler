@@ -64,8 +64,9 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
       top three per course, a line on the profile, no money (D26). Before it opens to
       the public (owner): a lawyer's view of students' notes and copyright in France.
 - [x] **E11 "In simple words"** inside the session log (D27).
-- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): flashcards; a
-      group of friends with a shared weekly goal.
+- [x] **E12 Study groups**: a few friends, one weekly goal in hours, nobody ranked
+      (D28).
+- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): flashcards.
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

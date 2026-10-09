@@ -117,7 +117,7 @@ with few API calls, or a robust, flexible and efficient algorithm.
 | tip: "exam in 17 days, revise today, +22 %" | **built in this step** | the exam forecast and, on each session, what it adds to exam-day recall (D24) |
 | flashcards | not built | the memory model is a flashcard scheduler (FSRS); flashcards are a feature of their own (an editor, a review screen), the next big candidate |
 | puzzles | not recommended | no evidence they help exam recall more than self-tests |
-| leagues | rejected (D16) | a cooperative alternative: a group of friends with a shared weekly goal, nobody ranked (proposed) |
+| leagues | rejected (D16) | built as the cooperative alternative: a study group with a shared weekly goal, nobody ranked (D28) |
 | how to measure reliably | partly | the reliable signal is recall on self-tests: after a self-test session, "how much could you recall: none, some, most, all", which maps onto FSRS's four grades and makes the forecast measured instead of assumed (proposed, the most valuable next step) |
 | live calendar update, few API calls | built locally | every report replans at once on the server with no API call (the rules are local and fast); the feed changes at once, but Google Calendar re-reads subscriptions on its own schedule, often hours apart; writing to Google Calendar through its API (W10) needs a Google account and OAuth, the owner's decision |
 

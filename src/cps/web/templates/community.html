@@ -29,11 +29,7 @@
 </section>
 {% endif %}
 
-<nav class="segmented seg-links" aria-label="{{ _('Feeds') }}">
-  <a href="/p/{{ token }}/community" {% if view.tab == 'following' %}aria-current="page"{% endif %}>{{ _("Following") }}</a>
-  <a href="/p/{{ token }}/community?tab=explore" {% if view.tab == 'explore' %}aria-current="page"{% endif %}>{{ _("Explore") }}</a>
-  <a href="/p/{{ token }}/notes">{{ _("Notes") }}</a>
-</nav>
+{% set nav = view.tab %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
 
 {% if view.tab == "explore" %}
 {% set f = view.filters %}

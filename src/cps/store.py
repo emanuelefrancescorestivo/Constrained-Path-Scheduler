@@ -125,7 +125,35 @@ CREATE TABLE IF NOT EXISTS blocks (
     created TEXT NOT NULL,
     PRIMARY KEY (blocker, blocked)
 );
+-- Study groups (D28): a few students and a shared weekly goal, in minutes. The
+-- owner is the member who set it up, then the longest-standing member.
+CREATE TABLE IF NOT EXISTS study_groups (
+    id      TEXT PRIMARY KEY,
+    name    TEXT NOT NULL,
+    goal    INTEGER NOT NULL,
+    owner   TEXT,
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_members (
+    grp        TEXT NOT NULL,
+    token      TEXT NOT NULL,
+    invited_by TEXT NOT NULL,
+    invited    TEXT NOT NULL,
+    joined     TEXT,
+    PRIMARY KEY (grp, token)
+);
+CREATE INDEX IF NOT EXISTS group_members_by_token ON group_members (token);
 """
+
+# Leaving every group (D28): the next member in line owns a group its owner left,
+# and a group nobody is left in goes, with its invitations.
+LEAVE_GROUPS = (
+    "DELETE FROM group_members WHERE token = :t",
+    "UPDATE study_groups SET owner = (SELECT m.token FROM group_members m WHERE m.grp = study_groups.id "
+    "AND m.joined IS NOT NULL ORDER BY m.joined, m.rowid LIMIT 1) WHERE owner = :t",
+    "DELETE FROM group_members WHERE grp IN (SELECT id FROM study_groups WHERE owner IS NULL)",
+    "DELETE FROM study_groups WHERE owner IS NULL",
+)
 
 # What deleting a plan removes from the network: its own rows, and what others
 # left on its posts (comments, kudos, reports on them).
@@ -144,6 +172,7 @@ _FORGET = (
     "DELETE FROM follows WHERE follower = :t OR followed = :t",
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
     "DELETE FROM profiles WHERE token = :t",
+    *LEAVE_GROUPS,
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",

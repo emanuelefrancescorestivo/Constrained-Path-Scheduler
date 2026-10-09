@@ -6,6 +6,15 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Study groups (D28), the cooperative stand-in for the notebook's leagues: up to
+  eight students with handles and one weekly goal in hours for all of them. Members
+  invite by handle; the invited person accepts or declines. The group's page shows
+  this week's total against the goal, the weeks in a row it was met, the weeks since
+  it began with the goal as a line, and who has studied this week, never one
+  member's hours. Progress shows the student's groups; Community gets a Groups tab
+  with the invitations waiting. Owners rename, change the goal and remove members;
+  blocks, leaving the network and deleting a plan are handled. `cps metrics` counts
+  groups of two or more.
 - "In simple words" (D27): the session log has an optional line for what was
   learned, said so a student of another subject would follow it; the session's post
   shows it under its numbers.
