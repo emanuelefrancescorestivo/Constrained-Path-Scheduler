@@ -4,6 +4,8 @@
 <div class="card">
 <h1>{{ title }}</h1>
 <p>{{ message }}</p>
-<p>{% if token %}<a class="btn" href="/p/{{ token }}">{{ _("Back to your plan") }}</a>{% else %}<a class="btn" href="/">{{ _("Start a plan") }}</a>{% endif %}</p>
+{% if token %}<p><a class="btn" href="/p/{{ token }}">{{ _("Back to your plan") }}</a></p>
+{% elif demo %}<form method="post" action="/demo"><p><button type="submit" class="btn btn-primary">{{ _("Start the demo") }}</button></p></form>
+{% else %}<p><a class="btn" href="/">{{ _("Start a plan") }}</a></p>{% endif %}
 </div>
 {% endblock %}

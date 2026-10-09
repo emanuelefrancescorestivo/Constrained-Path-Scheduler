@@ -47,7 +47,7 @@
 <main class="site{% block site_class %}{% endblock %}">
 {% block main %}{% endblock %}
 </main>
-<footer class="footer"><a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · {{ _("no account, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() %}{% if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}{% endfor %}{% endif %}</footer>
+<footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · {{ _("no account, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() %}{% if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}{% endfor %}{% endif %}</footer>
 {% endblock %}
 {% if token %}
 {% if tab not in ('focus', 'community') %}<button type="button" class="fab" popovertarget="quick-add" aria-label="{{ _('New task') }}">

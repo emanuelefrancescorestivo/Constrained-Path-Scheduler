@@ -88,3 +88,39 @@ the rate limits are in memory for that reason.
   address, the host (Render, Frankfurt) and its own connection logs.
 - Two or three friends go through step 5 with their own timetables; what confused
   them goes into the roadmap.
+
+## The public demo, on the free plan (D31)
+
+A separate service from the pilot, to send to friends: `deploy/demo/render.yaml`
+runs `cps demo --public` on Render's free plan, in Frankfurt, with no disk. Each
+visitor presses "Start the demo" and gets a made-up student of their own among five
+made-up classmates. Everything is made again at each start, so nothing a visitor
+types is kept for long; the home page asks for made-up details.
+
+1. **Account.** Sign in at render.com with the GitHub account that owns the
+   repository. The free plan asks for no payment **(check)**.
+2. **Blueprint.** Dashboard, New, Blueprint **(check)**. Pick the repository and
+   the `main` branch, and set the Blueprint's file path to
+   `deploy/demo/render.yaml` **(check: the field may be called Blueprint Path)**.
+   Render lists one free web service, `study-plan-demo`. Apply.
+3. **Wait for the first deploy.** The log shows the build, then `making the demo
+   store`, the links, and `serving on https://study-plan-demo….onrender.com`
+   (Render adds letters to the name if `study-plan-demo` is taken). The line `The
+   review page` is the address where reported posts are reviewed; keep it private.
+4. **Try it**, on a phone: open the address, press Start the demo, look around.
+   Then send the address to friends.
+
+If the Blueprint screen has no file path, make the service by hand: New, Web
+Service **(check)**, the repository, then Language Python 3, Branch `main`, Region
+Frankfurt, Instance type Free, Build Command `pip install ".[web]"`, Start Command
+`cps demo --public --host 0.0.0.0 --port $PORT --behind-proxy --store /tmp/cps-demo`,
+Health Check Path `/health` (under Advanced), and an environment variable
+`PYTHON_VERSION` = `3.13`.
+
+**What to expect.** A free instance sleeps after about fifteen minutes without
+visitors **(check)**; the next visit waits about a minute while it wakes and makes
+the world again, and the students made before are gone (an old link says so and
+offers a new one). Each push to `main` deploys the demo again (`autoDeploy: true`),
+which also starts it from scratch. Render limits free instances' hours a month
+**(check the current limit on its pricing page)**; one demo stays well inside it
+because it sleeps when unused.

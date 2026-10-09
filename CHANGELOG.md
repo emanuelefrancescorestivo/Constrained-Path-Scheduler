@@ -6,13 +6,20 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A public demo (D31): `cps demo --public` gives each visitor who presses "Start
+  the demo" a made-up student of their own, with the semester so far, among five
+  shared classmates; `deploy/demo/render.yaml` runs it on Render's free plan, wiped
+  at each restart, as FeedForward's demo. The semester is reported once at start and
+  copied for each visitor, so a student is ready in under a second. Every page says
+  it is a demo; an old link after a restart offers a new student.
 - `cps demo`: the hosted app on a store of made-up students, to look around and give
   feedback: @alex on the sample timetable with weeks of history (reports, focus
   sessions, a streak, trends), five classmates at other universities with posts,
   explanations, notes and kudos, a study group with its weeks, an invitation, and
   flashcards due. Prints a link per student and the review page's, then serves; the
   store is kept between runs (`--fresh` makes it again) and only a directory it made
-  is ever removed. Outside the sample semester its clock stands on 19 November 2026.
+  is ever removed. The sample timetable is moved by whole weeks so that today is in
+  its eighth week, on the real clock.
 - Motion (D30): pages arrive with a view transition, and the current tab's pill
   slides to its place; rings fill, chart columns grow, trend lines draw, meters fill
   and numbers count up on a page's first paint; a report on Today, a tick or a kudos
@@ -247,6 +254,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The home page's title is one centred column again on a computer; the Progress
+  page's tiles had restyled it into two (AUDIT item 49).
 - Toasts no longer arrive half their width off centre (AUDIT item 48).
 - A session timed from the plan and logged is counted once: Trends' hours, the
   day's shade on Progress, the weekly review and the pilot's measures counted it

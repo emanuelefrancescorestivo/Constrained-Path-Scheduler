@@ -945,4 +945,14 @@ MESSAGES: dict[str, str] = {
     "Reduced": "Réduit",
     "choose Automatic or Reduced": "choisis Automatique ou Réduit",
     "Your browser remembers which celebrations it has already shown you (a milestone, a full week, a group's goal), so each appears once. That list stays on your device and is never sent; clearing the site's data forgets it.": "Ton navigateur retient les célébrations qu'il t'a déjà montrées (une étape franchie, une semaine complète, l'objectif d'un groupe), pour que chacune n'apparaisse qu'une fois. Cette liste reste sur ton appareil et n'est jamais envoyée ; effacer les données du site l'oublie.",
+    # -- the public demo (D31) -------------------------------------------------------
+    "Demo": "Démo",
+    "Try it as a student, in a few seconds": "Essaie-le comme un étudiant, en quelques secondes",
+    "You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.": "Tu reçois un étudiant à toi, à sept semaines d'un semestre d'exemple : un plan avec ses séances, une série, des tendances, des camarades dans cinq universités, des notes, un groupe d'étude et des cartes mémoire. Tout le monde y est inventé.",
+    "Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.": "Rien à créer. Utilise des informations inventées : la démo repart de zéro à chaque redémarrage, et elle s'endort quand personne ne l'utilise, donc la première visite peut prendre environ une minute.",
+    "Start the demo": "Lancer la démo",
+    "Or try it with your own timetable below; on this demo server it is kept only until the next restart.": "Ou essaie-le avec ton propre emploi du temps ci-dessous ; sur ce serveur de démo, il n'est gardé que jusqu'au prochain redémarrage.",
+    "made-up classmates; everything starts again when it restarts": "camarades inventés ; tout repart de zéro au redémarrage",
+    "This demo starts again from scratch when it restarts, and this student was in the one before. Start a new one: it takes a few seconds.": "Cette démo repart de zéro à chaque redémarrage, et cet étudiant était dans la précédente. Lances-en une nouvelle : cela prend quelques secondes.",
+    "Welcome. This student is yours: the timetable and the classmates are made up; try anything.": "Bienvenue. Cet étudiant est à toi : l'emploi du temps et les camarades sont inventés ; essaie tout ce que tu veux.",
 }

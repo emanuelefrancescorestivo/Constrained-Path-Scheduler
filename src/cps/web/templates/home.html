@@ -10,6 +10,17 @@
 
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 
+{% if demo %}
+<form method="post" action="/demo" class="card demo-start">
+  <span class="badge badge-accent">{{ _("Demo") }}</span>
+  <h2>{{ _("Try it as a student, in a few seconds") }}</h2>
+  <p>{{ _("You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
+  <p class="hint">{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}</p>
+  <button type="submit" class="btn btn-primary btn-block btn-lg">{{ _("Start the demo") }}</button>
+</form>
+<p class="hint demo-or">{{ _("Or try it with your own timetable below; on this demo server it is kept only until the next restart.") }}</p>
+{% endif %}
+
 <form method="post" action="/start" enctype="multipart/form-data" class="card">
   <input type="hidden" name="lang" value="{{ lang() }}">
   <label for="link">{{ _("Your timetable's link") }}</label>

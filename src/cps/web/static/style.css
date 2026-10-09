@@ -671,11 +671,12 @@ details.inline > summary::before { content: none; }
 .strip-item small { display: block; font-size: 0.75rem; color: var(--muted); }
 .strip-line { grid-column: 1 / -1; font-size: 0.82rem; color: var(--muted); line-height: 1.3; }
 
-.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.hero .card { display: flex; align-items: center; gap: 16px; margin: 0; }
-.hero .card > div { display: flex; flex-direction: column; align-items: flex-start; text-align: left; min-width: 0; }
-.hero .card span { font-size: 0.9rem; }
-.hero .muted { font-size: 0.82rem; }
+/* Progress's ring and streak; not the home page's .hero (AUDIT 49) */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair .card { display: flex; align-items: center; gap: 16px; margin: 0; }
+.pair .card > div { display: flex; flex-direction: column; align-items: flex-start; text-align: left; min-width: 0; }
+.pair .card span { font-size: 0.9rem; }
+.pair .muted { font-size: 0.82rem; }
 .big { font-size: 2.2rem; line-height: 1.05; font-weight: 700; letter-spacing: -0.04em; }
 .big small { font-size: 1.2rem; color: var(--muted); font-weight: 600; letter-spacing: -0.02em; }
 
@@ -877,6 +878,11 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   box-shadow: 0 0 0 0.5px var(--line);
 }
 .cards-due span { color: var(--accent); font-weight: 550; font-size: 0.9rem; }
+
+/* -- the public demo (D31) ------------------------------------------------------ */
+.demo-start { margin-bottom: 8px; }
+.demo-start h2 { margin: 8px 0 6px; }
+.demo-or { text-align: center; margin: 0 0 18px; }
 
 /* -- study groups (D28) ------------------------------------------------------ */
 .btn.destructive, .btn-plain.destructive { color: var(--danger-text); }
@@ -1110,7 +1116,7 @@ label.check.check-long input { margin-top: 3px; flex: none; }
 @media (min-width: 901px) { .fab { display: none; } }
 @media (max-width: 520px) {
   .row { grid-template-columns: 1fr; }
-  .hero { grid-template-columns: 1fr; }
+  .pair { grid-template-columns: 1fr; }
   .scale { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .d { width: 18px; height: 18px; }
   .site { padding: 18px 16px 40px; }
