@@ -214,6 +214,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A session timed from the plan and logged is counted once: Trends' hours, the
+  day's shade on Progress, the weekly review and the pilot's measures counted it
+  twice (AUDIT item 47).
 - A form with more photos than it takes no longer drops the extra ones silently in
   the browser; it says so before sending (AUDIT item 46).
 - The pilot's north star now counts sessions reported hard (AUDIT.md item 45).

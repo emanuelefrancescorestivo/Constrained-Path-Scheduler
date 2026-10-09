@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from cps import service, trends
+from cps import progress, service, trends
 from cps.progress import Session
 from cps.web import charts
 
@@ -52,6 +52,31 @@ def test_weeks_count_what_was_done_and_keep_only_the_past():
         date(2026, 10, 12),
         date(2026, 10, 19),
     ]
+
+
+def test_a_session_timed_from_the_plan_counts_once():
+    # AUDIT item 47: the timer started on a planned session reports it done and
+    # logs a session; the hours and the courses count it once, as the planned one.
+    planned = Session(_at(0, 9), 90, "review", "Algebra 3", "done", "abc")
+    twin = trends.Logged(_at(0, 12), 50, 6, 4, "Algebra 3", True, True, 0, "abc")
+    alone = trends.Logged(_at(1, 12), 30, 5, 3, "Algebra 3", False, False, 0)
+    week = trends.weekly([planned], [twin, alone], [date(2026, 10, 5)], _at(2, 12))[0]
+    assert week.hours == pytest.approx((90 + 30) / 60) and week.logged == 2  # effort keeps both
+    assert week.load == 50 * 6 + 30 * 5
+    assert trends.by_course([planned], [twin, alone], date(2026, 10, 5), _at(2, 12), ["Algebra 3"]) == [
+        ("Algebra 3", 2.0)
+    ]
+    # Reported skipped afterwards, the logged session stands on its own.
+    skipped = Session(_at(0, 9), 90, "review", "Algebra 3", "skipped", "abc")
+    assert trends.weekly([skipped], [twin], [date(2026, 10, 5)], _at(2, 12))[0].hours == pytest.approx(
+        50 / 60
+    )
+    logged = [
+        Session(_at(0, 12), 50, "logged", "Algebra 3", "done", "abc"),
+        Session(_at(1, 12), 30, "logged", "x", "done"),
+    ]
+    assert [s.minutes for s in progress.merge_logged([planned], logged)] == [90, 30]
+    assert [s.minutes for s in progress.merge_logged([skipped], logged)] == [90, 50, 30]
 
 
 def test_averages_directions_courses_and_parts_of_day():

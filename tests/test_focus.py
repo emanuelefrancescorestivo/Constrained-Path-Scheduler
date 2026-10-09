@@ -100,7 +100,10 @@ def test_a_logged_session_is_in_the_diary_and_makes_its_day_studied(sub, tmp_pat
     view = service.progress_view(extra, sunday, logged=service.logged_sessions(tmp_path, extra))
     days = {d["date"]: d["state"] for row in view["grid"] for d in row}
     assert days["2026-10-04"] == "studied"
-    assert view["totals"]["logged"] == 2
+    # Two sessions logged; the first was timed from the plan and counts as that
+    # planned session, done (AUDIT item 47), so one stands on its own.
+    assert len(service.logged_sessions(tmp_path, extra)) == 2
+    assert view["totals"]["logged"] == 1 and view["totals"]["sessions"] == 1
 
 
 def test_changing_the_minutes_drops_the_timed_label(sub, tmp_path):
@@ -184,3 +187,28 @@ def test_photos_are_shown_to_whom_the_post_allows_and_go_with_the_plan(sub, tmp_
     service.save_subscription(tmp_path, sub)
     assert service.delete_subscription(tmp_path, sub.token)
     assert not (store.photos / theirs).exists() and social.posts_of(store, sub.token) == []
+
+
+def test_a_session_timed_from_the_plan_is_counted_once(sub, tmp_path):
+    # AUDIT item 47: the hours of Trends, the shade of the day on Progress and the
+    # weekly review counted it twice, as the planned session done and as the log.
+    service.save_subscription(tmp_path, sub)
+    planned = service.PlanReport.from_dict(sub.plan).sessions[0]
+    sid, start = service.session_id(planned), datetime.fromisoformat(planned.start)
+    length = round((datetime.fromisoformat(planned.end) - start) / timedelta(minutes=1))
+    timed = service.finish_focus(
+        service.start_focus(sub, "", sid=sid, now=start), now=start + timedelta(minutes=50)
+    )
+    done, _ = service.log_session(
+        tmp_path, timed, {"effort": "6", "progress": "4"}, now=start + timedelta(hours=1)
+    )
+    service.save_subscription(tmp_path, done)
+    assert done.outcomes[sid] == "done"
+    later = start + timedelta(hours=2)
+    week = service.trends_view(tmp_path, done, now=later, span="4")["weeks"][-1]
+    assert week["hours"] == pytest.approx(length / 60)
+    logged = service.logged_sessions(tmp_path, done)
+    view = service.progress_view(done, now=later, logged=logged)
+    day = next(d for row in view["grid"] for d in row if d["date"] == start.date().isoformat())
+    assert day["done"] == 1 and view["week"]["logged"] == 0
+    assert "also logged" not in service.weekly_review(done, later, logged=logged, weeks_back=0)["text"]

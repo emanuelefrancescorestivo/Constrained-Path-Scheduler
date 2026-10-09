@@ -49,6 +49,9 @@ class Session:
     kind: str
     course: str
     report: str | None = None
+    # A planned session's id; for a logged one, the planned session it was timed
+    # from, if any (AUDIT item 47).
+    sid: str = ""
 
     @property
     def confirmed(self) -> bool:
@@ -179,6 +182,17 @@ class Week:
         if not self.planned:
             return None
         return min(100, round(100 * self.done / self.planned))
+
+
+def merge_logged(planned: Sequence[Session], logged: Sequence[Session]) -> list[Session]:
+    """The plan's sessions and the diary's, each studied session counted once. A
+    session logged from the focus timer started on a planned session reports that
+    session done; the planned session then stands for both, for its planned length,
+    as any session reported done does, and the logged one is not counted again
+    (AUDIT item 47). A logged session whose planned session is no longer confirmed
+    stands on its own."""
+    confirmed = {s.sid for s in planned if s.sid and s.confirmed}
+    return [*planned, *(s for s in logged if not (s.sid and s.sid in confirmed))]
 
 
 def week(sessions: Sequence[Session], first: date, now: datetime) -> Week:

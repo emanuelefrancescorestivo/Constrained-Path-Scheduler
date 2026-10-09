@@ -2733,6 +2733,7 @@ def progress_sessions(subscription: Subscription) -> list[_progress.Session]:
                 kind=s.kind,
                 course=s.subject,
                 report=subscription.outcomes.get(session_id(s)),
+                sid=session_id(s),
             )
         )
     return out
@@ -2778,7 +2779,7 @@ def progress_view(
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
     today = local.date()
-    sessions = progress_sessions(subscription) + list(logged)
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged)
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
     run = _progress.streak(sessions, first, today)
     # The weeks since the plan began, at most twelve; a younger plan shows its weeks
@@ -2871,7 +2872,7 @@ def weekly_review(
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = now.astimezone(zone)
-    sessions = progress_sessions(subscription) + list(logged)
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged)
     first_day = _progress.monday(local.date()) - timedelta(weeks=weeks_back)
     last_day = first_day + timedelta(days=6)
     week_end = datetime.combine(last_day + timedelta(days=1), time(0, 0), tzinfo=zone)
@@ -3309,6 +3310,7 @@ def logged_sessions(store: str | os.PathLike, subscription: Subscription) -> lis
                 kind="logged",
                 course=post.data.get("course", ""),
                 report="done",
+                sid=str(post.data.get("sid") or ""),
             )
         )
     return out
@@ -4009,8 +4011,10 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         subscription = load_subscription(store, token)
         if subscription is None:
             continue
-        logged = logged_sessions(store, subscription)
         sessions = progress_sessions(subscription)
+        logged = [
+            x for x in _progress.merge_logged(sessions, logged_sessions(store, subscription)) if not x.planned
+        ]
         recent = [x for x in sessions if week_ago <= x.start <= now]
         planned += len(recent)
         done = [x for x in recent if x.confirmed]
@@ -4193,6 +4197,7 @@ def _diary_work(store: str | os.PathLike, subscription: Subscription) -> list[_t
                 timed=bool(d.get("timed")),
                 checked=bool(d.get("checked")),
                 interruptions=int(d.get("interruptions", 0)),
+                sid=str(d.get("sid") or ""),
             )
         )
     return out
@@ -4239,7 +4244,9 @@ def trends_view(
     in_range = [x for x in work if x.start.date() >= shown[0]] if shown else []
     words = {"morning": _("morning"), "afternoon": _("afternoon"), "evening": _("evening")}
     run = _progress.streak(
-        sessions + [_progress.Session(x.start, x.minutes, "logged", x.course, "done") for x in work],
+        _progress.merge_logged(
+            sessions, [_progress.Session(x.start, x.minutes, "logged", x.course, "done", x.sid) for x in work]
+        ),
         first,
         local.date(),
     )

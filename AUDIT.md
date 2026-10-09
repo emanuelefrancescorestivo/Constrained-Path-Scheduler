@@ -626,3 +626,17 @@ form's limit (`data-max-photos`, four, or eight for notes) and refuses a choice 
 it with a message, before anything is sent. Status: fixed; checked in Chromium, not
 by the Python tests, which do not run JavaScript.
 
+**47. A session timed from the plan was counted twice.** Found while building the
+study group's weekly hours on the Trends code (step E12): starting the focus timer
+on a planned session and logging it reports that session done and keeps a logged
+session, and the hours added both. 50 minutes of study on a planned 90-minute
+session showed as 2 h 20 on Trends (hours per week, the tiles, hours per course),
+the day was shaded as two sessions on Progress, the weekly review said "You also
+logged 1 focus session" about the session it had just counted, and the pilot's
+over-the-limit measure counted both. Fixed: a logged session keeps the id of the
+planned session it was timed from (`progress.Session.sid`, `trends.Logged.sid`),
+and `progress.merge_logged` and the Trends sums count it once, as the planned
+session reported done, for its planned length, as any session reported done
+counts. Status: fixed; `tests/test_focus.py` and `tests/test_trends.py` reproduce
+it. The measured minutes still show on the logged session itself.
+

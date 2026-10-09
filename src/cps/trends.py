@@ -4,7 +4,8 @@ the plan's sessions with their reports and from the focus sessions logged. Pure
 functions; `cps.service` gathers the inputs and the web pages draw the result.
 
 Hours count what was done: planned sessions reported done or hard, and focus
-sessions logged. A week's "kept" share is the planned sessions done among those
+sessions logged, a logged session timed from a planned one counted once, as that
+planned session (AUDIT item 47). A week's "kept" share is the planned sessions done among those
 already past, so a week in progress is not counted against the student for the days
 still to come. Study load (D23) is minutes times perceived effort, and exists only
 for logged sessions, the only ones with an effort.
@@ -37,6 +38,7 @@ class Logged:
     timed: bool
     checked: bool
     interruptions: int
+    sid: str = ""  # the planned session it was timed from, if any (AUDIT item 47)
 
     @property
     def load(self) -> int:
@@ -64,6 +66,12 @@ class Week:
         return round(100 * self.done / self.planned_past) if self.planned_past else None
 
 
+def _counted(sessions: Sequence[Session]) -> set[str]:
+    """The planned sessions confirmed: a logged session timed from one of them is
+    already in the hours (AUDIT item 47). Never the empty id."""
+    return {s.sid for s in sessions if s.planned and s.confirmed and s.sid}
+
+
 def mondays(first: date, today: date, weeks: int | None) -> list[date]:
     """The Mondays shown: the last `weeks` up to this one, or all since `first`."""
     last = monday(today)
@@ -80,13 +88,16 @@ def weekly(
     sessions: Sequence[Session], logged: Sequence[Logged], weeks: Sequence[date], now: datetime
 ) -> list[Week]:
     out = []
+    counted = _counted(sessions)
     for first in weeks:
         end = first + timedelta(days=7)
         planned = [s for s in sessions if s.planned and first <= s.start.date() < end]
         past = [s for s in planned if s.start <= now]
         mine = [x for x in logged if first <= x.start.date() < end]
         answered = [RECALL_SCORE[s.report] for s in past if s.report in RECALL_SCORE]
-        minutes = sum(s.minutes for s in planned if s.confirmed) + sum(x.minutes for x in mine)
+        minutes = sum(s.minutes for s in planned if s.confirmed) + sum(
+            x.minutes for x in mine if x.sid not in counted
+        )
         out.append(
             Week(
                 first=first,
@@ -143,12 +154,13 @@ def by_course(
     course in the student's words; one that matches no known course (ignoring case)
     is kept under its own name."""
     names = {k.casefold(): k for k in known}
+    counted = _counted(sessions)
     hours: dict[str, float] = {}
     for s in sessions:
         if s.planned and s.confirmed and first <= s.start.date() and s.start <= now:
             hours[s.course] = hours.get(s.course, 0.0) + s.minutes / 60
     for x in logged:
-        if first <= x.start.date():
+        if first <= x.start.date() and x.sid not in counted:
             name = names.get(x.course.strip().casefold(), x.course.strip() or "?")
             hours[name] = hours.get(name, 0.0) + x.minutes / 60
     return sorted(hours.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
