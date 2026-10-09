@@ -6,6 +6,14 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Flashcards (D29): a student's own cards by course, written one at a time or pasted
+  one per line (tab or " | "), private. Each card is scheduled by the planner's
+  FSRS-4.5 model and comes back when its predicted recall falls to 90 %. The review
+  screen shows the question, then the answer and four answers (Again, Hard, Good,
+  Easy), each with when the card would come back; it works without scripts, and
+  space and 1 to 4 work as keys. Due cards first, then at most 20 new cards a day;
+  "Again" brings a card back 10 minutes later. Today and Focus say how many cards
+  are waiting; `cps metrics` counts answers.
 - Study groups (D28), the cooperative stand-in for the notebook's leagues: up to
   eight students with handles and one weekly goal in hours for all of them. Members
   invite by handle; the invited person accepts or declines. The group's page shows

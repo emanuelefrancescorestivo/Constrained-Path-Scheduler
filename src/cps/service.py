@@ -55,6 +55,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import numpy as np
 
 from . import ai as _ai
+from . import cards as flashcards
 from . import i18n as _i18n
 from . import progress as _progress
 from . import social as social
@@ -3770,6 +3771,173 @@ def change_group(store: str | os.PathLike, token: str, group_id: str, form: Mapp
     _social(lambda: social.set_group(where, token, group_id, form.get("name", ""), form.get("goal", "")))
 
 
+# --------------------------------------------------------------------------- #
+# Flashcards (D29): the student's own, scheduled by FSRS
+# --------------------------------------------------------------------------- #
+
+CARD_GRADES = tuple(flashcards.GRADES)
+
+
+def _flash(call: Callable[[], Any]) -> Any:
+    """`call`, with the cards' refusals as the service's own."""
+    try:
+        return call()
+    except flashcards.CardError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def wait_words(delta: timedelta) -> str:
+    """ "in 10 minutes", "in 3 days": when a card comes back, as a person says it."""
+    minutes = max(1, round(delta / timedelta(minutes=1)))
+    if minutes < 60:
+        return _n("in {n} minute", "in {n} minutes", minutes)
+    hours = round(minutes / 60)
+    if hours < 24:
+        return _n("in {n} hour", "in {n} hours", hours)
+    days = round(hours / 24)
+    if days < 45:
+        return _n("in {n} day", "in {n} days", days)
+    months = round(days / 30)
+    return _n("in {n} month", "in {n} months", months)
+
+
+def _card_dict(card: flashcards.Card, now: datetime) -> dict:
+    due = datetime.fromisoformat(card.due) if card.due else None
+    return {
+        "id": card.id,
+        "course": card.course,
+        "front": card.front,
+        "back": card.back,
+        "new": card.new,
+        "reps": card.reps,
+        "lapses": card.lapses,
+        "due": None if due is None else (_("now") if due <= now else wait_words(due - now)),
+    }
+
+
+def cards_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, course: str = ""
+) -> dict:
+    """The flashcards page: a deck per course with its cards due now and new, the
+    cards of the course chosen, and when the next one is due."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    token = subscription.token
+    every = flashcards.of(where, token)
+    waiting = flashcards.queue(where, token, now, zone)
+    decks: dict[str, dict] = {}
+    for card in every:
+        deck = decks.setdefault(
+            card.course.casefold(), {"course": card.course, "total": 0, "due": 0, "new": 0}
+        )
+        deck["total"] += 1
+    for card in waiting:
+        deck = decks[card.course.casefold()]
+        deck["new" if card.new else "due"] += 1
+    later = flashcards.next_due(where, token, now)
+    chosen = [c for c in every if course and c.course.casefold() == course.casefold()]
+    return {
+        "decks": sorted(decks.values(), key=lambda d: d["course"].casefold()),
+        "waiting": len(waiting),
+        "total": len(every),
+        "course": chosen[0].course if chosen else course,
+        "cards": [_card_dict(c, now) for c in chosen],
+        "next": wait_words(later - now) if later else None,
+        "today": flashcards.reviewed_today(where, token, now, zone),
+        "courses": course_names(subscription),
+        "new_per_day": flashcards.NEW_PER_DAY,
+    }
+
+
+def card_review_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, course: str = ""
+) -> dict:
+    """The next card to review, with when it would come back after each answer."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    waiting = flashcards.queue(where, subscription.token, now, zone, course)
+    view: dict = {
+        "course": course,
+        "left": len(waiting),
+        "today": flashcards.reviewed_today(where, subscription.token, now, zone),
+        "card": None,
+    }
+    if waiting:
+        card = waiting[0]
+        view["card"] = _card_dict(card, now)
+        view["options"] = []
+        for grade in CARD_GRADES:
+            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now)
+            view["options"].append({"grade": grade, "when": wait_words(due - now)})
+    else:
+        later = flashcards.next_due(where, subscription.token, now, course)
+        view["next"] = wait_words(later - now) if later else None
+    return view
+
+
+def cards_due(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> int:
+    """Cards to review now, new ones within today's allowance: for Today and Focus."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    return len(flashcards.queue(_store(store), subscription.token, now, zone))
+
+
+def add_cards(
+    store: str | os.PathLike, subscription: Subscription, form: Mapping[str, str], now: datetime | None = None
+) -> int:
+    """One card (question and answer), or several pasted one per line."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+
+    def make() -> int:
+        if form.get("paste", "").strip():
+            pairs = flashcards.parse_paste(form["paste"])
+        else:
+            pairs = [(form.get("front", ""), form.get("back", ""))]
+        return len(flashcards.add(where, subscription.token, form.get("course", ""), pairs, now))
+
+    return int(_flash(make))
+
+
+def answer_card(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    card_id: str,
+    grade: str,
+    now: datetime | None = None,
+) -> None:
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    _flash(lambda: flashcards.answer(where, subscription.token, card_id, grade, now))
+
+
+def card_view(store: str | os.PathLike, subscription: Subscription, card_id: str) -> dict | None:
+    card = flashcards.get(_store(store), subscription.token, card_id)
+    return _card_dict(card, datetime.now(UTC)) if card else None
+
+
+def edit_card(
+    store: str | os.PathLike, subscription: Subscription, card_id: str, form: Mapping[str, str]
+) -> None:
+    where = _store(store)
+    _flash(
+        lambda: flashcards.edit(
+            where,
+            subscription.token,
+            card_id,
+            form.get("course", ""),
+            form.get("front", ""),
+            form.get("back", ""),
+        )
+    )
+
+
+def delete_card(store: str | os.PathLike, subscription: Subscription, card_id: str) -> bool:
+    return flashcards.delete(_store(store), subscription.token, card_id)
+
+
 REPORT_REASONS = social.REPORT_REASONS
 
 
@@ -4243,6 +4411,9 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
                 "SELECT COUNT(*) FROM posts WHERE kind = 'explain' AND created >= ?", since
             ),
             "notes": count("SELECT COUNT(*) FROM posts WHERE kind = 'notes' AND created >= ?", since),
+            # Flashcards (D29): answers in the last 7 days, and the students who gave them.
+            "card_reviews": count("SELECT COUNT(*) FROM card_reviews WHERE at >= ?", since),
+            "card_students": count("SELECT COUNT(DISTINCT token) FROM card_reviews WHERE at >= ?", since),
             # Groups with at least two members: a group of one is a goal, not a group (D28).
             "groups": count(
                 "SELECT COUNT(*) FROM (SELECT grp FROM group_members WHERE joined IS NOT NULL "

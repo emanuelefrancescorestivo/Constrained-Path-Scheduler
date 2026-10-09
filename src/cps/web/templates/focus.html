@@ -34,5 +34,9 @@
   <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
 </form>
 <p class="section hint"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
+<a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">
+  <b>{{ _("Flashcards") }}</b>
+  <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span>
+</a>
 {% endif %}
 {% endblock %}

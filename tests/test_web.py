@@ -1189,6 +1189,55 @@ def test_a_study_group_from_starting_it_to_leaving(web, planned, clock):
     assert kinds == ["created", "left"]
 
 
+def test_flashcards_from_writing_to_reviewing(web, planned):
+    assert "No cards yet" in unescape(web.get(f"/p/{planned}/cards").text)
+    refused = web.post(
+        f"/p/{planned}/cards", data={"course": "Algebra 3", "front": "Eigenvalue?", "back": ""}
+    )
+    assert refused.status_code == 400 and "write the answer" in unescape(refused.text)
+    assert ">Eigenvalue?</textarea>" in unescape(refused.text)  # what was typed is kept
+    added = web.post(
+        f"/p/{planned}/cards",
+        data={"course": "Algebra 3", "front": "Eigenvalue?", "back": "Av = λv"},
+        follow_redirects=False,
+    )
+    assert added.headers["location"] == f"/p/{planned}/cards?course=Algebra%203&added=1"
+    page = unescape(web.get(added.headers["location"]).text)
+    assert "1 card added." in page and "Review 1 card" in page and "Eigenvalue?" in page
+    assert "1 card to review" in unescape(web.get(f"/p/{planned}/focus").text)
+    assert "1 card to review" in unescape(web.get(f"/p/{planned}").text)
+    review = unescape(web.get(f"/p/{planned}/cards/review").text)
+    assert "Eigenvalue?" in review and "Show the answer" in review and "Av = λv" in review
+    assert "in 10 minutes" in review and "in 4 days" in review and 'src="/static/cards.js"' in review
+    card = re.search(r'action="/p/[^/]+/cards/([^/]+)/answer"', review).group(1)
+    answered = web.post(f"/p/{planned}/cards/{card}/answer", data={"grade": "good"}, follow_redirects=False)
+    assert answered.headers["location"] == f"/p/{planned}/cards/review?course="
+    done = unescape(web.get(answered.headers["location"]).text)
+    assert "All done for now" in done and "The next card comes back in 4 days." in done
+    pasted = web.post(
+        f"/p/{planned}/cards",
+        data={"course": "Analysis", "paste": "Limit?\tε-δ\nSeries? | Σ"},
+        follow_redirects=False,
+    )
+    assert pasted.headers["location"].endswith("course=Analysis&added=2")
+    edited = web.post(
+        f"/p/{planned}/cards/{card}",
+        data={"course": "Algebra 3", "front": "What is an eigenvalue?", "back": "Av = λv"},
+        follow_redirects=False,
+    )
+    assert edited.headers["location"].endswith("&saved=card_saved")
+    assert '<span class="card-front">What is an eigenvalue?</span>' in unescape(
+        web.get(edited.headers["location"]).text
+    )
+    other = _start(web)
+    assert web.get(f"/p/{other}/cards/{card}").status_code == 404
+    gone = web.post(f"/p/{planned}/cards/{card}/delete", follow_redirects=False)
+    assert gone.headers["location"].endswith("&saved=card_deleted")
+    assert 'class="card-front">What is an eigenvalue?' not in unescape(web.get(gone.headers["location"]).text)
+    web.post(f"/p/{planned}/language", data={"lang": "fr"})
+    assert "Cartes mémoire" in unescape(web.get(f"/p/{planned}/cards").text)
+
+
 def test_the_network_pages_in_french(web, planned):
     web.post(f"/p/{planned}/language", data={"lang": "fr"})
     _profile(web, planned, "ada")

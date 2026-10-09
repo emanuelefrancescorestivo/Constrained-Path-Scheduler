@@ -143,6 +143,31 @@ CREATE TABLE IF NOT EXISTS group_members (
     PRIMARY KEY (grp, token)
 );
 CREATE INDEX IF NOT EXISTS group_members_by_token ON group_members (token);
+-- Flashcards (D29): a student's own, private; FSRS-4.5 state per card, NULL until
+-- its first review, and every review kept.
+CREATE TABLE IF NOT EXISTS cards (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    course     TEXT NOT NULL,
+    front      TEXT NOT NULL,
+    back       TEXT NOT NULL,
+    created    TEXT NOT NULL,
+    stability  REAL,
+    difficulty REAL,
+    last       TEXT,
+    due        TEXT,
+    reps       INTEGER NOT NULL DEFAULT 0,
+    lapses     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS cards_by_token ON cards (token, due);
+CREATE TABLE IF NOT EXISTS card_reviews (
+    card    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    at      TEXT NOT NULL,
+    grade   INTEGER NOT NULL,
+    elapsed REAL
+);
+CREATE INDEX IF NOT EXISTS card_reviews_by_token ON card_reviews (token, at);
 """
 
 # Leaving every group (D28): the next member in line owns a group its owner left,
@@ -173,6 +198,8 @@ _FORGET = (
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
     "DELETE FROM profiles WHERE token = :t",
     *LEAVE_GROUPS,
+    "DELETE FROM card_reviews WHERE token = :t",
+    "DELETE FROM cards WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",

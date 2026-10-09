@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set d = draft or {} %}
+<p class="back"><a href="/p/{{ token }}/focus">{{ _("Focus") }}</a></p>
+<div class="page-title title-row">
+  <h1>{{ _("Flashcards") }}</h1>
+  {% if view.waiting %}<div class="title-actions"><a class="btn btn-primary btn-sm" href="/p/{{ token }}/cards/review">{{ _n("Review {n} card", "Review {n} cards", view.waiting) }}</a></div>{% endif %}
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<p class="lede">{{ _("Your own cards, by course. Each comes back when the memory model predicts you are about to forget it: often at first, then less and less.") }}</p>
+
+{% if view.decks %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Decks") }}</h2><small>{% if view.today %}{{ _n("{n} answer today", "{n} answers today", view.today) }}{% elif view.next and not view.waiting %}{{ _("next card {when}", when=view.next) }}{% endif %}</small></div>
+  <ul class="card list decks">
+    {% for deck in view.decks %}
+    <li>
+      <a class="grow deck-name" href="/p/{{ token }}/cards?course={{ deck.course | urlencode }}"><b>{{ deck.course }}</b><br><small>{{ _n("{n} card", "{n} cards", deck.total) }}{% if deck.due %} · {{ _n("{n} due", "{n} due", deck.due) }}{% endif %}{% if deck.new %} · {{ _n("{n} new card", "{n} new cards", deck.new) }}{% endif %}</small></a>
+      {% if deck.due or deck.new %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/review?course={{ deck.course | urlencode }}">{{ _("Review") }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" action="/p/{{ token }}/cards" class="card section card-new">
+  <h2>{{ _("New card") }}</h2>
+  <label for="c-course">{{ _("Course") }}</label>
+  <input id="c-course" name="course" required maxlength="80" list="c-courses" autocomplete="off" value="{{ d.course or view.course or '' }}">
+  <label for="c-front">{{ _("Question") }}</label>
+  <textarea id="c-front" name="front" rows="2" maxlength="300" placeholder="{{ _('What is an eigenvalue?') }}">{{ d.front or '' }}</textarea>
+  <label for="c-back">{{ _("Answer") }}</label>
+  <textarea id="c-back" name="back" rows="3" maxlength="600" placeholder="{{ _('A number λ such that Av = λv for some vector v other than zero.') }}">{{ d.back or '' }}</textarea>
+  <details class="paste"{% if d.paste %} open{% endif %}>
+    <summary>{{ _("Or paste several, one per line") }}</summary>
+    <label for="c-paste" class="visually-hidden">{{ _("Cards, one per line") }}</label>
+    <textarea id="c-paste" name="paste" rows="6" placeholder="{{ _('question | answer') }}">{{ d.paste or '' }}</textarea>
+    <p class="hint">{{ _("The question and the answer separated by a tab (as a spreadsheet or Anki's text export gives them) or by ' | '. Up to 200 at a time.") }}</p>
+  </details>
+  <p class="hint">{{ _("Your cards are yours alone: nobody else sees them.") }}</p>
+  <button type="submit" class="btn btn-primary">{{ _("Add") }}</button>
+</form>
+{% if view.courses %}<datalist id="c-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+
+{% if view.cards %}
+<div class="section">
+  <div class="section-title"><h2>{{ view.course }}</h2><small>{{ _n("{n} card", "{n} cards", view.cards | length) }}</small></div>
+  <ul class="card list card-list">
+    {% for c in view.cards %}
+    <li>
+      <a class="grow" href="/p/{{ token }}/cards/{{ c.id }}"><span class="card-front">{{ c.front }}</span><br><small>{% if c.new %}{{ _("new") }}{% elif c.due %}{{ _("next review {when}", when=c.due) }}{% endif %}{% if c.lapses %} · {{ _n("forgotten {n} time", "forgotten {n} times", c.lapses) }}{% endif %}</small></a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% elif not view.decks %}
+<div class="card empty"><b>{{ _("No cards yet") }}</b>{{ _("Write one question and its answer above, or paste a list.") }}</div>
+{% endif %}
+{% endblock %}

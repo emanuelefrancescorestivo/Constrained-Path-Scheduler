@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
@@ -125,6 +125,12 @@ NETWORK_NOTICES = {
     "left_group": "You left the group.",
     "group_saved": "Saved.",
 }
+CARD_NOTICES = {
+    "card_saved": "Saved.",
+    "card_deleted": "Deleted.",
+}
+# The four answers to a card, as its buttons say them (D29).
+CARD_WORDS = {"again": "Again", "hard": "Hard", "good": "Good", "easy": "Easy"}
 TASK_NOTICES = {
     "added": "Added. The plan has made room for it.",
     "finished": "Done. Its remaining sessions are free time again.",
@@ -392,6 +398,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, subscription, service.review_for_today(subscription, now, logged=logged), now=now
             ),
             "focus": subscription.options.get("focus"),
+            "cards_due": service.cards_due(store, subscription, now),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -474,6 +481,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus.html",
             token=token,
             focus=service.focus_view(subscription, config.clock()),
+            cards_due=service.cards_due(store, subscription, config.clock()),
             tab="focus",
         )
 
@@ -1130,6 +1138,118 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.leave_group(store, token, group_id)
         service.log_event(store, token, "group", "left")
         return RedirectResponse(f"/p/{token}/groups?saved=left_group", 303)
+
+    # ------------------------------------------------------------ flashcards (D29)
+
+    def cards_page(
+        request: Request, subscription: service.Subscription, course: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        view = service.cards_view(store, subscription, config.clock(), course=course[:80])
+        return page(request, "cards.html", status, token=subscription.token, view=view, tab="focus", **extra)
+
+    @app.get("/p/{token}/cards", response_class=HTMLResponse)
+    def cards_list(
+        request: Request, token: str, course: str = "", saved: str = "", added: int = 0
+    ) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token)
+        notice = service.translate_plural("{n} card added.", "{n} cards added.", added) if added else None
+        if saved in CARD_NOTICES:
+            notice = service.translate(CARD_NOTICES[saved])
+        return cards_page(request, subscription, course, saved=notice)
+
+    @app.post("/p/{token}/cards", response_class=HTMLResponse)
+    async def cards_add(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            added = service.add_cards(store, subscription, fields, now=config.clock())
+        except service.ServiceError as error:
+            return cards_page(
+                request, subscription, fields.get("course", ""), 400, error=str(error), draft=fields
+            )
+        service.log_event(store, token, "cards", str(added))
+        course = quote(fields.get("course", "").strip())
+        return RedirectResponse(f"/p/{token}/cards?course={course}&added={added}", 303)
+
+    @app.get("/p/{token}/cards/review", response_class=HTMLResponse)
+    def cards_review(request: Request, token: str, course: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.card_review_view(store, subscription, config.clock(), course=course[:80])
+        return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="focus")
+
+    @app.post("/p/{token}/cards/{card_id}/answer")
+    async def cards_answer(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        course = str(form.get("course") or "")[:80]
+        try:
+            service.answer_card(
+                store, subscription, card_id, str(form.get("grade") or ""), now=config.clock()
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(f"/p/{token}/cards/review?course={quote(course)}", 303)
+
+    @app.get("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
+    def card_page(request: Request, token: str, card_id: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        card = service.card_view(store, subscription, card_id)
+        if card is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this card is not, or no longer, there"),
+                token=token,
+            )
+        return page(request, "card.html", token=token, card=card, draft=card, tab="focus")
+
+    @app.post("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
+    async def card_save(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=5)
+        fields = {k: str(v) for k, v in form.items()}
+        card = service.card_view(store, subscription, card_id)
+        try:
+            service.edit_card(store, subscription, card_id, fields)
+        except service.ServiceError as error:
+            if card is None:
+                return refused(request, token, error)
+            return page(
+                request, "card.html", 400, token=token, card=card, draft=fields, error=str(error), tab="focus"
+            )
+        return RedirectResponse(
+            f"/p/{token}/cards?course={quote(fields.get('course', ''))}&saved=card_saved", 303
+        )
+
+    @app.post("/p/{token}/cards/{card_id}/delete")
+    def card_delete(request: Request, token: str, card_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        card = service.card_view(store, subscription, card_id)
+        service.delete_card(store, subscription, card_id)
+        course = quote(card["course"]) if card else ""
+        return RedirectResponse(f"/p/{token}/cards?course={course}&saved=card_deleted", 303)
 
     @app.get("/p/{token}/report/{kind}/{target}", response_class=HTMLResponse)
     def report_form(request: Request, token: str, kind: str, target: str) -> HTMLResponse:

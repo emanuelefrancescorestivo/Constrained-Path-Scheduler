@@ -843,6 +843,42 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .act-static { cursor: default; }
 .act-static:hover { background: transparent; }
 
+/* -- flashcards (D29) --------------------------------------------------------- */
+.decks, .card-list { padding: 4px 16px; }
+.decks > li, .card-list > li { align-items: center; padding: 10px 0; }
+.decks a.grow, .card-list a.grow { color: inherit; text-decoration: none !important; }
+.decks small, .card-list small { color: var(--muted); }
+.card-front { font-weight: 550; }
+.card-new h2 { margin-top: 0; }
+.card-new .paste { margin: 12px 0 4px; }
+.card-new .paste summary { color: var(--accent); cursor: pointer; font-weight: 550; }
+.review-count { color: var(--muted); font-size: 0.9rem; margin: 0 0 8px; }
+.flashcard { padding: 22px 18px; }
+.flash-front { font-size: 1.3rem; font-weight: 600; line-height: 1.35; margin: 0 0 18px; white-space: pre-line; overflow-wrap: anywhere; }
+.flash-answer > summary { list-style: none; text-align: center; }
+.flash-answer > summary::-webkit-details-marker { display: none; }
+.flash-answer[open] > summary { display: none; }
+.flash-back { font-size: 1.1rem; line-height: 1.45; margin: 0 0 16px; padding-top: 14px; border-top: 0.5px solid var(--line); white-space: pre-line; overflow-wrap: anywhere; }
+.flash-grades .hint { margin: 0 0 8px; }
+.grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.grade {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border: 0; border-radius: 12px;
+  font: inherit; cursor: pointer; background: var(--fill-3); color: var(--text);
+}
+.grade b { font-size: 0.95rem; }
+.grade small { font-size: 0.75rem; color: var(--muted); }
+/* Red is for exams and today (CLAUDE.md): "Again" stays neutral. */
+.grade-good { background: var(--accent-soft); color: var(--accent); }
+.grade-easy { background: var(--ok-soft); color: var(--ok); }
+.cards-link { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none !important; }
+.cards-link span { color: var(--muted); font-size: 0.9rem; }
+.cards-due {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 14px; padding: 12px 16px;
+  border-radius: var(--radius, 14px); background: var(--elevated); color: var(--text); text-decoration: none !important;
+  box-shadow: 0 0 0 0.5px var(--line);
+}
+.cards-due span { color: var(--accent); font-weight: 550; font-size: 0.9rem; }
+
 /* -- study groups (D28) ------------------------------------------------------ */
 .btn.destructive, .btn-plain.destructive { color: var(--danger-text); }
 .group-invite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }

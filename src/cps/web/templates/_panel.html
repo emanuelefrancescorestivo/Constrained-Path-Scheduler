@@ -8,6 +8,7 @@
 {% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 {% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
+{% if cards_due %}<a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Flashcards") }} ›</span></a>{% endif %}
 
 {% if not view.planned %}
 <div class="card">

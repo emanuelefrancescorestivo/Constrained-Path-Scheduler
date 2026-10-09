@@ -66,7 +66,8 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E11 "In simple words"** inside the session log (D27).
 - [x] **E12 Study groups**: a few friends, one weekly goal in hours, nobody ranked
       (D28).
-- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): flashcards.
+- [x] **E13 Flashcards**: the student's own cards, scheduled by the planner's FSRS
+      model; four answers, keys, 20 new a day (D29).
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

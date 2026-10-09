@@ -525,3 +525,39 @@ from before they joined (the group's past weeks would change when someone joins)
 **Disclosed.** In a group of two, the total and one's own hours give away the
 other's. The page and the privacy notice say what members see.
 
+## D29. Flashcards, scheduled by the planner's FSRS model
+
+**Chosen.** A student writes their own cards, a question and an answer, by course,
+one at a time or pasted one per line (a tab, as spreadsheets and Anki's text export
+give them, or " | "; up to 200 at once, 2,000 in all). Cards are private. Each card
+has its own FSRS-4.5 state from `cps.memory`: the first answer sets it
+(`initial_state`), each later one updates it with the days since the last
+(`review`), and the card comes back when its predicted recall falls to 90 %
+(`interval_for_retention`). The review screen shows the question, "Show the answer"
+(a `<details>`, so it works without scripts), and four answers, Again, Hard, Good,
+Easy, each saying when the card would come back ("in 4 days"). Space and 1 to 4 work
+as keys where a keyboard exists (`static/cards.js`). Due cards come first, the most
+overdue first, then new cards, at most 20 shown for the first time a day. "Again"
+brings a card back 10 minutes later in the same sitting. Every answer is kept
+(`card_reviews`). Today and Focus say how many cards are waiting; `cps metrics`
+counts answers.
+
+**Why.** The owner's notebook lists flashcards; FSRS is a flashcard scheduler, and
+the project already carries a pinned implementation of it (`tests/test_memory.py`),
+so a card is the model's own unit and needs no second model. Retrieval practice is
+the measure that holds up (D25, [ref:adesope2017]); cards make it a habit of minutes
+rather than a planned session.
+
+**Stated choices, not FSRS.** The 10-minute relearning step and the 20 new cards a
+day are conventions of Anki and py-fsrs, not part of FSRS-4.5, which has no
+same-day formula: a review minutes later barely moves stability. The 90 % target
+is FSRS's usual default. The weights are population defaults, as everywhere in the
+project.
+
+**Rejected, for now.** Shared or public decks (the copyright questions of D26, and
+moderation); counting card reviews for the streak or as study hours (a few taps
+would keep a streak; the streak stays about sessions); feeding cards into the exam
+forecast (the forecast models a course's topics, cards model single facts, and
+adding both would count the same learning twice); images on cards; importing Anki
+decks (`.apkg`).
+

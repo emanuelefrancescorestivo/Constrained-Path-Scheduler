@@ -368,6 +368,7 @@ def command_metrics(args) -> int:
         f"private, {net['explanations']} explanations, {net['notes']} notes, {net['kudos']} kudos and "
         f"helpful marks, {net['comments']} comments",
         f"  focus, last 7 days     {net['timed']} timed, {net['focus_checked']} with the focus checked",
+        f"  cards, last 7 days     {net['card_reviews']} answers by {net['card_students']} students",
         f"  reports open           {net['reports_open']}",
         f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "
         f"${ai['dollars']:.2f} of ${ai['cap']:.2f}"

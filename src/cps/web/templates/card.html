@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Card") }} · {{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/cards?course={{ card.course | urlencode }}">{{ card.course }}</a></p>
+<div class="page-title"><h1>{{ _("Card") }}</h1><p>{% if card.new %}{{ _("new") }}{% else %}{{ _n("answered {n} time", "answered {n} times", card.reps) }}{% if card.due %} · {{ _("next review {when}", when=card.due) }}{% endif %}{% endif %}</p></div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/cards/{{ card.id }}" class="card section">
+  <label for="e-course">{{ _("Course") }}</label>
+  <input id="e-course" name="course" required maxlength="80" value="{{ draft.course }}">
+  <label for="e-front">{{ _("Question") }}</label>
+  <textarea id="e-front" name="front" rows="2" maxlength="300" required>{{ draft.front }}</textarea>
+  <label for="e-back">{{ _("Answer") }}</label>
+  <textarea id="e-back" name="back" rows="4" maxlength="600" required>{{ draft.back }}</textarea>
+  <p class="hint">{{ _("Changing the words keeps when the card comes back.") }}</p>
+  <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
+</form>
+<form method="post" action="/p/{{ token }}/cards/{{ card.id }}/delete" class="section"><button type="submit" class="btn btn-plain destructive">{{ _("Delete this card") }}</button></form>
+{% endblock %}

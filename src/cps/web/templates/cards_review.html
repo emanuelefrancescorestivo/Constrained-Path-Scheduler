@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Review") }} · {{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/cards.js"></script>{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/cards{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Flashcards") }}</a></p>
+{% if view.card %}
+{% set c = view.card %}
+<p class="review-count">{{ c.course }} · {{ _n("{n} card left", "{n} cards left", view.left) }}{% if c.new %} · <span class="badge badge-accent">{{ _("new") }}</span>{% endif %}</p>
+<section class="card flashcard" aria-label="{{ _('Card') }}">
+  <p class="flash-front">{{ c.front }}</p>
+  <details class="flash-answer" id="flash-answer">
+    <summary class="btn btn-tinted btn-block">{{ _("Show the answer") }}</summary>
+    <p class="flash-back">{{ c.back }}</p>
+    <form method="post" action="/p/{{ token }}/cards/{{ c.id }}/answer" class="flash-grades">
+      <input type="hidden" name="course" value="{{ view.course }}">
+      <p class="hint">{{ _("How well did you recall it?") }}</p>
+      <div class="grades">
+        {% for o in view.options %}
+        <button type="submit" name="grade" value="{{ o.grade }}" class="grade grade-{{ o.grade }}" data-key="{{ loop.index }}"><b>{{ _(words[o.grade]) }}</b><small>{{ o.when }}</small></button>
+        {% endfor %}
+      </div>
+    </form>
+  </details>
+</section>
+<p class="hint wide-only">{{ _("Keys: space shows the answer, 1 to 4 answer.") }}</p>
+{% else %}
+<section class="card empty">
+  <b>{{ _("All done for now") }}</b>
+  {% if view.today %}{{ _n("{n} answer today.", "{n} answers today.", view.today) }} {% endif %}{% if view.next %}{{ _("The next card comes back {when}.", when=view.next) }}{% else %}{{ _("Add cards to start.") }}{% endif %}
+  <p><a class="btn btn-tinted" href="/p/{{ token }}/cards">{{ _("Flashcards") }}</a></p>
+</section>
+{% endif %}
+{% endblock %}

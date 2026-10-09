@@ -115,7 +115,7 @@ with few API calls, or a robust, flexible and efficient algorithm.
 | tip: study after working out, +10 % | evidence exists, the number does not | acute exercise improved memory in a meta-analysis (a moderate effect on long-term memory, smaller on short-term memory, mixed results by timing and intensity) [ref:roig2013]; a tip without a percentage, and an option to place a session after a busy time marked "training" (proposed) |
 | tip: eat foods or creatine for memory | **not recommended** | creatine's effect on memory in a meta-analysis of 8 small trials was small, varied a lot between trials and was clearer in older adults [ref:prokopidis2023]; supplement and diet advice to students as young as 15 is health advice this product should not give |
 | tip: "exam in 17 days, revise today, +22 %" | **built in this step** | the exam forecast and, on each session, what it adds to exam-day recall (D24) |
-| flashcards | not built | the memory model is a flashcard scheduler (FSRS); flashcards are a feature of their own (an editor, a review screen), the next big candidate |
+| flashcards | built (D29) | the student's own cards, scheduled one by one by the planner's FSRS model |
 | puzzles | not recommended | no evidence they help exam recall more than self-tests |
 | leagues | rejected (D16) | built as the cooperative alternative: a study group with a shared weekly goal, nobody ranked (D28) |
 | how to measure reliably | partly | the reliable signal is recall on self-tests: after a self-test session, "how much could you recall: none, some, most, all", which maps onto FSRS's four grades and makes the forecast measured instead of assumed (proposed, the most valuable next step) |
@@ -173,7 +173,9 @@ Proposed next, for the owner to choose: recall on self-tests (§3), the notes li
 (§4), "in simple words" inside the session log, flashcards, a cooperative group goal.
 
 **Built next, on the owner's choice:** the recall question (D25) and the notes
-library, option B of §4 (D26). The legal check of §4 is still to be done.
+library, option B of §4 (D26). The legal check of §4 is still to be done. Then, when
+the owner said "continue": "in simple words" in the session log (D27), study groups
+with a shared weekly goal (D28) and flashcards (D29).
 
 <p align="center"><img alt="The notes library on a phone: the Notes tab of Community, filters by course, university and programme, and notes from students in Milan and Lyon, each with a thumbnail of its first page, its course, title, author, pages and date, a helpful count, and a No. 1 this month badge" src="app-notes-phone.png" width="40%"></p>
 <p align="center"><sub>Synthetic students and handwritten-style pages made for the screenshot; not real data.</sub></p>
