@@ -576,14 +576,18 @@ motions and dynamics".*
    (Firefox today) simply load the page.
 2. **Data drawing itself.** On a page's first paint, rings fill, chart columns grow
    from the baseline one after the other, trend lines draw from the left, meters
-   fill, and the numbers marked for it count up to the value the server wrote, the
-   first time they come into view. Lists of cards rise in, the first few staggered.
+   fill, the weeks of the day grid fill in from the oldest, and the numbers marked
+   for it count up to the value the server wrote, the first time they come into
+   view. Lists of cards rise in, the first few staggered.
    These play once per page: `motion.js` marks the page settled after it arrives.
 3. **Changing in place.** When part of a page is replaced (a report on Today, a tick
    on Tasks, a kudos), the swap is one view transition: items that stay slide to
    their new places, the answered one fades, and the week's ring and numbers move
-   from their old values instead of jumping. A kudos, an "I got it" or a helpful
-   mark pops, with a ring bursting from it. Buttons give under a finger; cards lift
+   from their old values instead of jumping. In the calendar, after a report, a
+   move or a new task, every session the plan moved slides from its old slot to its
+   new one, and new ones grow in: the plan adapting is something you see. (A
+   session's id changes with its time, so blocks are paired by title, in order.) A
+   kudos, an "I got it" or a helpful mark pops, with a ring bursting from it. Buttons give under a finger; cards lift
    under a mouse. The toast rises and sinks away.
 4. **Achieving.** A burst of confetti, once per achievement on the device: a full
    week, a milestone, a group's weekly goal met, the day's flashcards done. Several

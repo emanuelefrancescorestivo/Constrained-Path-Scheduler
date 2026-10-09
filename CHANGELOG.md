@@ -10,7 +10,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   slides to its place; rings fill, chart columns grow, trend lines draw, meters fill
   and numbers count up on a page's first paint; a report on Today, a tick or a kudos
   changes the page in one movement, the ring and numbers moving from their old
-  values; a kudos or a helpful mark pops; flashcards slide from one to the next;
+  values; in the calendar, the sessions the plan moved slide to their new slots; a kudos or a helpful mark pops; flashcards slide from one to the next;
   the focus clock breathes, with a ring going round once a minute; confetti, once,
   for a full week, a milestone, a group's goal met, the day's flashcards done.
   Nothing moves when the device asks for reduced motion, or with the new setting

@@ -61,7 +61,7 @@ function wirePanel() {
 // A task added, finished or deleted elsewhere on the page (ui.js): redraw.
 document.addEventListener("cps:changed", () => {
   wirePanel();
-  calendar.load();
+  calendar.load(true);
 });
 
 bar.hidden = false;

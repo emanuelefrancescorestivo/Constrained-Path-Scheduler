@@ -73,7 +73,7 @@ server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
 sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
-transitions and draw-ins are CSS) and `i18n.js` (the scripts' words in French).
+transitions and draw-ins are CSS; the calendar slides moved sessions itself) and `i18n.js` (the scripts' words in French).
 Motion is decoration over complete pages: nothing may depend on it, and everything
 stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Every sentence a
 student reads goes through `_()` (Python, templates) or `t()` (scripts) and has a

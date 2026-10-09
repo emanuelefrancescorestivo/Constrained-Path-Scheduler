@@ -12,6 +12,7 @@ const SNAP = 15; // minutes
 const PX = 0.9; // pixels per minute: 54 px an hour
 const GUTTER = 52; // px
 import { t } from "./i18n.js";
+import { still } from "./motion.js";
 
 const KIND_WORDS = { "first review": "Self-test", review: "Self-test", task: "Deadline work", practice: "Exam practice" };
 const OUTCOMES = [["done", "Done"], ["skipped", "Skipped"], ["struggled", "Hard"]];
@@ -160,9 +161,11 @@ export class Calendar {
     return answer;
   }
 
-  async load() {
+  // `moving`: after a change elsewhere on the page (a task added), the sessions the
+  // plan moved slide to their new places; a new week or day is just drawn.
+  async load(moving = false) {
     try {
-      this.draw(await this.request("calendar.json"));
+      this.draw(await this.request("calendar.json"), moving);
     } catch (error) {
       this.toast(error.message, true);
     }
@@ -179,7 +182,7 @@ export class Calendar {
   async change(path, body, done) {
     this.closePop();
     try {
-      this.draw(await this.request(path, body));
+      this.draw(await this.request(path, body), true);
       if (done) this.toast(done);
       this.onChanged();
     } catch (error) {
@@ -197,9 +200,10 @@ export class Calendar {
 
   // -- drawing ---------------------------------------------------------------
 
-  draw(data) {
+  draw(data, moving = false) {
     const scroller = this.root.querySelector(".cal-scroll");
     if (scroller && this.data) this.scrolled = scroller.scrollTop;
+    const before = moving ? this.positions() : null;
     this.data = data;
     this.loadedAt = Date.now();
     const days = data.days;
@@ -294,6 +298,43 @@ export class Calendar {
     const first = days[0].label;
     const last = days[days.length - 1].label;
     this.onRange(days.length === 1 ? first : `${first.slice(4)} – ${last.slice(4)}`, this.view);
+    if (before) this.slide(before);
+  }
+
+  // -- motion (DECISIONS.md D30) -------------------------------------------------
+  // After a change the plan may move sessions. A session's id changes with its time,
+  // so blocks are paired by title, in order: the k-th "Self-test: Algebra 3" before
+  // is the k-th after. Each slides from where it was to where it is (FLIP); a block
+  // that was not there grows in. Layout only: the server has already decided.
+
+  positions() {
+    const found = new Map();
+    this.root.querySelectorAll(".ev-study[data-key]").forEach((node) => {
+      const list = found.get(node.dataset.key) || [];
+      list.push(node.getBoundingClientRect());
+      found.set(node.dataset.key, list);
+    });
+    return found;
+  }
+
+  slide(before) {
+    if (still()) return;
+    const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
+    this.root.querySelectorAll(".ev-study[data-key]").forEach((node) => {
+      const was = (before.get(node.dataset.key) || []).shift();
+      const now = node.getBoundingClientRect();
+      if (!was) {
+        node.animate([{ opacity: 0, transform: "scale(0.9)" }, { opacity: 1, transform: "none" }], { duration: 320, easing: ease });
+        return;
+      }
+      const dx = was.left - now.left;
+      const dy = was.top - now.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(was.height - now.height) < 1) return;
+      node.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)`, zIndex: 5 }, { transform: "none", zIndex: 5 }],
+        { duration: 560, easing: ease },
+      );
+    });
   }
 
   placeNow() {
@@ -378,6 +419,7 @@ export class Calendar {
       title: `${label}\n${span}`,
       "data-full": label,
       "data-short": short || null,
+      "data-key": box.kind === "study" ? `${box.session_kind || ""}|${box.title || label}` : null,
       "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) }),
     },
     h("span", { class: "t" }, span),

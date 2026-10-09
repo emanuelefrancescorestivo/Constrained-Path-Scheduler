@@ -194,7 +194,8 @@ cps web                        # http://127.0.0.1:8000
    memory model takes the answer as it is: what you could not recall comes back
    sooner. Hard deadline work gets one more session.
 9. **Motion with a job** (D30): pages arrive and the tab's pill slides, rings and
-   charts draw themselves, a report changes the page in one movement, and a full
+   charts draw themselves, a report changes the page in one movement and the
+   sessions the plan moved slide to their new slots in the calendar, and a full
    week or a milestone gets a burst of confetti, once. Nothing moves if your device
    asks for reduced motion, or if you choose Motion: Reduced in Settings.
 
