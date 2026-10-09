@@ -14,10 +14,10 @@
 {% macro delta(now, before, unit="") %}{% if before is none %}{{ _("first week: no average yet") }}{% else %}{% set d = now - before %}{{ "+" if d >= 0 else "−" }}{{ (d if d >= 0 else -d) | hours }}{{ unit }} {{ _("vs your 4-week average") }}{% endif %}{% endmacro %}
 
 <section class="tiles" aria-label="{{ _('This week') }}">
-  <div class="tile"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value">{{ t.hours.value | hours }} h</b><span class="tile-sub">{{ delta(t.hours.value, t.hours.average, " h") }}</span></div>
-  <div class="tile"><span class="tile-label">{{ _("Sessions kept, last 4 weeks") }}</span><b class="tile-value">{% if t.kept.value is none %}–{% else %}{{ t.kept.value }} %{% endif %}</b><span class="tile-sub">{% if t.kept.before is not none %}{{ _("{n} % the 4 weeks before", n=t.kept.before) }}{% else %}{{ _("of the planned sessions already past") }}{% endif %}</span></div>
-  <div class="tile"><span class="tile-label">{{ _("Study load this week") }}</span><b class="tile-value">{{ t.load.value | round | int }}</b><span class="tile-sub">{{ delta(t.load.value, t.load.average) }}</span></div>
-  <div class="tile"><span class="tile-label">{{ _("Streak") }}</span><b class="tile-value">{{ _n("{n} day", "{n} days", t.streak.value) }}</b><span class="tile-sub">{{ _("Best: {n}", n=t.streak.best) }}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value" data-count>{{ t.hours.value | hours }} h</b><span class="tile-sub">{{ delta(t.hours.value, t.hours.average, " h") }}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Sessions kept, last 4 weeks") }}</span><b class="tile-value" data-count>{% if t.kept.value is none %}–{% else %}{{ t.kept.value }} %{% endif %}</b><span class="tile-sub">{% if t.kept.before is not none %}{{ _("{n} % the 4 weeks before", n=t.kept.before) }}{% else %}{{ _("of the planned sessions already past") }}{% endif %}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Study load this week") }}</span><b class="tile-value" data-count>{{ t.load.value | round | int }}</b><span class="tile-sub">{{ delta(t.load.value, t.load.average) }}</span></div>
+  <div class="tile"><span class="tile-label">{{ _("Streak") }}</span><b class="tile-value" data-count>{{ _n("{n} day", "{n} days", t.streak.value) }}</b><span class="tile-sub">{{ _("Best: {n}", n=t.streak.best) }}</span></div>
 </section>
 {% if t.direction %}<p class="trend-words">{% if t.direction == "up" %}{{ _("Your study time is rising: the last 4 weeks are above the 4 before.") }}{% elif t.direction == "down" %}{{ _("Your study time is lower than in the 4 weeks before. A lighter week is fine; the plan adapts.") }}{% else %}{{ _("Your study time is steady: the last 4 weeks match the 4 before.") }}{% endif %}</p>{% endif %}
 

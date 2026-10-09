@@ -11,9 +11,9 @@
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 
-<section class="card group-week">
+<section class="card group-week"{% if view.week.met %} data-celebrate="group-{{ view.id }}-{{ view.weeks[-1].monday }}"{% endif %}>
   <p class="tile-label">{{ _("This week, all of you") }}</p>
-  <p class="group-total"><b>{{ view.week.hours | hours }} h</b> <span>{{ _("of {hours} h", hours=view.goal | hours) }}</span></p>
+  <p class="group-total"><b data-count>{{ view.week.hours | hours }} h</b> <span>{{ _("of {hours} h", hours=view.goal | hours) }}</span></p>
   <div class="meter meter-lg"><span class="fill w{{ (view.week.percent // 10) * 10 }}"></span></div>
   <p class="hint">{% if view.week.met %}{{ _("Goal met this week.") }}{% else %}{{ _("{hours} h to go together.", hours=view.week.left | hours) }}{% endif %}{% if view.run %} {{ _n("Goal met {n} week in a row", "Goal met {n} weeks in a row", view.run) }}.{% endif %}</p>
   {% if view.weeks | length > 1 %}

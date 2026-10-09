@@ -11,6 +11,7 @@
 // Layout and input only: what a change means is decided by the server.
 
 import { t } from "./i18n.js";
+import { carryOver, transition } from "./motion.js";
 
 const REGIONS = ["#panel", "#tasks"];
 let toastTimer = null;
@@ -35,20 +36,37 @@ export function toast(text, { bad = false, action = null } = {}) {
   }
   document.body.append(node);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.remove(), bad ? 6000 : action ? 6000 : 3500);
+  toastTimer = setTimeout(() => leave(node), bad ? 6000 : action ? 6000 : 3500);
+}
+
+// The toast sinks away rather than vanishing (D30); without motion it just goes.
+function leave(node) {
+  node.classList.add("leaving");
+  setTimeout(() => node.remove(), 200);
 }
 
 async function send(form, submitter) {
   const data = new FormData(form, submitter);
   const response = await fetch(form.action, { method: "POST", body: new URLSearchParams(data) });
   const page = new DOMParser().parseFromString(await response.text(), "text/html");
+  const swaps = [];
   for (const selector of form.dataset.region ? [form.dataset.region] : REGIONS) {
     const here = document.querySelector(selector);
     const there = page.querySelector(selector);
     if (here && there) {
       there.querySelectorAll(".notice-ok").forEach((n) => n.remove()); // said by the toast
-      here.replaceWith(there);
+      swaps.push([here, document.adoptNode(there)]);
     }
+  }
+  if (swaps.length) {
+    // One movement: what stays slides to its place, rings and numbers move from their
+    // old values, and the part that was tapped is marked so its icon can pop (D30).
+    const before = swaps.map(([here]) => here.cloneNode(true));
+    await transition(() => swaps.forEach(([here, there]) => here.replaceWith(there)));
+    swaps.forEach(([, there], i) => {
+      carryOver(before[i], there);
+      if (form.dataset.region) there.classList.add("just");
+    });
   }
   const alert = page.querySelector(".alert, .error");
   const notice = page.querySelector(".notice-ok");

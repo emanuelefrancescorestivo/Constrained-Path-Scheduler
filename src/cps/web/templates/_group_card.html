@@ -1,5 +1,5 @@
 {# A group in a list (the Groups page, Progress): `g` from service._group_card. #}
-<a class="card link-card group-card" href="/p/{{ token }}/groups/{{ g.id }}">
+<a class="card link-card group-card" href="/p/{{ token }}/groups/{{ g.id }}"{% if g.week.met %} data-celebrate="group-{{ g.id }}-{{ g.weeks[-1].monday }}"{% endif %}>
   <div class="group-head">
     <b>{{ g.name }}</b>
     {% if g.run %}<span class="badge badge-ok">{{ _n("Goal met {n} week in a row", "Goal met {n} weeks in a row", g.run) }}</span>{% endif %}

@@ -561,3 +561,53 @@ forecast (the forecast models a course's topics, cards model single facts, and
 adding both would count the same learning twice); images on cards; importing Anki
 decks (`.apkg`).
 
+## D30. Motion: movement that shows what changed, and joy at a milestone
+
+*Asked by the owner on 2026-10-09: "add cool graphic features like animations and
+motions and dynamics".*
+
+**Chosen.** Motion with a job, in four kinds, all in plain CSS and one small module
+(`web/static/motion.js`), no library:
+
+1. **Arriving.** Moving between pages is a view transition: the top bar and the tab
+   bar stay, the content rises in, and the current tab's pill (and the Community
+   tabs' pill) slides to its new place. Flashcards slide out to the left and the
+   next one in from the right. Browsers without cross-document view transitions
+   (Firefox today) simply load the page.
+2. **Data drawing itself.** On a page's first paint, rings fill, chart columns grow
+   from the baseline one after the other, trend lines draw from the left, meters
+   fill, and the numbers marked for it count up to the value the server wrote, the
+   first time they come into view. Lists of cards rise in, the first few staggered.
+   These play once per page: `motion.js` marks the page settled after it arrives.
+3. **Changing in place.** When part of a page is replaced (a report on Today, a tick
+   on Tasks, a kudos), the swap is one view transition: items that stay slide to
+   their new places, the answered one fades, and the week's ring and numbers move
+   from their old values instead of jumping. A kudos, an "I got it" or a helpful
+   mark pops, with a ring bursting from it. Buttons give under a finger; cards lift
+   under a mouse. The toast rises and sinks away.
+4. **Achieving.** A burst of confetti, once per achievement on the device: a full
+   week, a milestone, a group's weekly goal met, the day's flashcards done. Several
+   at once make one burst. The focus clock breathes, and a thin ring goes round once
+   a minute, in step with the seconds.
+
+**Control.** Nothing moves when the device asks for reduced motion, and a new
+setting (Settings, Appearance: Motion, Automatic or Reduced) keeps a plan's pages
+still on any device. Every page is complete without the script: the numbers are
+written, the rings drawn, the changes made; motion only shows them.
+
+**Why.** Movement that connects a before and an after shows what changed (a
+session leaving the list, the ring growing) where a jump makes the eye search, and a
+celebration marks the moments the streak and the groups exist for. The owner asked
+for it; Strava, which the network follows (D16), celebrates in the same way.
+
+**Rejected.** An animation library (a dependency and a build step for what CSS and
+the Web Animations API do); confetti on every report (it would be noise by the
+third day; it marks achievements only); animating numbers on every swap from zero
+(they move from their old value); sound and vibration (a phone in a lecture);
+parallax and motion while scrolling (attention for nothing).
+
+**Disclosed.** The browser remembers which celebrations it has shown, in local
+storage, so each appears once; the privacy page says so. The pill's slide and the
+page transitions need a browser with cross-document view transitions (Chrome and
+Edge, Safari 18.2 and later); the rest works everywhere.
+

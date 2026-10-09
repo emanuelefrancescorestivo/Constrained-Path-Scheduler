@@ -266,12 +266,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
-        if token and ("courses" not in context or "theme" not in context):
+        if token and ("courses" not in context or "theme" not in context or "motion" not in context):
             # Every page of a plan carries the new-task sheet, which suggests courses,
-            # and the plan's appearance (D21).
+            # and the plan's appearance (D21) and motion (D30).
             subscription = service.load_subscription(store, token)
             context.setdefault("courses", service.course_names(subscription) if subscription else [])
             context.setdefault("theme", service.theme_of(subscription))
+            context.setdefault("motion", service.motion_of(subscription))
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -1402,6 +1403,19 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "theme", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
+    @app.post("/p/{token}/motion")
+    async def motion(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("motion") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_motion(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "motion", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
 
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)

@@ -940,4 +940,9 @@ MESSAGES: dict[str, str] = {
     "{n} new card": "{n} nouvelle carte",
     "{n} new cards": "{n} nouvelles cartes",
     "Your flashcards and each answer you gave them, to schedule the next review. Only you see them.": "Tes cartes mémoire et chaque réponse que tu leur as donnée, pour prévoir la révision suivante. Toi seul les vois.",
+    "Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.": "Automatique anime les pages, les graphiques et les étapes franchies, sauf si ton appareil demande moins de mouvement. Réduit garde tout immobile.",
+    "Motion": "Animations",
+    "Reduced": "Réduit",
+    "choose Automatic or Reduced": "choisis Automatique ou Réduit",
+    "Your browser remembers which celebrations it has already shown you (a milestone, a full week, a group's goal), so each appears once. That list stays on your device and is never sent; clearing the site's data forgets it.": "Ton navigateur retient les célébrations qu'il t'a déjà montrées (une étape franchie, une semaine complète, l'objectif d'un groupe), pour que chacune n'apparaisse qu'une fois. Cette liste reste sur ton appareil et n'est jamais envoyée ; effacer les données du site l'oublie.",
 }

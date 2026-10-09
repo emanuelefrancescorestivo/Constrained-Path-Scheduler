@@ -37,7 +37,7 @@
   <div class="card">
     <ul class="list">
     {% for card in asked[:5] %}
-      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}">
+      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="a{{ card.id }}">
         <span class="dot"></span>
         <div class="grow">
           <div class="title">{{ card.label }}</div>
@@ -62,7 +62,7 @@
   <div class="card">
     <ul class="list">
     {% for card in later %}
-      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}">
+      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="l{{ card.id }}">
         <span class="dot"></span>
         <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">{{ _("placed") }}</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
       </li>

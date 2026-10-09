@@ -4,6 +4,7 @@
 // script, every form on the page still works, by full page loads.
 import { Calendar } from "./calendar.js";
 import { t } from "./i18n.js";
+import { carryOver, transition } from "./motion.js";
 import { toast } from "./ui.js";
 
 const plan = document.querySelector(".plan");
@@ -14,7 +15,14 @@ async function refreshPanel() {
   try {
     const response = await fetch(`/p/${token}/panel`);
     if (response.ok) {
-      panel().innerHTML = await response.text();
+      const html = await response.text();
+      const before = panel().cloneNode(true);
+      // The answered session leaves its list and the others close up; the week's
+      // ring and numbers move from what they were (D30).
+      await transition(() => {
+        panel().innerHTML = html;
+      });
+      carryOver(before, panel());
       wirePanel();
     }
   } catch {

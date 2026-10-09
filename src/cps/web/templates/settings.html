@@ -199,6 +199,13 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("Automatic follows your device's light or dark setting.") }}</p>
+<form method="post" action="/p/{{ token }}/motion" class="pills motion-choice" aria-label="{{ _('Motion') }}">
+  <span class="pills-label">{{ _("Motion") }}</span>
+  {% for value, word in (("auto", _("Automatic")), ("reduce", _("Reduced"))) %}
+  <button type="submit" name="motion" value="{{ value }}" class="btn btn-sm"{% if (motion or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.") }}</p>
 <h2 class="section" id="ai">{{ _("AI") }}</h2>
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">

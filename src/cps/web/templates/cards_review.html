@@ -24,7 +24,7 @@
 </section>
 <p class="hint wide-only">{{ _("Keys: space shows the answer, 1 to 4 answer.") }}</p>
 {% else %}
-<section class="card empty">
+<section class="card empty"{% if view.today %} data-celebrate="cards-{{ view.date }}"{% endif %}>
   <b>{{ _("All done for now") }}</b>
   {% if view.today %}{{ _n("{n} answer today.", "{n} answers today.", view.today) }} {% endif %}{% if view.next %}{{ _("The next card comes back {when}.", when=view.next) }}{% else %}{{ _("Add cards to start.") }}{% endif %}
   <p><a class="btn btn-tinted" href="/p/{{ token }}/cards">{{ _("Flashcards") }}</a></p>

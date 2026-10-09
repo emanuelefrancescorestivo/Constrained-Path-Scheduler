@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang() }}"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}>
+<html lang="{{ lang() }}"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}{% if motion == "reduce" %} data-motion="reduce"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -17,6 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
 <link rel="stylesheet" href="/static/style.css">
+<script type="module" src="/static/motion.js"></script>
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>

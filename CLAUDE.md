@@ -24,8 +24,8 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 540 passed, 14 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 554 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 542 passed, 14 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 556 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -71,7 +71,11 @@ red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week, d
 drag, popovers, titles that fit, AUDIT 39), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
-sheet, Undo, the N key) and `i18n.js` (the scripts' words in French). Every sentence a
+sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried over
+from old values in one view transition, confetti once per achievement; page
+transitions and draw-ins are CSS) and `i18n.js` (the scripts' words in French).
+Motion is decoration over complete pages: nothing may depend on it, and everything
+stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Every sentence a
 student reads goes through `_()` (Python, templates) or `t()` (scripts) and has a
 French entry (`cps/locales/fr.py`, `static/i18n.js`; `tests/test_i18n.py` checks).
 Plain JavaScript modules, no build step, no framework, layout and
@@ -145,6 +149,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - The exam forecast and each self-test's gain (D24) come from FSRS with population
   weights and a guessed starting state; they are estimates, rounded to 5 %, and say
   so. Study load (D23) describes work, not learning.
+- Motion (D30): page transitions and the sliding tab pill need cross-document view
+  transitions (Chrome, Edge, Safari 18.2+); elsewhere pages simply load. Checked in
+  Chromium only.
 - AI (D12) has run only against a fake provider: no model answer has been tried on
   real sentences. With no `ANTHROPIC_API_KEY`, the rules answer, as they do whenever
   the model is off, over the cap or wrong.

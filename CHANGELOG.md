@@ -6,6 +6,15 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Motion (D30): pages arrive with a view transition, and the current tab's pill
+  slides to its place; rings fill, chart columns grow, trend lines draw, meters fill
+  and numbers count up on a page's first paint; a report on Today, a tick or a kudos
+  changes the page in one movement, the ring and numbers moving from their old
+  values; a kudos or a helpful mark pops; flashcards slide from one to the next;
+  the focus clock breathes, with a ring going round once a minute; confetti, once,
+  for a full week, a milestone, a group's goal met, the day's flashcards done.
+  Nothing moves when the device asks for reduced motion, or with the new setting
+  Motion: Reduced. No library.
 - Flashcards (D29): a student's own cards by course, written one at a time or pasted
   one per line (tab or " | "), private. Each card is scheduled by the planner's
   FSRS-4.5 model and comes back when its predicted recall falls to 90 %. The review
@@ -231,6 +240,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Toasts no longer arrive half their width off centre (AUDIT item 48).
 - A session timed from the plan and logged is counted once: Trends' hours, the
   day's shade on Progress, the weekly review and the pilot's measures counted it
   twice (AUDIT item 47).

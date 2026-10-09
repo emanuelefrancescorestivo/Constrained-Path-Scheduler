@@ -2813,6 +2813,7 @@ def progress_view(
                 "line": today_line,
             },
             "week": {
+                "first": _progress.monday(today).isoformat(),
                 "planned": this_week.planned,
                 "done": this_week.done,
                 "skipped": this_week.skipped,
@@ -3049,6 +3050,22 @@ def set_theme(subscription: Subscription, theme: str) -> Subscription:
     if theme not in THEMES:
         raise InvalidInput(_("choose Automatic, Light or Dark"))
     return replace(subscription, options={**subscription.options, "theme": theme})
+
+
+MOTIONS = ("auto", "reduce")
+
+
+def motion_of(subscription: Subscription | None) -> str:
+    """How much a plan's pages move (D30): "auto" animates unless the device asks
+    for reduced motion; "reduce" never animates."""
+    motion = (subscription.options.get("motion") if subscription else None) or "auto"
+    return motion if motion in MOTIONS else "auto"
+
+
+def set_motion(subscription: Subscription, motion: str) -> Subscription:
+    if motion not in MOTIONS:
+        raise InvalidInput(_("choose Automatic or Reduced"))
+    return replace(subscription, options={**subscription.options, "motion": motion})
 
 
 def language_of(subscription: Subscription) -> str:
@@ -3677,6 +3694,7 @@ def _group_card(
             {
                 "label": format_date(monday, "day_short"),
                 "first": format_date(monday, "short"),
+                "monday": monday.isoformat(),
                 "hours": hours,
                 "met": done,
                 "current": monday == _progress.monday(today),
@@ -3860,6 +3878,7 @@ def card_review_view(
     waiting = flashcards.queue(where, subscription.token, now, zone, course)
     view: dict = {
         "course": course,
+        "date": now.astimezone(zone).date().isoformat(),
         "left": len(waiting),
         "today": flashcards.reviewed_today(where, subscription.token, now, zone),
         "card": None,

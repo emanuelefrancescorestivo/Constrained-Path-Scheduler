@@ -2,13 +2,13 @@
 {% from "_ring.html" import ring %}
 {% set w = progress.week %}{% set st = progress.streak %}
 <a class="strip" href="/p/{{ token }}/progress">
-  <span class="strip-item">
+  <span class="strip-item"{% if w.planned and w.percent >= 100 %} data-celebrate="week-{{ w.first }}"{% endif %}>
     {{ ring(w.percent, "sm", _("{done} of {planned} sessions this week", done=w.done, planned=w.planned)) }}
-    <span><b>{{ w.done }}/{{ w.planned }}</b><small>{{ _("this week") }}</small></span>
+    <span><b data-count>{{ w.done }}/{{ w.planned }}</b><small>{{ _("this week") }}</small></span>
   </span>
   <span class="strip-item">
     <span class="streak-mark{% if st.today_done %} lit{% endif %}" aria-hidden="true"></span>
-    <span><b>{{ _n("{n} day", "{n} days", st.current) }}</b><small>{{ _("in a row") }}</small></span>
+    <span><b data-count>{{ _n("{n} day", "{n} days", st.current) }}</b><small>{{ _("in a row") }}</small></span>
   </span>
   <span class="strip-line">{{ st.line }}</span>
 </a>

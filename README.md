@@ -193,6 +193,10 @@ cps web                        # http://127.0.0.1:8000
    how much you could recall without your notes (nothing, some, most, all), and the
    memory model takes the answer as it is: what you could not recall comes back
    sooner. Hard deadline work gets one more session.
+9. **Motion with a job** (D30): pages arrive and the tab's pill slides, rings and
+   charts draw themselves, a report changes the page in one movement, and a full
+   week or a milestone gets a burst of confetti, once. Nothing moves if your device
+   asks for reduced motion, or if you choose Motion: Reduced in Settings.
 
 No account and no password: the two addresses are the keys, as with any calendar
 subscription link, and the page says so. No cookies, no trackers, nothing loaded
@@ -320,7 +324,7 @@ middle of a plan, so fitting study around lectures and sleep costs almost nothin
 This repository is a rebuild. The January 2026 version claimed a 32.2% retention
 improvement and an optimal schedule; its memory model could not see time, its A*
 never returned a solution, and its calendar parser was a stub. `AUDIT.md` lists
-those defects and every one found since, 47 in all, including a planner that put
+those defects and every one found since, 48 in all, including a planner that put
 the first review on day 16 of 21 (fixed), two separate mixes of FSRS versions
 (fixed), and a corroborating claim that had no source (withdrawn).
 `docs/WRITEUP.md` tells that story; `docs/PROCESS.md` is the full record, mistakes
@@ -367,8 +371,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 540 passed, 14 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 554 passed, 1 xfailed, 93% coverage
+pytest                                    # 542 passed, 14 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 556 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

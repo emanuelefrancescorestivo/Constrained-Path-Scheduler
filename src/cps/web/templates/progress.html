@@ -14,10 +14,10 @@
 {% else %}
 {% set w = view.week %}{% set st = view.streak %}
 <div class="hero">
-  <div class="card hero-ring">
+  <div class="card hero-ring"{% if w.planned and w.percent >= 100 %} data-celebrate="week-{{ w.first }}"{% endif %}>
     {{ ring(w.percent, "lg", _("{done} of {planned} sessions this week", done=w.done, planned=w.planned)) }}
     <div>
-      <b class="big">{{ w.done }}<small>/{{ w.planned }}</small></b>
+      <b class="big"><span data-count>{{ w.done }}</span><small>/{{ w.planned }}</small></b>
       <span>{{ _("sessions done this week") }}</span>
       <span class="muted">{{ _("{done} h of {planned} h", done=w.hours_done | hours, planned=w.hours_planned | hours) }}</span>
       {% if w.waiting %}<a href="/p/{{ token }}#reports" class="muted">{{ _n("{n} waiting for a tap", "{n} waiting for a tap", w.waiting) }}</a>{% endif %}
@@ -26,7 +26,7 @@
   <div class="card hero-streak">
     <span class="streak-mark big{% if st.today_done %} lit{% endif %}" aria-hidden="true"></span>
     <div>
-      <b class="big">{{ st.current }}</b>
+      <b class="big" data-count>{{ st.current }}</b>
       <span>{{ _n("day in a row", "days in a row", st.current) }}</span>
       <span class="muted">{{ _("Best: {n}", n=st.best) }} · {{ _n("{n} day to a {goal}-day streak", "{n} days to a {goal}-day streak", st.to_go, goal=st.goal) }}</span>
     </div>
@@ -38,7 +38,7 @@
 <div class="section">
   <div class="section-title"><h2>{{ _("Your trajectory") }}</h2><a href="/p/{{ token }}/trends">{{ _("See trends") }}</a></div>
   <a class="card trajectory link-card" href="/p/{{ token }}/trends">
-    <div class="tile-stack"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value">{{ trend.tiles.hours.value | hours }} h</b></div>
+    <div class="tile-stack"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value" data-count>{{ trend.tiles.hours.value | hours }} h</b></div>
     {% set ws = trend.weeks %}
     {% set c = charts.columns(ws | map(attribute="hours") | list, ws | map(attribute="label") | list, current=ws | map(attribute="current") | list, average=ws | map(attribute="hours_avg") | list) %}
     {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {hours} h", day=w.first, hours=w.hours | hours)) %}{% endfor %}
@@ -104,7 +104,7 @@
   <div class="card">
     <ul class="list milestones">
     {% for m in view.milestones %}
-      <li class="{{ 'reached' if m.reached else '' }}">
+      <li class="{{ 'reached' if m.reached else '' }}"{% if m.reached %} data-celebrate="milestone-{{ m.key }}"{% endif %}>
         <span class="check" aria-hidden="true"></span>
         <div class="grow"><div class="title">{{ m.label }}</div></div>
         <span class="visually-hidden">{{ _("reached") if m.reached else _("not yet") }}</span>

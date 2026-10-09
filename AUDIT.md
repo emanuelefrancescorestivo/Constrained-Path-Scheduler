@@ -640,3 +640,11 @@ session reported done, for its planned length, as any session reported done
 counts. Status: fixed; `tests/test_focus.py` and `tests/test_trends.py` reproduce
 it. The measured minutes still show on the logged session itself.
 
+**48. Every toast arrived off centre.** Found while adding motion (step E14): the
+toast is centred with `transform: translateX(-50%)`, and its entrance animation
+(`pop-in`) animated `transform` without that translation, so for its first 0.2 s
+each toast sat half its width to the right, then jumped to the centre. Fixed: the
+toast's own entrance keeps the translation (`toast-in`), and it sinks away the same
+way. Status: fixed; seen in Chromium, not by the Python tests, which do not run the
+page.
+

@@ -68,6 +68,9 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
       (D28).
 - [x] **E13 Flashcards**: the student's own cards, scheduled by the planner's FSRS
       model; four answers, keys, 20 new a day (D29).
+- [x] **E14 Motion** (owner: "animations and motions and dynamics"): page
+      transitions, data that draws itself, changes in one movement, confetti at
+      milestones; a Motion setting; reduced motion respected (D30).
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

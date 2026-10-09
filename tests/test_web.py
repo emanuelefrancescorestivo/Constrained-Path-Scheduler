@@ -783,7 +783,7 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
     sessions = _first_week(web, planned)
     assert len(sessions) >= 3
     empty = web.get(f"/p/{planned}/progress")
-    assert empty.status_code == 200 and '<b class="big">0</b>' in empty.text
+    assert empty.status_code == 200 and '<b class="big" data-count>0</b>' in empty.text
     for s in sessions:
         answer = web.post(
             f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"}, follow_redirects=False
@@ -792,7 +792,7 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
     page = web.get(f"/p/{planned}/progress")
     text = unescape(page.text)
     days = len({datetime.fromisoformat(s.start).date() for s in sessions})
-    assert f'<b class="big">{days}</b>' in text and f"{days} days studied" in text
+    assert f'<b class="big" data-count>{days}</b>' in text and f"{days} days studied" in text
     assert "First session done" in text and 'class="reached"' in text and "Since 28 September" in text
     assert text.count('<td class="d d-') == 4 * 7 and "d-studied" in text
     assert "Week of 28 September" in text and "Every session done." in text
@@ -1358,6 +1358,35 @@ def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypat
     assert read["by"] == "ai" and read["name"] == "Statistics report" and "Read by AI" in read["note"]
     web.post(f"/p/{planned}/ai", data={"on": "0"})
     assert "AI is off." in unescape(web.get(f"/p/{planned}/settings").text)
+
+
+def test_motion_is_automatic_or_reduced_per_plan(web, planned):
+    page = unescape(web.get(f"/p/{planned}/settings").text)
+    assert 'src="/static/motion.js"' in page and "data-motion" not in page.split("<head>")[0]
+    assert 'name="motion" value="auto" class="btn btn-sm" aria-pressed="true"' in page
+    reduced = web.post(f"/p/{planned}/motion", data={"motion": "reduce"}, follow_redirects=False)
+    assert reduced.headers["location"].endswith("#appearance")
+    for path in ("", "/progress", "/community", "/cards"):
+        assert '<html lang="en" data-motion="reduce">' in web.get(f"/p/{planned}{path}").text
+    assert web.post(f"/p/{planned}/motion", data={"motion": "wild"}).status_code == 400
+    web.post(f"/p/{planned}/motion", data={"motion": "auto"})
+    assert "data-motion" not in web.get(f"/p/{planned}").text.split("<head>")[0]
+
+
+def test_pages_carry_what_moves_and_the_stylesheet_keeps_it_still_on_request(web, planned):
+    progress = web.get(f"/p/{planned}/progress").text
+    assert 'class="big" data-count>' in progress and "data-celebrate" not in progress  # nothing reached yet
+    css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text()
+    assert "@view-transition { navigation: auto; types: page; }" in css
+    # Every animation and transition is switched off, by the device or by the plan.
+    still = "*, *::before, *::after { animation: none !important; transition: none !important; }"
+    assert "@media (prefers-reduced-motion: reduce) {\n  " + still in css
+    assert ':root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before' in css
+    assert ':root[data-motion="reduce"]::view-transition-group(*)' in css
+    # Entrance animations are for a page's arrival: motion.js settles them.
+    assert "html:not(.settled) .ring-arc" in css
+    js = (Path(__file__).resolve().parent.parent / "src/cps/web/static/motion.js").read_text()
+    assert 'root.classList.add("settled")' in js and "prefers-reduced-motion: reduce" in js
 
 
 def test_appearance_is_automatic_light_or_dark_per_plan(web, planned):
