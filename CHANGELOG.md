@@ -6,6 +6,13 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- `cps demo`: the hosted app on a store of made-up students, to look around and give
+  feedback: @alex on the sample timetable with weeks of history (reports, focus
+  sessions, a streak, trends), five classmates at other universities with posts,
+  explanations, notes and kudos, a study group with its weeks, an invitation, and
+  flashcards due. Prints a link per student and the review page's, then serves; the
+  store is kept between runs (`--fresh` makes it again) and only a directory it made
+  is ever removed. Outside the sample semester its clock stands on 19 November 2026.
 - Motion (D30): pages arrive with a view transition, and the current tab's pill
   slides to its place; rings fill, chart columns grow, trend lines draw, meters fill
   and numbers count up on a page's first paint; a report on Today, a tick or a kudos

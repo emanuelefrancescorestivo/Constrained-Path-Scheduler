@@ -138,6 +138,23 @@ pip install -e ".[web]"
 cps web                        # http://127.0.0.1:8000
 ```
 
+**To look around without setting anything up**, `cps demo` makes a store of made-up
+students (you are @alex, on the sample timetable, with weeks of history, classmates
+at five universities, notes, a study group, flashcards), prints a link per student,
+and serves it. Everything in it is invented. On Windows (PowerShell), from the
+repository:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\python -m pip install -e ".[web]"
+.venv\Scripts\cps demo                     # open the link printed for @alex
+.venv\Scripts\cps demo --host 0.0.0.0      # also from a phone on the same Wi-Fi
+.venv\Scripts\cps demo --fresh             # throw the demo away and make it again
+```
+
+The sample timetable is the autumn semester 2026-27; outside its weeks the demo's
+clock stands on 19 November 2026 and runs forward from there.
+
 1. **Start**: paste the timetable's link (or choose its file). The exams in it are
    found; the week starts at 15 hours with Sundays off, both stated defaults.
 2. **Settings**: check the exams, add deadlines (or the learning platform's calendar
@@ -372,8 +389,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 542 passed, 14 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 556 passed, 1 xfailed, 93% coverage
+pytest                                    # 544 passed, 15 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 559 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
