@@ -150,10 +150,17 @@ py -3.13 -m venv .venv
 .venv\Scripts\cps demo                     # open the link printed for @alex
 .venv\Scripts\cps demo --host 0.0.0.0      # also from a phone on the same Wi-Fi
 .venv\Scripts\cps demo --fresh             # throw the demo away and make it again
+.venv\Scripts\cps demo --public            # a fresh student for each visitor, as online
 ```
 
-The sample timetable is the autumn semester 2026-27; outside its weeks the demo's
-clock stands on 19 November 2026 and runs forward from there.
+The sample timetable is the autumn semester 2026-27; the demo moves it by whole
+weeks so that today is in its eighth week.
+
+**A demo to send to friends**: `deploy/demo/render.yaml` runs `cps demo --public` on
+Render's free plan (steps in `docs/DEPLOY.md`). Each visitor presses "Start the demo"
+and gets a made-up student of their own; nothing to sign up for, everything wiped at
+each restart, and the first visit after a quiet spell takes about a minute while the
+free instance wakes up.
 
 1. **Start**: paste the timetable's link (or choose its file). The exams in it are
    found; the week starts at 15 hours with Sundays off, both stated defaults.
@@ -389,8 +396,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 544 passed, 15 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 559 passed, 1 xfailed, 93% coverage
+pytest                                    # 547 passed, 16 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 563 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

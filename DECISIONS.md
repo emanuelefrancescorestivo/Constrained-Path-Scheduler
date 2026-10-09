@@ -615,3 +615,57 @@ storage, so each appears once; the privacy page says so. The pill's slide and th
 page transitions need a browser with cross-document view transitions (Chrome and
 Edge, Safari 18.2 and later); the rest works everywhere.
 
+
+## D31. A public demo: a fresh made-up student for each visitor
+
+*Asked by the owner on 2026-10-09: "make a demo on render like our feedforward so i
+can send it to my friends to try it".*
+
+**Chosen.** `cps demo --public`, deployed on Render's free plan from
+`deploy/demo/render.yaml`, as FeedForward's demo is: one link to send, nothing to
+sign up for, everything made up, wiped at each restart.
+
+1. **A shared world, made at start.** Five classmates at five universities (marco,
+   lena, sofia, noah, chloe) with five weeks of sessions, two explanations, four
+   sets of notes marked helpful, kudos, comments, and chloe's group.
+2. **A student per visitor.** The home page offers "Start the demo"; pressing it
+   makes a student of one's own (a made-up handle such as `calm_otter27`) and opens
+   their Today: the semester so far reported (a streak, trends, the week's ring), a
+   diary, three classmates followed and following back, a follow request, kudos and
+   a comment on what they shared, a study group with three teammates, chloe's
+   invitation while her group has room, flashcards due. Visitors do not share a
+   student, so one friend's taps do not change another's plan; they do share the
+   classmates, so a post one makes for everyone, the others can see.
+3. **Fast enough for a free instance.** Reporting a semester session by session
+   plans it again after every report, dozens of times: seconds of computing, too
+   long to wait for after a tap. That is done once, at start, into a model
+   (`semester.json` in the store); each visitor gets a copy under a new token, and
+   the cheap parts (diary, follows, group, cards) are made for them, in under a
+   second on the computer this was written on (the test checks that the model is
+   not made again for the next visitor, not a time). The model is made again after
+   half a day, so that the sessions left to answer stay the last two.
+4. **Today is always in week eight.** The sample timetable is the autumn semester
+   2026-27. The demo moves every date in it by whole weeks (`showcase.shifted`:
+   weekdays, times, titles and exams unchanged) so that today falls in its eighth
+   week, on the real clock: seven weeks of history behind, exams ahead, and a
+   visitor who tries their own timetable on the same server sees it planned for
+   today. This replaces the first `cps demo`'s fixed clock (19 November 2026 outside
+   the semester's weeks), which would have shown friends a date that is not today.
+5. **Said everywhere.** The home page's card says the details are made up, that
+   the demo starts again when it restarts and that the first visit can take a
+   minute; every page's footer says "Demo"; an old link after a restart says what
+   happened and offers a new student instead of a bare "not found". Thirty starts
+   an hour per address rather than ten, since friends on one university network
+   share an address.
+
+**Rejected.** One shared demo student for everyone (each friend would see the
+others' taps and a plan that makes no sense); asking visitors for their timetable
+first (the point is to look around in a few seconds; the form is still there below);
+a paid instance with a disk (nothing in a demo is worth keeping, and the owner asked
+for a free demo); a Docker image as FeedForward's (Render's Python runtime installs
+the package as the pilot does, one fewer file to keep).
+
+**Disclosed.** The free instance sleeps after about a quarter of an hour without
+visitors, and the first visit then waits about a minute while it starts and makes
+the world again; links to students made before are gone. The review page's address
+is printed in the service's logs. Nothing in the demo is a number in the documents.

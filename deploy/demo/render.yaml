@@ -1,0 +1,22 @@
+# Render Blueprint for the public demo (DECISIONS.md D31; steps in docs/DEPLOY.md).
+# Not the pilot: that is ../../render.yaml, with a disk and a paid instance. This one
+# runs on Render's free plan with no disk, so everything is made up and made again
+# at each start: five classmates at start, and a fresh student for each visitor who
+# presses "Start the demo". The free instance sleeps after a quarter of an hour
+# without visitors; the next visit wakes it in about a minute and finds a new demo.
+services:
+  - type: web
+    name: study-plan-demo
+    runtime: python
+    region: frankfurt # the EU, as the pilot (D6)
+    plan: free
+    branch: main
+    buildCommand: pip install ".[web]"
+    # The store is in /tmp, emptied at every start. The review page's address is
+    # printed in the service's logs (Logs, in the dashboard).
+    startCommand: cps demo --public --host 0.0.0.0 --port $PORT --behind-proxy --store /tmp/cps-demo
+    healthCheckPath: /health
+    autoDeploy: true # the demo follows main: every merge is live a few minutes later
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"

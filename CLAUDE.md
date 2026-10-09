@@ -23,10 +23,11 @@ more than an impressive number.
     pip install -e ".[dev,app,web,ai]"      # app = streamlit (app.py); web = the hosted app; ai = Anthropic's SDK
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     cps demo                                 # the hosted app on made-up students (cps.showcase), to look around
+    cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 544 passed, 15 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 559 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 547 passed, 16 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 563 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -63,7 +64,7 @@ more than an impressive number.
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
 | `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; only calls `service`; every page works without its scripts |
-| `showcase.py` | `cps demo`'s store: @alex on the sample timetable with weeks of history, five made-up classmates, posts, notes (pages drawn as PNGs without a library), a group, flashcards; made through `service`, deterministic, never a test fixture for a number |
+| `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface

@@ -173,8 +173,18 @@ def _build_parser() -> argparse.ArgumentParser:
     demo.add_argument(
         "--host", default="127.0.0.1", help="0.0.0.0 to open it from a phone on the same network"
     )
-    demo.add_argument("--port", type=int, default=8000)
+    demo.add_argument("--port", type=int, default=int(os.environ.get("PORT") or 8000))
     demo.add_argument("--no-serve", action="store_true", help="make the store and print the links only")
+    demo.add_argument(
+        "--public",
+        action="store_true",
+        help="the public demo: each visitor starts a fresh student of their own (DECISIONS.md D31)",
+    )
+    demo.add_argument(
+        "--behind-proxy",
+        action="store_true",
+        help="trust X-Forwarded-For and -Proto from any address: only behind a host's own proxy",
+    )
 
     sweep = sub.add_parser("sweep", help="delete the plans whose retention has passed")
     sweep.add_argument("--db", type=Path, default=service.FEED_STORE)
@@ -347,12 +357,13 @@ def command_web(args) -> int:
 
 
 def command_demo(args) -> int:
-    """`cps demo`: a store of made-up students (cps.showcase), its links, and the app
-    running on it. The store is kept between runs; --fresh makes it again. Only a
-    directory this command made is ever removed."""
+    """`cps demo`: the hosted app on a made-up class (cps.showcase). On one's own
+    computer, @alex in it and a link per student; with --public, a fresh student for
+    each visitor who presses Start (D31). The store is kept between runs; --fresh
+    makes it again. Only a directory this command made is ever removed."""
     import shutil
 
-    from .showcase import MARKER, Showcase, seed
+    from .showcase import MARKER, Showcase, add_student, seed, seed_world
 
     where: Path = args.store
     found = Showcase.load(where)
@@ -365,22 +376,29 @@ def command_demo(args) -> int:
     if found is None:
         where.mkdir(parents=True, exist_ok=True)
         print(f"making the demo store in {where} (a few seconds)...", flush=True)
-        found = seed(where)
+        found = seed_world(where) if args.public else seed(where)
     shown = "localhost" if args.host in ("0.0.0.0", "::") else args.host
-    base = f"http://{shown}:{args.port}"
-    day = found.clock().astimezone().strftime("%A %d %B %Y")
+    # On a host, the public address it gives the service (Render: RENDER_EXTERNAL_URL).
+    public = os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    base = (public or f"http://{shown}:{args.port}").rstrip("/")
+    admin = os.environ.get("CPS_ADMIN_TOKEN") or found.admin
     lines = [
         "",
-        "The demo: everyone in it is made up, and so is the timetable (examples/sample-semester.ics).",
-        f"Its clock stands on {day}." if found.offset_days else "Its clock is today's.",
+        "The demo: everyone in it is made up, and so is the timetable (examples/sample-semester.ics,",
+        "moved by whole weeks so that today is in its eighth week).",
         "",
-        f"  You, @alex          {base}/p/{found.you}",
+    ]
+    if args.public:
+        lines.append(f"  Each visitor        {base}/  (Start the demo: a fresh student of their own)")
+    else:
+        lines.append(f"  You, @alex          {base}/p/{found.you}")
+    lines += [
         *(f"  @{handle:<17}  {base}/p/{token}" for handle, token in found.people.items()),
-        f"  The review page     {base}/admin/{found.admin}",
+        f"  The review page     {base}/admin/{admin}",
         "",
         f"The store: {where} ({MARKER} says whose plan is whose). Start again with --fresh.",
     ]
-    if args.host in ("0.0.0.0", "::"):
+    if args.host in ("0.0.0.0", "::") and not args.public:
         lines.append("From a phone on the same network: replace localhost with this computer's address.")
     print("\n".join(lines), flush=True)
     if args.no_serve:
@@ -389,12 +407,28 @@ def command_demo(args) -> int:
 
     from .web import Config, create_app
 
-    config = Config(
-        store=where, clock=found.clock, background=False, sweep_every=None, admin_token=found.admin
-    )
+    config = Config.from_env()
+    config.store = where
+    config.background = False
+    config.sweep_every = None
+    config.admin_token = admin
+    if args.public:
+        world = found
+        config.demo = lambda: add_student(where, world).token
+        # Friends on one university network share an address: thirty starts an hour
+        # from it rather than ten. A student is a copy of one semester: quick to make.
+        config.start_limit = (30, 3600.0)
     print(f"\nserving on {base} (Ctrl+C to stop)", flush=True)
     with contextlib.suppress(KeyboardInterrupt):
-        uvicorn.run(create_app(config), host=args.host, port=args.port, access_log=False, server_header=False)
+        uvicorn.run(
+            create_app(config),
+            host=args.host,
+            port=args.port,
+            access_log=False,
+            server_header=False,
+            proxy_headers=args.behind_proxy,
+            forwarded_allow_ips="*" if args.behind_proxy else None,
+        )
     return 0
 
 

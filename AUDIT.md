@@ -648,3 +648,12 @@ toast's own entrance keeps the translation (`toast-in`), and it sinks away the s
 way. Status: fixed; seen in Chromium, not by the Python tests, which do not run the
 page.
 
+**49. The home page's title was split into two columns on a computer.** Found while
+checking the public demo's home page in Chromium (step D31): the Progress page's
+pair of tiles (the week's ring and the streak) used the class `hero`, which the home
+page already used for its title, and its rule (two columns) applied to both. Since
+the Progress commit, the home page on a screen wider than 520 px put the steps and
+the lead on the left and the title on the right, half empty. Fixed: the Progress
+pair has a class of its own (`pair`). Status: fixed; seen in Chromium, not by the
+Python tests, which do not lay out the page.
+

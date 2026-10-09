@@ -13,7 +13,7 @@
 <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a></p></div>
 {% else %}
 {% set w = view.week %}{% set st = view.streak %}
-<div class="hero">
+<div class="pair">
   <div class="card hero-ring"{% if w.planned and w.percent >= 100 %} data-celebrate="week-{{ w.first }}"{% endif %}>
     {{ ring(w.percent, "lg", _("{done} of {planned} sessions this week", done=w.done, planned=w.planned)) }}
     <div>

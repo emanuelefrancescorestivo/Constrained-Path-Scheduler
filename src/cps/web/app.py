@@ -124,6 +124,7 @@ NETWORK_NOTICES = {
     "joined_group": "You joined the group.",
     "left_group": "You left the group.",
     "group_saved": "Saved.",
+    "demo": "Welcome. This student is yours: the timetable and the classmates are made up; try anything.",
 }
 CARD_NOTICES = {
     "card_saved": "Saved.",
@@ -155,6 +156,9 @@ class Config:
     start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
     admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
+    # The public demo (D31): makes a fresh made-up student and returns their plan's
+    # token; set, the home page offers it and every page says it is a demo.
+    demo: Callable[[], str] | None = None
 
     @classmethod
     def from_env(cls) -> Config:
@@ -187,6 +191,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["_h"] = _html
     templates.env.globals["lang"] = service.current_language
     templates.env.globals["languages"] = service.LANGUAGES
+    templates.env.globals["demo"] = config.demo is not None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -288,6 +293,11 @@ def create_app(config: Config | None = None) -> FastAPI:
             404,
             title=service.translate("Not found"),
             message=service.translate(
+                "This demo starts again from scratch when it restarts, and this student was in the "
+                "one before. Start a new one: it takes a few seconds."
+            )
+            if config.demo
+            else service.translate(
                 "This address is not, or no longer, a study plan. Plans are deleted 30 days "
                 "after their last exam or deadline, or when their owner deletes them."
             ),
@@ -310,6 +320,18 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.get("/health")
     def health() -> Response:
         return Response("ok\n", media_type="text/plain")
+
+    @app.post("/demo")
+    def demo_start(request: Request) -> Response:
+        """The public demo (D31): a fresh made-up student, with the semester so far,
+        for whoever presses Start; their own address, like any plan's."""
+        if config.demo is None:
+            return missing(request)
+        if not starts.allow(client(request)):
+            return too_many(request)
+        token = config.demo()
+        service.log_event(store, token, "created", "demo")
+        return RedirectResponse(f"/p/{token}?saved=demo", 303)
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request) -> HTMLResponse:

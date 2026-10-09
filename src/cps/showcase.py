@@ -1,15 +1,19 @@
 """
-A demo store for trying the hosted app (`cps demo`): one student, @alex, on the
-sample timetable (`examples/sample-semester.ics`) with a few weeks of history, and
-five classmates at other universities with sessions, explanations, notes, a study
-group and kudos. Everything in it is invented, and made through `cps.service` as
-the pages would make it: it is a way to look around, not a fixture any test or
-number in the documents relies on.
+The demo (`cps demo`): the hosted app on a made-up class, to look around and give
+feedback. A shared world of five classmates at other universities (sessions,
+explanations, notes, kudos, a study group), and students added to it: @alex for a
+demo on one's own computer, or one fresh student per visitor on the public demo
+(`cps demo --public`, DECISIONS.md D31). A student comes with weeks of history on
+the sample timetable (`examples/sample-semester.ics`), follows and a follow request,
+a study group with three teammates, an invitation, and flashcards due.
 
-The sample timetable is the autumn semester 2026-27. Outside it, or too early in it
-for weeks of history, the demo's clock stands on 19 November 2026 and moves forward
-from there (`offset`); the server runs on that clock, so every page agrees.
-Deterministic: one random seed, so two demos made on the same day are the same.
+The sample timetable is the autumn semester 2026-27. The demo moves it by whole
+weeks (dates only: weekdays, times, titles and exams stay) so that today is always
+in its eighth week, with history behind and exams ahead, on the real clock: a
+visitor who tries their own timetable on the same server sees it planned for today.
+
+Everything is invented and made through `cps.service`, as the pages would make it;
+nothing in it is a fixture for a number in the documents.
 """
 
 from __future__ import annotations
@@ -17,19 +21,22 @@ from __future__ import annotations
 import contextlib
 import json
 import random
+import re
+import secrets
 import struct
+import threading
 import zlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 from . import service, social
 from .store import Store
 
-SAMPLE = Path(__file__).resolve().parents[2] / "examples" / "sample-semester.ics"
 MARKER = "showcase.json"
+TEMPLATE = "semester.json"  # every new student's semester so far, made once (D31)
 FIRST = date(2026, 9, 28)  # the sample semester's first Monday
-MIDDLE = date(2026, 11, 19)  # where the demo stands when today will not do: a Thursday
+EIGHTH = date(2026, 11, 16)  # the Monday of its eighth week: where today falls
 COURSES = ("Algebra 3", "Advanced Statistics", "Analysis 3")
 PEOPLE = (
     ("marco", "Politecnico di Milano", "Ingegneria Fisica", "Fisica 2", ""),
@@ -38,20 +45,40 @@ PEOPLE = (
     ("noah", "KU Leuven", "Bachelor Psychologie", "Cognitive Psychology", ""),
     ("chloe", "Sorbonne Université", "Licence Physique", "Mécanique quantique", "Coffee, then quanta."),
 )
+TEAMMATES = ("maya", "tom", "ines")
+ADJECTIVES = ("calm", "brave", "quick", "bright", "keen", "bold", "wise", "sunny", "clever", "merry")
+ANIMALS = ("otter", "fox", "owl", "lynx", "panda", "heron", "koala", "tiger", "whale", "robin")
+
+
+def sample_path() -> Path:
+    """The sample timetable: next to the package in a checkout (an editable install),
+    or in the working directory (a host that installs the package and starts the
+    command from the repository)."""
+    for root in (Path(__file__).resolve().parents[2], Path.cwd()):
+        found = root / "examples" / "sample-semester.ics"
+        if found.exists():
+            return found
+    raise FileNotFoundError("the demo needs the repository's examples/sample-semester.ics")
 
 
 @dataclass(frozen=True)
 class Showcase:
-    """What `cps demo` prints and runs on: whose plan is whose, and the clock."""
+    """What `cps demo` prints and runs on: the classmates, the review page's key, how
+    far the timetable was moved, and the student made for this computer, if any."""
 
-    you: str  # @alex's plan token
     people: dict[str, str]  # handle -> token
-    group: str
+    crew: str  # chloe's group, which invites each new student while it has room
     admin: str  # the review page's key, for this demo store only
-    offset_days: int  # the demo's clock runs this many days behind the real one
+    weeks: int  # the sample timetable moved by this many weeks
+    you: str | None = None  # @alex's plan token, on a demo of one's own
+    group: str | None = None  # @alex's study group
 
     def clock(self) -> datetime:
-        return datetime.now(UTC) - timedelta(days=self.offset_days)
+        return datetime.now(UTC)
+
+    @property
+    def first(self) -> date:
+        return FIRST + timedelta(weeks=self.weeks)
 
     def save(self, where: Path) -> None:
         (where / MARKER).write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
@@ -64,13 +91,31 @@ class Showcase:
         return cls(**json.loads(marker.read_text(encoding="utf-8")))
 
 
-def offset_for(today: date) -> int:
-    """Days the demo's clock runs behind today: none from the semester's sixth week
-    to the middle of January (enough history behind, exams ahead), else enough to
-    stand on Thursday 19 November 2026."""
-    if FIRST + timedelta(weeks=5) <= today <= date(2027, 1, 15):
-        return 0
-    return (today - MIDDLE).days
+def weeks_for(today: date) -> int:
+    """Whole weeks to move the sample timetable so that `today` is in its eighth week."""
+    monday = today - timedelta(days=today.weekday())
+    return (monday - EIGHTH).days // 7
+
+
+_DATED = re.compile(rb"^(DTSTART|DTEND|EXDATE|RDATE|RECURRENCE-ID)([^:\r\n]*):([0-9TZ,]+)", re.MULTILINE)
+_UNTIL = re.compile(rb"UNTIL=(\d{8})")
+
+
+def shifted(ics: bytes, weeks: int) -> bytes:
+    """The calendar with every event date moved by `weeks` whole weeks: weekdays,
+    times as written (local with a TZID, UTC with a Z), time zones and titles
+    unchanged. Repetitions end later by as much (UNTIL), and so do their exceptions."""
+
+    def move(stamp: bytes) -> bytes:
+        day = datetime.strptime(stamp[:8].decode(), "%Y%m%d").date() + timedelta(weeks=weeks)
+        return day.strftime("%Y%m%d").encode() + stamp[8:]
+
+    def line(found: re.Match[bytes]) -> bytes:
+        values = b",".join(move(v) for v in found.group(3).split(b","))
+        return found.group(1) + found.group(2) + b":" + values
+
+    moved = _DATED.sub(line, ics)
+    return _UNTIL.sub(lambda m: b"UNTIL=" + move(m.group(1)), moved)
 
 
 # --------------------------------------------------------------------------- #
@@ -125,58 +170,6 @@ def page_png(rng: random.Random, width: int = 480, height: int = 640) -> bytes:
 # The store
 # --------------------------------------------------------------------------- #
 
-
-def _at(day: date, hour: int, minute: int = 0) -> datetime:
-    return datetime.combine(day, time(hour, minute), tzinfo=UTC)
-
-
-def _history(
-    where: Path, you: service.Subscription, now: datetime, rng: random.Random
-) -> service.Subscription:
-    """Weeks of @alex's semester so far: most sessions reported (done, hard, skipped,
-    or how much a self-test recalled), the last two left to answer, and focus
-    sessions logged two or three times a week."""
-    words = {"review": "most", "first review": "some"}
-    day = FIRST
-    answered: set[str] = set()
-    while day < now.date():
-        assert you.plan is not None
-        plan = service.PlanReport.from_dict(you.plan)
-        waiting = [s for s in plan.sessions if datetime.fromisoformat(s.end) < now]
-        for s in plan.sessions:
-            end = datetime.fromisoformat(s.end)
-            sid = service.session_id(s)
-            if sid in answered or end.date() != day or s in waiting[-2:]:
-                continue
-            answered.add(sid)
-            draw = rng.random()
-            if draw < 0.17:
-                outcome = "skipped"
-            elif s.kind in words:
-                outcome = rng.choice(["some", "most", "most", "all", "forgot"])
-            else:
-                outcome = "struggled" if draw > 0.88 else "done"
-            try:
-                you = service.report_session(you, sid, outcome, now=end + timedelta(minutes=10))
-            except service.ServiceError:
-                continue
-        if day.weekday() in (1, 3, 5) and rng.random() < 0.7:
-            course = rng.choice(COURSES)
-            form = {
-                "course": course,
-                "title": rng.choice(["Problem sheet", "Past paper", "Chapter summary", "Exercises"]),
-                "effort": str(rng.randint(4, 8)),
-                "progress": str(rng.randint(2, 5)),
-                "minutes": str(rng.choice([35, 45, 50, 60, 75, 90])),
-                "visibility": rng.choice(["followers", "everyone", "me"]),
-                "simple": "" if rng.random() < 0.6 else rng.choice(SIMPLE),
-            }
-            you, _ = service.log_session(where, you, form, now=_at(day, 15, rng.randint(0, 59)))
-        day += timedelta(days=1)
-    service.save_subscription(where, you)
-    return you
-
-
 SIMPLE = (
     "A matrix can stretch some directions without turning them; those are its eigenvectors.",
     "A p-value is how surprising the data would be if nothing were going on.",
@@ -197,23 +190,65 @@ CARDS_ANALYSIS = (
 )
 
 
-def seed(where: Path, real_now: datetime | None = None, *, sample: Path = SAMPLE) -> Showcase:
-    """Make the demo store in `where` (an empty directory). `real_now` is the
-    world's time; the demo stands `offset_for` days behind it."""
-    if not sample.exists():
-        raise FileNotFoundError(f"the demo needs the repository's {sample.name}, at {sample}")
-    rng = random.Random(2026)
-    real_now = real_now or datetime.now(UTC)
-    offset = offset_for(real_now.date())
-    now = real_now - timedelta(days=offset)
-    ics = sample.read_bytes()
-    store = Store(where)
+def _at(day: date, hour: int, minute: int = 0) -> datetime:
+    return datetime.combine(day, time(hour, minute), tzinfo=UTC)
 
+
+def _free_handle(where: Path, base: str) -> str:
+    """`base`, or `base` with the first number that makes it free."""
+    store = Store(where)
+    for n in range(1, 1000):
+        handle = base if n == 1 else f"{base}{n}"
+        if social.profile_by_handle(store, handle) is None:
+            return handle
+    return f"{base}{secrets.randbelow(10**6)}"
+
+
+def _join(where: Path, token: str, handle: str, university: str, programme: str, bio: str = "") -> str:
+    form = {"handle": handle, "university": university, "programme": programme, "bio": bio, "old_enough": "1"}
+    return str(service.save_profile(where, token, form)["handle"])
+
+
+def _logged(
+    where: Path,
+    sub: service.Subscription,
+    course: str,
+    days: tuple[date, date],
+    rng: random.Random,
+    share: tuple[str, ...],
+    rate: float = 0.45,
+) -> tuple[service.Subscription, list[social.Post]]:
+    """Sessions logged on about `rate` of the days, shared as `share` says."""
+    posts = []
+    day, end = days
+    while day < end:
+        if rng.random() < rate:
+            form = {
+                "course": course,
+                "title": rng.choice(["Exercises", "Lecture notes, again", "Past paper", "Reading"]),
+                "effort": str(rng.randint(3, 9)),
+                "progress": str(rng.randint(2, 5)),
+                "minutes": str(rng.choice([40, 50, 60, 90, 120])),
+                "visibility": rng.choice(share),
+            }
+            sub, post = service.log_session(where, sub, form, now=_at(day, rng.randint(8, 18)))
+            posts.append(post)
+        day += timedelta(days=1)
+    service.save_subscription(where, sub)
+    return sub, posts
+
+
+def _semester(ics: bytes, first: date, now: datetime) -> service.Subscription:
+    """A student's plan with the semester so far reported (done, hard, skipped, or how
+    much a self-test recalled), the last two sessions left to answer. Not saved: it is
+    the model every new student is copied from (`_template`)."""
+    rng = random.Random(2026)
     you = service.new_subscription(
         subjects=[service.SubjectSpec(c, None, familiarity=3) for c in COURSES],
-        start=FIRST,
+        start=first,
         tz="Europe/Paris",
         ics=ics,
+        now=_at(first, 6),
         tasks=[
             service.TaskSpec(
                 "Statistics report",
@@ -223,73 +258,124 @@ def seed(where: Path, real_now: datetime | None = None, *, sample: Path = SAMPLE
             )
         ],
         preferences={**service.DEFAULT_PREFERENCES, "weekly_hours": 12.0},
-        now=_at(FIRST, 6),
     )
+    self_tests = ("review", "first review")
+    answered: set[str] = set()
+    day = first
+    while day < now.date():
+        assert you.plan is not None
+        plan = service.PlanReport.from_dict(you.plan)
+        waiting = [s for s in plan.sessions if datetime.fromisoformat(s.end) < now]
+        for s in plan.sessions:
+            end = datetime.fromisoformat(s.end)
+            sid = service.session_id(s)
+            if sid in answered or end.date() != day or s in waiting[-2:]:
+                continue
+            answered.add(sid)
+            draw = rng.random()
+            if draw < 0.17:
+                outcome = "skipped"
+            elif s.kind in self_tests:
+                outcome = rng.choice(["some", "most", "most", "all", "forgot"])
+            else:
+                outcome = "struggled" if draw > 0.88 else "done"
+            try:
+                you = service.report_session(you, sid, outcome, now=end + timedelta(minutes=10))
+            except service.ServiceError:
+                continue
+        day += timedelta(days=1)
+    return you
+
+
+_MAKING = threading.Lock()
+
+
+def _template(where: Path, first: date, now: datetime) -> tuple[service.Subscription, service.Subscription]:
+    """The models new students and their teammates are copied from, made once and kept
+    in the store for half a day: reporting a semester session by session plans it
+    again some sixty times, seconds a visitor should not wait for each time. After
+    half a day the model is made again, so that the sessions left to answer stay the
+    last two."""
+    path = where / TEMPLATE
+    with _MAKING:
+        if path.exists():
+            kept = json.loads(path.read_text(encoding="utf-8"))
+            if timedelta(0) <= now - datetime.fromisoformat(kept["made"]) < timedelta(hours=12):
+                return (
+                    service.Subscription.from_dict(kept["student"]),
+                    service.Subscription.from_dict(kept["mate"]),
+                )
+        ics = (where / "sample-semester.ics").read_bytes()
+        student = _semester(ics, first, now)
+        mate = service.new_subscription(
+            subjects=[service.SubjectSpec("Algebra 3", None, familiarity=3)],
+            start=first,
+            tz="Europe/Paris",
+            ics=ics,
+            now=_at(first, 6),
+            preferences=service.DEFAULT_PREFERENCES,
+        )
+        made = {"made": now.isoformat(), "student": student.to_dict(), "mate": mate.to_dict()}
+        path.write_text(json.dumps(made), encoding="utf-8")
+        return student, mate
+
+
+def _copy(where: Path, model: service.Subscription) -> service.Subscription:
+    """`model` as a plan of its own: a new token, everything else the same."""
+    copy = replace(
+        model, token=secrets.token_urlsafe(24), created=datetime.now(UTC).isoformat(timespec="seconds")
+    )
+    service.save_subscription(where, copy)
+    return copy
+
+
+def _diary(
+    where: Path, you: service.Subscription, first: date, now: datetime, rng: random.Random
+) -> service.Subscription:
+    """Focus sessions logged two or three times a week, shared as the student chose."""
+    day = first
+    while day < now.date():
+        if day.weekday() in (1, 3, 5) and rng.random() < 0.7:
+            form = {
+                "course": rng.choice(COURSES),
+                "title": rng.choice(["Problem sheet", "Past paper", "Chapter summary", "Exercises"]),
+                "effort": str(rng.randint(4, 8)),
+                "progress": str(rng.randint(2, 5)),
+                "minutes": str(rng.choice([35, 45, 50, 60, 75, 90])),
+                "visibility": rng.choice(["followers", "everyone", "me"]),
+                "simple": "" if rng.random() < 0.6 else rng.choice(SIMPLE),
+            }
+            you, _ = service.log_session(where, you, form, now=_at(day, 15, rng.randint(0, 59)))
+        day += timedelta(days=1)
     service.save_subscription(where, you)
-    service.save_profile(
-        where,
-        you.token,
-        {
-            "handle": "alex",
-            "university": "Université Lyon 1",
-            "programme": "L2 Mathématiques",
-            "bio": "This is you, in the demo.",
-            "old_enough": "1",
-        },
-    )
-    you = _history(where, you, now, rng)
+    return you
+
+
+def seed_world(where: Path, real_now: datetime | None = None) -> Showcase:
+    """The shared world in `where` (an empty directory): five classmates with five
+    weeks of sessions, two explanations, four sets of notes marked helpful, kudos
+    and comments, and chloe's group, which invites new students."""
+    rng = random.Random(2026)
+    now = real_now or datetime.now(UTC)
+    weeks = weeks_for(now.date())
+    first = FIRST + timedelta(weeks=weeks)
+    ics = shifted(sample_path().read_bytes(), weeks)
+    (where / "sample-semester.ics").write_bytes(ics)  # what every student here is planned on
+    store = Store(where)
+    _student, mate = _template(where, first, now)  # made now, so that no visitor waits for it
 
     people: dict[str, str] = {}
     subs: dict[str, service.Subscription] = {}
     for handle, university, programme, _course, bio in PEOPLE:
-        plan = service.new_subscription(
-            subjects=[service.SubjectSpec("Algebra 3", None, familiarity=3)],
-            start=FIRST,
-            tz="Europe/Paris",
-            ics=ics,
-            preferences=service.DEFAULT_PREFERENCES,
-            now=_at(FIRST, 6),
-        )
-        service.save_subscription(where, plan)
-        form = {
-            "handle": handle,
-            "university": university,
-            "programme": programme,
-            "bio": bio,
-            "old_enough": "1",
-        }
-        service.save_profile(where, plan.token, form)
+        plan = _copy(where, mate)
+        _join(where, plan.token, handle, university, programme, bio)
         people[handle] = plan.token
         subs[handle] = plan
-
-    # Follows: alex and three classmates both ways; noah has asked.
-    for other in ("marco", "lena", "sofia"):
-        service.follow(where, you.token, other)
-        service.answer_follow(where, people[other], "alex", accept=True)
-        service.follow(where, people[other], "alex")
-        service.answer_follow(where, you.token, other, accept=True)
-    service.follow(where, people["noah"], "alex")
-
-    # The classmates' weeks: sessions logged, shared with followers or everyone.
     posts = []
     for handle, _uni, _prog, course, _bio in PEOPLE:
-        sub = subs[handle]
-        day = max(FIRST, now.date() - timedelta(weeks=5))
-        while day < now.date():
-            if rng.random() < 0.45:
-                form = {
-                    "course": course,
-                    "title": rng.choice(["Exercises", "Lecture notes, again", "Past paper", "Reading"]),
-                    "effort": str(rng.randint(3, 9)),
-                    "progress": str(rng.randint(2, 5)),
-                    "minutes": str(rng.choice([40, 50, 60, 90, 120])),
-                    "visibility": rng.choice(["everyone", "followers"]),
-                }
-                sub, post = service.log_session(where, sub, form, now=_at(day, rng.randint(8, 18)))
-                posts.append(post)
-            day += timedelta(days=1)
-        service.save_subscription(where, sub)
-        subs[handle] = sub
+        days = (max(first, now.date() - timedelta(weeks=5)), now.date())
+        subs[handle], made = _logged(where, subs[handle], course, days, rng, ("everyone", "followers"))
+        posts += made
 
     explain = [
         service.post_explanation(
@@ -320,66 +406,113 @@ def seed(where: Path, real_now: datetime | None = None, *, sample: Path = SAMPLE
         ),
     ]
 
-    def notes(
-        sub: service.Subscription, course: str, title: str, note: str, pages: int, hours: int
-    ) -> social.Post:
+    def notes(who: str, course: str, title: str, note: str, pages: int, hours: int) -> social.Post:
         return service.post_notes(
             where,
-            sub,
+            subs[who],
             {"course": course, "title": title, "note": note, "own_work": "1"},
             [page_png(rng) for _ in range(pages)],
             now=now - timedelta(hours=hours),
         )
 
     library = [
-        notes(
-            subs["marco"], "Analysis 3", "Limits and series: the definitions", "ε-δ and every test.", 2, 70
-        ),
-        notes(subs["lena"], "Algebra 3", "Diagonalise: the method in 4 steps", "", 1, 30),
-        notes(subs["sofia"], "Historia Medieval", "Peste negra y salarios", "Fechas y causas.", 1, 20),
-        notes(you, "Algebra 3", "Eigenvalues on one page", "Definitions and one worked example.", 2, 40),
+        notes("marco", "Analysis 3", "Limits and series: the definitions", "ε-δ and every test.", 2, 70),
+        notes("lena", "Algebra 3", "Diagonalise: the method in 4 steps", "", 1, 30),
+        notes("chloe", "Algebra 3", "Eigenvalues on one page", "Definitions and one worked example.", 2, 40),
+        notes("sofia", "Historia Medieval", "Peste negra y salarios", "Fechas y causas.", 1, 20),
     ]
     helpful = {
-        0: ("alex", "lena", "chloe"),
-        1: ("alex", "marco"),
-        2: ("alex",),
-        3: ("marco", "lena", "sofia"),
+        0: ("lena", "chloe", "noah"),
+        1: ("marco", "sofia"),
+        2: ("marco", "lena", "sofia"),
+        3: ("noah",),
     }
-    tokens = {"alex": you.token, **people}
     for index, who in helpful.items():
         for handle in who:
-            service.toggle_kudos(where, tokens[handle], library[index].id, now=now - timedelta(hours=2))
-    for post in [*explain, *rng.sample(posts, min(12, len(posts)))]:
-        for handle in rng.sample(list(tokens), 3):
+            service.toggle_kudos(where, people[handle], library[index].id, now=now - timedelta(hours=2))
+    for post in [*explain, *rng.sample(posts, min(14, len(posts)))]:
+        for handle in rng.sample(list(people), 3):
             if handle != social.get_post(store, post.id).token:  # type: ignore[union-attr]
                 with contextlib.suppress(service.InvalidInput):  # not visible to them
-                    service.toggle_kudos(where, tokens[handle], post.id, now=now - timedelta(hours=1))
+                    service.toggle_kudos(where, people[handle], post.id, now=now - timedelta(hours=1))
     service.add_comment(
-        where, you.token, explain[0].id, "I study maths and this made complete sense. Thank you!"
+        where, people["noah"], explain[0].id, "I study psychology and this made complete sense."
     )
     service.add_comment(
-        where, people["marco"], library[3].id, "The trace and determinant check saved me today."
+        where, people["marco"], library[2].id, "The trace and determinant check saved me today."
     )
 
-    # A study group four weeks old; the goal is set from what the group really did,
-    # so some weeks are met and some are not.
-    group = service.create_group(
-        where, you.token, {"name": "Thursday library", "goal": "10"}, now=now - timedelta(weeks=4)
+    crew = service.create_group(
+        where, people["chloe"], {"name": "Exam crew", "goal": "15"}, now=now - timedelta(days=3)
     )
+    showcase = Showcase(
+        people=people, crew=crew.id, admin=f"demo-review-{secrets.token_hex(12)}", weeks=weeks
+    )
+    showcase.save(where)
+    return showcase
+
+
+@dataclass(frozen=True)
+class Student:
+    token: str
+    handle: str
+    group: str
+
+
+def add_student(
+    where: Path,
+    world: Showcase,
+    handle: str | None = None,
+    real_now: datetime | None = None,
+    seed: int | None = None,
+) -> Student:
+    """A new student in the world: their plan on the moved sample timetable with the
+    semester so far, a profile (`handle`, or a made-up one such as "calm_otter27"),
+    three classmates followed and following back, a follow request, kudos and a
+    comment on what they shared, a study group with three teammates of their own,
+    chloe's invitation while her group has room, and flashcards, some due."""
+    rng = random.Random(seed if seed is not None else secrets.randbits(32))
+    now = real_now or datetime.now(UTC)
+    model, mate_model = _template(where, world.first, now)
+    you = _copy(where, model)
+    wanted = handle or f"{rng.choice(ADJECTIVES)}_{rng.choice(ANIMALS)}{rng.randint(10, 99)}"
+    handle = _join(where, you.token, _free_handle(where, wanted), "Université Lyon 1", "L2 Mathématiques")
+    you = _diary(where, you, world.first, now, rng)
+
+    people = world.people
     for other in ("marco", "lena", "sofia"):
-        service.invite_to_group(where, you.token, group.id, other, now=now - timedelta(weeks=4))
-        service.answer_group(where, people[other], group.id, True, now=now - timedelta(weeks=4))
+        service.follow(where, you.token, other)
+        service.answer_follow(where, people[other], handle, accept=True)
+        service.follow(where, people[other], handle)
+        service.answer_follow(where, you.token, other, accept=True)
+    service.follow(where, people["noah"], handle)
+    shared = [p for p in social.posts_of(Store(where), you.token, "session") if p.visibility != "me"]
+    for post in shared[:4]:
+        for other in rng.sample(("marco", "lena", "sofia"), 2):
+            service.toggle_kudos(where, people[other], post.id, now=now - timedelta(hours=3))
+    if shared:
+        service.add_comment(where, people["marco"], shared[0].id, "Nice one. Same sheet tomorrow for me.")
+
+    # A study group of their own, four weeks old, with three teammates who keep their
+    # sessions to themselves; its goal is what the group usually does, so some weeks
+    # are met and some are not.
+    since = now - timedelta(weeks=4)
+    group = service.create_group(where, you.token, {"name": "Thursday library", "goal": "10"}, now=since)
+    for name in TEAMMATES:
+        mate = _copy(where, mate_model)
+        mate_handle = _join(
+            where, mate.token, _free_handle(where, name), "Université Lyon 1", "L2 Mathématiques"
+        )
+        _logged(where, mate, "Algebra 3", (since.date(), now.date()), rng, ("me",), rate=0.4)
+        service.invite_to_group(where, you.token, group.id, mate_handle, now=since)
+        service.answer_group(where, mate.token, group.id, True, now=since)
     weeks = service.group_view(where, you, group.id, now)["weeks"]  # type: ignore[index]
     done = sorted(w["hours"] for w in weeks[:-1]) or [10.0]
     goal = max(1.0, round(done[len(done) // 2] * 2) / 2)
     service.change_group(where, you.token, group.id, {"name": "Thursday library", "goal": str(goal)})
-    crew = service.create_group(
-        where, people["chloe"], {"name": "Exam crew", "goal": "15"}, now=now - timedelta(days=3)
-    )
-    service.invite_to_group(where, people["chloe"], crew.id, "alex", now=now - timedelta(days=1))
+    with contextlib.suppress(service.InvalidInput):  # her group is full
+        service.invite_to_group(where, people["chloe"], world.crew, handle, now=now - timedelta(days=1))
 
-    # Flashcards: an Algebra deck answered over the last weeks (some due now), and
-    # an Analysis deck still new.
     service.add_cards(
         where,
         you,
@@ -394,16 +527,23 @@ def seed(where: Path, real_now: datetime | None = None, *, sample: Path = SAMPLE
     )
     from . import cards as flashcards
 
-    for card in flashcards.of(store, you.token, "Algebra 3")[:4]:
+    for card in flashcards.of(Store(where), you.token, "Algebra 3")[:4]:
         service.answer_card(where, you, card.id, "good", now=now - timedelta(days=11))
         service.answer_card(where, you, card.id, rng.choice(["good", "hard"]), now=now - timedelta(days=6))
+    return Student(you.token, handle, group.id)
 
+
+def seed(where: Path, real_now: datetime | None = None) -> Showcase:
+    """A demo of one's own: the world and @alex in it."""
+    world = seed_world(where, real_now)
+    alex = add_student(where, world, "alex", real_now, seed=2026)
     showcase = Showcase(
-        you=you.token,
-        people=people,
-        group=group.id,
-        admin=f"demo-review-{rng.getrandbits(64):016x}",
-        offset_days=offset,
+        people=world.people,
+        crew=world.crew,
+        admin=world.admin,
+        weeks=world.weeks,
+        you=alex.token,
+        group=alex.group,
     )
     showcase.save(where)
     return showcase
