@@ -34,7 +34,7 @@ MAX_PHOTOS = 4
 MAX_NOTE_PHOTOS = 8  # a page of notes per photo; a set of notes has more pages (D26)
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 MAX_PHOTO_SIDE = 8000
-LIMITS = {"course": 80, "title": 120, "note": 1000, "concept": 120, "text": 1200}
+LIMITS = {"course": 80, "title": 120, "note": 1000, "concept": 120, "text": 1200, "simple": 400}
 
 
 class SocialError(ValueError):
@@ -176,7 +176,8 @@ _COLUMNS = "id, token, kind, created, day, visibility, data, hidden"
 
 def _text(value: str, field: str, required: bool = False) -> str:
     """A field's text, checked: one line, except a note or an explanation."""
-    value = str(value or "").strip() if field in ("note", "text") else " ".join(str(value or "").split())
+    lines = field in ("note", "text", "simple")
+    value = str(value or "").strip() if lines else " ".join(str(value or "").split())
     if required and not value:
         empty = _("say what you studied") if field in ("course", "concept") else _("write something")
         raise SocialError(empty)
@@ -221,6 +222,9 @@ def create_post(
         clean["course"] = _text(data.get("course", ""), "course", required=True)
         clean["title"] = _text(data.get("title", ""), "title")
         clean["note"] = _text(data.get("note", ""), "note")
+        # What was done, said so a student of another subject would follow it: the
+        # owner's notebook asks for it as part of logging, not as a second post.
+        clean["simple"] = _text(data.get("simple", ""), "simple")
         clean["effort"] = _scale(data.get("effort"), 1, 10, _("Effort"))
         clean["progress"] = _scale(data.get("progress"), 1, 5, _("Progress"))
         minutes = _scale(data.get("minutes"), 1, 16 * 60, _("Minutes"))

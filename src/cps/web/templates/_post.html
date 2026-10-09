@@ -39,6 +39,7 @@
     <div><dt>{{ _("Progress") }}</dt><dd>{{ p.progress_word }}</dd></div>
   </dl>
   <p class="post-focus">{{ p.focus }}</p>
+  {% if p.simple %}<blockquote class="post-simple"><p class="kicker">{{ _("In simple words") }}</p><p>{{ p.simple }}</p></blockquote>{% endif %}
   {% if p.note %}<p class="post-note">{{ p.note }}</p>{% endif %}
   {% elif p.kind == "notes" %}
   <p class="explain-tag"><span class="badge badge-accent">{{ _("Notes") }}</span> {{ p.course }} · {{ _n("{n} page", "{n} pages", p.photos | length) }}{% if p.top %} <span class="badge badge-top">{{ _("No. {rank} this month", rank=p.top) }}</span>{% endif %}</p>

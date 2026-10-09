@@ -465,3 +465,27 @@ opened to the public (docs/ANALYTICS.md §4). The takedown route is an e-mail to
 owner, who removes a post through the review page; there is no form for rights
 holders.
 
+## The notebook's remaining proposals (2026-10-09)
+
+The owner said "continue" after D26. The roadmap's remaining items were the
+owner's own steps (hosting, accounts, payments) and three proposals from the
+owner's notebook (docs/ANALYTICS.md §3), built here in order of cost: "in simple
+words" in the session log (D27), a study group with a shared weekly goal (D28), and
+flashcards (D29).
+
+## D27. "In simple words" inside the session log
+
+**Chosen.** The session log gets an optional field, "In simple words": what was
+learned, in two sentences a student of another subject would follow (400
+characters, line breaks kept). A session post shows it under its numbers, marked
+"In simple words", in the diary and the feeds. "Explain it simply" (D19) stays the
+post for one idea explained at length, which readers mark "I got it".
+
+**Why.** The owner's notebook puts it inside logging: log, photo, effort and
+progress, "explain what you did in simple words". As a second post (D19) it cost a
+second step most would skip. Optional, because a forced sentence after every
+session would be filled with anything.
+
+**Rejected.** Making it required; scoring the explanation (by readers or by a
+model): a score of a sentence would reward style, and the AI is opt-in (D12).
+

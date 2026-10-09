@@ -105,7 +105,7 @@ with few API calls, or a robust, flexible and efficient algorithm.
 | item | status | what to do |
 |---|---|---|
 | log, photo, effort, progress | built (D17, D18) | — |
-| "explain what you did in simple words" | built as a separate post (D19) | add an optional "In simple words" line to the session's own log, so it costs no second step (proposed) |
+| "explain what you did in simple words" | built as a separate post (D19), and inside the session log (D27) | — |
 | score | not built | study load (minutes × effort) and its trend (D23, this step); no points |
 | points | rejected (D13) | recognition instead: kudos, "I got it", milestones |
 | streak | built, forgiving (D9) | — |

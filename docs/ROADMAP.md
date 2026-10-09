@@ -63,9 +63,9 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E10 The notes library**: own notes by course, "helpful" marks, the month's
       top three per course, a line on the profile, no money (D26). Before it opens to
       the public (owner): a lawyer's view of students' notes and copyright in France.
-- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): "in simple
-      words" inside the session log; flashcards; a group of friends with a shared
-      weekly goal.
+- [x] **E11 "In simple words"** inside the session log (D27).
+- [ ] **Proposed, for the owner to choose** (docs/ANALYTICS.md §3): flashcards; a
+      group of friends with a shared weekly goal.
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

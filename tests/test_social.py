@@ -185,6 +185,18 @@ def test_the_following_feed_and_explore(tmp_path, people):
     assert card["kudos"] == 0 and not card["kudos_given"] and card["comments"] == 0 and not card["mine"]
 
 
+def test_a_session_says_in_simple_words_what_was_done(tmp_path, people):
+    ada, bob, *_ = people
+    post = _post(
+        tmp_path, ada, "everyone", simple="  A matrix stretches some directions\nwithout turning them.  "
+    )
+    assert post.data["simple"] == "A matrix stretches some directions\nwithout turning them."
+    assert service.post_view(tmp_path, bob, post.id)["post"]["simple"].startswith("A matrix")
+    assert _post(tmp_path, ada, "me").data["simple"] == ""  # optional
+    with pytest.raises(service.InvalidInput, match="at most 400 characters"):
+        _post(tmp_path, ada, "me", simple="x" * 401)
+
+
 def test_kudos_and_comments(tmp_path, people):
     ada, bob, cleo, dan = people
     post = _post(tmp_path, ada, "followers")

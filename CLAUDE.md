@@ -24,8 +24,8 @@ more than an impressive number.
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 522 passed, 14 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 536 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 523 passed, 14 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 537 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds

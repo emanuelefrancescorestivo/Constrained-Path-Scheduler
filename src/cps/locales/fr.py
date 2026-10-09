@@ -810,4 +810,7 @@ MESSAGES: dict[str, str] = {
     "{n} helpful marks": "{n} marques « utile »",
     "{n} page": "{n} page",
     "{n} pages": "{n} pages",
+    "In simple words (optional)": "Avec des mots simples (facultatif)",
+    "What you learned, in two sentences a student of another subject would follow.": "Ce que tu as appris, en deux phrases qu'un étudiant d'une autre matière comprendrait.",
+    "If you can say it simply, you have understood it.": "Si tu sais le dire simplement, tu l'as compris.",
 }

@@ -3256,6 +3256,7 @@ def log_session(
         "course": form.get("course") or draft["course"],
         "title": form.get("title", ""),
         "note": form.get("note", ""),
+        "simple": form.get("simple", ""),
         "effort": form.get("effort", ""),
         "progress": form.get("progress", ""),
         "minutes": minutes,

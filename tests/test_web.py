@@ -942,6 +942,7 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
         data={
             "course": "Algebra 3",
             "title": "Sheet 2",
+            "simple": "A matrix stretches some directions\nwithout turning them.",
             "effort": "6",
             "progress": "4",
             "visibility": "followers",
@@ -952,6 +953,7 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
     assert saved.status_code == 303 and saved.headers["location"].endswith("?saved=logged#diary")
     diary = unescape(web.get(saved.headers["location"]).text)
     assert "Saved in your diary." in diary and "Sheet 2" in diary and "6/10" in diary
+    assert "In simple words" in diary and "A matrix stretches some directions\nwithout turning them." in diary
     photo = re.search(r'src="(/p/[^"]+/m/[^"]+)"', diary).group(1)
     shown = web.get(photo)
     assert shown.status_code == 200 and shown.headers["content-type"] == "image/jpeg"
@@ -972,10 +974,12 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
 
 def test_a_log_with_a_mistake_is_shown_again_as_typed(web, planned):
     answer = web.post(
-        f"/p/{planned}/log", data={"course": "Algebra 3", "title": "Kept", "effort": "12", "progress": "3"}
+        f"/p/{planned}/log",
+        data={"course": "Algebra 3", "title": "Kept", "simple": "Also kept", "effort": "12", "progress": "3"},
     )
     text = unescape(answer.text)
     assert answer.status_code == 400 and "Effort is a number from 1 to 10" in text and 'value="Kept"' in text
+    assert ">Also kept</textarea>" in text
     bad = web.post(
         f"/p/{planned}/log",
         data={"course": "x", "effort": "5", "progress": "3"},

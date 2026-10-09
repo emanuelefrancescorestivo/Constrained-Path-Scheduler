@@ -34,6 +34,12 @@
   </fieldset>
 
   <div class="card section">
+    <label for="log-simple">{{ _("In simple words (optional)") }}</label>
+    <textarea id="log-simple" name="simple" rows="3" maxlength="400" placeholder="{{ _('What you learned, in two sentences a student of another subject would follow.') }}">{{ draft.simple or '' }}</textarea>
+    <p class="hint">{{ _("If you can say it simply, you have understood it.") }}</p>
+  </div>
+
+  <div class="card section">
     <label for="log-note">{{ _("Notes for yourself (or your followers)") }}</label>
     <textarea id="log-note" name="note" rows="3" maxlength="1000" placeholder="{{ _('What clicked, what is still unclear, what is next…') }}">{{ draft.note or '' }}</textarea>
     <label for="log-photos">{{ _("Photos of your notes or exercises (up to 4)") }}</label>

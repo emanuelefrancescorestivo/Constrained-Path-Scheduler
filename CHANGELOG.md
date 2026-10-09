@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- "In simple words" (D27): the session log has an optional line for what was
+  learned, said so a student of another subject would follow it; the session's post
+  shows it under its numbers.
 - The notes library (D26), chosen by the owner from docs/ANALYTICS.md §4 (option B):
   Community gets a Notes tab where students share their own notes of a course as
   photos of the pages (up to eight), with their word that the notes are their own.
