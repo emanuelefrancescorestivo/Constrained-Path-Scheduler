@@ -21,8 +21,9 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-# The web app's pages and stylesheet ship with the package.
-"cps.web" = ["templates/*.html", "static/*"]
+# The web app's pages, scripts, stylesheet and icons ship with the package; a
+# pattern does not reach into subfolders, so each has its own (AUDIT item 51).
+"cps.web" = ["templates/*.html", "static/*", "static/icons/*"]
 
 [project.scripts]
 cps = "cps.cli:main"

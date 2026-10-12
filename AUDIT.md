@@ -668,3 +668,12 @@ saying so. Status: fixed; `tests/test_showcase.py` writes the earlier marker and
 runs the command with and without `--fresh`. Another shape change will not crash it
 again, but it will throw the old demo away, which is all a demo store is for.
 
+**51. The app's icons were missing from an installed package.** Found on the live
+demo right after step D33 was deployed: `/static/icons/icon-512.png` answered 404.
+The package data listed `static/*`, which does not reach into the new `icons`
+folder, so `pip install .` (as Render does) left the icons out, while the tests,
+run from an editable install, saw them. Fixed: the folder has its own pattern.
+Status: fixed; `tests/test_install.py` now checks that every file under the web
+app's `static` and `templates` folders is matched by a package-data pattern, so a
+new folder cannot be forgotten again.
+
