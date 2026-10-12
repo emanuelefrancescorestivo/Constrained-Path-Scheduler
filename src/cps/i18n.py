@@ -1,5 +1,5 @@
 """
-The app's two languages (DECISIONS.md, D10).
+The app's languages: English, French (DECISIONS.md, D10) and Italian (D34).
 
 The English sentence is the key: `_("Add")` is "Add" in English and whatever
 `cps/locales/fr.py` says in French, or "Add" again if it says nothing, so a
@@ -23,7 +23,7 @@ from contextvars import ContextVar, Token
 from datetime import date
 from functools import cache
 
-LANGUAGES = {"en": "English", "fr": "Français"}
+LANGUAGES = {"en": "English", "fr": "Français", "it": "Italiano"}
 DEFAULT = "en"
 
 _current: ContextVar[str] = ContextVar("cps_language", default=DEFAULT)
@@ -80,7 +80,7 @@ def _(text: str, /, **values: object) -> str:
 
 def _n(singular: str, plural: str, n: int | float, /, **values: object) -> str:
     """The singular or plural sentence for `n`, by the language's rule: English
-    says "1 day, 0 days", French "1 jour, 0 jour"."""
+    and Italian say "1 day, 0 days" ("1 giorno, 0 giorni"), French "1 jour, 0 jour"."""
     one = n in (0, 1) if _current.get() == "fr" else n == 1
     return _(singular if one else plural, n=n, **values)
 
@@ -88,6 +88,7 @@ def _n(singular: str, plural: str, n: int | float, /, **values: object) -> str:
 _DAYS = {
     "en": ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"),
     "fr": ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"),
+    "it": ("lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"),
 }
 _MONTHS = {
     "en": (
@@ -98,14 +99,20 @@ _MONTHS = {
         "janvier", "février", "mars", "avril", "mai", "juin",
         "juillet", "août", "septembre", "octobre", "novembre", "décembre",
     ),
+    "it": (
+        "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+        "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre",
+    ),
 }  # fmt: skip
 _SHORT_MONTHS = {
     "en": ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
     "fr": ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."),
+    "it": ("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"),
 }
 _SHORT_DAYS = {
     "en": ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
     "fr": ("lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."),
+    "it": ("lun", "mar", "mer", "gio", "ven", "sab", "dom"),
 }
 
 
@@ -130,7 +137,7 @@ def format_date(day: date, style: str = "long") -> str:
 
 
 def number(value: float, digits: int = 1) -> str:
-    """A number as the language writes it: 1.5 in English, 1,5 in French; no
-    trailing zero (3, not 3.0)."""
+    """A number as the language writes it: 1.5 in English, 1,5 in French and
+    Italian; no trailing zero (3, not 3.0)."""
     text = f"{round(value, digits):.{digits}f}".rstrip("0").rstrip(".") if digits else str(round(value))
-    return text.replace(".", ",") if current() == "fr" else text
+    return text.replace(".", ",") if current() in ("fr", "it") else text

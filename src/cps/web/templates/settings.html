@@ -214,6 +214,11 @@
 <h2>{{ _("Your timetable") }}</h2>
 <p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
 {{ _("Time zone: {zone}.", zone=values.tz) }}</p>
+<h2 class="section" id="app">{{ _("On your phone") }}</h2>
+<p>{{ _("Install it as an app: it gets an icon on your home screen, opens full screen, and shows your plan offline.") }}</p>
+<p><button type="button" class="btn btn-primary btn-sm" data-install hidden>{{ _("Install") }}</button></p>
+<p class="hint" data-install-ios hidden>{{ _h("In Safari: tap <b>Share</b>, then <b>Add to Home Screen</b>.") }}</p>
+<p class="hint">{{ _("Elsewhere, in your browser's menu: Install app, or Add to Home Screen. The pages you open are kept on this device to work offline; deleting your plan removes them.") }}</p>
 <h2 class="section" id="language">{{ _("Language") }}</h2>
 <form method="post" action="/p/{{ token }}/language" class="pills" aria-label="{{ _('Language') }}">
   {% for code, name in languages.items() %}

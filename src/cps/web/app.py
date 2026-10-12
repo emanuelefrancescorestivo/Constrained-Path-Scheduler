@@ -30,6 +30,7 @@ and fills templates (invariant 11).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -46,7 +47,7 @@ from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
@@ -69,7 +70,8 @@ SWEEP_EVERY = timedelta(hours=6)
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; "
-        "img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+        "img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; "
+        "manifest-src 'self'; worker-src 'self'"
     ),
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
@@ -336,6 +338,59 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request) -> HTMLResponse:
         return page(request, "home.html", tz="Europe/Paris")
+
+    # -- the app on a home screen (D33) ----------------------------------------
+
+    def manifest(start: str) -> Response:
+        """The web app manifest: what a phone needs to install the site as an app.
+        A plan's own (`start` its address) opens that plan from the home screen."""
+        body = {
+            "id": start,
+            "name": service.translate("Study plan"),
+            "short_name": service.translate("Study plan"),
+            "description": service.translate("Your timetable, your deadlines, your week"),
+            "lang": service.current_language(),
+            "start_url": start,
+            "scope": "/",
+            "display": "standalone",
+            "background_color": "#f2f2f7",
+            "theme_color": "#f2f2f7",
+            "icons": [
+                {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                {
+                    "src": "/static/icons/maskable-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "maskable",
+                },
+                {"src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml"},
+            ],
+        }
+        return Response(json.dumps(body, ensure_ascii=False), media_type="application/manifest+json")
+
+    @app.get("/manifest.webmanifest")
+    def site_manifest() -> Response:
+        return manifest("/")
+
+    @app.get("/p/{token}/manifest.webmanifest")
+    def plan_manifest(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        return manifest(f"/p/{token}")
+
+    @app.get("/sw.js")
+    def service_worker() -> Response:
+        # From the site's root, so that it may keep copies of every page (a worker
+        # answers only below its own address); fetched again at each visit.
+        return FileResponse(
+            HERE / "static" / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"}
+        )
+
+    @app.get("/offline", response_class=HTMLResponse)
+    def offline(request: Request) -> HTMLResponse:
+        """What the service worker shows for a page it has no copy of."""
+        return page(request, "offline.html")
 
     @app.get("/privacy", response_class=HTMLResponse)
     def privacy(request: Request) -> HTMLResponse:
@@ -1858,6 +1913,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(
             request,
             "message.html",
+            forget=token,  # this device's offline copies go too (pwa.js, D33)
             title=service.translate("Deleted"),
             message=service.translate(
                 "Your plan, your timetable, your deadlines and everything you reported are "

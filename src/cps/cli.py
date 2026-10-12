@@ -420,7 +420,7 @@ def command_demo(args) -> int:
     config.admin_token = admin
     if args.public:
         world = found
-        config.demo = lambda: add_student(where, world).token
+        config.demo = lambda: add_student(where, world, lang=service.current_language()).token
         # Friends on one university network share an address: thirty starts an hour
         # from it rather than ten. A student is a copy of one semester: quick to make.
         config.start_limit = (30, 3600.0)

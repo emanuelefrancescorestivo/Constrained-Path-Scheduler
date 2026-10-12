@@ -26,8 +26,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 555 passed, 17 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 572 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 563 passed, 17 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 580 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -56,7 +56,7 @@ more than an impressive number.
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-4.5), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
-| `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words (D10) |
+| `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
@@ -77,11 +77,13 @@ server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
 sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
-transitions and draw-ins are CSS; the calendar slides moved sessions itself) and `i18n.js` (the scripts' words in French).
+transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
+(D33: the installable app, the service worker that keeps a plan's pages for offline use, the
+install card) and `i18n.js` (the scripts' words in French and Italian).
 Motion is decoration over complete pages: nothing may depend on it, and everything
 stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Every sentence a
 student reads goes through `_()` (Python, templates) or `t()` (scripts) and has a
-French entry (`cps/locales/fr.py`, `static/i18n.js`; `tests/test_i18n.py` checks).
+French and an Italian entry (`cps/locales/fr.py`, `it.py`, `static/i18n.js`; `tests/test_i18n.py` checks).
 Plain JavaScript modules, no build step, no framework, layout and
 input only: every decision comes back from `service` as JSON or HTML. They must work
 under the app's Content-Security-Policy: styles through the CSSOM (or classes, such
@@ -160,7 +162,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   real sentences. With no `ANTHROPIC_API_KEY`, the rules answer, as they do whenever
   the model is off, over the cap or wrong.
 - Moodle deadlines are read from English event names only; their hours are a guess
-  (2 h) until the student changes them.
+  (2 h) until the student changes them. Tasks typed in one line are read by rules in
+  English and French only. The Italian (D34) was not written by a native speaker.
+- Offline and install (D33) were checked in Chromium only, not on an iPhone.
 - FSRS weights are population defaults; a subject's starting stability and
   difficulty are user-supplied guesses. The target and the 40-block failure penalty
   are stated choices.

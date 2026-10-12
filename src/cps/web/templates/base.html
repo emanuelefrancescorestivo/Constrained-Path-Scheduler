@@ -15,15 +15,21 @@
 {% endif %}
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="{{ _('Study plan') }}">
+<link rel="manifest" href="{% if token %}/p/{{ token }}{% endif %}/manifest.webmanifest">
+<link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
 <link rel="stylesheet" href="/static/style.css">
 <script type="module" src="/static/motion.js"></script>
+<script type="module" src="/static/pwa.js"></script>
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token %}has-tabs{% endif %}">
+<body class="{% if token %}has-tabs{% endif %}"{% if forget %} data-forget="{{ forget }}"{% endif %}>
 <header class="topbar">
-  <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><span class="brand-mark" aria-hidden="true"></span>{{ _("Study plan") }}</a>
+  <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><img class="brand-mark" src="/static/icons/icon.svg" alt="" width="28" height="28">{{ _("Study plan") }}</a>
   {% if token %}
   <nav class="nav" aria-label="{{ _('Your plan') }}">
     <a href="/p/{{ token }}" {% if tab in ('today', 'calendar') %}aria-current="page"{% endif %}>{{ _("Plan") }}</a>
@@ -47,7 +53,7 @@
 <main class="site{% block site_class %}{% endblock %}">
 {% block main %}{% endblock %}
 </main>
-<footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · {{ _("no account, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() %}{% if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% endif %}{% endfor %}{% endif %}</footer>
+<footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · {{ _("no account, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</footer>
 {% endblock %}
 {% if token %}
 {% if tab not in ('focus', 'community') and not setup %}<button type="button" class="fab" popovertarget="quick-add" aria-label="{{ _('New task') }}">
