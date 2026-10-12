@@ -704,3 +704,14 @@ not by the Python tests, which do not lay out the page. The same run recorded on
 passkey registration and one sign-in from Chromium's own authenticator
 (`tests/data/chromium-passkey.json`), which `tests/test_accounts.py` checks the
 server's verifier against.
+
+**54. On a phone, the floating "+" covered what was under it.** Found in the tour of
+every page at phone width for the polish pass (D37): the round button floating
+above the tab bar sat over the right end of Settings' "Save and plan" button and
+over the last line of whatever card was beneath it (the group's hours on Progress,
+a session's text on Today), on every page that showed it. Fixed: the button is gone;
+on a phone, a new task is the "+" in the top bar, as in Apple's own apps, and the
+N key and the wide top bar's "New task" are unchanged. Status: fixed; seen in
+Chromium, not by the Python tests, which do not lay out the page
+(`tests/test_start.py` checks the "+" is absent while the week is being drawn, as
+the floating button was).

@@ -882,3 +882,44 @@ network would have to move).
 the Progress page waits for it; the past sessions are kept meanwhile. The calendar
 feed shows the current semester's sessions only. With no e-mail address, nobody is
 warned before a plan is deleted; Settings show the date.
+
+## D37. A silkier interface
+
+*The owner, 2026-10-12: "smooth out the graphic interface, it should be more silky
+and Apple-like".*
+
+**Chosen.** A pass over every page at phone and desktop widths, light and dark,
+keeping the layout and changing how it feels:
+
+1. **Apple's own patterns where the app had a web or Android one.** On a phone, a
+   new task is the "+" in the top bar (the floating round button went, and with it
+   AUDIT item 54); the tab bar's five tabs have the same weight (Focus no longer
+   sits in a raised blue disc); every on/off choice is a switch instead of a
+   checkbox (still a checkbox to the browser and to screen readers; in a
+   high-contrast mode the plain checkbox comes back); a session card's colour is a
+   capsule inside the card, as Calendar draws an event, instead of a stripe cut by
+   the corner.
+2. **Shapes.** Rounder corners everywhere, and continuous corners (a squircle,
+   which curves into the straight edge instead of meeting it at a circle's tangent)
+   on cards, fields, sheets and popovers where the browser can draw them
+   (`corner-shape`); pills and circles stay round.
+3. **Motion.** A press is quick and the release soft (a short scale-down, a longer
+   settle); sheets rise with a long, gentle deceleration and no bounce; popovers and
+   pages arrive with less travel; the top bar is see-through over the page while
+   nothing is beneath it, and its material and hairline fade in as the page scrolls
+   under it (scroll-driven animation; elsewhere it keeps its material); links to a
+   section glide there. All of it stops under reduced motion, as before (D30).
+4. **Type and spacing.** Headings balance their lines and paragraphs avoid a lone
+   last word; a page's large title keeps its distance from the first card; a field
+   in focus has a thinner, crisper ring.
+
+**Rejected.** A component or animation library (the app has no build step and no
+framework, on purpose); a web font (the system font is San Francisco on Apple
+devices already); imitating "Liquid Glass" refraction (costly to draw on phones, and
+a page that must stay readable without it); squircles drawn with SVG masks (heavy,
+and they break shadows and focus rings).
+
+**Disclosed.** Continuous corners and the scroll-linked top bar depend on recent
+browser features; where they are missing, corners are circular and the bar is
+always solid. Checked in Chromium only, at 390 and 1280 px wide, light and dark,
+with motion on and reduced; not on an iPhone.

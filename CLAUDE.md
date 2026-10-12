@@ -69,7 +69,8 @@ more than an impressive number.
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface
-guidelines (system font, grouped lists, translucent bars, sheets): `style.css`
+guidelines (system font, grouped lists, translucent bars, sheets, switches, the "+"
+in the bar, continuous corners where the browser draws them, D37): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
 red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week, draw,
 drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn by
@@ -167,6 +168,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   (2 h) until the student changes them. Tasks typed in one line are read by rules in
   English and French only. The Italian (D34) was not written by a native speaker.
 - Offline and install (D33) were checked in Chromium only, not on an iPhone.
+- The interface polish (D37) was checked in Chromium only; continuous corners and
+  the scroll-linked top bar fall back to circular corners and a solid bar elsewhere.
 - Passkeys (D35) were checked with a simulated device and Chromium's virtual
   authenticator, not on a real phone. A plan with neither a passkey nor a recovery
   code cannot be found again without its address. Passkeys belong to the host name:

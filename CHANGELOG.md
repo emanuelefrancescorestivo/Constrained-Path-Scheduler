@@ -279,6 +279,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   and `CalendarReport.lectures`.
 
 ### Changed
+- A silkier, more Apple-like interface (D37): on a phone, the "+" for a new task is
+  in the top bar instead of floating over the page, and the tab bar's tabs are
+  even; on/off choices are switches; corners are rounder, and continuous where the
+  browser can draw them; presses, sheets, popovers and page changes move more
+  softly; the top bar turns translucent only once the page scrolls under it.
 - Plans are deleted 12 months after they were last opened, instead of 30 days after
   their last exam (D36); Settings say on which day. A calendar app reading the feed
   does not count as a visit.
@@ -287,6 +292,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- On a phone, the floating "+" no longer covers the Save button and the end of the
+  card beneath it (AUDIT item 54).
 - A plan with no exam or deadline (a week drawn, then left) is deleted like any
   other instead of being kept for ever (AUDIT item 52).
 - A Settings section reached by its address is no longer hidden under the top bar,
