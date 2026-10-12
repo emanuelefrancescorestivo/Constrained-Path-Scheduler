@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
-{% if new %}
+{% if new and values.drawn %}
+{% set step = 2 %}{% include "_steps.html" %}
+<h1>{{ _("Your exams and deadlines") }}</h1>
+<p class="muted">{{ _("When is each exam? Add your deadlines, and say how much you want to study. Next, you will see your week with the plan in it.") }}</p>
+{% elif new %}
 {% set step = 2 %}{% include "_steps.html" %}
 <h1>{{ _("Check what was found") }}</h1>
 <p class="muted">{{ _("Your timetable is read. Check the exams, add your deadlines, and say how much you want to study. Next, you will see your week.") }}</p>
@@ -16,12 +20,14 @@
 
 <fieldset>
   <legend>{{ _("Exams") }}</legend>
-  <p class="hint">{{ _("For each exam: how well you already know what was taught before today. Each later week of lectures is planned on its own once it has been taught.") }}</p>
+  {% if values.drawn %}<p class="hint">{{ _("For each course you drew: the exam's date, and how well you know the course already. Leave the date empty for a class with no exam.") }}</p>
+  {% else %}<p class="hint">{{ _("For each exam: how well you already know what was taught before today. Each later week of lectures is planned on its own once it has been taught.") }}</p>{% endif %}
   {% for s in values.subjects %}
   {% set i = loop.index0 %}
   <div class="item exam-row">
     <input type="hidden" name="s{{ i }}_found" value="{{ '1' if s.found else '' }}">
     <input type="hidden" name="s{{ i }}_found_when" value="{{ s.found_when }}">
+    <input type="hidden" name="s{{ i }}_suggested" value="{{ '1' if s.suggested else '' }}">
     <div class="exam-main">
       <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}" class="bare" aria-label="{{ _('Course') }}">
       {% if s.found and s.found_when and not s.exam %}
@@ -56,8 +62,28 @@
   </div>
   {% endfor %}
   {% set n = n + (values.unplanned_exams | length) %}
-  <details{% if not values.subjects %} open{% endif %}>
-  <summary>+ {{ _("Add an exam that is not in your timetable") }}</summary>
+  {% set offered = values.suggested or [] %}
+  {% for c in offered %}
+  {% set i = n + loop.index0 %}
+  <div class="item exam-row offered">
+    <input type="hidden" name="s{{ i }}_found" value="">
+    <input type="hidden" name="s{{ i }}_suggested" value="1">
+    <input type="hidden" name="s{{ i }}_name" value="{{ c }}">
+    <div class="exam-main">
+      <p class="offered-name">{{ c }}</p>
+      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    </div>
+    <div class="exam-side">
+      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  {% endfor %}
+  {% set n = n + (offered | length) %}
+  <details{% if not values.subjects and not offered %} open{% endif %}>
+  <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>
   {% for k in range(empty_rows) %}
   {% set i = n + k %}
   <div class="item new">
@@ -143,9 +169,9 @@
   <input id="practice_hours" name="practice_hours" type="number" min="0" max="40" step="0.5" value="{{ values.practice_hours }}" inputmode="decimal">
 </fieldset>
 
-<fieldset>
-  <legend>{{ _("Busy times not in your timetable") }}</legend>
-  <p class="hint">{% if new %}{{ _("Training, a job, a commute: nothing is planned then. Draw them on the calendar, the next step;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. Draw them on the <a href=\"{url}\">calendar</a>;", url="/p/" ~ token ~ "/week") }}{% endif %}
+<fieldset id="busy">
+  <legend>{% if values.drawn %}{{ _("Your classes and busy times") }}{% else %}{{ _("Busy times not in your timetable") }}{% endif %}</legend>
+  <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% elif new %}{{ _("Training, a job, a commute: nothing is planned then. Draw them on the calendar, the next step;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. Draw them on the <a href=\"{url}\">calendar</a>;", url="/p/" ~ token ~ "/week") }}{% endif %}
   {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
   <details>
   <summary>{{ _("Type them instead") }}</summary>
@@ -170,8 +196,11 @@
       <div><label for="a{{ i }}_end">{{ _("to") }}</label>
       <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
     </div>
+    <label for="a{{ i }}_kind">{{ _("Kind") }}</label>
+    <select id="a{{ i }}_kind" name="a{{ i }}_kind">
+      {% for k, word in values.kinds %}<option value="{{ k }}"{% if (a.kind or ('class' if values.drawn else 'other')) == k %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+    </select>
     {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> {{ _("Remove") }}</label>{% endif %}
-    <input type="hidden" name="a{{ i }}_kind" value="{{ a.kind or 'other' }}">
   </div>
   {% endfor %}
   </details>
@@ -183,7 +212,7 @@
 {% if not new %}
 <div class="card section">
 <h2>{{ _("Your timetable") }}</h2>
-<p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
+<p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
 {{ _("Time zone: {zone}.", zone=values.tz) }}</p>
 <h2 class="section" id="language">{{ _("Language") }}</h2>
 <form method="post" action="/p/{{ token }}/language" class="pills" aria-label="{{ _('Language') }}">

@@ -356,6 +356,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         form = await request.form(max_files=1, max_fields=11)
         link = str(form.get("link") or "").strip() or None
         tz = str(form.get("tz") or "Europe/Paris").strip()
+        draw = form.get("draw") == "1"  # no file: the week is drawn by hand (D32)
         upload = form.get("file")
         ics = None
         if isinstance(upload, UploadFile) and upload.filename:
@@ -368,7 +369,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     error=service.translate("That file is too large for a timetable."),
                 )
         try:
-            if link is None and ics is None:
+            if link is None and ics is None and not draw:
                 raise service.InvalidInput(
                     service.translate("paste your timetable's link, or choose its file")
                 )
@@ -379,11 +380,15 @@ def create_app(config: Config | None = None) -> FastAPI:
                 now=config.clock(),
                 fetch=config.fetch,
                 lang=str(form.get("lang") or "") or None,
+                draw=draw,
             )
         except service.ServiceError as error:
             return page(request, "home.html", 400, error=str(error), link=link or "", tz=tz)
         service.save_subscription(store, subscription)
-        service.log_event(store, subscription.token, "start", "link" if link else "file")
+        drawn = link is None and ics is None
+        service.log_event(store, subscription.token, "start", "link" if link else "draw" if drawn else "file")
+        if drawn:
+            return RedirectResponse(f"/p/{subscription.token}/timetable", 303)
         return RedirectResponse(f"/p/{subscription.token}/settings?new=1", 303)
 
     def plan_page(
@@ -445,6 +450,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved))
+
+    @app.get("/p/{token}/timetable", response_class=HTMLResponse)
+    def timetable(request: Request, token: str) -> HTMLResponse:
+        """Drawing a week by hand, for a student with no timetable file (D32): the
+        calendar alone, classes first, then on to the exams."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return plan_page(request, subscription, "calendar", setup=True)
 
     @app.get("/p/{token}/panel", response_class=HTMLResponse)
     def panel(request: Request, token: str) -> HTMLResponse:
@@ -1606,7 +1620,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 ),
             )
         except service.ServiceError as error:
-            shown = {**service.setup_view(subscription), **values}
+            # The offered exam rows came back as typed rows: not offered twice.
+            shown = {**service.setup_view(subscription), **values, "suggested": []}
             return page(
                 request,
                 "settings.html",

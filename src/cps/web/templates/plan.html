@@ -2,14 +2,29 @@
 {% block title %}{% if tab == 'calendar' %}{{ _("Calendar") }}{% else %}{{ _("Today") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="/static/app.js"></script>{% endblock %}
 {% block body %}
-<div class="plan" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}">
+<div class="plan{% if setup %} setup{% endif %}" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}"{% if setup %} data-setup="classes"{% endif %}>
+  {% if not setup %}
   <aside class="panel" aria-label="{{ _('Today') }}">
     {% if reported %}<p class="notice notice-ok" role="status">{{ _("Recorded: {word}. The plan has changed to match.", word=reported) }}</p>{% endif %}
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
+  {% endif %}
   <section class="board" aria-label="{{ _('Calendar') }}">
-    {% if new %}
+    {% if setup %}
+    {# Drawing a week by hand, when there is no timetable file (D32) #}
+    <div class="setup-head">
+      {% set step = 1 %}{% include "_steps.html" %}
+      <div class="setup-intro">
+        <div class="grow">
+          <h1>{{ _("Draw your week") }}</h1>
+          <p class="wide-only">{{ _("Drag on the calendar where each class is, then give it its course's name. It comes back every week, in its course's colour. Training, a job or a commute can go in too.") }}</p>
+          <p class="phone-only">{{ _("Tap the hour a class starts and name it: it comes back every week.") }}</p>
+        </div>
+        <a class="btn btn-primary setup-next" href="/p/{{ token }}/settings?new=1">{{ _("Next: exams and deadlines") }}</a>
+      </div>
+    </div>
+    {% elif new %}
     <div class="notice" role="note">
       {% set step = 3 %}{% include "_steps.html" %}
       <p>{{ _h("<strong>Your week.</strong> Your timetable is already here, and the plan with it. Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening off. Drag a study session to move it. The plan rearranges itself as you go.") }}</p>
@@ -29,11 +44,13 @@
       <button type="button" class="btn btn-sm" data-go="today">{{ _("Today") }}</button>
       <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="{{ _('Later days') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-      <button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">{{ _("Block time") }}</button>
+      {% if setup %}<button type="button" class="btn btn-sm btn-tinted" data-go="busy">+ {{ _("Add a class") }}</button>
+      {% else %}<button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">{{ _("Block time") }}</button>{% endif %}
     </div>
     <div id="calendar">
       <div class="board-fallback">
-        <p>{{ _h("The calendar needs JavaScript. <a href=\"{agenda}\">See the week as a list</a>, and add busy times in <a href=\"{settings}\">Settings</a>.", agenda="/p/" ~ token ~ "/agenda", settings="/p/" ~ token ~ "/settings") }}</p>
+        {% if setup %}<p>{{ _h("Drawing needs JavaScript. <a href=\"{settings}\">Type your classes instead</a>, with Class as their kind.", settings="/p/" ~ token ~ "/settings?new=1#busy") }}</p>
+        {% else %}<p>{{ _h("The calendar needs JavaScript. <a href=\"{agenda}\">See the week as a list</a>, and add busy times in <a href=\"{settings}\">Settings</a>.", agenda="/p/" ~ token ~ "/agenda", settings="/p/" ~ token ~ "/settings") }}</p>{% endif %}
       </div>
     </div>
   </section>

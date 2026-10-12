@@ -61,6 +61,17 @@ const FR = {
   "left the app {n} times ({minutes} min)": "app quittée {n} fois ({minutes} min)",
   "A photo could not be read. Try a JPEG or a PNG.": "Une photo n'a pas pu être lue. Essaie un JPEG ou un PNG.",
   "At most {n} photos. Choose fewer.": "{n} photos au plus. Choisis-en moins.",
+  // Drawing a week (D32)
+  "Add": "Ajouter",
+  "Add a class": "Ajouter un cours",
+  "Added, on this day only.": "Ajouté, ce jour-là seulement.",
+  "Added. It comes back every {day}.": "Ajouté. Il revient chaque {day}.",
+  "Class": "Cours",
+  "Course, e.g. Algebra": "Matière, par ex. Algèbre",
+  "Day": "Jour",
+  "Drag on the calendar to add your first class": "Fais glisser sur le calendrier pour ajouter ton premier cours",
+  "From its start to its end, on its day; you can change it after.": "De son début à sa fin, le bon jour ; tu pourras le modifier ensuite.",
+  "Tap the hour it starts; you can change it after.": "Touche l'heure où il commence ; tu pourras le modifier ensuite.",
 };
 
 const CATALOGUES = { fr: FR };

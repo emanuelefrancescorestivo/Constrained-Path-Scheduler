@@ -48,8 +48,9 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
                 "found": r["found"] == "1",
                 "found_when": r["found_when"],
                 "familiarity": r["familiarity"] or service.DEFAULT_FAMILIARITY,
+                "suggested": r["suggested"] == "1",
             }
-            for r in _rows(form, "s", ("name", "exam", "found", "found_when", "familiarity"))
+            for r in _rows(form, "s", ("name", "exam", "found", "found_when", "familiarity", "suggested"))
             if r["name"]
         ],
         "tasks": [r for r in _rows(form, "t", ("name", "course", "due", "hours")) if r["name"]],
@@ -79,6 +80,8 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
     """The keyword arguments `service.revise_subscription` takes."""
     subjects = []
     for s in values["subjects"]:
+        if s.get("suggested") and not s["exam"]:
+            continue  # a class drawn by hand, offered with its name: no date, no exam (D32)
         if s["found"] and not s["exam"]:
             exam = None  # follow the timetable
         elif s["exam"]:

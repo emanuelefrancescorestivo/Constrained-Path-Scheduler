@@ -657,3 +657,14 @@ the lead on the left and the title on the right, half empty. Fixed: the Progress
 pair has a class of its own (`pair`). Status: fixed; seen in Chromium, not by the
 Python tests, which do not lay out the page.
 
+**50. `cps demo` crashed on a store an earlier version had made.** Found by the owner
+on Windows, trying step D32 (`cps demo --public --fresh`): `TypeError:
+Showcase.__init__() got an unexpected keyword argument 'offset_days'`. The default
+store (`%TEMP%\cps-demo`) still held the first `cps demo`'s marker, whose fields
+D31 changed, and the marker was read before `--fresh` could remove the store, so
+`--fresh` could not help. Fixed: a marker another version wrote is recognised as
+this command's own (`showcase.Outdated`), and the store is made again, with a line
+saying so. Status: fixed; `tests/test_showcase.py` writes the earlier marker and
+runs the command with and without `--fresh`. Another shape change will not crash it
+again, but it will throw the old demo away, which is all a demo store is for.
+

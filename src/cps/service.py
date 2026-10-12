@@ -1630,14 +1630,16 @@ def new_subscription(
     fetch: Callable[[str], bytes] = fetch_calendar,
     require_plan: bool = True,
     lang: str | None = None,
+    blank: bool = False,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
     the caller has just made it from the same inputs, saves planning again.
+    `blank` starts with nothing at all: the student draws their week first (D32).
 
     The calendar last read is kept (`ics_text`), also for a link, so that a
     feedback tap replans at once from it instead of waiting for the network."""
-    if source_url is None and ics is None and not busy_rows:
+    if source_url is None and ics is None and not busy_rows and not blank:
         raise InvalidInput(_("give a calendar link, a calendar file or your week"))
     rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
     subscription = Subscription(
@@ -2077,6 +2079,9 @@ def sync_deadlines(
 # What a student can block out on the calendar. Every kind is busy time to the
 # planner; the kind only colours the block and names it until the student does.
 ACTIVITY_KINDS = (
+    # A class drawn by hand when there is no timetable file (D32): busy, and its
+    # name is a course, with the course's colour and a place among the exams.
+    ("class", "Class"),
     ("training", "Training"),
     ("commute", "Commute"),
     ("work", "Work"),
@@ -2298,19 +2303,22 @@ def start_subscription(
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
     lang: str | None = None,
+    draw: bool = False,
 ) -> Subscription:
     """The hosted product's first step: a timetable and nothing else. The link is
     read once; every exam found in it becomes a subject; the week starts from the
-    stated defaults; and the plan is made if there is anything to plan for yet."""
+    stated defaults; and the plan is made if there is anything to plan for yet.
+    With `draw` and neither a link nor a file, the timetable starts empty: the
+    student draws their classes on the calendar, then gives the exams (D32)."""
     now = now or datetime.now(UTC)
     if source_url:
         ics = fetch(source_url.strip())
-    if ics is None:
+    if ics is None and not draw:
         raise InvalidInput(_("give your timetable's link or its file"))
     today = now.astimezone(_zone(tz)).date()
-    report = analyse_calendar(ics, start=today, tz=tz)
+    found = analyse_calendar(ics, start=today, tz=tz).assessments if ics is not None else ()
     return new_subscription(
-        subjects=[SubjectSpec(a.subject, None, familiarity=DEFAULT_FAMILIARITY) for a in report.assessments],
+        subjects=[SubjectSpec(a.subject, None, familiarity=DEFAULT_FAMILIARITY) for a in found],
         start=today,
         tz=tz,
         source_url=source_url,
@@ -2320,6 +2328,7 @@ def start_subscription(
         now=now,
         require_plan=False,
         lang=lang,
+        blank=ics is None,
     )
 
 
@@ -2381,10 +2390,11 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
 COURSE_PALETTE = 7
 
 
-def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]:
+def course_colours(source: CalendarReport | PlanReport, drawn: Sequence[str] = ()) -> list[tuple[str, int]]:
     """Each course and its colour index: the subjects with an exam first, in the
-    order of their exams, then the other courses of the timetable. A course's
-    lectures and its study sessions share its colour."""
+    order of their exams, then the other courses of the timetable, then the classes
+    the student drew (`drawn`, D32). A course's lectures and its study sessions
+    share its colour."""
     names: list[str] = []
     if isinstance(source, PlanReport):
         names += [x.name for x in sorted(source.subjects, key=lambda x: x.exam)]
@@ -2393,6 +2403,7 @@ def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]
         names += [a.subject for a in source.assessments]
     taught = {course_of(e.summary) for e in source.events if e.source != "typed"} - {""}
     names += sorted(taught, key=str.casefold)
+    names += list(drawn)
     seen: dict[str, int] = {}
     ordered = []
     for name in names:
@@ -2402,12 +2413,26 @@ def course_colours(source: CalendarReport | PlanReport) -> list[tuple[str, int]]
     return ordered
 
 
+def drawn_courses(subscription: Subscription) -> list[str]:
+    """The courses of the classes the student drew on the calendar (D32), each
+    once, in the order first drawn."""
+    seen: dict[str, str] = {}
+    for row in subscription.busy_rows:
+        label = str(row.get("label") or "").strip()
+        if row.get("kind") == "class" and label:
+            seen.setdefault(label.casefold(), label)
+    return list(seen.values())
+
+
 def course_names(subscription: Subscription) -> list[str]:
     """The courses a student can name a task after: those with an exam, then the
-    other courses in the timetable, in the order of their colours."""
+    other courses in the timetable and the classes drawn, in the order of their
+    colours."""
+    drawn = drawn_courses(subscription)
     if subscription.plan is None:
-        return [s["name"] for s in subscription.subjects]
-    return [name for name, _ in course_colours(PlanReport.from_dict(subscription.plan))]
+        names = [s["name"] for s in subscription.subjects]
+        return names + [c for c in drawn if c.casefold() not in {n.casefold() for n in names}]
+    return [name for name, _ in course_colours(PlanReport.from_dict(subscription.plan), drawn)]
 
 
 def calendar_view(
@@ -2432,7 +2457,7 @@ def calendar_view(
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
     moment = (now or datetime.now(UTC)).astimezone(zone)
-    legend = course_colours(source)
+    legend = course_colours(source, drawn_courses(subscription))
     colours = {name.casefold(): index for name, index in legend}
     upcoming = (
         {session_id(x) for x in source.sessions}
@@ -2459,9 +2484,12 @@ def calendar_view(
                 "date": r.get("date"),
                 "start": r["start"],
                 "end": r["end"],
+                # A class drawn by hand wears its course's colour (D32).
+                "color": colours.get(r["label"].casefold()) if r.get("kind") == "class" else None,
             }
             for r in subscription.busy_rows
         ],
+        "drawn": subscription.ics_text is None and subscription.source_url is None,
         "kinds": [{"id": k, "label": _(label)} for k, label in ACTIVITY_KINDS],
         "hours": [7, 23],
         "window": list(options["study_window"]),
@@ -2487,6 +2515,8 @@ def setup_view(subscription: Subscription) -> dict:
         found = [{"subject": a.subject, "when": a.when[:16].replace("T", " ")} for a in report.assessments]
     except ServiceError:
         pass  # the page still shows what the student typed
+    drawn = drawn_courses(subscription)
+    courses += [c for c in drawn if c.casefold() not in {x.casefold() for x in courses}]
     found_names = {f["subject"].casefold(): f["when"] for f in found}
     subjects = [
         {
@@ -2503,6 +2533,11 @@ def setup_view(subscription: Subscription) -> dict:
     return {
         "subjects": subjects,
         "unplanned_exams": [f for f in found if f["subject"].casefold() not in planned],
+        # Each class drawn by hand and not planned yet, offered as an exam row
+        # with its name filled in: its date is all the student types (D32).
+        "suggested": [c for c in drawn if c.casefold() not in planned],
+        "drawn": subscription.ics_text is None and subscription.source_url is None,
+        "kinds": list(ACTIVITY_KINDS),
         "courses": courses,
         "tasks": [{**t, "due": str(t["due"])[:16].replace("T", " ")} for t in options.get("tasks", ())],
         "activities": [

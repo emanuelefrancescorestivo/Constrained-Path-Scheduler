@@ -19,6 +19,7 @@ const OUTCOMES = [["done", "Done"], ["skipped", "Skipped"], ["struggled", "Hard"
 // A self-test asks how much was recalled instead (DECISIONS.md D25).
 const RECALL = [["forgot", "Nothing"], ["some", "Some"], ["most", "Most"], ["all", "All"], ["skipped", "Skipped"]];
 const SELF_TESTS = ["review", "first review"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // as the server names them
 const MARKS = { done: "✓", skipped: "–", struggled: "!", forgot: "!", some: "~", most: "✓", all: "✓" };
 
 const toMin = (clock) => {
@@ -93,10 +94,12 @@ function lanes(boxes) {
 }
 
 export class Calendar {
-  constructor(root, { token, first, onChanged, toast, onRange }) {
+  constructor(root, { token, first, onChanged, toast, onRange, setup = false }) {
     this.root = root;
     this.token = token;
     this.first = first;
+    // Drawing a week by hand (D32): what is drawn is a class unless said otherwise.
+    this.setup = setup;
     this.today = first;
     this.onChanged = onChanged || (() => {});
     this.toast = toast || (() => {});
@@ -273,7 +276,7 @@ export class Calendar {
         if (!applies) return;
         const start = toMin(row.start);
         const end = toMin(row.end) > start ? toMin(row.end) : 1440;
-        boxes.push({ day: d, start, end, label: row.label, kind: "own", row: index });
+        boxes.push({ day: d, start, end, label: row.label, kind: "own", row: index, color: row.color, own: row.kind });
       });
     });
     const byDay = days.map(() => []);
@@ -283,16 +286,24 @@ export class Calendar {
     });
 
     const scroll = h("div", { class: "cal-scroll" }, body);
-    const used = new Set(data.items.map((i) => i.color).filter((c) => c !== null && c !== undefined));
+    const used = new Set(data.items.concat(data.activities).map((i) => i.color).filter((c) => c !== null && c !== undefined));
     const legend = h("div", { class: "legend", "aria-label": t("Courses") },
       data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
-    this.root.replaceChildren(h("div", { class: "cal" }, head, scroll, legend.childElementCount ? legend : null));
+    // An empty week to draw on says how, until the first class is in (D32).
+    const empty = this.setup && !data.activities.length
+      ? h("div", { class: "cal-empty", "aria-hidden": "true" },
+        h("div", { class: "cal-empty-card" },
+          h("b", {}, t("Drag on the calendar to add your first class")),
+          h("span", {}, narrow() ? t("Tap the hour it starts; you can change it after.") : t("From its start to its end, on its day; you can change it after."))))
+      : null;
+    this.root.replaceChildren(h("div", { class: "cal" }, head, scroll, empty, legend.childElementCount ? legend : null));
     this.placeNow();
     this.fitLabels();
 
     if (this.scrolled !== null) scroll.scrollTop = this.scrolled;
     else {
-      const focus = days.some((d) => d.date === data.now.date) ? Math.max(data.now.minute - 90, earliest) : earliest;
+      // Drawing a week starts where classes do, in the morning; a plan, at now.
+      const focus = !this.setup && days.some((d) => d.date === data.now.date) ? Math.max(data.now.minute - 90, earliest) : earliest;
       scroll.scrollTop = Math.max((focus - this.top) * PX, 0);
     }
     const first = days[0].label;
@@ -398,13 +409,15 @@ export class Calendar {
       if (box.reported) cls += ` reported-${box.reported}`;
       if (box.movable) cls += " movable";
     } else if (box.kind === "calendar") cls += colour;
+    else if (box.kind === "own" && box.own === "class") cls += ` ev-class${colour}`;
     const tall = (to - from) * PX;
     if (tall < 34) cls += " short";
     let label = box.label;
     let short = "";
     if (box.kind === "own") {
       const kind = this.kindLabel(this.data.activities[box.row].kind);
-      if (kind.toLowerCase() !== label.toLowerCase()) label = `${label} · ${kind}`;
+      // A class is its course, as in a timetable; other busy times say what they are.
+      if (box.own !== "class" && kind.toLowerCase() !== label.toLowerCase()) label = `${label} · ${kind}`;
       short = box.label;
     } else if (box.kind === "study") {
       short = box.session_kind === "task" ? box.title : box.course || box.title;
@@ -754,42 +767,76 @@ export class Calendar {
   activityForm(row, d, isNew, anchor) {
     const day = this.data.days[d];
     let kind = row.kind || "other";
-    const name = h("input", { type: "text", value: isNew ? "" : row.label, placeholder: this.kindLabel(kind), "aria-label": t("Name") });
+    const hint = (k) => (k === "class" ? t("Course, e.g. Algebra") : this.kindLabel(k));
+    // The courses already drawn or planned, to pick again for a second class.
+    const courses = h("datalist", { id: "cal-courses" }, this.data.legend.map((l) => h("option", { value: l.course })));
+    const name = h("input", { type: "text", value: isNew ? "" : row.label, placeholder: hint(kind), "aria-label": t("Name"), list: "cal-courses", autocomplete: "off" });
+    const title = h("h3", {}, isNew ? (kind === "class" ? t("Add a class") : t("Block this time")) : kind === "class" ? t("Class") : t("Busy time"));
     const chips = this.data.kinds.map((k) => h("button", {
       type: "button",
       class: "btn btn-sm",
       "aria-pressed": k.id === kind ? "true" : "false",
       onclick: (event) => {
         kind = k.id;
-        name.placeholder = k.label;
+        name.placeholder = hint(k.id);
+        if (isNew) title.textContent = kind === "class" ? t("Add a class") : t("Block this time");
         event.currentTarget.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === event.currentTarget ? "true" : "false"));
       },
     }, k.label));
+    // Which day: the one drawn on, or any other of the seven from the first shown,
+    // even in a 3-day view (adding with the button, or on a phone, starts on today).
+    const lang = document.documentElement.lang || "en";
+    const week = Array.from({ length: 7 }, (_, i) => {
+      const date = shiftDate(this.data.days[0].date, i);
+      const shown = this.data.days.find((x) => x.date === date);
+      if (shown) return { ...shown, short: shown.label.split(" ")[0] };
+      const at = new Date(`${date}T12:00:00Z`);
+      return {
+        date,
+        weekday: WEEKDAYS[at.getUTCDay()],
+        label: at.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }),
+        short: at.toLocaleDateString(lang, { weekday: "short", timeZone: "UTC" }),
+      };
+    });
+    const dayPick = h("select", { id: "busy-day", "aria-label": t("Day") },
+      week.map((x, i) => h("option", { value: String(i), selected: i === d }, x.label)));
+    const chosen = () => week[Number(dayPick.value)] || week[d];
     const from = h("input", { type: "time", step: "900", value: row.start, "aria-label": t("From") });
     const to = h("input", { type: "time", step: "900", value: row.end === "24:00" ? "23:59" : row.end, "aria-label": t("To") });
     const weekly = h("input", { type: "checkbox", id: "weekly", checked: isNew ? true : !row.date });
+    const every = h("span", {}, t("Every {day}", { day: day.label.split(" ")[0] }));
+    const kicker = h("p", { class: "kicker" }, day.label);
+    dayPick.addEventListener("change", () => {
+      every.textContent = t("Every {day}", { day: chosen().short });
+      kicker.textContent = chosen().label;
+    });
     const save = () => {
+      const when = chosen();
       const rows = this.data.activities.map((r) => ({ ...r }));
       const edited = {
         label: name.value.trim() || this.kindLabel(kind),
         kind,
         start: from.value || row.start,
         end: to.value === "23:59" ? "24:00" : to.value || row.end,
-        weekday: weekly.checked ? day.weekday : null,
-        date: weekly.checked ? null : day.date,
+        weekday: weekly.checked ? when.weekday : null,
+        date: weekly.checked ? null : when.date,
       };
       if (isNew) rows.push(edited);
       else rows[row.index] = edited;
-      this.saveActivities(rows, isNew ? t("Blocked. The plan has moved around it.") : t("Saved. The plan has moved around it."));
+      const weekday = when.short;
+      let said = isNew ? t("Blocked. The plan has moved around it.") : t("Saved. The plan has moved around it.");
+      if (this.setup) said = edited.weekday ? t("Added. It comes back every {day}.", { day: weekday }) : t("Added, on this day only.");
+      this.saveActivities(rows, isNew ? said : t("Saved."));
     };
     const form = h("form", { onsubmit: (event) => { event.preventDefault(); save(); } },
       h("div", { class: "pop-head" }, h("div", { class: "grow" },
-        h("p", { class: "kicker" }, day.label),
-        h("h3", {}, isNew ? t("Block this time") : t("Busy time")))),
-      h("label", { for: "busy-name" }, t("What")), Object.assign(name, { id: "busy-name" }),
+        kicker,
+        title)),
+      h("label", { for: "busy-name" }, t("What")), Object.assign(name, { id: "busy-name" }), courses,
       h("div", { class: "kinds", role: "group", "aria-label": t("Kind") }, chips),
+      h("label", { for: "busy-day" }, t("Day")), dayPick,
       h("div", { class: "row" }, h("div", {}, h("label", {}, t("From")), from), h("div", {}, h("label", {}, t("To")), to)),
-      h("label", { class: "check", for: "weekly" }, weekly, t("Every {day}", { day: day.label.split(" ")[0] })),
+      h("label", { class: "check", for: "weekly" }, weekly, every),
       h("div", { class: "pop-actions" },
         isNew ? null : h("button", {
           type: "button",
@@ -800,12 +847,18 @@ export class Calendar {
           },
         }, t("Delete")),
         h("button", { type: "button", class: "btn", onclick: () => this.closePop() }, t("Cancel")),
-        h("button", { type: "submit", class: "btn btn-primary" }, isNew ? t("Block it") : t("Save"))));
-    this.openPop(anchor, form, isNew ? t("Block this time") : t("Busy time"));
+        h("button", { type: "submit", class: "btn btn-primary" }, isNew ? (this.setup ? t("Add") : t("Block it")) : t("Save"))));
+    this.openPop(anchor, form, title.textContent);
+    if (this.setup && isNew) name.focus();
+  }
+
+  // What a new busy time is at first: a class while drawing a week, else training.
+  get newKind() {
+    return this.setup ? "class" : "training";
   }
 
   openCreate(d, from, to, anchor) {
-    this.activityForm({ kind: "training", start: toClock(from), end: toClock(to) }, d, true, anchor || this.columns[d]);
+    this.activityForm({ kind: this.newKind, start: toClock(from), end: toClock(to) }, d, true, anchor || this.columns[d]);
   }
 
   openActivity(index, d, anchor) {
@@ -815,6 +868,7 @@ export class Calendar {
   addBusy(anchor) {
     if (!this.data) return;
     const d = Math.max(this.data.days.findIndex((day) => day.date === this.data.now.date), 0);
-    this.activityForm({ kind: "training", start: "18:00", end: "19:00" }, d, true, anchor);
+    const [start, end] = this.setup ? ["09:00", "11:00"] : ["18:00", "19:00"];
+    this.activityForm({ kind: this.newKind, start, end }, d, true, anchor);
   }
 }

@@ -26,8 +26,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 547 passed, 16 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 563 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 555 passed, 17 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 572 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -71,7 +71,8 @@ The hosted app's front end is `web/static/`, in the manner of Apple's interface
 guidelines (system font, grouped lists, translucent bars, sheets): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
 red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week, draw,
-drag, popovers, titles that fit, AUDIT 39), `app.js` (the plan screen: the panel is
+drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn by
+hand, classes first, D32), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
 sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried over
