@@ -7,6 +7,7 @@ on the store each made.
 
 from __future__ import annotations
 
+import json
 import random
 from datetime import UTC, date, datetime, timedelta
 from html import unescape
@@ -79,6 +80,18 @@ def test_moving_a_calendar_keeps_weekdays_times_repetitions_and_exams(weeks):
     assert [d.when.date() for d in exams] == [date(2027, 1, 18) + timedelta(weeks=weeks)]
 
 
+# What the first `cps demo` wrote (AUDIT item 50): its marker has a field this
+# version does not know.
+EARLIER = {"people": {"marco": "t0"}, "you": "t1", "group": "g1", "admin": "demo-review-0", "offset_days": 0}
+
+
+def test_a_demo_store_from_an_earlier_version_is_recognised(tmp_path):
+    (tmp_path / showcase.MARKER).write_text(json.dumps(EARLIER), encoding="utf-8")
+    with pytest.raises(showcase.Outdated):
+        showcase.Showcase.load(tmp_path)
+    assert showcase.Showcase.load(tmp_path / "none") is None
+
+
 def test_the_drawn_pages_of_notes_are_images_the_network_keeps():
     page = showcase.page_png(random.Random(1))
     kept, kind = social.clean_photo(page)
@@ -133,6 +146,21 @@ def test_cps_demo_makes_a_store_to_look_around_and_serves_it(tmp_path, capsys):
         assert web.get(f"/admin/{found.admin}").status_code == 200
         home = web.get("/").text
         assert 'action="/demo"' not in home and web.post("/demo").status_code == 404
+
+
+@pytest.mark.slow
+def test_cps_demo_makes_an_earlier_versions_store_again(tmp_path, capsys):
+    store = tmp_path / "demo"
+    store.mkdir()
+    (store / showcase.MARKER).write_text(json.dumps(EARLIER), encoding="utf-8")
+    (store / "cps.sqlite").write_bytes(b"an earlier demo")
+    for flags in ([], ["--fresh"]):  # the owner's crash came with --fresh (AUDIT 50)
+        assert main(["demo", "--public", "--store", str(store), "--no-serve", *flags]) == 0
+        if not flags:
+            assert "made by an earlier version; making it again" in capsys.readouterr().out
+            assert showcase.Showcase.load(store) is not None
+            (store / showcase.MARKER).write_text(json.dumps(EARLIER), encoding="utf-8")
+    assert showcase.Showcase.load(store).you is None  # a public demo's world
 
 
 @pytest.mark.slow

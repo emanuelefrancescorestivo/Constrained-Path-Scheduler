@@ -265,6 +265,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- `cps demo` makes a demo store from an earlier version again instead of crashing on
+  it, `--fresh` or not (AUDIT item 50).
 - The home page's title is one centred column again on a computer; the Progress
   page's tiles had restyled it into two (AUDIT item 49).
 - Toasts no longer arrive half their width off centre (AUDIT item 48).

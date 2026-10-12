@@ -363,14 +363,20 @@ def command_demo(args) -> int:
     makes it again. Only a directory this command made is ever removed."""
     import shutil
 
-    from .showcase import MARKER, Showcase, add_student, seed, seed_world
+    from .showcase import MARKER, Outdated, Showcase, add_student, seed, seed_world
 
     where: Path = args.store
-    found = Showcase.load(where)
-    if where.exists() and any(where.iterdir()) and found is None:
+    try:
+        found, outdated = Showcase.load(where), False
+    except Outdated:
+        # A demo store from an earlier version: ours to remove, not to read (AUDIT 50).
+        found, outdated = None, True
+    if where.exists() and any(where.iterdir()) and found is None and not outdated:
         print(f"{where} is not empty and is not a demo store; choose another --store", file=sys.stderr)
         return 2
-    if found is not None and args.fresh:
+    if outdated:
+        print(f"{where} holds a demo made by an earlier version; making it again", flush=True)
+    if outdated or (found is not None and args.fresh):
         shutil.rmtree(where)
         found = None
     if found is None:

@@ -85,10 +85,20 @@ class Showcase:
 
     @classmethod
     def load(cls, where: Path) -> Showcase | None:
+        """The demo in `where`; None if there is none; `Outdated` if the marker was
+        written by another version of this command (AUDIT item 50)."""
         marker = where / MARKER
         if not marker.exists():
             return None
-        return cls(**json.loads(marker.read_text(encoding="utf-8")))
+        try:
+            return cls(**json.loads(marker.read_text(encoding="utf-8")))
+        except (TypeError, ValueError) as error:
+            raise Outdated(f"{marker} was written by another version of cps demo") from error
+
+
+class Outdated(Exception):
+    """A demo store made by another version of `cps demo`: its own, so safe to make
+    again, but not readable as this version's."""
 
 
 def weeks_for(today: date) -> int:
