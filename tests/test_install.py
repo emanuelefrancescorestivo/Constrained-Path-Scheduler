@@ -90,3 +90,22 @@ def test_a_plan_in_italian(web):
     assert "Disegna la tua settimana" in drawing and "Avanti: esami e scadenze" in drawing
     settings = unescape(web.get(f"/p/{token}/settings").text)
     assert "Impostazioni" in settings and "Sul tuo telefono" in settings and "Italiano" in settings
+
+
+def test_every_file_the_pages_use_ships_with_the_package():
+    """A normal install (`pip install .`, as the host does) carries only the files
+    package-data names; an editable one, as in these tests, has them all (AUDIT 51)."""
+    import fnmatch
+    import tomllib
+
+    root = STATIC.parent
+    project = tomllib.loads((root.parents[2] / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = project["tool"]["setuptools"]["package-data"]["cps.web"]
+    for folder in ("static", "templates"):
+        for path in (root / folder).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts:
+                relative = path.relative_to(root).as_posix()
+                # setuptools' globs, like fnmatch's here, let "*" cross no "/"
+                assert any(
+                    fnmatch.fnmatch(relative, p) and relative.count("/") == p.count("/") for p in patterns
+                ), f"{relative} is not shipped: add a pattern to pyproject.toml"

@@ -274,6 +274,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The app's icons ship with the installed package; on the host they answered 404
+  (AUDIT item 51).
 - The footer's language links are separated now that there are three.
 - `cps demo` makes a demo store from an earlier version again instead of crashing on
   it, `--fresh` or not (AUDIT item 50).

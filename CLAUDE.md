@@ -26,8 +26,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 563 passed, 17 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 580 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 564 passed, 17 deselected, 1 xfailed, about 100 s
+    pytest -m "slow or not slow" --cov=cps   # all 581 + 1 xfailed, 93% coverage, about 4 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
