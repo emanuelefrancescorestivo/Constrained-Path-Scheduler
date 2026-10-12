@@ -5,7 +5,7 @@
 <section class="hero">
   {% set step = 1 %}{% include "_steps.html" %}
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
-  <p class="lead">{{ _("Paste your timetable's link. Your exams are found, your deadlines fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
+  <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
 </section>
 
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
@@ -18,27 +18,51 @@
   <p class="hint">{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}</p>
   <button type="submit" class="btn btn-primary btn-block btn-lg">{{ _("Start the demo") }}</button>
 </form>
-<p class="hint demo-or">{{ _("Or try it with your own timetable below; on this demo server it is kept only until the next restart.") }}</p>
 {% endif %}
 
-<form method="post" action="/start" enctype="multipart/form-data" class="card">
+{# Two ways in, side by side: a timetable that exists somewhere, or none (D32) #}
+<div class="section-title ways-title">
+  <h2>{% if demo %}{{ _("Or start from zero, with your own week") }}{% else %}{{ _("How do you want to start?") }}{% endif %}</h2>
+  {% if demo %}<small>{{ _("kept on this demo server until it restarts") }}</small>{% endif %}
+</div>
+<div class="ways">
+<form method="post" action="/start" enctype="multipart/form-data" class="card way">
   <input type="hidden" name="lang" value="{{ lang() }}">
-  <label for="link">{{ _("Your timetable's link") }}</label>
+  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span>
+  <h3>{{ _("Import your timetable") }}</h3>
+  <p class="hint">{{ _("Your exams are found in it, and every class stays where it is.") }}</p>
+  <label for="file">{{ _("A calendar file (.ics)") }}</label>
+  <label class="drop" for="file">
+    <input id="file" name="file" type="file" accept=".ics,text/calendar" class="drop-input">
+    <span class="drop-text"><b>{{ _("Choose a file") }}</b> {{ _("or drop it here") }}</span>
+    <span class="drop-name" aria-live="polite"></span>
+  </label>
+  <p class="hint">{{ _("Export it from your university's timetable, Google Calendar, Outlook or Apple Calendar.") }}</p>
+  <label for="link">{{ _("Or its link") }}</label>
   <input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="{{ _('https://… or webcal://…') }}" value="{{ link or '' }}">
   <p class="hint">{{ _("From ADE, Hyperplanning or your university's timetable (the export or subscription address), or Google Calendar's secret address in iCal format.") }}</p>
   <details>
-    <summary>{{ _("No link? Use a calendar file") }}</summary>
-    <label for="file">{{ _("Calendar file (.ics)") }}</label>
-    <input id="file" name="file" type="file" accept=".ics,text/calendar">
-  </details>
-  <details>
     <summary>{{ _("Time zone: {zone}", zone=tz or 'Europe/Paris') }}</summary>
     <label for="tz">{{ _("Time zone") }}</label>
-    <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off"{% if error %} data-chosen="1"{% endif %}>
+    <input id="tz" name="tz" value="{{ tz or 'Europe/Paris' }}" autocomplete="off" data-tz{% if error %} data-chosen="1"{% endif %}>
   </details>
   <p><button type="submit" class="btn btn-primary btn-block">{{ _("Plan my semester") }}</button></p>
-  <p class="hint">{{ _("No account, no password: your plan lives at a private address you keep, like a calendar subscription link.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
 </form>
+
+<form method="post" action="/start" class="card way way-draw">
+  <input type="hidden" name="lang" value="{{ lang() }}">
+  <input type="hidden" name="draw" value="1">
+  <input type="hidden" name="tz" value="{{ tz or 'Europe/Paris' }}" data-tz>
+  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8.5 2.5v4M15.5 2.5v4"/><path d="M8 13h3M13 16.5h3"/></svg></span>
+  <h3>{{ _("No file? Draw your week") }}</h3>
+  <p class="hint">{{ _("Drag your classes onto a week, as in a calendar app; each one comes back every week. Then give the exams' dates. About two minutes.") }}</p>
+  <div class="mini-week" aria-hidden="true">
+    {% for d in range(5) %}<div class="mini-day">{% for b in ((1, 3, 0), (5, 2, 1)) if (d + b[0]) % 3 != 2 %}<span class="mini-class c{{ (b[2] + d) % 4 }} at{{ (b[0] + d) % 6 }} h{{ b[1] }}"></span>{% endfor %}</div>{% endfor %}
+  </div>
+  <p><button type="submit" class="btn btn-block btn-tinted">{{ _("Draw my week") }}</button></p>
+</form>
+</div>
+<p class="hint ways-note">{{ _("No account, no password: your plan lives at a private address you keep, like a calendar subscription link.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
 
 <ul class="features">
   <li><strong>{{ _("Deadlines first") }}</strong>{{ _("Earliest due first, with a warning early enough to act when one will not fit.") }}</li>

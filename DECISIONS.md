@@ -669,3 +669,46 @@ the package as the pilot does, one fewer file to keep).
 visitors, and the first visit then waits about a minute while it starts and makes
 the world again; links to students made before are gone. The review page's address
 is printed in the service's logs. Nothing in the demo is a number in the documents.
+
+## D32. Starting from zero: import a timetable, or draw the week by hand
+
+*Asked by the owner on 2026-10-12, about the public demo: "it should let them start
+from zero and input their calendar either with a file or manually with a very
+welcoming calendar interface".*
+
+**Chosen.** Two ways in, side by side on the home page, and under "Start the demo"
+on the public demo:
+
+1. **Import your timetable.** A file first, in a box to drop it on or tap to choose
+   it (the browser's own file field, unseen, covers the box, so dropping needs no
+   script); its link below. This is the existing start: the exams in it are found.
+2. **No file? Draw your week.** One tap makes a plan with nothing in it and opens
+   its calendar alone (no Today panel, no new-task button), with a welcome above it
+   and, on the empty week, how to begin: drag where a class is (tap its hour, on a
+   phone), name it after its course. A drawn class is a busy time of a new kind,
+   Class: weekly by default, in its course's colour, its course offered again when
+   the next class is named. The form has a day picker over the seven days from the
+   first shown, so a class can be put on any day from a phone's 3-day view or with
+   the "Add a class" button. "Next: exams and deadlines" leads to the existing
+   settings page, where each course drawn is an exam row with its name filled in:
+   its date is all the student types, and a row left without one is a class with no
+   exam, left out. Then the plan, the week and the feed, as after an import.
+
+On a phone, drawing comes first: a timetable file is rarely at hand there, and the
+demo is shared on phones.
+
+**Why.** The planner needs the busy times and the exams; a timetable file carries
+both, but many students have no export at hand (or a university without one), and
+friends trying the demo on a phone have none. A week drawn in a familiar calendar is
+the same information, given the way people already enter it.
+
+**Rejected.** A separate timetable editor (a second calendar to learn; the plan's
+own calendar already draws, drags and resizes busy times); typed rows as the main
+way (they stay, for a browser without scripts, now with each row's kind); asking
+for the exams before the classes (the exam rows can then be offered by name);
+guessing an exam per drawn course (a date nobody gave is not one to plan to).
+
+**Disclosed.** A drawn class is not a lecture: the planner's weekly topics (METHOD.md
+§7) come from a timetable file's lectures only, so a drawn course is studied as one
+subject until its exam. A plan with no exam and no deadline makes no sessions, and
+says so on the next page. Checked in Chromium at 1280 and 390 px, light and dark.

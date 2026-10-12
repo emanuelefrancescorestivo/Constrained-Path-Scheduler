@@ -162,8 +162,11 @@ and gets a made-up student of their own; nothing to sign up for, everything wipe
 each restart, and the first visit after a quiet spell takes about a minute while the
 free instance wakes up.
 
-1. **Start**: paste the timetable's link (or choose its file). The exams in it are
-   found; the week starts at 15 hours with Sundays off, both stated defaults.
+1. **Start**: drop the timetable's file, or paste its link; the exams in it are
+   found. No file? **Draw my week**: drag your classes onto an empty week (tap, on a
+   phone), each one named after its course and back every week, then give the exams'
+   dates. Either way the week starts at 15 hours with Sundays off, both stated
+   defaults.
 2. **Settings**: check the exams, add deadlines (or the learning platform's calendar
    link, and Moodle's assignments and quizzes arrive by themselves at a guessed 2
    hours each), weekly hours, days off.
@@ -396,8 +399,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 547 passed, 16 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 563 passed, 1 xfailed, 93% coverage
+pytest                                    # 554 passed, 16 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 570 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

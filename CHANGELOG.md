@@ -6,12 +6,23 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Starting from zero (D32): the home page offers two ways in, side by side: import
+  a timetable (a file, dropped or chosen, or its link), or, with no file, "Draw my
+  week". Drawing opens the calendar alone, empty, with a welcome above it: drag (or
+  tap, on a phone) where each class is and name it; it comes back every week in its
+  course's colour, and a day can be chosen in the form, so a phone's 3-day view can
+  place a class on any day. A new kind of busy time, Class, is a course: the next
+  page offers each course drawn as an exam row with its name filled in (left out
+  when it has no date). Without scripts, classes are typed in the settings, which
+  now let each busy time's kind be chosen. In the public demo the same two ways sit
+  under "Start the demo".
 - A public demo (D31): `cps demo --public` gives each visitor who presses "Start
   the demo" a made-up student of their own, with the semester so far, among five
   shared classmates; `deploy/demo/render.yaml` runs it on Render's free plan, wiped
   at each restart, as FeedForward's demo. The semester is reported once at start and
-  copied for each visitor, so a student is ready in under a second. Every page says
-  it is a demo; an old link after a restart offers a new student.
+  copied for each visitor, so a student is ready in seconds, not after a semester of
+  planning again. Every page says it is a demo; an old link after a restart offers a
+  new student.
 - `cps demo`: the hosted app on a store of made-up students, to look around and give
   feedback: @alex on the sample timetable with weeks of history (reports, focus
   sessions, a streak, trends), five classmates at other universities with posts,

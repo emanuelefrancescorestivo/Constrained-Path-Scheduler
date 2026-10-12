@@ -12,6 +12,7 @@ const token = plan.dataset.token;
 const panel = () => document.getElementById("panel");
 
 async function refreshPanel() {
+  if (!panel()) return; // drawing a week (D32): the calendar alone
   try {
     const response = await fetch(`/p/${token}/panel`);
     if (response.ok) {
@@ -36,6 +37,7 @@ const calendar = new Calendar(document.getElementById("calendar"), {
   first: plan.dataset.first,
   toast: (text, bad) => toast(text, { bad }),
   onChanged: refreshPanel,
+  setup: plan.dataset.setup === "classes",
   onRange: (text, view) => {
     document.getElementById("calendar-range").textContent = text;
     bar.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.view) === view ? "true" : "false"));
@@ -44,6 +46,7 @@ const calendar = new Calendar(document.getElementById("calendar"), {
 
 // The reports in the panel go through the calendar, which redraws itself.
 function wirePanel() {
+  if (!panel()) return;
   panel().querySelectorAll("form[data-report]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
