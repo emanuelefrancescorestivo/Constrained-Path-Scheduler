@@ -4345,7 +4345,7 @@ def review_with_ai(
         return review
     now = now or datetime.now(UTC)
     lang = language_of(subscription)
-    system, prompt = _ai.review_prompt(review, {"fr": "French"}.get(lang, "English"))
+    system, prompt = _ai.review_prompt(review, {"fr": "French", "it": "Italian"}.get(lang, "English"))
     key = f"{review['week']}:{lang}:{hashlib.sha256(prompt.encode()).hexdigest()[:12]}"
     kept = subscription.options.get("review_ai") or {}
     if key in kept:

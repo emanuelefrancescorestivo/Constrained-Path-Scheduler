@@ -1,6 +1,6 @@
 // The scripts' own words, in the page's language (<html lang>, which the server
 // sets from the plan). Everything else on a page is written by the server, from
-// cps/locales/fr.py; tests/test_i18n.py checks both catalogues are complete.
+// cps/locales/fr.py and it.py; tests/test_i18n.py checks every catalogue is complete.
 const FR = {
   "Self-test": "Auto-test",
   "Deadline work": "Travail à rendre",
@@ -72,9 +72,84 @@ const FR = {
   "Drag on the calendar to add your first class": "Fais glisser sur le calendrier pour ajouter ton premier cours",
   "From its start to its end, on its day; you can change it after.": "De son début à sa fin, le bon jour ; tu pourras le modifier ensuite.",
   "Tap the hour it starts; you can change it after.": "Touche l'heure où il commence ; tu pourras le modifier ensuite.",
+  "You are offline. This is your plan as it was when you last opened it; changes wait for the network.": "Tu es hors ligne. Voici ton plan tel qu'il était la dernière fois que tu l'as ouvert ; les changements attendent le réseau.",
 };
 
-const CATALOGUES = { fr: FR };
+
+// Italian (D34): the same words, in the same order as above.
+const IT = {
+  "Self-test": "Autotest",
+  "Deadline work": "Lavoro con scadenza",
+  "Exam practice": "Esercitazione d'esame",
+  "Study": "Studio",
+  "Done": "Fatta",
+  "Skipped": "Saltata",
+  "Hard": "Difficile",
+  "Nothing": "Niente",
+  "Some": "Una parte",
+  "Most": "La maggior parte",
+  "All": "Tutto",
+  "How much could you recall, without your notes?": "Quanto riuscivi a ricordare, senza appunti?",
+  "Recorded. Your exam forecast now uses what you recalled.": "Registrato. La tua previsione d'esame ora usa quello che hai ricordato.",
+  "The server answered {status}.": "Il server ha risposto {status}.",
+  "Courses": "Corsi",
+  "Busy": "Occupato",
+  "Moved. It stays there; the rest of the plan has made room.": "Spostata. Resta lì; il resto del piano ha fatto spazio.",
+  "Saved. The plan has moved around it.": "Salvato. Il piano si è organizzato intorno.",
+  "An exam from your timetable. Practice sessions are planned in the two weeks before it.": "Un esame del tuo orario. Le esercitazioni sono pianificate nelle due settimane prima.",
+  "From your timetable. Nothing is planned at the same time.": "Dal tuo orario. Niente viene pianificato nello stesso momento.",
+  "Placed by you": "Messa da te",
+  "How did it go?": "Com'è andata?",
+  "Recorded: {word}. The plan has adjusted.": "Registrato: {word}. Il piano si è adattato.",
+  "Date": "Data",
+  "Start": "Inizio",
+  "Move it": "Spostala",
+  "It stays where you put it.": "Resta dove la metti.",
+  "Or drag it on the calendar. It stays where you put it.": "Oppure trascinala sul calendario. Resta dove la metti.",
+  "The plan chooses its time again.": "Il piano sceglie di nuovo il suo orario.",
+  "Let the plan choose": "Lascia scegliere al piano",
+  "Move": "Sposta",
+  "Open this session's page": "Apri la pagina di questa sessione",
+  "Name": "Nome",
+  "From": "Dalle",
+  "To": "Alle",
+  "Blocked. The plan has moved around it.": "Bloccato. Il piano si è organizzato intorno.",
+  "Block this time": "Blocca questo tempo",
+  "Busy time": "Impegno",
+  "What": "Cosa",
+  "Kind": "Tipo",
+  "Every {day}": "Ogni {day}",
+  "Removed. That time is free again.": "Tolto. Quel tempo è di nuovo libero.",
+  "Delete": "Cancella",
+  "Cancel": "Annulla",
+  "Block it": "Bloccalo",
+  "Save": "Salva",
+  "{label}, {day}, {start} to {end}": "{label}, {day}, dalle {start} alle {end}",
+  "That did not work. Try again.": "Non ha funzionato. Riprova.",
+  "Done: {name}. Its remaining sessions are free again.": "Fatto: {name}. Le sue sessioni rimaste sono di nuovo libere.",
+  "Undo": "Annulla",
+  "Saved.": "Salvato.",
+  "No connection to the server. Try again.": "Nessuna connessione al server. Riprova.",
+  "Reopened: {name}.": "Riaperta: {name}.",
+  "Could not reopen it.": "Non è stato possibile riaprirla.",
+  "left the app {n} time ({minutes} min)": "uscito dall'app {n} volta ({minutes} min)",
+  "left the app {n} times ({minutes} min)": "uscito dall'app {n} volte ({minutes} min)",
+  "A photo could not be read. Try a JPEG or a PNG.": "Non è stato possibile leggere una foto. Prova un JPEG o un PNG.",
+  "At most {n} photos. Choose fewer.": "Al massimo {n} foto. Scegline meno.",
+  "Add": "Aggiungi",
+  "Add a class": "Aggiungi una lezione",
+  "Added, on this day only.": "Aggiunta, solo in questo giorno.",
+  "Added. It comes back every {day}.": "Aggiunta. Torna ogni {day}.",
+  "Class": "Lezione",
+  "Course, e.g. Algebra": "Corso, ad es. Analisi",
+  "Day": "Giorno",
+  "Drag on the calendar to add your first class": "Trascina sul calendario per aggiungere la tua prima lezione",
+  "From its start to its end, on its day; you can change it after.": "Dal suo inizio alla sua fine, nel suo giorno; potrai cambiarla dopo.",
+  "Tap the hour it starts; you can change it after.": "Tocca l'ora in cui inizia; potrai cambiarla dopo.",
+  "You are offline. This is your plan as it was when you last opened it; changes wait for the network.": "Sei offline. Questo è il tuo piano com'era l'ultima volta che l'hai aperto; le modifiche aspettano la rete.",
+};
+
+const CATALOGUES = { fr: FR, it: IT };
 
 export function t(text, values = {}) {
   const lang = (document.documentElement.lang || "en").slice(0, 2);
@@ -83,3 +158,4 @@ export function t(text, values = {}) {
 }
 
 export const CATALOGUE_FR = FR;
+export const CATALOGUE_IT = IT;

@@ -130,7 +130,8 @@ mathematics and the admissibility arguments.
 
 `cps web` is the product as students would use it: one server for the pages, the
 calendar feeds and the reports, built for a phone and for a pilot on a small host
-(`docs/DEPLOY.md`, `render.yaml`), in French and English (the language is the plan's;
+(`docs/DEPLOY.md`, `render.yaml`), installable on a phone's home screen and readable
+offline (D33), in English, French and Italian (the language is the plan's;
 what is still English is AUDIT.md item 40).
 
 ```bash
@@ -377,7 +378,7 @@ in a real browser are the owner's.
 | `src/cps/service.py` | the one API every front end uses |
 | `src/cps/assistant.py` | the assistant's rules: deadlines, budget, days off, exam practice, self-testing |
 | `src/cps/progress.py` | the streak, the week's ring and the day grid, derived from the plan and the reports |
-| `src/cps/i18n.py`, `locales/` | French and English: one catalogue keyed by the English sentence |
+| `src/cps/i18n.py`, `locales/` | English, French and Italian: one catalogue per language, keyed by the English sentence |
 | `src/cps/web/` | the hosted app (`cps web`): the plan screen and its calendar (`static/calendar.js`), setup, feeds, one-tap reports |
 | `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
@@ -399,8 +400,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 555 passed, 17 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 572 passed, 1 xfailed, 93% coverage
+pytest                                    # 563 passed, 17 deselected (slow), 1 xfailed, ~100 s
+pytest -m "slow or not slow" --cov=cps    # everything: 580 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

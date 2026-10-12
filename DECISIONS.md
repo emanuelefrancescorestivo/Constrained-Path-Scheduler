@@ -712,3 +712,69 @@ guessing an exam per drawn course (a date nobody gave is not one to plan to).
 §7) come from a timetable file's lectures only, so a drawn course is studied as one
 subject until its exam. A plan with no exam and no deadline makes no sessions, and
 says so on the next page. Checked in Chromium at 1280 and 390 px, light and dark.
+
+## D33. An app on the home screen: installable, with an icon, and working offline
+
+*Step 2 of the owner's readiness review (2026-10-12): "a real application that any
+student could download tomorrow".*
+
+**Chosen.** The site becomes an installable web app, the shortest way to an icon on
+a phone with no app store in between:
+
+1. **A manifest per plan** (`/p/<token>/manifest.webmanifest`): installed from a
+   plan's page, the app opens that plan; from the home page, the start page. Its
+   name is in the plan's language. Icons at 192 and 512 px, a maskable one for
+   Android's shapes, an Apple touch icon, an SVG favicon.
+2. **The icon** says what the app is about (the owner asked for "how it optimises
+   neuroscience of learning"): a brain, and inside it recall over time. Memory
+   falls; each review, at the right moment, brings it back; after each it falls
+   less and the next can wait longer, which is what the planner's FSRS model does.
+   Two other drafts were shown (the curve alone; a filled brain).
+3. **A service worker** (`/sw.js`, from the root so it may answer for the whole
+   site). A plan's pages and the calendar's data are asked of the server first, and
+   the last answer is kept on the device; without a network that copy is shown,
+   under a banner saying it is the plan as last opened and that changes wait. A
+   page never opened shows an offline page, in the language of the page that
+   registered the worker. The app's own files are kept and refreshed in the
+   background. Forms are never kept or replayed.
+4. **Installing.** Where the browser offers it (Chrome, Edge, Android), a card on
+   Today and a button in Settings call its own prompt; on an iPhone or iPad, the
+   card says how (Share, Add to Home Screen), since Safari has no prompt. "Not now"
+   hides the card on that device. Settings say in words how to do it elsewhere.
+
+**Why.** Students live on their phones; an icon is the difference between an app
+and a link they lost. Offline matters on the metro and in lecture halls with bad
+reception: the next session and the week are what a student opens the app for.
+
+**Rejected, for now.** App store apps (developer accounts for the owner, Apple's
+review, a wrapper to maintain: later, once the web app has users); push
+notifications (step 4 of the review: they need the app installed on an iPhone,
+which this step makes possible); keeping forms sent offline to send later (a report
+sent twice, or late without saying so, is worse than "try again").
+
+**Disclosed.** The pages are sent with `Cache-Control: no-store`; the service
+worker keeps its own copy anyway, which is a choice: only a plan's pages, on that
+device, the 60 most recent; deleting the plan tells the worker to forget them; the
+privacy page and Settings say so. Checked in Chromium, also with the server
+stopped mid-session; not on a real iPhone, where Safari's support for installed web
+apps differs (the owner's check, step 1 of the review).
+
+## D34. Italian
+
+*Step 2 of the readiness review: the owner's friends, the demo's first users, are
+Italian.*
+
+**Chosen.** A third language, complete: every sentence of the pages, the service's
+messages, the calendar events and the scripts (962 and 69 entries, the same keys as
+French), dates in Italian words ("lunedì 12 ottobre", "lun 12 ott"), decimal
+commas, English's plural rule ("1 giorno, 0 giorni"). The informal *tu*, as French.
+The language comes from the plan, else the address's `?lang=`, else the browser; a
+demo student is planned in the visitor's language. The footer and Settings offer
+the three. `tests/test_i18n.py` checks every catalogue the same way, now also that
+each translation keeps its markup.
+
+**Disclosed.** Tasks typed in one line are read by rules in English and French
+only; in Italian, the AI reads them if it is on, else the form asks for the date.
+Moodle deadlines are still read from English event names (as before). The
+translation was written by the assistant, not by a native speaker: the owner, who
+is one, is asked to read it.

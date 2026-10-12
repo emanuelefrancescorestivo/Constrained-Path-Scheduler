@@ -1,8 +1,8 @@
 """
-French and English (DECISIONS.md, D10): every sentence the code marks for
-translation has a French entry, in the server's catalogue (cps/locales/fr.py) and
-in the scripts' (static/i18n.js); entries keep their {placeholders}; and a French
-plan's pages are French.
+English, French (DECISIONS.md, D10) and Italian (D34): every sentence the code
+marks for translation has an entry in each language, in the server's catalogues
+(cps/locales/fr.py, it.py) and in the scripts' (static/i18n.js); entries keep their
+{placeholders}; and a French or Italian plan's pages are in its language.
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ import pytest
 
 from cps import i18n, service
 from cps.locales.fr import MESSAGES
+from cps.locales.it import MESSAGES as ITALIAN
+
+CATALOGUES = {"fr": MESSAGES, "it": ITALIAN}
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "cps"
@@ -83,26 +86,32 @@ def indirect_sentences() -> set[str]:
     }
 
 
-def test_every_marked_sentence_has_a_french_entry():
+@pytest.mark.parametrize("lang", sorted(CATALOGUES))
+def test_every_marked_sentence_has_an_entry_in_each_language(lang):
     pytest.importorskip("fastapi")
     wanted = python_sentences() | template_sentences() | indirect_sentences()
     assert len(wanted) > 300  # the extraction found the app, not nothing
-    missing = sorted(wanted - MESSAGES.keys())
-    assert not missing, "no French for:\n" + "\n".join(missing)
+    missing = sorted(wanted - CATALOGUES[lang].keys())
+    assert not missing, f"no {lang} for:\n" + "\n".join(missing)
 
 
-def test_translations_keep_their_placeholders_and_add_none():
-    for english, french in MESSAGES.items():
-        assert set(re.findall(r"\{(\w+)\}", english)) == set(re.findall(r"\{(\w+)\}", french)), english
-        assert french.strip() and french == french.strip(), english
+@pytest.mark.parametrize("lang", sorted(CATALOGUES))
+def test_translations_keep_their_placeholders_and_add_none(lang):
+    for english, said in CATALOGUES[lang].items():
+        assert set(re.findall(r"\{(\w+)\}", english)) == set(re.findall(r"\{(\w+)\}", said)), english
+        assert said.strip() and said == said.strip(), english
+        # Markup survives translation: the same tags, in the same number.
+        assert sorted(re.findall(r"</?\w+", english)) == sorted(re.findall(r"</?\w+", said)), english
 
 
 SCRIPT_CALL = re.compile(r"\bt\(\s*" + _LITERAL)
 
 
-def test_the_scripts_words_have_french_too():
+@pytest.mark.parametrize("lang", ["FR", "IT"])
+def test_the_scripts_words_are_in_each_language(lang):
     static = SRC / "web" / "static"
-    catalogue = (static / "i18n.js").read_text(encoding="utf-8")
+    script = (static / "i18n.js").read_text(encoding="utf-8")
+    catalogue = script.split(f"const {lang} = {{", 1)[1].split("\n};", 1)[0]
     keys = {ast.literal_eval(k) for k in re.findall(r'^\s*("(?:[^"\\]|\\.)*"):', catalogue, re.M)}
     used = set()
     for path in static.glob("*.js"):
@@ -125,6 +134,13 @@ def test_dates_numbers_and_plurals_in_each_language():
             i18n._n("{n} day", "{n} days", 0) == "0 jour" and i18n._n("{n} day", "{n} days", 2) == "2 jours"
         )
         assert i18n._("A sentence nobody translated") == "A sentence nobody translated"
+    with i18n.use("it-IT"):
+        assert i18n.current() == "it"
+        assert i18n.format_date(day) == "lunedì 5 ottobre" and i18n.format_date(day, "short") == "lun 5 ott"
+        assert i18n.format_date(date(2026, 11, 1), "month") == "novembre 2026"
+        assert i18n._n("{n} day", "{n} days", 0) == "0 giorni"
+        assert i18n._n("{n} day", "{n} days", 1) == "1 giorno"
+        assert i18n.number(1.5) == "1,5" and i18n.number(3.0) == "3"
     assert i18n._n("{n} day", "{n} days", 0) == "0 days"
     assert i18n.current() == "en"  # the language was put back
 
@@ -134,3 +150,9 @@ def test_topic_names_stay_identifiers_and_are_shown_in_the_language():
     with i18n.use("fr"):
         assert service.topic_words("Algebra 3 · week of 05 Oct") == "Algebra 3 · semaine du 5 oct."
         assert service.topic_words("taught before 29 Sep") == "vu avant le 29 sept."
+
+
+def test_topic_names_are_shown_in_italian_too():
+    with i18n.use("it"):
+        assert service.topic_words("Algebra 3 · week of 05 Oct") == "Algebra 3 · settimana del 5 ott"
+        assert service.topic_words("taught before 29 Sep") == "spiegato prima del 29 set"

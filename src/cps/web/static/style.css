@@ -193,11 +193,7 @@ small, .muted { color: var(--muted); }
   border-bottom: 0.5px solid var(--line-strong);
 }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 1rem; color: var(--text); text-decoration: none !important; }
-.brand-mark {
-  width: 28px; height: 28px; border-radius: 7px; flex: none;
-  background: linear-gradient(160deg, #5ac8fa, #007aff 55%, #5856d6);
-  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 12%);
-}
+.brand-mark { width: 28px; height: 28px; flex: none; display: block; }
 /* The pages, as a segmented control */
 .nav { display: flex; padding: 2px; border-radius: 9px; background: var(--fill-3); }
 .nav a {
@@ -1356,3 +1352,19 @@ html:not(.settled) :is(.feed, .library, .group-list, .tiles) > :nth-child(n+5) {
 :root[data-motion="reduce"]::view-transition-group(*),
 :root[data-motion="reduce"]::view-transition-old(*),
 :root[data-motion="reduce"]::view-transition-new(*) { animation: none !important; }
+
+/* -- the app on a home screen (D33) ------------------------------------------------ */
+.offline-banner {
+  position: sticky; top: 0; z-index: 60; margin: 0; padding: 8px 16px; text-align: center;
+  background: var(--fill-3); color: var(--text); font-size: 0.85rem;
+  -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px);
+}
+html.offline form button[type="submit"] { opacity: 0.6; }
+.install-card { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.install-card[hidden] { display: none; }
+.install-card img { width: 44px; height: 44px; flex: none; }
+.install-card p { margin: 2px 0 8px; color: var(--muted); font-size: 0.88rem; }
+.install-card .row-end { display: flex; gap: 8px; flex-wrap: wrap; }
+.install-steps { margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.88rem; }
+.offline-page { text-align: center; padding-top: 12vh; }
+.offline-page img { width: 72px; height: 72px; margin: 0 auto 12px; display: block; }

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Offline") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# Shown by the service worker for a page it has no copy of (D33) #}
+<div class="offline-page">
+  <img src="/static/icons/icon.svg" alt="">
+  <h1>{{ _("No network") }}</h1>
+  <p class="muted">{{ _("This page has not been opened on this device yet, so there is no copy of it. The pages of your plan you have opened before still work offline.") }}</p>
+  <p><a class="btn btn-primary" href="/">{{ _("Try again") }}</a></p>
+</div>
+{% endblock %}

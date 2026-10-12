@@ -475,16 +475,23 @@ def add_student(
     handle: str | None = None,
     real_now: datetime | None = None,
     seed: int | None = None,
+    lang: str | None = None,
 ) -> Student:
     """A new student in the world: their plan on the moved sample timetable with the
     semester so far, a profile (`handle`, or a made-up one such as "calm_otter27"),
     three classmates followed and following back, a follow request, kudos and a
     comment on what they shared, a study group with three teammates of their own,
-    chloe's invitation while her group has room, and flashcards, some due."""
+    chloe's invitation while her group has room, and flashcards, some due; in
+    `lang`, the visitor's language, when given."""
     rng = random.Random(seed if seed is not None else secrets.randbits(32))
     now = real_now or datetime.now(UTC)
     model, mate_model = _template(where, world.first, now)
     you = _copy(where, model)
+    if lang and lang != service.language_of(you):
+        # The model is planned in English; a visitor reading French or Italian gets
+        # their student planned again in it (D34), what to do in each session included.
+        you = service.set_language(you, lang, now=now)
+        service.save_subscription(where, you)
     wanted = handle or f"{rng.choice(ADJECTIVES)}_{rng.choice(ANIMALS)}{rng.randint(10, 99)}"
     handle = _join(where, you.token, _free_handle(where, wanted), "Université Lyon 1", "L2 Mathématiques")
     you = _diary(where, you, world.first, now, rng)

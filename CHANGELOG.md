@@ -6,6 +6,15 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- An app on the home screen (D33): installable from the browser (a manifest per
+  plan, so the installed app opens that plan), an icon showing a brain and the
+  memory curve that spaced reviews keep high, and a service worker that keeps the
+  plan's pages and calendar on the device: without a network the plan as last
+  opened is shown, with a banner, and a page never opened shows an offline page.
+  A card on Today and a section in Settings install it (on an iPhone, they say how).
+- Italian (D34): every page, message, calendar event and script word, with Italian
+  dates, decimal commas and plurals; demo students are planned in the visitor's
+  language.
 - Starting from zero (D32): the home page offers two ways in, side by side: import
   a timetable (a file, dropped or chosen, or its link), or, with no file, "Draw my
   week". Drawing opens the calendar alone, empty, with a welcome above it: drag (or
@@ -265,6 +274,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The footer's language links are separated now that there are three.
 - `cps demo` makes a demo store from an earlier version again instead of crashing on
   it, `--fresh` or not (AUDIT item 50).
 - The home page's title is one centred column again on a computer; the Progress

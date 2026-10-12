@@ -7,6 +7,19 @@
   <aside class="panel" aria-label="{{ _('Today') }}">
     {% if reported %}<p class="notice notice-ok" role="status">{{ _("Recorded: {word}. The plan has changed to match.", word=reported) }}</p>{% endif %}
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+    {# Shown by pwa.js where the app can be installed and is not yet (D33) #}
+    <div class="card install-card" data-install-card hidden>
+      <img src="/static/icons/icon.svg" alt="">
+      <div class="grow">
+        <b>{{ _("Put it on your home screen") }}</b>
+        <p>{{ _("It opens like an app, full screen, and shows your plan even without a network.") }}</p>
+        <p class="hint" data-install-ios hidden>{{ _h("In Safari: tap <b>Share</b>, then <b>Add to Home Screen</b>.") }}</p>
+        <div class="row-end">
+          <button type="button" class="btn btn-primary btn-sm" data-install hidden>{{ _("Install") }}</button>
+          <button type="button" class="btn btn-plain btn-sm" data-install-dismiss>{{ _("Not now") }}</button>
+        </div>
+      </div>
+    </div>
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
   {% endif %}

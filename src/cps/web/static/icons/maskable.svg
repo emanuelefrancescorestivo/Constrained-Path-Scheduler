@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<!-- The app's icon (DECISIONS.md D33): a brain, and inside it recall over time.
+     Memory fades; each review, at the right moment, brings it back; after each
+     one it fades less, and the next review can wait longer. -->
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a5cf0"/><stop offset="1" stop-color="#2550d9"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#g)"/>
+<g transform="translate(51.2 51.2) scale(0.8)"><g fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+<path d="M256 104 C206 84 146 106 136 162 C98 178 90 236 120 262 C104 306 140 352 190 350 C210 390 248 398 256 378 Z"/>
+<path d="M256 104 C306 84 366 106 376 162 C414 178 422 236 392 262 C408 306 372 352 322 350 C302 390 264 398 256 378"/></g>
+<path d="M146 200 L148 214 L150 227 L152 238 L154 247 L156 256 L158 263 L161 270 L163 276 L165 281 L167 286 L169 290 L171 293 L173 296 L175 299 L177 302 L179 304 L181 306 L184 307 L186 309 L188 310 L190 311 L192 312 L194 313 L196 314 L196 200 L196 200 L199 209 L202 217 L204 224 L207 230 L210 235 L212 240 L215 244 L218 248 L221 251 L224 254 L226 257 L229 259 L232 261 L234 263 L237 264 L240 266 L243 267 L246 268 L248 269 L251 270 L254 270 L256 271 L259 271 L262 272 L262 200 L262 200 L265 205 L268 210 L272 214 L275 217 L278 221 L282 223 L285 226 L288 228 L291 230 L294 232 L298 233 L301 234 L304 235 L308 237 L311 237 L314 238 L317 239 L320 240 L324 240 L327 241 L330 241 L334 241 L337 242 L340 242 L340 200 L340 200 L341 203 L343 205 L344 207 L345 209 L347 211 L348 212 L349 213 L351 214 L352 215 L353 216 L355 217 L356 218 L357 218 L359 219 L360 219 L361 220 L363 220 L364 220 L365 221 L367 221 L368 221 L369 221 L371 221 L372 222" fill="none" stroke="#ffc53d" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="196" cy="200" r="18" fill="#ffffff"/><circle cx="196" cy="200" r="10" fill="#ffc53d"/><circle cx="262" cy="200" r="18" fill="#ffffff"/><circle cx="262" cy="200" r="10" fill="#ffc53d"/><circle cx="340" cy="200" r="18" fill="#ffffff"/><circle cx="340" cy="200" r="10" fill="#ffc53d"/></g></svg>
