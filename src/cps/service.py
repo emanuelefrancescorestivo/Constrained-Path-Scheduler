@@ -54,6 +54,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 
+from . import accounts as _accounts
 from . import ai as _ai
 from . import cards as flashcards
 from . import i18n as _i18n
@@ -1523,8 +1524,10 @@ FEED_REFRESH = timedelta(hours=6)
 # The store is one SQLite file (`cps.store`); a directory means cps.sqlite inside it.
 FEED_STORE = Path(os.environ.get("CPS_DB") or os.environ.get("CPS_FEED_DIR") or Path.home() / ".cps")
 FEED_URL = os.environ.get("CPS_FEED_URL") or "http://localhost:8765"
-# Kept 30 days after the last exam or deadline, then deleted (docs/ROADMAP.md, D6).
-RETENTION = timedelta(days=30)
+# Kept 12 months after the student last opened it, then deleted (D36; until
+# 2026-10 it was 30 days after the last exam, D6, which lost a student's history
+# between two semesters and never deleted a plan without an exam, AUDIT item 52).
+RETENTION = timedelta(days=365)
 # What a student can report about a session.
 REPORTS = ("done", "skipped", "struggled", "forgot", "some", "most", "all")
 # A self-test's answer to "how much could you recall, without your notes?" (D25),
@@ -1566,6 +1569,9 @@ class Subscription:
     error: str | None = None
     # What the student reported, by `session_id`: "done", "skipped" or "struggled".
     outcomes: dict = field(default_factory=dict)
+    # When the student last opened the plan (UTC, ISO), counted once a day: what
+    # the plan's deletion is counted from (`subscription_expiry`, D36).
+    seen: str | None = None
 
     def to_dict(self) -> dict:
         out = {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -1644,7 +1650,7 @@ def new_subscription(
     rows = tuple(_row_to_dict(BusyRow.parse(r)) for r in busy_rows)
     subscription = Subscription(
         token=secrets.token_urlsafe(24),
-        created=datetime.now(UTC).isoformat(timespec="seconds"),
+        created=(now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds"),
         source_url=source_url.strip() if source_url else None,
         ics_text=decode_ics(ics) if ics is not None else None,
         busy_rows=rows,
@@ -2104,14 +2110,20 @@ def _rows(busy_rows: Iterable[BusyRow | Mapping]) -> tuple[dict, ...]:
     return tuple(out)
 
 
-def subscription_expiry(subscription: Subscription) -> datetime | None:
-    """When a subscription is deleted: `RETENTION` after its last exam or deadline."""
-    if subscription.plan is None:
+def subscription_expiry(subscription: Subscription) -> datetime:
+    """When a subscription is deleted: `RETENTION` after the student last opened it
+    (or made it, if never opened since). Exams no longer count: a plan between two
+    semesters has none, and is kept (D36)."""
+    return datetime.fromisoformat(subscription.seen or subscription.created) + RETENTION
+
+
+def _expiry_of(data: Mapping) -> str | None:
+    """`subscription_expiry` of a stored document, for the sweep, which checks
+    documents saved under an older rule again before deleting them (D36)."""
+    moment = data.get("seen") or data.get("created")
+    if not moment:
         return None
-    plan = PlanReport.from_dict(subscription.plan)
-    moments = [datetime.fromisoformat(s.exam) for s in plan.subjects]
-    moments += [datetime.fromisoformat(t.due) for t in plan.tasks]
-    return max(moments) + RETENTION if moments else None
+    return (datetime.fromisoformat(str(moment)) + RETENTION).astimezone(UTC).isoformat(timespec="seconds")
 
 
 def is_stale(subscription: Subscription, now: datetime | None = None, age: timedelta = FEED_REFRESH) -> bool:
@@ -2156,12 +2168,8 @@ def feed_url(base_url: str, token: str) -> str:
 
 def save_subscription(store: str | os.PathLike, subscription: Subscription) -> None:
     """Write a subscription into the store (`cps.store`), with the date it expires."""
-    expiry = subscription_expiry(subscription)
-    _store(store).put(
-        subscription.token,
-        subscription.to_dict(),
-        expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None,
-    )
+    data = subscription.to_dict()
+    _store(store).put(subscription.token, data, _expiry_of(data))
 
 
 def load_subscription(store: str | os.PathLike, token: str) -> Subscription | None:
@@ -2176,9 +2184,8 @@ def update_subscription(
     (`Store.update`). None if it does not exist, or was deleted meanwhile."""
 
     def apply(data: dict) -> tuple[dict, str | None]:
-        new = change(Subscription.from_dict(data))
-        expiry = subscription_expiry(new)
-        return new.to_dict(), expiry.astimezone(UTC).isoformat(timespec="seconds") if expiry else None
+        new = change(Subscription.from_dict(data)).to_dict()
+        return new, _expiry_of(new)
 
     data = _store(store).update(token, apply)
     return Subscription.from_dict(data) if data is not None else None
@@ -2204,9 +2211,25 @@ def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "")
     _store(store).log(token, kind, detail)
 
 
-def log_visit(store: str | os.PathLike, token: str) -> bool:
-    """A student opened their plan today; logged once a day (D15)."""
-    return _store(store).log_daily(token, "visit")
+def log_visit(store: str | os.PathLike, token: str, now: datetime | None = None) -> bool:
+    """A student opened their plan today; logged once a day (D15), and the plan is
+    kept 12 months from today (`mark_seen`, D36)."""
+    first = _store(store).log_daily(token, "visit")
+    if first:
+        mark_seen(store, token, now)
+    return first
+
+
+def mark_seen(store: str | os.PathLike, token: str, now: datetime | None = None) -> None:
+    """The student is here: the plan's deletion moves to `RETENTION` from now. A
+    calendar app reading the feed does not count; a person opening a page does."""
+    stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+
+    def seen(current: Subscription) -> Subscription:
+        return current if (current.seen or "") >= stamp else replace(current, seen=stamp)
+
+    with contextlib.suppress(Conflict):  # changed three times meanwhile: the next visit tries again
+        update_subscription(store, token, seen)
 
 
 def events(store: str | os.PathLike, token: str) -> list[dict]:
@@ -2215,7 +2238,7 @@ def events(store: str | os.PathLike, token: str) -> list[dict]:
 
 def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
     """Delete every subscription past its expiry (`subscription_expiry`)."""
-    return _store(store).sweep(now)
+    return _store(store).sweep(now, expiry=_expiry_of)
 
 
 def backup_subscriptions(
@@ -2223,6 +2246,165 @@ def backup_subscriptions(
 ) -> Path:
     """A consistent dated copy of the store in `directory`; copies older than a week go."""
     return _store(store).backup_rotating(Path(directory), now=now)
+
+
+# --------------------------------------------------------------------------- #
+# Accounts that last (DECISIONS.md D35): passkeys and a recovery code
+# --------------------------------------------------------------------------- #
+
+# How long "Not now" hides the Today page's suggestion to keep the plan safe.
+ACCOUNT_LATER = timedelta(days=14)
+
+
+class SignInFailed(ServiceError):
+    """A passkey or a recovery code that opens no plan, or a passkey that could not
+    be added; the message is the student's, the reason is in the server's log."""
+
+
+def device_name(user_agent: str) -> str:
+    """The kind of device a passkey was added on, from the browser's own words,
+    so the list in Settings can tell a phone's from a laptop's ("" if unclear)."""
+    for needle, name in (
+        ("iPhone", "iPhone"),
+        ("iPad", "iPad"),
+        ("Android", "Android"),
+        ("CrOS", "Chromebook"),
+        ("Macintosh", "Mac"),
+        ("Windows", "Windows"),
+        ("Linux", "Linux"),
+    ):
+        if needle in (user_agent or ""):
+            return name
+    return ""
+
+
+def _passkey_user(store: str | os.PathLike, subscription: Subscription) -> str:
+    """The name a device shows for this plan's passkey: the handle in the network,
+    else "Study plan" and the month it was made. Never the plan's address."""
+    profile = social.get_profile(_store(store), subscription.token)
+    if profile is not None:
+        return f"@{profile.handle}"
+    made = datetime.fromisoformat(subscription.created).date()
+    return f"{_('Study plan')} · {format_date(made, 'month')}"
+
+
+def passkey_options(
+    store: str | os.PathLike, subscription: Subscription, *, rp_id: str, now: datetime | None = None
+) -> dict:
+    """What the browser needs to make a passkey for this plan (JSON)."""
+    return _accounts.registration_options(
+        _store(store),
+        subscription.token,
+        rp_id=rp_id,
+        user_name=_passkey_user(store, subscription),
+        now=now or datetime.now(UTC),
+    )
+
+
+def add_passkey(
+    store: str | os.PathLike,
+    token: str,
+    answer: Mapping,
+    *,
+    origin: str,
+    rp_id: str,
+    user_agent: str = "",
+    now: datetime | None = None,
+) -> None:
+    try:
+        _accounts.register(
+            _store(store),
+            token,
+            answer,
+            origin=origin,
+            rp_id=rp_id,
+            device=device_name(user_agent),
+            now=now or datetime.now(UTC),
+        )
+    except (_accounts.PasskeyError, ValueError, TypeError, KeyError) as error:
+        raise SignInFailed(
+            _("That passkey could not be added. Try again, or keep a recovery code instead.")
+        ) from error
+    log_event(store, token, "passkey", "added")
+
+
+def signin_options(store: str | os.PathLike, *, rp_id: str, now: datetime | None = None) -> dict:
+    return _accounts.signin_options(_store(store), rp_id=rp_id, now=now or datetime.now(UTC))
+
+
+def sign_in_with_passkey(
+    store: str | os.PathLike, answer: Mapping, *, origin: str, rp_id: str, now: datetime | None = None
+) -> str:
+    """The token of the plan this passkey opens."""
+    now = now or datetime.now(UTC)
+    try:
+        token = _accounts.sign_in(_store(store), answer, origin=origin, rp_id=rp_id, now=now)
+    except _accounts.UnknownPasskey as error:
+        raise SignInFailed(_("This passkey belongs to a plan that no longer exists.")) from error
+    except (_accounts.PasskeyError, ValueError, TypeError, KeyError) as error:
+        raise SignInFailed(_("That did not work. Try again.")) from error
+    if load_subscription(store, token) is None:
+        raise SignInFailed(_("This passkey belongs to a plan that no longer exists."))
+    log_event(store, token, "signin", "passkey")
+    mark_seen(store, token, now)
+    return token
+
+
+def remove_passkey(store: str | os.PathLike, token: str, passkey: str) -> bool:
+    gone = _accounts.remove_passkey(_store(store), token, passkey)
+    if gone:
+        log_event(store, token, "passkey", "removed")
+    return gone
+
+
+def make_recovery_code(store: str | os.PathLike, token: str, now: datetime | None = None) -> str:
+    """A new recovery code for the plan, to show once; the old one stops working."""
+    code = _accounts.new_recovery_code(_store(store), token, now or datetime.now(UTC))
+    log_event(store, token, "recovery", "made")
+    return code
+
+
+def recover(store: str | os.PathLike, code: str, now: datetime | None = None) -> tuple[str, str]:
+    """The plan a recovery code opens, and its new code: each code works once."""
+    now = now or datetime.now(UTC)
+    token = _accounts.use_recovery_code(_store(store), code)
+    if token is None or load_subscription(store, token) is None:
+        raise SignInFailed(_("No plan has this recovery code. Check it, or use your passkey."))
+    log_event(store, token, "signin", "recovery")
+    mark_seen(store, token, now)
+    return token, make_recovery_code(store, token, now)
+
+
+def account_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """How the plan can be found again: its passkeys, its recovery code, when it
+    will be deleted, and whether the Today page suggests keeping it safe."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+
+    def day(stamp: str | None) -> str:
+        return format_date(datetime.fromisoformat(stamp).astimezone(zone).date(), "day") if stamp else ""
+
+    keys = [
+        {**k, "device": k["device"] or _("A device"), "added": day(k["created"]), "last": day(k["used"])}
+        for k in _accounts.passkey_list(_store(store), subscription.token)
+    ]
+    recovery = _accounts.recovery_made(_store(store), subscription.token)
+    later = subscription.options.get("account_later")
+    deleted = subscription_expiry(subscription).astimezone(zone).date()
+    return {
+        "passkeys": keys,
+        "recovery": day(recovery) if recovery else None,
+        "safe": bool(keys or recovery),
+        "nudge": not (keys or recovery)
+        and (not later or now - datetime.fromisoformat(later) >= ACCOUNT_LATER),
+        "deleted": format_date(deleted, "day") + f" {deleted.year}",
+    }
+
+
+def account_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """ "Not now": the suggestion to keep the plan safe waits `ACCOUNT_LATER`."""
+    stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+    return replace(subscription, options={**subscription.options, "account_later": stamp})
 
 
 class Refresher:
@@ -2330,6 +2512,108 @@ def start_subscription(
         lang=lang,
         blank=ics is None,
     )
+
+
+# What a new semester puts away (D36). Everything else in the options stays: the
+# week's hours and days off, the study window, the language, the appearance, AI,
+# the Moodle link and what was imported from it.
+_SEMESTER_ONLY = ("start", "tasks", "pins", "deadlines_error", "focus", "focus_draft")
+
+
+def _archive(subscription: Subscription, now: datetime) -> list[dict]:
+    """The sessions so far, of every semester, as progress counts them, to keep
+    when the plan they belong to is put away: what has started, or was reported."""
+    out = list(subscription.options.get("past", ()))
+    for s in _plan_sessions(subscription):
+        if s.start <= now or s.report:
+            out.append(
+                {
+                    "start": s.start.isoformat(),
+                    "minutes": s.minutes,
+                    "kind": s.kind,
+                    "course": s.course,
+                    "report": s.report,
+                    "sid": s.sid,
+                }
+            )
+    return out
+
+
+def start_next_semester(
+    subscription: Subscription,
+    *,
+    source_url: str | None = None,
+    ics: bytes | None = None,
+    draw: bool = False,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+) -> Subscription:
+    """The same plan, for a new semester (D36): a new timetable (a link, a file, or
+    drawn), its exams found as at the start; the week's settings kept. What was
+    studied is kept too (`options["past"]`), so the streak, the weeks, the trends
+    and a group's goal go on counting it; and so is everything kept under the plan's
+    address: the profile, the people, the groups, the diary and the flashcards.
+
+    Put away: the last semester's plan, exams, reports, moved sessions, deadlines
+    already done or past, and the classes drawn by hand. Other activities drawn
+    (work, training) stay, except one-off ones in the past."""
+    now = now or datetime.now(UTC)
+    if source_url:
+        ics = fetch(source_url.strip())
+    if ics is None and not draw:
+        raise InvalidInput(_("give your timetable's link or its file"))
+    options = subscription.options
+    zone = _zone(options["tz"])
+    local = now.astimezone(zone)
+    found = analyse_calendar(ics, start=local.date(), tz=options["tz"]).assessments if ics is not None else ()
+    tasks = [
+        dict(t)
+        for t in options.get("tasks", ())
+        if not t.get("done")
+        and datetime.fromisoformat(str(t["due"]).replace(" ", "T")) > local.replace(tzinfo=None)
+    ]
+    rows = tuple(
+        r
+        for r in subscription.busy_rows
+        if r.get("kind") != "class"
+        and (r.get("date") is None or date.fromisoformat(r["date"]) >= local.date())
+    )
+    kept = {k: v for k, v in options.items() if k not in _SEMESTER_ONLY}
+    fresh = replace(
+        subscription,
+        source_url=source_url.strip() if source_url else None,
+        ics_text=decode_ics(ics) if ics is not None else None,
+        busy_rows=rows,
+        subjects=tuple(
+            _spec_dict(SubjectSpec(a.subject, None, familiarity=DEFAULT_FAMILIARITY)) for a in found
+        ),
+        options={
+            **kept,
+            "start": local.date().isoformat(),
+            "tasks": tasks,
+            "past": _archive(subscription, local),
+        },
+        plan=None,
+        refreshed=None,
+        error=None,
+        outcomes={},
+    )
+    return refresh_subscription(fresh, now=now, fetch=fetch, reread=ics is None)
+
+
+def semester_over(subscription: Subscription, now: datetime | None = None) -> bool:
+    """Whether every exam of the plan is behind and no deadline is ahead: the Today
+    page then offers to start the next semester."""
+    if subscription.plan is None:
+        return False
+    plan = PlanReport.from_dict(subscription.plan)
+    if not plan.subjects:
+        return False
+    now = now or datetime.now(UTC)
+    ahead = [datetime.fromisoformat(s.exam) for s in plan.subjects] + [
+        datetime.fromisoformat(t.due) for t in plan.tasks if not t.done
+    ]
+    return all(moment < now for moment in ahead)
 
 
 def _when(moment: datetime, now: datetime) -> str:
@@ -2752,8 +3036,26 @@ def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
 
 
 def progress_sessions(subscription: Subscription) -> list[_progress.Session]:
-    """Every session of the plan, past and to come, as `progress` counts them:
-    local start, length, kind, course, and what the student reported."""
+    """Every session, past and to come, as `progress` counts them: local start,
+    length, kind, course, and what the student reported. Past semesters' come
+    first (`start_next_semester`, D36), then the current plan's."""
+    zone = _zone(subscription.options["tz"])
+    past = [
+        _progress.Session(
+            start=datetime.fromisoformat(p["start"]).astimezone(zone),
+            minutes=int(p["minutes"]),
+            kind=str(p["kind"]),
+            course=str(p["course"]),
+            report=p.get("report"),
+            sid=str(p.get("sid", "")),
+        )
+        for p in subscription.options.get("past", ())
+    ]
+    return past + _plan_sessions(subscription)
+
+
+def _plan_sessions(subscription: Subscription) -> list[_progress.Session]:
+    """The current plan's sessions, done and to come, as `progress` counts them."""
     if subscription.plan is None:
         return []
     plan = PlanReport.from_dict(subscription.plan)

@@ -26,8 +26,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 564 passed, 17 deselected, 1 xfailed, about 100 s
-    pytest -m "slow or not slow" --cov=cps   # all 581 + 1 xfailed, 93% coverage, about 4 min; CI runs this
+    pytest                                   # 591 passed, 17 deselected, 1 xfailed, about 130 s
+    pytest -m "slow or not slow" --cov=cps   # all 608 + 1 xfailed, 93% coverage, about 6 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -59,10 +59,11 @@ more than an impressive number.
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28) |
-| `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; typed errors; no UI imports |
+| `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
-| `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep, backups |
+| `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep (12 months after the last visit, D36), backups |
+| `passkeys.py`, `accounts.py` | D35: WebAuthn checked on the server (a small CBOR reader; ES256, Ed25519, RS256 with `cryptography`, imported lazily), a plan's passkeys, single-use challenges, the recovery code (a digest, used once) |
 | `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; only calls `service`; every page works without its scripts |
 | `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
@@ -79,7 +80,8 @@ sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried 
 from old values in one view transition, confetti once per achievement; page
 transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
 (D33: the installable app, the service worker that keeps a plan's pages for offline use, the
-install card) and `i18n.js` (the scripts' words in French and Italian).
+install card), `passkeys.js` (D35: adding a passkey, signing in with one; the server
+decides, the script hands the browser's answer back) and `i18n.js` (the scripts' words in French and Italian).
 Motion is decoration over complete pages: nothing may depend on it, and everything
 stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Every sentence a
 student reads goes through `_()` (Python, templates) or `t()` (scripts) and has a
@@ -165,6 +167,13 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   (2 h) until the student changes them. Tasks typed in one line are read by rules in
   English and French only. The Italian (D34) was not written by a native speaker.
 - Offline and install (D33) were checked in Chromium only, not on an iPhone.
+- Passkeys (D35) were checked with a simulated device and Chromium's virtual
+  authenticator, not on a real phone. A plan with neither a passkey nor a recovery
+  code cannot be found again without its address. Passkeys belong to the host name:
+  use `localhost`, not `127.0.0.1`, on a computer.
+- Plans are deleted 12 months after the last visit (D36); the feed being read does
+  not count. Between two semesters, Progress waits for the new semester's first exam
+  or deadline; the past sessions are kept.
 - FSRS weights are population defaults; a subject's starting stability and
   difficulty are user-supplied guesses. The target and the 40-block failure penalty
   are stated choices.

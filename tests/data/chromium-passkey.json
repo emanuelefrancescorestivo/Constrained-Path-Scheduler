@@ -1,0 +1,30 @@
+{
+  "about": "One passkey registration and one sign-in as Chromium's virtual authenticator (CDP WebAuthn, ctap2, internal) wrote them against `cps web` on http://localhost:8053, recorded by the browser run of 2026-10-12 (AUDIT item 53). Nothing here is secret: the plan was made for the run and the private key never left the browser.",
+  "origin": "http://localhost:8053",
+  "rp_id": "localhost",
+  "user_id": "Ug1cq6ekYYUTDF7u15UAfQ",
+  "registration": {
+    "challenge": "iFXHlv5EApcXoFzyICAPlB9UIkueq0vRSfvN5-vo8QQ",
+    "answer": {
+      "id": "VNPucXTzUZ51hGJrsEiGSn26hYUAnQkdIvaA7sfZqmc",
+      "type": "public-key",
+      "response": {
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiaUZYSGx2NUVBcGNYb0Z6eUlDQVBsQjlVSWt1ZXEwdlJTZnZONS12bzhRUSIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA1MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+        "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcIAQIDBAUGBwgAIFTT7nF081GedYRia7BIhkp9uoWFAJ0JHSL2gO7H2apnpQECAyYgASFYIG7qcnaw7tkS3ilKLQ-ltvfdYY_knJPBwcIrslzs-cYsIlggqwSX9NL8B7jKLIB-0GzMRCOFCYC8ogXjilacej70MvE"
+      }
+    }
+  },
+  "sign_in": {
+    "challenge": "lPA6YigvWGpUqFnr-FBkg1Ca6CmalR090GNnk_Ez1qs",
+    "answer": {
+      "id": "VNPucXTzUZ51hGJrsEiGSn26hYUAnQkdIvaA7sfZqmc",
+      "type": "public-key",
+      "response": {
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoibFBBNllpZ3ZXR3BVcUZuci1GQmtnMUNhNkNtYWxSMDkwR05ua19FejFxcyIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA1MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+        "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MFAAAAAg",
+        "signature": "MEUCIHa0cVRqhMWeB1Qa0rjHZiQaBY6HUhqDxbF3A6bRvZkcAiEA3ZDYjru9YXbicC1BWKzaOMuuwFIdvxKMIrl8vZ-xd3c",
+        "userHandle": "Ug1cq6ekYYUTDF7u15UAfQ"
+      }
+    }
+  }
+}

@@ -19,8 +19,8 @@ marked **(check)** where they may have moved.*
 | health check | `/health` |
 | deploys | by hand (`autoDeploy: false`), after CI is green on `main` |
 
-The app deletes plans 30 days after their last exam or deadline (checked every six
-hours) and copies the store to `/var/data/backups` at start and once a day, keeping
+The app deletes plans 12 months after they were last opened (DECISIONS.md D36;
+checked every six hours) and copies the store to `/var/data/backups` at start and once a day, keeping
 seven days, which is what the privacy page promises. A copy on the same disk protects
 against a bad release or a corrupted file, not against losing the disk; Render's own
 disk snapshots **(check)** are the second line.
@@ -42,6 +42,9 @@ the rate limits are in memory for that reason.
      appears on the privacy page.
    - `CPS_BASE_URL`: leave empty, unless a custom domain is added later. The app then
      uses the address Render gives it (`RENDER_EXTERNAL_URL`).
+     Passkeys (D35) belong to that address: after a move to another domain,
+     students open their plan with its address or recovery code, and add a passkey
+     again.
    - `CPS_ADMIN_TOKEN`: a long random string (24 characters or more; for example the
      output of `python -c "import secrets; print(secrets.token_urlsafe(32))"`). The
      page where you review what students report is `/admin/<that string>`; keep it

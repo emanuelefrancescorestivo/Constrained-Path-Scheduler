@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Accounts that last (D35): a plan can have passkeys (Settings, "Add a passkey":
+  the phone's face, fingerprint or screen lock; the server checks the signatures
+  itself, `cps.passkeys`) and a recovery code (shown once, kept as a digest, used
+  once and replaced). The home page signs in with either and opens the plan; Today
+  suggests keeping the plan safe until it is. Still no e-mail, no password, no
+  cookie. New dependency in the `web` extra: `cryptography`.
+- The next semester at the same address (D36): a new timetable (a link, a file or a
+  week drawn) and new exams, with the streak, the progress, the diary, the
+  flashcards, the profile, the people, the groups and the settings kept; offered on
+  Today once every exam and deadline is behind.
 - An app on the home screen (D33): installable from the browser (a manifest per
   plan, so the installed app opens that plan), an icon showing a brain and the
   memory curve that spaced reviews keep high, and a service worker that keeps the
@@ -269,11 +279,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   and `CalendarReport.lectures`.
 
 ### Changed
+- Plans are deleted 12 months after they were last opened, instead of 30 days after
+  their last exam (D36); Settings say on which day. A calendar app reading the feed
+  does not count as a visit.
 - Planning is faster without changing a result (item 35): the synthetic semester
   planned with each course as one topic takes 26 seconds instead of 39, with the
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A plan with no exam or deadline (a week drawn, then left) is deleted like any
+  other instead of being kept for ever (AUDIT item 52).
+- A Settings section reached by its address is no longer hidden under the top bar,
+  and the recovery-code field fits a phone (AUDIT item 53).
 - The app's icons ship with the installed package; on the host they answered 404
   (AUDIT item 51).
 - The footer's language links are separated now that there are three.

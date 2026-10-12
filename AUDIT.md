@@ -677,3 +677,30 @@ Status: fixed; `tests/test_install.py` now checks that every file under the web
 app's `static` and `templates` folders is matched by a package-data pattern, so a
 new folder cannot be forgotten again.
 
+
+**52. A plan with no exam or deadline was never deleted.** Found while moving the
+retention to 12 months after the last visit (step 3, D36): `subscription_expiry`
+returned nothing for a plan without a plan made (a week drawn, then abandoned before
+any exam, D32) or without any exam or deadline in it, and the sweep deletes only
+what has an expiry, so those plans were kept for ever, against the privacy page's
+promise. The same rule deleted a student's whole history 30 days after their last
+exam, between two semesters. Fixed: every plan is deleted 12 months after it was
+last opened, or made (`Subscription.seen`, `created`); the sweep checks a plan saved
+under the old rule (or with no expiry) again before deleting it, and gives it the
+new one. `created` also follows the clock given to `new_subscription` now, as the
+rest of the plan does, instead of the machine's. Status: fixed;
+`tests/test_web.py` (a drawn, abandoned plan is swept; a plan saved under the old
+rule is moved, not deleted) and `tests/test_accounts.py`.
+
+**53. A section reached by its address was hidden under the top bar.** Found in
+the browser run of step 3, at desktop and phone widths: Settings' sections have
+anchors (`#account`, `#semester`, and before them `#app`, `#language`,
+`#appearance`, `#ai`), and the translucent top bar, which stays on screen, covered
+the heading the browser scrolled to. The new recovery-code field was also cut short
+on a phone (its placeholder did not fit beside its button). Fixed: a heading with
+an anchor keeps clear of the bar (`scroll-margin-top`), and the field takes the
+whole line on a narrow screen, its button below. Status: fixed; seen in Chromium,
+not by the Python tests, which do not lay out the page. The same run recorded one
+passkey registration and one sign-in from Chromium's own authenticator
+(`tests/data/chromium-passkey.json`), which `tests/test_accounts.py` checks the
+server's verifier against.

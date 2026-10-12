@@ -778,3 +778,107 @@ only; in Italian, the AI reads them if it is on, else the form asks for the date
 Moodle deadlines are still read from English event names (as before). The
 translation was written by the assistant, not by a native speaker: the owner, who
 is one, is asked to read it.
+
+## D35. Accounts that last: passkeys and a recovery code
+
+*Step 3 of the readiness review. The owner approved passkeys for sign-in on
+2026-10-12, and `cryptography` with them (pywebpush, approved the same day for step
+4, is built on it).*
+
+**The problem.** A plan is its private address, as a calendar's secret link is. A
+student who loses it (a new phone, a cleared browser, a closed tab before saving the
+link) has lost the plan, the streak and the network with it; nothing could find it
+again. A product students keep for years needs a way back.
+
+**Chosen.** Two ways back to the address, and still no name, e-mail or password:
+
+1. **Passkeys** (WebAuthn). In Settings, "Add a passkey": the device makes a key
+   pair for this site behind the student's face, fingerprint or screen lock, and the
+   site keeps the public half, the kind of device ("iPhone", "Mac", from the
+   browser's own words) and when it was added and last used. On the home page,
+   "Sign in with a passkey": the device offers the passkeys it has for this site
+   (none is named by the server, so nobody learns which exist), signs a fresh
+   challenge, and the server opens the plan it belongs to. Passkeys that sync
+   (iCloud Keychain, Google Password Manager) open the plan on the student's other
+   devices too. Up to ten per plan; each can be removed.
+2. **A recovery code**, for when every device is gone: twenty characters from
+   Crockford's alphabet (no I, L, O or U; about 100 bits), shown once, kept only as
+   its SHA-256. It works once: using it opens the plan and shows a new one at once.
+   Making a new one replaces the old. Typed by hand, case, spaces and dashes do not
+   matter, and O and I are read as 0 and 1.
+3. **A suggestion on Today** ("Keep your plan"), while the plan has neither; "Not
+   now" hides it for two weeks.
+
+**How it is checked** (`cps/passkeys.py`, `cps/accounts.py`). The server follows
+WebAuthn Level 2: the client data says `webauthn.create` or `webauthn.get`, carries
+a challenge the server issued for that purpose (and that plan), not older than five
+minutes, used once, and the site's origin; the authenticator data is for this site
+(the SHA-256 of its host name) with the person present; the key is ES256, Ed25519
+or RS256; the signature covers the authenticator data and the client data's hash; a
+signature counter that goes backwards is refused (a copied key), zero is allowed
+(synced passkeys keep it there). Attestation is not asked for: the site does not
+need to know which device made the key. The few bytes of CBOR involved are read in
+the module itself, so the only new dependency is `cryptography`, part of the `web`
+extra and imported only when a signature is checked. The user handle a passkey
+stores is derived one way from the plan's token, never the token. Challenges are
+kept in the database, not in a cookie: the service still sets none.
+
+**Tested** with a simulated device (real keys and CBOR, each field spoilable) for
+the three algorithms and every refusal, and against one registration and one
+sign-in recorded from Chromium's own virtual authenticator
+(`tests/data/chromium-passkey.json`); the whole flow was walked in Chromium at
+desktop and phone widths, with a passkey synced to a second device.
+
+**Rejected.** E-mail links (an address to keep and protect, mail to send, a
+provider to pay, which the owner declined until launch); passwords (to hash, leak
+and reset); "Sign in with Google or Apple" (a third party told of every sign-in, an
+account with each); a WebAuthn library (more code and dependencies to trust, and
+to ask the owner for, than the few checks above need; attestation, which such
+libraries mostly add, is not used here).
+
+**Disclosed.** A plan with neither a passkey nor a code cannot be found again
+without its address; the home page says so. The relying party is the host name the
+service is reached at (`CPS_BASE_URL`, or Render's), so passkeys made on one address
+do not work on another, as for any site; on a computer, use `localhost`, not
+`127.0.0.1`, which browsers refuse for passkeys. In the public demo passkeys work,
+and are deleted with the demo when it restarts. Not tried on a real iPhone or
+Android phone (the owner's check); Chromium's authenticator was virtual.
+
+## D36. Kept while used, and the next semester at the same address
+
+*Step 3 of the readiness review. The owner approved on 2026-10-12: delete an account
+12 months after the student's last visit, instead of 30 days after the last exam
+(D6).*
+
+**Chosen.**
+
+1. **Retention.** A plan, with everything kept under its address (the profile and
+   the network's rows, the diary, the flashcards, the passkeys), is deleted 12
+   months after the student last opened it (`Subscription.seen`, counted once a
+   day: any of the plan's pages, a passkey or recovery-code sign-in), or after it
+   was made if never opened since. A calendar app reading the feed does not count:
+   it reads for ever, even when the student has forgotten the plan. Settings say on
+   which day the plan will go; the privacy page says the rule. A plan saved under
+   the old rule gets the new one at the next sweep, before anything is deleted, and
+   a plan with no exam is no longer kept for ever (AUDIT item 52).
+2. **The next semester** (Settings, "Next semester"; and on Today, once every exam
+   and deadline is behind). The student brings the new timetable (a link, a file or
+   a week drawn); its exams are found as at the start. Kept: the address and the
+   calendar feed (nothing to subscribe to again), the week's hours and days off,
+   the study window, the language, the appearance, AI, the Moodle link, the
+   deadlines still ahead, activities drawn other than classes (work, training), and
+   everything kept under the address. Put away: the old timetable, exams, plan,
+   reports and moved sessions, the classes drawn, finished or past deadlines, past
+   one-off activities. What was studied is kept as the sessions progress counts
+   (`options["past"]`: start, length, kind, course, report), so the streak, the
+   weeks, the trends and a group's goal go on across semesters.
+
+**Rejected.** Keeping plans for ever (a promise the privacy page could not make);
+deleting at the end of each semester (the history is what a streak and a trend are
+made of); a new address per semester (the feed, the home-screen icon and the
+network would have to move).
+
+**Disclosed.** Until the new semester has an exam or a deadline, it has no plan, and
+the Progress page waits for it; the past sessions are kept meanwhile. The calendar
+feed shows the current semester's sessions only. With no e-mail address, nobody is
+warned before a plan is deleted; Settings show the date.

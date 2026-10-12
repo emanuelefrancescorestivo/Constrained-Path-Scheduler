@@ -380,7 +380,7 @@ def test_a_configured_address_is_used_for_links(tmp_path, clock):
 
 def test_the_privacy_page_names_the_contact_and_the_retention(web):
     page = web.get("/privacy").text
-    assert "owner@example.org" in page and "30 days after your last exam" in page
+    assert "owner@example.org" in page and "12 months after you last open your plan" in page
 
 
 def test_unknown_addresses_are_not_found(web):
@@ -431,11 +431,48 @@ def test_expired_plans_are_swept_while_the_app_runs(tmp_path):
     assert Store(tmp_path).get("k" * 32) is None and Store(tmp_path).get("j" * 32) == {}
 
 
-def test_the_stored_expiry_follows_the_last_exam(web, planned):
-    subscription = _subscription(web, planned)
-    assert service.subscription_expiry(subscription) == datetime.fromisoformat(
-        "2027-01-29T13:45:00+01:00"
-    ) + timedelta(days=30)
+def _expires(web, token) -> str:
+    with web.store.connection() as db:
+        return db.execute("SELECT expires FROM subscriptions WHERE token = ?", (token,)).fetchone()[0]
+
+
+def test_the_stored_expiry_follows_the_last_visit(web, planned, clock):
+    """D36: 12 months after the student last opened the plan; a visit a day moves
+    it, a calendar app reading the feed does not."""
+    assert _expires(web, planned) == "2027-09-29T06:00:00+00:00"
+    clock.now = MORNING + timedelta(days=40)
+    web.get(f"/feed/{planned}.ics")
+    assert _expires(web, planned) == "2027-09-29T06:00:00+00:00"
+    web.get(f"/p/{planned}")
+    assert _expires(web, planned) == "2027-11-08T06:00:00+00:00"
+    assert _subscription(web, planned).seen == "2026-11-08T06:00:00+00:00"
+    assert service.sweep_subscriptions(web.store.path, datetime(2027, 11, 1, tzinfo=UTC)) == 0
+    assert service.sweep_subscriptions(web.store.path, datetime(2027, 11, 9, tzinfo=UTC)) == 1
+    assert _subscription(web, planned) is None
+
+
+def test_a_plan_drawn_and_abandoned_is_deleted_too(web, clock):
+    """AUDIT item 52: a plan with no exam had no expiry, and was kept for ever."""
+    answer = web.post("/start", data={"tz": "Europe/Paris", "draw": "1"}, follow_redirects=False)
+    token = answer.headers["location"].split("/")[2]
+    assert _subscription(web, token).plan is None
+    assert _expires(web, token) == "2027-09-29T06:00:00+00:00"
+    assert service.sweep_subscriptions(web.store.path, datetime(2027, 10, 1, tzinfo=UTC)) == 1
+
+
+def test_the_sweep_moves_a_plan_saved_under_the_old_rule(web, planned):
+    """A plan saved when the expiry was 30 days after the last exam (or none) is
+    given the new one before the sweep would delete it (D36)."""
+    with web.store.connection() as db:
+        db.execute(
+            "UPDATE subscriptions SET expires = '2027-02-28T12:45:00+00:00' WHERE token = ?", (planned,)
+        )
+    assert service.sweep_subscriptions(web.store.path, datetime(2027, 3, 1, tzinfo=UTC)) == 0
+    assert _expires(web, planned) == "2027-09-29T06:00:00+00:00"
+    with web.store.connection() as db:
+        db.execute("UPDATE subscriptions SET expires = NULL WHERE token = ?", (planned,))
+    assert service.sweep_subscriptions(web.store.path, datetime(2027, 3, 1, tzinfo=UTC)) == 0
+    assert _expires(web, planned) == "2027-09-29T06:00:00+00:00"
 
 
 def test_a_learning_platform_link_brings_its_deadlines(web, planned, timetable_server, monkeypatch):

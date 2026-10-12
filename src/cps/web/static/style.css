@@ -1368,3 +1368,36 @@ html.offline form button[type="submit"] { opacity: 0.6; }
 .install-steps { margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.88rem; }
 .offline-page { text-align: center; padding-top: 12vh; }
 .offline-page img { width: 72px; height: 72px; margin: 0 auto 12px; display: block; }
+
+/* -- accounts that last: passkeys, the recovery code, next semester (D35, D36) ---- */
+.nudge-card { display: flex; flex-direction: column; gap: 4px; margin: 0 0 14px; color: var(--text); text-decoration: none !important; }
+.nudge-card .muted { font-size: 0.88rem; }
+.nudge-card .row-end { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.nudge-card form { margin: 0; }
+a.nudge-card b::after { content: " ›"; color: var(--accent); }
+.passkeys { margin: 4px 0 8px; }
+.passkeys > li { align-items: center; }
+.passkeys > li + li::before { left: 0; }
+.passkeys small { display: block; }
+.passkeys form { margin: 0; }
+.recovery-form { margin-top: 10px; }
+.recovery-form p { margin: 0 0 8px; }
+.recovery { max-width: 34rem; margin: 0 auto; text-align: center; }
+.recovery .code {
+  margin: 18px 0 8px; padding: 14px 12px; border-radius: 12px; background: var(--fill-4);
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(1rem, 4.6vw, 1.35rem); letter-spacing: 0.06em; font-weight: 600;
+  overflow-wrap: anywhere; user-select: all;
+}
+.signin { margin-top: 26px; }
+.signin h2 { margin-top: 0; }
+.signin [data-passkey-status] { margin: 8px 0; }
+/* A heading reached by its anchor (#account, #semester) clears the translucent bar */
+h2[id] { scroll-margin-top: 72px; }
+.recover-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.recover-row .btn { flex: 1 0 auto; }
+.recover-row input {
+  flex: 999 1 15rem; min-width: 0; text-transform: uppercase; letter-spacing: 0.04em;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+.recover-row input::placeholder { text-transform: none; letter-spacing: 0; }

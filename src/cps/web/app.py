@@ -157,6 +157,7 @@ class Config:
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
+    signin_limit: tuple[int, float] = (30, 3600.0)  # passkey and recovery-code tries per address per hour
     admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
     # The public demo (D31): makes a fresh made-up student and returns their plan's
     # token; set, the home page offers it and every page says it is a demo.
@@ -180,6 +181,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     feeds = service.Refresher(store, background=config.background, clock=config.clock, fetch=config.fetch)
     starts = Limiter(*config.start_limit)
     changes = Limiter(*config.change_limit)
+    signins = Limiter(*config.signin_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
     templates.env.globals["recall_words"] = RECALL_WORDS
@@ -300,8 +302,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
             if config.demo
             else service.translate(
-                "This address is not, or no longer, a study plan. Plans are deleted 30 days "
-                "after their last exam or deadline, or when their owner deletes them."
+                "This address is not, or no longer, a study plan. Plans are deleted 12 months "
+                "after they were last opened, or when their owner deletes them. If you lost your "
+                "plan's address, sign in from the home page with your passkey or recovery code."
             ),
         )
 
@@ -394,7 +397,12 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/privacy", response_class=HTMLResponse)
     def privacy(request: Request) -> HTMLResponse:
-        return page(request, "privacy.html", contact=config.contact, retention=service.RETENTION.days)
+        return page(
+            request,
+            "privacy.html",
+            contact=config.contact,
+            retention=round(service.RETENTION.days * 12 / 365),
+        )
 
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
@@ -458,7 +466,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         token = subscription.token
         if subscription.source_url and service.is_stale(subscription, config.clock()):
             feeds.refresh(token)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         return page(
             request,
@@ -482,6 +490,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             ),
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
+            "account": service.account_view(store, subscription, now),
+            "semester_over": service.semester_over(subscription, now),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -528,7 +538,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         now = config.clock()
         logged = service.logged_sessions(store, subscription)
         return page(
@@ -551,7 +561,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return page(
             request,
             "trends.html",
@@ -567,7 +577,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return page(
             request,
             "focus.html",
@@ -779,7 +789,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.community_view(
             store,
             subscription,
@@ -1036,7 +1046,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.library_view(
             store,
             subscription,
@@ -1103,7 +1113,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.groups_view(store, subscription, config.clock())
         return page(request, "groups.html", token=token, view=view, saved=_notice(saved), tab="community")
 
@@ -1155,7 +1165,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     def group(request: Request, token: str, group_id: str, saved: str = "") -> HTMLResponse:
         if load(token) is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return group_page(request, token, group_id, saved=_notice(saved))
 
     async def group_change(
@@ -1246,7 +1256,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         notice = service.translate_plural("{n} card added.", "{n} cards added.", added) if added else None
         if saved in CARD_NOTICES:
             notice = service.translate(CARD_NOTICES[saved])
@@ -1652,6 +1662,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             tab="settings",
             saved=_notice(saved),
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
+            account=service.account_view(store, subscription, config.clock()),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -1688,9 +1699,192 @@ def create_app(config: Config | None = None) -> FastAPI:
                 error=str(error),
                 tab="settings",
                 ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
+                account=service.account_view(store, subscription, config.clock()),
             )
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
+
+    # -- accounts that last (D35, D36) -------------------------------------------
+
+    def relying_party(request: Request) -> tuple[str, str]:
+        """The origin passkeys are made on, and the relying party's id (its host
+        name): the public address when the deployment gives one, else the request's."""
+        origin = base(request)
+        return origin, urlsplit(origin).hostname or ""
+
+    async def json_body(request: Request, limit: int = 16 * 1024) -> dict:
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise service.InvalidInput("too long")
+        try:
+            body = await request.json()
+        except ValueError as error:
+            raise service.InvalidInput("not JSON") from error
+        if not isinstance(body, dict):
+            raise service.InvalidInput("not an object")
+        return body
+
+    @app.post("/p/{token}/passkeys/options")
+    def passkey_options(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        _origin, rp_id = relying_party(request)
+        return JSONResponse(service.passkey_options(store, subscription, rp_id=rp_id, now=config.clock()))
+
+    @app.post("/p/{token}/passkeys")
+    async def passkey_add(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        origin, rp_id = relying_party(request)
+        try:
+            service.add_passkey(
+                store,
+                token,
+                await json_body(request),
+                origin=origin,
+                rp_id=rp_id,
+                user_agent=request.headers.get("user-agent", ""),
+                now=config.clock(),
+            )
+        except service.SignInFailed as error:
+            LOG.info("passkey refused: %s", error.__cause__)
+            return JSONResponse(error.to_dict(), 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}/settings?saved=passkey#account"})
+
+    @app.post("/p/{token}/passkeys/{passkey}/remove")
+    def passkey_remove(request: Request, token: str, passkey: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.remove_passkey(store, token, passkey)
+        return RedirectResponse(f"/p/{token}/settings?saved=passkey_removed#account", 303)
+
+    @app.post("/p/{token}/recovery", response_class=HTMLResponse)
+    def recovery_code(request: Request, token: str) -> HTMLResponse:
+        """A new recovery code, shown once, in the answer to a form: never on a page
+        a browser or the service worker would keep."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        code = service.make_recovery_code(store, token, config.clock())
+        return page(request, "recovery.html", token=token, code=code, recovered=False, tab="settings")
+
+    @app.post("/p/{token}/account/later")
+    def account_later(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.account_later(current, config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/signin/options")
+    def signin_options(request: Request) -> Response:
+        if not signins.allow(client(request)):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        _origin, rp_id = relying_party(request)
+        return JSONResponse(service.signin_options(store, rp_id=rp_id, now=config.clock()))
+
+    @app.post("/signin")
+    async def signin(request: Request) -> Response:
+        if not signins.allow(client(request)):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        origin, rp_id = relying_party(request)
+        try:
+            token = service.sign_in_with_passkey(
+                store, await json_body(request), origin=origin, rp_id=rp_id, now=config.clock()
+            )
+        except service.SignInFailed as error:
+            LOG.info("sign-in refused: %s", error.__cause__)
+            return JSONResponse(error.to_dict(), 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}"})
+
+    @app.post("/recover", response_class=HTMLResponse)
+    async def recover(request: Request) -> HTMLResponse:
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            token, code = service.recover(store, str(form.get("code") or ""), config.clock())
+        except service.SignInFailed as error:
+            return page(request, "home.html", 400, signin_error=str(error), tz="Europe/Paris")
+        return page(request, "recovery.html", token=token, code=code, recovered=True)
+
+    @app.get("/p/{token}/semester", response_class=HTMLResponse)
+    def semester(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(request, "semester.html", token=token, tab="settings", link="")
+
+    @app.post("/p/{token}/semester", response_class=HTMLResponse)
+    async def semester_start(request: Request, token: str) -> Response:
+        """The next semester (D36): the same address, a new timetable."""
+        if load(token) is None:
+            return missing(request)
+        if int(request.headers.get("content-length") or 0) > MAX_UPLOAD + 64 * 1024:
+            return page(
+                request,
+                "semester.html",
+                413,
+                token=token,
+                tab="settings",
+                error=service.translate("That file is too large for a timetable."),
+            )
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=1, max_fields=6)
+        link = str(form.get("link") or "").strip() or None
+        draw = form.get("draw") == "1"
+        upload = form.get("file")
+        ics = None
+        if isinstance(upload, UploadFile) and upload.filename:
+            ics = await upload.read(MAX_UPLOAD + 1)
+            if len(ics) > MAX_UPLOAD:
+                return page(
+                    request,
+                    "semester.html",
+                    413,
+                    token=token,
+                    tab="settings",
+                    error=service.translate("That file is too large for a timetable."),
+                )
+        try:
+            if link is None and ics is None and not draw:
+                raise service.InvalidInput(
+                    service.translate("paste your timetable's link, or choose its file")
+                )
+            fresh = service.update_subscription(
+                store,
+                token,
+                lambda current: service.start_next_semester(
+                    current,
+                    source_url=link,
+                    ics=None if link else ics,
+                    draw=draw,
+                    now=config.clock(),
+                    fetch=config.fetch,
+                ),
+            )
+        except service.ServiceError as error:
+            return page(
+                request, "semester.html", 400, token=token, tab="settings", error=str(error), link=link or ""
+            )
+        if fresh is None:
+            return missing(request)
+        drawn = link is None and ics is None
+        service.log_event(store, token, "semester", "link" if link else "draw" if drawn else "file")
+        if drawn:
+            return RedirectResponse(f"/p/{token}/timetable", 303)
+        return RedirectResponse(f"/p/{token}/settings?new=1", 303)
 
     def back_to(token: str, where: str, **query: Any) -> str:
         """Where a task form returns to: the page it was sent from, among the
@@ -1942,6 +2136,12 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
+    if saved == "passkey":
+        return service.translate(
+            "Passkey added. Open your plan with it on the home page, on any device it syncs to."
+        )
+    if saved == "passkey_removed":
+        return service.translate("Passkey removed. Remove it from your device's passwords too.")
     notice = TASK_NOTICES.get(saved)
     return service.translate(notice) if notice else None
 

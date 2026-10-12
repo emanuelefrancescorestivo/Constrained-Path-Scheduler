@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Next semester") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/home.js"></script>{% endblock %}
+{% block main %}
+<h1>{{ _("Next semester") }}</h1>
+<p class="lead">{{ _("Bring the new timetable, or draw the new week. Then give the new exams.") }}</p>
+<div class="card">
+  <p><b>{{ _("Comes with you") }}</b> {{ _("your streak and progress, your diary, your flashcards, your profile, your people and your groups, your week's hours and days off, your settings, and the deadlines still ahead.") }}</p>
+  <p><b>{{ _("Put away") }}</b> {{ _("last semester's timetable, exams and plan (what you studied still counts in your progress), the classes you drew, and finished deadlines.") }}</p>
+</div>
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+<div class="ways section">
+<form method="post" action="/p/{{ token }}/semester" enctype="multipart/form-data" class="card way">
+  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span>
+  <h3>{{ _("Import your timetable") }}</h3>
+  <label for="file">{{ _("A calendar file (.ics)") }}</label>
+  <label class="drop" for="file">
+    <input id="file" name="file" type="file" accept=".ics,text/calendar" class="drop-input">
+    <span class="drop-text"><b>{{ _("Choose a file") }}</b> {{ _("or drop it here") }}</span>
+    <span class="drop-name" aria-live="polite"></span>
+  </label>
+  <label for="link">{{ _("Or its link") }}</label>
+  <input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="{{ _('https://… or webcal://…') }}" value="{{ link or '' }}">
+  <p><button type="submit" class="btn btn-primary btn-block">{{ _("Start next semester") }}</button></p>
+</form>
+<form method="post" action="/p/{{ token }}/semester" class="card way way-draw">
+  <input type="hidden" name="draw" value="1">
+  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8.5 2.5v4M15.5 2.5v4"/><path d="M8 13h3M13 16.5h3"/></svg></span>
+  <h3>{{ _("No file? Draw your week") }}</h3>
+  <p class="hint">{{ _("Drag your classes onto a week, as in a calendar app; each one comes back every week. Then give the exams' dates. About two minutes.") }}</p>
+  <p><button type="submit" class="btn btn-block btn-tinted">{{ _("Draw my week") }}</button></p>
+</form>
+</div>
+<p class="hint">{{ _("Your plan's address and your calendar feed stay the same: nothing to subscribe to again.") }}</p>
+{% endblock %}
