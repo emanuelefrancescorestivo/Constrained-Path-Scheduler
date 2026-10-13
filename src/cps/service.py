@@ -37,9 +37,11 @@ report says so.
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import functools
 import hashlib
+import json
 import math
 import os
 import re
@@ -58,6 +60,7 @@ from . import accounts as _accounts
 from . import ai as _ai
 from . import cards as flashcards
 from . import i18n as _i18n
+from . import inbox as _inbox
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
@@ -250,7 +253,9 @@ class EventView:
     summary: str
     start: str  # ISO 8601, local
     end: str
-    source: str = "calendar"  # "calendar" (the .ics) or "typed" (busy rows)
+    # "calendar" (the .ics), "typed" (busy rows) or "commute" (made from the trip's
+    # length around each day's classes, `commute_events`)
+    source: str = "calendar"
 
     def to_dict(self) -> dict:
         return {"summary": self.summary, "start": self.start, "end": self.end, "source": self.source}
@@ -323,6 +328,8 @@ class CalendarReport:
     # Every non-assessment event of the .ics from half a year before the start to
     # a year after it, with its course: what `make_plan` turns into topics.
     lectures: tuple[LectureView, ...] = field(default=(), repr=False)
+    # The trip to campus, one way, kept around each day's classes (`commute_events`).
+    commute_minutes: int = 0
 
     @property
     def block_slots(self) -> int:
@@ -345,6 +352,7 @@ class CalendarReport:
             "ics_text": self.ics_text,
             "busy_rows": [_row_to_dict(r) for r in self.busy_rows],
             "lectures": [x.to_dict() for x in self.lectures],
+            "commute_minutes": self.commute_minutes,
         }
 
 
@@ -389,6 +397,37 @@ def _iso(moment: datetime) -> str:
     return moment.isoformat(timespec="minutes")
 
 
+# The longest trip asked about (the question offers up to 90 minutes; a typed
+# value above this is refused rather than blocking a whole morning by mistake).
+MAX_COMMUTE_MINUTES = 180
+
+
+def commute_events(campus: Iterable[BusyEvent], minutes: int, zone: ZoneInfo, label: str) -> list[BusyEvent]:
+    """The trip to campus and back, made from the day's classes (D42): `minutes`
+    before the first one each day and after the last one. Time between two classes
+    stays free: a student who stays on campus can study there. All-day events (a
+    holiday, a "week of exams" marker) are not a day on campus.
+
+    Rejected: asking for the trip's times day by day (a timetable that changes from
+    week to week would be wrong by the second week); a weekly commute row (the same);
+    blocking the trip on every weekday (most students are not on campus every day)."""
+    if minutes <= 0:
+        return []
+    trip = timedelta(minutes=minutes)
+    days: dict[date, tuple[datetime, datetime]] = {}
+    for event in campus:
+        if event.all_day or event.duration >= timedelta(hours=12):
+            continue
+        begin, end = event.start.astimezone(zone), event.end.astimezone(zone)
+        first, last = days.get(begin.date(), (begin, end))
+        days[begin.date()] = (min(first, begin), max(last, end))
+    out = []
+    for first, last in days.values():
+        out += [BusyEvent(first - trip, first, label), BusyEvent(last, last + trip, label)]
+    out.sort(key=lambda e: (e.start, e.end))
+    return out
+
+
 def analyse_calendar(
     ics: bytes | None = None,
     *,
@@ -399,8 +438,11 @@ def analyse_calendar(
     blocks_per_day: int = 2,
     block_minutes: int = 90,
     busy_rows: Iterable[BusyRow | Mapping] = (),
+    commute_minutes: int = 0,
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
+    With `commute_minutes`, the trip to campus and back is busy too, around each
+    day's events of the timetable and classes drawn by hand (`commute_events`).
 
     Without `days` the horizon runs to the latest assessment found in the next year,
     including its day, or 21 days if there is none. Assessments are looked for over
@@ -418,6 +460,8 @@ def analyse_calendar(
         raise InvalidInput(_("the study window must run from an earlier to a later hour, within 0 to 24"))
     if blocks_per_day < 1 or block_minutes < 30:
         raise InvalidInput(_("use at least one block a day of at least 30 minutes"))
+    if not 0 <= commute_minutes <= MAX_COMMUTE_MINUTES:
+        raise InvalidInput(_("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES))
     text = decode_ics(ics) if ics is not None else None
 
     if days is not None and days < 1:
@@ -429,6 +473,13 @@ def analyse_calendar(
         days = max(1, math.ceil(latest - 1e-9))
 
     tagged = _tagged_events(text, rows, start, days, tz)
+    if commute_minutes:
+        campus = [e for e, source in tagged if source == "calendar"]
+        campus += busy_from_table([r for r in rows if r.kind == "class"], start, days, tz)
+        trips = commute_events(campus, commute_minutes, _zone(tz), _("Commute"))
+        tagged = sorted(
+            tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
+        )
     events = [e for e, _ in tagged]
     grid = availability_from_events(events, start, days, SLOTS_PER_DAY, study_window)
     minutes_per_slot = 24 * 60 // grid.slots_per_day
@@ -459,6 +510,7 @@ def analyse_calendar(
         ics_text=text,
         busy_rows=rows,
         lectures=lectures,
+        commute_minutes=commute_minutes,
     )
 
 
@@ -785,6 +837,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         blocks_per_day=report.blocks_per_day,
         block_minutes=report.block_minutes,
         busy_rows=report.busy_rows,
+        commute_minutes=report.commute_minutes,
     )
 
 
@@ -1352,12 +1405,12 @@ def calendar_week(
     for event in source.events:
         if event.source == "typed" and not typed:
             continue
-        kind = "typed" if event.source == "typed" else "calendar"
-        if event.start in exams:
+        kind = event.source if event.source in ("typed", "commute") else "calendar"
+        if event.start in exams and event.source != "commute":
             kind = "exam"
             shown_exams.add(event.start)
         label = event.summary if kind == "exam" else short_title(event.summary)
-        course = exams.get(event.start) or course_of(event.summary)
+        course = None if kind == "commute" else exams.get(event.start) or course_of(event.summary)
         lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
         place(lo, hi, label, kind, course=course)
     for when, name in exams.items():
@@ -1728,6 +1781,7 @@ def _refresh(
             blocks_per_day=options["blocks_per_day"],
             block_minutes=options["block_minutes"],
             busy_rows=subscription.busy_rows,
+            commute_minutes=int(options.get("commute_minutes", 0)),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -1991,10 +2045,12 @@ def revise_subscription(
     deadlines_url: str | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
     strict: bool = True,
+    commute_minutes: int | None = None,
     **options: Any,
 ) -> Subscription:
-    """Change what the plan is made from (subjects, deadlines, activities, weekly
-    hours and days off, or any of `new_subscription`'s settings) and plan again at
+    """Change what the plan is made from (subjects, deadlines, activities, the trip
+    to university, weekly hours and days off, or any of `new_subscription`'s
+    settings) and plan again at
     once from the calendar last read. A new `deadlines_url` ("" removes it) is read
     at once, which is the only network access here. A change that leaves nothing to
     plan is refused, unless `strict` is False: busy times drawn before any exam is
@@ -2004,6 +2060,12 @@ def revise_subscription(
     if unknown:
         raise InvalidInput(f"unknown settings: {', '.join(sorted(unknown))}")
     merged.update(options)
+    if commute_minutes is not None:
+        if not 0 <= int(commute_minutes) <= MAX_COMMUTE_MINUTES:
+            raise InvalidInput(
+                _("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES)
+            )
+        merged["commute_minutes"] = int(commute_minutes)
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -2096,6 +2158,76 @@ ACTIVITY_KINDS = (
     ("timeoff", "Time off"),
     ("other", "Other"),
 )
+
+
+# The first-run questions about the week (D42). The trips offered, in minutes one
+# way (0: classes from home, or none on campus); then what else fills a week, each
+# a kind of busy time with the question's words and an example of a name.
+COMMUTE_CHOICES = (0, 10, 20, 30, 45, 60, 90)
+ROUTINE_QUESTIONS = (
+    ("training", "Do you play a sport or train?", "Football"),
+    ("work", "Do you have a job?", "Shifts at the café"),
+    ("other", "Anything else every week?", "Music lessons"),
+)
+ROUTINE_ANSWERS = 2  # answers per question on the page; more go on the calendar
+_ROUTINE_NAMES = {"training": "Training", "work": "Work", "other": "Busy"}
+
+
+def routine_view(subscription: Subscription) -> dict:
+    """What the questions about the week show: the trip's choices with the current
+    one, the questions, the days, and how many busy times of each kind are there."""
+    commute = int(subscription.options.get("commute_minutes", 0))
+    counts: dict[str, int] = {}
+    for r in subscription.busy_rows:
+        counts[r.get("kind", "other")] = counts.get(r.get("kind", "other"), 0) + 1
+    return {
+        "commute": commute,
+        "choices": sorted({*COMMUTE_CHOICES, commute}),
+        "questions": [
+            {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
+            for kind, question, example in ROUTINE_QUESTIONS
+        ],
+        "answers": ROUTINE_ANSWERS,
+        "weekdays": list(WEEKDAY_NAMES),
+        "drawn": subscription.ics_text is None and subscription.source_url is None,
+    }
+
+
+def answer_routine(
+    subscription: Subscription,
+    *,
+    commute_minutes: int,
+    answers: Iterable[Mapping],
+    now: datetime | None = None,
+) -> Subscription:
+    """The answers to the questions about the week (D42), planned around at once:
+    the trip to university (`commute_events`), and each other answer as weekly busy
+    times, one per day chosen, added to those already there. An answer left empty
+    is no answer; one half given says what is missing.
+
+    `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`."""
+    kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
+    rows = [dict(r) for r in subscription.busy_rows]
+    for answer in answers:
+        kind = str(answer.get("kind") or "")
+        kind = kind if kind in kinds else "other"
+        label = str(answer.get("label") or "").strip()[:60]
+        days = list(dict.fromkeys(str(d) for d in answer.get("days") or () if str(d).strip()))
+        start, end = (str(answer.get(k) or "").strip() for k in ("start", "end"))
+        if not (label or days or start or end):
+            continue
+        name = label or _(_ROUTINE_NAMES.get(kind, "Busy"))
+        if not days:
+            raise InvalidInput(_("{name}: choose the days", name=name))
+        if not start or not end:
+            raise InvalidInput(_("{name}: give the hours", name=name))
+        rows += [
+            {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
+            for day in days
+        ]
+    return revise_subscription(
+        subscription, busy_rows=rows, commute_minutes=commute_minutes, now=now, strict=False
+    )
 
 
 def _rows(busy_rows: Iterable[BusyRow | Mapping]) -> tuple[dict, ...]:
@@ -2211,6 +2343,106 @@ def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "")
     """Record what happened to a plan (created, changed, a session reported), for the
     pilot's measures. No timetable content, no names."""
     _store(store).log(token, kind, detail)
+
+
+# --------------------------------------------------------------------------- #
+# What reaches the owner, and a plan's copy of its data (D43)
+# --------------------------------------------------------------------------- #
+
+FEEDBACK_KINDS = _inbox.FEEDBACK_KINDS
+
+
+def send_feedback(
+    store: str | os.PathLike, token: str, *, kind: str, body: str, page: str = "", now: datetime | None = None
+) -> None:
+    """A student's message to the owner, from the feedback form: what it is about,
+    what they wrote, and the page they came from (without the plan's address)."""
+    body = str(body or "").strip()
+    if kind not in dict(FEEDBACK_KINDS):
+        raise InvalidInput(_("choose what your message is about"))
+    if len(body) < 3:
+        raise InvalidInput(_("write a few words"))
+    if len(body) > _inbox.MAX_FEEDBACK:
+        raise InvalidInput(_("at most {n} characters, please", n=_inbox.MAX_FEEDBACK))
+    _inbox.add_feedback(
+        _store(store),
+        token,
+        kind=kind,
+        body=body,
+        page=page,
+        lang=current_language(),
+        now=now or datetime.now(UTC),
+    )
+    log_event(store, token, "feedback", kind)
+
+
+def inbox_view(store: str | os.PathLike) -> dict:
+    """The owner's page of students' messages and the error log, newest first."""
+    words = dict(FEEDBACK_KINDS)
+    messages = [{**m, "about": _(words.get(m["kind"], m["kind"]))} for m in _inbox.feedback(_store(store))]
+    return {"messages": messages, "errors": _inbox.errors(_store(store))}
+
+
+def page_of(path: str) -> str:
+    """A page's path as the owner's log keeps it: a plan's address cut out."""
+    return _inbox.page_of(path)
+
+
+def mark_feedback_seen(store: str | os.PathLike, ident: int) -> None:
+    _inbox.mark_seen(_store(store), ident)
+
+
+def record_error(
+    store: str | os.PathLike,
+    *,
+    source: str,
+    route: str,
+    kind: str,
+    message: str,
+    detail: str = "",
+    now: datetime | None = None,
+) -> None:
+    """Count an error in the owner's log (`inbox.record_error`): never a plan's
+    address, never more than a few lines."""
+    _inbox.record_error(
+        _store(store),
+        source=source,
+        route=route,
+        kind=kind,
+        message=message,
+        detail=detail,
+        now=now or datetime.now(UTC),
+    )
+
+
+def export_data(store: str | os.PathLike, token: str, now: datetime | None = None) -> dict:
+    """Everything kept under a plan's address, in one document a student can save
+    (D43; the right to a copy of one's data, D6): the plan itself (the timetable as
+    read, the settings, the exams, the busy times, every report), its log, and each
+    table's rows that are the plan's (`Store.export`), with the photos of its posts.
+    Nothing here is someone else's: another student appears by their handle only."""
+    where = _store(store)
+    document = where.get(token)
+    if document is None:
+        raise InvalidInput(_("there is no plan at this address"))
+    tables = where.export(token)
+    names = []
+    for post in tables["posts"]:
+        post["data"] = json.loads(post["data"])
+        names += [str(n) for n in post["data"].get("photos", [])]
+    photos = {}
+    for name in names:
+        path = where.photos / name
+        if path.parent == where.photos and path.is_file():
+            photos[name] = base64.b64encode(path.read_bytes()).decode("ascii")
+    return {
+        "exported": (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds"),
+        "about": "Everything this study planner keeps under your plan's address. "
+        "The photos are in base64, by the names your posts give.",
+        "plan": document,
+        **tables,
+        "photos": photos,
+    }
 
 
 def log_visit(store: str | os.PathLike, token: str, now: datetime | None = None) -> bool:
@@ -2846,7 +3078,7 @@ def course_colours(source: CalendarReport | PlanReport, drawn: Sequence[str] = (
         names += sorted({t.course for t in source.tasks if t.course}, key=str.casefold)
     else:
         names += [a.subject for a in source.assessments]
-    taught = {course_of(e.summary) for e in source.events if e.source != "typed"} - {""}
+    taught = {course_of(e.summary) for e in source.events if e.source == "calendar"} - {""}
     names += sorted(taught, key=str.casefold)
     names += list(drawn)
     seen: dict[str, int] = {}
@@ -2899,6 +3131,10 @@ def calendar_view(
             start=date.fromisoformat(options["start"]),
             tz=options["tz"],
             days=max(7, (first - date.fromisoformat(options["start"])).days + count),
+            # the classes drawn, for the trip around them; drawn rows themselves are
+            # left out below (`typed=False`), the page draws them as activities
+            busy_rows=subscription.busy_rows,
+            commute_minutes=int(options.get("commute_minutes", 0)),
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
     moment = (now or datetime.now(UTC)).astimezone(zone)
@@ -2996,6 +3232,8 @@ def setup_view(subscription: Subscription) -> dict:
         "weekly_hours": prefs["weekly_hours"],
         "rest_days": list(prefs["rest_days"]),
         "practice_hours": prefs["practice_hours"],
+        "commute": int(options.get("commute_minutes", 0)),
+        "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],
         "block_minutes": options["block_minutes"],
@@ -5368,7 +5606,13 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
 
     exams = {x.exam for x in plan.subjects}
     for e in plan.events:
-        kind = "exam" if e.start in exams else ("typed" if e.source == "typed" else "calendar")
+        kind = (
+            "exam"
+            if e.start in exams and e.source != "commute"
+            else e.source
+            if e.source in ("typed", "commute")
+            else "calendar"
+        )
         label = e.summary if kind == "exam" else short_title(e.summary)
         add(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end), label, kind)
     for s in plan.history + plan.sessions:

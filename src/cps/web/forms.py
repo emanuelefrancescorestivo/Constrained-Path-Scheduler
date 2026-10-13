@@ -73,6 +73,8 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "study_window": [form.get("from_hour", "8"), form.get("to_hour", "22")],
         "blocks_per_day": form.get("blocks_per_day", "2"),
         "block_minutes": form.get("block_minutes", "90"),
+        # Absent while setting up: the next step asks about the trip (D42).
+        "commute": form.get("commute"),
     }
 
 
@@ -115,4 +117,29 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
             _number(str(values["blocks_per_day"]), service.translate("Sessions a day at most"))
         ),
         "block_minutes": int(_number(str(values["block_minutes"]), service.translate("Session length"))),
+        "commute_minutes": None
+        if values.get("commute") in (None, "")
+        else int(_number(str(values["commute"]), service.translate("Trip to university"))),
     }
+
+
+def routine_answers(form: Any) -> tuple[int, list[dict[str, Any]]]:
+    """The questions about the week (D42): the trip's minutes and the answers, as
+    `service.answer_routine` takes them. `form` is the request's form, whose day
+    boxes come as several values under one name."""
+    raw = str(form.get("commute") or "0")
+    commute = int(_number(raw, service.translate("Trip to university")))
+    answers = []
+    index = 0
+    while f"x{index}_kind" in form and index < 20:
+        answers.append(
+            {
+                "kind": str(form.get(f"x{index}_kind") or ""),
+                "label": str(form.get(f"x{index}_label") or "").strip(),
+                "days": [str(d) for d in form.getlist(f"x{index}_days")],
+                "start": str(form.get(f"x{index}_start") or "").strip(),
+                "end": str(form.get(f"x{index}_end") or "").strip(),
+            }
+        )
+        index += 1
+    return commute, answers

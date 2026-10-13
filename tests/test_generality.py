@@ -187,3 +187,40 @@ def test_words_that_only_look_like_exams_are_not_exams():
         tz="Europe/Paris",
     )
     assert report.assessments == ()
+
+
+@pytest.mark.parametrize("shape", list(SHAPES))
+def test_the_trip_to_campus_follows_each_day_s_classes_in_every_shape(shape):
+    """The trip (D42) is read from the timetable's own times: in each country's time
+    zone, through its change of clocks, before the day's first class and after its
+    last, local wall-clock time."""
+    lectures, exams, _courses, tz = SHAPES[shape]
+    report = service.analyse_calendar(
+        _ics(lectures, exams, tz), start=START, tz=tz, days=70, commute_minutes=30
+    )
+    zone = ZoneInfo(tz)
+    classes: dict[date, list[tuple[datetime, datetime]]] = {}
+    trips: dict[date, list[tuple[datetime, datetime]]] = {}
+    for e in report.events:
+        begin = datetime.fromisoformat(e.start).astimezone(zone)
+        end = datetime.fromisoformat(e.end).astimezone(zone)
+        (trips if e.source == "commute" else classes).setdefault(begin.date(), []).append((begin, end))
+    assert trips and set(trips) == set(classes), shape
+    for day, held in classes.items():
+        first, last = min(b for b, _ in held), max(e for _, e in held)
+        assert sorted(trips[day]) == [
+            (first - timedelta(minutes=30), first),
+            (last, last + timedelta(minutes=30)),
+        ]
+        assert (first - timedelta(minutes=30)).hour == 8, (shape, day)  # 08:30 before a 09:00 class
+
+
+def test_an_all_day_exam_is_not_a_trip():
+    report = service.analyse_calendar(
+        _ics(["Algebra - Lecture"], ["Algebra - Exam"], all_day_exams=True),
+        start=START,
+        tz="Europe/Paris",
+        commute_minutes=20,
+    )
+    exam_day = date(2027, 1, 11)
+    assert not any(e.source == "commute" and e.start.startswith(exam_day.isoformat()) for e in report.events)

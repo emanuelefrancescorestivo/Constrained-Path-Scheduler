@@ -17,7 +17,9 @@
   <li>{{ _("If you make a recovery code: a one-way fingerprint of it (SHA-256), from which the code cannot be read back.") }}</li>
   <li>{{ _("The day you last opened your plan, to know when to delete it.") }}</li>
   <li>{{ _("If you turn reminders on: for each device, the address its browser's push service gave it (Google, Apple, Mozilla or Microsoft run these services) and the keys to encrypt for it; which sessions were reminded, for three days. Each reminder is encrypted for your device: the push service carries it without being able to read it, but it learns that a message was sent to that device, and when.") }}</li>
+  <li>{{ _("If you send feedback: your message, what you said it is about, the page you sent it from (without your plan's address) and your language. Only the owner of this service reads it, and it is deleted with your plan.") }}</li>
 </ul>
+<p>{{ _("When something goes wrong in the app, on the server or in a page's script, the error is noted for the owner: where it happened (the kind of page, never your plan's address), what kind of error, its message and the lines of code involved, and how often it happened. These notes name no plan and are deleted 30 days after the error last happened.") }}</p>
 <p>{{ _("Not asked for and not kept: your name, your e-mail address, a password. There are no cookies, no analytics and no advertising. The service's own log records the time, the kind of page and the answer's status, not your plan's address. The company that hosts the server may log connections, with IP addresses, under its own policy.") }}</p>
 <p>{{ _("Your browser remembers which celebrations it has already shown you (a milestone, a full week, a group's goal), so each appears once. That list stays on your device and is never sent; clearing the site's data forgets it.") }}</p>
 <p>{{ _("To work offline, this device keeps a copy of the pages of your plan you open. The copy never leaves the device; deleting your plan, or the site's data, removes it.") }}</p>
@@ -38,5 +40,5 @@
 <p>{{ _("Until {months} months after you last open your plan, then deleted automatically, with everything kept under it: your next semesters go on in the same plan. Your calendar app reading the feed does not count as opening it. You can delete everything at once from Settings, \"Delete my plan and all my data\". Backups of the server's data are kept for at most 7 days.", months=retention) }}</p>
 
 <h2>{{ _("Your rights") }}</h2>
-<p>{{ _("You can see everything kept about you on your plan's pages, change it in Settings and delete it at any time.") }}{% if contact %} {{ _("For any question, or to exercise another right under the GDPR, write to {contact}.", contact=contact) }}{% endif %}</p>
+<p>{{ _("You can see everything kept about you on your plan's pages, download a copy of it in one file, change it in Settings and delete it at any time.") }}{% if contact %} {{ _("For any question, or to exercise another right under the GDPR, write to {contact}.", contact=contact) }}{% endif %}</p>
 {% endblock %}

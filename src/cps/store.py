@@ -217,6 +217,31 @@ CREATE TABLE IF NOT EXISTS server_keys (
     value   TEXT NOT NULL,
     created TEXT NOT NULL
 );
+-- What reaches the owner (D43): students' messages from the feedback form, which
+-- belong to the plan that sent them and go with it; and the error log, one row per
+-- kind of error with how often and when it last happened, which names no plan.
+CREATE TABLE IF NOT EXISTS feedback (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    kind    TEXT NOT NULL,
+    page    TEXT NOT NULL DEFAULT '',
+    lang    TEXT NOT NULL DEFAULT '',
+    body    TEXT NOT NULL,
+    seen    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS feedback_by_time ON feedback (created);
+CREATE TABLE IF NOT EXISTS errors (
+    key     TEXT PRIMARY KEY,
+    source  TEXT NOT NULL,
+    route   TEXT NOT NULL,
+    kind    TEXT NOT NULL,
+    message TEXT NOT NULL,
+    detail  TEXT NOT NULL DEFAULT '',
+    first   TEXT NOT NULL,
+    last    TEXT NOT NULL,
+    count   INTEGER NOT NULL DEFAULT 1
+);
 """
 
 # Columns added after their table was first made: a store from before gets them
@@ -263,10 +288,45 @@ _FORGET = (
     "DELETE FROM challenges WHERE token = :t",
     "DELETE FROM push_devices WHERE token = :t",
     "DELETE FROM push_sent WHERE token = :t",
+    "DELETE FROM feedback WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",
 )
+
+
+# A plan's copy of its data (D43): the plan's own rows of each table, column by
+# column, beside what `_FORGET` deletes. Left out are the secrets of the server and
+# of a device, which say nothing about the student: a passkey's public key, a push
+# address and its keys, the recovery code's digest, a ceremony's challenge, which
+# sessions were reminded.
+_EXPORT = {
+    "events": "SELECT at, kind, detail FROM events WHERE token = :t ORDER BY id",
+    "profile": "SELECT handle, university, programme, year, country, bio, created FROM profiles "
+    "WHERE token = :t",
+    "posts": "SELECT id, kind, created, day, visibility, data, hidden FROM posts WHERE token = :t "
+    "ORDER BY created",
+    "comments": "SELECT id, post, created, body, hidden FROM comments WHERE token = :t ORDER BY created",
+    "kudos": "SELECT post, created FROM kudos WHERE token = :t ORDER BY created",
+    "follows": "SELECT CASE WHEN f.follower = :t THEN 'you follow' ELSE 'follows you' END AS direction, "
+    "COALESCE(p.handle, '') AS handle, f.status, f.created FROM follows f LEFT JOIN profiles p "
+    "ON p.token = CASE WHEN f.follower = :t THEN f.followed ELSE f.follower END "
+    "WHERE f.follower = :t OR f.followed = :t ORDER BY f.created",
+    "blocks": "SELECT COALESCE(p.handle, '') AS handle, b.created FROM blocks b "
+    "LEFT JOIN profiles p ON p.token = b.blocked WHERE b.blocker = :t ORDER BY b.created",
+    "reports": "SELECT target, kind, reason, created FROM reports WHERE reporter = :t ORDER BY created",
+    "groups": "SELECT g.name, g.goal, m.invited, m.joined, g.owner = :t AS owner FROM group_members m "
+    "JOIN study_groups g ON g.id = m.grp WHERE m.token = :t ORDER BY m.invited",
+    "cards": "SELECT id, course, front, back, created, stability, difficulty, last, due, reps, lapses "
+    "FROM cards WHERE token = :t ORDER BY created",
+    "card_reviews": "SELECT card, at, grade, elapsed FROM card_reviews WHERE token = :t ORDER BY at",
+    "passkeys": "SELECT device, created, used FROM passkeys WHERE token = :t ORDER BY created",
+    "recovery_code": "SELECT created FROM recovery_codes WHERE token = :t",
+    "reminder_devices": "SELECT device, created FROM push_devices WHERE token = :t ORDER BY created",
+    "ai_usage": "SELECT created, feature, model, input_tokens, output_tokens, cost, ok FROM ai_usage "
+    "WHERE token = :t ORDER BY created",
+    "feedback": "SELECT created, kind, page, body FROM feedback WHERE token = :t ORDER BY id",
+}
 
 
 class Conflict(Exception):
@@ -417,6 +477,14 @@ class Store:
                 (token, stamp, kind, detail, token, kind, stamp[:10]),
             ).rowcount
         return bool(added)
+
+    def export(self, token: str) -> dict[str, list[dict]]:
+        """Every row kept for a plan outside its document, table by table (`_EXPORT`)."""
+        with self._connect() as db:
+            db.row_factory = sqlite3.Row
+            return {
+                name: [dict(row) for row in db.execute(sql, {"t": token})] for name, sql in _EXPORT.items()
+            }
 
     def events(self, token: str) -> list[dict]:
         with self._connect() as db:

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your week") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# The questions about the week (D42): the trip to university, then sport, a job
+   and anything else every week, each answer weekly busy time on the chosen days. #}
+{% if new %}{% set step = 3 %}{% include "_steps.html" %}{% endif %}
+<div class="page-title">
+  <h1>{% if new %}{{ _("A few questions about your week") }}{% else %}{{ _("Add to your week") }}{% endif %}</h1>
+  <p>{{ _("So that nothing is planned while you are on the way, at training or at work. Skip what does not apply: all of it can be changed later on the calendar.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/routine" class="routine">
+{% if new %}<input type="hidden" name="new" value="1">{% endif %}
+
+<section class="card question">
+  <h2 id="q-commute">{{ _("How long is your trip to university?") }}</h2>
+  <p class="hint">{{ _("One way. It is kept free before your first class and after your last, on each day you have classes.") }}</p>
+  <div class="pills" role="radiogroup" aria-labelledby="q-commute">
+    {% for m in view.choices %}
+    <label class="pill"><input type="radio" name="commute" value="{{ m }}"{% if m == view.commute %} checked{% endif %}><span>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</span></label>
+    {% endfor %}
+  </div>
+</section>
+
+{% set counter = namespace(i=0) %}
+{% for q in view.questions %}
+<section class="card question">
+  <h2 id="q-{{ q.kind }}">{{ _(q.question) }}</h2>
+  {% if q.have %}<p class="hint">{{ _n("You have {n} already on the calendar; add more here.", "You have {n} already on the calendar; add more here.", q.have) }}</p>{% endif %}
+  {% for k in range(view.answers) %}
+  {% set i = counter.i %}{% set counter.i = counter.i + 1 %}
+  {% set a = typed[i] if i < typed | length else {} %}
+  {% if k > 0 %}<details class="answer"{% if a.label or a.days %} open{% endif %}><summary>+ {{ _("Another one") }}</summary>{% else %}<div class="answer">{% endif %}
+    <input type="hidden" name="x{{ i }}_kind" value="{{ q.kind }}">
+    <label for="x{{ i }}_label">{{ _("What") }}</label>
+    <input id="x{{ i }}_label" name="x{{ i }}_label" value="{{ a.label or '' }}" maxlength="60" placeholder="{{ _(q.example) }}" autocomplete="off">
+    <p class="label" id="x{{ i }}_days_label">{{ _("Which days") }}</p>
+    <div class="pills days" role="group" aria-labelledby="x{{ i }}_days_label">
+      {% for d in view.weekdays %}<label class="pill"><input type="checkbox" name="x{{ i }}_days" value="{{ d }}"{% if d in (a.days or []) %} checked{% endif %}><span>{{ _(d) }}</span></label>{% endfor %}
+    </div>
+    <div class="row">
+      <div><label for="x{{ i }}_start">{{ _("From") }}</label>
+      <input id="x{{ i }}_start" name="x{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
+      <div><label for="x{{ i }}_end">{{ _("to") }}</label>
+      <input id="x{{ i }}_end" name="x{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
+    </div>
+  {% if k > 0 %}</details>{% else %}</div>{% endif %}
+  {% endfor %}
+  {% if q.kind != "other" %}<p class="hint">{{ _("Count the time to get there and back.") }}</p>{% endif %}
+</section>
+{% endfor %}
+
+<div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new %}{{ _("Next: see your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
+</form>
+{% if new %}<p class="routine-skip"><a href="/p/{{ token }}/week?new=1">{{ _("Skip these questions") }}</a></p>{% endif %}
+{% endblock %}

@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Before friends try it (D43): "Send feedback" from every page, read by the owner at
+  `/admin/<key>/inbox`; "Download a copy of my data" in Settings, one JSON file with
+  everything kept under the plan's address; a draft of the terms of use (`/terms`),
+  marked as not yet read by a lawyer; and an error log of the server's unexpected
+  errors and the pages' script errors, without any plan's address, kept 30 days.
+- A few questions about the week while setting up (D42): how long the trip to
+  university is (kept free before the day's first class and after its last, on days
+  with classes, following the timetable as it changes), and sport, a job or anything
+  else every week, on the days and hours given; each answer is busy time on the
+  calendar at once. The trip's length is in Settings afterwards.
 - Your university from a list (D39): the profile suggests universities as you type
   (about ten thousand, your country first, by name or web domain), and asks your
   year; People shows the others at your university.

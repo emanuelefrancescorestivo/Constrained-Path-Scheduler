@@ -1041,3 +1041,92 @@ milestones under the keys they had.
 **Rejected.** Badges for hours studied, and any ranking or leaderboard (they reward
 showing off time, not learning, and shame the rest, D9); prizes with money's worth
 (a contest has legal rules to check first: the owner's call, later).
+
+## D42. A few questions about the week: the trip, sport, a job
+
+*The owner, 2026-10-13, after trying the app: "make the very first login more user
+friendly by asking questions on when commutes happen, if the user does any sport or
+job in what times of the week so that the planner can then block accordingly".*
+
+**Chosen.** Setting up gains a page between the exams and the week ("Your week",
+step 3): four questions, each a card, each skippable, the whole page too.
+
+1. **How long is your trip to university?** No trip, 10, 20, 30, 45, 60 or 90
+   minutes, one way. The trip is kept free before the day's first class and after
+   its last, on each day with classes, from the timetable file or the classes drawn
+   by hand (`service.commute_events`). Time between two classes stays free: a
+   student who stays on campus can study there.
+2. **Do you play a sport or train?** 3. **Do you have a job?** 4. **Anything else
+   every week?** Each: a name (an example in grey), the days as seven pills, from and
+   to. Each answer becomes weekly busy time, one row per day chosen, of the kind the
+   question is about (Training, Work, Other), so it shows on the calendar in that
+   kind's way and can be dragged, resized or removed there like any busy time. A
+   second answer per question is behind "+ Another one"; more go on the calendar.
+
+The answers plan at once. The trip's length is in Settings ("Trip to university,
+one way") afterwards, and Settings links to the questions again to add more.
+
+**Why the trip is a length, not times.** A timetable changes from week to week; a
+student asked "when do you commute" would give this week's times, wrong by the
+next. The trip's length is stable, and the timetable already says when the student
+is on campus. A commute typed as weekly times (the calendar's Commute kind) is still
+possible for a student whose trip does not follow their classes.
+
+**Rejected.** A chat that asks one question at a time (the same four answers, slower,
+and a form works without scripts); asking for study preferences here too (the study
+window, days off and weekly hours are already on the page before, and asking twice
+is not friendlier); guessing the trip from the university's address (a home address
+is personal data the product does not keep, D6); counting the trip as study time
+(flashcards on the bus): a good idea for the planning review, not a guess to make
+silently.
+
+**Disclosed.** The trip is put around every timed event of the timetable on a day,
+all-day events aside: a personal calendar (a Google Calendar secret address) with
+dinners in it gets a trip around dinner too, so its owner answers "No trip" and
+draws a commute instead. Online classes are not told apart from classes on campus.
+Checked in Chromium at 390 and 1280 px, light and dark, in English and French.
+
+## D43. Before friends try it: feedback, a copy of one's data, terms, an error log
+
+*Step 6 of the readiness review, which the owner asked for on 2026-10-13 ("then move
+onto step 6").*
+
+**Chosen.** Four things a pilot needs before people other than the owner use it:
+
+1. **Send feedback.** From the footer of every page, the end of Today's panel and
+   Settings: what it is about (something wrong, confusing, an idea, something liked)
+   and a few words. Kept with the page it came from, its plan's address cut out, and
+   the language; deleted with the plan. The owner reads them, newest first, at
+   `/admin/<key>/inbox`, next to the reports to review (D20). No reply is possible:
+   the app knows no e-mail address (D35), and the form says so.
+2. **Download a copy of my data.** One JSON file from Settings: the plan's document
+   (the timetable as read, settings, exams, busy times, every report), its log, and
+   the plan's rows of every table (`store._EXPORT`), with its posts' photos in
+   base64. Another student appears by their handle only. A test fails when a new table
+   is neither in the copy nor left out with a reason. Left out: secrets of the server
+   or of a device (a passkey's public key, a push address and its keys, the recovery
+   code's digest), which say nothing about the student.
+3. **Terms of use, a draft.** `/terms`, in the three languages, in plain words: free;
+   the address is the key; a plan is advice, the student stays in charge; what one
+   posts stays theirs; 15 or older for the network; the pilot may be slow or down;
+   leaving. It says at the top that it is a draft not yet read by a lawyer, and it
+   names no law or court: those are the owner's to choose with one.
+4. **An error log.** An error the server did not expect is counted, by route
+   template (never the address), kind, message and the last lines of code, and the
+   student sees a page that says the mistake is the app's. An error in a page's
+   script is sent by `errors.js`, loaded first on every page, at most five a page
+   and ten a minute per address. One row per kind of error, with how often and when
+   it last happened; plans' addresses, tokens and e-mail addresses cut out of every
+   text; kept 30 days after the error last happened.
+
+**Rejected.** A hosted error tracker or a feedback widget from a third party (a
+script and a company receiving students' pages, against D6); an e-mail address for
+feedback (it would have to be published and read, and students would have to give
+theirs); the server's log as the error log (gone at every restart on the free host,
+and blind to the browser); a PDF for the copy (JSON is what the GDPR's portability
+means: readable by a person and by another program).
+
+**Disclosed.** The terms are a draft for the pilot, not legal advice. A browser that
+blocks `sendBeacon` and `fetch` to the site sends no errors. The error log keeps an
+error's message cut to 300 characters: a message that quotes what a student typed
+keeps what fits. Checked in Chromium at 390 and 1280 px.

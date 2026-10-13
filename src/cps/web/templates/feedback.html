@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Send feedback") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# A message to the owner (D43): what it is about, a few words, and the page it was
+   sent from (kept without the plan's address). #}
+<div class="page-title">
+  <h1>{{ _("Send feedback") }}</h1>
+  <p>{{ _("Something broken, confusing, missing, or that you like: the person who makes this app reads every message.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/feedback" class="card form-grid">
+  <input type="hidden" name="from" value="{{ values['from'] or '' }}">
+  <p class="label" id="fb-kind">{{ _("What is it about?") }}</p>
+  <div class="pills" role="radiogroup" aria-labelledby="fb-kind">
+    {% for k, words in kinds %}
+    <label class="pill"><input type="radio" name="kind" value="{{ k }}" required{% if values.kind == k %} checked{% endif %}><span>{{ _(words) }}</span></label>
+    {% endfor %}
+  </div>
+  <label for="fb-body">{{ _("Your message") }}</label>
+  <textarea id="fb-body" name="body" rows="6" maxlength="2000" required placeholder="{{ _('What happened, on which page, and what you expected.') }}">{{ values.body or '' }}</textarea>
+  <p class="hint">{{ _("There is no reply by e-mail: the app does not know yours. Your message is deleted with your plan.") }}</p>
+  <div class="row-end"><button type="submit" class="btn btn-primary">{{ _("Send") }}</button></div>
+</form>
+{% endblock %}
