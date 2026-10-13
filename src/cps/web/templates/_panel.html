@@ -9,6 +9,18 @@
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 {% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
 {% if cards_due %}<a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Flashcards") }} ›</span></a>{% endif %}
+{% if semester_over %}
+<a class="card nudge-card" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
+{% elif account and account.nudge %}
+<div class="card nudge-card">
+  <b>{{ _("Keep your plan") }}</b>
+  <span class="muted">{{ _("It has no password. If you lose this address, a passkey or a recovery code brings you back to it.") }}</span>
+  <div class="row-end">
+    <form method="post" action="/p/{{ token }}/account/later"><button type="submit" class="btn btn-plain btn-sm">{{ _("Not now") }}</button></form>
+    <a class="btn btn-primary btn-sm" href="/p/{{ token }}/settings#account">{{ _("Keep it safe") }}</a>
+  </div>
+</div>
+{% endif %}
 
 {% if not view.planned %}
 <div class="card">

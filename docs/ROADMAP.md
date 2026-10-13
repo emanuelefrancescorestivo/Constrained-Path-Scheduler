@@ -13,7 +13,7 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
 | D3 | Hosting on Render, Starter plan, EU region. Prices re-checked at sign-up. |
 | D4 | The pilot runs on the provider's free subdomain; a domain comes with a name. |
 | D5 | No passwords for the pilot: each student has secret links, like a calendar subscription. |
-| D6 | The owner is the data controller; data stays in the EU; a "delete my data" button; deletion 30 days after the last exam; no trackers. |
+| D6 | The owner is the data controller; data stays in the EU; a "delete my data" button; deletion 30 days after the last exam (since 2026-10: 12 months after the last visit, DECISIONS.md D36); no trackers. |
 | D7 | The product name can wait. |
 
 ## Phase 1: the hosted product

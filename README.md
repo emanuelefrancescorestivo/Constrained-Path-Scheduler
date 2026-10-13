@@ -227,12 +227,16 @@ free instance wakes up.
    week or a milestone gets a burst of confetti, once. Nothing moves if your device
    asks for reduced motion, or if you choose Motion: Reduced in Settings.
 
-No account and no password: the two addresses are the keys, as with any calendar
-subscription link, and the page says so. No cookies, no trackers, nothing loaded
+No e-mail and no password: the two addresses are the keys, as with any calendar
+subscription link, and the page says so. A passkey (the phone's face, fingerprint or
+screen lock) or a recovery code brings a student back to their plan on any device
+(D35); a new semester starts at the same address, keeping the streak, the progress
+and the network (D36); and a reminder can come to the phone before each session
+(D38). No cookies, no trackers, nothing loaded
 from another site; the scripts are the site's own, and every page works without them; the
 log names routes, never the secret addresses; a link in an event never changes
-anything by being opened, only the button on its page does. Plans are deleted 30
-days after their last exam or deadline, or at once from Settings. `src/cps/web/app.py`
+anything by being opened, only the button on its page does. Plans are deleted 12
+months after they were last opened, or at once from Settings. `src/cps/web/app.py`
 lists the rest of the security model.
 
 What it does not do yet, said plainly:
@@ -381,6 +385,8 @@ in a real browser are the owner's.
 | `src/cps/i18n.py`, `locales/` | English, French and Italian: one catalogue per language, keyed by the English sentence |
 | `src/cps/web/` | the hosted app (`cps web`): the plan screen and its calendar (`static/calendar.js`), setup, feeds, one-tap reports |
 | `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
+| `src/cps/reminders.py` | reminders before each session, by Web Push |
+| `src/cps/passkeys.py`, `accounts.py` | passkeys checked on the server (WebAuthn, with `cryptography`), the recovery code |
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
 | `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
 | `src/cps/feed.py` | the feed server calendar apps subscribe to, and background refresh |
@@ -400,8 +406,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 564 passed, 17 deselected (slow), 1 xfailed, ~100 s
-pytest -m "slow or not slow" --cov=cps    # everything: 581 passed, 1 xfailed, 93% coverage
+pytest                                    # 605 passed, 17 deselected (slow), 1 xfailed, ~130 s
+pytest -m "slow or not slow" --cov=cps    # everything: 622 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

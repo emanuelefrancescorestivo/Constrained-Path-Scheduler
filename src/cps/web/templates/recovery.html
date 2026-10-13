@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your recovery code") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="card recovery">
+{% if recovered %}
+<h1>{{ _("Welcome back") }}</h1>
+<p>{{ _("Your recovery code has opened your plan, and it no longer works. Here is your new one.") }}</p>
+{% else %}
+<h1>{{ _("Your recovery code") }}</h1>
+<p>{{ _("With it, you can open your plan from the home page on any device, even if you lose this one. Any code made before no longer works.") }}</p>
+{% endif %}
+<p class="code" translate="no">{{ code }}</p>
+<p class="hint">{{ _("It is shown only now. Write it down, or keep it in your password manager. It works once; using it gives you a new one.") }}</p>
+<p><a class="btn btn-primary" href="/p/{{ token }}{% if not recovered %}/settings#account{% endif %}">{% if recovered %}{{ _("Open my plan") }}{% else %}{{ _("I have kept it") }}{% endif %}</a></p>
+{% if recovered %}<p class="hint">{{ _("On this device, add a passkey in Settings: next time, no code is needed.") }}</p>{% endif %}
+</div>
+{% endblock %}

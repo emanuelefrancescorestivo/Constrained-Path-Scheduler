@@ -677,3 +677,51 @@ Status: fixed; `tests/test_install.py` now checks that every file under the web
 app's `static` and `templates` folders is matched by a package-data pattern, so a
 new folder cannot be forgotten again.
 
+
+**52. A plan with no exam or deadline was never deleted.** Found while moving the
+retention to 12 months after the last visit (step 3, D36): `subscription_expiry`
+returned nothing for a plan without a plan made (a week drawn, then abandoned before
+any exam, D32) or without any exam or deadline in it, and the sweep deletes only
+what has an expiry, so those plans were kept for ever, against the privacy page's
+promise. The same rule deleted a student's whole history 30 days after their last
+exam, between two semesters. Fixed: every plan is deleted 12 months after it was
+last opened, or made (`Subscription.seen`, `created`); the sweep checks a plan saved
+under the old rule (or with no expiry) again before deleting it, and gives it the
+new one. `created` also follows the clock given to `new_subscription` now, as the
+rest of the plan does, instead of the machine's. Status: fixed;
+`tests/test_web.py` (a drawn, abandoned plan is swept; a plan saved under the old
+rule is moved, not deleted) and `tests/test_accounts.py`.
+
+**53. A section reached by its address was hidden under the top bar.** Found in
+the browser run of step 3, at desktop and phone widths: Settings' sections have
+anchors (`#account`, `#semester`, and before them `#app`, `#language`,
+`#appearance`, `#ai`), and the translucent top bar, which stays on screen, covered
+the heading the browser scrolled to. The new recovery-code field was also cut short
+on a phone (its placeholder did not fit beside its button). Fixed: a heading with
+an anchor keeps clear of the bar (`scroll-margin-top`), and the field takes the
+whole line on a narrow screen, its button below. Status: fixed; seen in Chromium,
+not by the Python tests, which do not lay out the page. The same run recorded one
+passkey registration and one sign-in from Chromium's own authenticator
+(`tests/data/chromium-passkey.json`), which `tests/test_accounts.py` checks the
+server's verifier against.
+
+**54. On a phone, the floating "+" covered what was under it.** Found in the tour of
+every page at phone width for the polish pass (D37): the round button floating
+above the tab bar sat over the right end of Settings' "Save and plan" button and
+over the last line of whatever card was beneath it (the group's hours on Progress,
+a session's text on Today), on every page that showed it. Fixed: the button is gone;
+on a phone, a new task is the "+" in the top bar, as in Apple's own apps, and the
+N key and the wide top bar's "New task" are unchanged. Status: fixed; seen in
+Chromium, not by the Python tests, which do not lay out the page
+(`tests/test_start.py` checks the "+" is absent while the week is being drawn, as
+the floating button was).
+
+**55. Chrome's reminders would have been refused.** Found in the browser run of step
+4 (D38), before release: the server accepts a device's push address only at a known
+push service, and the list had Chrome's under `fcm.googleapis.com`; the Chromium of
+the run, subscribing for real, was given an address under `jmt17.google.com/fcm/send/`,
+and the page said reminders could not be used on this browser. Fixed: a google.com
+host is accepted under the `/fcm/` path only, so the server still cannot be made to
+post anywhere else. Status: fixed; `tests/test_reminders.py` holds the address as
+Chromium gave it, and the refusals (another path on a google.com host, a look-alike
+domain).

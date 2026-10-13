@@ -10,8 +10,10 @@
 // - Anything else (the home page, forms sent, the review page) goes to the network
 //   as if this worker were not here; a page that cannot be reached and has no copy
 //   is the offline page.
+// - A reminder pushed by the server (D38) is shown as a notification; tapping it
+//   opens the plan, in a window already open if there is one.
 
-const VERSION = "v1";
+const VERSION = "v2";
 // The offline page in the language of the page that registered this worker
 // (pwa.js passes it); a new language registers the worker again.
 const LANG = new URL(self.location).searchParams.get("lang") || "en";
@@ -101,4 +103,35 @@ self.addEventListener("fetch", (event) => {
   } else if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(async () => (await caches.match(OFFLINE)) || Response.error()));
   }
+});
+
+// -- reminders (D38) ---------------------------------------------------------------
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Study plan", {
+      body: data.body || "",
+      tag: data.tag || "",
+      icon: "/static/icons/icon-192.png",
+      data: { url: data.url || "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  let url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin);
+  if (url.origin !== self.location.origin) url = new URL("/", self.location.origin); // only this site's pages
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => new URL(w.url).pathname.startsWith(url.pathname) && "focus" in w);
+      return open ? open.focus() : self.clients.openWindow(url.href);
+    }),
+  );
 });

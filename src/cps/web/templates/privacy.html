@@ -13,8 +13,12 @@
   <li>{{ _("The sessions you log, the explanations you write and the notes you share, with their photos, and who you chose to show each one to: only you, your followers, or everyone. Photos are kept without their location data.") }}</li>
   <li>{{ _("Your flashcards and each answer you gave them, to schedule the next review. Only you see them.") }}</li>
   <li>{{ _("If you join the network: your handle, university and programme as you typed them, who you follow and who follows you, your kudos and comments, the reports you make and the people you block.") }}</li>
+  <li>{{ _("If you add a passkey: its public key, the kind of device it was added on (such as iPhone or Mac), and when it was added and last used. Its private key stays on your device or in your password manager; your face or fingerprint never leaves your device and is never seen here.") }}</li>
+  <li>{{ _("If you make a recovery code: a one-way fingerprint of it (SHA-256), from which the code cannot be read back.") }}</li>
+  <li>{{ _("The day you last opened your plan, to know when to delete it.") }}</li>
+  <li>{{ _("If you turn reminders on: for each device, the address its browser's push service gave it (Google, Apple, Mozilla or Microsoft run these services) and the keys to encrypt for it; which sessions were reminded, for three days. Each reminder is encrypted for your device: the push service carries it without being able to read it, but it learns that a message was sent to that device, and when.") }}</li>
 </ul>
-<p>{{ _("Not asked for and not kept: your name, your e-mail address, a password. There are no accounts, no cookies, no analytics and no advertising. The service's own log records the time, the kind of page and the answer's status, not your plan's address. The company that hosts the server may log connections, with IP addresses, under its own policy.") }}</p>
+<p>{{ _("Not asked for and not kept: your name, your e-mail address, a password. There are no cookies, no analytics and no advertising. The service's own log records the time, the kind of page and the answer's status, not your plan's address. The company that hosts the server may log connections, with IP addresses, under its own policy.") }}</p>
 <p>{{ _("Your browser remembers which celebrations it has already shown you (a milestone, a full week, a group's goal), so each appears once. That list stays on your device and is never sent; clearing the site's data forgets it.") }}</p>
 <p>{{ _("To work offline, this device keeps a copy of the pages of your plan you open. The copy never leaves the device; deleting your plan, or the site's data, removes it.") }}</p>
 
@@ -25,12 +29,12 @@
 <p>{{ _("To make your study plan and keep it up to date, which is what you ask for by using the service. Nothing is sold, shared or used for anything else.") }}</p>
 
 <h2>{{ _("Where, and who can see it") }}</h2>
-<p>{{ _("On the server that runs this service. Your plan's two addresses (the page and the calendar feed) are the only keys to it: anyone who has them can see your plan, and the page's address lets them change it. Keep them private, as you would a calendar's secret address. Your calendar app reads the feed; Google Calendar, for one, reads it from Google's servers.") }}</p>
+<p>{{ _("On the server that runs this service. Your plan's two addresses (the page and the calendar feed) are the only keys to it, with your passkeys and your recovery code, which lead to the page's address: anyone who has them can see your plan, and the page's address lets them change it. Keep them private, as you would a calendar's secret address. Your calendar app reads the feed; Google Calendar, for one, reads it from Google's servers.") }}</p>
 <p>{{ _("In a study group, its members see the group's total hours each week and whether you studied that week; never your plan, your courses or your sessions.") }}</p>
 <p>{{ _("In the network, others see your handle, university, programme and the line about you, and each post only by the people you chose for it. A photo's address works only for them. Reports are read by the owner of this service alone; nobody is told who reported them, and nobody is told they were blocked.") }}</p>
 
 <h2>{{ _("For how long") }}</h2>
-<p>{{ _("Until {days} days after your last exam or deadline, then deleted automatically. You can delete everything at once from Settings, \"Delete my plan and all my data\". Backups of the server's data are kept for at most 7 days.", days=retention) }}</p>
+<p>{{ _("Until {months} months after you last open your plan, then deleted automatically, with everything kept under it: your next semesters go on in the same plan. Your calendar app reading the feed does not count as opening it. You can delete everything at once from Settings, \"Delete my plan and all my data\". Backups of the server's data are kept for at most 7 days.", months=retention) }}</p>
 
 <h2>{{ _("Your rights") }}</h2>
 <p>{{ _("You can see everything kept about you on your plan's pages, change it in Settings and delete it at any time.") }}{% if contact %} {{ _("For any question, or to exercise another right under the GDPR, write to {contact}.", contact=contact) }}{% endif %}</p>

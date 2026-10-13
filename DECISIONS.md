@@ -778,3 +778,199 @@ only; in Italian, the AI reads them if it is on, else the form asks for the date
 Moodle deadlines are still read from English event names (as before). The
 translation was written by the assistant, not by a native speaker: the owner, who
 is one, is asked to read it.
+
+## D35. Accounts that last: passkeys and a recovery code
+
+*Step 3 of the readiness review. The owner approved passkeys for sign-in on
+2026-10-12, and `cryptography` with them (pywebpush, approved the same day for step
+4, is built on it).*
+
+**The problem.** A plan is its private address, as a calendar's secret link is. A
+student who loses it (a new phone, a cleared browser, a closed tab before saving the
+link) has lost the plan, the streak and the network with it; nothing could find it
+again. A product students keep for years needs a way back.
+
+**Chosen.** Two ways back to the address, and still no name, e-mail or password:
+
+1. **Passkeys** (WebAuthn). In Settings, "Add a passkey": the device makes a key
+   pair for this site behind the student's face, fingerprint or screen lock, and the
+   site keeps the public half, the kind of device ("iPhone", "Mac", from the
+   browser's own words) and when it was added and last used. On the home page,
+   "Sign in with a passkey": the device offers the passkeys it has for this site
+   (none is named by the server, so nobody learns which exist), signs a fresh
+   challenge, and the server opens the plan it belongs to. Passkeys that sync
+   (iCloud Keychain, Google Password Manager) open the plan on the student's other
+   devices too. Up to ten per plan; each can be removed.
+2. **A recovery code**, for when every device is gone: twenty characters from
+   Crockford's alphabet (no I, L, O or U; about 100 bits), shown once, kept only as
+   its SHA-256. It works once: using it opens the plan and shows a new one at once.
+   Making a new one replaces the old. Typed by hand, case, spaces and dashes do not
+   matter, and O and I are read as 0 and 1.
+3. **A suggestion on Today** ("Keep your plan"), while the plan has neither; "Not
+   now" hides it for two weeks.
+
+**How it is checked** (`cps/passkeys.py`, `cps/accounts.py`). The server follows
+WebAuthn Level 2: the client data says `webauthn.create` or `webauthn.get`, carries
+a challenge the server issued for that purpose (and that plan), not older than five
+minutes, used once, and the site's origin; the authenticator data is for this site
+(the SHA-256 of its host name) with the person present; the key is ES256, Ed25519
+or RS256; the signature covers the authenticator data and the client data's hash; a
+signature counter that goes backwards is refused (a copied key), zero is allowed
+(synced passkeys keep it there). Attestation is not asked for: the site does not
+need to know which device made the key. The few bytes of CBOR involved are read in
+the module itself, so the only new dependency is `cryptography`, part of the `web`
+extra and imported only when a signature is checked. The user handle a passkey
+stores is derived one way from the plan's token, never the token. Challenges are
+kept in the database, not in a cookie: the service still sets none.
+
+**Tested** with a simulated device (real keys and CBOR, each field spoilable) for
+the three algorithms and every refusal, and against one registration and one
+sign-in recorded from Chromium's own virtual authenticator
+(`tests/data/chromium-passkey.json`); the whole flow was walked in Chromium at
+desktop and phone widths, with a passkey synced to a second device.
+
+**Rejected.** E-mail links (an address to keep and protect, mail to send, a
+provider to pay, which the owner declined until launch); passwords (to hash, leak
+and reset); "Sign in with Google or Apple" (a third party told of every sign-in, an
+account with each); a WebAuthn library (more code and dependencies to trust, and
+to ask the owner for, than the few checks above need; attestation, which such
+libraries mostly add, is not used here).
+
+**Disclosed.** A plan with neither a passkey nor a code cannot be found again
+without its address; the home page says so. The relying party is the host name the
+service is reached at (`CPS_BASE_URL`, or Render's), so passkeys made on one address
+do not work on another, as for any site; on a computer, use `localhost`, not
+`127.0.0.1`, which browsers refuse for passkeys. In the public demo passkeys work,
+and are deleted with the demo when it restarts. Not tried on a real iPhone or
+Android phone (the owner's check); Chromium's authenticator was virtual.
+
+## D36. Kept while used, and the next semester at the same address
+
+*Step 3 of the readiness review. The owner approved on 2026-10-12: delete an account
+12 months after the student's last visit, instead of 30 days after the last exam
+(D6).*
+
+**Chosen.**
+
+1. **Retention.** A plan, with everything kept under its address (the profile and
+   the network's rows, the diary, the flashcards, the passkeys), is deleted 12
+   months after the student last opened it (`Subscription.seen`, counted once a
+   day: any of the plan's pages, a passkey or recovery-code sign-in), or after it
+   was made if never opened since. A calendar app reading the feed does not count:
+   it reads for ever, even when the student has forgotten the plan. Settings say on
+   which day the plan will go; the privacy page says the rule. A plan saved under
+   the old rule gets the new one at the next sweep, before anything is deleted, and
+   a plan with no exam is no longer kept for ever (AUDIT item 52).
+2. **The next semester** (Settings, "Next semester"; and on Today, once every exam
+   and deadline is behind). The student brings the new timetable (a link, a file or
+   a week drawn); its exams are found as at the start. Kept: the address and the
+   calendar feed (nothing to subscribe to again), the week's hours and days off,
+   the study window, the language, the appearance, AI, the Moodle link, the
+   deadlines still ahead, activities drawn other than classes (work, training), and
+   everything kept under the address. Put away: the old timetable, exams, plan,
+   reports and moved sessions, the classes drawn, finished or past deadlines, past
+   one-off activities. What was studied is kept as the sessions progress counts
+   (`options["past"]`: start, length, kind, course, report), so the streak, the
+   weeks, the trends and a group's goal go on across semesters.
+
+**Rejected.** Keeping plans for ever (a promise the privacy page could not make);
+deleting at the end of each semester (the history is what a streak and a trend are
+made of); a new address per semester (the feed, the home-screen icon and the
+network would have to move).
+
+**Disclosed.** Until the new semester has an exam or a deadline, it has no plan, and
+the Progress page waits for it; the past sessions are kept meanwhile. The calendar
+feed shows the current semester's sessions only. With no e-mail address, nobody is
+warned before a plan is deleted; Settings show the date.
+
+## D37. A silkier interface
+
+*The owner, 2026-10-12: "smooth out the graphic interface, it should be more silky
+and Apple-like".*
+
+**Chosen.** A pass over every page at phone and desktop widths, light and dark,
+keeping the layout and changing how it feels:
+
+1. **Apple's own patterns where the app had a web or Android one.** On a phone, a
+   new task is the "+" in the top bar (the floating round button went, and with it
+   AUDIT item 54); the tab bar's five tabs have the same weight (Focus no longer
+   sits in a raised blue disc); every on/off choice is a switch instead of a
+   checkbox (still a checkbox to the browser and to screen readers; in a
+   high-contrast mode the plain checkbox comes back); a session card's colour is a
+   capsule inside the card, as Calendar draws an event, instead of a stripe cut by
+   the corner.
+2. **Shapes.** Rounder corners everywhere, and continuous corners (a squircle,
+   which curves into the straight edge instead of meeting it at a circle's tangent)
+   on cards, fields, sheets and popovers where the browser can draw them
+   (`corner-shape`); pills and circles stay round.
+3. **Motion.** A press is quick and the release soft (a short scale-down, a longer
+   settle); sheets rise with a long, gentle deceleration and no bounce; popovers and
+   pages arrive with less travel; the top bar is see-through over the page while
+   nothing is beneath it, and its material and hairline fade in as the page scrolls
+   under it (scroll-driven animation; elsewhere it keeps its material); links to a
+   section glide there. All of it stops under reduced motion, as before (D30).
+4. **Type and spacing.** Headings balance their lines and paragraphs avoid a lone
+   last word; a page's large title keeps its distance from the first card; a field
+   in focus has a thinner, crisper ring.
+
+**Rejected.** A component or animation library (the app has no build step and no
+framework, on purpose); a web font (the system font is San Francisco on Apple
+devices already); imitating "Liquid Glass" refraction (costly to draw on phones, and
+a page that must stay readable without it); squircles drawn with SVG masks (heavy,
+and they break shadows and focus rings).
+
+**Disclosed.** Continuous corners and the scroll-linked top bar depend on recent
+browser features; where they are missing, corners are circular and the bar is
+always solid. Checked in Chromium only, at 390 and 1280 px wide, light and dark,
+with motion on and reduced; not on an iPhone.
+
+## D38. Reminders on the phone
+
+*Step 4 of the readiness review. The owner approved `pywebpush` on 2026-10-12, and
+asked that nothing cost money until launch.*
+
+**Chosen.** Web Push: a notification a few minutes before each study session,
+saying the course and the time, the kind of session and its length, and the first
+sentence of what to do; tapping it opens the plan.
+
+1. **Turning them on** (Settings, Reminders): per device, "Turn on reminders on this
+   device" asks the browser's permission and subscribes to its push service; the
+   device appears in the list, can be removed, and "Send a test reminder" sends one
+   at once. When: 5, 10 (the default), 15, 30 or 60 minutes before, or never. On an
+   iPhone or iPad, web push works only in the app installed on the home screen
+   (D33), and the page says so there.
+2. **Sending.** The web app checks every minute which sessions start within the
+   lead time and sends each reminder once (a session is claimed before it is sent,
+   and the claims are kept three days), to every device of the plan, in the plan's
+   language; it is dropped if not delivered before the session starts. A device its
+   push service no longer knows is forgotten. A server that was asleep through a
+   session's window does not remind late.
+3. **Keys and privacy.** The server signs every push with its own key pair (VAPID),
+   made on first use and kept in the store, or given as `CPS_VAPID_PRIVATE_KEY`:
+   nothing for the owner to create. Each reminder is encrypted for the device; the
+   push service (Google, Apple, Mozilla or Microsoft, whichever the browser uses)
+   carries it without being able to read it. The server posts only to those
+   services' addresses (AUDIT item 55), never to an address of a client's choosing.
+   The privacy page says what is kept: each device's push address and keys, and
+   which sessions were reminded, for three days.
+
+**Checked.** Unit and page tests (`tests/test_reminders.py`): which services, the
+key, the devices, the timing, once only, the language, the pages; and what leaves
+the server: posted through a fake push service, decrypted with the device's own key
+as a phone would, and its VAPID signature verified. In Chromium (its full build;
+Chrome has no push in an incognito-like profile): turning reminders on registered
+with Google's push service, the server kept the device, a test reminder sent through
+Google's real push service was accepted, and the service worker showed a pushed
+reminder as a notification. The headless browser could not receive from Google
+itself, so the last step, a reminder travelling to a phone, is the owner's check.
+
+**Rejected.** E-mail (no address is kept, D35), text messages (a paid gateway), a
+native app (an app store account and review: later), a keep-alive job pinging the
+free demo so that it never sleeps (its host's terms were not checked, and it would
+only hide the limit below).
+
+**Disclosed.** Reminders need the server awake at the time. Render's free plan, which
+runs the demo, sleeps when nobody uses it, so there reminders arrive only while
+someone keeps it awake; the demo's Settings say so. A deployment with an always-on
+instance (DEPLOY.md) has no such gap. Not tried on a real iPhone or Android phone.
+The new dependency brings others (`requests`, `aiohttp`, `http-ece`, `py-vapid`).

@@ -13,7 +13,7 @@ Three properties matter more than speed:
   outside any lock (a refresh may read a timetable from the network), and writes
   only if the version is unchanged, retrying otherwise.
 * **Deletion is deletion.** `delete` removes the document and its log; `sweep`
-  removes what has expired (30 days after the last exam, D6).
+  removes what has expired (12 months after the student last opened it, D36).
 * **Safe to copy while running.** `backup` uses SQLite's online backup, so a copy
   taken while students are being served is consistent.
 """
@@ -168,6 +168,55 @@ CREATE TABLE IF NOT EXISTS card_reviews (
     elapsed REAL
 );
 CREATE INDEX IF NOT EXISTS card_reviews_by_token ON card_reviews (token, at);
+-- Accounts that last (D35): a plan's passkeys, of which only the public half is
+-- kept, and the digest of its recovery code. A passkey ceremony's challenge waits
+-- here a few minutes and is used once.
+CREATE TABLE IF NOT EXISTS passkeys (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    public_key BLOB NOT NULL,
+    alg        INTEGER NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    device     TEXT NOT NULL DEFAULT '',
+    created    TEXT NOT NULL,
+    used       TEXT
+);
+CREATE INDEX IF NOT EXISTS passkeys_by_token ON passkeys (token);
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    token   TEXT PRIMARY KEY,
+    digest  TEXT NOT NULL UNIQUE,
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS challenges (
+    value   TEXT PRIMARY KEY,
+    purpose TEXT NOT NULL,
+    token   TEXT NOT NULL DEFAULT '',
+    expires TEXT NOT NULL
+);
+-- Reminders (D38): the devices where a plan's reminders are on (the address the
+-- browser's push service gave each, and the keys to encrypt for it), which sessions
+-- were reminded (kept three days, so none is reminded twice), and the server's own
+-- key pair that signs every push.
+CREATE TABLE IF NOT EXISTS push_devices (
+    endpoint TEXT PRIMARY KEY,
+    token    TEXT NOT NULL,
+    p256dh   TEXT NOT NULL,
+    auth     TEXT NOT NULL,
+    device   TEXT NOT NULL DEFAULT '',
+    created  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS push_devices_by_token ON push_devices (token);
+CREATE TABLE IF NOT EXISTS push_sent (
+    token TEXT NOT NULL,
+    sid   TEXT NOT NULL,
+    at    TEXT NOT NULL,
+    PRIMARY KEY (token, sid)
+);
+CREATE TABLE IF NOT EXISTS server_keys (
+    name    TEXT PRIMARY KEY,
+    value   TEXT NOT NULL,
+    created TEXT NOT NULL
+);
 """
 
 # Leaving every group (D28): the next member in line owns a group its owner left,
@@ -200,6 +249,11 @@ _FORGET = (
     *LEAVE_GROUPS,
     "DELETE FROM card_reviews WHERE token = :t",
     "DELETE FROM cards WHERE token = :t",
+    "DELETE FROM passkeys WHERE token = :t",
+    "DELETE FROM recovery_codes WHERE token = :t",
+    "DELETE FROM challenges WHERE token = :t",
+    "DELETE FROM push_devices WHERE token = :t",
+    "DELETE FROM push_sent WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",
@@ -358,21 +412,34 @@ class Store:
             ).fetchall()
         return [{"at": at, "kind": kind, "detail": detail} for at, kind, detail in rows]
 
-    def sweep(self, now: datetime | None = None) -> int:
-        """Delete every document whose expiry has passed, with its log."""
-        stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
+    def sweep(self, now: datetime | None = None, expiry: Callable[[dict], str | None] | None = None) -> int:
+        """Delete every document whose expiry has passed, with its log.
+
+        With `expiry` (document -> its expiry, ISO), a document is checked again
+        before it goes, and one without an expiry is checked too: a document saved
+        under an older rule gets the current one (D36), and is deleted only if that
+        has passed as well."""
+        stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+        gone = 0
         with self._connect() as db:
-            tokens = [
-                t
-                for (t,) in db.execute(
-                    "SELECT token FROM subscriptions WHERE expires IS NOT NULL AND expires < ?", (stamp,)
-                )
-            ]
-            for token in tokens:
+            db.execute("DELETE FROM challenges WHERE expires < ?", (stamp,))
+            rows = db.execute(
+                "SELECT token, data, expires FROM subscriptions WHERE expires < ?"
+                + (" OR expires IS NULL" if expiry is not None else ""),
+                (stamp,),
+            ).fetchall()
+            for token, data, expires in rows:
+                current = expiry(json.loads(data)) if expiry is not None else None
+                if current is not None and current >= stamp:
+                    db.execute("UPDATE subscriptions SET expires = ? WHERE token = ?", (current, token))
+                    continue
+                if current is None and expires is None:
+                    continue  # nothing says when: kept, as before
                 db.execute("DELETE FROM subscriptions WHERE token = ?", (token,))
                 db.execute("DELETE FROM events WHERE token = ?", (token,))
                 self._forget(db, token)
-        return len(tokens)
+                gone += 1
+        return gone
 
     def tokens(self) -> list[str]:
         with self._connect() as db:

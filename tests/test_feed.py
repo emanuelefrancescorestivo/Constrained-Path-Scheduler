@@ -311,10 +311,17 @@ def test_a_revision_replans_at_once(assisted):
         service.revise_subscription(assisted, colour="red")
 
 
-def test_a_subscription_expires_a_month_after_its_last_exam_or_deadline(assisted):
-    plan = service.PlanReport.from_dict(assisted.plan)
-    last = max(datetime.fromisoformat(s.exam) for s in plan.subjects)
-    assert service.subscription_expiry(assisted) == last + service.RETENTION
+def test_a_subscription_is_kept_a_year_after_it_was_last_opened(assisted):
+    """D36: the deletion counts from the last visit, not from the exams (until
+    2026-10 it was 30 days after the last exam, which a plan between two semesters
+    or without any exam escaped or suffered; AUDIT item 52)."""
+    assert service.RETENTION.days == 365  # "12 months" on the pages
+    made = datetime.fromisoformat(assisted.created)
+    assert service.subscription_expiry(assisted) == made + service.RETENTION
+    later = replace(assisted, seen="2026-11-02T08:00:00+00:00")
+    assert service.subscription_expiry(later) == datetime(2027, 11, 2, 8, tzinfo=UTC)
+    blank = replace(assisted, plan=None, subjects=())
+    assert service.subscription_expiry(blank) == made + service.RETENTION  # no exam: still deleted
 
 
 def test_a_feed_with_an_address_carries_the_report_link(assisted):

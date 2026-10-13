@@ -55,7 +55,7 @@ around it; that is a search, not a proof.
 - **The hosted app** (`cps web`, `src/cps/web`): setup from a link in a few screens,
   a phone-first Today page and week, a calendar feed whose events say what to do and
   link to a one-tap report (done, skipped, hard) that changes the plan at once, a
-  privacy page, deletion on request and 30 days after the last exam. Built and
+  privacy page, deletion on request and 12 months after the last visit (D36). Built and
   tested; not deployed yet (`docs/ROADMAP.md`, checkpoint C1; `docs/DEPLOY.md`).
 - Deadlines from Moodle's calendar link, kept in step with it.
 - The research planner (FSRS value functions and AO*) behind a switch in the

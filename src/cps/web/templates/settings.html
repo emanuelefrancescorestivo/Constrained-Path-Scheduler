@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/passkeys.js"></script>
+<script type="module" src="/static/push.js"></script>{% endblock %}
 {% block main %}
 {% if new and values.drawn %}
 {% set step = 2 %}{% include "_steps.html" %}
@@ -214,6 +216,57 @@
 <h2>{{ _("Your timetable") }}</h2>
 <p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
 {{ _("Time zone: {zone}.", zone=values.tz) }}</p>
+<h2 class="section" id="account">{{ _("Keep your plan") }}</h2>
+<p>{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}</p>
+{% if account.passkeys %}
+<ul class="list passkeys">
+  {% for k in account.passkeys %}
+  <li>
+    <span class="grow"><b>{{ k.device }}</b><small class="muted">{{ _("Added {date}", date=k.added) }}{% if k.last %} · {{ _("last used {date}", date=k.last) }}{% endif %}</small></span>
+    <form method="post" action="/p/{{ token }}/passkeys/{{ k.id }}/remove"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p><button type="button" class="btn btn-primary btn-sm" data-passkey-add="/p/{{ token }}/passkeys/options" data-passkey-save="/p/{{ token }}/passkeys" hidden>{% if account.passkeys %}{{ _("Add another passkey") }}{% else %}{{ _("Add a passkey") }}{% endif %}</button></p>
+<p class="hint" data-passkey-unsupported>{{ _("Passkeys need a recent browser with this page's script; a recovery code works everywhere.") }}</p>
+<p class="alert" data-passkey-status role="status" aria-live="polite" hidden></p>
+<form method="post" action="/p/{{ token }}/recovery" class="recovery-form">
+  <p>{% if account.recovery %}{{ _("Recovery code made on {date}. Make a new one if you lost it: the old one stops working.", date=account.recovery) }}{% else %}{{ _("No recovery code yet. It is shown once: write it down, or keep it in your password manager.") }}{% endif %}</p>
+  <button type="submit" class="btn btn-sm{% if not account.recovery %} btn-tinted{% endif %}">{% if account.recovery %}{{ _("Make a new recovery code") }}{% else %}{{ _("Make a recovery code") }}{% endif %}</button>
+</form>
+<h2 class="section" id="reminders">{{ _("Reminders") }}</h2>
+<p>{{ _("A notification on your phone before each study session, with what to do in it.") }}</p>
+<div data-push data-key="{{ reminders.key }}" data-save="/p/{{ token }}/push" data-remove="/p/{{ token }}/push/remove" data-devices="{{ reminders.devices | map(attribute='id') | join(',') }}">
+  <p class="hint" data-push-off hidden>{{ _("Not on this device yet.") }}</p>
+  <p class="hint" data-push-here hidden>{{ _("On for this device.") }}</p>
+  <p class="row-buttons">
+    <button type="button" class="btn btn-primary btn-sm" data-push-on hidden>{{ _("Turn on reminders on this device") }}</button>
+    <button type="button" class="btn btn-sm" data-push-stop hidden>{{ _("Turn off on this device") }}</button>
+  </p>
+  <p class="hint" data-push-install hidden>{{ _h("On an iPhone or iPad, reminders work in the installed app: in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from there, and turn them on here.") }}</p>
+  <p class="hint" data-push-unsupported>{{ _("Reminders need a browser that allows notifications, with this page's script.") }}</p>
+  <p class="alert" data-push-status role="status" aria-live="polite" hidden></p>
+</div>
+{% if reminders.devices %}
+<ul class="list passkeys">
+  {% for d in reminders.devices %}
+  <li>
+    <span class="grow"><b>{{ d.device }}</b><small class="muted">{{ _("Added {date}", date=d.added) }}</small></span>
+    <form method="post" action="/p/{{ token }}/push/remove"><input type="hidden" name="device" value="{{ d.id }}"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
+  </li>
+  {% endfor %}
+</ul>
+<form method="post" action="/p/{{ token }}/push/test"><button type="submit" class="btn btn-sm">{{ _("Send a test reminder") }}</button></form>
+{% endif %}
+<form method="post" action="/p/{{ token }}/reminders" class="pills lead-choice" aria-label="{{ _('When') }}">
+  <span class="pills-label">{{ _("When") }}</span>
+  {% for m in reminders.leads %}
+  <button type="submit" name="lead" value="{{ m }}" class="btn btn-sm"{% if reminders.lead == m %} aria-pressed="true"{% endif %}>{{ _("{n} min before", n=m) }}</button>
+  {% endfor %}
+  <button type="submit" name="lead" value="0" class="btn btn-sm"{% if not reminders.lead %} aria-pressed="true"{% endif %}>{{ _("Never") }}</button>
+</form>
+{% if demo %}<p class="hint">{{ _("In this demo the server sleeps when nobody uses it: reminders arrive only while it is awake.") }}</p>{% endif %}
 <h2 class="section" id="app">{{ _("On your phone") }}</h2>
 <p>{{ _("Install it as an app: it gets an icon on your home screen, opens full screen, and shows your plan offline.") }}</p>
 <p><button type="button" class="btn btn-primary btn-sm" data-install hidden>{{ _("Install") }}</button></p>
@@ -250,7 +303,11 @@
 {% else %}
 <p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
 {% endif %}
+<h2 class="section" id="semester">{{ _("Next semester") }}</h2>
+<p>{{ _("A new timetable and new exams, at the same address. Your streak, your progress, your diary, your flashcards, your people and your groups come with you.") }}</p>
+<p><a class="btn btn-sm" href="/p/{{ token }}/semester">{{ _("Start next semester") }}</a></p>
 <h2 class="section">{{ _("Your data") }}</h2>
+<p>{{ _("Kept while you use it: deleted 12 months after you last open it, on {date} if you do not come back before.", date=account.deleted) }}</p>
 <p><a href="/p/{{ token }}/delete">{{ _("Delete my plan and all my data") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a></p>
 </div>
 {% endif %}

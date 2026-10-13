@@ -66,6 +66,7 @@ MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
 MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
 MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 64 * 1024  # notes have up to eight pages (D26)
 SWEEP_EVERY = timedelta(hours=6)
+REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38)
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -150,6 +151,8 @@ class Config:
     base_url: str | None = None  # the public address, e.g. https://example.onrender.com
     contact: str | None = None  # who to write to, shown on the privacy page
     sweep_every: timedelta | None = SWEEP_EVERY
+    remind_every: timedelta | None = REMIND_EVERY  # None: no reminders sent (tests send by hand)
+    push_send: Callable[..., int] | None = None  # replaces the push sender (tests)
     backup_dir: Path | None = None  # a dated copy of the store every `backup_every`, a week kept
     backup_every: timedelta = timedelta(days=1)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
@@ -157,6 +160,7 @@ class Config:
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
+    signin_limit: tuple[int, float] = (30, 3600.0)  # passkey and recovery-code tries per address per hour
     admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
     # The public demo (D31): makes a fresh made-up student and returns their plan's
     # token; set, the home page offers it and every page says it is a demo.
@@ -180,6 +184,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     feeds = service.Refresher(store, background=config.background, clock=config.clock, fetch=config.fetch)
     starts = Limiter(*config.start_limit)
     changes = Limiter(*config.change_limit)
+    signins = Limiter(*config.signin_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
     templates.env.globals["recall_words"] = RECALL_WORDS
@@ -212,6 +217,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                     stop.wait(period)
 
             threading.Thread(target=sweep, name="cps-sweep", daemon=True).start()
+        if config.remind_every is not None:
+            remind = config.remind_every.total_seconds()
+
+            def reminders() -> None:
+                # The first round one period after start, not during it: the app and
+                # whatever opens the store at start (a test, a backup) do not race.
+                while not stop.wait(remind):
+                    try:
+                        service.send_due_reminders(store, config.clock(), **push_options())
+                    except Exception:  # a failed round must not stop the next one
+                        LOG.exception("reminders failed")
+
+            threading.Thread(target=reminders, name="cps-reminders", daemon=True).start()
         if config.backup_dir is not None:
             directory, every = config.backup_dir, config.backup_every.total_seconds()
 
@@ -288,6 +306,13 @@ def create_app(config: Config | None = None) -> FastAPI:
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
 
+    def push_options() -> dict[str, Any]:
+        """Who the pushes say they are from, and how they are sent (D38)."""
+        options: dict[str, Any] = {"contact": config.contact, "base_url": config.base_url}
+        if config.push_send is not None:
+            options["send"] = config.push_send
+        return options
+
     def missing(request: Request) -> HTMLResponse:
         return page(
             request,
@@ -300,8 +325,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
             if config.demo
             else service.translate(
-                "This address is not, or no longer, a study plan. Plans are deleted 30 days "
-                "after their last exam or deadline, or when their owner deletes them."
+                "This address is not, or no longer, a study plan. Plans are deleted 12 months "
+                "after they were last opened, or when their owner deletes them. If you lost your "
+                "plan's address, sign in from the home page with your passkey or recovery code."
             ),
         )
 
@@ -394,7 +420,12 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/privacy", response_class=HTMLResponse)
     def privacy(request: Request) -> HTMLResponse:
-        return page(request, "privacy.html", contact=config.contact, retention=service.RETENTION.days)
+        return page(
+            request,
+            "privacy.html",
+            contact=config.contact,
+            retention=round(service.RETENTION.days * 12 / 365),
+        )
 
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
@@ -458,7 +489,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         token = subscription.token
         if subscription.source_url and service.is_stale(subscription, config.clock()):
             feeds.refresh(token)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         return page(
             request,
@@ -482,6 +513,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             ),
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
+            "account": service.account_view(store, subscription, now),
+            "semester_over": service.semester_over(subscription, now),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -528,7 +561,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         now = config.clock()
         logged = service.logged_sessions(store, subscription)
         return page(
@@ -551,7 +584,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return page(
             request,
             "trends.html",
@@ -567,7 +600,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return page(
             request,
             "focus.html",
@@ -779,7 +812,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.community_view(
             store,
             subscription,
@@ -1036,7 +1069,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.library_view(
             store,
             subscription,
@@ -1103,7 +1136,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         view = service.groups_view(store, subscription, config.clock())
         return page(request, "groups.html", token=token, view=view, saved=_notice(saved), tab="community")
 
@@ -1155,7 +1188,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     def group(request: Request, token: str, group_id: str, saved: str = "") -> HTMLResponse:
         if load(token) is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         return group_page(request, token, group_id, saved=_notice(saved))
 
     async def group_change(
@@ -1246,7 +1279,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        service.log_visit(store, token)
+        service.log_visit(store, token, config.clock())
         notice = service.translate_plural("{n} card added.", "{n} cards added.", added) if added else None
         if saved in CARD_NOTICES:
             notice = service.translate(CARD_NOTICES[saved])
@@ -1652,6 +1685,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             tab="settings",
             saved=_notice(saved),
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
+            account=service.account_view(store, subscription, config.clock()),
+            reminders=service.reminders_view(store, subscription),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -1688,9 +1723,258 @@ def create_app(config: Config | None = None) -> FastAPI:
                 error=str(error),
                 tab="settings",
                 ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
+                account=service.account_view(store, subscription, config.clock()),
+                reminders=service.reminders_view(store, subscription),
             )
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
+
+    # -- accounts that last (D35, D36) -------------------------------------------
+
+    def relying_party(request: Request) -> tuple[str, str]:
+        """The origin passkeys are made on, and the relying party's id (its host
+        name): the public address when the deployment gives one, else the request's."""
+        origin = base(request)
+        return origin, urlsplit(origin).hostname or ""
+
+    async def json_body(request: Request, limit: int = 16 * 1024) -> dict:
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise service.InvalidInput("too long")
+        try:
+            body = await request.json()
+        except ValueError as error:
+            raise service.InvalidInput("not JSON") from error
+        if not isinstance(body, dict):
+            raise service.InvalidInput("not an object")
+        return body
+
+    @app.post("/p/{token}/passkeys/options")
+    def passkey_options(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        _origin, rp_id = relying_party(request)
+        return JSONResponse(service.passkey_options(store, subscription, rp_id=rp_id, now=config.clock()))
+
+    @app.post("/p/{token}/passkeys")
+    async def passkey_add(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        origin, rp_id = relying_party(request)
+        try:
+            service.add_passkey(
+                store,
+                token,
+                await json_body(request),
+                origin=origin,
+                rp_id=rp_id,
+                user_agent=request.headers.get("user-agent", ""),
+                now=config.clock(),
+            )
+        except service.SignInFailed as error:
+            LOG.info("passkey refused: %s", error.__cause__)
+            return JSONResponse(error.to_dict(), 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}/settings?saved=passkey#account"})
+
+    @app.post("/p/{token}/passkeys/{passkey}/remove")
+    def passkey_remove(request: Request, token: str, passkey: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.remove_passkey(store, token, passkey)
+        return RedirectResponse(f"/p/{token}/settings?saved=passkey_removed#account", 303)
+
+    @app.post("/p/{token}/recovery", response_class=HTMLResponse)
+    def recovery_code(request: Request, token: str) -> HTMLResponse:
+        """A new recovery code, shown once, in the answer to a form: never on a page
+        a browser or the service worker would keep."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        code = service.make_recovery_code(store, token, config.clock())
+        return page(request, "recovery.html", token=token, code=code, recovered=False, tab="settings")
+
+    @app.post("/p/{token}/account/later")
+    def account_later(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.account_later(current, config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/signin/options")
+    def signin_options(request: Request) -> Response:
+        if not signins.allow(client(request)):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        _origin, rp_id = relying_party(request)
+        return JSONResponse(service.signin_options(store, rp_id=rp_id, now=config.clock()))
+
+    @app.post("/signin")
+    async def signin(request: Request) -> Response:
+        if not signins.allow(client(request)):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        origin, rp_id = relying_party(request)
+        try:
+            token = service.sign_in_with_passkey(
+                store, await json_body(request), origin=origin, rp_id=rp_id, now=config.clock()
+            )
+        except service.SignInFailed as error:
+            LOG.info("sign-in refused: %s", error.__cause__)
+            return JSONResponse(error.to_dict(), 400)
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}"})
+
+    @app.post("/recover", response_class=HTMLResponse)
+    async def recover(request: Request) -> HTMLResponse:
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            token, code = service.recover(store, str(form.get("code") or ""), config.clock())
+        except service.SignInFailed as error:
+            return page(request, "home.html", 400, signin_error=str(error), tz="Europe/Paris")
+        return page(request, "recovery.html", token=token, code=code, recovered=True)
+
+    @app.get("/p/{token}/semester", response_class=HTMLResponse)
+    def semester(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(request, "semester.html", token=token, tab="settings", link="")
+
+    @app.post("/p/{token}/semester", response_class=HTMLResponse)
+    async def semester_start(request: Request, token: str) -> Response:
+        """The next semester (D36): the same address, a new timetable."""
+        if load(token) is None:
+            return missing(request)
+        if int(request.headers.get("content-length") or 0) > MAX_UPLOAD + 64 * 1024:
+            return page(
+                request,
+                "semester.html",
+                413,
+                token=token,
+                tab="settings",
+                error=service.translate("That file is too large for a timetable."),
+            )
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=1, max_fields=6)
+        link = str(form.get("link") or "").strip() or None
+        draw = form.get("draw") == "1"
+        upload = form.get("file")
+        ics = None
+        if isinstance(upload, UploadFile) and upload.filename:
+            ics = await upload.read(MAX_UPLOAD + 1)
+            if len(ics) > MAX_UPLOAD:
+                return page(
+                    request,
+                    "semester.html",
+                    413,
+                    token=token,
+                    tab="settings",
+                    error=service.translate("That file is too large for a timetable."),
+                )
+        try:
+            if link is None and ics is None and not draw:
+                raise service.InvalidInput(
+                    service.translate("paste your timetable's link, or choose its file")
+                )
+            fresh = service.update_subscription(
+                store,
+                token,
+                lambda current: service.start_next_semester(
+                    current,
+                    source_url=link,
+                    ics=None if link else ics,
+                    draw=draw,
+                    now=config.clock(),
+                    fetch=config.fetch,
+                ),
+            )
+        except service.ServiceError as error:
+            return page(
+                request, "semester.html", 400, token=token, tab="settings", error=str(error), link=link or ""
+            )
+        if fresh is None:
+            return missing(request)
+        drawn = link is None and ics is None
+        service.log_event(store, token, "semester", "link" if link else "draw" if drawn else "file")
+        if drawn:
+            return RedirectResponse(f"/p/{token}/timetable", 303)
+        return RedirectResponse(f"/p/{token}/settings?new=1", 303)
+
+    # -- reminders (D38) ---------------------------------------------------------
+
+    @app.post("/p/{token}/push")
+    async def push_on(request: Request, token: str) -> Response:
+        """A device's push subscription, as the browser gave it (push.js)."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        try:
+            service.add_push_device(
+                store,
+                token,
+                await json_body(request, 8 * 1024),
+                user_agent=request.headers.get("user-agent", ""),
+                now=config.clock(),
+            )
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}/settings?saved=reminders#reminders"})
+
+    @app.post("/p/{token}/push/remove")
+    async def push_off(request: Request, token: str) -> Response:
+        """A device turned off: from the list (a form, by its id) or from the device
+        itself (push.js, by its address)."""
+        if load(token) is None:
+            return missing(request)
+        if request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                body = await json_body(request, 8 * 1024)
+            except service.ServiceError as error:
+                return JSONResponse(error.to_dict(), 400)
+            service.remove_push_device(store, token, str(body.get("endpoint") or ""))
+            return JSONResponse({"go": f"/p/{token}/settings?saved=reminders_off#reminders"})
+        form = await request.form(max_files=0, max_fields=2)
+        service.remove_push_device(store, token, str(form.get("device") or ""))
+        return RedirectResponse(f"/p/{token}/settings?saved=reminders_off#reminders", 303)
+
+    @app.post("/p/{token}/reminders")
+    async def reminders_lead(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            minutes = int(str(form.get("lead") or "0"))
+            service.update_subscription(
+                store, token, lambda current: service.set_reminder_lead(current, minutes)
+            )
+        except (ValueError, service.ServiceError):
+            return RedirectResponse(f"/p/{token}/settings#reminders", 303)
+        service.log_event(store, token, "reminders", f"lead {minutes}")
+        return RedirectResponse(f"/p/{token}/settings?saved=1#reminders", 303)
+
+    @app.post("/p/{token}/push/test")
+    def push_test(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        reached = service.send_test_reminder(store, subscription, **push_options())
+        return RedirectResponse(
+            f"/p/{token}/settings?saved={'test_sent' if reached else 'test_none'}#reminders", 303
+        )
 
     def back_to(token: str, where: str, **query: Any) -> str:
         """Where a task form returns to: the page it was sent from, among the
@@ -1942,6 +2226,20 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
+    if saved == "passkey":
+        return service.translate(
+            "Passkey added. Open your plan with it on the home page, on any device it syncs to."
+        )
+    if saved == "passkey_removed":
+        return service.translate("Passkey removed. Remove it from your device's passwords too.")
+    if saved == "reminders":
+        return service.translate("Reminders are on for this device.")
+    if saved == "reminders_off":
+        return service.translate("Reminders are off for that device.")
+    if saved == "test_sent":
+        return service.translate("Sent. It should arrive in a few seconds.")
+    if saved == "test_none":
+        return service.translate("No device received it. Turn reminders on again on your phone.")
     notice = TASK_NOTICES.get(saved)
     return service.translate(notice) if notice else None
 

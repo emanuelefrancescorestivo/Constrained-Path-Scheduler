@@ -127,7 +127,7 @@ def test_drawing_a_week_from_the_start_to_a_plan(web):
     token = started.headers["location"].split("/")[2]
     page = unescape(web.get(f"/p/{token}/timetable").text)
     assert 'data-setup="classes"' in page and "Draw your week" in page
-    assert 'id="panel"' not in page and 'class="fab"' not in page  # the calendar alone
+    assert 'id="panel"' not in page and "topbar-add" not in page  # the calendar alone
     assert f'href="/p/{token}/settings?new=1"' in page
 
     drawn = web.post(f"/p/{token}/activities?days=7", json=CLASSES)
