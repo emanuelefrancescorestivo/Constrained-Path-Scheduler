@@ -38,9 +38,13 @@ app = ["streamlit>=1.64"]
 # and Jinja2 on 2026-09-29 (docs/ROADMAP.md, D1); python-multipart is what FastAPI
 # needs to read forms and uploads. Tested with FastAPI 0.141, uvicorn 0.54,
 # Jinja2 3.1, python-multipart 0.0.x.
-# cryptography checks passkey signatures (D35; the owner approved passkeys and
-# pywebpush, which is built on it, on 2026-10-12). Tested with cryptography 50.
-web = ["fastapi>=0.141", "uvicorn>=0.54", "jinja2>=3.1", "python-multipart>=0.0.20", "cryptography>=43"]
+# cryptography checks passkey signatures (D35); pywebpush encrypts and signs the
+# reminders (D38). The owner approved both on 2026-10-12. Tested with cryptography
+# 50 and pywebpush 2.5.0 (which brings requests, aiohttp, http-ece and py-vapid).
+web = [
+    "fastapi>=0.141", "uvicorn>=0.54", "jinja2>=3.1", "python-multipart>=0.0.20", "cryptography>=43",
+    "pywebpush>=2.5,<3",
+]
 # AI in the hosted app (DECISIONS.md D12, the owner's answer of 2026-10-08: AI on a
 # small budget with the owner's key): Anthropic's official SDK, imported only when
 # ANTHROPIC_API_KEY is set. Tested with anthropic 1.12.1. Without it, the rules answer.

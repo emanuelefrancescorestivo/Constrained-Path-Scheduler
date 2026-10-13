@@ -19,6 +19,10 @@ marked **(check)** where they may have moved.*
 | health check | `/health` |
 | deploys | by hand (`autoDeploy: false`), after CI is green on `main` |
 
+Reminders (D38) are sent by the running app, every minute: the instance must stay
+awake. A paid instance does; a free one that sleeps when idle sends them only while
+someone is using it.
+
 The app deletes plans 12 months after they were last opened (DECISIONS.md D36;
 checked every six hours) and copies the store to `/var/data/backups` at start and once a day, keeping
 seven days, which is what the privacy page promises. A copy on the same disk protects
@@ -40,6 +44,10 @@ the rate limits are in memory for that reason.
 3. **Settings.** Render asks for the values marked `sync: false`:
    - `CPS_CONTACT`: the e-mail address students can write to about their data. It
      appears on the privacy page.
+   - `CPS_VAPID_PRIVATE_KEY` (optional): the key that signs reminders (D38). Left
+     empty, the app makes one on first use and keeps it in its database on the disk,
+     which is enough; set it only to keep the same key across a new database (a
+     changed key means every student turns reminders on again).
    - `CPS_BASE_URL`: leave empty, unless a custom domain is added later. The app then
      uses the address Render gives it (`RENDER_EXTERNAL_URL`).
      Passkeys (D35) belong to that address: after a move to another domain,

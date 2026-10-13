@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/passkeys.js"></script>{% endblock %}
+{% block head %}<script type="module" src="/static/passkeys.js"></script>
+<script type="module" src="/static/push.js"></script>{% endblock %}
 {% block main %}
 {% if new and values.drawn %}
 {% set step = 2 %}{% include "_steps.html" %}
@@ -234,6 +235,38 @@
   <p>{% if account.recovery %}{{ _("Recovery code made on {date}. Make a new one if you lost it: the old one stops working.", date=account.recovery) }}{% else %}{{ _("No recovery code yet. It is shown once: write it down, or keep it in your password manager.") }}{% endif %}</p>
   <button type="submit" class="btn btn-sm{% if not account.recovery %} btn-tinted{% endif %}">{% if account.recovery %}{{ _("Make a new recovery code") }}{% else %}{{ _("Make a recovery code") }}{% endif %}</button>
 </form>
+<h2 class="section" id="reminders">{{ _("Reminders") }}</h2>
+<p>{{ _("A notification on your phone before each study session, with what to do in it.") }}</p>
+<div data-push data-key="{{ reminders.key }}" data-save="/p/{{ token }}/push" data-remove="/p/{{ token }}/push/remove" data-devices="{{ reminders.devices | map(attribute='id') | join(',') }}">
+  <p class="hint" data-push-off hidden>{{ _("Not on this device yet.") }}</p>
+  <p class="hint" data-push-here hidden>{{ _("On for this device.") }}</p>
+  <p class="row-buttons">
+    <button type="button" class="btn btn-primary btn-sm" data-push-on hidden>{{ _("Turn on reminders on this device") }}</button>
+    <button type="button" class="btn btn-sm" data-push-stop hidden>{{ _("Turn off on this device") }}</button>
+  </p>
+  <p class="hint" data-push-install hidden>{{ _h("On an iPhone or iPad, reminders work in the installed app: in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from there, and turn them on here.") }}</p>
+  <p class="hint" data-push-unsupported>{{ _("Reminders need a browser that allows notifications, with this page's script.") }}</p>
+  <p class="alert" data-push-status role="status" aria-live="polite" hidden></p>
+</div>
+{% if reminders.devices %}
+<ul class="list passkeys">
+  {% for d in reminders.devices %}
+  <li>
+    <span class="grow"><b>{{ d.device }}</b><small class="muted">{{ _("Added {date}", date=d.added) }}</small></span>
+    <form method="post" action="/p/{{ token }}/push/remove"><input type="hidden" name="device" value="{{ d.id }}"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
+  </li>
+  {% endfor %}
+</ul>
+<form method="post" action="/p/{{ token }}/push/test"><button type="submit" class="btn btn-sm">{{ _("Send a test reminder") }}</button></form>
+{% endif %}
+<form method="post" action="/p/{{ token }}/reminders" class="pills lead-choice" aria-label="{{ _('When') }}">
+  <span class="pills-label">{{ _("When") }}</span>
+  {% for m in reminders.leads %}
+  <button type="submit" name="lead" value="{{ m }}" class="btn btn-sm"{% if reminders.lead == m %} aria-pressed="true"{% endif %}>{{ _("{n} min before", n=m) }}</button>
+  {% endfor %}
+  <button type="submit" name="lead" value="0" class="btn btn-sm"{% if not reminders.lead %} aria-pressed="true"{% endif %}>{{ _("Never") }}</button>
+</form>
+{% if demo %}<p class="hint">{{ _("In this demo the server sleeps when nobody uses it: reminders arrive only while it is awake.") }}</p>{% endif %}
 <h2 class="section" id="app">{{ _("On your phone") }}</h2>
 <p>{{ _("Install it as an app: it gets an icon on your home screen, opens full screen, and shows your plan offline.") }}</p>
 <p><button type="button" class="btn btn-primary btn-sm" data-install hidden>{{ _("Install") }}</button></p>

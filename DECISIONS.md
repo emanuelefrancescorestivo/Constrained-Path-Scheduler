@@ -923,3 +923,54 @@ and they break shadows and focus rings).
 browser features; where they are missing, corners are circular and the bar is
 always solid. Checked in Chromium only, at 390 and 1280 px wide, light and dark,
 with motion on and reduced; not on an iPhone.
+
+## D38. Reminders on the phone
+
+*Step 4 of the readiness review. The owner approved `pywebpush` on 2026-10-12, and
+asked that nothing cost money until launch.*
+
+**Chosen.** Web Push: a notification a few minutes before each study session,
+saying the course and the time, the kind of session and its length, and the first
+sentence of what to do; tapping it opens the plan.
+
+1. **Turning them on** (Settings, Reminders): per device, "Turn on reminders on this
+   device" asks the browser's permission and subscribes to its push service; the
+   device appears in the list, can be removed, and "Send a test reminder" sends one
+   at once. When: 5, 10 (the default), 15, 30 or 60 minutes before, or never. On an
+   iPhone or iPad, web push works only in the app installed on the home screen
+   (D33), and the page says so there.
+2. **Sending.** The web app checks every minute which sessions start within the
+   lead time and sends each reminder once (a session is claimed before it is sent,
+   and the claims are kept three days), to every device of the plan, in the plan's
+   language; it is dropped if not delivered before the session starts. A device its
+   push service no longer knows is forgotten. A server that was asleep through a
+   session's window does not remind late.
+3. **Keys and privacy.** The server signs every push with its own key pair (VAPID),
+   made on first use and kept in the store, or given as `CPS_VAPID_PRIVATE_KEY`:
+   nothing for the owner to create. Each reminder is encrypted for the device; the
+   push service (Google, Apple, Mozilla or Microsoft, whichever the browser uses)
+   carries it without being able to read it. The server posts only to those
+   services' addresses (AUDIT item 55), never to an address of a client's choosing.
+   The privacy page says what is kept: each device's push address and keys, and
+   which sessions were reminded, for three days.
+
+**Checked.** Unit and page tests (`tests/test_reminders.py`): which services, the
+key, the devices, the timing, once only, the language, the pages; and what leaves
+the server: posted through a fake push service, decrypted with the device's own key
+as a phone would, and its VAPID signature verified. In Chromium (its full build;
+Chrome has no push in an incognito-like profile): turning reminders on registered
+with Google's push service, the server kept the device, a test reminder sent through
+Google's real push service was accepted, and the service worker showed a pushed
+reminder as a notification. The headless browser could not receive from Google
+itself, so the last step, a reminder travelling to a phone, is the owner's check.
+
+**Rejected.** E-mail (no address is kept, D35), text messages (a paid gateway), a
+native app (an app store account and review: later), a keep-alive job pinging the
+free demo so that it never sleeps (its host's terms were not checked, and it would
+only hide the limit below).
+
+**Disclosed.** Reminders need the server awake at the time. Render's free plan, which
+runs the demo, sleeps when nobody uses it, so there reminders arrive only while
+someone keeps it awake; the demo's Settings say so. A deployment with an always-on
+instance (DEPLOY.md) has no such gap. Not tried on a real iPhone or Android phone.
+The new dependency brings others (`requests`, `aiohttp`, `http-ece`, `py-vapid`).

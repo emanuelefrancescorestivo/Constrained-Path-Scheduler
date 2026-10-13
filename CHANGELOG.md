@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Reminders on the phone (D38): a notification 5 to 60 minutes before each study
+  session (10 by default), with the course, the time and what to do; turned on per
+  device in Settings, with a test reminder. Web Push, encrypted for the device and
+  signed with the server's own key, made on first use. New dependency in the `web`
+  extra: `pywebpush`.
 - Accounts that last (D35): a plan can have passkeys (Settings, "Add a passkey":
   the phone's face, fingerprint or screen lock; the server checks the signatures
   itself, `cps.passkeys`) and a recovery code (shown once, kept as a digest, used
@@ -292,6 +297,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Chrome's push addresses are accepted for reminders (AUDIT item 55).
 - On a phone, the floating "+" no longer covers the Save button and the end of the
   card beneath it (AUDIT item 54).
 - A plan with no exam or deadline (a week drawn, then left) is deleted like any

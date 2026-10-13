@@ -715,3 +715,13 @@ N key and the wide top bar's "New task" are unchanged. Status: fixed; seen in
 Chromium, not by the Python tests, which do not lay out the page
 (`tests/test_start.py` checks the "+" is absent while the week is being drawn, as
 the floating button was).
+
+**55. Chrome's reminders would have been refused.** Found in the browser run of step
+4 (D38), before release: the server accepts a device's push address only at a known
+push service, and the list had Chrome's under `fcm.googleapis.com`; the Chromium of
+the run, subscribing for real, was given an address under `jmt17.google.com/fcm/send/`,
+and the page said reminders could not be used on this browser. Fixed: a google.com
+host is accepted under the `/fcm/` path only, so the server still cannot be made to
+post anywhere else. Status: fixed; `tests/test_reminders.py` holds the address as
+Chromium gave it, and the refusals (another path on a google.com host, a look-alike
+domain).

@@ -66,6 +66,7 @@ MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
 MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
 MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 64 * 1024  # notes have up to eight pages (D26)
 SWEEP_EVERY = timedelta(hours=6)
+REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38)
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -150,6 +151,8 @@ class Config:
     base_url: str | None = None  # the public address, e.g. https://example.onrender.com
     contact: str | None = None  # who to write to, shown on the privacy page
     sweep_every: timedelta | None = SWEEP_EVERY
+    remind_every: timedelta | None = REMIND_EVERY  # None: no reminders sent (tests send by hand)
+    push_send: Callable[..., int] | None = None  # replaces the push sender (tests)
     backup_dir: Path | None = None  # a dated copy of the store every `backup_every`, a week kept
     backup_every: timedelta = timedelta(days=1)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
@@ -214,6 +217,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                     stop.wait(period)
 
             threading.Thread(target=sweep, name="cps-sweep", daemon=True).start()
+        if config.remind_every is not None:
+            remind = config.remind_every.total_seconds()
+
+            def reminders() -> None:
+                # The first round one period after start, not during it: the app and
+                # whatever opens the store at start (a test, a backup) do not race.
+                while not stop.wait(remind):
+                    try:
+                        service.send_due_reminders(store, config.clock(), **push_options())
+                    except Exception:  # a failed round must not stop the next one
+                        LOG.exception("reminders failed")
+
+            threading.Thread(target=reminders, name="cps-reminders", daemon=True).start()
         if config.backup_dir is not None:
             directory, every = config.backup_dir, config.backup_every.total_seconds()
 
@@ -289,6 +305,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
+
+    def push_options() -> dict[str, Any]:
+        """Who the pushes say they are from, and how they are sent (D38)."""
+        options: dict[str, Any] = {"contact": config.contact, "base_url": config.base_url}
+        if config.push_send is not None:
+            options["send"] = config.push_send
+        return options
 
     def missing(request: Request) -> HTMLResponse:
         return page(
@@ -1663,6 +1686,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             saved=_notice(saved),
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             account=service.account_view(store, subscription, config.clock()),
+            reminders=service.reminders_view(store, subscription),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -1700,6 +1724,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tab="settings",
                 ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
                 account=service.account_view(store, subscription, config.clock()),
+                reminders=service.reminders_view(store, subscription),
             )
         service.log_event(store, token, "settings")
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
@@ -1885,6 +1910,71 @@ def create_app(config: Config | None = None) -> FastAPI:
         if drawn:
             return RedirectResponse(f"/p/{token}/timetable", 303)
         return RedirectResponse(f"/p/{token}/settings?new=1", 303)
+
+    # -- reminders (D38) ---------------------------------------------------------
+
+    @app.post("/p/{token}/push")
+    async def push_on(request: Request, token: str) -> Response:
+        """A device's push subscription, as the browser gave it (push.js)."""
+        if load(token) is None:
+            return JSONResponse({"message": "no such plan"}, 404)
+        if not changes.allow(token):
+            return JSONResponse({"message": service.translate("Too many requests; try later.")}, 429)
+        try:
+            service.add_push_device(
+                store,
+                token,
+                await json_body(request, 8 * 1024),
+                user_agent=request.headers.get("user-agent", ""),
+                now=config.clock(),
+            )
+        except service.ServiceError as error:
+            return JSONResponse(error.to_dict(), 400)
+        return JSONResponse({"go": f"/p/{token}/settings?saved=reminders#reminders"})
+
+    @app.post("/p/{token}/push/remove")
+    async def push_off(request: Request, token: str) -> Response:
+        """A device turned off: from the list (a form, by its id) or from the device
+        itself (push.js, by its address)."""
+        if load(token) is None:
+            return missing(request)
+        if request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                body = await json_body(request, 8 * 1024)
+            except service.ServiceError as error:
+                return JSONResponse(error.to_dict(), 400)
+            service.remove_push_device(store, token, str(body.get("endpoint") or ""))
+            return JSONResponse({"go": f"/p/{token}/settings?saved=reminders_off#reminders"})
+        form = await request.form(max_files=0, max_fields=2)
+        service.remove_push_device(store, token, str(form.get("device") or ""))
+        return RedirectResponse(f"/p/{token}/settings?saved=reminders_off#reminders", 303)
+
+    @app.post("/p/{token}/reminders")
+    async def reminders_lead(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            minutes = int(str(form.get("lead") or "0"))
+            service.update_subscription(
+                store, token, lambda current: service.set_reminder_lead(current, minutes)
+            )
+        except (ValueError, service.ServiceError):
+            return RedirectResponse(f"/p/{token}/settings#reminders", 303)
+        service.log_event(store, token, "reminders", f"lead {minutes}")
+        return RedirectResponse(f"/p/{token}/settings?saved=1#reminders", 303)
+
+    @app.post("/p/{token}/push/test")
+    def push_test(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        reached = service.send_test_reminder(store, subscription, **push_options())
+        return RedirectResponse(
+            f"/p/{token}/settings?saved={'test_sent' if reached else 'test_none'}#reminders", 303
+        )
 
     def back_to(token: str, where: str, **query: Any) -> str:
         """Where a task form returns to: the page it was sent from, among the
@@ -2142,6 +2232,14 @@ def _notice(saved: str) -> str | None:
         )
     if saved == "passkey_removed":
         return service.translate("Passkey removed. Remove it from your device's passwords too.")
+    if saved == "reminders":
+        return service.translate("Reminders are on for this device.")
+    if saved == "reminders_off":
+        return service.translate("Reminders are off for that device.")
+    if saved == "test_sent":
+        return service.translate("Sent. It should arrive in a few seconds.")
+    if saved == "test_none":
+        return service.translate("No device received it. Turn reminders on again on your phone.")
     notice = TASK_NOTICES.get(saved)
     return service.translate(notice) if notice else None
 

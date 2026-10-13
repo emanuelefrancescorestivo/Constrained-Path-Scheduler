@@ -59,6 +59,7 @@ from . import ai as _ai
 from . import cards as flashcards
 from . import i18n as _i18n
 from . import progress as _progress
+from . import reminders as _reminders
 from . import social as social
 from . import trends as _trends
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
@@ -2405,6 +2406,165 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
     """ "Not now": the suggestion to keep the plan safe waits `ACCOUNT_LATER`."""
     stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
     return replace(subscription, options={**subscription.options, "account_later": stamp})
+
+
+# --------------------------------------------------------------------------- #
+# Reminders on the phone (DECISIONS.md D38)
+# --------------------------------------------------------------------------- #
+
+
+def reminder_lead(subscription: Subscription) -> int:
+    """Minutes before each session its reminder comes; 0 when they are off."""
+    lead = subscription.options.get("reminder_lead", _reminders.DEFAULT_LEAD)
+    return int(lead) if lead in (0, *_reminders.LEADS) else _reminders.DEFAULT_LEAD
+
+
+def set_reminder_lead(subscription: Subscription, minutes: int) -> Subscription:
+    if minutes not in (0, *_reminders.LEADS):
+        raise InvalidInput(_("a reminder comes 5, 10, 15, 30 or 60 minutes before, or not at all"))
+    return replace(subscription, options={**subscription.options, "reminder_lead": minutes})
+
+
+def reminders_view(store: str | os.PathLike, subscription: Subscription) -> dict:
+    """What Settings show about reminders: the devices they are on, how long before
+    a session, and the key a browser needs to turn them on."""
+    zone = _zone(subscription.options["tz"])
+    where = _store(store)
+    return {
+        "key": _reminders.public_key(_reminders.vapid_key(where)),
+        "lead": reminder_lead(subscription),
+        "leads": list(_reminders.LEADS),
+        "devices": [
+            {
+                "id": d["id"],
+                "device": d["device"] or _("A device"),
+                "added": format_date(datetime.fromisoformat(d["created"]).astimezone(zone).date(), "day"),
+            }
+            for d in _reminders.devices(where, subscription.token)
+        ],
+    }
+
+
+def add_push_device(
+    store: str | os.PathLike, token: str, info: Mapping, *, user_agent: str = "", now: datetime | None = None
+) -> str:
+    try:
+        ident = _reminders.add_device(
+            _store(store), token, info, device=device_name(user_agent), now=now or datetime.now(UTC)
+        )
+    except _reminders.DeviceRefused as error:
+        raise InvalidInput(_("This browser's notifications cannot be used for reminders here.")) from error
+    log_event(store, token, "reminders", "on")
+    return ident
+
+
+def remove_push_device(store: str | os.PathLike, token: str, ident: str) -> bool:
+    gone = _reminders.remove_device(_store(store), token, ident)
+    if gone:
+        log_event(store, token, "reminders", "off")
+    return gone
+
+
+def _push_subject(contact: str | None, base_url: str | None) -> str:
+    """Who sends the pushes, as push services ask (VAPID's `sub`): the service's
+    contact address, else its public address."""
+    if contact and "@" in contact:
+        return f"mailto:{contact.strip()}"
+    if base_url and base_url.startswith("https://"):
+        return base_url.rstrip("/")
+    return "mailto:study-plan@localhost"
+
+
+def _reminder_payload(subscription: Subscription, session: SessionView) -> dict:
+    """What a reminder says, in the plan's language: the course and the time, the
+    kind of session and its length, and the first sentence of what to do. Tapping
+    it opens the plan."""
+    with use(subscription.options.get("lang") or current_language()):
+        zone = _zone(subscription.options["tz"])
+        start = datetime.fromisoformat(session.start).astimezone(zone)
+        end = datetime.fromisoformat(session.end).astimezone(zone)
+        minutes = round((end - start) / timedelta(minutes=1))
+        what = session.detail.split(". ")[0].strip().rstrip(".")
+        body = f"{_(KIND_LABELS.get(session.kind, session.kind))} · {minutes} min"
+        return {
+            "title": _(
+                "{course} at {time}",
+                course=session.title if session.kind == "task" else session.subject,
+                time=f"{start:%H:%M}",
+            ),
+            "body": f"{body}. {what}." if what else body,
+            "url": f"/p/{subscription.token}",
+            "tag": session_id(session),
+        }
+
+
+def send_due_reminders(
+    store: str | os.PathLike,
+    now: datetime | None = None,
+    *,
+    contact: str | None = None,
+    base_url: str | None = None,
+    send: _reminders.Sender = _reminders.send,
+) -> int:
+    """Send every reminder that is due now, once each; the number of devices
+    reached. A device its push service no longer knows (404, 410) is forgotten.
+    Run every minute by the web app (`cps web`)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    tokens = _reminders.tokens_with_devices(where)
+    if not tokens:
+        return 0  # nobody has reminders on: nothing to read, nothing to write
+    reached = 0
+    key = _reminders.vapid_key(where, now)
+    subject = _push_subject(contact, base_url)
+    for token in tokens:
+        subscription = load_subscription(store, token)
+        lead = reminder_lead(subscription) if subscription is not None else 0
+        if subscription is None or subscription.plan is None or not lead:
+            continue
+        for session in PlanReport.from_dict(subscription.plan).sessions:
+            start = datetime.fromisoformat(session.start)
+            if not _reminders.due(start, now, lead) or not _reminders.claim(
+                where, token, session_id(session), now
+            ):
+                continue
+            payload = _reminder_payload(subscription, session)
+            for device in _reminders.devices(where, token):
+                status = send(device, payload, key, subject=subject, ttl=int((start - now).total_seconds()))
+                if status in (404, 410):
+                    _reminders.remove_device(where, token, device["endpoint"])
+                reached += 200 <= status < 300
+    _reminders.prune(where, now)
+    return reached
+
+
+def send_test_reminder(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    contact: str | None = None,
+    base_url: str | None = None,
+    send: _reminders.Sender = _reminders.send,
+) -> int:
+    """A reminder now, to every device of the plan, to see that they arrive; the
+    number of devices reached."""
+    where = _store(store)
+    with use(subscription.options.get("lang") or current_language()):
+        payload = {
+            "title": _("Reminders are on"),
+            "body": _("This is how a reminder looks, before each study session."),
+            "url": f"/p/{subscription.token}",
+            "tag": "test",
+        }
+    key = _reminders.vapid_key(where)
+    subject = _push_subject(contact, base_url)
+    reached = 0
+    for device in _reminders.devices(where, subscription.token):
+        status = send(device, payload, key, subject=subject, ttl=600)
+        if status in (404, 410):
+            _reminders.remove_device(where, subscription.token, device["endpoint"])
+        reached += 200 <= status < 300
+    return reached
 
 
 class Refresher:

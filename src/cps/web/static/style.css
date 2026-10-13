@@ -1475,3 +1475,9 @@ h2[id] { scroll-margin-top: 72px; }
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 .recover-row input::placeholder { text-transform: none; letter-spacing: 0; }
+
+/* -- reminders (D38) --------------------------------------------------------------- */
+.pills-label { align-self: center; margin-right: 4px; font-weight: 500; }
+.row-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.lead-choice { margin-top: 12px; }
+[data-push] [data-push-status] { margin: 8px 0; }

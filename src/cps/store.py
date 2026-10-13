@@ -193,6 +193,30 @@ CREATE TABLE IF NOT EXISTS challenges (
     token   TEXT NOT NULL DEFAULT '',
     expires TEXT NOT NULL
 );
+-- Reminders (D38): the devices where a plan's reminders are on (the address the
+-- browser's push service gave each, and the keys to encrypt for it), which sessions
+-- were reminded (kept three days, so none is reminded twice), and the server's own
+-- key pair that signs every push.
+CREATE TABLE IF NOT EXISTS push_devices (
+    endpoint TEXT PRIMARY KEY,
+    token    TEXT NOT NULL,
+    p256dh   TEXT NOT NULL,
+    auth     TEXT NOT NULL,
+    device   TEXT NOT NULL DEFAULT '',
+    created  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS push_devices_by_token ON push_devices (token);
+CREATE TABLE IF NOT EXISTS push_sent (
+    token TEXT NOT NULL,
+    sid   TEXT NOT NULL,
+    at    TEXT NOT NULL,
+    PRIMARY KEY (token, sid)
+);
+CREATE TABLE IF NOT EXISTS server_keys (
+    name    TEXT PRIMARY KEY,
+    value   TEXT NOT NULL,
+    created TEXT NOT NULL
+);
 """
 
 # Leaving every group (D28): the next member in line owns a group its owner left,
@@ -228,6 +252,8 @@ _FORGET = (
     "DELETE FROM passkeys WHERE token = :t",
     "DELETE FROM recovery_codes WHERE token = :t",
     "DELETE FROM challenges WHERE token = :t",
+    "DELETE FROM push_devices WHERE token = :t",
+    "DELETE FROM push_sent WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",

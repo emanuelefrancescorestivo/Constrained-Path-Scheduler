@@ -75,6 +75,8 @@ const FR = {
   "You are offline. This is your plan as it was when you last opened it; changes wait for the network.": "Tu es hors ligne. Voici ton plan tel qu'il était la dernière fois que tu l'as ouvert ; les changements attendent le réseau.",
   "That did not work. Try again.": "Ça n'a pas marché. Réessaie.",
   "This device already has a passkey for your plan.": "Cet appareil a déjà une clé d'accès pour ton plan.",
+  "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Les notifications sont bloquées pour ce site : autorise-les dans les réglages de ton navigateur, puis réessaie.",
+  "This browser could not turn reminders on. Try again, or in another browser.": "Ce navigateur n'a pas pu activer les rappels. Réessaie, ou dans un autre navigateur.",
 };
 
 
@@ -151,6 +153,8 @@ const IT = {
   "You are offline. This is your plan as it was when you last opened it; changes wait for the network.": "Sei offline. Questo è il tuo piano com'era l'ultima volta che l'hai aperto; le modifiche aspettano la rete.",
   "That did not work. Try again.": "Non ha funzionato. Riprova.",
   "This device already has a passkey for your plan.": "Questo dispositivo ha già una passkey per il tuo piano.",
+  "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Le notifiche sono bloccate per questo sito: consentile nelle impostazioni del browser, poi riprova.",
+  "This browser could not turn reminders on. Try again, or in another browser.": "Questo browser non è riuscito ad attivare i promemoria. Riprova, o in un altro browser.",
 };
 
 const CATALOGUES = { fr: FR, it: IT };
