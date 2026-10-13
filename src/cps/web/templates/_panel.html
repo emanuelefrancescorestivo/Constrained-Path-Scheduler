@@ -121,3 +121,6 @@
 {% endif %}
 
 {% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
+
+{# A word to the owner from where students spend their time (D43) #}
+<p class="panel-foot"><a href="/p/{{ token }}/feedback?from=/p/{{ token }}">{{ _("Something not right? Send feedback") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>

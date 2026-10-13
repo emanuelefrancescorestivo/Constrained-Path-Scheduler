@@ -146,7 +146,7 @@ def test_drawing_a_week_from_the_start_to_a_plan(web):
     form[f"{offered['Algebra']}_exam"] = "2026-12-14T09:00"
     form["new"] = "1"
     saved = web.post(f"/p/{token}/settings", data=form, follow_redirects=False)
-    assert saved.status_code == 303 and saved.headers["location"].endswith("/week?new=1")
+    assert saved.status_code == 303 and saved.headers["location"].endswith("/routine?new=1")
     stored = service.load_subscription(web.path, token)
     assert stored is not None and [s["name"] for s in stored.subjects] == ["Algebra"]
     assert stored.plan is not None and service.PlanReport.from_dict(stored.plan).sessions

@@ -3,7 +3,7 @@
 {% block main %}
 <div class="page-title">
   <h1>{{ _("Reports to review") }}</h1>
-  <p>{{ _n("{n} item waiting", "{n} items waiting", items | length) }}</p>
+  <p>{{ _n("{n} item waiting", "{n} items waiting", items | length) }} · <a href="/admin/{{ key }}/inbox">{{ _("Messages and errors") }}</a></p>
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% for item in items %}

@@ -340,6 +340,9 @@ class BusyRow:
     Either weekly (`weekday`, 0 = Monday) or one-off (`on`, a date), never both.
     An `end` at or before `start` runs past midnight into the next day, so
     "23:00 to 07:00" is a night. `end` may be 24:00, written as `time.max`.
+    `kind` is what the student called it ("class", "training", ...; "" when not
+    said): every row is busy time alike, but a class is on campus, which is where
+    a commute goes to (`service.commute_events`).
     """
 
     label: str
@@ -347,6 +350,7 @@ class BusyRow:
     end: time
     weekday: int | None = None
     on: date | None = None
+    kind: str = ""
 
     def __post_init__(self) -> None:
         if (self.weekday is None) == (self.on is None):
@@ -371,6 +375,7 @@ class BusyRow:
             end=_parse_clock(row.get("end"), label),
             weekday=_parse_weekday(weekday, label) if _present(weekday) else None,
             on=_parse_date(on, label) if _present(on) else None,
+            kind=str(row.get("kind") or ""),
         )
 
 

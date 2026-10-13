@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Terms of use") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# A draft (D43): the rules of the pilot in plain words, for the owner and a lawyer to
+   read before the app opens to everyone. #}
+<h1>{{ _("Terms of use") }}</h1>
+<p class="notice" role="note">{{ _("A draft of 13 October 2026, written for the pilot and not yet read by a lawyer. It will change before the app opens to everyone; a change that matters will be shown on Today.") }}</p>
+
+<h2>{{ _("What this is") }}</h2>
+<p>{{ _("A study planner, free to use, run as a pilot by the person who makes it. It reads your timetable, plans when to study, and keeps the plan up to date as you say what you did.") }}</p>
+
+<h2>{{ _("Your plan's address") }}</h2>
+<p>{{ _("There is no account with a password: your plan is at a secret address, which works like a key. Anyone who has it can open and change your plan, so keep it private. A passkey or a recovery code brings you back to it; without either, a lost address cannot be found again.") }}</p>
+
+<h2>{{ _("A plan is advice") }}</h2>
+<p>{{ _("The plan is made by rules and a memory model from what you entered. It can be wrong: a date misread, a session at a bad time, an estimate that is off. You stay in charge of your studies: check exam dates with your university, and move or skip any session that does not suit you.") }}</p>
+
+<h2>{{ _("Free") }}</h2>
+<p>{{ _("The core of the app is free and stays free. If paid extras ever come, they will be optional, and nothing is ever charged without you choosing it.") }}</p>
+
+<h2>{{ _("What you share") }}</h2>
+<p>{{ _("What you post (sessions, explanations, notes, photos, comments) stays yours. You let the app show it to the people you chose for it, for as long as you keep it up.") }}</p>
+<p>{{ _h('Share only your own work: no copied exam papers, nothing that is not yours to share, nothing hurtful. The <a href="{href}">community guidelines</a> say more. Something reported that breaks them may be hidden or removed, and a plan that keeps breaking them may be closed.', href="/guidelines") }}</p>
+<p>{{ _("To join the study network you must be 15 or older.") }}</p>
+
+<h2>{{ _("AI") }}</h2>
+<p>{{ _h('AI is off unless you turn it on; what is then sent, and to whom, is on the <a href="{href}">privacy page</a>. An answer from an AI can be wrong, as a plan can.', href="/privacy") }}</p>
+
+<h2>{{ _("Availability") }}</h2>
+<p>{{ _("The pilot runs on a modest server. It may be slow to wake, unavailable for a while, or changed; reminders may arrive late or not at all. Do not rely on it alone for anything that must not be missed.") }}</p>
+<p>{{ _("The app is offered as it is, without a promise that it suits your purpose. Nothing here limits the rights the law gives you.") }}</p>
+
+<h2>{{ _("Leaving") }}</h2>
+<p>{{ _("You can download a copy of your data and delete your plan with all of it at any time, in Settings. A plan nobody opens for 12 months is deleted.") }}</p>
+{% if contact %}<p>{{ _("Questions about these terms: {contact}.", contact=contact) }}</p>{% endif %}
+{% endblock %}

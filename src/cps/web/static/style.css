@@ -619,6 +619,14 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
   color: var(--text); cursor: grab; touch-action: none;
 }
 .ev-own::before { background: var(--busy); }
+/* The trip to campus, made from the answer about it (D42): busy like the student's
+   own time, but not theirs to drag; Settings changes its length */
+.ev-commute {
+  background: repeating-linear-gradient(135deg, var(--fill-4) 0 4px, transparent 4px 8px), var(--surface);
+  color: var(--text);
+}
+.ev-commute .l { color: var(--muted); }
+.ev-commute::before { background: var(--busy); opacity: 0.6; width: 2px; }
 .ev .grip { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
 .ev.dragging { z-index: 20; opacity: 0.95; box-shadow: var(--shadow); cursor: grabbing; transform: scale(1.02); }
 .ev.ghost { z-index: 15; opacity: 0.8; background: var(--accent-soft); color: var(--accent); pointer-events: none; border-radius: 6px; }
@@ -1510,3 +1518,20 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .invite-link form { margin: 6px 0 0; }
 .invite-link h2 { margin: 0 0 4px; }
 .invitation .btn { white-space: normal; height: auto; line-height: 1.3; padding-top: 10px; padding-bottom: 10px; }
+
+/* The questions about the week (D42): one card per question, the days as pills */
+.routine { display: grid; gap: 14px; }
+.question h2 { font-size: 1.15rem; margin: 0 0 4px; }
+.question > .pills { margin-top: 12px; }
+.question details.answer { border-top: 0.5px solid var(--line); margin-top: 12px; }
+.question details.answer > summary { margin-bottom: 0; }
+.question .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.question .days .pill span { display: flex; width: 100%; min-width: 0; padding-left: 0; padding-right: 0; font-size: 0.84rem; }
+.routine-skip { text-align: center; margin: 18px 0 0; }
+
+/* The owner's inbox (D43) */
+.inbox-item .inbox-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
+.inbox-item.unseen { box-shadow: inset 3px 0 0 var(--accent); }
+.inbox-detail { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--fill-4); font-size: 0.78rem; overflow-x: auto; white-space: pre; }
+.panel-foot { margin: 28px 0 8px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+.panel-foot a { color: var(--muted); }

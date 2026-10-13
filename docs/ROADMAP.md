@@ -48,7 +48,8 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E4b The study network**: profiles, follows, feeds, kudos, comments, "explain it
       simply" (D16, D19).
 - [x] **E4c Moderation**: report, hide, block, the owner's review page (D20).
-- [ ] **C4 (owner)** Set `CPS_ADMIN_TOKEN` on the host and read `/admin/<token>` at
+- [ ] **C4 (owner)** Set `CPS_ADMIN_TOKEN` on the host and read `/admin/<token>` (and its
+      inbox of feedback and errors, D43) at
       least once a day during the pilot (docs/DEPLOY.md).
 - [x] **E5 AI.** Tasks typed in words and the review's paragraph, opt-in, capped (D12).
       (owner: an Anthropic API key and a monthly cap, `CPS_AI_MONTHLY_CAP_USD`.)
@@ -71,6 +72,11 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [x] **E14 Motion** (owner: "animations and motions and dynamics"): page
       transitions, data that draws itself, changes in one movement, confetti at
       milestones; a Motion setting; reduced motion respected (D30).
+- [x] **E15 Questions about the week** while setting up (owner, 2026-10-13): the trip to
+      university around each day's classes, sport, a job, anything else weekly (D42).
+- [x] **E16 Before friends try it**: feedback to the owner, a copy of one's data, a
+      draft of the terms, an error log (D43). Before the public launch (owner): a
+      lawyer reads the terms and the privacy notice.
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 

@@ -37,6 +37,7 @@ import re
 import secrets
 import threading
 import time
+import traceback
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -46,7 +47,7 @@ from typing import Any
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -184,6 +185,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     feeds = service.Refresher(store, background=config.background, clock=config.clock, fetch=config.fetch)
     starts = Limiter(*config.start_limit)
     changes = Limiter(*config.change_limit)
+    errors_in = Limiter(10, 60.0)  # browser errors per address and minute (D43)
     signins = Limiter(*config.signin_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
@@ -271,6 +273,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
             else:
                 response = await call_next(request)
+        except Exception as error:  # a defect: counted in the owner's log (D43), a page for the student
+            response = server_error(request, error)
         finally:
             service.deactivate_language(chosen)
         for name, value in SECURITY_HEADERS.items():
@@ -303,6 +307,45 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def base(request: Request) -> str:
         return (config.base_url or str(request.base_url)).rstrip("/")
+
+    def server_error(request: Request, error: Exception) -> Response:
+        """An error nothing expected: kept in the owner's error log (D43) by where it
+        happened (the route, never the address), its kind, its message and the last
+        lines of code it went through, then a page that says so."""
+        route = getattr(request.scope.get("route"), "path", "") or service.page_of(request.url.path)
+        frames = traceback.extract_tb(error.__traceback__)[-6:]
+        detail = "\n".join(f"{Path(f.filename).name}:{f.lineno} {f.name}" for f in frames)
+        try:
+            service.record_error(
+                store,
+                source="server",
+                route=route,
+                kind=type(error).__name__,
+                message=str(error),
+                detail=detail,
+                now=config.clock(),
+            )
+        except Exception:  # the log itself failing must not hide the page
+            LOG.exception("could not record an error")
+        LOG.error("%s %s: %s", request.method, route, type(error).__name__)
+        found = PLAN_PATH.match(request.url.path)
+        token = found.group(1) if found and service.load_subscription(store, found.group(1)) else None
+        return templates.TemplateResponse(
+            request,
+            "message.html",
+            {
+                "title": service.translate("Something went wrong"),
+                "message": service.translate(
+                    "This is a mistake in the app, not yours. It has been noted for the person who "
+                    "makes it; please try again in a moment."
+                ),
+                "token": token,
+                "theme": "auto",
+                "motion": "full",
+                "courses": [],
+            },
+            status_code=500,
+        )
 
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
@@ -1851,7 +1894,170 @@ def create_app(config: Config | None = None) -> FastAPI:
                 reminders=service.reminders_view(store, subscription),
             )
         service.log_event(store, token, "settings")
-        return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
+        return RedirectResponse(f"/p/{token}/routine?new=1" if new else f"/p/{token}?saved=1", 303)
+
+    # -- the questions about the week (D42) --------------------------------------
+
+    @app.get("/p/{token}/routine", response_class=HTMLResponse)
+    def routine(request: Request, token: str, new: int = 0) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "routine.html",
+            token=token,
+            view=service.routine_view(subscription),
+            new=bool(new),
+            typed=[],
+            tab="settings",
+        )
+
+    @app.post("/p/{token}/routine", response_class=HTMLResponse)
+    async def save_routine(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=200)
+        new = form.get("new") == "1"
+        answers: list[dict] = []
+        try:
+            commute, answers = forms.routine_answers(form)
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.answer_routine(
+                    current, commute_minutes=commute, answers=answers, now=config.clock()
+                ),
+            )
+        except service.ServiceError as error:
+            view = service.routine_view(subscription)
+            if str(form.get("commute") or "").isdigit():
+                view["commute"] = int(str(form.get("commute")))
+            return page(
+                request,
+                "routine.html",
+                400,
+                token=token,
+                view=view,
+                new=new,
+                typed=answers,
+                error=str(error),
+                tab="settings",
+            )
+        service.log_event(store, token, "routine", str(sum(1 for a in answers if a["days"])))
+        return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}/week?saved=1", 303)
+
+    # -- before friends try it (D43): feedback, a copy of one's data, terms, errors --
+
+    @app.get("/p/{token}/feedback", response_class=HTMLResponse)
+    def feedback_form(request: Request, token: str, page_from: str = Query("", alias="from")) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request,
+            "feedback.html",
+            token=token,
+            kinds=service.FEEDBACK_KINDS,
+            values={"from": page_from[:200]},
+            tab="settings",
+        )
+
+    @app.post("/p/{token}/feedback", response_class=HTMLResponse)
+    async def feedback_send(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=10)
+        values = {k: str(form.get(k) or "") for k in ("kind", "body", "from")}
+        try:
+            service.send_feedback(
+                store,
+                token,
+                kind=values["kind"],
+                body=values["body"],
+                page=values["from"],
+                now=config.clock(),
+            )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "feedback.html",
+                400,
+                token=token,
+                kinds=service.FEEDBACK_KINDS,
+                values=values,
+                error=str(error),
+                tab="settings",
+            )
+        return page(
+            request,
+            "message.html",
+            token=token,
+            title=service.translate("Thank you"),
+            message=service.translate(
+                "Your message is on its way to the person who makes this app, who reads every one."
+            ),
+        )
+
+    @app.get("/p/{token}/export")
+    def export(request: Request, token: str) -> Response:
+        """A copy of everything kept under the plan's address, as a file (D43)."""
+        if load(token) is None:
+            return missing(request)
+        now = config.clock()
+        data = service.export_data(store, token, now)
+        return Response(
+            json.dumps(data, ensure_ascii=False, indent=1),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="study-plan-{now:%Y-%m-%d}.json"'},
+        )
+
+    @app.get("/terms", response_class=HTMLResponse)
+    def terms(request: Request) -> HTMLResponse:
+        return page(request, "terms.html", contact=config.contact)
+
+    @app.post("/errors")
+    async def browser_error(request: Request) -> Response:
+        """An error a page's script met in the browser (`ui.js`), for the owner's log
+        (D43): where, what, and the line; at most a few per address and minute."""
+        if not errors_in.allow(client(request)):
+            return Response(status_code=429)
+        if int(request.headers.get("content-length") or 0) > 4096:
+            return Response(status_code=413)
+        try:
+            body = json.loads(await request.body())
+        except ValueError:
+            return Response(status_code=400)
+        if not isinstance(body, dict):
+            return Response(status_code=400)
+        where = f"{body.get('file') or ''}:{body.get('line') or ''}:{body.get('column') or ''}"
+        service.record_error(
+            store,
+            source="browser",
+            route=service.page_of(str(body.get("page") or "")),
+            kind=str(body.get("kind") or "Error")[:80],
+            message=str(body.get("message") or ""),
+            detail=f"{where}\n{body.get('stack') or ''}\n{request.headers.get('user-agent', '')[:160]}",
+            now=config.clock(),
+        )
+        return Response(status_code=204)
+
+    @app.get("/admin/{key}/inbox", response_class=HTMLResponse)
+    def admin_inbox(request: Request, key: str) -> HTMLResponse:
+        if not admin_key(key):
+            return missing(request)
+        return page(request, "admin_inbox.html", key=key, view=service.inbox_view(store))
+
+    @app.post("/admin/{key}/feedback/{ident}/seen")
+    def admin_feedback_seen(request: Request, key: str, ident: int) -> Response:
+        if not admin_key(key):
+            return missing(request)
+        service.mark_feedback_seen(store, ident)
+        return RedirectResponse(f"/admin/{key}/inbox", 303)
 
     # -- accounts that last (D35, D36) -------------------------------------------
 

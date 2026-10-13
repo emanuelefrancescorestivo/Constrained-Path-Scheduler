@@ -708,7 +708,9 @@ export class Calendar {
           h("h3", {}, box.label))),
       h("p", { class: "muted" }, box.kind === "exam"
         ? t("An exam from your timetable. Practice sessions are planned in the two weeks before it.")
-        : t("From your timetable. Nothing is planned at the same time.")),
+        : box.kind === "commute"
+          ? t("Your trip to university, before the day's first class and after its last. Change its length in Settings.")
+          : t("From your timetable. Nothing is planned at the same time.")),
     ], box.label);
   }
 

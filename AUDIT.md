@@ -732,3 +732,10 @@ keep their words on one line (`white-space: nowrap`, right for "Save" or "Join")
 "No plan yet? Start one, then open this link again" overflowed its rounded edge.
 Fixed: the invitation page's buttons wrap. Status: fixed; seen in Chromium, not by
 the Python tests, which do not lay out the page.
+
+**57. Today and the calendar had no way to the privacy page.** Found while adding the
+feedback link (D43): the plan's own screen draws its panel and calendar in place of the
+page body, and the footer that every other page carries (Privacy, and now Terms and
+Send feedback) is part of that body, so the screen students open most linked to
+neither; the privacy page was two taps away, through Settings. Fixed: Today's panel
+ends with the same three links. Status: fixed; checked in Chromium at 390 px.

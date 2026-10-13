@@ -58,6 +58,9 @@ the rate limits are in memory for that reason.
      page where you review what students report is `/admin/<that string>`; keep it
      as private as a password. Left empty, there is no review page, and reported
      posts stay hidden after three reports until you set it (DECISIONS.md D20).
+     Students' messages from "Send feedback" and the error log are at
+     `/admin/<that string>/inbox` (D43): read it with the reports, once a day during
+     the pilot.
    - `ANTHROPIC_API_KEY` (optional): your key from Anthropic's console, for AI
      (DECISIONS.md D12). Left empty, there is no AI: tasks typed in words are read
      by rules and the weekly review uses its template. With it, each student still

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Messages and errors") }}{% endblock %}
+{% block main %}
+{# The owner's inbox (D43): students' messages, newest first, and the error log. #}
+<div class="page-title">
+  <h1>{{ _("Messages and errors") }}</h1>
+  <p><a href="/admin/{{ key }}">{{ _("Reports to review") }}</a></p>
+</div>
+<h2 class="section">{{ _("Messages") }}</h2>
+{% for m in view.messages %}
+<article class="card inbox-item{% if not m.seen %} unseen{% endif %}">
+  <p class="kicker">{{ m.about }} · {{ m.created[:16] | replace('T', ' ') }} · {{ m.page or "–" }} · {{ m.lang }}</p>
+  <p class="inbox-body">{{ m.body }}</p>
+  {% if not m.seen %}<form method="post" action="/admin/{{ key }}/feedback/{{ m.id }}/seen" class="row-end"><button type="submit" class="btn btn-sm">{{ _("Mark as read") }}</button></form>{% endif %}
+</article>
+{% else %}
+<div class="card empty"><b>{{ _("No messages yet") }}</b>{{ _("Students' messages appear here as they send them.") }}</div>
+{% endfor %}
+<h2 class="section">{{ _("Errors") }}</h2>
+<p class="muted">{{ _("Kept 30 days after they last happened. No plan's address is kept.") }}</p>
+{% for e in view.errors %}
+<article class="card inbox-item">
+  <p class="kicker">{% if e.source == "browser" %}{{ _("In a browser") }}{% else %}{{ _("On the server") }}{% endif %} · {{ e.route }} · {{ _n("{n} time", "{n} times", e.count) }} · {{ e.last[:16] | replace('T', ' ') }}</p>
+  <p class="inbox-body"><b>{{ e.kind }}</b> {{ e.message }}</p>
+  {% if e.detail %}<pre class="inbox-detail">{{ e.detail }}</pre>{% endif %}
+</article>
+{% else %}
+<div class="card empty"><b>{{ _("No errors") }}</b>{{ _("Nothing went wrong in the last 30 days.") }}</div>
+{% endfor %}
+{% endblock %}

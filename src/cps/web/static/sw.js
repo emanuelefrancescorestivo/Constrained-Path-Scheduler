@@ -13,7 +13,7 @@
 // - A reminder pushed by the server (D38) is shown as a notification; tapping it
 //   opens the plan, in a window already open if there is one.
 
-const VERSION = "v2";
+const VERSION = "v3";
 // The offline page in the language of the page that registered this worker
 // (pwa.js passes it); a new language registers the worker again.
 const LANG = new URL(self.location).searchParams.get("lang") || "en";
@@ -24,6 +24,7 @@ const KEEP_PAGES = 60; // a plan's pages kept for offline, the oldest dropped fi
 const SHELL_FILES = [
   OFFLINE,
   "/static/style.css",
+  "/static/errors.js",
   "/static/motion.js",
   "/static/ui.js",
   "/static/app.js",

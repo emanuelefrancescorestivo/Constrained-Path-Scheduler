@@ -200,9 +200,13 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
         },
         follow_redirects=False,
     )
-    # Setup goes on to the week, to draw busy times, and from there to the links.
-    assert answer.headers["location"] == f"/p/{token}/week?new=1"
-    week = web.get(answer.headers["location"]).text
+    # Setup goes on to the questions about the week (D42), then to the week, to
+    # draw busy times, and from there to the links.
+    assert answer.headers["location"] == f"/p/{token}/routine?new=1"
+    questions = web.get(answer.headers["location"]).text
+    assert "How long is your trip to university?" in questions
+    assert f'href="/p/{token}/week?new=1"' in questions  # the questions can be skipped
+    week = web.get(f"/p/{token}/week?new=1").text
     assert "Your week." in week and f'href="/p/{token}/feed?new=1"' in week
     feed_page = web.get(f"/p/{token}/feed?new=1").text
     assert f"http://testserver/feed/{token}.ics" in feed_page
