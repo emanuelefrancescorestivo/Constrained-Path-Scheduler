@@ -99,19 +99,10 @@
 </div>
 {% endif %}
 
-<div class="section">
-  <div class="section-title"><h2>{{ _("Milestones") }}</h2><small>{{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h</small></div>
-  <div class="card">
-    <ul class="list milestones">
-    {% for m in view.milestones %}
-      <li class="{{ 'reached' if m.reached else '' }}"{% if m.reached %} data-celebrate="milestone-{{ m.key }}"{% endif %}>
-        <span class="check" aria-hidden="true"></span>
-        <div class="grow"><div class="title">{{ m.label }}</div></div>
-        <span class="visually-hidden">{{ _("reached") if m.reached else _("not yet") }}</span>
-      </li>
-    {% endfor %}
-    </ul>
-  </div>
+<div class="section" id="badges">
+  <div class="section-title"><h2>{{ _("Badges") }}</h2><small>{{ _("{n} of {total}", n=badges.earned, total=badges.total) }}</small></div>
+  {% from "_badges.html" import shelf %}{{ shelf(badges) }}
+  <p class="hint badges-note">{{ _("For habits that make study stick, never for hours or rankings.") }} {{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h {{ _("so far") }}.</p>
 </div>
 
 {% if view.exams %}

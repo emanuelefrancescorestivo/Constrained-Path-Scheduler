@@ -219,6 +219,15 @@ CREATE TABLE IF NOT EXISTS server_keys (
 );
 """
 
+# Columns added after their table was first made: a store from before gets them
+# when it is opened (D39, D40), with the table's other rows unchanged.
+_ADDED_COLUMNS = (
+    ("profiles", "year", "TEXT NOT NULL DEFAULT ''"),
+    ("profiles", "country", "TEXT NOT NULL DEFAULT ''"),
+    ("study_groups", "invite", "TEXT"),
+)
+_AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
+
 # Leaving every group (D28): the next member in line owns a group its owner left,
 # and a group nobody is left in goes, with its invitations.
 LEAVE_GROUPS = (
@@ -280,6 +289,10 @@ class Store:
         with self._connect() as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(_SCHEMA)
+            for table, column, declaration in _ADDED_COLUMNS:
+                if column not in {row[1] for row in db.execute(f"PRAGMA table_info({table})")}:
+                    db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+            db.executescript(_AFTER_COLUMNS)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:

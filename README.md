@@ -385,6 +385,7 @@ in a real browser are the owner's.
 | `src/cps/i18n.py`, `locales/` | English, French and Italian: one catalogue per language, keyed by the English sentence |
 | `src/cps/web/` | the hosted app (`cps web`): the plan screen and its calendar (`static/calendar.js`), setup, feeds, one-tap reports |
 | `src/cps/store.py` | the SQLite store: one document per plan, versioned updates, expiry, backups |
+| `src/cps/universities.py`, `data/` | the list of universities the profile suggests (Hipo's, MIT) |
 | `src/cps/reminders.py` | reminders before each session, by Web Push |
 | `src/cps/passkeys.py`, `accounts.py` | passkeys checked on the server (WebAuthn, with `cryptography`), the recovery code |
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
@@ -406,8 +407,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 605 passed, 17 deselected (slow), 1 xfailed, ~130 s
-pytest -m "slow or not slow" --cov=cps    # everything: 622 passed, 1 xfailed, 93% coverage
+pytest                                    # 621 passed, 17 deselected (slow), 1 xfailed, ~140 s
+pytest -m "slow or not slow" --cov=cps    # everything: 638 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

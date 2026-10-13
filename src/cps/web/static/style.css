@@ -1481,3 +1481,32 @@ h2[id] { scroll-margin-top: 72px; }
 .row-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
 .lead-choice { margin-top: 12px; }
 [data-push] [data-push-status] { margin: 8px 0; }
+
+/* -- step 5: about you, invitation links, the badge shelf (D39 to D41) ------------- */
+.badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.badge-tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  padding: 16px 10px 14px; border-radius: var(--radius); background: var(--surface);
+}
+.badge-tile b { font-size: 0.9rem; line-height: 1.25; }
+.badge-tile small { font-size: 0.76rem; color: var(--muted); line-height: 1.3; }
+.badge-art {
+  display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 4px; border-radius: 50%;
+  background: var(--fill-3); color: var(--faint);
+}
+.badge-art svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.badge-tile.earned .badge-art {
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, #fff 35%, var(--cc)), var(--cc));
+  color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--cc) 35%, transparent);
+}
+.badge-tile:not(.earned) b { color: var(--muted); }
+.badges-note { margin: 10px 4px 0; }
+html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--ease-spring) both; }
+@supports (corner-shape: squircle) { .badge-tile { corner-shape: squircle; } }
+.invitation { max-width: 30rem; margin: 0 auto; text-align: center; }
+.invitation h1 { font-size: 1.6rem; margin: 10px 0 6px; }
+.invitation .way-icon { margin: 0 auto; }
+.invite-link .copy { width: 100%; margin: 8px 0 4px; }
+.invite-link form { margin: 6px 0 0; }
+.invite-link h2 { margin: 0 0 4px; }
+.invitation .btn { white-space: normal; height: auto; line-height: 1.3; padding-top: 10px; padding-bottom: 10px; }

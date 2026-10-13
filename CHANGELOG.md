@@ -6,6 +6,14 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Your university from a list (D39): the profile suggests universities as you type
+  (about ten thousand, your country first, by name or web domain), and asks your
+  year; People shows the others at your university.
+- Study groups joined by a link (D40): a group's invitation link, shared on WhatsApp,
+  the share sheet or copied; whoever opens it joins with their own plan.
+- A badge shelf on Progress (D41): twelve badges for habits (streaks, a full week,
+  self-tests, exam practice, focus, flashcards, an explanation, a new semester),
+  each with the day it was earned; never hours, never rankings.
 - Reminders on the phone (D38): a notification 5 to 60 minutes before each study
   session (10 by default), with the course, the time and what to do; turned on per
   device in Settings, with a test reminder. Web Push, encrypted for the device and
@@ -297,6 +305,7 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A long button on the invitation page wraps on a phone (AUDIT item 56).
 - Chrome's push addresses are accepted for reminders (AUDIT item 55).
 - On a phone, the floating "+" no longer covers the Save button and the end of the
   card beneath it (AUDIT item 54).

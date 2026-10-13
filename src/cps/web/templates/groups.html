@@ -31,6 +31,13 @@
   {% for g in view.groups %}{% include "_group_card.html" %}{% endfor %}
 </div>
 
+{% if view.profile %}
+<form method="post" action="/p/{{ token }}/join" class="card section inline-form">
+  <label for="g-code">{{ _("Join with an invitation link") }}</label>
+  <div class="row-input"><input id="g-code" name="code" required maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://…/g/…"><button type="submit" class="btn">{{ _("Open") }}</button></div>
+</form>
+{% endif %}
+
 {% if not view.profile %}
 <section class="card join">
   <h2>{{ _("A group needs a handle") }}</h2>

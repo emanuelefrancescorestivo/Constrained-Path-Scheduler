@@ -974,3 +974,70 @@ runs the demo, sleeps when nobody uses it, so there reminders arrive only while
 someone keeps it awake; the demo's Settings say so. A deployment with an always-on
 instance (DEPLOY.md) has no such gap. Not tried on a real iPhone or Android phone.
 The new dependency brings others (`requests`, `aiohttp`, `http-ece`, `py-vapid`).
+
+## D39. Your university, from a list, and the classmates it finds
+
+*Step 5 of the readiness review ("insert your university?", the owner asked; "do 5
+first", 2026-10-13).*
+
+**Chosen.** The profile's university is suggested as the student types, from a list
+of about ten thousand universities (Hipo's university-domains-list, MIT licence,
+trimmed to country, name and web domains in `src/cps/data/`, its notice beside it),
+the student's own country first (from the plan's time zone, through `tzdata`'s own
+table). A university chosen from the list is kept as the list writes it, with its
+country, shown as a flag; one the list lacks can still be typed. The profile also
+asks the year (1st to 4th or later, Master's, PhD, other, or not said). People shows
+"At <university>": the others there, the same programme and year first. A store
+made before gains the two new columns when it is opened.
+
+**Why.** Classmates find each other only if they write their university the same
+way; a list makes that likely without asking anyone to prove where they study.
+
+**Rejected.** Checking the university by an e-mail address (none is kept, D35);
+Wikidata (names in every language, but a large query to keep current; later, if the
+English names prove a problem); a ranking of universities (D41's rule: no rankings).
+
+**Disclosed.** The list names most universities in English ("University of Bologna",
+"Polytechnic Institute of Milan"), so its search also matches the web domain
+("unibo", "polimi"); a student typing "Politecnico di Milano" and one choosing
+"Polytechnic Institute of Milan" do not meet. The list is community-maintained and
+may lag behind mergers and renamings.
+
+## D40. Study groups joined by a link
+
+*Step 5 of the readiness review.*
+
+**Chosen.** A group's page offers "Make an invitation link"; any member may make it,
+and the owner may replace it (the old one stops working). Whoever opens the link sees
+the group's name, its size and its weekly goal (never who is in it) and joins with
+their own plan: on a device where a plan was opened before, "Join with my plan" (the
+device remembers the address of the plan last opened, in its own storage, never
+sent); else by pasting the link on their plan's Groups page; a student without a
+handle chooses one first and comes back to the invitation. The link is shared with
+WhatsApp's own link, the phone's share sheet, or copied. The group's size (8) and the
+limit of 3 groups each still hold, and someone blocked by a member, or who blocked
+one, is told the link does not work.
+
+**Why.** Invitations by handle need the handles first; a group of friends starts on
+a chat, with a link.
+
+**Rejected.** Links that expire on a timer (the owner replaces a link that went too
+far instead); showing members' handles to whoever has the link (they would leak to
+anyone it is forwarded to).
+
+## D41. The badge shelf
+
+*Step 5 of the readiness review ("prizes and badges?", the owner asked).*
+
+**Chosen.** Progress shows twelve badges, each with a picture, earned with the day it
+was earned, or not yet with how to earn it: the six milestones of D8 (first session,
+3, 7, 14 and 30 days in a row, a full week) and six habits that make study stick: ten
+self-tests, an exam rehearsal, five sessions with the focus timer, a hundred
+flashcard answers, an explanation shared, a new semester. They are derived from what
+the student did, every time, as progress is; the day is when the habit was first
+reached (the streak's days as D9 judges them). A badge is celebrated once (D30), the
+milestones under the keys they had.
+
+**Rejected.** Badges for hours studied, and any ranking or leaderboard (they reward
+showing off time, not learning, and shame the rest, D9); prizes with money's worth
+(a contest has legal rules to check first: the owner's call, later).

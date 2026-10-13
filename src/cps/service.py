@@ -62,6 +62,7 @@ from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
 from . import trends as _trends
+from . import universities as _universities
 from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -3259,6 +3260,88 @@ def _milestones(best: int, sessions_done: int, full_weeks: int) -> list[dict]:
     return [{"key": key, "label": _(label), "reached": reached[key]} for key, label in MILESTONES]
 
 
+# The badge shelf (D41): habits that make study stick, never hours or ranks. Each:
+# key, name, how it is earned, its picture, its colour (c0 to c6). The first six
+# are the milestones of D8 (their keys unchanged, so none is celebrated twice).
+BADGES = (
+    ("first", "First session", "Do your first study session.", "spark", 0),
+    ("streak_3", "3 days in a row", "Study three days in a row.", "flame", 1),
+    ("streak_7", "A week in a row", "Study seven days in a row.", "flame", 1),
+    ("full_week", "A full week", "Do every session of a week, at least four.", "week", 2),
+    ("streak_14", "Two weeks in a row", "Study fourteen days in a row.", "flame", 1),
+    ("streak_30", "30 days in a row", "Study thirty days in a row.", "flame", 1),
+    ("self_tests", "10 self-tests", "Do ten self-tests: recalling is what makes memory last.", "recall", 6),
+    ("practice", "Exam rehearsal", "Do a timed exam practice.", "clock", 3),
+    ("focus", "In the zone", "Study five times with the focus timer.", "focus", 4),
+    ("cards", "100 card answers", "Answer a hundred flashcards.", "cards", 5),
+    (
+        "teacher",
+        "Explained it simply",
+        "Share an explanation: teaching it is learning it twice.",
+        "speech",
+        0,
+    ),
+    ("semester", "A new semester", "Carry on into your next semester.", "leaf", 2),
+)
+
+
+def badges_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    now: datetime | None = None,
+    logged: Sequence[_progress.Session] = (),
+) -> dict:
+    """The badge shelf: every badge, earned (with the day) or not (with how).
+    Derived from what the student did, every time, as progress is (D8, D41)."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    where = _store(store)
+    sessions = sorted(_progress.merge_logged(progress_sessions(subscription), logged), key=lambda x: x.start)
+    done = [x for x in sessions if x.confirmed and x.planned]
+    tests = [x for x in done if x.kind in ("review", "first review")]
+    focus = [x for x in sessions if not x.planned]
+    earned: dict[str, date | None] = {
+        "first": done[0].start.date() if done else None,
+        "full_week": _progress.first_full_week(sessions, today),
+        "self_tests": tests[9].start.date() if len(tests) >= 10 else None,
+        "practice": next((x.start.date() for x in done if x.kind == "practice"), None),
+        "focus": focus[4].start.date() if len(focus) >= 5 else None,
+        "semester": date.fromisoformat(subscription.options["start"])
+        if subscription.options.get("past")
+        else None,
+    }
+    if sessions:
+        first = min([sessions[0].start.date(), today])
+        runs = _progress.first_runs(_progress.streak(sessions, first, today), (3, 7, 14, 30))
+        earned.update({f"streak_{n}": runs.get(n) for n in (3, 7, 14, 30)})
+    with where.connection() as db:
+        row = db.execute(
+            "SELECT at FROM card_reviews WHERE token = ? ORDER BY at LIMIT 1 OFFSET 99", (subscription.token,)
+        ).fetchone()
+    earned["cards"] = datetime.fromisoformat(row[0]).astimezone(zone).date() if row else None
+    explained = social.posts_of(where, subscription.token, "explain")
+    earned["teacher"] = (
+        min(datetime.fromisoformat(x.created) for x in explained).astimezone(zone).date()
+        if explained
+        else None
+    )
+    shelf = [
+        {
+            "key": key,
+            "label": _(label),
+            "how": _(how),
+            "glyph": glyph,
+            "hue": hue,
+            "earned": format_date(day, "day") if (day := earned.get(key)) else None,
+            # The six of D8 keep the key motion.js already celebrated them under.
+            "celebrate": f"milestone-{key}" if key in dict(MILESTONES) else f"badge-{key}",
+        }
+        for key, label, how, glyph, hue in BADGES
+    ]
+    return {"badges": shelf, "earned": sum(b["earned"] is not None for b in shelf), "total": len(shelf)}
+
+
 def _hours(minutes: int) -> float:
     return round(minutes / 60, 1)
 
@@ -3939,7 +4022,23 @@ def profile_of(store: str | os.PathLike, token: str) -> dict | None:
     return profile.public() if profile else None
 
 
-def save_profile(store: str | os.PathLike, token: str, form: Mapping[str, str]) -> dict:
+# The years of study, as the profile's form offers them (D39).
+YEAR_WORDS = {
+    "1": "1st year",
+    "2": "2nd year",
+    "3": "3rd year",
+    "4": "4th year or later",
+    "master": "Master's",
+    "phd": "PhD",
+    "other": "Other",
+}
+
+
+def save_profile(
+    store: str | os.PathLike, token: str, form: Mapping[str, str], *, tz: str | None = None
+) -> dict:
+    """Create or change the network profile; a university written as the list
+    writes it is kept with its country (D39)."""
     profile = _social(
         lambda: social.set_profile(
             _store(store),
@@ -3948,10 +4047,26 @@ def save_profile(store: str | os.PathLike, token: str, form: Mapping[str, str]) 
             university=str(form.get("university", "")),
             programme=str(form.get("programme", "")),
             bio=str(form.get("bio", "")),
+            year=str(form.get("year", "")),
+            country=_universities.country_of_zone(tz) if tz else None,
             old_enough=form.get("old_enough") == "1",
         )
     )
     return profile.public()
+
+
+def university_suggestions(query: str, tz: str | None = None, limit: int = 8) -> list[dict]:
+    """Universities for the profile's field, as the student types (D39): the
+    student's own country first."""
+    country = _universities.country_of_zone(tz) if tz else None
+    return [
+        {"name": u.name, "flag": u.flag, "domain": u.domains[0] if u.domains else ""}
+        for u in _universities.search(query, country, limit)
+    ]
+
+
+def year_words(year: str) -> str:
+    return _(YEAR_WORDS[year]) if year in YEAR_WORDS else ""
 
 
 def _cards(
@@ -4079,13 +4194,17 @@ def person_view(
 
 
 def people_view(store: str | os.PathLike, subscription: Subscription, query: str = "") -> dict:
-    """The student's own circle (requests, followers, following) and a search."""
+    """The student's own circle (requests, followers, following), a search, and the
+    people at the same university (D39)."""
     where = _store(store)
     token = subscription.token
     found = social.search_profiles(where, token, query) if query else []
     circle = social.relations(where, token)
+    me = social.get_profile(where, token)
     return {
         "query": query,
+        "university": me.university if me else "",
+        "classmates": [p.public() for p in social.classmates(where, token)],
         "found": [p.public() for p in found],
         "blocked": [p.public() for p in social.blocked_by(where, token)],
         **{name: [p.public() for p in people] for name, people in circle.items()},
@@ -4244,6 +4363,7 @@ def group_view(
         return None
     card = _group_card(store, subscription.token, group, now, _zone(subscription.options["tz"]))
     card["room"] = social.GROUP_SIZE - len(social.members(where, group_id))
+    card["invite"] = social.current_invite(where, group_id)
     return card
 
 
@@ -4274,6 +4394,37 @@ def answer_group(
 
 def leave_group(store: str | os.PathLike, token: str, group_id: str) -> None:
     social.leave_group(_store(store), token, group_id)
+
+
+def group_invite_code(store: str | os.PathLike, token: str, group_id: str, *, renew: bool = False) -> str:
+    """The code of the group's invitation link (D40)."""
+    where = _store(store)
+    code: str = _social(lambda: social.invite_code(where, token, group_id, renew=renew))
+    return code
+
+
+def invitation_view(store: str | os.PathLike, code: str) -> dict | None:
+    """What an invitation link shows anyone who opens it: the group's name, how many
+    are in it, its weekly goal. Never who they are."""
+    where = _store(store)
+    group = social.group_by_code(where, code)
+    if group is None:
+        return None
+    joined = sum(m.joined is not None for m in social.members(where, group.id))
+    return {"code": code, "name": group.name, "size": joined, "goal": group.goal / 60, "id": group.id}
+
+
+def join_group_by_code(store: str | os.PathLike, token: str, code: str, now: datetime | None = None) -> str:
+    """Join the group of an invitation link; its id."""
+    where = _store(store)
+    group: social.Group = _social(lambda: social.join_by_code(where, token, code.strip(), now=now))
+    return group.id
+
+
+def invite_code_from(text: str) -> str:
+    """The code in what a student pasted: the code itself or the whole link."""
+    found = re.search(r"(?:^|/g/)([A-Za-z0-9_-]{12})(?:[/?#]|$)", text.strip())
+    return found.group(1) if found else ""
 
 
 def remove_from_group(store: str | os.PathLike, token: str, group_id: str, handle: str) -> None:

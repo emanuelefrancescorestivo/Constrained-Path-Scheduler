@@ -11,6 +11,13 @@
   <input type="search" name="q" value="{{ view.query }}" placeholder="{{ _('Handle, university or programme') }}" aria-label="{{ _('Find people') }}" maxlength="80" autocapitalize="none">
   <button type="submit" class="btn btn-sm">{{ _("Search") }}</button>
 </form>
+{% if view.university and not view.query %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("At {university}", university=view.university) }}</h2>{% if view.classmates %}<small>{{ view.classmates | length }}</small>{% endif %}</div>
+  {% if view.classmates %}<div class="card"><ul class="list people">{% for person in view.classmates %}{{ person_row(person, token) }}{% endfor %}</ul></div>
+  {% else %}<p class="card muted">{{ _h('Nobody else from your university is here yet. Bring your classmates: <a href="{href}">start a study group</a> and share its link.', href="/p/" ~ token ~ "/groups") }}</p>{% endif %}
+</div>
+{% endif %}
 {% if view.query %}
 <div class="section">
   <div class="section-title"><h2>{{ _("Found") }}</h2></div>

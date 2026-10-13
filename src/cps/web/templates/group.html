@@ -47,6 +47,26 @@
 </div>
 
 {% if view.room > 0 %}
+<section class="card section invite-link" id="invite">
+  <h2>{{ _("Invite with a link") }}</h2>
+  {% if view.invite %}
+  <p class="hint">{{ _("Whoever opens it can join, with their own plan, until the group is full. Share it with your classmates, on WhatsApp for one.") }}</p>
+  <input class="copy" id="g-link" value="{{ view.link }}" readonly aria-label="{{ _('Invitation link') }}">
+  <div class="row-buttons">
+    <a class="btn btn-primary btn-sm" href="https://wa.me/?text={{ _('Join my study group «{name}» on Study plan: {link}', name=view.name, link=view.link) | urlencode }}" rel="noopener noreferrer" target="_blank">{{ _("WhatsApp") }}</a>
+    <button type="button" class="btn btn-sm" data-share data-share-text="{{ _('Join my study group «{name}» on Study plan: {link}', name=view.name, link=view.link) }}" hidden>{{ _("Share") }}</button>
+    <button type="button" class="btn btn-sm" data-copy="#g-link" hidden>{{ _("Copy") }}</button>
+  </div>
+  {% if view.owner %}
+  <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/link"><input type="hidden" name="renew" value="1"><button type="submit" class="btn btn-plain btn-sm">{{ _("Make a new link") }}</button> <small class="muted">{{ _("the old one stops working") }}</small></form>
+  {% endif %}
+  {% else %}
+  <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/link">
+    <p class="hint">{{ _("A link your classmates open to join, without knowing your handles.") }}</p>
+    <button type="submit" class="btn btn-tinted btn-sm">{{ _("Make an invitation link") }}</button>
+  </form>
+  {% endif %}
+</section>
 <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/invite" class="card section inline-form">
   <label for="g-handle">{{ _("Invite by handle") }}</label>
   <div class="row-input"><input id="g-handle" name="handle" required maxlength="21" autocomplete="off" placeholder="@handle" value="{{ (draft or {}).handle or '' }}"><button type="submit" class="btn btn-primary">{{ _("Invite") }}</button></div>

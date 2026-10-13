@@ -28,7 +28,7 @@
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token %}has-tabs{% endif %}"{% if forget %} data-forget="{{ forget }}"{% endif %}>
+<body class="{% if token %}has-tabs{% endif %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}>
 <header class="topbar">
   <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><img class="brand-mark" src="/static/icons/icon.svg" alt="" width="28" height="28">{{ _("Study plan") }}</a>
   {% if token %}
