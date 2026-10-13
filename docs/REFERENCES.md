@@ -258,3 +258,140 @@ list, the entry says so instead of completing it from memory.
 - venue: Times Higher Education, 29 September 2021
 - status: unchecked
 - checked against: a search engine's index of timeshighereducation.com, 2026-10-08: lecturers' handouts, slides and test questions found on the platform beside students' notes; 15 million users, 2,000 universities and over 4 million documents as the company reported; premium access bought or earned by uploading. The article itself was not opened.
+
+The entries below are the evidence of the engine review (docs/ENGINE-REVIEW.md,
+DECISIONS.md D44 onwards), looked up on 2026-10-13 from an environment that could
+open most pages. **checked** says which page was read; **unchecked** says where a
+detail came from when the publisher's page could not be opened.
+
+### kukushkin2024
+- authors: N. V. Kukushkin; R. E. Carney; T. Tabassum; T. J. Carew
+- title: The massed-spaced learning effect in non-neural human cells
+- year: 2024
+- venue: Nature Communications 15
+- doi: 10.1038/s41467-024-53922-x
+- status: checked
+- checked against: the IDEAS/RePEc record (title, authors, journal, volume, year, DOI, abstract), 2026-10-13: two immortalised non-neural cell lines with a CREB-dependent luciferase reporter; four spaced pulses gave stronger, more sustained expression and ERK and CREB activation than one massed pulse; blocking ERK or CREB removed the effect. nature.com redirected to a login and was not read.
+
+### cepeda2008
+- authors: Cepeda; Vul; Rohrer; Wixted; Pashler
+- title: Spacing Effects in Learning: A Temporal Ridgeline of Optimal Retention
+- year: 2008
+- venue: Psychological Science 19(11), pages 1095–1102
+- status: unchecked
+- checked against: the abstract on the University of South Florida's Scholar Commons record (digitalcommons.usf.edu/psy_facpub/1766), 2026-10-13: more than 1,350 people, a review after gaps of up to 3.5 months, a final test up to a year later; the best gap was about 20 to 40 % of a one-week delay and 5 to 10 % of a one-year delay. Authors' surnames, volume and pages come from a search engine's index; PubMed and the PDF could not be read.
+
+### karpicke2009
+- authors: Jeffrey D. Karpicke; Andrew C. Butler; Henry L. Roediger III
+- title: Metacognitive strategies in student learning: Do students practise retrieval when they study on their own?
+- year: 2009
+- venue: Memory 17(4), pages 471–479
+- doi: 10.1080/09658210802647009
+- status: checked
+- checked against: the article's PDF hosted by Washington University in St. Louis (title page and abstract), 2026-10-13: 177 college students surveyed; a majority repeatedly reread notes or textbooks, relatively few practised retrieval; the authors propose illusions of competence.
+
+### rasch2013
+- authors: Björn Rasch; Jan Born
+- title: About Sleep's Role in Memory
+- year: 2013
+- venue: Physiological Reviews 93(2), pages 681–766
+- status: checked
+- checked against: PMC3768102 (abstract and opening sections), 2026-10-13: sleep actively consolidates memory; reactivation during slow-wave sleep, coordinated by slow oscillations, spindles and ripples, moves memories to long-term cortical storage.
+
+### mazza2016
+- authors: Stéphanie Mazza; further authors, not listed by the sources read
+- title: Relearn Faster and Retain Longer: Along With Practice, Sleep Makes Perfect
+- year: 2016
+- venue: Psychological Science
+- doi: 10.1177/0956797616659930
+- status: unchecked
+- checked against: the Association for Psychological Science's press release (design and results), 2026-10-13: 40 adults, 16 French–Swahili pairs; relearning 12 hours later took about 3 trials after sleep against about 6 without; a week later about 15 pairs against 11. Title and DOI come from a search engine's index; the article was not read.
+
+### vandongen2016
+- authors: van Dongen; further authors, not listed by the sources read
+- title: Physical Exercise Performed Four Hours after Learning Improves Memory Retention and Increases Hippocampal Pattern Similarity during Retrieval
+- year: 2016
+- venue: Current Biology
+- status: unchecked
+- checked against: Harvard Health Publishing's summary, 2026-10-13: 72 people learned 90 picture-location pairs; 35 minutes of interval training four hours later improved recall 48 hours later, immediately after did not. Title and authors come from a search engine's index; the article was not read.
+
+### smarr2018
+- authors: Benjamin L. Smarr; Aaron E. Schirmer
+- title: 3.4 million real-world learning management system logins reveal the majority of students experience social jet lag correlated with decreased performance
+- year: 2018
+- venue: Scientific Reports
+- status: checked
+- checked against: PMC5876324, 2026-10-13: 14,894 students over four semesters at Northeastern Illinois University; about 60 % with social jet lag; misalignment correlated with lower grades; observational, one university.
+
+### bettencourt2024
+- authors: C. Bettencourt; L. Pires; F. Almeida; M. Vilar; H. Cruz; J. Leitão; A. A. Gomes
+- title: Chronotype, Time of Day, and Children's Cognitive Performance in Remote Neuropsychological Assessment
+- year: 2024
+- venue: Behavioral Sciences 14(4), 310
+- status: checked
+- checked against: PMC11047315 (its review of the literature), 2026-10-13: synchrony and asynchrony effects are both reported, the evidence is mixed, most of it in adults; a meta-analysis of students found eveningness related to cognitive ability with r = 0.08.
+
+### pan2023
+- authors: S. C. Pan; S. K. Carpenter
+- title: Prequestioning and pretesting effects: A review of empirical research, theoretical perspectives, and implications for educational practice
+- year: 2023
+- venue: Educational Psychology Review 35(4)
+- doi: 10.1007/s10648-023-09814-5
+- status: unchecked
+- checked against: a reference list in a search engine's index, 2026-10-13; the publisher's page redirected to a login. Its findings are taken from the Psychonomic Society's summary [ref:sana2023].
+
+### sana2023
+- authors: Faria Sana
+- title: Test first, learn later: The power of pretesting to enhance learning
+- year: 2023
+- venue: Psychonomic Society, Featured Content, 29 August 2023
+- status: checked
+- checked against: the post itself (featuredcontent.psychonomic.org), 2026-10-13: a narrative summary of pretesting studies; about 12 percentage points higher on a later exam; 13 points on end-of-week quizzes and 12 on midterms up to seven weeks later in Yan and Sana's study. No meta-analysis; the author's own studies are among those described.
+
+### rohrer2020
+- authors: D. Rohrer; R. F. Dedrick; M. K. Hartwig; C.-N. Cheung
+- title: A Randomized Controlled Trial of Interleaved Mathematics Practice
+- year: 2020
+- venue: Journal of Educational Psychology 112(1), pages 40–52
+- status: checked
+- checked against: the What Works Clearinghouse's review (ies.ed.gov/ncee/wwc/Study/88770), 2026-10-13: 787 grade-7 students, cluster-randomised; interleaved 62.17 against blocked 37.60 on a test 43 days later; meets standards without reservations.
+
+### srs-benchmark
+- authors: open-spaced-repetition contributors
+- title: SRS Benchmark
+- year: 2026
+- venue: GitHub, github.com/open-spaced-repetition/srs-benchmark
+- status: checked
+- checked against: the repository's README, 2026-10-13: 9,999 collections and about 350 million reviews without same-day reviews; log loss, RMSE (bins) and AUC per model; FSRS-6 0.3460, FSRS-4.5 0.3625, FSRS-7 default 0.3620 and fitted 0.3401, LSTM 0.3332, RWKV-Instant 0.2773 (log loss).
+
+### py-fsrs-2026
+- authors: open-spaced-repetition contributors
+- title: py-fsrs (README, October 2026)
+- year: 2026
+- venue: GitHub, github.com/open-spaced-repetition/py-fsrs
+- status: checked
+- checked against: the repository's README, 2026-10-13: MIT licence, 21 weights by default, an `optimizer` extra (`pip install "fsrs[optimizer]"`) that fits parameters to a review log; no recommended minimum number of reviews is given.
+
+### typesafe-jev
+- authors: TypeSafe AI
+- title: Jev documentation and home page
+- year: 2026
+- venue: docs.typesafe.ai and typesafe.ai
+- status: checked
+- checked against: docs.typesafe.ai/introduction and typesafe.ai, 2026-10-13: a "System One" model returning typed answers (choice, score, a yes/no probability) with confidence; "193.6x Faster, 444.6x Cheaper" on TypeSafe's own System One workflows; early access; no latency, data-handling or deployment terms stated on those pages.
+
+### firecrawl-jev
+- authors: Firecrawl
+- title: What Is Jev? Inside TypeSafe's Decision-Only AI Model and Its Developer Use Cases
+- year: 2026
+- venue: firecrawl.dev blog
+- status: checked
+- checked against: the post, 2026-10-13: TypeSafe's list of limits for Jev 1.13 (weak at maths and counting, dates read as text, multi-hop questions less accurate); hosted access only; sign-ups paused on 22 September 2026; independent tests reported by Every and others.
+
+### or-tools
+- authors: Google
+- title: OR-Tools, with the CP-SAT solver
+- year: 2026
+- venue: github.com/google/or-tools and developers.google.com/optimization
+- status: checked
+- checked against: the repository's README (Apache License 2.0; CP-SAT included) and the CP-SAT page (Python, C++, Java, C#), 2026-10-13.
