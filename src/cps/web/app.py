@@ -195,6 +195,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["_"] = service.translate
     templates.env.globals["_n"] = service.translate_plural
     templates.env.globals["day_word"] = service.day_word
+    templates.env.globals["year_words"] = service.year_words
     templates.env.globals["_h"] = _html
     templates.env.globals["lang"] = service.current_language
     templates.env.globals["languages"] = service.LANGUAGES
@@ -575,6 +576,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             diary=service.diary_view(store, subscription, now),
             trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
             groups=service.groups_view(store, subscription, now)["groups"],
+            badges=service.badges_view(store, subscription, now, logged=logged),
             saved=_notice(saved),
             tab="progress",
         )
@@ -881,14 +883,34 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.delete_comment(store, token, comment_id)
         return RedirectResponse(back(form, token, f"/p/{token}/community"), 303)
 
+    def safe_next(token: str, value: str) -> str:
+        """Where the profile form goes back to: an invitation of this plan (D40), or
+        nowhere; never an address taken from a form as it is."""
+        return value if re.fullmatch(rf"/p/{re.escape(token)}/join/[A-Za-z0-9_-]{{12}}", value) else ""
+
     @app.get("/p/{token}/profile", response_class=HTMLResponse)
-    def profile(request: Request, token: str) -> HTMLResponse:
+    def profile(request: Request, token: str, next: str = "") -> HTMLResponse:
         if load(token) is None:
             return missing(request)
         current = service.profile_of(store, token)
         return page(
-            request, "profile.html", token=token, profile=current, values=current or {}, tab="community"
+            request,
+            "profile.html",
+            token=token,
+            profile=current,
+            values=current or {},
+            years=service.YEAR_WORDS,
+            next=safe_next(token, next),
+            tab="community",
         )
+
+    @app.get("/p/{token}/universities")
+    def universities(token: str, q: str = "") -> Response:
+        """Universities as the student types (D39), the plan's country first."""
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse([], 404)
+        return JSONResponse(service.university_suggestions(q[:80], subscription.options["tz"]))
 
     @app.post("/p/{token}/profile", response_class=HTMLResponse)
     async def profile_save(request: Request, token: str) -> Response:
@@ -896,11 +918,15 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=8)
+        subscription = load(token)
+        form = await request.form(max_files=0, max_fields=10)
         fields = {k: str(v) for k, v in form.items()}
         before = service.profile_of(store, token)
+        then = safe_next(token, fields.get("next", ""))
         try:
-            saved = service.save_profile(store, token, fields)
+            saved = service.save_profile(
+                store, token, fields, tz=subscription.options["tz"] if subscription else None
+            )
         except service.ServiceError as error:
             return page(
                 request,
@@ -909,10 +935,14 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 profile=before,
                 values=fields,
+                years=service.YEAR_WORDS,
+                next=then,
                 error=str(error),
                 tab="community",
             )
         service.log_event(store, token, "profile", "new" if before is None else "changed")
+        if then:
+            return RedirectResponse(then, 303)
         if before is None:
             return RedirectResponse(f"/p/{token}/community?tab=explore&saved=joined", 303)
         return RedirectResponse(f"/p/{token}/u/{saved['handle']}?saved=profile", 303)
@@ -1182,7 +1212,101 @@ def create_app(config: Config | None = None) -> FastAPI:
                 message=service.translate("this group is not, or no longer, yours"),
                 token=token,
             )
+        if view.get("invite"):
+            view["link"] = invite_link(request, view["invite"])
         return page(request, "group.html", status, token=token, view=view, tab="community", **extra)
+
+    # -- invitation links (D40) ---------------------------------------------------
+
+    def invite_link(request: Request, code: str) -> str:
+        return f"{base(request)}/g/{code}"
+
+    @app.get("/g/{code}", response_class=HTMLResponse)
+    def invitation(request: Request, code: str) -> HTMLResponse:
+        """An invitation link, as anyone who opens it sees it: the group, and how to
+        join with one's own plan (this device's, remembered by pwa.js, or another)."""
+        view = service.invitation_view(store, code)
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this invitation link does not work any more"),
+            )
+        return page(request, "invitation.html", invite=view)
+
+    @app.get("/p/{token}/join/{code}", response_class=HTMLResponse)
+    def join_page(request: Request, token: str, code: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        view = service.invitation_view(store, code)
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this invitation link does not work any more"),
+                token=token,
+            )
+        return page(
+            request,
+            "join.html",
+            token=token,
+            invite=view,
+            profile=service.profile_of(store, token),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/join/{code}", response_class=HTMLResponse)
+    def join_group(request: Request, token: str, code: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        try:
+            group_id = service.join_group_by_code(store, token, code, now=config.clock())
+        except service.ServiceError as error:
+            view = service.invitation_view(store, code)
+            return page(
+                request,
+                "join.html" if view else "message.html",
+                400,
+                token=token,
+                invite=view,
+                profile=service.profile_of(store, token),
+                error=str(error),
+                title=service.translate("Not found"),
+                message=str(error),
+                tab="community",
+            )
+        service.log_event(store, token, "group", "joined by link")
+        return RedirectResponse(f"/p/{token}/groups/{group_id}?saved=joined_group", 303)
+
+    @app.post("/p/{token}/join")
+    async def join_pasted(request: Request, token: str) -> Response:
+        """An invitation pasted on the Groups page: the link or its code."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        code = service.invite_code_from(str(form.get("code") or ""))
+        if not code:
+            return RedirectResponse(f"/p/{token}/groups?saved=bad_invite", 303)
+        return RedirectResponse(f"/p/{token}/join/{code}", 303)
+
+    @app.post("/p/{token}/groups/{group_id}/link")
+    async def group_link(request: Request, token: str, group_id: str) -> Response:
+        """Make the group's invitation link, or (the owner) replace it."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            service.group_invite_code(store, token, group_id, renew=form.get("renew") == "1")
+        except service.ServiceError as error:
+            return group_page(request, token, group_id, 400, error=str(error))
+        return RedirectResponse(f"/p/{token}/groups/{group_id}#invite", 303)
 
     @app.get("/p/{token}/groups/{group_id}", response_class=HTMLResponse)
     def group(request: Request, token: str, group_id: str, saved: str = "") -> HTMLResponse:
@@ -2232,6 +2356,8 @@ def _notice(saved: str) -> str | None:
         )
     if saved == "passkey_removed":
         return service.translate("Passkey removed. Remove it from your device's passwords too.")
+    if saved == "bad_invite":
+        return service.translate("That is not an invitation link or code.")
     if saved == "reminders":
         return service.translate("Reminders are on for this device.")
     if saved == "reminders_off":

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Join «{name}»", name=invite.name) if invite else _("Groups") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/groups">{{ _("Groups") }}</a></p>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if invite %}
+<div class="card invitation">
+  <h1>{{ _("Join «{name}»", name=invite.name) }}</h1>
+  <p>{{ _n("A study group of {n} on Study plan, with a shared goal of {hours} hours a week.", "A study group of {n} on Study plan, with a shared goal of {hours} hours a week.", invite.size, hours=invite.goal | hours) }}</p>
+  <p class="hint">{{ _("Members see the group's total hours and who has studied this week; never your plan, your courses or your sessions.") }}</p>
+  {% if profile %}
+  <form method="post" action="/p/{{ token }}/join/{{ invite.code }}"><button type="submit" class="btn btn-primary btn-block">{{ _("Join as @{handle}", handle=profile.handle) }}</button></form>
+  {% else %}
+  <p>{{ _("Members see each other's handle. Choose one, then join.") }}</p>
+  <p><a class="btn btn-primary btn-block" href="/p/{{ token }}/profile?next=/p/{{ token }}/join/{{ invite.code }}">{{ _("Choose a handle") }}</a></p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

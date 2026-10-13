@@ -5,12 +5,22 @@
 //   (Chrome, Edge, Android), else, on an iPhone or iPad, how to do it from Safari's
 //   Share menu. Elements marked data-install... stay hidden without this script;
 //   the settings page says in words how to install from the browser's menu.
-// - after "Delete my plan", asks the worker to forget that plan's copies.
+// - after "Delete my plan", asks the worker to forget that plan's copies;
+// - remembers, on this device only, the plan last opened, so that an invitation
+//   link can offer to join with it (D40); forgets it with the plan.
 import { t } from "./i18n.js";
 
 const root = document.documentElement;
 const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+try {
+  if (document.body.dataset.plan) localStorage.setItem("cps:plan", document.body.dataset.plan);
+  const gone = document.body.dataset.forget;
+  if (gone && localStorage.getItem("cps:plan") === gone) localStorage.removeItem("cps:plan");
+} catch {
+  /* storage blocked: an invitation link then says how to join from the plan */
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(`/sw.js?lang=${encodeURIComponent(root.lang || "en")}`).catch(() => {

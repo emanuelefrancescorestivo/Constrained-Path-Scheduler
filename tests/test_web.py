@@ -831,7 +831,9 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
     text = unescape(page.text)
     days = len({datetime.fromisoformat(s.start).date() for s in sessions})
     assert f'<b class="big" data-count>{days}</b>' in text and f"{days} days studied" in text
-    assert "First session done" in text and 'class="reached"' in text and "Since 28 September" in text
+    # The first milestone is the shelf's first badge (D41), celebrated under its old key.
+    assert 'class="badge-tile earned c0" data-celebrate="milestone-first"' in text
+    assert "Earned 29 September" in text and "Since 28 September" in text  # its first session, a Tuesday
     assert text.count('<td class="d d-') == 4 * 7 and "d-studied" in text
     assert "Week of 28 September" in text and "Every session done." in text
     for word in ("lost", "broke", "missed your"):  # D9: a lost streak is never announced

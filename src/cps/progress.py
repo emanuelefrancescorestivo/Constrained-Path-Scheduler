@@ -226,5 +226,32 @@ def full_weeks(sessions: Sequence[Session], today: date) -> int:
     return sum(len(v) >= FULL_WEEK and all(s.confirmed for s in v) for v in weeks.values())
 
 
+def first_runs(run: Streak, lengths: Sequence[int]) -> dict[int, date]:
+    """The first day the streak reached each length (D41): the badges' dates,
+    read from the days `streak` already judged (a forgiven or rest day keeps the
+    run, a missed day ends it)."""
+    out: dict[int, date] = {}
+    current = 0
+    for day in run.days:
+        if day.state == "studied":
+            current += 1
+            for n in lengths:
+                if current >= n and n not in out:
+                    out[n] = day.day
+        elif day.state == "missed":
+            current = 0
+    return out
+
+
+def first_full_week(sessions: Sequence[Session], today: date) -> date | None:
+    """The last day (Sunday) of the first full week (`full_weeks`), if any."""
+    weeks: dict[date, list[Session]] = {}
+    for s in sessions:
+        if s.planned and s.start.date() < monday(today):
+            weeks.setdefault(monday(s.start.date()), []).append(s)
+    full = [m for m, v in weeks.items() if len(v) >= FULL_WEEK and all(s.confirmed for s in v)]
+    return min(full) + timedelta(days=6) if full else None
+
+
 def part_of_day(moment: datetime) -> str:
     return "morning" if moment.hour < 12 else "afternoon" if moment.hour < 18 else "evening"

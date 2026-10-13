@@ -77,6 +77,7 @@ const FR = {
   "This device already has a passkey for your plan.": "Cet appareil a déjà une clé d'accès pour ton plan.",
   "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Les notifications sont bloquées pour ce site : autorise-les dans les réglages de ton navigateur, puis réessaie.",
   "This browser could not turn reminders on. Try again, or in another browser.": "Ce navigateur n'a pas pu activer les rappels. Réessaie, ou dans un autre navigateur.",
+  "Copied.": "Copié.",
 };
 
 
@@ -155,6 +156,7 @@ const IT = {
   "This device already has a passkey for your plan.": "Questo dispositivo ha già una passkey per il tuo piano.",
   "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Le notifiche sono bloccate per questo sito: consentile nelle impostazioni del browser, poi riprova.",
   "This browser could not turn reminders on. Try again, or in another browser.": "Questo browser non è riuscito ad attivare i promemoria. Riprova, o in un altro browser.",
+  "Copied.": "Copiato.",
 };
 
 const CATALOGUES = { fr: FR, it: IT };

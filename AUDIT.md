@@ -725,3 +725,10 @@ host is accepted under the `/fcm/` path only, so the server still cannot be made
 post anywhere else. Status: fixed; `tests/test_reminders.py` holds the address as
 Chromium gave it, and the refusals (another path on a google.com host, a look-alike
 domain).
+
+**56. A long button's words ran past its edges on a phone.** Found in the browser run
+of step 5, on an invitation link's page at 390 px (and in Italian at 375 px): buttons
+keep their words on one line (`white-space: nowrap`, right for "Save" or "Join"), so
+"No plan yet? Start one, then open this link again" overflowed its rounded edge.
+Fixed: the invitation page's buttons wrap. Status: fixed; seen in Chromium, not by
+the Python tests, which do not lay out the page.

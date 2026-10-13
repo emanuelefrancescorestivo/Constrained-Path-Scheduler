@@ -25,6 +25,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from . import universities
 from .i18n import _
 from .store import LEAVE_GROUPS, Store
 
@@ -362,7 +363,10 @@ HANDLE = re.compile(r"[a-z0-9_.]{3,20}")
 RESERVED = frozenset(
     {"admin", "administrator", "moderator", "support", "help", "staff", "official", "studyplan"}
 )
-PROFILE_LIMITS = {"university": 80, "programme": 80, "bio": 280}
+PROFILE_LIMITS = {"university": 120, "programme": 80, "bio": 280}
+# The year of study, as a code; the pages say it in words (D39). Countries name
+# their years differently: these are broad on purpose.
+YEARS = ("1", "2", "3", "4", "master", "phd", "other")
 
 
 @dataclass(frozen=True)
@@ -373,6 +377,8 @@ class Profile:
     programme: str
     bio: str
     created: str
+    year: str = ""
+    country: str = ""  # ISO 3166 code, when the university was chosen from the list
 
     def public(self) -> dict:
         """What anyone in the network may see: never the token."""
@@ -381,13 +387,15 @@ class Profile:
             "university": self.university,
             "programme": self.programme,
             "bio": self.bio,
+            "year": self.year,
+            "flag": "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in self.country if "A" <= c <= "Z"),
             # The avatar: the handle's first letter on one of the seven colours.
             "initial": self.handle[:1].upper(),
             "hue": f"c{sum(self.handle.encode()) % 7}",
         }
 
 
-_PROFILE = "token, handle, university, programme, bio, created"
+_PROFILE = "token, handle, university, programme, bio, created, year, country"
 
 
 def get_profile(store: Store, token: str) -> Profile | None:
@@ -412,11 +420,15 @@ def set_profile(
     university: str,
     programme: str,
     bio: str = "",
+    year: str = "",
+    country: str | None = None,
     old_enough: bool,
     now: datetime | None = None,
 ) -> Profile:
     """Create or change a profile. The handle is unique (ignoring case), the
-    student says they are 15 or older (D16)."""
+    student says they are 15 or older (D16). A university typed as the list writes
+    it (D39) is kept as the list writes it, with its country; `country` is the
+    student's own, which the list prefers when two have the same name."""
     handle = handle.strip().lstrip("@").lower()
     if not HANDLE.fullmatch(handle):
         raise SocialError(_("a handle is 3 to 20 letters, digits, _ or ."))
@@ -434,19 +446,36 @@ def set_profile(
             raise SocialError(_("at most {n} characters here", n=limit))
     if not values["university"]:
         raise SocialError(_("say which university you are at"))
+    if year not in ("", *YEARS):
+        raise SocialError(_("choose a year from the list"))
+    listed = universities.canonical(values["university"], country)
+    if listed is not None:
+        values["university"] = listed.name
+    values["year"] = year
+    values["country"] = listed.country if listed is not None else ""
     taken = profile_by_handle(store, handle)
     if taken is not None and taken.token != token:
         raise SocialError(_("@{handle} is taken; choose another", handle=handle))
     with store.connection() as db, contextlib.suppress(sqlite3.IntegrityError):
         db.execute(
             """
-            INSERT INTO profiles (token, handle, university, programme, bio, created)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO profiles (token, handle, university, programme, bio, created, year, country)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (token) DO UPDATE SET
                 handle = excluded.handle, university = excluded.university,
-                programme = excluded.programme, bio = excluded.bio
+                programme = excluded.programme, bio = excluded.bio,
+                year = excluded.year, country = excluded.country
             """,
-            (token, handle, values["university"], values["programme"], values["bio"], _now(now)),
+            (
+                token,
+                handle,
+                values["university"],
+                values["programme"],
+                values["bio"],
+                _now(now),
+                values["year"],
+                values["country"],
+            ),
         )
     profile = get_profile(store, token)
     if profile is None or profile.handle != handle:  # taken between the check and the write
@@ -470,6 +499,27 @@ def search_profiles(store: Store, viewer: str, query: str, limit: int = 20) -> l
             ORDER BY handle LIMIT :n
             """,
             {"v": viewer, "q": like, "n": limit},
+        ).fetchall()
+    return [Profile(*r) for r in rows]
+
+
+def classmates(store: Store, viewer: str, limit: int = 30) -> list[Profile]:
+    """People at the viewer's university (D39), those of the same programme and
+    year first, not counting those blocked either way. Universities are compared
+    as written, ignoring case: choosing from the list makes them match."""
+    me = get_profile(store, viewer)
+    if me is None or not me.university:
+        return []
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT {_PROFILE} FROM profiles
+            WHERE token != :v AND LOWER(university) = LOWER(:u)
+              AND token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
+              AND token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
+            ORDER BY LOWER(programme) != LOWER(:p), year != :y, handle LIMIT :n
+            """,
+            {"v": viewer, "u": me.university, "p": me.programme, "y": me.year, "n": limit},
         ).fetchall()
     return [Profile(*r) for r in rows]
 
@@ -1221,6 +1271,76 @@ def remove_member(store: Store, owner: str, group_id: str, handle: str) -> None:
         raise SocialError(_("there is nobody called @{handle} in this group", handle=handle.lstrip("@")[:40]))
     with store.connection() as db:
         db.execute("DELETE FROM group_members WHERE grp = ? AND token = ?", (group_id, person.token))
+
+
+# -- invitation links (D40) ----------------------------------------------------
+
+INVITE_CODE = re.compile(r"[A-Za-z0-9_-]{12}")
+
+
+def invite_code(store: Store, token: str, group_id: str, *, renew: bool = False) -> str:
+    """The group's invitation link's code: made when a member first asks for it;
+    the owner may replace it, and the old link stops working."""
+    group = _member_of(store, token, group_id)
+    if renew and group.owner != token:
+        raise SocialError(_("only the group's owner can do this"))
+    with store.connection() as db:
+        (current,) = db.execute("SELECT invite FROM study_groups WHERE id = ?", (group_id,)).fetchone()
+        if current and not renew:
+            return str(current)
+        code = secrets.token_urlsafe(9)  # 12 characters, 72 bits
+        db.execute("UPDATE study_groups SET invite = ? WHERE id = ?", (code, group_id))
+    return code
+
+
+def current_invite(store: Store, group_id: str) -> str | None:
+    with store.connection() as db:
+        row = db.execute("SELECT invite FROM study_groups WHERE id = ?", (group_id,)).fetchone()
+    return str(row[0]) if row and row[0] else None
+
+
+def group_by_code(store: Store, code: str) -> Group | None:
+    if not INVITE_CODE.fullmatch(code):
+        return None
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT id, name, goal, owner, created FROM study_groups WHERE invite = ?", (code,)
+        ).fetchone()
+    return Group(*row) if row else None
+
+
+def join_by_code(store: Store, token: str, code: str, now: datetime | None = None) -> Group:
+    """Join the group an invitation link names. Whoever has the link may join, as
+    with a chat group's link, within the group's size; not someone blocked by a
+    member, or who blocked one (the link then says it does not work)."""
+    group = group_by_code(store, code)
+    gone = SocialError(_("this invitation link does not work any more"))
+    if group is None:
+        raise gone
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    people = members(store, group.id)
+    mine = next((m for m in people if m.token == token), None)
+    if mine is not None and mine.joined is not None:
+        return group
+    if any(blocked_between(store, token, m.token) for m in people if m.token != token):
+        raise gone
+    if mine is None and len(people) >= GROUP_SIZE:
+        raise SocialError(_("a group has {n} people at most, invitations included", n=GROUP_SIZE))
+    if len(groups_of(store, token)) >= GROUPS_EACH:
+        raise SocialError(_("you are in {n} groups already, the most there can be", n=GROUPS_EACH))
+    stamp = _now(now)
+    with store.connection() as db:
+        if mine is not None:  # an invitation was waiting: the link accepts it
+            db.execute(
+                "UPDATE group_members SET joined = ? WHERE grp = ? AND token = ?", (stamp, group.id, token)
+            )
+        else:
+            db.execute(
+                "INSERT INTO group_members (grp, token, invited_by, invited, joined) VALUES (?, ?, ?, ?, ?)",
+                (group.id, token, group.owner or token, stamp, stamp),
+            )
+    return group
 
 
 def set_group(store: Store, owner: str, group_id: str, name: str, goal_hours: object) -> Group:

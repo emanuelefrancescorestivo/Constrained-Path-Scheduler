@@ -230,3 +230,62 @@ document.addEventListener("click", (event) => {
     if (!menu.contains(event.target)) menu.open = false;
   });
 });
+
+// -- step 5 (D39, D40): suggestions as one types, copying and sharing a link ---------
+
+// A field marked data-suggest asks the server for suggestions as the student types
+// (universities, D39) and offers them through its <datalist>. Without this script
+// the field is a plain text field.
+for (const field of document.querySelectorAll("input[data-suggest]")) {
+  const list = field.list;
+  if (!list) continue;
+  let timer = null;
+  let asked = "";
+  field.addEventListener("input", () => {
+    clearTimeout(timer);
+    const query = field.value.trim();
+    if (query.length < 2 || query === asked) return;
+    timer = setTimeout(async () => {
+      asked = query;
+      try {
+        const answer = await fetch(`${field.dataset.suggest}?q=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } });
+        if (!answer.ok) return;
+        list.replaceChildren(
+          ...(await answer.json()).map((u) => {
+            const option = document.createElement("option");
+            option.value = u.name;
+            option.label = [u.flag, u.domain].filter(Boolean).join(" ");
+            return option;
+          }),
+        );
+      } catch {
+        /* offline: the field still takes what is typed */
+      }
+    }, 160);
+  });
+}
+
+// Copy and Share buttons appear only where they work.
+for (const button of document.querySelectorAll("[data-copy]")) button.hidden = !(navigator.clipboard && window.isSecureContext);
+for (const button of document.querySelectorAll("[data-share]")) button.hidden = typeof navigator.share !== "function";
+
+document.addEventListener("click", async (event) => {
+  const copy = event.target.closest("[data-copy]");
+  if (copy) {
+    const source = document.querySelector(copy.dataset.copy);
+    try {
+      await navigator.clipboard.writeText(source.value || source.textContent);
+      toast(t("Copied."));
+    } catch {
+      source.select && source.select();
+    }
+  }
+  const share = event.target.closest("[data-share]");
+  if (share) {
+    try {
+      await navigator.share({ text: share.dataset.shareText });
+    } catch {
+      /* the student closed the share sheet */
+    }
+  }
+});

@@ -6,7 +6,7 @@
   {{ avatar(person) }}
   <a class="grow person-link" href="/p/{{ token }}/u/{{ person.handle }}">
     <span class="title">@{{ person.handle }}</span>
-    <span class="meta">{{ person.university }}{% if person.programme %} · {{ person.programme }}{% endif %}</span>
+    <span class="meta">{% if person.flag %}<span aria-hidden="true">{{ person.flag }}</span> {% endif %}{{ person.university }}{% if person.programme %} · {{ person.programme }}{% endif %}{% if person.year %} · {{ year_words(person.year) }}{% endif %}</span>
   </a>
   {% if caller %}<span class="row-actions">{{ caller() }}</span>{% endif %}
 </li>

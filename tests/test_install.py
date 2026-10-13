@@ -109,3 +109,16 @@ def test_every_file_the_pages_use_ships_with_the_package():
                 assert any(
                     fnmatch.fnmatch(relative, p) and relative.count("/") == p.count("/") for p in patterns
                 ), f"{relative} is not shipped: add a pattern to pyproject.toml"
+
+
+def test_the_list_of_universities_ships_with_its_licence():
+    """The data the profile's suggestions read (D39) is package data too, with the
+    notice its MIT licence asks for."""
+    import tomllib
+
+    package = STATIC.parents[1]
+    project = tomllib.loads((package.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "data/*" in project["tool"]["setuptools"]["package-data"]["cps"]
+    assert (package / "data" / "universities.tsv").stat().st_size > 100_000
+    notice = (package / "data" / "UNIVERSITIES-LICENSE.txt").read_text(encoding="utf-8")
+    assert "Copyright (c) 2014-2025 Hipo" in notice and "MIT" in notice
