@@ -3420,6 +3420,7 @@ def setup_view(subscription: Subscription) -> dict:
     prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
     # Exam practice per exam (D46): the student's hours for it, else what applies.
     chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+    weighs = {k.casefold(): float(v) for k, v in (prefs.get("weights") or {}).items()}
     sized: dict[str, float] = {}
     if subscription.plan is not None:
         sized = PlanReport.from_dict(subscription.plan).settings.preferences.get("practice_sized") or {}
@@ -3431,6 +3432,7 @@ def setup_view(subscription: Subscription) -> dict:
             "found_when": found_names.get(x["name"].casefold(), ""),
             "familiarity": x.get("familiarity") or DEFAULT_FAMILIARITY,
             "practice": chosen.get(x["name"].casefold(), ""),
+            "weight": weighs.get(x["name"].casefold(), 1.0),
             "practice_default": prefs["practice_hours"]
             if prefs["practice_hours"] is not None
             else sized.get(x["name"], PRACTICE_UNSIZED_HOURS),
@@ -3459,6 +3461,7 @@ def setup_view(subscription: Subscription) -> dict:
         "weekly_hours": prefs["weekly_hours"],
         "rest_days": list(prefs["rest_days"]),
         "practice_hours": "" if prefs["practice_hours"] is None else prefs["practice_hours"],
+        "weights": EXAM_WEIGHTS,
         "practice_choices": sorted(
             {*PRACTICE_CHOICES, *(float(v) for v in chosen.values())}
             | ({float(prefs["practice_hours"])} if prefs["practice_hours"] is not None else set())
@@ -5883,6 +5886,9 @@ PRACTICE_MIN_HOURS = 3.0
 PRACTICE_UNSIZED_HOURS = 4.5
 MAX_PRACTICE_HOURS = 40.0
 PRACTICE_CHOICES = (0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 12.0)  # offered in Settings
+# How much an exam weighs (D49): only between topics fading together.
+EXAM_WEIGHTS = ((0.5, "Weighs less"), (1.0, "Usual weight"), (2.0, "Weighs more"))
+_WEIGHT_VALUES = {w for w, _ in EXAM_WEIGHTS}
 
 
 def weeks_taught(report: CalendarReport, course: str, exam: datetime) -> int:
@@ -5916,6 +5922,7 @@ def make_schedule(
     practice_days: float = 14.0,
     practice_hours: float | None = 4.5,
     practice: Mapping[str, float] | None = None,
+    weights: Mapping[str, float] | None = None,
     retention: float = 0.9,
     lectures_as_topics: bool = True,
     done: Sequence[SessionView] = (),
@@ -5929,7 +5936,8 @@ def make_schedule(
 
     Exam practice is `practice_hours` before every exam, or with None sized by the
     weeks each course was taught (`practice_hours_for`, D46); `practice` gives a
-    course its own hours, whichever applies otherwise.
+    course its own hours, whichever applies otherwise. `weights` gives an exam a
+    weight (`EXAM_WEIGHTS`, D49), used only between topics fading together.
 
     Instant, so it can be run again whenever anything changes: `done` and `now`
     continue from what already happened, as `continue_plan` does. A subject is
@@ -5957,6 +5965,8 @@ def make_schedule(
             raise InvalidInput(_("exam practice must be 0 to {most} hours", most=f"{MAX_PRACTICE_HOURS:.0f}"))
     if practice_days < 0:
         raise InvalidInput(_("exam practice cannot be negative"))
+    if any(float(w) not in _WEIGHT_VALUES for w in (weights or {}).values()):
+        raise InvalidInput(_("an exam weighs less, as usual or more"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
         raise InvalidInput(_("every task needs a name of its own"))
@@ -6009,6 +6019,7 @@ def make_schedule(
             "practice_days": practice_days,
             "practice_hours": practice_hours,
             "practice": {k: float(v) for k, v in chosen.items()},
+            "weights": {str(k): float(v) for k, v in (weights or {}).items() if float(v) != 1.0},
             # What sizing gives each course, kept for the settings page (D46).
             "practice_sized": {
                 course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
@@ -6087,6 +6098,7 @@ def _assist(
             done_task[h.title] = done_task.get(h.title, 0) + 1
         elif h.kind == "practice":
             done_practice[h.subject] = done_practice.get(h.subject, 0) + 1
+    weights = {k.casefold(): float(v) for k, v in (prefs.get("weights") or {}).items()}
     topics = [
         Topic(
             s["name"],
@@ -6096,6 +6108,7 @@ def _assist(
             s.get("available_day", 0.0),
             s["exam_day"],
             s.get("about", s.get("subject", s["name"])),
+            weights.get(s.get("subject", s["name"]).casefold(), 1.0),
         )
         for s in specs
     ]

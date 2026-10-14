@@ -1253,4 +1253,10 @@ MESSAGES: dict[str, str] = {
     "45 minutes, at most one a day, counted in your weekly hours.": "45 minutes, au plus un par jour, comptés dans tes heures de la semaine.",
     "I can study on the way (train, bus)": "Je peux réviser en route (train, bus)",
     "A trip of half an hour or more then holds a quick self-test.": "Un trajet d'une demi-heure ou plus accueille alors un auto-test rapide.",
+    # How much an exam weighs (D49)
+    "How much this exam weighs": "Le poids de cet examen",
+    "Weighs less": "Compte moins",
+    "Usual weight": "Poids habituel",
+    "Weighs more": "Compte plus",
+    "an exam weighs less, as usual or more": "un examen compte moins, comme d'habitude ou plus",
 }

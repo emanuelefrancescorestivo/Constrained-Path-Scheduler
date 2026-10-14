@@ -29,8 +29,9 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from cps import service
-from cps.assistant import Exam, Preferences, schedule
+from cps.assistant import WEIGHT_TIE, Exam, Preferences, Topic, schedule
 from cps.calendar_io import BusyEvent, availability_from_events
+from cps.memory import MemoryState, retrievability
 from cps.plan import Block, short_gaps, tile_free_time
 from cps.timegrid import TimeGrid
 
@@ -399,6 +400,62 @@ def test_new_plans_use_the_gaps_and_older_ones_keep_what_they_had():
     assert all(_minutes(s) == 90 for s in service.PlanReport.from_dict(off.plan).sessions)
 
 
+# --------------------------------------------------------------------------- #
+# B2: how much an exam weighs, only between topics fading together (D49)
+# --------------------------------------------------------------------------- #
+
+
+def _faded_to(recall: float, day: float) -> MemoryState:
+    """A memory whose predicted recall is `recall` `day` days after its review."""
+    # R(t) = (1 + 19/81 t/S)^-0.5, so S = 19/81 t / (R^-2 - 1)
+    return MemoryState(19 / 81 * day / (recall**-2 - 1), 5.0)
+
+
+def test_a_weight_chooses_only_between_topics_fading_together():
+    def pick(recalls: dict[str, float], weights: dict[str, float]) -> str:
+        topics = [
+            Topic(name, name, _faded_to(r, 10.0), 0.0, 0.0, 60.0, weight=weights.get(name, 1.0))
+            for name, r in recalls.items()
+        ]
+        done = schedule([Block(0, 10, 10.0)], first_weekday=0, topics=topics)
+        return done.sessions[0].title
+
+    assert pick({"A": 0.85, "B": 0.87}, {}) == "A"  # the most faded, as before
+    assert pick({"A": 0.85, "B": 0.87}, {"B": 2.0}) == "B"  # within the tie: the heavier
+    assert pick({"A": 0.80, "B": 0.87}, {"B": 2.0}) == "A"  # beyond it: never passed over
+    assert pick({"A": 0.85, "B": 0.87}, {"A": 0.5}) == "B"
+    assert 0.87 - 0.85 < WEIGHT_TIE < 0.87 - 0.80
+
+
+def _algebra_recall(plan: service.PlanReport) -> float:
+    state = service._replay(plan.specs, plan.sessions)
+    recall = [
+        retrievability(max(s["exam_day"] - state[s["name"]][1], 0.0), state[s["name"]][0].stability)
+        for s in plan.specs
+        if s["subject"] == "Algebra 3"
+    ]
+    return sum(recall) / len(recall)
+
+
+@pytest.mark.parametrize("hours", [12, 15, 18])
+def test_an_exam_that_weighs_more_is_remembered_better_and_none_is_left_out(hours):
+    report, subjects = _semester()
+
+    def plan(weights=None):
+        return service.make_schedule(
+            report, subjects, weekly_hours=hours, rest_days=("Sun",), practice_hours=4.5, weights=weights
+        )
+
+    usual, more, less = plan(), plan({"Algebra 3": 2.0}), plan({"Algebra 3": 0.5})
+    assert _algebra_recall(less) < _algebra_recall(usual) < _algebra_recall(more)
+    for weighed in (more, less):
+        reviewed = {s.subject for s in weighed.sessions if s.kind in ("review", "first review")}
+        assert reviewed == {s.name for s in weighed.subjects}
+    assert more.settings.preferences["weights"] == {"Algebra 3": 2.0}
+    with pytest.raises(service.InvalidInput, match="weighs less, as usual or more"):
+        plan({"Algebra 3": 3.0})
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -640,3 +697,18 @@ def test_the_trip_question_asks_about_studying_on_the_way(web):
     trips = {(e.start, e.end) for e in plan.events if e.source == "commute"}
     on_the_way = [s for s in plan.sessions if (s.start, s.end) in trips]
     assert on_the_way and all("on the way" in s.detail for s in on_the_way)
+
+
+def test_settings_give_an_exam_its_weight(web):
+    token = _web_start(web)
+    page = web.get(f"/p/{token}/settings").text
+    assert 'name="s0_weight"' in page and '<option value="1.0" selected>Usual weight</option>' in page
+    fields = {**_form(page), "s0_weight": "2.0"}
+    name = fields["s0_name"]
+    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["preferences"]["weights"] == {name: 2.0}
+    assert '<option value="2.0" selected>' in web.get(f"/p/{token}/settings").text
+    web.post(f"/p/{token}/settings", data={**fields, "s0_weight": "1.0"})
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["preferences"]["weights"] == {}

@@ -48,6 +48,9 @@
       <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
         {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
       </select>
+      <select id="s{{ i }}_weight" name="s{{ i }}_weight" aria-label="{{ _('How much this exam weighs') }}">
+        {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
+      </select>
       <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
         <option value="">{{ _("Practice: {hours} h", hours=s.practice_default | hours) }}</option>
         {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}

@@ -50,9 +50,12 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
                 "familiarity": r["familiarity"] or service.DEFAULT_FAMILIARITY,
                 "suggested": r["suggested"] == "1",
                 "practice": r["practice"],
+                "weight": r["weight"] or "1.0",
             }
             for r in _rows(
-                form, "s", ("name", "exam", "found", "found_when", "familiarity", "suggested", "practice")
+                form,
+                "s",
+                ("name", "exam", "found", "found_when", "familiarity", "suggested", "practice", "weight"),
             )
             if r["name"]
         ],
@@ -124,6 +127,12 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
                 s["name"]: _number(str(s["practice"]), s["name"])
                 for s in values["subjects"]
                 if str(s.get("practice") or "").strip()
+            },
+            # Only the exams that do not weigh as usual (D49).
+            "weights": {
+                s["name"]: _number(str(s.get("weight") or "1"), s["name"])
+                for s in values["subjects"]
+                if _number(str(s.get("weight") or "1"), s["name"]) != 1.0
             },
         },
         "study_window": (

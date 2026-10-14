@@ -136,7 +136,7 @@ the benchmarks before and after.
 **Phase B · New session shapes**
 
 - [x] B1 · W2: quick self-tests in gaps; the budget in minutes (D48: 45 minutes in an hour's gap, one a day, and on the way on request; 53 of 69 topics at 90% instead of 51, partly the model's)
-- [ ] B2 · W5: an optional weight per exam
+- [x] B2 · W5: an optional weight per exam (D49: only between topics within 0.06 of the most faded; the heavier course's recall at its exam up at 12, 15 and 18 hours)
 - [ ] B3 · W8: weeks weighted by lecture hours
 - [ ] B4 · An opt-in warm-up quiz before a lecture
 - [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages

@@ -10,7 +10,8 @@ most, Sundays off, exam practice before each exam (AUDIT.md item 36). Last, the
 assistant for each answer to "When do you study best?" (DECISIONS.md D45) at 12, 15
 and 18 hours a week: mean and lowest predicted recall at the exams, and the topics
 at 90% or more; and the same with quick self-tests in the gaps between classes
-(D48), where FSRS counts a 45-minute self-test as a review like any other.
+(D48), where FSRS counts a 45-minute self-test as a review like any other. Last,
+one exam weighing more or less (D49): that course's recall at its exam, and all.
 
     python benchmarks/rule_vs_planner.py
 
@@ -136,10 +137,40 @@ def results() -> dict:
                 for s in w.sessions
             )
             by_time.append({**r, "when": when, "hours": hours})
+    # One exam weighing more or less (D49): Algebra 3, with the others as usual.
+    weighed = []
+    for label, weights in (("usual", None), ("more", {"Algebra 3": 2.0}), ("less", {"Algebra 3": 0.5})):
+        for hours in (12, 15, 18):
+            w = service.make_schedule(
+                report,
+                subjects,
+                weekly_hours=hours,
+                rest_days=("Sun",),
+                practice_hours=4.5,
+                weights=weights,
+            )
+            state = service._replay(w.specs, w.sessions)
+            recall = {
+                s["name"]: retrievability(
+                    max(s["exam_day"] - state[s["name"]][1], 0.0), state[s["name"]][0].stability
+                )
+                for s in w.specs
+            }
+            algebra = [recall[s["name"]] for s in w.specs if s["subject"] == "Algebra 3"]
+            weighed.append(
+                {
+                    "label": f"Algebra 3 {label}, {hours} h",
+                    "course": mean(algebra),
+                    "recall": mean(recall.values()),
+                    "lowest": min(recall.values()),
+                    "ready": sum(s.topics_ready for s in w.subjects),
+                }
+            )
     return {
         "topics": len(topics),
         "blocks": len(plan.blocks),
         "rows": rows,
+        "weights": weighed,
         "assistant": {
             "sessions": len(week.sessions),
             "reviews": len(reviews),
@@ -178,6 +209,11 @@ def main() -> int:
             f"{r['label']:44}{r['sessions']:>9}{ready:>11}{r['recall']:>16.3f}{r['lowest']:>8.3f}"
             f"{r['minutes'] / 60:>8.1f}h"
         )
+    print("\nthe assistant with one exam weighing more or less (Sundays off, 4.5 hours of practice)")
+    print(f"{'weight, hours a week':44}{'its recall':>11}{'recall at exam':>16}{'lowest':>8}{'at 90%+':>9}")
+    for r in out["weights"]:
+        ready = f"{r['ready']}/{out['topics']}"
+        print(f"{r['label']:44}{r['course']:>11.3f}{r['recall']:>16.3f}{r['lowest']:>8.3f}{ready:>9}")
     return 0
 
 

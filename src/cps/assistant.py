@@ -62,6 +62,12 @@ from .i18n import _, _n
 from .memory import Grade, MemoryState, retrievability, review
 from .plan import Block
 
+# Topics within this much predicted recall of the most faded count as fading
+# together, and an exam's weight chooses among them (D49). 0.03 was tried first: a
+# weighted course's recall at its exam went down at 18 hours a week as often as up
+# (benchmarks/rule_vs_planner.py); from 0.06 it goes up at every budget measured.
+WEIGHT_TIE = 0.06
+
 
 @dataclass(frozen=True, slots=True)
 class Task:
@@ -87,6 +93,7 @@ class Topic:
     available_day: float
     exam_day: float
     note: str = ""  # "the lectures of the week of 05 Oct"
+    weight: float = 1.0  # its exam's weight (D49): only breaks near ties
 
 
 @dataclass(frozen=True, slots=True)
@@ -366,7 +373,13 @@ def _self_test(
     fading = [(r, t) for r, t in fading if r <= prefs.review_below]
     if not fading:
         return None
-    recall, topic = min(fading, key=lambda pair: (pair[0], pair[1].exam_day))
+    # Among the topics fading together (within `WEIGHT_TIE` of the most faded), the
+    # one whose exam weighs most (D49); then the most faded, then the nearest exam.
+    # A weight never passes over a topic more faded than that, so no course is left
+    # without self-tests. With every weight the same, the most faded, as before.
+    lowest = min(r for r, _ in fading)
+    close = [(r, t) for r, t in fading if r <= lowest + WEIGHT_TIE]
+    recall, topic = min(close, key=lambda pair: (-pair[1].weight, pair[0], pair[1].exam_day))
     memory, last = state[topic.name]
     after = review(memory, max(now - last, 0.0), Grade.GOOD)
     state[topic.name] = (after, now)

@@ -1315,3 +1315,34 @@ lowest topic 0.801 instead of 0.755, in 252 hours studied instead of 261; at 12 
 its length, so in the model a 45-minute self-test raises a topic's memory as much as
 a 90-minute one, which it does not in a student; part of that gain is the model's,
 not the student's. Without quick self-tests the plan is the same as before (a test).
+
+## D49. How much an exam weighs, only between topics fading together
+
+*Phase B, item B2 of docs/ENGINE-REVIEW.md (weak spot W5), approved by the owner on
+2026-10-14.*
+
+**Chosen.** Each exam can weigh less, as usual or more (Settings, beside the exam;
+0.5, 1 and 2). The self-testing rule still takes the most faded topic, except among
+the topics fading together, within 0.06 of predicted recall of the most faded
+(`assistant.WEIGHT_TIE`): there the topic whose exam weighs most goes first. A
+topic more faded than that is never passed over, so no course is left without
+self-tests. With every exam as usual, the plan is the same as before.
+
+**Why.** Students do not value every exam alike (credits, a course they must pass,
+one they have already passed once). The review judged this a product need, not a
+learning finding, so the weight only reorders near ties: it cannot starve a course,
+and it does not change how many sessions there are.
+
+**Rejected.** A weight multiplying how often a course is reviewed (it would starve
+the light courses under a tight budget); a desired retention per course (FSRS's own
+knob: it changes what "ready" means, and the forecast would then show each course
+against a different line); a tie of 0.03, tried first: at 18 hours a week the heavier
+course's recall at its exam went down instead of up.
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last table, Algebra 3 weighing more or
+less: its mean predicted recall at the exam goes from 0.856 to 0.881 (more) or 0.814
+(less) at 12 hours a week, from 0.897 to 0.923 or 0.856 at 15, from 0.931 to 0.935 or
+0.919 at 18. The other courses pay for it: mean recall over all topics 0.923 against
+0.915 (more) at 15 hours, and the lowest topic falls at 18 hours (0.872 against
+0.820). A test pins that the heavier course is remembered better at all three budgets
+and that every course still gets self-tests.
