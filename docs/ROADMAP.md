@@ -95,8 +95,8 @@ request per phase, the benchmarks before and after).
       parameters (W3; D53, done, for flashcards); a CP-SAT placement trial (D54, done:
       the rules stay). (owner, 2026-10-14: py-fsrs only to test against, our own NumPy
       fitter; `ortools` an optional extra for the trial's benchmark only.)
-- [ ] **D The pilot**: predicted against reported recall (W9); a post-exam survey with
-      consent. (owner: approve the survey and its privacy line.)
+- [ ] **D The pilot**: predicted against reported recall (W9; D55, done); a post-exam
+      question with consent (D56, done). Then reading the results with the owner.
 
 ## Phase 2: once the pilot runs
 

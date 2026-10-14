@@ -560,6 +560,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
+            "exam_questions": service.exam_questions(subscription, now),
+            "exam_results": list(service.EXAM_RESULTS.items()),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -2196,6 +2198,31 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
         return RedirectResponse(f"/p/{token}", 303)
 
+    # -- how an exam went (D56) ---------------------------------------------------
+
+    @app.post("/p/{token}/exam")
+    async def exam_answer(request: Request, token: str) -> Response:
+        """How an exam went, asked on Today for three weeks after it; or "Rather
+        not say"."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.answer_exam(
+                    current, fields.get("course", ""), fields, config.clock()
+                ),
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "exam", "skipped" if fields.get("skip") else "answered")
+        return RedirectResponse(f"/p/{token}?saved=exam", 303)
+
     @app.post("/p/{token}/account/later")
     def account_later(request: Request, token: str) -> Response:
         if load(token) is None:
@@ -2616,6 +2643,8 @@ def _notice(saved: str) -> str | None:
         return service.translate("Saved. The plan has changed to match.")
     if saved == "logged":
         return service.translate("Saved in your diary.")
+    if saved == "exam":
+        return service.translate("Thank you. Good luck with the next one.")
     if saved in NETWORK_NOTICES:
         return service.translate(NETWORK_NOTICES[saved])
     if saved in ("ai", "theme"):

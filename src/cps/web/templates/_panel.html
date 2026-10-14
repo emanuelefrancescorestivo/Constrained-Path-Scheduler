@@ -35,6 +35,25 @@
 </div>
 {% endif %}
 
+{% for q in exam_questions %}
+{# How an exam went (D56): asked for three weeks after it; the consent is separate and unticked. #}
+<form method="post" action="/p/{{ token }}/exam" class="card nudge-card exam-question">
+  <input type="hidden" name="course" value="{{ q.course }}">
+  <b id="exam-q{{ loop.index }}">{{ _("How did the {course} exam go?", course=q.course) }}</b>
+  <span class="muted">{{ _("It was on {date}; your answer helps check whether the plan's predictions hold.", date=q.when) }}</span>
+  <div class="pills" role="radiogroup" aria-labelledby="exam-q{{ loop.index }}">
+    {% for value, words in exam_results %}<label class="pill"><input type="radio" name="result" value="{{ value }}" required><span>{{ _(words) }}</span></label>{% endfor %}
+  </div>
+  <label for="exam-mark{{ loop.index }}">{{ _("Your mark, if you like (27/30, 14/20, B+)") }}</label>
+  <input id="exam-mark{{ loop.index }}" name="mark" maxlength="20" autocomplete="off">
+  <label class="check check-long"><input type="checkbox" name="consent" value="1"><span>{{ _("The owner of this app may read this answer and the plan's prediction for this exam, without your name or your plan, to check whether the predictions hold.") }}</span></label>
+  <div class="row-end">
+    <button type="submit" name="skip" value="1" formnovalidate class="btn btn-plain btn-sm">{{ _("Rather not say") }}</button>
+    <button type="submit" class="btn btn-primary btn-sm">{{ _("Send") }}</button>
+  </div>
+</form>
+{% endfor %}
+
 {% if view.warm_up %}
 {# A warm-up before today's lectures (D51): a prompt, nothing scheduled. #}
 <div class="card warm-up">
