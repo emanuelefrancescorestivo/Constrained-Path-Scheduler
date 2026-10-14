@@ -272,9 +272,10 @@ waiting through the window costs each of them under the accurate estimate (ties 
 the earlier exam, then the weaker memory). That cap is an approximation: each window
 is exact over the topics it is given, not over all of them.
 
-**What this does not model.** One study block reviews one week of one subject, which
-is a simplification of a student's session; lectures are not reviews; and a lapse on
-a week's material is a lapse of the whole week.
+**What this does not model.** One study block reviews one week of one subject (or
+one part of a week with more than three hours of its lectures, DECISIONS.md D50),
+which is a simplification of a student's session; lectures are not reviews; and a
+lapse on a week's material is a lapse of the whole week.
 
 ## 8. The assistant: rules, and why
 

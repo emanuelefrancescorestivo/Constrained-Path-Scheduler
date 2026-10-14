@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from cps import service
-from cps.assistant import WEIGHT_TIE, Exam, Preferences, Topic, schedule
+from cps.assistant import WEIGHT_TIE, Exam, Preferences, Quick, Topic, schedule
 from cps.calendar_io import BusyEvent, availability_from_events
 from cps.memory import MemoryState, retrievability
 from cps.plan import Block, short_gaps, tile_free_time
@@ -454,6 +454,79 @@ def test_an_exam_that_weighs_more_is_remembered_better_and_none_is_left_out(hour
     assert more.settings.preferences["weights"] == {"Algebra 3": 2.0}
     with pytest.raises(service.InvalidInput, match="weighs less, as usual or more"):
         plan({"Algebra 3": 3.0})
+
+
+# --------------------------------------------------------------------------- #
+# B3: a heavy week is more than one topic; a poor self-test asks for a block (D50)
+# --------------------------------------------------------------------------- #
+
+
+def _lectures(*hours: float) -> list[tuple[datetime, datetime]]:
+    out, start = [], datetime(2026, 10, 5, 8, tzinfo=PARIS)
+    for h in hours:
+        out.append((start, start + timedelta(hours=h)))
+        start += timedelta(days=1)
+    return out
+
+
+def test_a_week_over_three_hours_of_lectures_is_split_in_the_order_taught():
+    assert [len(p) for p in service._week_parts(_lectures(1.5, 1.5))] == [2]
+    assert [len(p) for p in service._week_parts(_lectures(1.5, 1.5, 1.5))] == [2, 1]
+    assert [len(p) for p in service._week_parts(_lectures(1.5, 1.5, 1.5, 1.5))] == [2, 2]
+    assert [len(p) for p in service._week_parts(_lectures(4.0))] == [1]  # one lecture: one topic
+    parts = service._week_parts(_lectures(2, 2, 2, 2, 2))
+    assert len(parts) == 4 and [x for p in parts for x in p] == _lectures(2, 2, 2, 2, 2)
+
+
+def test_a_course_taught_six_hours_a_week_has_two_topics_a_week():
+    report, subjects = _semester()
+    algebra = [x for x in report.lectures if x.course == "Algebra 3"]
+    later = [
+        replace(
+            x,
+            start=(datetime.fromisoformat(x.start) + timedelta(days=1)).isoformat(),
+            end=(datetime.fromisoformat(x.end) + timedelta(days=1)).isoformat(),
+        )
+        for x in algebra
+    ]
+    heavy = replace(report, lectures=report.lectures + tuple(later))
+    plain = service.make_schedule(report, subjects, weekly_hours=15, practice_hours=4.5)
+    split = service.make_schedule(heavy, subjects, weekly_hours=15, practice_hours=4.5)
+    count = lambda plan, name: sum(s["subject"] == name for s in plan.specs)  # noqa: E731
+    weeks = count(plain, "Algebra 3") - 1  # without "taught before"
+    assert count(split, "Algebra 3") == 1 + 2 * weeks
+    assert all(count(split, n) == count(plain, n) for n in {s.name for s in plain.subjects} - {"Algebra 3"})
+    first, second = (
+        s for s in split.specs if s["subject"] == "Algebra 3" and s["topic"].startswith("week of 05 Oct")
+    )
+    assert (first["topic"], second["topic"]) == ("week of 05 Oct (1 of 2)", "week of 05 Oct (2 of 2)")
+    assert first["available_day"] < second["available_day"]
+    assert "part 1 of 2" in first["note"]
+
+
+def test_after_a_poor_self_test_the_next_one_takes_a_full_block():
+    def topic(name: str, recall: float, full_next: bool = False) -> Topic:
+        return Topic(name, name, _faded_to(recall, 10.0), 0.0, 0.0, 60.0, full_next=full_next)
+
+    room = Quick(Block(10 * 48 + 22, 10, 10.0), 45)
+    block = Block(10 * 48 + 30, 10, 10.2)
+    plain = schedule([block], first_weekday=0, topics=[topic("A", 0.8), topic("B", 0.85)], quick=[room])
+    assert [s.title for s in plain.sessions] == ["A", "B"]  # the quick one first, as usual
+    poor = schedule(
+        [block], first_weekday=0, topics=[topic("A", 0.8, full_next=True), topic("B", 0.85)], quick=[room]
+    )
+    assert [(s.title, s.block) for s in poor.sessions] == [("B", room.block), ("A", block)]
+
+
+def test_a_forgotten_self_test_is_followed_by_a_full_block_in_the_plan():
+    first = _start()
+    plan = service.PlanReport.from_dict(first.plan)
+    test = next(s for s in plan.sessions if s.kind in REVIEWS and _minutes(s) == 90)
+    after = datetime.fromisoformat(test.end) + timedelta(hours=1)
+    told = service.report_session(first, service.session_id(test), "forgot", now=after)
+    later = service.PlanReport.from_dict(told.plan)
+    following = [s for s in later.sessions if s.title == test.title]
+    assert following and _minutes(following[0]) == 90
 
 
 pytest.importorskip("fastapi")

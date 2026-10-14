@@ -739,3 +739,19 @@ page body, and the footer that every other page carries (Privacy, and now Terms 
 Send feedback) is part of that body, so the screen students open most linked to
 neither; the privacy page was two taps away, through Settings. Fixed: Today's panel
 ends with the same three links. Status: fixed; checked in Chromium at 390 px.
+
+**58. The tests' form scraper sent a dropdown's label for an empty value.** Found
+while adding "Sized by each course" to Settings (D46): the helper that submits a page's
+form as a browser would read `<option value="" selected>Sized by each course</option>`
+as the label, because an empty value counted as missing, and posted "Sized by each
+course" as a number of hours, which the page then refused. A browser sends "". No
+student was affected: the page was right, the test's reading of it was not. Fixed in
+the four copies (`tests/test_web.py`, `test_start.py`, `test_routine.py`,
+`test_engine_review.py`). Status: fixed.
+
+**59. The generality tests' timetable could not hold four lectures a week.** Found
+while adding a US course with two lectures and a lab (D50): `tests/test_generality.py`
+built each lecture's first date as "28 + i" September, so a fourth lecture asked for
+31 September and the test failed before reading anything. Every earlier case had two
+lectures, so none had met it. Fixed: days are added to 28 September. Status: fixed;
+the existing cases' dates are unchanged.

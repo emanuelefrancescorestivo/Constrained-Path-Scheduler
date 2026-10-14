@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A heavy week in parts (D50, the engine review's B3): a week of a course with more
+  than three hours of lectures becomes two or more topics; after a poor self-test the
+  next one is a full block, not a quick one.
 - How much an exam weighs (D49, the engine review's B2): less, as usual or more, in
   Settings beside each exam; it only chooses between topics fading together, so no
   course is left without self-tests.

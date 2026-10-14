@@ -1232,4 +1232,7 @@ MESSAGES: dict[str, str] = {
     "Usual weight": "Peso abituale",
     "Weighs more": "Pesa di più",
     "an exam weighs less, as usual or more": "un esame pesa meno, come al solito o di più",
+    # A heavy week in parts (D50)
+    "Review the lectures of the week of {day}, part {k} of {n}.": "Ripassa le lezioni della settimana del {day}, parte {k} di {n}.",
+    "the lectures of the week of {day}, part {k} of {n}": "le lezioni della settimana del {day}, parte {k} di {n}",
 }

@@ -885,35 +885,69 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     "target_days": _week_target(spec["exam_day"]),
                 }
             )
-        weeks: dict[date, datetime] = {}
-        for end in ends:
-            if end > midnight:
+        weeks: dict[date, list[tuple[datetime, datetime]]] = {}
+        for x in report.lectures:
+            begin, end = datetime.fromisoformat(x.start), datetime.fromisoformat(x.end)
+            if x.course.casefold() == spec["subject"].casefold() and midnight < end < exam:
                 local = end.astimezone(zone)
-                monday = local.date() - timedelta(days=local.weekday())
-                weeks[monday] = max(weeks.get(monday, end), end)
-        for monday, last in sorted(weeks.items()):
-            available = _days_after(report.start, last)
-            if available >= spec["exam_day"]:
-                continue
-            label = f"week of {monday:%d %b}"
-            out.append(
-                {
-                    **spec,
-                    "name": f"{spec['subject']} · {label}",
-                    "topic": label,
-                    "note": _(
-                        "Review the lectures of the week of {day}.", day=format_date(monday, "day_short")
-                    ),
-                    "about": _("the lectures of the week of {day}", day=format_date(monday, "day")),
-                    "stability": lecture_memory.stability,
-                    "difficulty": lecture_memory.difficulty,
-                    "last_review_day": available,
-                    "available_day": available,
-                    "target_days": _week_target(spec["exam_day"] - available),
-                    "prior": f"lectures, familiarity {LECTURE_FAMILIARITY}",
-                }
-            )
+                weeks.setdefault(local.date() - timedelta(days=local.weekday()), []).append((begin, end))
+        for monday, taught in sorted(weeks.items()):
+            parts = _week_parts(sorted(taught))
+            for k, part in enumerate(parts, start=1):
+                available = _days_after(report.start, max(end for _, end in part))
+                if available >= spec["exam_day"]:
+                    continue
+                label = f"week of {monday:%d %b}" + (f" ({k} of {len(parts)})" if len(parts) > 1 else "")
+                day_short, day = format_date(monday, "day_short"), format_date(monday, "day")
+                out.append(
+                    {
+                        **spec,
+                        "name": f"{spec['subject']} · {label}",
+                        "topic": label,
+                        "note": _("Review the lectures of the week of {day}.", day=day_short)
+                        if len(parts) == 1
+                        else _(
+                            "Review the lectures of the week of {day}, part {k} of {n}.",
+                            day=day_short,
+                            k=k,
+                            n=len(parts),
+                        ),
+                        "about": _("the lectures of the week of {day}", day=day)
+                        if len(parts) == 1
+                        else _(
+                            "the lectures of the week of {day}, part {k} of {n}", day=day, k=k, n=len(parts)
+                        ),
+                        "stability": lecture_memory.stability,
+                        "difficulty": lecture_memory.difficulty,
+                        "last_review_day": available,
+                        "available_day": available,
+                        "target_days": _week_target(spec["exam_day"] - available),
+                        "prior": f"lectures, familiarity {LECTURE_FAMILIARITY}",
+                    }
+                )
     return out
+
+
+# A week of one course with more lecture hours than this is more than one session
+# can review (D50): it becomes as many topics as it has three-hour shares, its
+# lectures split in the order taught.
+LECTURE_HOURS_PER_TOPIC = 3.0
+
+
+def _week_parts(taught: Sequence[tuple[datetime, datetime]]) -> list[list[tuple[datetime, datetime]]]:
+    """A week's lectures (in order) in as many parts as `LECTURE_HOURS_PER_TOPIC`
+    shares of its hours, each about as long; one part for three hours or fewer."""
+    hours = [(end - begin) / timedelta(hours=1) for begin, end in taught]
+    count = max(1, math.ceil(sum(hours) / LECTURE_HOURS_PER_TOPIC - 1e-9))
+    count = min(count, len(taught))
+    share, done = sum(hours) / count, 0.0
+    parts: list[list[tuple[datetime, datetime]]] = [[]]
+    for lecture, length in zip(taught, hours, strict=True):
+        if parts[-1] and done >= share * len(parts) - 1e-9 and len(parts) < count:
+            parts.append([])
+        parts[-1].append(lecture)
+        done += length
+    return parts
 
 
 def _extend(report: CalendarReport, days: int) -> CalendarReport:
@@ -6099,6 +6133,13 @@ def _assist(
         elif h.kind == "practice":
             done_practice[h.subject] = done_practice.get(h.subject, 0) + 1
     weights = {k.casefold(): float(v) for k, v in (prefs.get("weights") or {}).items()}
+    # Topics whose last self-test went poorly (forgotten, or some recalled): their
+    # next self-test takes a full block (D50).
+    last: dict[str, SessionView] = {}
+    for h in sorted(history, key=lambda x: x.start_day):
+        if h.kind in _REVIEW_KINDS and h.outcome not in _NO_MEMORY:
+            last[h.title] = h
+    poor = {name for name, h in last.items() if h.outcome == "lapsed" or h.grade in ("again", "hard")}
     topics = [
         Topic(
             s["name"],
@@ -6109,6 +6150,7 @@ def _assist(
             s["exam_day"],
             s.get("about", s.get("subject", s["name"])),
             weights.get(s.get("subject", s["name"]).casefold(), 1.0),
+            s["name"] in poor,
         )
         for s in specs
     ]

@@ -94,6 +94,9 @@ class Topic:
     exam_day: float
     note: str = ""  # "the lectures of the week of 05 Oct"
     weight: float = 1.0  # its exam's weight (D49): only breaks near ties
+    # Its last self-test went poorly (D50): the next one takes a full block, not a
+    # quick one.
+    full_next: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +195,7 @@ def schedule(
     prefs = preferences or Preferences()
     pinned = {id(p.block): p for p in pins}
     short = {id(q.block): q for q in quick}
+    needs_full = {t.name for t in topics if t.full_next}
     order = sorted([*blocks, *(p.block for p in pins), *(q.block for q in quick)], key=lambda b: b.start_day)
     used = dict(week_used or {})
     cap = prefs.cap
@@ -270,7 +274,7 @@ def schedule(
                 position += 1
             continue
         if room is not None:
-            chosen = _self_test(block, topics, state, reviewed, prefs, held, room)
+            chosen = _self_test(block, topics, state, reviewed, prefs, held, room, needs_full)
             if chosen is not None:
                 used[week(block)] = used.get(week(block), 0) + cost
                 result.sessions.append(chosen)
@@ -330,7 +334,7 @@ def schedule(
 
         # 3. Self-testing on the taught topic that is being forgotten most.
         if choice is None:
-            choice = _self_test(block, topics, state, reviewed, prefs, held)
+            choice = _self_test(block, topics, state, reviewed, prefs, held, None, needs_full)
 
         # 4. Working ahead on the task due soonest.
         if choice is None and free_tasks:
@@ -358,17 +362,22 @@ def _self_test(
     prefs: Preferences,
     held: Callable[[str, str, float], bool],
     room: Quick | None = None,
+    needs_full: set[str] | None = None,
 ) -> Session | None:
     """Rule 3: a self-test on the taught topic being forgotten most, if one has
     faded to `prefs.review_below`; `state` and `reviewed` are updated. In `room`, a
     quick one (D48). FSRS counts a review, not its length: a quick self-test raises
     the topic's memory as much as a full one in the model, which it does not in a
-    student (the limit stated in D48)."""
+    student (the limit stated in D48). A topic in `needs_full` waits for a full
+    block (D50), and leaves the set when it gets one."""
     now = block.start_day
+    waiting = needs_full if needs_full is not None else set()
     fading = [
         (retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
         for t in topics
-        if t.available_day <= now < t.exam_day and not held("review", t.name, now)
+        if t.available_day <= now < t.exam_day
+        and not held("review", t.name, now)
+        and not (room is not None and t.name in waiting)
     ]
     fading = [(r, t) for r, t in fading if r <= prefs.review_below]
     if not fading:
@@ -385,6 +394,8 @@ def _self_test(
     state[topic.name] = (after, now)
     first = topic.name not in reviewed
     reviewed.add(topic.name)
+    if room is None:
+        waiting.discard(topic.name)
     return Session(
         block,
         "first review" if first else "review",

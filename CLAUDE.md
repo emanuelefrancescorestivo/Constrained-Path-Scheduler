@@ -161,7 +161,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   the same within 0.005 (`benchmarks/rule_vs_planner.py`).
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
-- With lectures in the calendar, a topic is one week of one subject, reviewed in one
+- With lectures in the calendar, a topic is one week of one subject (a week with more
+  than three hours of its lectures is split, D50), reviewed in one
   block and starting "seen once and shaky"; each window considers at most four
   topics (METHOD.md §7). A semester takes about half a minute to plan.
 - Sessions not reported count as done as planned, except a self-test a day after it

@@ -1346,3 +1346,36 @@ less: its mean predicted recall at the exam goes from 0.856 to 0.881 (more) or 0
 0.915 (more) at 15 hours, and the lowest topic falls at 18 hours (0.872 against
 0.820). A test pins that the heavier course is remembered better at all three budgets
 and that every course still gets self-tests.
+
+## D50. A heavy week is more than one topic; a poor self-test asks for a full block
+
+*Phase B, item B3 of docs/ENGINE-REVIEW.md (weak spot W8), approved by the owner on
+2026-10-14.*
+
+**Chosen.** A week of one course with more than three hours of its lectures becomes
+as many topics as it has three-hour shares, its lectures split in the order taught
+("week of 05 Oct (1 of 2)", each available once its last lecture is over;
+`service.LECTURE_HOURS_PER_TOPIC`, `service._week_parts`). Up to three hours, one
+topic, as before. And after a self-test that went poorly (nothing or only some
+recalled, or a lapse), the topic's next self-test waits for a full block: it is not
+given a quick 45-minute one (D48).
+
+**Why.** One 90-minute self-test cannot cover six hours of lectures as it covers
+three: a week of a lab-heavy or intensive course was one topic, reviewed as if it
+were a light one. Splitting by the lectures as taught keeps each part a real piece
+of the course and each review honest about its size. A topic the student could not
+recall needs relearning, not a quick check, which is what a short session is for.
+
+**Rejected.** A topic's weight by hours inside the memory model (FSRS has no notion
+of how much material a card holds; two topics model two reviews honestly); splitting
+by fixed hours inside a lecture (a lecture is the unit a student remembers); a longer
+than usual block after a poor self-test (it would break the student's chosen session
+length; a full block instead of a quick one keeps it).
+
+**Measured.** The sample semester has no week over three hours of one course (19
+weeks of 1.5 hours, 65 of 3), so `benchmarks/rule_vs_planner.py` and
+`benchmarks/semester.py` are unchanged. Tests pin the split (1.5 + 1.5 + 1.5 hours:
+two topics of two and one lectures; six hours: two of two), a heavier Algebra 3
+(twice the topics, the other courses unchanged), a US timetable with two lectures and
+a lab a week (tests/test_generality.py), and the full block after a forgotten
+self-test.

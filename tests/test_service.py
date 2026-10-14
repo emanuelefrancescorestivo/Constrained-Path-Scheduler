@@ -310,16 +310,28 @@ END:VCALENDAR
 
 
 def test_the_lectures_of_each_week_become_a_topic(report, topical):
-    """The sample's Analysis lectures (Mondays and Wednesdays from 2 March, exam on
-    Friday 20 March) are three weeks of material, each available once the week's
-    last lecture has ended; nothing was taught before the plan starts."""
+    """The sample's Analysis lectures (Mondays and Wednesdays from 2 March, two hours
+    each, exam on Friday 20 March) are three weeks of material; with four hours of
+    lectures a week, each week is two topics (DECISIONS.md D50), the Monday's and the
+    Wednesday's, each available once its lecture has ended; nothing was taught
+    before the plan starts."""
     analysis = [s for s in topical.specs if s["subject"] == "Analysis"]
-    assert [s["topic"] for s in analysis] == ["week of 02 Mar", "week of 09 Mar", "week of 16 Mar"]
-    assert [round(s["available_day"], 3) for s in analysis] == [2.458, 9.458, 16.458]  # Wednesdays, 11:00
+    assert [s["topic"] for s in analysis] == [
+        f"week of {day} ({k} of 2)" for day in ("02 Mar", "09 Mar", "16 Mar") for k in (1, 2)
+    ]
+    # Mondays and Wednesdays, 11:00
+    assert [round(s["available_day"], 3) for s in analysis] == [0.458, 2.458, 7.458, 9.458, 14.458, 16.458]
     assert all(s["last_review_day"] == s["available_day"] for s in analysis)
-    # Preparation from the end of the week to the exam (day 18.375), in whole weeks
-    # once it is a week or more.
-    assert [s["target_days"] for s in analysis] == [14, 7, pytest.approx(18.375 - 16.458, abs=1e-3)]
+    # Preparation from the end of the lecture to the exam (day 18.375), in whole
+    # weeks once it is a week or more.
+    assert [s["target_days"] for s in analysis] == [
+        14,
+        14,
+        7,
+        7,
+        pytest.approx(18.375 - 14.458, abs=1e-3),
+        pytest.approx(18.375 - 16.458, abs=1e-3),
+    ]
     # Ten lectures up to 1 April; the four after the exam belong to no topic.
     lectures = [x for x in report.lectures if x.course == "Analysis"]
     assert len(lectures) == 10
@@ -335,14 +347,14 @@ def test_a_topic_is_never_studied_before_it_is_taught(topical):
 
 def test_a_subject_summarises_its_topics(topical):
     analysis = next(s for s in topical.subjects if s.name == "Analysis")
-    assert analysis.topics == 3
-    assert 0 <= analysis.topics_ready <= 3
-    assert analysis.ready == (analysis.topics_ready == 3)
+    assert analysis.topics == 6  # three weeks of four hours, two topics each (D50)
+    assert 0 <= analysis.topics_ready <= 6
+    assert analysis.ready == (analysis.topics_ready == 6)
     assert 0 < analysis.recall_at_exam <= 1
     # Every Analysis lecture is after the start, so the stated 2-day stability
     # describes nothing, and the plan says so rather than silently ignoring it.
     assert any(w.startswith("Analysis: all its lectures") for w in topical.warnings)
-    assert service.subject_status(analysis).endswith(f"{analysis.topics_ready} of 3 topics at target")
+    assert service.subject_status(analysis).endswith(f"{analysis.topics_ready} of 6 topics at target")
 
 
 def test_without_lectures_in_the_calendar_a_subject_is_one_topic(subjects):
@@ -367,7 +379,7 @@ def test_replanning_and_json_work_with_topics(topical):
 def test_the_recall_curve_of_a_topical_subject_averages_what_has_been_taught(topical):
     curve = service.recall_curve(topical, "Analysis")
     exam_day = next(s.exam_day for s in topical.subjects if s.name == "Analysis")
-    assert curve[0][0] == pytest.approx(2.5)  # nothing taught before the first Wednesday
+    assert curve[0][0] == pytest.approx(0.5)  # nothing taught before the first Monday's lecture ends
     assert curve[-1][0] <= exam_day
     assert all(0 < p <= 1 for _, p in curve)
 
