@@ -317,7 +317,14 @@ def test_today_asks_about_the_past_week(web, planned, clock):
     clock.now = MORNING + timedelta(days=3)
     page = web.get(f"/p/{planned}").text
     assert "How did these go?" in page
-    assert page.count('name="outcome" value="done"') >= 4
+    # One report form for each session of the past three days, up to the five asked
+    # about: "Done" for work, "How much could you recall?" for a self-test.
+    plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
+    behind = [s for s in plan.history + plan.sessions if datetime.fromisoformat(s.start) <= clock.now]
+    assert len(behind) >= 3
+    assert page.count('class="mini-outcomes"') == min(len(behind), 5)
+    tests = [s for s in behind[-5:] if s.kind in ("review", "first review")]
+    assert page.count('name="outcome" value="most"') == len(tests)
 
 
 def test_a_form_from_another_site_is_refused(web, planned, clock):
@@ -674,7 +681,7 @@ def test_the_calendar_colours_each_course_and_says_what_can_move(web, planned):
     assert all(i["movable"] and not i["started"] for i in study)  # nothing has started at 08:00
 
 
-def test_a_session_dragged_on_the_calendar_moves_and_stays(web, planned):
+def test_a_session_dragged_on_the_calendar_moves_and_stays(web, planned, clock):
     item = _movable(web, planned)
     answer = web.post(
         f"/p/{planned}/sessions/{item['id']}/move?start=2026-09-29&days=7", json={"to": "2026-10-04T10:00"}
@@ -683,9 +690,12 @@ def test_a_session_dragged_on_the_calendar_moves_and_stays(web, planned):
     moved = [i for i in answer.json()["items"] if i["kind"] == "study" and i["pinned"]]
     assert [(i["label"], i["at"][:16]) for i in moved] == [(item["label"], "2026-10-04T10:00")]
     assert _last_change(web, planned) == "move"
+    # On the morning of the day it was moved to, Today shows it as placed by the student.
+    clock.now = datetime(2026, 10, 4, 6, 0, tzinfo=UTC)
     panel = web.get(f"/p/{planned}/panel").text
     assert "<html" not in panel  # a fragment, for the page to put in place
     assert "Placed by you" in panel or ">placed<" in panel
+    clock.now = MORNING
     back = web.post(f"/p/{planned}/sessions/{moved[0]['id']}/unpin")
     assert back.status_code == 200 and not [i for i in back.json()["items"] if i.get("pinned")]
 
@@ -1252,12 +1262,12 @@ def test_flashcards_from_writing_to_reviewing(web, planned):
     assert "1 card to review" in unescape(web.get(f"/p/{planned}").text)
     review = unescape(web.get(f"/p/{planned}/cards/review").text)
     assert "Eigenvalue?" in review and "Show the answer" in review and "Av = λv" in review
-    assert "in 10 minutes" in review and "in 4 days" in review and 'src="/static/cards.js"' in review
+    assert "in 10 minutes" in review and "in 2 days" in review and 'src="/static/cards.js"' in review
     card = re.search(r'action="/p/[^/]+/cards/([^/]+)/answer"', review).group(1)
     answered = web.post(f"/p/{planned}/cards/{card}/answer", data={"grade": "good"}, follow_redirects=False)
     assert answered.headers["location"] == f"/p/{planned}/cards/review?course="
     done = unescape(web.get(answered.headers["location"]).text)
-    assert "All done for now" in done and "The next card comes back in 4 days." in done
+    assert "All done for now" in done and "The next card comes back in 2 days." in done
     pasted = web.post(
         f"/p/{planned}/cards",
         data={"course": "Analysis", "paste": "Limit?\tε-δ\nSeries? | Σ"},

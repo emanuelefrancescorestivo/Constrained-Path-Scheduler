@@ -230,6 +230,7 @@ TABLES = {
     "group_members": "groups",
     "cards": "cards",
     "card_reviews": "card_reviews",
+    "card_fits": "card_fit",
     "passkeys": "passkeys",
     "recovery_codes": "recovery_code",
     "push_devices": "reminder_devices",

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from contextlib import closing
 from datetime import UTC, datetime
 
 import pytest
@@ -30,7 +31,7 @@ def test_put_get_and_versions(tmp_path):
     store.put(TOKEN, {"x": 1})
     store.put(TOKEN, {"x": 2}, "2027-01-01T00:00:00+00:00")
     assert store.get(TOKEN) == {"x": 2}
-    with sqlite3.connect(store.path) as db:
+    with closing(sqlite3.connect(store.path)) as db:  # `with connect()` alone commits, never closes
         assert db.execute("SELECT version, expires FROM subscriptions").fetchall() == [
             (2, "2027-01-01T00:00:00+00:00")
         ]

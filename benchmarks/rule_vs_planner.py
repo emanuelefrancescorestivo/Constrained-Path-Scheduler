@@ -16,6 +16,10 @@ one exam weighing more or less (D49): that course's recall at its exam, and all.
     python benchmarks/rule_vs_planner.py
 
 Deterministic: one run, no error bar to give. Times are for scale only.
+
+Every row is FSRS-4.5, the model the research planner was built and checked on, so
+the rules and the planner are compared on one model; the product runs FSRS-6
+(DECISIONS.md D52), whose numbers are in `benchmarks/fsrs6_product.py`.
 """
 
 from __future__ import annotations
@@ -30,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from cps import service  # noqa: E402
-from cps.memory import Grade, MemoryState, retrievability, review  # noqa: E402
+from cps.memory import FSRS_4_5, Grade, MemoryState, retrievability, review  # noqa: E402
 
 START = date(2026, 9, 29)
 
@@ -66,7 +70,7 @@ def results() -> dict:
     rows = [
         row(
             "research planner (value functions + AO*)",
-            service._replay(plan.specs, plan.sessions),
+            service._replay(plan.specs, plan.sessions, FSRS_4_5),
             len(plan.sessions),
             seconds,
         )
@@ -108,7 +112,9 @@ def results() -> dict:
         rows.append(row(label, *rule(least_remembered(below))))
 
     begin = time.perf_counter()
-    week = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
+    week = service.make_schedule(
+        report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5, model="fsrs-4.5"
+    )
     seconds = time.perf_counter() - begin
     reviews = [x for x in week.sessions if x.kind in ("review", "first review")]
 
@@ -126,9 +132,11 @@ def results() -> dict:
         )
         for hours in (12, 15, 18):
             w = service.make_schedule(
-                timed, subjects, weekly_hours=hours, rest_days=("Sun",), practice_hours=4.5
+                timed, subjects, weekly_hours=hours, rest_days=("Sun",), practice_hours=4.5, model="fsrs-4.5"
             )
-            r = row(f"{when}, {hours} h", service._replay(w.specs, w.sessions), len(w.sessions), 0.0)
+            r = row(
+                f"{when}, {hours} h", service._replay(w.specs, w.sessions, FSRS_4_5), len(w.sessions), 0.0
+            )
             # The assistant's own measure, as in the line above the table: topics
             # predicted at 90% or more at their exam.
             r["ready"] = sum(s.topics_ready for s in w.subjects)
@@ -147,9 +155,10 @@ def results() -> dict:
                 weekly_hours=hours,
                 rest_days=("Sun",),
                 practice_hours=4.5,
+                model="fsrs-4.5",
                 weights=weights,
             )
-            state = service._replay(w.specs, w.sessions)
+            state = service._replay(w.specs, w.sessions, FSRS_4_5)
             recall = {
                 s["name"]: retrievability(
                     max(s["exam_day"] - state[s["name"]][1], 0.0), state[s["name"]][0].stability

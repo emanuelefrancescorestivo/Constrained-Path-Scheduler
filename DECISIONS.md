@@ -1405,3 +1405,173 @@ unasked prompt on every class day is noise).
 **Measured.** Nothing: the memory model has no notion of a pretest, and the plan is
 the same with it on (a test). Whether students use it is a question for the pilot
 (D15), which counts Today's visits but not this card.
+
+## D52. The product runs on FSRS-6; the research planner stays on FSRS-4.5
+
+*Phase C, item C1 of docs/ENGINE-REVIEW.md, approved by the owner on 2026-10-14.*
+
+**Chosen.** FSRS-6 with its default weights (`memory.FSRS_6`), implemented in
+`memory.py` beside FSRS-4.5 and checked against py-fsrs 6.3.2 [ref:py-fsrs-6.3.2]
+on two trajectories to 2e-12 (`benchmarks/fsrs6_reference.py`, pinned in
+`tests/test_memory6.py`; invariant 9). A plan made by `make_schedule` (the
+assistant, every student's plan) names its model in its preferences, `fsrs-6` from
+now on; replays, the exam forecast, each self-test's gain, the recall curve and the
+flashcards (`cards.MODEL`) all ask `service.model_of(plan.settings)`. A plan made
+before D52 says nothing and keeps FSRS-4.5 until its next refresh, which makes it
+again from its history with FSRS-6. A flashcard's stored stability and difficulty
+carry over; its next answer updates them with FSRS-6.
+
+**Why.** FSRS-6 predicts recall better on the open benchmark's review logs: log loss
+0.3460 against FSRS-4.5's 0.3625 [ref:srs-benchmark]. It has a formula for a review
+less than a day after the last, which a flashcard answered "Again" gets ten minutes
+later (D29 had to work around its absence). And per-student parameters (C2) are
+fitted in FSRS-6's form, so the product must run it first.
+
+**Rejected.** Moving the research planner too: `clock.py`'s value functions and
+their admissible bounds were built and checked on FSRS-4.5's curve (invariants 1
+and 2), and re-deriving them buys the product nothing, since the product runs the
+assistant (AUDIT item 36). `benchmarks/rule_vs_planner.py` compares the planner and
+the rules on one model, FSRS-4.5, so every number it prints is unchanged. FSRS-7: on
+default parameters no better than FSRS-4.5 on the benchmark (0.3620). A dependency
+on py-fsrs at run time: the model is 21 numbers and a few formulas, and py-fsrs is
+only a test dependency (the `dev` extra), to pin ours.
+
+**Measured** (`benchmarks/fsrs6_product.py`, the synthetic semester of 69 topics,
+Sundays off, 4.5 hours of practice per exam, every review assumed to succeed). The
+plans differ by a session or two. Scored by FSRS-6, the plan made with FSRS-6
+against the plan made with FSRS-4.5:
+
+| hours a week | at 90% or more | mean recall at the exams | lowest |
+|---|---|---|---|
+| 12 | 31 against 30 of 69 | 0.875 against 0.874 | 0.761 against 0.752 |
+| 15 | 44 against 50 | 0.917 against 0.923 | 0.829 against 0.792 |
+| 18 | 58 against 62 | 0.943 against 0.940 | 0.849 against 0.876 |
+
+A mixed result, said as such: the assistant is a rule (the most faded topic first),
+not an optimiser, so a better model does not make its plan better on every measure.
+At 15 hours the FSRS-6 plan reviews every topic at least twice (FSRS-4.5's leaves two
+topics at one review), which raises the lowest recall, and leaves more topics just
+under 90%. The reason to move is the forecast, not the plan: a student reads
+predicted recall on Today, Progress and every self-test, and FSRS-6's is the better
+prediction. The two models also disagree on the same sessions: FSRS-6 puts the
+lowest recall of FSRS-4.5's own 15-hour plan at 0.792 where FSRS-4.5 says 0.755.
+Neither is checked against students yet; that is Gate C's log loss and the pilot's
+(D15).
+
+## D53. A student's own memory parameters for their flashcards, from 400 answers
+
+*Phase C, item C2 of docs/ENGINE-REVIEW.md. The owner chose, on 2026-10-14, our own
+NumPy fitter over py-fsrs's optimizer, which brings PyTorch.*
+
+**Chosen.** Once a student has given 400 flashcard answers a day or more after the
+card's previous one (`fitting.MIN_REVIEWS`), their cards are scheduled with FSRS-6
+parameters fitted to their own answers (`cps/fitting.py`); fitted again each time
+those answers have grown by a quarter (`cards.REFIT_GROWTH`), from the 1,000 cards
+answered most recently. The fit is the most probable set of the 21 parameters under
+a prior centred on the population's: each parameter on a 0-to-1 scale between
+py-fsrs's bounds (the four first stabilities on a log scale), the summed log loss of
+the answers plus the squared distance from the defaults over twice 0.02 squared,
+minimised by Adam on finite differences, its step annealed, every parameter set
+replayed at once with NumPy. It takes seconds, so the web app runs it after the
+answer that makes it due. It is kept in `card_fits`, goes in the plan's copy and is
+deleted with the plan. The Flashcards page says which: "fitted to your own memory,
+from N of your answers", or how many answers are still to come.
+
+**Why.** Population parameters are wrong for a student in the same direction every
+time (the engine review's W3). A fit to the student's answers corrects that once
+there are enough of them; before, it chases noise, so the threshold is measured,
+not guessed.
+
+**Rejected.** py-fsrs's optimizer (PyTorch on a free server, for 21 numbers). A
+looser prior: with 0.05, the fit gains a little more at 400 answers but costs a
+student who is the population +0.0017 ± 0.0005, and 0.1 and 0.2 are worse
+(`benchmarks/personal_fsrs.py --prior`, on 16 other students). The fit for the
+plan's topics: a week of lectures is not a flashcard, and a semester at 15 hours a
+week has 155 self-tests (`benchmarks/fsrs6_product.py`), under the threshold; the
+plan keeps the population's parameters.
+
+**Measured** (`benchmarks/personal_fsrs.py`: 20 made-up students, ten new cards a day
+for 120 days, scheduled as the product schedules them, each fit tested on the three
+weeks of answers after it; mean change in log loss against the population's
+parameters, with its standard error):
+
+| answers | students whose parameters differ | better off | gap closed | students who are the population |
+|---|---|---|---|---|
+| 200 | -0.0016 ± 0.0006 | 70% | 29% | +0.0001 ± 0.0001 |
+| 400 | -0.0035 ± 0.0009 | 90% | 49% | +0.0002 ± 0.0002 |
+| 800 | -0.0054 ± 0.0012 | 90% | 56% | +0.0001 ± 0.0002 |
+
+The threshold is the fewest answers at which the fit is better by more than two
+standard errors, for at least three students in four, and costs a student who is
+the population less than 0.001: 400. The gain is small, as the gap it closes is
+small: at 400 answers, 0.4237 with the population's parameters, 0.4124 with the
+student's own. These are simulated students: how far real students are from the
+population (each parameter times e^N(0, 0.3)), how they choose a grade and how many
+new cards they already know are assumptions in `cps/fitting.py`. Whether it holds
+for real students is the pilot's to measure (Gate C, D15).
+
+## D54. CP-SAT tried against the rules: the rules stay
+
+*Phase C, item C3 of docs/ENGINE-REVIEW.md. The owner approved OR-Tools on
+2026-10-14 as an optional extra (`trial`) for a benchmark only; the product keeps
+the rules unless the trial clearly wins.*
+
+**Chosen.** The rules. `benchmarks/cpsat_trial.py` places, with CP-SAT [ref:or-tools],
+in the same free blocks as the assistant: every review FSRS-6 would give a topic if
+each came when its recall falls to 90% (from three days early to five late, or
+dropped), three blocks of practice per exam in its fortnight, one thing a block, the
+week's budget, a topic's reviews in order; a stated objective (a dropped review
+100, a topic's next review 1,000, a missing practice block 100,000, a day early 1, a
+day late 3). Once for the semester, and re-solved each week over the next four from
+the topics' states, as the assistant replans. Both scored by the same FSRS-6
+replay, every review assumed to succeed:
+
+| hours a week | planner | at 90% or more | mean recall at the exams | lowest |
+|---|---|---|---|---|
+| 12 | rules | 31 of 69 | 0.875 | 0.761 |
+| 12 | CP-SAT, re-solved weekly | 34 | 0.757 | 0.504 |
+| 15 | rules | 44 | 0.917 | 0.829 |
+| 15 | CP-SAT, re-solved weekly | 46 | 0.832 | 0.527 |
+| 18 | rules | 58 | 0.943 | 0.849 |
+| 18 | CP-SAT, re-solved weekly | 63 | 0.921 | 0.534 |
+
+Solved once, CP-SAT is worse on every measure (20, 33 and 42 topics at 90%).
+Re-solved weekly, it brings a few more topics to 90%, but leaves others far behind
+(the lowest recall about 0.53 against 0.76 to 0.85) and the mean lower. The rules
+choose by each topic's current predicted recall, the most faded first; the linear
+model places reviews near ideal days that do not move when a review lands off its
+day, and a weight cannot say how faded a topic is. Not a clear win, so nothing in
+the product changes, and OR-Tools stays out of it.
+
+**Rejected.** Recall inside the model (FSRS is not linear; piecewise
+approximations make a larger model and a project of its own); weights tuned until
+CP-SAT wins on this one semester (invariant 13). Found on the way: a first version
+whose missing practice cost less than a dropped review skipped every practice block
+to place more reviews; practice now outranks reviews, as in the rules. And wall-time
+limits made a row depend on the machine; the solver now stops on a deterministic
+work limit, with one worker and a fixed seed.
+
+## D55. Predicted against reported recall, in the pilot's measures
+
+*Gate C of docs/ENGINE-REVIEW.md ("log loss of predicted against reported recall on
+our own data"), which also builds Phase D's first item.*
+
+**Chosen.** `cps metrics` (`service.calibration`) prints the mean log loss of the
+recall the product predicted, over what students then reported, lower is better:
+flashcard answers a day or more after the card's previous one, predicted by FSRS-6's
+defaults and by FSRS-4.5's (D52); the answers given after a student's own parameters
+were fitted, by those and by FSRS-6's defaults, so the fit is tested on answers it
+never saw (D53); and every self-test answered with how much was recalled (D25),
+against the recall its plan predicted. Each with how many answers and students it
+rests on.
+
+**Why.** D52 and D53 rest on an open benchmark and on made-up students. Whether
+FSRS-6 predicts these students better than FSRS-4.5, and whether their own
+parameters predict them better still, is a number to read from their answers.
+
+**Rejected.** A calibration chart (predicted against observed, by bins): with 10 to
+20 students the bins are too thin to read, so the counts come first (D15).
+
+**Measured.** Nothing yet: nobody uses the product. The tests check the measure on
+made-up answers: it equals the fitter's own log loss, and counts only the answers
+after a fit.

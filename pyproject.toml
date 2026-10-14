@@ -32,7 +32,10 @@ cps = "cps.cli:main"
 
 [project.optional-dependencies]
 # Versions are the ones the checks were run with in milestone M4.
-dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3", "httpx>=0.28"]
+# fsrs (py-fsrs 6.3.2, MIT, pure Python) is the reference FSRS-6 the tests compare
+# `cps.memory` with (D52); the owner approved it as a test dependency on 2026-10-14.
+# Not its `optimizer` extra, which brings PyTorch (D53).
+dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3", "httpx>=0.28", "fsrs==6.3.2"]
 # The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
 # altair, which app.py uses for its tables and chart.
 app = ["streamlit>=1.64"]
@@ -51,6 +54,10 @@ web = [
 # small budget with the owner's key): Anthropic's official SDK, imported only when
 # ANTHROPIC_API_KEY is set. Tested with anthropic 1.12.1. Without it, the rules answer.
 ai = ["anthropic>=1.12,<2"]
+# CP-SAT (Google OR-Tools, Apache 2.0) for benchmarks/cpsat_trial.py only (D54): the
+# product never imports it. The owner approved it as an optional extra on
+# 2026-10-14. Tested with ortools 9.15, which brings pandas and protobuf.
+trial = ["ortools>=9.15,<10"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

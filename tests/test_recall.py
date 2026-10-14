@@ -69,7 +69,17 @@ def test_each_answer_is_a_grade_that_the_plan_follows(plan_and_test):
         for report, after in answered.items()
     }
     assert stopped["forgot"] <= stopped["some"] <= stopped["most"] <= stopped["all"]
-    assert stopped["forgot"] < stopped["all"]
+    # The forecast averages the course's topics and rounds to 5 %, so one topic's
+    # answer can stay inside a step (with FSRS-6, D52, it does); unrounded, the
+    # tested topic's own recall at the exam follows the answer strictly.
+    own = {}
+    for report, after in answered.items():
+        plan = service.PlanReport.from_dict(after.plan)
+        model = service.model_of(plan.settings)
+        memory, last = service._replay(plan.specs, plan.history, model)[test.title]
+        exam = next(s["exam_day"] for s in plan.specs if s["name"] == test.title)
+        own[report] = model.retrievability(exam - last, memory.stability)
+    assert own["forgot"] < own["some"] < own["most"] < own["all"]
 
 
 def test_only_a_self_test_asks_how_much_was_recalled(plan_and_test):

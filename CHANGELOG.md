@@ -6,6 +6,24 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Predicted against reported recall (D55, Gate C of the engine review): `cps metrics`
+  prints the mean log loss of the product's predictions over what students reported,
+  for flashcards (FSRS-6 and FSRS-4.5, and a student's own parameters after their
+  fit) and for self-tests.
+- The CP-SAT trial (D54, the engine review's C3): `benchmarks/cpsat_trial.py` places
+  the semester's reviews and practice with OR-Tools (the optional `trial` extra) and
+  scores them as the rules' plan is scored. The rules win on mean and lowest recall,
+  so the product keeps them.
+- A student's own memory parameters (D53, the engine review's C2): after 400 flashcard
+  answers on later days, the cards are scheduled with FSRS-6 parameters fitted to the
+  student's answers (`src/cps/fitting.py`, NumPy only), fitted again as answers grow;
+  the Flashcards page says which. `benchmarks/personal_fsrs.py` measures the threshold
+  on made-up students.
+- FSRS-6 (D52, the engine review's C1): `memory.FSRS_6`, checked against py-fsrs 6.3.2
+  to 2e-12 on two trajectories; the product's plans, forecasts and flashcards use it
+  (a plan names its model; older plans move at their next refresh), the research
+  planner stays on FSRS-4.5. `benchmarks/fsrs6_product.py` prints what it changes:
+  a mixed result, said as such. py-fsrs is a test dependency only.
 - A warm-up before today's lectures (D51, the engine review's B4): opt-in in Settings;
   Today lists the day's lectures still ahead with a two-minute guess-first prompt.
   Nothing is scheduled.

@@ -47,14 +47,17 @@ run. Where this is going as a product, and what it still lacks, is in
 Two of the best-supported techniques in the research on learning are spreading study
 out over time and testing yourself instead of rereading; a review of ten techniques
 rated these two, and only these, of high utility [ref:dunlosky2013]. The memory model
-the planner uses, FSRS-4.5, reproduces both. For one week of lectures examined four
-weeks later, three self-tests, each when predicted recall falls to 90%, keep 83%
-twelve weeks after the exam; four sessions crammed into the last four days keep 79%,
-though they are marginally ahead on exam day (99.6% against 98.8%); studied once and
-never again, 22%. This is the model's prediction with population-default weights, not
-a measurement of students; `python benchmarks/figures.py` draws it and prints every
-number. Every session the assistant plans is built on it: a self-test when material
-fades, spread out, and a sentence saying what to do.
+the research planner uses, FSRS-4.5, reproduces both. For one week of lectures
+examined four weeks later, three self-tests, each when predicted recall falls to 90%,
+keep 83% twelve weeks after the exam; four sessions crammed into the last four days
+keep 79%, though they are marginally ahead on exam day (99.6% against 98.8%); studied
+once and never again, 22%. FSRS-6, the model of the product's plans since DECISIONS.md
+D52, tells the same story twelve weeks after the exam (87% spaced, 80% crammed, 50%
+studied once), with the self-tests ahead on exam day too. These are the models'
+predictions with population-default weights, not measurements of students;
+`python benchmarks/figures.py` draws the first and prints every number. Every session
+the assistant plans is built on such a prediction: a self-test when material fades,
+spread out, and a sentence saying what to do.
 
 ## Sixty seconds
 
@@ -95,9 +98,12 @@ synthetic four-month semester to try the page on.
 
 ## How it works
 
-- **Memory.** Each subject is an FSRS-4.5 memory state, stability and difficulty
-  (`src/cps/memory.py`). The model matches the reference implementation of the same
-  version, py-fsrs 2.5.1, to 4e-14 on two pinned trajectories.
+- **Memory.** Each subject is an FSRS memory state, stability and difficulty
+  (`src/cps/memory.py`): FSRS-6 in the product's plans and flashcards (DECISIONS.md
+  D52), FSRS-4.5 in the research planner. Each matches the reference implementation
+  of its version on two pinned trajectories: py-fsrs 2.5.1 to 4e-14, py-fsrs 6.3.2 to
+  2e-12. After 400 flashcard answers, a student's cards use parameters fitted to their
+  own answers (`src/cps/fitting.py`, DECISIONS.md D53).
 - **The calendar.** An `.ics` export is expanded (recurrences, exclusions, time
   zones, daylight saving) into busy time, a study window is added because nobody's
   calendar says "sleep", and the free time is cut into study blocks
@@ -319,7 +325,11 @@ The search saves about one session in twenty on its own objective. The assistant
 uses the rule and adds what the planner never modelled; with 15 hours a week, Sundays
 off and exam practice, it plans the same semester in 174 sessions, and 51 of the 69
 topics are predicted at 90% or more at their exam, which it says, instead of quietly
-asking for more hours.
+asking for more hours. Every row here is FSRS-4.5, the model the planner was built
+on. The product's plans have run FSRS-6 since DECISIONS.md D52. Scored by FSRS-6, the
+same week planned with it has 173 sessions, 44 of the 69 topics at 90% or more and
+the lowest recall at an exam 0.829; planned with FSRS-4.5, 50 topics and 0.792
+(`python benchmarks/fsrs6_product.py`).
 
 **Two findings a student can use.** Spacing, not the number of free evenings, is
 what runs out: five daily blocks cannot build 21 days of stability however they are
@@ -391,7 +401,8 @@ in a real browser are the owner's.
 | `src/cps/cli.py` | `cps inspect`, `plan`, `serve`, `web`, `sweep` and `backup` |
 | `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
 | `src/cps/feed.py` | the feed server calendar apps subscribe to, and background refresh |
-| `src/cps/memory.py` | FSRS-4.5, checked against py-fsrs 2.5.1 |
+| `src/cps/memory.py` | FSRS-4.5 and FSRS-6, checked against py-fsrs 2.5.1 and 6.3.2 |
+| `src/cps/fitting.py` | a student's own FSRS-6 parameters, fitted to their flashcard answers with NumPy |
 | `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
 | `src/cps/clock.py` | cost to reach a subject's target before its exam |
 | `src/cps/ssp.py` | the unconstrained optimum (SSP-MMC) and its admissible bound |
@@ -407,13 +418,16 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 705 passed, 17 deselected (slow), 1 xfailed, ~150 s
-pytest -m "slow or not slow" --cov=cps    # everything: 722 passed, 1 xfailed, 93% coverage
+pytest                                    # 721 passed, 17 deselected (slow), 1 xfailed, ~190 s
+pytest -m "slow or not slow" --cov=cps    # everything: 738 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
 python benchmarks/semester.py             # a semester, with and without lectures as topics
 python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
+python benchmarks/fsrs6_product.py        # the assistant with FSRS-6 and with FSRS-4.5 (D52)
+python benchmarks/personal_fsrs.py        # a student's own parameters: how many answers before they help (D53)
+python benchmarks/cpsat_trial.py          # CP-SAT placement against the rules (D54; pip install -e ".[trial]")
 python benchmarks/figures.py              # the README's figures, from the runs above
 python benchmarks/reviews.py              # competitors' App Store reviews, coded by theme
 ```

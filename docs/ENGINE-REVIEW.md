@@ -139,18 +139,18 @@ the benchmarks before and after.
 - [x] B2 · W5: an optional weight per exam (D49: only between topics within 0.06 of the most faded; the heavier course's recall at its exam up at 12, 15 and 18 hours)
 - [x] B3 · W8: weeks weighted by lecture hours (D50: over three hours, split into topics; a full block after a poor self-test)
 - [x] B4 · An opt-in warm-up quiz before a lecture (D51: a prompt on Today, nothing scheduled)
-- [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages (pages tried; the pull request waits for CI and the owner)
+- [x] Gate B: the same, plus pages tried at phone and laptop widths in three languages (PR #20, merged 14 October)
 
-**Phase C · A memory model that learns** (needs the owner's approval of `fsrs[optimizer]` and `ortools`)
+**Phase C · A memory model that learns** (the owner, 2026-10-14: py-fsrs as a test dependency only, with our own NumPy fitter, no PyTorch; `ortools` an optional `trial` extra, used by a benchmark only)
 
-- [ ] C1 · W3: FSRS-6, reference re-pinned, every number re-run
-- [ ] C2 · W3: per-student parameters above a measured threshold
-- [ ] C3 · CP-SAT placement trial against the rules
+- [x] C1 · W3: FSRS-6, reference re-pinned, every number re-run (D52: the product's plans and flashcards on FSRS-6, to 2e-12 of py-fsrs 6.3.2; the research planner and `rule_vs_planner.py` stay FSRS-4.5, unchanged; the plan itself is mixed, 44 of 69 topics at 90% against 50 at 15 hours, the lowest recall up from 0.792 to 0.829, both scored by FSRS-6)
+- [x] C2 · W3: per-student parameters above a measured threshold (D53: flashcards, from 400 answers on later days; log loss 0.0035 ± 0.0009 lower over the next three weeks for made-up students who differ, +0.0002 for one who is the population; the plan's topics keep the population's parameters)
+- [x] C3 · CP-SAT placement trial against the rules (D54: re-solved weekly, a few more topics at 90% but the lowest recall about 0.53 against 0.76 to 0.85, and the mean lower; the rules stay)
 - [ ] Gate C: the same, plus log loss of predicted against reported recall
 
 **Phase D · The pilot**
 
-- [ ] D1 · W9: predicted against reported recall in `cps metrics`
+- [x] D1 · W9: predicted against reported recall in `cps metrics` (D55, built for Gate C; the pilot reads it)
 - [ ] D2 · W9: the post-exam survey, with consent and a privacy line (owner's approval)
 - [ ] D3 · Read the results with the owner
 

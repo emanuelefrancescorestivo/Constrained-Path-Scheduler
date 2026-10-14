@@ -59,6 +59,7 @@ import numpy as np
 from . import accounts as _accounts
 from . import ai as _ai
 from . import cards as flashcards
+from . import fitting
 from . import i18n as _i18n
 from . import inbox as _inbox
 from . import progress as _progress
@@ -85,12 +86,12 @@ from .i18n import _, _n, format_date, pick, use
 from .i18n import current as current_language
 from .i18n import number as format_number
 from .memory import (
+    FSRS_4_5,
+    MODELS,
     Grade,
     MemoryState,
-    initial_state,
-    interval_for_retention,
+    Model,
     retrievability,
-    review,
 )
 from .plan import Block, short_gaps, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
@@ -173,14 +174,22 @@ class MissingExam(InvalidInput):
 # --------------------------------------------------------------------------- #
 
 
-def familiarity_prior(level: int) -> MemoryState:
-    """Map a 1-to-5 self-rating to a starting memory state. A prior; see module docs."""
+def familiarity_prior(level: int, model: Model = FSRS_4_5) -> MemoryState:
+    """Map a 1-to-5 self-rating to a starting memory state in `model`. A prior; see
+    module docs."""
     if level not in (1, 2, 3, 4, 5):
         raise InvalidInput(f"familiarity must be 1 to 5, got {level!r}")
     if level <= 4:
-        return initial_state(Grade(level))
-    easy = initial_state(Grade.EASY)
-    return review(easy, interval_for_retention(easy.stability, 0.9), Grade.GOOD)
+        return model.initial_state(Grade(level))
+    easy = model.initial_state(Grade.EASY)
+    return model.review(easy, model.interval(easy.stability, 0.9), Grade.GOOD)
+
+
+def model_of(settings: PlanSettings) -> Model:
+    """The memory model a plan was made with (D52): what its preferences name, FSRS-6
+    for the product's plans since D52; FSRS-4.5 for the research planner's plans and
+    for plans made before D52 until they are made again."""
+    return MODELS.get(str(settings.preferences.get("model", "fsrs-4.5")), FSRS_4_5)
 
 
 @dataclass(frozen=True)
@@ -199,7 +208,7 @@ class SubjectSpec:
     stability: float | None = None
     difficulty: float | None = None
 
-    def memory(self) -> tuple[MemoryState, str]:
+    def memory(self, model: Model = FSRS_4_5) -> tuple[MemoryState, str]:
         """The starting memory state and a label saying where it came from."""
         if self.stability is not None and self.difficulty is not None:
             try:
@@ -207,7 +216,7 @@ class SubjectSpec:
             except ValueError as exc:
                 raise InvalidInput(f"{self.name}: {exc}") from exc
         if self.familiarity is not None:
-            return familiarity_prior(int(self.familiarity)), f"familiarity {int(self.familiarity)}"
+            return familiarity_prior(int(self.familiarity), model), f"familiarity {int(self.familiarity)}"
         raise InvalidInput(
             _("{name}: give a familiarity from 1 to 5, or a stability and a difficulty", name=self.name)
         )
@@ -799,7 +808,9 @@ class TaskView:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
 
 
-def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[list[dict[str, Any]], float]:
+def _resolve(
+    report: CalendarReport, subjects: Sequence[SubjectSpec], model: Model = FSRS_4_5
+) -> tuple[list[dict[str, Any]], float]:
     """Specs to plain starting states with exam days, validated: one per subject."""
     if not subjects:
         raise InvalidInput(_("add at least one subject with an exam date"))
@@ -812,7 +823,7 @@ def _resolve(report: CalendarReport, subjects: Sequence[SubjectSpec]) -> tuple[l
     found = {a.subject.casefold(): a.when for a in report.assessments}
     resolved: list[dict[str, Any]] = []
     for spec in subjects:
-        memory, prior = spec.memory()
+        memory, prior = spec.memory(model)
         if spec.exam is None:
             if spec.name.strip().casefold() not in found:
                 raise MissingExam(spec.name.strip())
@@ -854,13 +865,13 @@ def _week_target(days: float) -> float:
     return days if days < 7 else 7 * math.floor(days / 7 + 1e-9)
 
 
-def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any]]:
+def _topics(report: CalendarReport, specs: Sequence[dict], model: Model = FSRS_4_5) -> list[dict[str, Any]]:
     """Each subject whose lectures are in the calendar becomes a topic per week of
     lectures, plus one for what was taught before the plan starts; the others stay
     one topic. See "Lectures become topics" in docs/METHOD.md."""
     zone = _zone(report.tz)
     midnight = datetime.combine(report.start, time(0, 0), tzinfo=zone)
-    lecture_memory = familiarity_prior(LECTURE_FAMILIARITY)
+    lecture_memory = familiarity_prior(LECTURE_FAMILIARITY, model)
     out: list[dict[str, Any]] = []
     for spec in specs:
         exam = datetime.fromisoformat(spec["exam"])
@@ -997,18 +1008,20 @@ def _prepare(
     seed: int | None,
     failure_penalty: float,
     lectures_as_topics: bool,
+    model: Model = FSRS_4_5,
 ) -> tuple[PlanSettings, list[dict[str, Any]], CalendarReport]:
-    """Validate, resolve exam dates, make the topics, and settle the horizon."""
+    """Validate, resolve exam dates, make the topics, and settle the horizon; the
+    starting states are `model`'s (D52)."""
     if not 0.5 <= retention < 1.0:
         raise InvalidInput("target recall must be at least 0.5 and below 1")
     if window < 1:
         raise InvalidInput("the planning window must be at least one block")
-    specs, latest = _resolve(report, subjects)
+    specs, latest = _resolve(report, subjects, model)
     needed = max(1, math.ceil(latest - 1e-9))
     if needed > report.days:
         report = _extend(report, needed)
     if lectures_as_topics:
-        topics = _topics(report, specs)
+        topics = _topics(report, specs, model)
         if any(t["topic"] for t in topics):
             specs = topics
     settings = PlanSettings(
@@ -1061,7 +1074,7 @@ def continue_plan(
         for i, s in enumerate(sorted((s for s in done if s.title in names), key=lambda s: s.start_day))
     )
     after = _days_after(report.start, now.astimezone(_zone(report.tz)))
-    states = _replay(specs, history)
+    states = _replay(specs, history, FSRS_4_5)
     current = [
         {
             **s,
@@ -1173,7 +1186,7 @@ def _plan(
         )
     sessions = tuple(built)
 
-    finals = _replay(specs, history + sessions)
+    finals = _replay(specs, history + sessions, FSRS_4_5)
     targets = result.targets if result else tuple(_subject(s).target(settings.retention) for s in specs)
     unreachable = result.unreachable if result else tuple(False for _ in specs)
     views, warnings = [], []
@@ -1286,15 +1299,20 @@ def _topic_view(
     return view, warnings
 
 
-def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tuple[MemoryState, float]]:
+def _replay(
+    specs: Sequence[dict], done: Sequence[SessionView], model: Model
+) -> dict[str, tuple[MemoryState, float]]:
     """Memory state and last review day of every subject after `done`, recomputed
-    with exact FSRS transitions (a single source of truth, not stored numbers)."""
+    with `model`'s exact transitions (a single source of truth, not stored numbers)."""
     state = {s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in specs}
     for session in sorted(done, key=lambda x: x.start_day):
         if session.outcome in _NO_MEMORY or session.title not in state:
             continue  # skipped, not reported, or a task or exam practice: nothing to remember
         memory, last = state[session.title]
-        state[session.title] = (review(memory, session.start_day - last, _grade(session)), session.start_day)
+        state[session.title] = (
+            model.review(memory, session.start_day - last, _grade(session)),
+            session.start_day,
+        )
     return state
 
 
@@ -1318,7 +1336,7 @@ def replan_after(plan: PlanReport, session_index: int, outcome: str) -> PlanRepo
             plan.settings, plan.specs, plan.tasks, plan.blocks, plan.events, history, reported.start_day
         )
     specs = [dict(s) for s in plan.specs]
-    after = _replay(specs, history)
+    after = _replay(specs, history, FSRS_4_5)
     current = [
         {
             **s,
@@ -1373,9 +1391,12 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
     if not specs:
         raise InvalidInput(f"no subject called {subject!r} in this plan")
     done = [s for s in plan.history + plan.sessions if s.outcome not in _NO_MEMORY]
+    model = model_of(plan.settings)
     if len(specs) == 1 and not specs[0].get("topic"):
-        return _topic_curve(specs[0], [s for s in done if s.title == specs[0]["name"]], step)
-    curves = [(s, dict(_topic_curve(s, [x for x in done if x.title == s["name"]], step))) for s in specs]
+        return _topic_curve(specs[0], [s for s in done if s.title == specs[0]["name"]], step, model)
+    curves = [
+        (s, dict(_topic_curve(s, [x for x in done if x.title == s["name"]], step, model))) for s in specs
+    ]
     exam_day = specs[0]["exam_day"]
     points = []
     t = 0.0
@@ -1394,7 +1415,9 @@ def _curve_at(curve: Mapping[float, float], t: float) -> float:
     return curve[at] if at is not None else 1.0
 
 
-def _topic_curve(spec: Mapping, reviews: Sequence[SessionView], step: float) -> list[tuple[float, float]]:
+def _topic_curve(
+    spec: Mapping, reviews: Sequence[SessionView], step: float, model: Model
+) -> list[tuple[float, float]]:
     memory = MemoryState(spec["stability"], spec["difficulty"])
     last = spec["last_review_day"]
     points: list[tuple[float, float]] = []
@@ -1402,13 +1425,13 @@ def _topic_curve(spec: Mapping, reviews: Sequence[SessionView], step: float) -> 
     for session in [*sorted(reviews, key=lambda s: s.start_day), None]:
         until = session.start_day if session else spec["exam_day"]
         while t < until:
-            points.append((t, retrievability(t - last, memory.stability)))
+            points.append((t, model.retrievability(t - last, memory.stability)))
             t += step
-        points.append((until, retrievability(until - last, memory.stability)))
+        points.append((until, model.retrievability(until - last, memory.stability)))
         if session is None:
             break
         grade = Grade.GOOD if session.outcome == "recalled" else Grade.AGAIN
-        memory = review(memory, session.start_day - last, grade)
+        memory = model.review(memory, session.start_day - last, grade)
         last = session.start_day
         points.append((until, 1.0))
         t = until + step
@@ -5050,7 +5073,11 @@ def cards_view(
         deck["new" if card.new else "due"] += 1
     later = flashcards.next_due(where, token, now)
     chosen = [c for c in every if course and c.course.casefold() == course.casefold()]
+    own = flashcards.personal(where, token)
     return {
+        # D53: the intervals' parameters, the student's own once fitted.
+        "fitted": own.reviews if own else 0,
+        "to_fit": 0 if own else max(0, fitting.MIN_REVIEWS - flashcards.scored(where, token)),
         "decks": sorted(decks.values(), key=lambda d: d["course"].casefold()),
         "waiting": len(waiting),
         "total": len(every),
@@ -5082,8 +5109,9 @@ def card_review_view(
         card = waiting[0]
         view["card"] = _card_dict(card, now)
         view["options"] = []
+        model = flashcards.model_for(where, subscription.token)
         for grade in CARD_GRADES:
-            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now)
+            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now, model)
             view["options"].append({"grade": grade, "when": wait_words(due - now)})
     else:
         later = flashcards.next_due(where, subscription.token, now, course)
@@ -5125,6 +5153,13 @@ def answer_card(
     now = now or datetime.now(UTC)
     where = _store(store)
     _flash(lambda: flashcards.answer(where, subscription.token, card_id, grade, now))
+
+
+def refit_cards(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> bool:
+    """Fit the student's own parameters for their cards if it is due (D53):
+    enough answers and none fitted, or a quarter more since. Seconds of work, so
+    the web app runs it after answering, not before. True when it fitted."""
+    return flashcards.refit(_store(store), subscription.token, now or datetime.now(UTC)) is not None
 
 
 def card_view(store: str | os.PathLike, subscription: Subscription, card_id: str) -> dict | None:
@@ -5541,6 +5576,67 @@ def review_with_ai(
 # The pilot's measures (DECISIONS.md D15; docs/STRATEGY.md "How we will know")
 
 
+def calibration(store: str | os.PathLike) -> dict:
+    """How well predicted recall matched what students reported (Gate C of the
+    engine review; the pilot reads it, D15): the mean log loss over every answer
+    that tested a prediction, lower is better, None with no answers.
+
+    - cards: each flashcard answer a day or more after the card's previous one,
+      predicted by FSRS-4.5's defaults and by FSRS-6's (D52);
+    - own: the answers given after a student's own parameters were fitted (D53),
+      predicted by them and by FSRS-6's defaults: out of sample, as the fit never
+      saw them;
+    - self_tests: each self-test answered with how much was recalled (D25),
+      against the recall the plan predicted for it."""
+    where = _store(store)
+    six, old = MODELS["fsrs-6"], MODELS["fsrs-4.5"]
+    sums: dict[str, list] = {"cards": [0.0, 0.0, 0, 0], "own": [0.0, 0.0, 0, 0], "self_tests": [0.0, 0, 0]}
+    for token in where.tokens():
+        log = flashcards.answer_log(where, token, flashcards.MAX_CARDS)
+        if log:
+            histories = [[(e, g) for _, e, g in card] for card in log]
+            a, n = fitting.losses(old, histories)
+            b, _ = fitting.losses(six, histories)
+            if n:
+                c = sums["cards"]
+                c[0], c[1], c[2], c[3] = c[0] + a, c[1] + b, c[2] + n, c[3] + 1
+            own = flashcards.personal(where, token)
+            if own is not None:
+                after = [[at > own.at for at, _, _ in card] for card in log]
+                a, n = fitting.losses(own.model, histories, after)
+                b, _ = fitting.losses(six, histories, after)
+                if n:
+                    c = sums["own"]
+                    c[0], c[1], c[2], c[3] = c[0] + a, c[1] + b, c[2] + n, c[3] + 1
+        subscription = load_subscription(store, token)
+        if subscription is None or subscription.plan is None:
+            continue
+        answered = [
+            s for s in PlanReport.from_dict(subscription.plan).history if s.kind in _REVIEW_KINDS and s.grade
+        ]
+        for s in answered:
+            r = min(max(s.recall, 1e-4), 1 - 1e-4)
+            sums["self_tests"][0] -= math.log(r) if s.grade != "again" else math.log(1 - r)
+        if answered:
+            sums["self_tests"][1] += len(answered)
+            sums["self_tests"][2] += 1
+
+    def mean(total: float, count: int) -> float | None:
+        return total / count if count else None
+
+    c, o, st = sums["cards"], sums["own"], sums["self_tests"]
+    return {
+        "cards": {
+            "answers": c[2],
+            "students": c[3],
+            "fsrs-4.5": mean(c[0], c[2]),
+            "fsrs-6": mean(c[1], c[2]),
+        },
+        "own": {"answers": o[2], "students": o[3], "own": mean(o[0], o[2]), "fsrs-6": mean(o[1], o[2])},
+        "self_tests": {"answers": st[1], "students": st[2], "predicted": mean(st[0], st[1])},
+    }
+
+
 def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     """What the pilot reads week by week, from the event log, the plans and the
     network's tables, on the server: nothing runs in a student's browser.
@@ -5669,6 +5765,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "over_limit": over_limit,
         "network": network,
         "ai": {**_ai.usage(where, month), "cap": _ai.monthly_cap(), "available": ai_available()},
+        "calibration": calibration(store),
     }
 
 
@@ -5683,9 +5780,11 @@ def _five(share: float) -> int:
     return int(5 * round(100 * max(0.0, min(1.0, share)) / 5))
 
 
-def _recall_at_exam(members: Sequence[dict], states: Mapping[str, tuple[MemoryState, float]]) -> float:
+def _recall_at_exam(
+    members: Sequence[dict], states: Mapping[str, tuple[MemoryState, float]], model: Model
+) -> float:
     values = [
-        retrievability(max(m["exam_day"] - states[m["name"]][1], 0.0), states[m["name"]][0].stability)
+        model.retrievability(max(m["exam_day"] - states[m["name"]][1], 0.0), states[m["name"]][0].stability)
         for m in members
         if m["name"] in states
     ]
@@ -5699,6 +5798,7 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
     with the grade its answer gives, D25), the rest as planned, so a session under
     way (already in the plan's history) has its gain too."""
     exam_day = {s["name"]: s["exam_day"] for s in plan.specs}
+    model = model_of(plan.settings)
     states = {
         s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
     }
@@ -5709,11 +5809,11 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
         memory, last = states[session.title]
         elapsed = max(session.start_day - last, 0.0)
         exam = exam_day[session.title]
-        after = review(memory, elapsed, _grade(session))
+        after = model.review(memory, elapsed, _grade(session))
         if session.kind in _REVIEW_KINDS and session.start_day < exam:
             out[session_id(session)] = {
-                "without": _five(retrievability(max(exam - last, 0.0), memory.stability)),
-                "with": _five(retrievability(max(exam - session.start_day, 0.0), after.stability)),
+                "without": _five(model.retrievability(max(exam - last, 0.0), memory.stability)),
+                "with": _five(model.retrievability(max(exam - session.start_day, 0.0), after.stability)),
             }
         states[session.title] = (after, session.start_day)
     return out
@@ -5728,7 +5828,8 @@ def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> lis
     groups: dict[str, list[dict]] = {}
     for spec in plan.specs:
         groups.setdefault(spec.get("subject", spec["name"]), []).append(spec)
-    current = _replay(plan.specs, plan.history)
+    model = model_of(plan.settings)
+    current = _replay(plan.specs, plan.history, model)
     colours = {name.casefold(): index for name, index in course_colours(plan)}
     out = []
     for subject in sorted(plan.subjects, key=lambda x: x.exam):
@@ -5742,15 +5843,15 @@ def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> lis
             if end_of_week > exam + timedelta(days=7):
                 break
             day = _days_after(start, min(end_of_week, now.astimezone(zone)))
-            states = _replay(plan.specs, [h for h in plan.history if h.start_day <= day])
-            path.append(_five(_recall_at_exam(members, states)))
+            states = _replay(plan.specs, [h for h in plan.history if h.start_day <= day], model)
+            path.append(_five(_recall_at_exam(members, states, model)))
         out.append(
             {
                 "name": subject.name,
                 "when": format_date(exam.astimezone(zone).date(), "short"),
                 "days": max(0, (exam.astimezone(zone).date() - now.astimezone(zone).date()).days),
                 "with_plan": _five(subject.recall_at_exam),
-                "if_stopped": _five(_recall_at_exam(members, current)),
+                "if_stopped": _five(_recall_at_exam(members, current, model)),
                 # self-tests behind with no report: not counted until answered (D44)
                 "unknown": sum(
                     1 for h in plan.history if h.outcome == "unknown" and h.subject == subject.name
@@ -5999,6 +6100,7 @@ def make_schedule(
     done: Sequence[SessionView] = (),
     now: datetime | None = None,
     pins: Sequence[Mapping] = (),
+    model: str = "fsrs-6",
 ) -> PlanReport:
     """The student's week, scheduled by the assistant's rules (`cps.assistant`):
     deadlines first when they get close, exam practice before each exam, self-testing
@@ -6036,6 +6138,8 @@ def make_schedule(
             raise InvalidInput(_("exam practice must be 0 to {most} hours", most=f"{MAX_PRACTICE_HOURS:.0f}"))
     if practice_days < 0:
         raise InvalidInput(_("exam practice cannot be negative"))
+    if model not in MODELS:
+        raise InvalidInput(f"memory model must be one of {', '.join(MODELS)}, not {model!r}")
     if any(float(w) not in _WEIGHT_VALUES for w in (weights or {}).values()):
         raise InvalidInput(_("an exam weighs less, as usual or more"))
     names = [t.name.strip() for t in tasks]
@@ -6060,7 +6164,7 @@ def make_schedule(
 
     if subjects:
         settings, specs, report = _prepare(
-            report, subjects, retention, 1, None, DEFAULT_FAILURE_PENALTY, lectures_as_topics
+            report, subjects, retention, 1, None, DEFAULT_FAILURE_PENALTY, lectures_as_topics, MODELS[model]
         )
     else:
         if not 0.5 <= retention < 1.0:
@@ -6091,6 +6195,8 @@ def make_schedule(
             "practice_hours": practice_hours,
             "practice": {k: float(v) for k, v in chosen.items()},
             "weights": {str(k): float(v) for k, v in (weights or {}).items() if float(v) != 1.0},
+            # The memory model the rules and the forecasts use (D52).
+            "model": model,
             # What sizing gives each course, kept for the settings page (D46).
             "practice_sized": {
                 course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
@@ -6160,7 +6266,8 @@ def _assist(
         )
 
     blocks = tuple(b for b in blocks if not overlaps(b))
-    states = _replay(specs, history)
+    model = model_of(settings)
+    states = _replay(specs, history, model)
     counted = [h for h in history if h.outcome != "skipped"]
     done_task: dict[str, int] = {}
     done_practice: dict[str, int] = {}
@@ -6238,6 +6345,7 @@ def _assist(
             rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
             practice_days=prefs["practice_days"],
             review_below=settings.retention,
+            model=model,
             weekly_minutes=None if weekly is None else max(minutes, round(weekly * 60)),
             block_minutes=minutes,
         ),
@@ -6276,7 +6384,7 @@ def _assist(
     for name, members in groups.items():
         finals = [result.topics[s["name"]] for s in members]
         recalls = [
-            retrievability(max(s["exam_day"] - last, 0.0), memory.stability)
+            model.retrievability(max(s["exam_day"] - last, 0.0), memory.stability)
             for s, (memory, last) in zip(members, finals, strict=True)
         ]
         ok = [r >= settings.retention for r in recalls]

@@ -1240,4 +1240,7 @@ MESSAGES: dict[str, str] = {
     "Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.": "Oggi te lo ricorda: due minuti per indovinare a cosa risponderà la lezione. Non conta nelle tue ore.",
     "Warm up before today's lectures": "Riscaldati prima delle lezioni di oggi",
     "Two minutes before each: write two questions you think it will answer, and guess the answers. Wrong guesses help too: you notice the right answer when it comes.": "Due minuti prima di ciascuna: scrivi due domande a cui pensi che risponderà e indovina le risposte. Anche sbagliare aiuta: noti la risposta giusta quando arriva.",
+    "The intervals are fitted to your own memory, from {n} of your answers.": "Gli intervalli sono adattati alla tua memoria, in base a {n} delle tue risposte.",
+    "The intervals follow how most people remember. After {n} more answer on a later day, they will be fitted to your own memory.": "Gli intervalli seguono la memoria della maggior parte delle persone. Dopo ancora {n} risposta in un altro giorno, saranno adattati alla tua memoria.",
+    "The intervals follow how most people remember. After {n} more answers on later days, they will be fitted to your own memory.": "Gli intervalli seguono la memoria della maggior parte delle persone. Dopo altre {n} risposte in altri giorni, saranno adattati alla tua memoria.",
 }

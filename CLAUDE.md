@@ -21,21 +21,26 @@ more than an impressive number.
 ## Commands
 
     pip install -e ".[dev,app,web,ai]"      # app = streamlit (app.py); web = the hosted app; ai = Anthropic's SDK
+    pip install -e ".[trial]"                # OR-Tools, for benchmarks/cpsat_trial.py only (D54)
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     cps demo                                 # the hosted app on made-up students (cps.showcase), to look around
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 705 passed, 17 deselected, 1 xfailed, about 150 s
-    pytest -m "slow or not slow" --cov=cps   # all 722 + 1 xfailed, 93% coverage, about 7 min; CI runs this
+    pytest                                   # 721 passed, 17 deselected, 1 xfailed, about 190 s
+    pytest -m "slow or not slow" --cov=cps   # all 738 + 1 xfailed, 93% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
     python benchmarks/semester.py            # a synthetic semester, with and without lectures as topics
     python benchmarks/rule_vs_planner.py     # the research planner against one-line rules
+    python benchmarks/fsrs6_product.py       # the assistant with FSRS-6 and with FSRS-4.5 (D52)
+    python benchmarks/fsrs6_reference.py     # memory.FSRS_6 against py-fsrs 6.3.2 (the dev extra)
+    python benchmarks/personal_fsrs.py       # a student's own parameters: how many answers before they help (D53)
+    python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
-    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15)
+    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -43,7 +48,8 @@ more than an impressive number.
 
 | module | role |
 |---|---|
-| `memory.py` | FSRS-4.5: forgetting curve, stability and difficulty updates, 17 named weights |
+| `memory.py` | FSRS-4.5 (17 named weights, the research planner's) and FSRS-6 (21, the product's plans and flashcards, D52): forgetting curve, stability and difficulty updates; `Model` |
+| `fitting.py` | D53: a student's own FSRS-6 parameters, fitted with NumPy (a prior centred on the population's, Adam on finite differences, every parameter set replayed at once); made-up students for the benchmark and tests |
 | `legacy.py` | the January 2026 model, verbatim, so its defect stays a failing test |
 | `timegrid.py` | calendar as one immutable, hashable integer bitmask; local wall-clock slots |
 | `calendar_io.py` | `.ics` in (RRULE, EXDATE, DST, BOM, cancellations), exam detection, course of each event, `.ics` out |
@@ -55,7 +61,7 @@ more than an impressive number.
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice (taking turns, D46), self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
-| `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-4.5), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
+| `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39) |
@@ -153,6 +159,18 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   (`benchmarks/rule_vs_planner.py`, AUDIT item 36). Do not present the search as
   what makes the product better; `docs/PRODUCT.md` is the product plan.
 
+- Two memory models (D52): the product's plans and flashcards run FSRS-6, the research
+  planner and every row of `benchmarks/rule_vs_planner.py` FSRS-4.5, so the numbers
+  below that come from it are FSRS-4.5's. Scored by FSRS-6, a plan made with FSRS-6 is
+  not better on every measure (`benchmarks/fsrs6_product.py`: at 15 hours a week, 44
+  of 69 topics at 90% against 50, the lowest recall 0.829 against 0.792). FSRS-6 was
+  chosen for its forecast, not for the plan.
+- A student's own parameters (D53) are measured on made-up students only: how far real
+  students are from the population, and how they grade, are assumptions in
+  `fitting.py`. The gain there is small (log loss 0.0035 lower at 400 answers) and the
+  plan's topics keep the population's parameters.
+- CP-SAT was tried against the rules (D54) and lost: a few more topics at 90%, a much
+  lower floor. The product keeps the rules and never imports OR-Tools.
 - Quick self-tests (D48) count as full reviews in FSRS, which ignores a review's
   length: part of their gain in `benchmarks/rule_vs_planner.py` (53 of 69 topics at
   90% instead of 51 at 15 hours a week) is the model's, not the student's.

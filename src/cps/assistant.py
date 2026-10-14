@@ -59,7 +59,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from .i18n import _, _n
-from .memory import Grade, MemoryState, retrievability, review
+from .memory import FSRS_4_5, Grade, MemoryState, Model
 from .plan import Block
 
 # Topics within this much predicted recall of the most faded count as fading
@@ -116,6 +116,9 @@ class Preferences:
     # blocks of `block_minutes`; without it, `weekly_blocks` blocks.
     weekly_minutes: int | None = None
     block_minutes: int = 90
+    # The memory model the rules predict recall with (D52): the product passes
+    # FSRS-6; FSRS-4.5 is the research planner's, kept for comparisons with it.
+    model: Model = FSRS_4_5
 
     @property
     def cap(self) -> int | None:
@@ -259,7 +262,7 @@ def schedule(
         now = block.start_day
         pin = pinned.get(id(block))
         if pin is not None:
-            forced = _pinned_session(pin, topic_by_name, state, reviewed, exam_day)
+            forced = _pinned_session(pin, topic_by_name, state, reviewed, exam_day, prefs.model)
             if forced.kind == "task":
                 finish[forced.title] = max(finish.get(forced.title, now), now)
             used[week(block)] = used.get(week(block), 0) + size
@@ -373,7 +376,7 @@ def _self_test(
     now = block.start_day
     waiting = needs_full if needs_full is not None else set()
     fading = [
-        (retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
+        (prefs.model.retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
         for t in topics
         if t.available_day <= now < t.exam_day
         and not held("review", t.name, now)
@@ -390,7 +393,7 @@ def _self_test(
     close = [(r, t) for r, t in fading if r <= lowest + WEIGHT_TIE]
     recall, topic = min(close, key=lambda pair: (-pair[1].weight, pair[0], pair[1].exam_day))
     memory, last = state[topic.name]
-    after = review(memory, max(now - last, 0.0), Grade.GOOD)
+    after = prefs.model.review(memory, max(now - last, 0.0), Grade.GOOD)
     state[topic.name] = (after, now)
     first = topic.name not in reviewed
     reviewed.add(topic.name)
@@ -437,6 +440,7 @@ def _pinned_session(
     state: dict[str, tuple[MemoryState, float]],
     reviewed: set[str],
     exam_day: dict[str, float],
+    model: Model = FSRS_4_5,
 ) -> Session:
     """The session a pin puts in its block. A review updates the topic's memory as
     any review does; the work of a task or practice was counted when the schedule
@@ -446,8 +450,8 @@ def _pinned_session(
     topic = topics.get(pin.title)
     if pin.kind in ("review", "first review") and topic is not None:
         memory, last = state[topic.name]
-        recall = retrievability(max(now - last, 0.0), memory.stability)
-        after = review(memory, max(now - last, 0.0), Grade.GOOD)
+        recall = model.retrievability(max(now - last, 0.0), memory.stability)
+        after = model.review(memory, max(now - last, 0.0), Grade.GOOD)
         state[topic.name] = (after, now)
         first = topic.name not in reviewed
         reviewed.add(topic.name)

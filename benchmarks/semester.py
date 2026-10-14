@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from cps import rolling, service  # noqa: E402
+from cps.memory import FSRS_4_5  # noqa: E402
 
 CALENDAR = ROOT / "examples" / "sample-semester.ics"
 START = date(2026, 9, 29)
@@ -158,7 +159,7 @@ def main() -> int:
         print(f"  {r['ready']} of {r['topics']} topics at target; recall at the exams {r['recall']}")
         short = [
             (s["name"], service._subject(s).target(0.9), final[s["name"]][0].stability)
-            for final in [service._replay(r["plan"].specs, r["plan"].sessions)]
+            for final in [service._replay(r["plan"].specs, r["plan"].sessions, FSRS_4_5)]
             for s in r["plan"].specs
             if final[s["name"]][0].stability < service._subject(s).target(0.9)
         ]

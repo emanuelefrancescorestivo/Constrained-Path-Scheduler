@@ -12,6 +12,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from cps import memory
+
 ROOT = Path(__file__).resolve().parent.parent
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -38,6 +40,16 @@ def test_the_spacing_numbers_in_the_readme_are_the_models():
         assert text in README, f"README's {what} number is not {text!r}"
     # The honest part of the picture: cramming is ahead on exam day, behind later.
     assert crammed["exam"] > spaced["exam"] and spaced["end"] > crammed["end"]
+    # FSRS-6, the product's model (D52): the same order twelve weeks after the exam,
+    # and the self-tests ahead on exam day as well.
+    six = _figures().spacing_data(memory.FSRS_6)
+    assert len(six["spaced"]["days"]) == 3
+    quoted = (
+        f"({six['spaced']['end']:.0%} spaced, {six['crammed']['end']:.0%} crammed, "
+        f"{six['once']['end']:.0%} studied once)"
+    )
+    assert quoted in " ".join(README.split()), f"README's FSRS-6 numbers are not {quoted!r}"
+    assert six["spaced"]["exam"] > six["crammed"]["exam"] and six["spaced"]["end"] > six["crammed"]["end"]
 
 
 def test_the_spacing_figure_draws_in_both_themes(tmp_path):

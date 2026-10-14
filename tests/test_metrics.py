@@ -75,3 +75,5 @@ def test_the_pilot_measures(tmp_path, capsys):
     # The command reads the store at today's date, so only its lines are checked here.
     assert "plans set up             3 (" in printed
     assert "north star" in printed and "over their weekly limit" in printed and "AI this month" in printed
+    # Gate C: predicted against reported recall, "-" while nobody has answered.
+    assert "recall predicted" in printed and "flashcards             0 answers by 0 students" in printed
