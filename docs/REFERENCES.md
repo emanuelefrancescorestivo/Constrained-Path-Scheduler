@@ -402,4 +402,4 @@ detail came from when the publisher's page could not be opened.
 - year: 2026
 - venue: github.com/google/or-tools and developers.google.com/optimization
 - status: checked
-- checked against: the repository's README (Apache License 2.0; CP-SAT included) and the CP-SAT page (Python, C++, Java, C#), 2026-10-13.
+- checked against: the repository's README (Apache License 2.0; CP-SAT included) and the CP-SAT page (Python, C++, Java, C#), 2026-10-13; the PyPI JSON record of ortools 9.15.6755 (Apache 2.0, uploaded 2026-01-14), the version `benchmarks/cpsat_trial.py` ran with, 2026-10-14.

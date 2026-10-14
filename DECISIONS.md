@@ -1509,3 +1509,44 @@ student's own. These are simulated students: how far real students are from the
 population (each parameter times e^N(0, 0.3)), how they choose a grade and how many
 new cards they already know are assumptions in `cps/fitting.py`. Whether it holds
 for real students is the pilot's to measure (Gate C, D15).
+
+## D54. CP-SAT tried against the rules: the rules stay
+
+*Phase C, item C3 of docs/ENGINE-REVIEW.md. The owner approved OR-Tools on
+2026-10-14 as an optional extra (`trial`) for a benchmark only; the product keeps
+the rules unless the trial clearly wins.*
+
+**Chosen.** The rules. `benchmarks/cpsat_trial.py` places, with CP-SAT [ref:or-tools],
+in the same free blocks as the assistant: every review FSRS-6 would give a topic if
+each came when its recall falls to 90% (from three days early to five late, or
+dropped), three blocks of practice per exam in its fortnight, one thing a block, the
+week's budget, a topic's reviews in order; a stated objective (a dropped review
+100, a topic's next review 1,000, a missing practice block 100,000, a day early 1, a
+day late 3). Once for the semester, and re-solved each week over the next four from
+the topics' states, as the assistant replans. Both scored by the same FSRS-6
+replay, every review assumed to succeed:
+
+| hours a week | planner | at 90% or more | mean recall at the exams | lowest |
+|---|---|---|---|---|
+| 12 | rules | 31 of 69 | 0.875 | 0.761 |
+| 12 | CP-SAT, re-solved weekly | 34 | 0.757 | 0.504 |
+| 15 | rules | 44 | 0.917 | 0.829 |
+| 15 | CP-SAT, re-solved weekly | 46 | 0.832 | 0.527 |
+| 18 | rules | 58 | 0.943 | 0.849 |
+| 18 | CP-SAT, re-solved weekly | 63 | 0.921 | 0.534 |
+
+Solved once, CP-SAT is worse on every measure (20, 33 and 42 topics at 90%).
+Re-solved weekly, it brings a few more topics to 90%, but leaves others far behind
+(the lowest recall about 0.53 against 0.76 to 0.85) and the mean lower. The rules
+choose by each topic's current predicted recall, the most faded first; the linear
+model places reviews near ideal days that do not move when a review lands off its
+day, and a weight cannot say how faded a topic is. Not a clear win, so nothing in
+the product changes, and OR-Tools stays out of it.
+
+**Rejected.** Recall inside the model (FSRS is not linear; piecewise
+approximations make a larger model and a project of its own); weights tuned until
+CP-SAT wins on this one semester (invariant 13). Found on the way: a first version
+whose missing practice cost less than a dropped review skipped every practice block
+to place more reviews; practice now outranks reviews, as in the rules. And wall-time
+limits made a row depend on the machine; the solver now stops on a deterministic
+work limit, with one worker and a fixed seed.

@@ -427,6 +427,7 @@ python benchmarks/semester.py             # a semester, with and without lecture
 python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
 python benchmarks/fsrs6_product.py        # the assistant with FSRS-6 and with FSRS-4.5 (D52)
 python benchmarks/personal_fsrs.py        # a student's own parameters: how many answers before they help (D53)
+python benchmarks/cpsat_trial.py          # CP-SAT placement against the rules (D54; pip install -e ".[trial]")
 python benchmarks/figures.py              # the README's figures, from the runs above
 python benchmarks/reviews.py              # competitors' App Store reviews, coded by theme
 ```

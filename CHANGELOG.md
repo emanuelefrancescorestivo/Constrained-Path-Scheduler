@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The CP-SAT trial (D54, the engine review's C3): `benchmarks/cpsat_trial.py` places
+  the semester's reviews and practice with OR-Tools (the optional `trial` extra) and
+  scores them as the rules' plan is scored. The rules win on mean and lowest recall,
+  so the product keeps them.
 - A student's own memory parameters (D53, the engine review's C2): after 400 flashcard
   answers on later days, the cards are scheduled with FSRS-6 parameters fitted to the
   student's answers (`src/cps/fitting.py`, NumPy only), fitted again as answers grow;

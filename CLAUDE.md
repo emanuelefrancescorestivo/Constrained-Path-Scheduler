@@ -21,6 +21,7 @@ more than an impressive number.
 ## Commands
 
     pip install -e ".[dev,app,web,ai]"      # app = streamlit (app.py); web = the hosted app; ai = Anthropic's SDK
+    pip install -e ".[trial]"                # OR-Tools, for benchmarks/cpsat_trial.py only (D54)
     cps web                                  # the hosted product: pages, feeds, reports (port 8000)
     cps demo                                 # the hosted app on made-up students (cps.showcase), to look around
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
@@ -36,6 +37,7 @@ more than an impressive number.
     python benchmarks/fsrs6_product.py       # the assistant with FSRS-6 and with FSRS-4.5 (D52)
     python benchmarks/fsrs6_reference.py     # memory.FSRS_6 against py-fsrs 6.3.2 (the dev extra)
     python benchmarks/personal_fsrs.py       # a student's own parameters: how many answers before they help (D53)
+    python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
     cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15)
@@ -167,6 +169,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   students are from the population, and how they grade, are assumptions in
   `fitting.py`. The gain there is small (log loss 0.0035 lower at 400 answers) and the
   plan's topics keep the population's parameters.
+- CP-SAT was tried against the rules (D54) and lost: a few more topics at 90%, a much
+  lower floor. The product keeps the rules and never imports OR-Tools.
 - Quick self-tests (D48) count as full reviews in FSRS, which ignores a review's
   length: part of their gain in `benchmarks/rule_vs_planner.py` (53 of 69 topics at
   90% instead of 51 at 15 hours a week) is the model's, not the student's.

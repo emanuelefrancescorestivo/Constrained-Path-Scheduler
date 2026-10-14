@@ -54,6 +54,10 @@ web = [
 # small budget with the owner's key): Anthropic's official SDK, imported only when
 # ANTHROPIC_API_KEY is set. Tested with anthropic 1.12.1. Without it, the rules answer.
 ai = ["anthropic>=1.12,<2"]
+# CP-SAT (Google OR-Tools, Apache 2.0) for benchmarks/cpsat_trial.py only (D54): the
+# product never imports it. The owner approved it as an optional extra on
+# 2026-10-14. Tested with ortools 9.15, which brings pandas and protobuf.
+trial = ["ortools>=9.15,<10"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
