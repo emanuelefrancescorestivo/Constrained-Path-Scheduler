@@ -103,7 +103,12 @@ def test_a_refresh_goes_on_from_now_and_keeps_what_was_done(published):
     done = [s for s in plan.sessions if s.start_day < cut]
     assert done, "the sample plan has sessions in its first week"
     assert [(s.start, s.title) for s in after.history] == [(s.start, s.title) for s in done]
-    assert all(s.outcome == "recalled" for s in after.history)
+    # Not reported: a self-test more than a day behind is unknown (D44), the rest done.
+    for s in after.history:
+        overdue = datetime.fromisoformat(s.end) <= now - service.UNREPORTED_AFTER
+        expected = "unknown" if overdue and s.kind in ("review", "first review") else "recalled"
+        assert s.outcome == expected, (s.kind, s.end)
+    assert any(s.outcome == "unknown" for s in after.history)
     assert all(s.start_day > cut for s in after.sessions)
     assert fresh.refreshed == "2026-03-09T06:00:00+00:00"
     # Every session, done and to come, is in the feed.

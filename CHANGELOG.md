@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Silence is not success (D44, the engine review's A1): a self-test not reported a day
+  after it ended counts as unknown; its topic gains no memory from it and comes back
+  sooner; the exam forecast says how many it did not count.
+- The engine review (docs/ENGINE-REVIEW.md): the planning engine's nine weak spots
+  checked against the code and the learning-science literature, and the plan.
 - Before friends try it (D43): "Send feedback" from every page, read by the owner at
   `/admin/<key>/inbox`; "Download a copy of my data" in Settings, one JSON file with
   everything kept under the plan's address; a draft of the terms of use (`/terms`),

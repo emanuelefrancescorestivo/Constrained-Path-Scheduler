@@ -127,7 +127,7 @@ the benchmarks before and after.
 
 **Phase A · Rules only**
 
-- [ ] A1 · W4: unreported sessions count as unknown
+- [x] A1 · W4: unreported sessions count as unknown
 - [ ] A2 · W1: a preferred time of day; 30 minutes after training and work
 - [ ] A3 · W6: exam practice sized per course, alternating, mixed
 - [ ] A4 · W7: a weekly budget offered from what is kept

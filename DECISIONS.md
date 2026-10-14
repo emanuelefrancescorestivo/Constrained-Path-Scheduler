@@ -1130,3 +1130,37 @@ means: readable by a person and by another program).
 blocks `sendBeacon` and `fetch` to the site sends no errors. The error log keeps an
 error's message cut to 300 characters: a message that quotes what a student typed
 keeps what fits. Checked in Chromium at 390 and 1280 px.
+
+## D44. Silence is not success: a self-test not reported counts as unknown
+
+*Phase A, item A1 of docs/ENGINE-REVIEW.md (weak spot W4), approved by the owner on
+2026-10-13. Replaces, for self-tests, the planner's rule that a session not reported
+counts as done as planned, and the line of D24 that the forecast counts "an
+unreported one as done".*
+
+**Chosen.** A self-test (a first review or a review) with no report a day after it
+ended (`service.UNREPORTED_AFTER`) is replayed as "unknown": it stays on the
+calendar and in the feed, but its topic gains no memory from it, so the plan brings
+the topic back as if it had not happened. Until a day has passed it still counts as
+done as planned, so the plan does not change the minute a session ends. A late
+report, of any kind, counts again from then. The exam forecast on Trends says how
+many self-tests it did not count, and sends the student to Today, which already asks
+about the past week. Deadline work and exam practice not reported still count as
+done: no memory hangs on them, and doubting them would plan work twice.
+
+**Why.** Students already judge what they know too kindly: most reread rather than
+test themselves and feel they know material they do not [ref:karpicke2009]. A plan that took silence for success would show a student who
+stopped reporting as perfectly on track, and its forecast would be least true for
+the students who most need it. Progress and the streak already refused it (D8, D9);
+the planner now agrees with them.
+
+**Rejected.** Treating silence as skipped (the session would vanish from the
+calendar and the feed, as if it had not been planned); asking the moment a session
+ends (a push for every session is noise; the reminder comes before, D38); a shorter
+grace (students report in the evening for the day).
+
+**Measured.** The benchmarks are unchanged: they replay every session as reported.
+Tests pin the rule: overdue self-tests are unknown, tasks and practice are not, a
+session within its day still counts, a late report counts again, an unknown session
+stays in the feed, and a silent week leaves every doubted topic less stable than the
+same week reported.

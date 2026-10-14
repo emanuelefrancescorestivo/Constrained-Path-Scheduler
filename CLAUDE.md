@@ -158,7 +158,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - With lectures in the calendar, a topic is one week of one subject, reviewed in one
   block and starting "seen once and shaky"; each window considers at most four
   topics (METHOD.md §7). A semester takes about half a minute to plan.
-- Sessions not reported count as done as planned. In `cps web` a report reaches the
+- Sessions not reported count as done as planned, except a self-test a day after it
+  ended, which counts as unknown and gains no memory (D44). In `cps web` a report reaches the
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
   owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.

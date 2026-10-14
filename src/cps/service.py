@@ -573,7 +573,9 @@ class SessionView:
     start_day: float
     slot: int
     recall: float  # predicted probability of recall when the session starts
-    outcome: str  # "recalled", "lapsed" or "skipped"
+    # "recalled", "lapsed" or "skipped"; "unknown" for a self-test nobody reported
+    # within a day (`UNREPORTED_AFTER`): still on the calendar, no memory gained.
+    outcome: str
     stability_before: float
     stability_after: float
     rationale: str
@@ -1165,8 +1167,8 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
     with exact FSRS transitions (a single source of truth, not stored numbers)."""
     state = {s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in specs}
     for session in sorted(done, key=lambda x: x.start_day):
-        if session.outcome == "skipped" or session.title not in state:
-            continue  # a task or exam practice: nothing to remember
+        if session.outcome in _NO_MEMORY or session.title not in state:
+            continue  # skipped, not reported, or a task or exam practice: nothing to remember
         memory, last = state[session.title]
         state[session.title] = (review(memory, session.start_day - last, _grade(session)), session.start_day)
     return state
@@ -1245,7 +1247,7 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
     specs = [s for s in plan.specs if s.get("subject", s["name"]) == subject]
     if not specs:
         raise InvalidInput(f"no subject called {subject!r} in this plan")
-    done = [s for s in plan.history + plan.sessions if s.outcome != "skipped"]
+    done = [s for s in plan.history + plan.sessions if s.outcome not in _NO_MEMORY]
     if len(specs) == 1 and not specs[0].get("topic"):
         return _topic_curve(specs[0], [s for s in done if s.title == specs[0]["name"]], step)
     curves = [(s, dict(_topic_curve(s, [x for x in done if x.title == s["name"]], step))) for s in specs]
@@ -1789,7 +1791,7 @@ def _refresh(
             cut = _days_after(previous.settings.start, now.astimezone(_zone(previous.settings.tz)))
             reported = subscription.outcomes
             done = tuple(
-                _as_reported(s, reported.get(session_id(s)))
+                _as_reported(s, reported.get(session_id(s)), now)
                 for s in previous.history + previous.sessions
                 if s.start_day < cut or session_id(s) in reported
             )
@@ -1837,11 +1839,26 @@ def session_id(session: SessionView) -> str:
     return hashlib.sha256(f"{session.start}|{session.title}".encode()).hexdigest()[:12]
 
 
-def _as_reported(session: SessionView, report: str | None) -> SessionView:
+# A self-test not reported this long after it ended counts as unknown: it stays on
+# the calendar, but its topic gains no memory from it (DECISIONS.md D44). Until then
+# it counts as done as planned, so the plan does not change the moment it ends.
+UNREPORTED_AFTER = timedelta(days=1)
+# Outcomes from which a topic gains no memory.
+_NO_MEMORY = ("skipped", "unknown")
+
+
+def _as_reported(session: SessionView, report: str | None, now: datetime | None = None) -> SessionView:
     """A session with the outcome the student reported. "struggled" is a lapse for
     something to remember (it comes back sooner) and done for a task or practice
-    (a task gets one more block instead, in `report_session`)."""
+    (a task gets one more block instead, in `report_session`). A self-test with no
+    report a day after it ended (`now` given) is "unknown": students judge what they
+    know too kindly already, and a plan that took silence for success would show a
+    student who stopped reporting as perfectly on track (ENGINE-REVIEW W4). A task or
+    exam practice not reported still counts as done: no memory hangs on it."""
     if report is None:
+        overdue = now is not None and datetime.fromisoformat(session.end) <= now - UNREPORTED_AFTER
+        if overdue and session.kind in _REVIEW_KINDS:
+            return replace(session, outcome="unknown", grade="")
         return session
     if report == "skipped":
         return replace(session, outcome="skipped")
@@ -5395,7 +5412,7 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
     }
     out: dict[str, dict] = {}
     for session in sorted(plan.history + plan.sessions, key=lambda x: x.start_day):
-        if session.title not in states or session.outcome == "skipped":
+        if session.title not in states or session.outcome in _NO_MEMORY:
             continue
         memory, last = states[session.title]
         elapsed = max(session.start_day - last, 0.0)
@@ -5442,6 +5459,10 @@ def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> lis
                 "days": max(0, (exam.astimezone(zone).date() - now.astimezone(zone).date()).days),
                 "with_plan": _five(subject.recall_at_exam),
                 "if_stopped": _five(_recall_at_exam(members, current)),
+                # self-tests behind with no report: not counted until answered (D44)
+                "unknown": sum(
+                    1 for h in plan.history if h.outcome == "unknown" and h.subject == subject.name
+                ),
                 "path": path,
                 "topics": len(members),
                 "color": colours.get(subject.name.casefold()),

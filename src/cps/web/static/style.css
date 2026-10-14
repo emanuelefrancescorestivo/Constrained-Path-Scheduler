@@ -1535,3 +1535,4 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .inbox-detail { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--fill-4); font-size: 0.78rem; overflow-x: auto; white-space: pre; }
 .panel-foot { margin: 28px 0 8px; font-size: 0.8rem; color: var(--muted); text-align: center; }
 .panel-foot a { color: var(--muted); }
+.forecast-unsure { margin: 8px 0 0; font-size: 0.82rem; color: var(--muted); }
