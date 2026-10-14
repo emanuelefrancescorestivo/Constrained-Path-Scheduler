@@ -1242,3 +1242,37 @@ unchanged: 174 sessions, 51 of 69 topics at 90% or more. On it, practice now tak
 turns: no course has two practice sessions in a row, and each is done before its
 exam (a test). How much practice is right is not measured: the memory model does not
 count practice at all, so no benchmark can show what it is worth.
+
+## D47. A weekly budget offered from what is kept
+
+*Phase A, item A4 of docs/ENGINE-REVIEW.md (weak spot W7), approved by the owner on
+2026-10-13.*
+
+**Chosen.** When each of the last three full weeks of a plan had fewer than 70% of
+its past sessions done, and at least one session reported, Today offers a weekly
+budget equal to the hours kept, in whole blocks and at least two
+(`service.budget_offer`). The card says what was kept against what was planned, and
+what the plan predicts at the exams with the smaller budget and with the present one
+"if every session is kept". One tap ("Plan 4.5 hours a week") makes the plan again
+with it; "Not now" leaves the budget as it is and asks again after three more full
+weeks. Nothing changes without the tap.
+
+**Why.** A plan nobody follows schedules nothing: when the student skips at random,
+the rules no longer decide which topics get the time. A smaller plan the student
+keeps lets them choose again, the most faded topic first. If-then plans raise goal
+attainment (d = 0.65 over 94 tests, [ref:gollwitzer2006]): a plan matched to the
+week the student actually has is the kind they carry out. This is a product
+judgement, not a measured effect on learning (the review's verdict on W7).
+
+**Rejected.** Shrinking the budget silently (the student would not know why the plan
+changed, and a bad fortnight would cut a good plan); offering after one or two weeks
+(an exam week or an illness is not a habit); counting a week with nothing reported
+as kept nothing (silence is unknown, D44: Today asks for reports instead); hiding
+the cost (the card says how many fewer topics the smaller plan predicts, even when
+that argues against taking it).
+
+**Measured.** Tests on the sample semester: with one session in three done for three
+weeks (40, 30 and 30% kept, about 5 of 15 hours), the offer is 4.5 hours; with two in
+three (70, 70 and 60%), there is none, because 70% is not under 70%; with nothing
+reported, none; with two full weeks only, none; "Not now" holds for three weeks. No
+benchmark: the benchmarks assume every session is kept.

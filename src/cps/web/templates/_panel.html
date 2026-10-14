@@ -22,6 +22,19 @@
 </div>
 {% endif %}
 
+{% if budget %}
+{# A weekly budget from what is kept (D47): offered, never applied without a tap. #}
+<div class="card nudge-card budget-offer">
+  <b>{{ _("Plan the hours you keep") }}</b>
+  <span class="muted">{{ _("For three weeks you kept fewer than 7 sessions in 10: about {kept} of the {planned} hours planned each week.", kept=budget.kept | hours, planned=budget.planned | hours) }}</span>
+  <span class="muted">{{ _("A plan of {hours} hours a week predicts {ready} of {topics} topics at 90% or more at their exams; the present one {now}, if every session is kept.", hours=budget.hours | hours, ready=budget.ready, topics=budget.topics, now=budget.ready_now) }}</span>
+  <div class="row-end">
+    <form method="post" action="/p/{{ token }}/budget/later"><button type="submit" class="btn btn-plain btn-sm">{{ _("Not now") }}</button></form>
+    <form method="post" action="/p/{{ token }}/budget"><input type="hidden" name="hours" value="{{ budget.hours }}"><button type="submit" class="btn btn-primary btn-sm">{{ _("Plan {hours} hours a week", hours=budget.hours | hours) }}</button></form>
+  </div>
+</div>
+{% endif %}
+
 {% if not view.planned %}
 <div class="card">
   <h2>{{ _("Nothing to plan yet") }}</h2>

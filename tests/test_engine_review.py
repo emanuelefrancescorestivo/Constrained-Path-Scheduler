@@ -325,9 +325,11 @@ class Clock:
 
 @pytest.fixture
 def web(tmp_path):
-    config = Config(store=tmp_path, clock=Clock(MORNING), background=False, sweep_every=None)
+    clock = Clock(MORNING)
+    config = Config(store=tmp_path, clock=clock, background=False, sweep_every=None)
     with TestClient(create_app(config)) as client:
         client.path = tmp_path
+        client.clock = clock
         yield client
 
 
@@ -428,3 +430,86 @@ def test_a_plan_made_before_sizing_keeps_its_hours(web):
     )
     page = web.get(f"/p/{token}/settings").text
     assert '<option value="4.5" selected>' in page
+
+
+# --------------------------------------------------------------------------- #
+# A4: a weekly budget offered from what is kept
+# --------------------------------------------------------------------------- #
+
+OCTOBER_26 = datetime(2026, 10, 26, 6, 0, tzinfo=UTC)  # a Monday, three full weeks in
+
+
+def _weeks_kept(
+    subscription: service.Subscription, keep: int, now: datetime = OCTOBER_26
+) -> service.Subscription:
+    """The plan's sessions of the three weeks before `now` reported: `keep` of every
+    three done, the others skipped; then planned again from `now`."""
+    plan = service.PlanReport.from_dict(subscription.plan)
+    first = (now - timedelta(weeks=3)).astimezone(PARIS).date()
+    behind = [
+        s
+        for s in plan.history + plan.sessions
+        if first <= datetime.fromisoformat(s.start).astimezone(PARIS).date()
+        and datetime.fromisoformat(s.end) <= now
+    ]
+    outcomes = {service.session_id(s): ("done" if i % 3 < keep else "skipped") for i, s in enumerate(behind)}
+    return service.refresh_subscription(replace(subscription, outcomes=outcomes), now=now, reread=False)
+
+
+def test_three_weeks_under_seventy_percent_bring_an_offer_of_the_hours_kept():
+    sub = _weeks_kept(_start(), keep=1)
+    offer = service.budget_offer(sub, OCTOBER_26)
+    assert offer is not None
+    assert all(k < service.BUDGET_KEPT_BELOW for k in offer["weeks"]) and len(offer["weeks"]) == 3
+    assert offer["hours"] < 15 and offer["hours"] % 1.5 == 0 and offer["hours"] >= 3
+    assert abs(offer["hours"] - offer["kept"]) <= 0.75 or offer["hours"] == 3
+    # What it costs, said before anything changes: the plan predicts fewer topics.
+    assert offer["ready"] <= offer["ready_now"] <= offer["topics"]
+    assert service.PlanReport.from_dict(sub.plan).settings.preferences["weekly_hours"] == 15
+
+
+def test_weeks_kept_well_or_not_reported_bring_no_offer():
+    assert service.budget_offer(_weeks_kept(_start(), keep=3), OCTOBER_26) is None
+    # Two of every three done: 70, 70 and 60% kept, and 70% is not under 70%.
+    assert service.budget_offer(_weeks_kept(_start(), keep=2), OCTOBER_26) is None
+    silent = service.refresh_subscription(_start(), now=OCTOBER_26, reread=False)
+    assert service.budget_offer(silent, OCTOBER_26) is None  # nothing reported: Today asks instead
+    early = _weeks_kept(_start(), keep=1, now=OCTOBER_26 - timedelta(weeks=1))
+    assert service.budget_offer(early, OCTOBER_26 - timedelta(weeks=1)) is None  # two full weeks only
+
+
+def test_the_offer_changes_the_budget_only_on_the_student_s_tap():
+    sub = _weeks_kept(_start(), keep=1)
+    offer = service.budget_offer(sub, OCTOBER_26)
+    assert offer is not None
+    later = service.budget_later(sub, OCTOBER_26)
+    assert service.budget_offer(later, OCTOBER_26) is None
+    assert service.budget_offer(later, OCTOBER_26 + timedelta(weeks=3)) is None
+    taken = service.revise_subscription(sub, preferences={"weekly_hours": offer["hours"]}, now=OCTOBER_26)
+    assert service.PlanReport.from_dict(taken.plan).settings.preferences["weekly_hours"] == offer["hours"]
+    assert service.budget_offer(taken, OCTOBER_26) is None  # already that small
+
+
+def test_today_offers_the_budget_and_one_tap_takes_it(web):
+    token = _web_start(web)
+    service.update_subscription(web.path, token, lambda s: _weeks_kept(s, keep=1))
+    web.clock.now = OCTOBER_26
+    today = unescape(web.get(f"/p/{token}").text)
+    assert "Plan the hours you keep" in today and "Plan 4.5 hours a week" in today
+    assert "about 5 of the 15 hours planned each week" in today
+    taken = web.post(f"/p/{token}/budget", data={"hours": "4.5"}, follow_redirects=False)
+    assert taken.status_code == 303
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["preferences"]["weekly_hours"] == 4.5
+    assert "Plan the hours you keep" not in unescape(web.get(f"/p/{token}").text)
+    assert web.post(f"/p/{token}/budget", data={"hours": "lots"}).status_code == 400
+
+
+def test_not_now_keeps_the_budget_and_the_offer_waits(web):
+    token = _web_start(web)
+    service.update_subscription(web.path, token, lambda s: _weeks_kept(s, keep=1))
+    web.clock.now = OCTOBER_26
+    assert web.post(f"/p/{token}/budget/later", follow_redirects=False).status_code == 303
+    assert "Plan the hours you keep" not in unescape(web.get(f"/p/{token}").text)
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["preferences"]["weekly_hours"] == 15

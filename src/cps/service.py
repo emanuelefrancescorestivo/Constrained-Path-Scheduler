@@ -3072,6 +3072,80 @@ def semester_over(subscription: Subscription, now: datetime | None = None) -> bo
     return all(moment < now for moment in ahead)
 
 
+# A weekly budget offered from what is kept (DECISIONS.md D47): after this many
+# full weeks in a row with fewer than this share of their sessions done, Today
+# offers a budget equal to the hours kept, at least two blocks. "Not now" waits for
+# as many full weeks again.
+BUDGET_WEEKS = 3
+BUDGET_KEPT_BELOW = 70  # percent
+BUDGET_LEAST_BLOCKS = 2
+
+
+def budget_offer(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """The weekly budget to offer a student whose plan is bigger than their weeks
+    (D47), with what the plan predicts at the exams with it and with the budget
+    they have; None when there is nothing to offer.
+
+    Offered only when each of the last `BUDGET_WEEKS` full weeks had under
+    `BUDGET_KEPT_BELOW`% of its past sessions done and at least one session
+    reported (a student who reports nothing is asked to report, not told they kept
+    nothing: D44), when the plan began before them, when the hours kept are fewer
+    than the budget, and when "Not now" was not said since. Nothing changes until
+    the student takes it."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    if plan.settings.engine != "assistant" or not plan.subjects:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    this_week = local.date() - timedelta(days=local.weekday())
+    weeks = [this_week - timedelta(weeks=k) for k in range(BUDGET_WEEKS, 0, -1)]
+    began = date.fromisoformat(subscription.options["start"])
+    later = subscription.options.get("budget_later")
+    # Full weeks of this plan only: not the week it began in, nor any before "Not now".
+    if weeks[0] < began or (later and date.fromisoformat(later) >= weeks[0]):
+        return None
+    sessions = [s for s in progress_sessions(subscription) if s.planned]
+    reported = {_progress.monday(s.start.date()) for s in sessions if s.report and s.start <= local}
+    measured = _trends.weekly(sessions, (), weeks, local)
+    if any(w.kept is None or w.kept >= BUDGET_KEPT_BELOW or w.first not in reported for w in measured):
+        return None
+    minutes = plan.settings.block_minutes
+    kept = sum(w.hours for w in measured) / len(measured)
+    hours = max(BUDGET_LEAST_BLOCKS, round(kept * 60 / minutes)) * minutes / 60
+    current = plan.settings.preferences.get("weekly_hours")
+    if current is not None and hours >= current - 1e-9:
+        return None
+    preferences = {**subscription.options.get("preferences", {}), "weekly_hours": hours}
+    smaller = _refresh(
+        replace(subscription, options={**subscription.options, "preferences": preferences}),
+        now=now,
+        reread=False,
+    )
+    if smaller.plan is None or smaller.error:
+        return None
+    offered = PlanReport.from_dict(smaller.plan)
+    return {
+        "hours": hours,
+        "kept": round(kept, 1),
+        "planned": round(sum(w.hours_planned for w in measured) / len(measured), 1),
+        "weeks": [w.kept for w in measured],
+        "ready": sum(s.topics_ready for s in offered.subjects),
+        "ready_now": sum(s.topics_ready for s in plan.subjects),
+        "topics": sum(s.topics for s in plan.subjects),
+    }
+
+
+def budget_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """ "Not now" to the budget offered (D47): asked again after `BUDGET_WEEKS` more
+    full weeks."""
+    local = (now or datetime.now(UTC)).astimezone(_zone(subscription.options["tz"]))
+    week = local.date() - timedelta(days=local.weekday())
+    return replace(subscription, options={**subscription.options, "budget_later": week.isoformat()})
+
+
 def _when(moment: datetime, now: datetime) -> str:
     """A time as a person says it, relative to `now` (both local)."""
     days = (moment.date() - now.date()).days

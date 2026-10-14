@@ -1214,4 +1214,9 @@ MESSAGES: dict[str, str] = {
     "{hours} hours": "{hours} ore",
     "Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. Change one exam beside it, above.": "In base a ogni corso: 1,5 ore ogni quattro settimane di lezione, almeno 3, nelle ultime due settimane prima dell'esame. Per un solo esame, cambiala accanto a quell'esame, più in alto.",
     "exam practice must be 0 to {most} hours": "l'esercitazione per gli esami deve essere da 0 a {most} ore",
+    # A weekly budget from what is kept (D47)
+    "Plan the hours you keep": "Pianifica le ore che mantieni",
+    "For three weeks you kept fewer than 7 sessions in 10: about {kept} of the {planned} hours planned each week.": "Per tre settimane hai mantenuto meno di 7 sessioni su 10: circa {kept} delle {planned} ore previste ogni settimana.",
+    "A plan of {hours} hours a week predicts {ready} of {topics} topics at 90% or more at their exams; the present one {now}, if every session is kept.": "Un piano di {hours} ore a settimana prevede {ready} argomenti su {topics} al 90% o più ai loro esami; quello attuale {now}, se ogni sessione viene mantenuta.",
+    "Plan {hours} hours a week": "Pianifica {hours} ore a settimana",
 }

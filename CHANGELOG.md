@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A weekly budget offered from what is kept (D47, the engine review's A4): after three
+  full weeks with fewer than 7 sessions in 10 done, Today offers a budget equal to the
+  hours kept, with what it predicts at the exams; one tap takes it, "Not now" waits
+  three weeks.
 - Exam practice sized by the course (D46, the engine review's A3): 1.5 hours for every
   four weeks a course was taught, at least 3, changeable per exam in Settings; exams
   in the same fortnight take turns; every practice session asks for mixed questions.
