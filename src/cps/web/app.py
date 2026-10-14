@@ -1946,6 +1946,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     answers=answers,
                     now=config.clock(),
                     study_time=str(form.get("study_time") or "") or None,
+                    study_on_the_way=bool(form.get("study_on_the_way")) if form.get("way_shown") else None,
                 ),
             )
         except service.ServiceError as error:
@@ -1954,6 +1955,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 view["commute"] = int(str(form.get("commute")))
             if form.get("study_time"):
                 view["study_time"] = str(form.get("study_time"))
+            if form.get("way_shown"):
+                view["study_on_the_way"] = bool(form.get("study_on_the_way"))
             return page(
                 request,
                 "routine.html",

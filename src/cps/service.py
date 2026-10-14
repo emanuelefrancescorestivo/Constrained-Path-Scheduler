@@ -66,7 +66,7 @@ from . import reminders as _reminders
 from . import social as social
 from . import trends as _trends
 from . import universities as _universities
-from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
+from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
     BusyEvent,
@@ -92,7 +92,7 @@ from .memory import (
     retrievability,
     review,
 )
-from .plan import Block, tile_free_time
+from .plan import Block, short_gaps, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
 from .sources import SourceError
 from .sources import fetch_calendar as _fetch
@@ -268,15 +268,27 @@ class BlockView:
     start_day: float
     start: str
     end: str
+    # "" for a study block; "gap" for a quick self-test in a gap between classes,
+    # "way" for one on the way to university (D48): self-tests only, shorter.
+    quick: str = ""
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "slot": self.slot,
             "day": self.day,
             "start_day": self.start_day,
             "start": self.start,
             "end": self.end,
         }
+        if self.quick:
+            out["quick"] = self.quick
+        return out
+
+    @property
+    def minutes(self) -> int:
+        return round(
+            (datetime.fromisoformat(self.end) - datetime.fromisoformat(self.start)) / timedelta(minutes=1)
+        )
 
     def as_block(self) -> Block:
         return Block(self.slot, self.day, self.start_day)
@@ -332,6 +344,11 @@ class CalendarReport:
     commute_minutes: int = 0
     # When the student studies best: each day's free time is filled from that end (D45).
     study_time: str = "any"
+    # Quick self-tests (D48): in gaps too short for a block, and on the way to
+    # university when the student can study there.
+    quick: tuple[BlockView, ...] = ()
+    quick_tests: bool = False
+    study_on_the_way: bool = False
 
     @property
     def block_slots(self) -> int:
@@ -356,6 +373,9 @@ class CalendarReport:
             "lectures": [x.to_dict() for x in self.lectures],
             "commute_minutes": self.commute_minutes,
             "study_time": self.study_time,
+            "quick": [b.to_dict() for b in self.quick],
+            "quick_tests": self.quick_tests,
+            "study_on_the_way": self.study_on_the_way,
         }
 
 
@@ -407,6 +427,12 @@ STUDY_TIMES = {"any": None, "morning": None, "afternoon": 15.0, "evening": 24.0}
 # Free time kept after training or work before a session (D45): to get home and eat.
 PAUSE_AFTER = timedelta(minutes=30)
 _PAUSE_KINDS = ("training", "work")
+# Quick self-tests (D48): a gap of an hour between classes holds one of 45 minutes,
+# 15 left to get to the next class; a trip of at least half an hour holds one on
+# the way, when the student says they can study there.
+QUICK_SLACK = timedelta(minutes=15)
+QUICK_MIN_SLOTS = 2
+WAY_MIN = timedelta(minutes=30)
 
 # The longest trip asked about (the question offers up to 90 minutes; a typed
 # value above this is refused rather than blocking a whole morning by mistake).
@@ -451,8 +477,12 @@ def analyse_calendar(
     busy_rows: Iterable[BusyRow | Mapping] = (),
     commute_minutes: int = 0,
     study_time: str = "any",
+    quick_tests: bool = False,
+    study_on_the_way: bool = False,
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
+    With `quick_tests`, also the gaps too short for a block, for quick self-tests;
+    with `study_on_the_way`, the trips to campus (D48).
     With `commute_minutes`, the trip to campus and back is busy too, around each
     day's events of the timetable and classes drawn by hand (`commute_events`).
 
@@ -512,6 +542,38 @@ def analyse_calendar(
     def clock(slot: int) -> datetime:
         return midnight + timedelta(minutes=slot * minutes_per_slot)
 
+    quick: list[BlockView] = []
+    if quick_tests:
+        quick += [
+            BlockView(
+                b.slot,
+                b.day,
+                b.start_day,
+                _iso(clock(b.slot)),
+                _iso(clock(b.slot + n) - QUICK_SLACK),
+                "gap",
+            )
+            for b, n in short_gaps(grid, block_slots, QUICK_MIN_SLOTS)
+        ]
+    if study_on_the_way:
+        for e, source in tagged:
+            if source == "commute" and e.end - e.start >= WAY_MIN:
+                begin = (e.start.astimezone(zone) - midnight) / timedelta(minutes=minutes_per_slot)
+                slot = math.floor(begin + 1e-9)
+                quick.append(
+                    BlockView(
+                        slot,
+                        slot // grid.slots_per_day,
+                        _days_after(start, e.start.astimezone(zone)),
+                        _iso(e.start.astimezone(zone)),
+                        _iso(
+                            min(e.end, e.start + timedelta(minutes=block_minutes) - QUICK_SLACK).astimezone(
+                                zone
+                            )
+                        ),
+                        "way",
+                    )
+                )
     return CalendarReport(
         start=start,
         tz=tz,
@@ -533,6 +595,9 @@ def analyse_calendar(
         lectures=lectures,
         commute_minutes=commute_minutes,
         study_time=study_time,
+        quick=tuple(sorted(quick, key=lambda b: b.start_day)),
+        quick_tests=quick_tests,
+        study_on_the_way=study_on_the_way,
     )
 
 
@@ -863,6 +928,8 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         busy_rows=report.busy_rows,
         commute_minutes=report.commute_minutes,
         study_time=report.study_time,
+        quick_tests=report.quick_tests,
+        study_on_the_way=report.study_on_the_way,
     )
 
 
@@ -1717,6 +1784,7 @@ def new_subscription(
     require_plan: bool = True,
     lang: str | None = None,
     blank: bool = False,
+    quick_tests: bool = False,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
@@ -1748,6 +1816,7 @@ def new_subscription(
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
             "lang": pick(lang) if lang else current_language(),
+            "quick_tests": quick_tests,
         },
     )
     if plan is not None:
@@ -1808,6 +1877,8 @@ def _refresh(
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
             study_time=str(options.get("study_time", "any")),
+            quick_tests=bool(options.get("quick_tests", False)),
+            study_on_the_way=bool(options.get("study_on_the_way", False)),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2088,6 +2159,8 @@ def revise_subscription(
     strict: bool = True,
     commute_minutes: int | None = None,
     study_time: str | None = None,
+    quick_tests: bool | None = None,
+    study_on_the_way: bool | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2112,6 +2185,10 @@ def revise_subscription(
         if study_time not in STUDY_TIMES:
             raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
         merged["study_time"] = study_time
+    if quick_tests is not None:
+        merged["quick_tests"] = bool(quick_tests)
+    if study_on_the_way is not None:
+        merged["study_on_the_way"] = bool(study_on_the_way)
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -2238,6 +2315,7 @@ def routine_view(subscription: Subscription) -> dict:
         "choices": sorted({*COMMUTE_CHOICES, commute}),
         "study_time": str(subscription.options.get("study_time", "any")),
         "study_times": STUDY_TIME_WORDS,
+        "study_on_the_way": bool(subscription.options.get("study_on_the_way", False)),
         "questions": [
             {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
             for kind, question, example in ROUTINE_QUESTIONS
@@ -2255,6 +2333,7 @@ def answer_routine(
     answers: Iterable[Mapping],
     now: datetime | None = None,
     study_time: str | None = None,
+    study_on_the_way: bool | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
@@ -2286,6 +2365,7 @@ def answer_routine(
         busy_rows=rows,
         commute_minutes=commute_minutes,
         study_time=study_time,
+        study_on_the_way=study_on_the_way,
         now=now,
         strict=False,
     )
@@ -2967,6 +3047,7 @@ def start_subscription(
         require_plan=False,
         lang=lang,
         blank=ics is None,
+        quick_tests=True,  # new plans use the gaps between classes (D48)
     )
 
 
@@ -3385,6 +3466,8 @@ def setup_view(subscription: Subscription) -> dict:
         "commute": int(options.get("commute_minutes", 0)),
         "study_time": str(options.get("study_time", "any")),
         "study_times": STUDY_TIME_WORDS,
+        "quick_tests": bool(options.get("quick_tests", False)),
+        "study_on_the_way": bool(options.get("study_on_the_way", False)),
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],
@@ -5951,7 +6034,7 @@ def make_schedule(
         for i, x in enumerate(sorted((x for x in done if x.title in known), key=lambda x: x.start_day))
     )
     after = _days_after(report.start, now.astimezone(zone)) if now is not None else -1.0
-    return _assist(settings, specs, views, report.blocks, report.events, history, after, pins)
+    return _assist(settings, specs, views, report.blocks + report.quick, report.events, history, after, pins)
 
 
 def _assist(
@@ -6044,13 +6127,16 @@ def _assist(
         for t in tasks
     ]
     first_weekday = settings.start.weekday()
+    # The week's budget in minutes (D48): a quick self-test spends its own length.
     week_used: dict[int, int] = {}
     for h in counted:
         w = (first_weekday + h.day) // 7
-        week_used[w] = week_used.get(w, 0) + 1
+        length = (datetime.fromisoformat(h.end) - datetime.fromisoformat(h.start)) / timedelta(minutes=1)
+        week_used[w] = week_used.get(w, 0) + round(length)
     weekly = prefs["weekly_hours"]
+    ahead = [b for b in blocks if b.start_day > after_day]
     result = assist(
-        [b.as_block() for b in blocks if b.start_day > after_day],
+        [b.as_block() for b in ahead if not b.quick],
         first_weekday=first_weekday,
         topics=topics,
         tasks=work,
@@ -6060,9 +6146,12 @@ def _assist(
             rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
             practice_days=prefs["practice_days"],
             review_below=settings.retention,
+            weekly_minutes=None if weekly is None else max(minutes, round(weekly * 60)),
+            block_minutes=minutes,
         ),
         week_used=week_used,
         pins=forced,
+        quick=[Quick(b.as_block(), b.minutes, b.quick) for b in ahead if b.quick],
     )
 
     by_slot = {b.slot: b for b in (*blocks, *pinned_views)}

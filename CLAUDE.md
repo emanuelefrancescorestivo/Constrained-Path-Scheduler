@@ -50,7 +50,7 @@ more than an impressive number.
 | `ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
 | `clock.py` | `V(D, S, t)` and `W(D, S, e, t)`: cost to reach a subject's target before its exam |
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
-| `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
+| `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation; free time cut into blocks, and the gaps too short for one (D48) |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice (taking turns, D46), self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
@@ -153,6 +153,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   (`benchmarks/rule_vs_planner.py`, AUDIT item 36). Do not present the search as
   what makes the product better; `docs/PRODUCT.md` is the product plan.
 
+- Quick self-tests (D48) count as full reviews in FSRS, which ignores a review's
+  length: part of their gain in `benchmarks/rule_vs_planner.py` (53 of 69 topics at
+  90% instead of 51 at 15 hours a week) is the model's, not the student's.
 - When the student studies best (D45) moves which topics reach 90%: with evening
   sessions, 45 of 69 instead of 51 at 15 hours a week; mean recall at the exams is
   the same within 0.005 (`benchmarks/rule_vs_planner.py`).

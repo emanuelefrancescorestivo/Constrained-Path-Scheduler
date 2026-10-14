@@ -55,7 +55,7 @@ student reports otherwise; reported sessions are replayed with their outcomes.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from .i18n import _, _n
@@ -102,6 +102,28 @@ class Preferences:
     rest_weekdays: tuple[int, ...] = ()  # 0 = Monday
     practice_days: float = 14.0
     review_below: float = 0.9  # self-test a topic once its recall falls to this
+    # The week's budget in minutes (D48), when quick self-tests share it with
+    # blocks of `block_minutes`; without it, `weekly_blocks` blocks.
+    weekly_minutes: int | None = None
+    block_minutes: int = 90
+
+    @property
+    def cap(self) -> int | None:
+        """The week's budget in minutes."""
+        if self.weekly_minutes is not None:
+            return self.weekly_minutes
+        return None if self.weekly_blocks is None else self.weekly_blocks * self.block_minutes
+
+
+@dataclass(frozen=True, slots=True)
+class Quick:
+    """Room for a quick self-test (D48): a gap between classes too short for a
+    block ("gap"), or a trip to campus the student can study on ("way"). Only the
+    self-testing rule uses it: no deadline work or exam practice fits in it."""
+
+    block: Block
+    minutes: int
+    where: str = "gap"
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,17 +173,22 @@ def schedule(
     preferences: Preferences | None = None,
     week_used: dict[int, int] | None = None,
     pins: Sequence[Pin] = (),
+    quick: Sequence[Quick] = (),
 ) -> Schedule:
     """Fill `blocks` by the rules in the module docstring.
 
     `first_weekday` is the weekday of day 0 (0 = Monday), which places each block in
-    its calendar week for the budget. `week_used` counts blocks already spent in each
-    week (by sessions reported before a replan). `pins` are sessions the student
-    placed; their blocks must not be among `blocks`."""
+    its calendar week for the budget. `week_used` counts the minutes already spent
+    in each week (by sessions reported before a replan). `pins` are sessions the
+    student placed; their blocks must not be among `blocks`. `quick` is room for
+    quick self-tests (D48), offered to rule 3 only."""
     prefs = preferences or Preferences()
     pinned = {id(p.block): p for p in pins}
-    order = sorted([*blocks, *(p.block for p in pins)], key=lambda b: b.start_day)
+    short = {id(q.block): q for q in quick}
+    order = sorted([*blocks, *(p.block for p in pins), *(q.block for q in quick)], key=lambda b: b.start_day)
     used = dict(week_used or {})
+    cap = prefs.cap
+    size = prefs.block_minutes
 
     def held(kind: str, title: str, now: float) -> bool:
         return any(
@@ -177,7 +204,7 @@ def schedule(
     def resting(block: Block) -> bool:
         return (first_weekday + block.day) % 7 in prefs.rest_weekdays
 
-    eligible = [b for b in order if not resting(b) and id(b) not in pinned]
+    eligible = [b for b in order if not resting(b) and id(b) not in pinned and id(b) not in short]
     left = {t.name: t.blocks for t in tasks}
     finish: dict[str, float] = {}
     practice = {e.course: e.practice_blocks for e in exams}
@@ -207,11 +234,10 @@ def schedule(
                 w = week(blocks_ahead[index])
                 per_week[w] = per_week.get(w, 0) + 1
                 index += 1
-            cap = prefs.weekly_blocks
             if cap is None:
                 capacity = sum(per_week.values())
             else:
-                capacity = sum(min(n, max(cap - used.get(w, 0), 0)) for w, n in per_week.items())
+                capacity = sum(min(n, max(cap - used.get(w, 0), 0) // size) for w, n in per_week.items())
             if capacity <= owed:
                 return True
         return False
@@ -225,15 +251,25 @@ def schedule(
             forced = _pinned_session(pin, topic_by_name, state, reviewed, exam_day)
             if forced.kind == "task":
                 finish[forced.title] = max(finish.get(forced.title, now), now)
-            used[week(block)] = used.get(week(block), 0) + 1
+            used[week(block)] = used.get(week(block), 0) + size
             result.sessions.append(forced)
             continue
         if resting(block):
             continue
+        room = short.get(id(block))
+        cost = room.minutes if room is not None else size
+        if cap is not None and used.get(week(block), 0) + cost > cap:
+            if room is None:
+                position += 1
+            continue
+        if room is not None:
+            chosen = _self_test(block, topics, state, reviewed, prefs, held, room)
+            if chosen is not None:
+                used[week(block)] = used.get(week(block), 0) + cost
+                result.sessions.append(chosen)
+            continue
         here = position
         position += 1
-        if prefs.weekly_blocks is not None and used.get(week(block), 0) >= prefs.weekly_blocks:
-            continue
 
         open_tasks = sorted(
             (t for t in tasks if left[t.name] > 0 and t.available_day <= now < t.due_day),
@@ -287,35 +323,7 @@ def schedule(
 
         # 3. Self-testing on the taught topic that is being forgotten most.
         if choice is None:
-            fading = [
-                (retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
-                for t in topics
-                if t.available_day <= now < t.exam_day and not held("review", t.name, now)
-            ]
-            fading = [(r, t) for r, t in fading if r <= prefs.review_below]
-            if fading:
-                recall, topic = min(fading, key=lambda pair: (pair[0], pair[1].exam_day))
-                memory, last = state[topic.name]
-                after = review(memory, max(now - last, 0.0), Grade.GOOD)
-                state[topic.name] = (after, now)
-                first = topic.name not in reviewed
-                reviewed.add(topic.name)
-                choice = Session(
-                    block,
-                    "first review" if first else "review",
-                    topic.course,
-                    topic.name,
-                    _review_text(topic, first),
-                    _(
-                        "Predicted recall of {what} is down to about {recall}; testing yourself "
-                        "now is when it helps most.",
-                        what=topic.note or topic.name,
-                        recall=f"{recall:.0%}",
-                    ),
-                    recall=recall,
-                    stability_before=memory.stability,
-                    stability_after=after.stability,
-                )
+            choice = _self_test(block, topics, state, reviewed, prefs, held)
 
         # 4. Working ahead on the task due soonest.
         if choice is None and free_tasks:
@@ -325,7 +333,7 @@ def schedule(
             continue  # 5. free time
         if choice.kind == "task":
             finish[choice.title] = now
-        used[week(block)] = used.get(week(block), 0) + 1
+        used[week(block)] = used.get(week(block), 0) + size
         result.sessions.append(choice)
 
     result.topics = state
@@ -333,6 +341,70 @@ def schedule(
     result.task_finish = finish
     result.practice_left = {course: n for course, n in practice.items() if n > 0}
     return result
+
+
+def _self_test(
+    block: Block,
+    topics: Sequence[Topic],
+    state: dict[str, tuple[MemoryState, float]],
+    reviewed: set[str],
+    prefs: Preferences,
+    held: Callable[[str, str, float], bool],
+    room: Quick | None = None,
+) -> Session | None:
+    """Rule 3: a self-test on the taught topic being forgotten most, if one has
+    faded to `prefs.review_below`; `state` and `reviewed` are updated. In `room`, a
+    quick one (D48). FSRS counts a review, not its length: a quick self-test raises
+    the topic's memory as much as a full one in the model, which it does not in a
+    student (the limit stated in D48)."""
+    now = block.start_day
+    fading = [
+        (retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
+        for t in topics
+        if t.available_day <= now < t.exam_day and not held("review", t.name, now)
+    ]
+    fading = [(r, t) for r, t in fading if r <= prefs.review_below]
+    if not fading:
+        return None
+    recall, topic = min(fading, key=lambda pair: (pair[0], pair[1].exam_day))
+    memory, last = state[topic.name]
+    after = review(memory, max(now - last, 0.0), Grade.GOOD)
+    state[topic.name] = (after, now)
+    first = topic.name not in reviewed
+    reviewed.add(topic.name)
+    return Session(
+        block,
+        "first review" if first else "review",
+        topic.course,
+        topic.name,
+        _review_text(topic, first) if room is None else _quick_text(topic, room),
+        _(
+            "Predicted recall of {what} is down to about {recall}; testing yourself "
+            "now is when it helps most.",
+            what=topic.note or topic.name,
+            recall=f"{recall:.0%}",
+        ),
+        recall=recall,
+        stability_before=memory.stability,
+        stability_after=after.stability,
+    )
+
+
+def _quick_text(topic: Topic, room: Quick) -> str:
+    what = topic.note or topic.name
+    if room.where == "way":
+        return _(
+            "A quick self-test on the way, {minutes} minutes, on {what}: answer the questions "
+            "you wrote for it, or your flashcards, from memory; check the answers when you arrive.",
+            minutes=room.minutes,
+            what=what,
+        )
+    return _(
+        "A quick self-test of {minutes} minutes on {what}: from memory, answer five questions "
+        "on it, then check each against your notes.",
+        minutes=room.minutes,
+        what=what,
+    )
 
 
 def _pinned_session(

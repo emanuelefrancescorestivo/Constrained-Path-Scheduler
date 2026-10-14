@@ -31,7 +31,7 @@ import pytest
 from cps import service
 from cps.assistant import Exam, Preferences, schedule
 from cps.calendar_io import BusyEvent, availability_from_events
-from cps.plan import Block, tile_free_time
+from cps.plan import Block, short_gaps, tile_free_time
 from cps.timegrid import TimeGrid
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -309,6 +309,96 @@ def test_the_nearest_exam_wins_once_it_falls_behind():
     assert [s.course for s in urgent.sessions] == ["A", "A", "B"]
 
 
+# --------------------------------------------------------------------------- #
+# B1: quick self-tests in the gaps, and on the way (D48)
+# --------------------------------------------------------------------------- #
+
+
+def _minutes(s: service.SessionView) -> int:
+    return round((datetime.fromisoformat(s.end) - datetime.fromisoformat(s.start)) / timedelta(minutes=1))
+
+
+def test_a_gap_is_an_hour_between_two_busy_times_one_a_day():
+    day = [(8, 11), (12, 14), (15, 16), (16.5, 18)]  # free: 11-12 and 14-15 (an hour), 16-16:30
+    events = [
+        BusyEvent(
+            datetime(2026, 9, 28, int(a), int(a % 1 * 60), tzinfo=PARIS),
+            datetime(2026, 9, 28, int(b), int(b % 1 * 60), tzinfo=PARIS),
+            "Class",
+        )
+        for a, b in day
+    ]
+    grid = availability_from_events(events, date(2026, 9, 28), 1, study_window=(8.0, 22.0))
+    gaps = short_gaps(grid, block_slots=3)
+    assert [(b.slot % 48 / 2, n) for b, n in gaps] == [(11.0, 2)]  # the first only; half an hour is not one
+
+
+def test_quick_self_tests_fill_the_gaps_and_nothing_else():
+    report = service.analyse_calendar(
+        SEMESTER.read_bytes(), start=date(2026, 9, 29), tz="Europe/Paris", quick_tests=True
+    )
+    assert report.quick and all(b.quick == "gap" and b.minutes == 45 for b in report.quick)
+    busy = [(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end)) for e in report.events]
+    blocks = [(datetime.fromisoformat(b.start), datetime.fromisoformat(b.end)) for b in report.blocks]
+    for b in report.quick:
+        lo, hi = datetime.fromisoformat(b.start), datetime.fromisoformat(b.end)
+        assert not any(a < hi and lo < z for a, z in busy + blocks), b.start
+    assert len({b.day for b in report.quick}) == len(report.quick)  # one a day at most
+    subjects = [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
+    plan = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
+    quick = [s for s in plan.sessions if _minutes(s) == 45]
+    assert quick and all(s.kind in ("review", "first review") for s in quick)
+    assert all("quick self-test of 45 minutes" in s.detail for s in quick)
+    # The week's budget is minutes now: 15 hours, whatever mix of blocks and quick tests.
+    weeks: dict[int, int] = {}
+    for s in plan.sessions:
+        weeks[(plan.settings.start.weekday() + s.day) // 7] = weeks.get(
+            (plan.settings.start.weekday() + s.day) // 7, 0
+        ) + _minutes(s)
+    assert max(weeks.values()) <= 15 * 60
+
+
+def test_without_quick_self_tests_the_plan_is_as_before():
+    report = service.analyse_calendar(SEMESTER.read_bytes(), start=date(2026, 9, 29), tz="Europe/Paris")
+    assert report.quick == ()
+    subjects = [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
+    plan = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
+    assert len(plan.sessions) == 174 and {_minutes(s) for s in plan.sessions} == {90}
+    assert sum(s.topics_ready for s in plan.subjects) == 51
+
+
+def test_on_the_way_only_when_the_student_says_so():
+    ics = SEMESTER.read_bytes()
+    trip = service.analyse_calendar(
+        ics, start=date(2026, 9, 29), tz="Europe/Paris", days=14, commute_minutes=45
+    )
+    assert trip.quick == ()
+    way = service.analyse_calendar(
+        ics, start=date(2026, 9, 29), tz="Europe/Paris", days=14, commute_minutes=45, study_on_the_way=True
+    )
+    trips = [e for e in way.events if e.source == "commute"]
+    assert way.quick and all(b.quick == "way" for b in way.quick)
+    assert {(b.start, b.end) for b in way.quick} == {(e.start, e.end) for e in trips}
+    short = service.analyse_calendar(
+        ics, start=date(2026, 9, 29), tz="Europe/Paris", days=14, commute_minutes=20, study_on_the_way=True
+    )
+    assert short.quick == ()  # under half an hour: nothing to do on it
+
+
+def test_new_plans_use_the_gaps_and_older_ones_keep_what_they_had():
+    first = _start()
+    assert first.options["quick_tests"] is True
+    plan = service.PlanReport.from_dict(first.plan)
+    assert any(_minutes(s) == 45 for s in plan.sessions)
+    older = service.Subscription.from_dict(
+        {**first.to_dict(), "options": {k: v for k, v in first.options.items() if k != "quick_tests"}}
+    )
+    again = service.refresh_subscription(older, now=MORNING, reread=False)
+    assert all(_minutes(s) == 90 for s in service.PlanReport.from_dict(again.plan).sessions)
+    off = service.revise_subscription(first, quick_tests=False, now=MORNING)
+    assert all(_minutes(s) == 90 for s in service.PlanReport.from_dict(off.plan).sessions)
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -495,8 +585,11 @@ def test_today_offers_the_budget_and_one_tap_takes_it(web):
     service.update_subscription(web.path, token, lambda s: _weeks_kept(s, keep=1))
     web.clock.now = OCTOBER_26
     today = unescape(web.get(f"/p/{token}").text)
+    offer = service.budget_offer(service.load_subscription(web.path, token), OCTOBER_26)
+    assert offer is not None and offer["hours"] == 4.5
     assert "Plan the hours you keep" in today and "Plan 4.5 hours a week" in today
-    assert "about 5 of the 15 hours planned each week" in today
+    kept, planned = (service.format_number(offer[k]) for k in ("kept", "planned"))
+    assert f"about {kept} of the {planned} hours planned each week" in today
     taken = web.post(f"/p/{token}/budget", data={"hours": "4.5"}, follow_redirects=False)
     assert taken.status_code == 303
     stored = service.load_subscription(web.path, token)
@@ -513,3 +606,37 @@ def test_not_now_keeps_the_budget_and_the_offer_waits(web):
     assert "Plan the hours you keep" not in unescape(web.get(f"/p/{token}").text)
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["preferences"]["weekly_hours"] == 15
+
+
+def test_settings_switch_quick_self_tests_and_the_way(web):
+    token = _web_start(web)
+    page = web.get(f"/p/{token}/settings").text
+    assert 'name="quick_tests" value="1" checked' in page
+    fields = {k: v for k, v in _form(page).items() if k not in ("quick_tests", "study_on_the_way")}
+    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["quick_tests"] is False  # unticked
+    fields.update({"quick_tests": "1", "study_on_the_way": "1", "commute": "45"})
+    web.post(f"/p/{token}/settings", data=fields)
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["quick_tests"] and stored.options["study_on_the_way"]
+    # A form that does not show the switch leaves it as it is.
+    service.update_subscription(web.path, token, lambda s: service.revise_subscription(s, now=MORNING))
+    assert service.load_subscription(web.path, token).options["quick_tests"] is True
+
+
+def test_the_trip_question_asks_about_studying_on_the_way(web):
+    token = _web_start(web)
+    page = unescape(web.get(f"/p/{token}/routine?new=1").text)
+    assert "I can study on the way (train, bus)" in page
+    web.post(
+        f"/p/{token}/routine",
+        data={"new": "1", "commute": "45", "way_shown": "1", "study_on_the_way": "1"},
+        follow_redirects=False,
+    )
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["study_on_the_way"] is True
+    plan = service.PlanReport.from_dict(stored.plan)
+    trips = {(e.start, e.end) for e in plan.events if e.source == "commute"}
+    on_the_way = [s for s in plan.sessions if (s.start, s.end) in trips]
+    assert on_the_way and all("on the way" in s.detail for s in on_the_way)

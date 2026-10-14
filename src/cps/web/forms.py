@@ -80,6 +80,10 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         # the student studies best (D45).
         "commute": form.get("commute"),
         "study_time": form.get("study_time"),
+        # Check boxes say nothing when unticked: each is read only when its form
+        # showed it (D48).
+        "quick_tests": bool(form.get("quick_tests")) if form.get("quick_shown") else None,
+        "study_on_the_way": bool(form.get("study_on_the_way")) if form.get("commute") is not None else None,
     }
 
 
@@ -134,6 +138,8 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         if values.get("commute") in (None, "")
         else int(_number(str(values["commute"]), service.translate("Trip to university"))),
         "study_time": values.get("study_time") or None,
+        "quick_tests": values.get("quick_tests"),
+        "study_on_the_way": values.get("study_on_the_way"),
     }
 
 

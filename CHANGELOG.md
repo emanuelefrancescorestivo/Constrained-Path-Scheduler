@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Quick self-tests (D48, the engine review's B1): a 45-minute self-test in an hour
+  between two classes, at most one a day, and on the way when the student can study
+  there; the weekly budget counted in minutes. On for new plans, a switch in Settings.
 - A weekly budget offered from what is kept (D47, the engine review's A4): after three
   full weeks with fewer than 7 sessions in 10 done, Today offers a budget equal to the
   hours kept, with what it predicts at the exams; one tap takes it, "Not now" waits

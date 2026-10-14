@@ -1276,3 +1276,42 @@ weeks (40, 30 and 30% kept, about 5 of 15 hours), the offer is 4.5 hours; with t
 three (70, 70 and 60%), there is none, because 70% is not under 70%; with nothing
 reported, none; with two full weeks only, none; "Not now" holds for three weeks. No
 benchmark: the benchmarks assume every session is kept.
+
+## D48. Quick self-tests in the gaps between classes, and on the way
+
+*Phase B, item B1 of docs/ENGINE-REVIEW.md (weak spot W2), approved by the owner on
+2026-10-14.*
+
+**Chosen.** Free time too short for a study block but at least an hour (with
+90-minute blocks: exactly an hour, between two classes or between the study window's
+edge and a class) holds a quick self-test of 45 minutes, 15 left to get to the next
+class (`plan.short_gaps`, `service.QUICK_SLACK`). At most one a day, the day's first
+such gap. Only the self-testing rule uses it: deadline work and exam practice need a
+full block. The weekly budget is counted in minutes, so a quick self-test spends 45
+of the week's minutes and a block 90; with blocks alone this is the old count
+exactly. When the student says they can study on the way (train, bus), each trip of
+half an hour or more holds a quick self-test too, for the length of the trip. New
+plans have quick self-tests on (Settings: "Quick self-tests in the hour between two
+classes"); plans made before D48 keep them off until the student turns them on. On
+the way is off until the student says so, in the trip question or in Settings.
+
+**Why.** The review found hour-long gaps wasted: the sample semester has 35 of them,
+about two a week. Retrieval practice works in short sessions too: what matters is
+recalling before checking [ref:adesope2017], and a gap an hour long is time enough
+for five questions and their answers. Half-hour gaps are left free: that is the walk
+between rooms.
+
+**Rejected.** A quick self-test in any leftover free time (the tail of a long free
+stretch would make a 2¼-hour session out of a block and a quick one); more than one a
+day (the day's cap on blocks is there for fatigue); quick deadline work (a task's
+hours are counted in blocks); studying on every trip without asking (many students
+drive or walk).
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last rows: with quick self-tests, at
+15 hours a week, 184 sessions instead of 174 (152 blocks and 32 quick ones), 53 of 69
+topics at 90% instead of 51, mean recall at the exams 0.934 instead of 0.923, the
+lowest topic 0.801 instead of 0.755, in 252 hours studied instead of 261; at 12 hours
+34 instead of 30, at 18 hours 60 as before. **The limit:** FSRS counts a review, not
+its length, so in the model a 45-minute self-test raises a topic's memory as much as
+a 90-minute one, which it does not in a student; part of that gain is the model's,
+not the student's. Without quick self-tests the plan is the same as before (a test).
