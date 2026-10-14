@@ -40,7 +40,7 @@ more than an impressive number.
     python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
-    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15)
+    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 

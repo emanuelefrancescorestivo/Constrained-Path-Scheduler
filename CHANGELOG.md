@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Predicted against reported recall (D55, Gate C of the engine review): `cps metrics`
+  prints the mean log loss of the product's predictions over what students reported,
+  for flashcards (FSRS-6 and FSRS-4.5, and a student's own parameters after their
+  fit) and for self-tests.
 - The CP-SAT trial (D54, the engine review's C3): `benchmarks/cpsat_trial.py` places
   the semester's reviews and practice with OR-Tools (the optional `trial` extra) and
   scores them as the rules' plan is scored. The rules win on mean and lowest recall,

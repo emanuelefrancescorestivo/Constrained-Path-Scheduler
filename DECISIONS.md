@@ -1550,3 +1550,28 @@ whose missing practice cost less than a dropped review skipped every practice bl
 to place more reviews; practice now outranks reviews, as in the rules. And wall-time
 limits made a row depend on the machine; the solver now stops on a deterministic
 work limit, with one worker and a fixed seed.
+
+## D55. Predicted against reported recall, in the pilot's measures
+
+*Gate C of docs/ENGINE-REVIEW.md ("log loss of predicted against reported recall on
+our own data"), which also builds Phase D's first item.*
+
+**Chosen.** `cps metrics` (`service.calibration`) prints the mean log loss of the
+recall the product predicted, over what students then reported, lower is better:
+flashcard answers a day or more after the card's previous one, predicted by FSRS-6's
+defaults and by FSRS-4.5's (D52); the answers given after a student's own parameters
+were fitted, by those and by FSRS-6's defaults, so the fit is tested on answers it
+never saw (D53); and every self-test answered with how much was recalled (D25),
+against the recall its plan predicted. Each with how many answers and students it
+rests on.
+
+**Why.** D52 and D53 rest on an open benchmark and on made-up students. Whether
+FSRS-6 predicts these students better than FSRS-4.5, and whether their own
+parameters predict them better still, is a number to read from their answers.
+
+**Rejected.** A calibration chart (predicted against observed, by bins): with 10 to
+20 students the bins are too thin to read, so the counts come first (D15).
+
+**Measured.** Nothing yet: nobody uses the product. The tests check the measure on
+made-up answers: it equals the fitter's own log loss, and counts only the answers
+after a fit.

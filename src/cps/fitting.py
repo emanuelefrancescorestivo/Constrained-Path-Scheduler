@@ -50,6 +50,7 @@ from .memory import (
     S_MIN,
     Grade,
     MemoryState,
+    Model,
     Weights6,
     initial_state6,
     interval_for_retention6,
@@ -190,6 +191,23 @@ def log_loss(weights: Weights6, histories: Sequence[History], mask: Mask | None 
         return math.nan
     loss, _, _ = _replay(np.array([weights.as_vector()]), batch)
     return float(loss[0]) / count
+
+
+def losses(model: Model, histories: Sequence[History], mask: Mask | None = None) -> tuple[float, int]:
+    """The summed log loss of any model's predictions over the scored answers, and
+    how many there were, one answer at a time: for models `_replay` does not
+    know, such as FSRS-4.5 (Gate C's comparison)."""
+    total, count = 0.0, 0
+    for i, history in enumerate(histories):
+        state = model.initial_state(history[0][1])
+        for j, (days, grade) in enumerate(history[1:], start=1):
+            elapsed = 0.0 if days is None else days
+            if elapsed >= 1.0 and (mask is None or mask[i][j]):
+                r = min(max(model.retrievability(elapsed, state.stability), _R_CLIP), 1.0 - _R_CLIP)
+                total -= math.log(r) if grade > Grade.AGAIN else math.log(1.0 - r)
+                count += 1
+            state = model.review(state, elapsed, grade)
+    return total, count
 
 
 @dataclass(frozen=True)

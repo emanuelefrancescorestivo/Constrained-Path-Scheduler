@@ -150,7 +150,7 @@ the benchmarks before and after.
 
 **Phase D · The pilot**
 
-- [ ] D1 · W9: predicted against reported recall in `cps metrics`
+- [x] D1 · W9: predicted against reported recall in `cps metrics` (D55, built for Gate C; the pilot reads it)
 - [ ] D2 · W9: the post-exam survey, with consent and a privacy line (owner's approval)
 - [ ] D3 · Read the results with the owner
 

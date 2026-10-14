@@ -5576,6 +5576,67 @@ def review_with_ai(
 # The pilot's measures (DECISIONS.md D15; docs/STRATEGY.md "How we will know")
 
 
+def calibration(store: str | os.PathLike) -> dict:
+    """How well predicted recall matched what students reported (Gate C of the
+    engine review; the pilot reads it, D15): the mean log loss over every answer
+    that tested a prediction, lower is better, None with no answers.
+
+    - cards: each flashcard answer a day or more after the card's previous one,
+      predicted by FSRS-4.5's defaults and by FSRS-6's (D52);
+    - own: the answers given after a student's own parameters were fitted (D53),
+      predicted by them and by FSRS-6's defaults: out of sample, as the fit never
+      saw them;
+    - self_tests: each self-test answered with how much was recalled (D25),
+      against the recall the plan predicted for it."""
+    where = _store(store)
+    six, old = MODELS["fsrs-6"], MODELS["fsrs-4.5"]
+    sums: dict[str, list] = {"cards": [0.0, 0.0, 0, 0], "own": [0.0, 0.0, 0, 0], "self_tests": [0.0, 0, 0]}
+    for token in where.tokens():
+        log = flashcards.answer_log(where, token, flashcards.MAX_CARDS)
+        if log:
+            histories = [[(e, g) for _, e, g in card] for card in log]
+            a, n = fitting.losses(old, histories)
+            b, _ = fitting.losses(six, histories)
+            if n:
+                c = sums["cards"]
+                c[0], c[1], c[2], c[3] = c[0] + a, c[1] + b, c[2] + n, c[3] + 1
+            own = flashcards.personal(where, token)
+            if own is not None:
+                after = [[at > own.at for at, _, _ in card] for card in log]
+                a, n = fitting.losses(own.model, histories, after)
+                b, _ = fitting.losses(six, histories, after)
+                if n:
+                    c = sums["own"]
+                    c[0], c[1], c[2], c[3] = c[0] + a, c[1] + b, c[2] + n, c[3] + 1
+        subscription = load_subscription(store, token)
+        if subscription is None or subscription.plan is None:
+            continue
+        answered = [
+            s for s in PlanReport.from_dict(subscription.plan).history if s.kind in _REVIEW_KINDS and s.grade
+        ]
+        for s in answered:
+            r = min(max(s.recall, 1e-4), 1 - 1e-4)
+            sums["self_tests"][0] -= math.log(r) if s.grade != "again" else math.log(1 - r)
+        if answered:
+            sums["self_tests"][1] += len(answered)
+            sums["self_tests"][2] += 1
+
+    def mean(total: float, count: int) -> float | None:
+        return total / count if count else None
+
+    c, o, st = sums["cards"], sums["own"], sums["self_tests"]
+    return {
+        "cards": {
+            "answers": c[2],
+            "students": c[3],
+            "fsrs-4.5": mean(c[0], c[2]),
+            "fsrs-6": mean(c[1], c[2]),
+        },
+        "own": {"answers": o[2], "students": o[3], "own": mean(o[0], o[2]), "fsrs-6": mean(o[1], o[2])},
+        "self_tests": {"answers": st[1], "students": st[2], "predicted": mean(st[0], st[1])},
+    }
+
+
 def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     """What the pilot reads week by week, from the event log, the plans and the
     network's tables, on the server: nothing runs in a student's browser.
@@ -5704,6 +5765,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "over_limit": over_limit,
         "network": network,
         "ai": {**_ai.usage(where, month), "cap": _ai.monthly_cap(), "available": ai_available()},
+        "calibration": calibration(store),
     }
 
 

@@ -477,12 +477,31 @@ def command_metrics(args) -> int:
         f"  focus, last 7 days     {net['timed']} timed, {net['focus_checked']} with the focus checked",
         f"  cards, last 7 days     {net['card_reviews']} answers by {net['card_students']} students",
         f"  reports open           {net['reports_open']}",
+        *_calibration_lines(m["calibration"]),
         f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "
         f"${ai['dollars']:.2f} of ${ai['cap']:.2f}"
         + ("" if ai["available"] else " (no key on this machine)"),
     ]
     print("\n".join(lines))
     return 0
+
+
+def _calibration_lines(c: dict) -> list[str]:
+    """Predicted against reported recall: mean log loss, lower is better (Gate C)."""
+
+    def loss(x: float | None) -> str:
+        return "-" if x is None else f"{x:.4f}"
+
+    cards, own, tests = c["cards"], c["own"], c["self_tests"]
+    return [
+        "recall predicted         mean log loss against what students reported, lower is better",
+        f"  flashcards             {cards['answers']} answers by {cards['students']} students: "
+        f"FSRS-6 {loss(cards['fsrs-6'])}, FSRS-4.5 {loss(cards['fsrs-4.5'])}",
+        f"  after their own fit    {own['answers']} answers by {own['students']} students: "
+        f"their own {loss(own['own'])}, FSRS-6 {loss(own['fsrs-6'])}",
+        f"  self-tests             {tests['answers']} answers by {tests['students']} students: "
+        f"the plan's prediction {loss(tests['predicted'])}",
+    ]
 
 
 def command_backup(args) -> int:

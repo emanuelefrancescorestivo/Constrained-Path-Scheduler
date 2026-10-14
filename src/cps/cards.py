@@ -288,21 +288,29 @@ def scored(store: Store, token: str) -> int:
         )
 
 
-def histories(store: Store, token: str, cards: int = FIT_CARDS) -> list[fitting.History]:
-    """Each card's answers in order, for the `cards` answered most recently."""
+def answer_log(
+    store: Store, token: str, cards: int = FIT_CARDS
+) -> list[list[tuple[str, float | None, memory.Grade]]]:
+    """Each card's answers in order, (when, days since the previous, grade), for
+    the `cards` answered most recently."""
     with store.connection() as db:
         rows = db.execute(
-            "SELECT card, grade, elapsed FROM card_reviews WHERE token = ? AND card IN ("
+            "SELECT card, at, grade, elapsed FROM card_reviews WHERE token = ? AND card IN ("
             "SELECT card FROM card_reviews WHERE token = ? GROUP BY card ORDER BY MAX(at) DESC LIMIT ?) "
             "ORDER BY card, at, rowid",
             (token, token, cards),
         ).fetchall()
-    by_card: dict[str, list[tuple[float | None, memory.Grade]]] = {}
-    for card, grade, elapsed in rows:
-        by_card.setdefault(card, []).append((elapsed, memory.Grade(grade)))
+    by_card: dict[str, list[tuple[str, float | None, memory.Grade]]] = {}
+    for card, at, grade, elapsed in rows:
+        by_card.setdefault(card, []).append((at, elapsed, memory.Grade(grade)))
     # A history starts with a first answer; a card whose first answer is not kept
     # (it cannot happen today, but a copy of the store might) is left out.
-    return [h for h in by_card.values() if h[0][0] is None]
+    return [log for log in by_card.values() if log[0][1] is None]
+
+
+def histories(store: Store, token: str, cards: int = FIT_CARDS) -> list[fitting.History]:
+    """Each card's answers in order, for the `cards` answered most recently."""
+    return [[(e, g) for _, e, g in log] for log in answer_log(store, token, cards)]
 
 
 def refit(store: Store, token: str, now: datetime) -> fitting.Fit | None:

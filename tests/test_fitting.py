@@ -188,3 +188,59 @@ def test_an_answer_fits_when_due_and_the_page_says_so(tmp_path, student):
         left = fitting.MIN_REVIEWS - cards.scored(store, token)
         assert left > 0
         assert f"After {left} more answers on later days" in web.get(f"/p/{token}/cards").text
+
+
+def test_gate_c_measures_predicted_against_reported_recall(tmp_path, student):
+    """Gate C: the mean log loss of predicted recall over what students reported,
+    in `cps metrics`. Here on made-up answers; real ones come with the pilot."""
+    from cps.memory import FSRS_4_5, FSRS_6
+
+    _, logs = student
+    sub = _plan(tmp_path)
+    store = Store(tmp_path)
+    assert service.calibration(tmp_path)["cards"] == {
+        "answers": 0,
+        "students": 0,
+        "fsrs-4.5": None,
+        "fsrs-6": None,
+    }
+    _answers(store, sub.token, logs, 30.0)
+    histories = cards.histories(store, sub.token, cards.MAX_CARDS)
+    n = fitting.scored(histories)
+    measured = service.calibration(tmp_path)
+    assert measured["cards"]["answers"] == n and measured["cards"]["students"] == 1
+    assert measured["cards"]["fsrs-6"] == pytest.approx(fitting.log_loss(DEFAULT_WEIGHTS_6, histories))
+    assert measured["cards"]["fsrs-4.5"] == pytest.approx(fitting.losses(FSRS_4_5, histories)[0] / n)
+    assert fitting.losses(FSRS_6, histories)[0] / n == pytest.approx(measured["cards"]["fsrs-6"])
+    assert measured["own"]["answers"] == 0  # no fit yet
+
+    # Fitted on the first 30 days' answers; only later ones test it, out of sample.
+    with store.connection() as db:
+        db.execute("DELETE FROM card_reviews")
+    _answers(store, sub.token, logs, 30.0)
+    assert service.refit_cards(tmp_path, sub, NOW + timedelta(days=30))
+    with store.connection() as db:
+        db.execute("DELETE FROM card_reviews")
+    _answers(store, sub.token, logs, 50.0)
+    own = service.calibration(tmp_path)["own"]
+    log = cards.answer_log(store, sub.token, cards.MAX_CARDS)
+    later = [[at > cards.personal(store, sub.token).at for at, _, _ in card] for card in log]
+    assert own["answers"] == fitting.scored([[(e, g) for _, e, g in card] for card in log], later) > 0
+    assert own["own"] is not None and own["fsrs-6"] is not None
+
+    # A self-test answered "forgot": its loss is -log(1 - the recall predicted for it).
+    plan = service.PlanReport.from_dict(sub.plan)
+    test = next(s for s in plan.sessions if s.kind in ("review", "first review"))
+    service.save_subscription(
+        tmp_path,
+        service.report_session(
+            sub,
+            service.session_id(test),
+            "forgot",
+            now=datetime.fromisoformat(test.end) + timedelta(minutes=1),
+        ),
+    )
+    reported = service.PlanReport.from_dict(service.load_subscription(tmp_path, sub.token).plan)
+    answered = next(s for s in reported.history if service.session_id(s) == service.session_id(test))
+    tests = service.calibration(tmp_path)["self_tests"]
+    assert tests["answers"] == 1 and tests["predicted"] == pytest.approx(-math.log(1 - answered.recall))
