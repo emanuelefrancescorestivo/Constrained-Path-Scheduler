@@ -330,6 +330,8 @@ class CalendarReport:
     lectures: tuple[LectureView, ...] = field(default=(), repr=False)
     # The trip to campus, one way, kept around each day's classes (`commute_events`).
     commute_minutes: int = 0
+    # When the student studies best: each day's free time is filled from that end (D45).
+    study_time: str = "any"
 
     @property
     def block_slots(self) -> int:
@@ -353,6 +355,7 @@ class CalendarReport:
             "busy_rows": [_row_to_dict(r) for r in self.busy_rows],
             "lectures": [x.to_dict() for x in self.lectures],
             "commute_minutes": self.commute_minutes,
+            "study_time": self.study_time,
         }
 
 
@@ -397,6 +400,14 @@ def _iso(moment: datetime) -> str:
     return moment.isoformat(timespec="minutes")
 
 
+# When a student studies best (D45), as the hour of the day each day's sessions
+# gather around (`plan.tile_free_time`): None is the earliest free time, as before
+# the question existed; 24 is as late as the study window allows.
+STUDY_TIMES = {"any": None, "morning": None, "afternoon": 15.0, "evening": 24.0}
+# Free time kept after training or work before a session (D45): to get home and eat.
+PAUSE_AFTER = timedelta(minutes=30)
+_PAUSE_KINDS = ("training", "work")
+
 # The longest trip asked about (the question offers up to 90 minutes; a typed
 # value above this is refused rather than blocking a whole morning by mistake).
 MAX_COMMUTE_MINUTES = 180
@@ -439,6 +450,7 @@ def analyse_calendar(
     block_minutes: int = 90,
     busy_rows: Iterable[BusyRow | Mapping] = (),
     commute_minutes: int = 0,
+    study_time: str = "any",
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
     With `commute_minutes`, the trip to campus and back is busy too, around each
@@ -460,6 +472,8 @@ def analyse_calendar(
         raise InvalidInput(_("the study window must run from an earlier to a later hour, within 0 to 24"))
     if blocks_per_day < 1 or block_minutes < 30:
         raise InvalidInput(_("use at least one block a day of at least 30 minutes"))
+    if study_time not in STUDY_TIMES:
+        raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
     if not 0 <= commute_minutes <= MAX_COMMUTE_MINUTES:
         raise InvalidInput(_("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES))
     text = decode_ics(ics) if ics is not None else None
@@ -481,10 +495,17 @@ def analyse_calendar(
             tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
         )
     events = [e for e, _ in tagged]
-    grid = availability_from_events(events, start, days, SLOTS_PER_DAY, study_window)
+    # A pause after training or work (D45): busy for the grid, not an event to show.
+    pauses = [
+        BusyEvent(e.end, e.end + PAUSE_AFTER, "")
+        for e in busy_from_table([r for r in rows if r.kind in _PAUSE_KINDS], start, days, tz)
+    ]
+    grid = availability_from_events(events + pauses, start, days, SLOTS_PER_DAY, study_window)
     minutes_per_slot = 24 * 60 // grid.slots_per_day
     block_slots = max(1, block_minutes // minutes_per_slot)
-    tiles = tile_free_time(grid, block_slots=block_slots, max_blocks_per_day=blocks_per_day)
+    tiles = tile_free_time(
+        grid, block_slots=block_slots, max_blocks_per_day=blocks_per_day, around=STUDY_TIMES[study_time]
+    )
     zone = _zone(tz)
     midnight = datetime.combine(start, time(0, 0), tzinfo=zone)
 
@@ -511,6 +532,7 @@ def analyse_calendar(
         busy_rows=rows,
         lectures=lectures,
         commute_minutes=commute_minutes,
+        study_time=study_time,
     )
 
 
@@ -840,6 +862,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         block_minutes=report.block_minutes,
         busy_rows=report.busy_rows,
         commute_minutes=report.commute_minutes,
+        study_time=report.study_time,
     )
 
 
@@ -1784,6 +1807,7 @@ def _refresh(
             block_minutes=options["block_minutes"],
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
+            study_time=str(options.get("study_time", "any")),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2063,6 +2087,7 @@ def revise_subscription(
     fetch: Callable[[str], bytes] = fetch_calendar,
     strict: bool = True,
     commute_minutes: int | None = None,
+    study_time: str | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2083,6 +2108,10 @@ def revise_subscription(
                 _("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES)
             )
         merged["commute_minutes"] = int(commute_minutes)
+    if study_time is not None:
+        if study_time not in STUDY_TIMES:
+            raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
+        merged["study_time"] = study_time
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -2188,6 +2217,13 @@ ROUTINE_QUESTIONS = (
 )
 ROUTINE_ANSWERS = 2  # answers per question on the page; more go on the calendar
 _ROUTINE_NAMES = {"training": "Training", "work": "Work", "other": "Busy"}
+# The answers to "When do you study best?" (D45), in the order the page offers them.
+STUDY_TIME_WORDS = (
+    ("morning", "Morning"),
+    ("afternoon", "Afternoon"),
+    ("evening", "Evening"),
+    ("any", "No preference"),
+)
 
 
 def routine_view(subscription: Subscription) -> dict:
@@ -2200,6 +2236,8 @@ def routine_view(subscription: Subscription) -> dict:
     return {
         "commute": commute,
         "choices": sorted({*COMMUTE_CHOICES, commute}),
+        "study_time": str(subscription.options.get("study_time", "any")),
+        "study_times": STUDY_TIME_WORDS,
         "questions": [
             {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
             for kind, question, example in ROUTINE_QUESTIONS
@@ -2216,6 +2254,7 @@ def answer_routine(
     commute_minutes: int,
     answers: Iterable[Mapping],
     now: datetime | None = None,
+    study_time: str | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
@@ -2243,7 +2282,12 @@ def answer_routine(
             for day in days
         ]
     return revise_subscription(
-        subscription, busy_rows=rows, commute_minutes=commute_minutes, now=now, strict=False
+        subscription,
+        busy_rows=rows,
+        commute_minutes=commute_minutes,
+        study_time=study_time,
+        now=now,
+        strict=False,
     )
 
 
@@ -3250,6 +3294,8 @@ def setup_view(subscription: Subscription) -> dict:
         "rest_days": list(prefs["rest_days"]),
         "practice_hours": prefs["practice_hours"],
         "commute": int(options.get("commute_minutes", 0)),
+        "study_time": str(options.get("study_time", "any")),
+        "study_times": STUDY_TIME_WORDS,
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],

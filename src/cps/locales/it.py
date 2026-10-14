@@ -1199,4 +1199,13 @@ MESSAGES: dict[str, str] = {
     # Silence is not success (D44)
     "{n} self-test not reported is not counted yet: say how it went on Today.": "{n} autotest non segnalato non è ancora contato: di' com'è andato su Oggi.",
     "{n} self-tests not reported are not counted yet: say how they went on Today.": "{n} autotest non segnalati non sono ancora contati: di' come sono andati su Oggi.",
+    # When the student studies best (D45)
+    "Morning": "Di mattina",
+    "Afternoon": "Di pomeriggio",
+    "Evening": "Di sera",
+    "No preference": "Nessuna preferenza",
+    "When do you study best?": "Quando studi meglio?",
+    "Each day's sessions go to that part of the day when there is free time; otherwise as close to it as possible.": "Le sessioni di ogni giorno vanno in quella parte della giornata quando è libera; altrimenti il più vicino possibile.",
+    "When you study best": "Quando studi meglio",
+    "choose when you study best: morning, afternoon, evening or no preference": "scegli quando studi meglio: di mattina, di pomeriggio, di sera o nessuna preferenza",
 }

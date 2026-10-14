@@ -150,25 +150,36 @@ SKIP = -1  # the action of leaving a block unused
 # --------------------------------------------------------------------------- #
 
 
-def tile_free_time(grid: TimeGrid, block_slots: int = 3, max_blocks_per_day: int = 2) -> tuple[Block, ...]:
-    """Greedily cut each day's free time into non-overlapping study blocks.
+def tile_free_time(
+    grid: TimeGrid, block_slots: int = 3, max_blocks_per_day: int = 2, around: float | None = None
+) -> tuple[Block, ...]:
+    """Cut each day's free time into non-overlapping study blocks, at most
+    `max_blocks_per_day` a day (to model fatigue).
 
-    Earliest-fit within the day, capped per day to model fatigue. See
-    simplification 1 in the module docstring for why fixing the position inside
-    the day is harmless here.
+    Without `around`, earliest fit: the first free stretches of the day, as the
+    research planner has always had them (see simplification 1 in the module
+    docstring for why fixing the position inside the day is harmless there). With
+    `around`, an hour of the day, the free blocks nearest to it are taken first: the
+    product places a student's sessions when they say they study best (DECISIONS.md
+    D45); 24 means as late as possible. Either way, a block starts on a slot boundary
+    and lies in free time only.
     """
     blocks: list[Block] = []
+    per_day = grid.slots_per_day
+    hours_per_slot = 24 / per_day
     for day in range(grid.days):
-        placed = 0
-        slot = day * grid.slots_per_day
-        end = slot + grid.slots_per_day
-        while slot + block_slots <= end and placed < max_blocks_per_day:
-            if grid.is_free(slot, block_slots):
-                blocks.append(Block(slot, day, grid.days_from_start(slot)))
-                placed += 1
-                slot += block_slots
-            else:
-                slot += 1
+        first = day * per_day
+        free = [k for k in range(per_day - block_slots + 1) if grid.is_free(first + k, block_slots)]
+        if around is not None:
+            middle = block_slots / 2
+            free.sort(key=lambda k: (abs((k + middle) * hours_per_slot - around), k))
+        chosen: list[int] = []
+        for k in free:
+            if len(chosen) >= max_blocks_per_day:
+                break
+            if all(abs(k - c) >= block_slots for c in chosen):
+                chosen.append(k)
+        blocks += [Block(first + k, day, grid.days_from_start(first + k)) for k in sorted(chosen)]
     return tuple(blocks)
 
 

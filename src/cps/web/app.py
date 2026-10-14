@@ -1929,13 +1929,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store,
                 token,
                 lambda current: service.answer_routine(
-                    current, commute_minutes=commute, answers=answers, now=config.clock()
+                    current,
+                    commute_minutes=commute,
+                    answers=answers,
+                    now=config.clock(),
+                    study_time=str(form.get("study_time") or "") or None,
                 ),
             )
         except service.ServiceError as error:
             view = service.routine_view(subscription)
             if str(form.get("commute") or "").isdigit():
                 view["commute"] = int(str(form.get("commute")))
+            if form.get("study_time"):
+                view["study_time"] = str(form.get("study_time"))
             return page(
                 request,
                 "routine.html",

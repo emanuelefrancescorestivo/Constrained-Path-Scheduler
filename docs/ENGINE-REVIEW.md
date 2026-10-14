@@ -128,7 +128,7 @@ the benchmarks before and after.
 **Phase A · Rules only**
 
 - [x] A1 · W4: unreported sessions count as unknown
-- [ ] A2 · W1: a preferred time of day; 30 minutes after training and work
+- [x] A2 · W1: a preferred time of day; 30 minutes after training and work (D45: mean recall at the exams the same; evening 45 of 69 topics at 90% instead of 51)
 - [ ] A3 · W6: exam practice sized per course, alternating, mixed
 - [ ] A4 · W7: a weekly budget offered from what is kept
 - [ ] Gate A: benchmarks within today's error bars, CI green, the owner approves

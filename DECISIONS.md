@@ -1164,3 +1164,45 @@ Tests pin the rule: overdue self-tests are unknown, tasks and practice are not, 
 session within its day still counts, a late report counts again, an unknown session
 stays in the feed, and a silent week leaves every doubted topic less stable than the
 same week reported.
+
+## D45. When the student studies best, and a pause after training or work
+
+*Phase A, item A2 of docs/ENGINE-REVIEW.md (weak spot W1), approved by the owner on
+2026-10-13.*
+
+**Chosen.** The questions about the week (D42) ask "When do you study best?":
+morning, afternoon, evening or no preference; Settings can change it. Each day's free
+time is then cut into blocks nearest that part of the day (`plan.tile_free_time`
+with `around`: 15:00 for the afternoon, as late as the study window allows for the
+evening), and, when it is busy, as near to it as the day allows. Morning and no
+preference keep the earliest free time, exactly as before (a test compares the new
+code with the old on 400 random calendars), so a student who does not answer, and
+every benchmark row above the new table, is unchanged. Half an hour after training
+or work stays free (`service.PAUSE_AFTER`), to get home and eat; it is free time
+kept, not an event on the calendar. Other weekly busy time gets no pause: it can be
+anything, a choir or a nap.
+
+**Why.** About 60% of 14,894 students were "jet-lagged" by their class times, and
+the mismatch went with lower grades [ref:smarr2018]; that is correlational and from
+one university, and the laboratory evidence on the time of day is mixed and small
+[ref:bettencourt2024]. So the answer is the student's preference, not a rule about
+chronotypes: a session at a time a student keeps is worth more than one at a time
+the model prefers. Exercise a few hours after learning did not hurt recall
+[ref:vandongen2016], so training after study is no problem, and the pause is about
+logistics, not memory.
+
+**Rejected.** Asking for exact hours (a second study window the student would have
+to maintain; Settings already has one); a chronotype questionnaire (minutes of
+questions for a preference the student can state in one tap); a pause after every
+busy time (it would eat the gaps between classes).
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last table, the assistant with
+Sundays off and 4.5 hours of practice. Mean predicted recall at the exams is the
+same within 0.005 for every preference at 12, 15 and 18 hours a week (0.923, 0.919,
+0.918 at 15 hours), and the evening's lowest topic is higher than the morning's
+(0.772 against 0.755 at 15 hours). Which topics reach 90% moves, because many sit
+just around the line: the afternoon gives 31, 51 and 59 of 69 topics against 30, 51
+and 60 for the morning; the evening 32, 45 and 56. The evening at 15 and 18 hours is
+the one real cost, four to six topics under the line. It is disclosed, not hidden:
+a session kept in the evening is worth more than one skipped in the morning, which
+the benchmark cannot see.

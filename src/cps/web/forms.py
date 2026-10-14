@@ -73,8 +73,10 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "study_window": [form.get("from_hour", "8"), form.get("to_hour", "22")],
         "blocks_per_day": form.get("blocks_per_day", "2"),
         "block_minutes": form.get("block_minutes", "90"),
-        # Absent while setting up: the next step asks about the trip (D42).
+        # Absent while setting up: the next step asks about the trip (D42) and when
+        # the student studies best (D45).
         "commute": form.get("commute"),
+        "study_time": form.get("study_time"),
     }
 
 
@@ -120,13 +122,15 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         "commute_minutes": None
         if values.get("commute") in (None, "")
         else int(_number(str(values["commute"]), service.translate("Trip to university"))),
+        "study_time": values.get("study_time") or None,
     }
 
 
 def routine_answers(form: Any) -> tuple[int, list[dict[str, Any]]]:
     """The questions about the week (D42): the trip's minutes and the answers, as
-    `service.answer_routine` takes them. `form` is the request's form, whose day
-    boxes come as several values under one name."""
+    `service.answer_routine` takes them (when the student studies best, D45, is the
+    form's `study_time`). `form` is the request's form, whose day boxes come as
+    several values under one name."""
     raw = str(form.get("commute") or "0")
     commute = int(_number(raw, service.translate("Trip to university")))
     answers = []

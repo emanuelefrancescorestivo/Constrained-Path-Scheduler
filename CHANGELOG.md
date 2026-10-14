@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- When you study best (D45, the engine review's A2): the questions about the week ask
+  "When do you study best?" (morning, afternoon, evening, no preference), and each
+  day's sessions go nearest that part of the day; half an hour after training or work
+  stays free. `benchmarks/rule_vs_planner.py` prints the assistant for each answer.
 - Silence is not success (D44, the engine review's A1): a self-test not reported a day
   after it ended counts as unknown; its topic gains no memory from it and comes back
   sooner; the exam forecast says how many it did not count.

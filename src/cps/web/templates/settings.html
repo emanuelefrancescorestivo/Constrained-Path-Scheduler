@@ -170,6 +170,8 @@
   <label for="practice_hours">{{ _("Exam practice before each exam (hours)") }}</label>
   <input id="practice_hours" name="practice_hours" type="number" min="0" max="40" step="0.5" value="{{ values.practice_hours }}" inputmode="decimal">
   {% if not new %}
+  <label for="study_time">{{ _("When you study best") }}</label>
+  <select id="study_time" name="study_time">{% for k, words in values.study_times %}<option value="{{ k }}"{% if k == values.study_time %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}</select>
   <label for="commute">{{ _("Trip to university, one way") }}</label>
   <select id="commute" name="commute">{% for m in values.commute_choices %}<option value="{{ m }}"{% if m == values.commute | int %} selected{% endif %}>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</option>{% endfor %}</select>
   <p class="hint">{{ _("Kept free before your first class and after your last, on each day you have classes.") }}</p>
