@@ -755,3 +755,15 @@ built each lecture's first date as "28 + i" September, so a fourth lecture asked
 31 September and the test failed before reading anything. Every earlier case had two
 lectures, so none had met it. Fixed: days are added to 28 September. Status: fixed;
 the existing cases' dates are unchanged.
+
+**60. A session the student moved was in the calendar feed at the wrong time.** Found
+while adding quick self-tests (D48): the feed (`service.export_ics`, the calendar
+students subscribe to) wrote each session as a block from its slot of the plan's grid,
+but a moved session (D21's pins) has no slot of the grid (its slot is a negative
+marker), so it appeared at 23:30 the night before the plan began, and a quick
+self-test appeared as a 90-minute block. The app's own calendar was right: it reads
+each session's start and end. Fixed: the feed takes each session's own times
+(`calendar_io.plan_to_ics(times=...)`). Today's "this week" hours had the same
+assumption (sessions times the block length) and now add the sessions' own lengths.
+Status: fixed; `tests/test_engine_review.py` checks every session of a plan, a moved
+one and a quick one against the feed.

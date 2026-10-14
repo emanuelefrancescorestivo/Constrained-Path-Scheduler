@@ -400,6 +400,40 @@ def test_new_plans_use_the_gaps_and_older_ones_keep_what_they_had():
     assert all(_minutes(s) == 90 for s in service.PlanReport.from_dict(off.plan).sessions)
 
 
+def _feed_times(plan: service.PlanReport) -> dict[str, tuple[datetime, datetime]]:
+    from icalendar import Calendar
+
+    cal = Calendar.from_ical(service.export_ics(plan).decode("utf-8"))
+    return {str(e["uid"]): (e["dtstart"].dt, e["dtend"].dt) for e in cal.walk("VEVENT")}
+
+
+def test_the_feed_has_each_session_at_its_own_times():
+    """AUDIT.md item 60: the feed wrote every session as a block from its slot, so a
+    quick self-test was 90 minutes there and a session the student moved was at
+    23:30 the night before the plan began."""
+    first = _start()
+    plan = service.PlanReport.from_dict(first.plan)
+    feed = _feed_times(plan)
+    wanted = {(datetime.fromisoformat(s.start), datetime.fromisoformat(s.end)) for s in plan.sessions}
+    assert set(feed.values()) == wanted
+    assert any(end - start == timedelta(minutes=45) for start, end in feed.values())
+    block = next(s for s in plan.sessions if _minutes(s) == 90)
+    target = datetime.fromisoformat(block.start) + timedelta(days=1, hours=1)
+    moved = service.PlanReport.from_dict(
+        service.move_session(first, service.session_id(block), target.isoformat(), now=MORNING).plan
+    )
+    there = next(s for s in moved.sessions if s.slot < 0)
+    assert (datetime.fromisoformat(there.start), datetime.fromisoformat(there.end)) in set(
+        _feed_times(moved).values()
+    )
+    # Today's week counts each session's own length.
+    view = service.today_view(first, MORNING)
+    week = [
+        s for s in plan.sessions if MORNING <= datetime.fromisoformat(s.start) < MORNING + timedelta(days=7)
+    ]
+    assert view["week"]["hours"] == round(sum(_minutes(s) for s in week) / 60, 1)
+
+
 # --------------------------------------------------------------------------- #
 # B2: how much an exam weighs, only between topics fading together (D49)
 # --------------------------------------------------------------------------- #

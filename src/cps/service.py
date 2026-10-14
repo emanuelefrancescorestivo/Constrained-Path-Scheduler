@@ -1356,6 +1356,7 @@ def export_ics(
         refresh=refresh,
         calendar_name=_("Study plan"),
         summaries=[f"{_('Study')}: {topic_words(s.title)}" for s in shown],
+        times=[(datetime.fromisoformat(s.start), datetime.fromisoformat(s.end)) for s in shown],
     )
     return text.encode("utf-8")
 
@@ -3569,7 +3570,14 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     ]
     view["week"] = {
         "sessions": len(coming),
-        "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
+        # Each session's own length: a quick self-test is not a block (D48).
+        "hours": round(
+            sum(
+                (datetime.fromisoformat(s.end) - datetime.fromisoformat(s.start)) / timedelta(hours=1)
+                for s in coming
+            ),
+            1,
+        ),
     }
     view["tasks"] = [t for t in _task_rows(subscription, plan, now, colours) if not t["finished"]]
     view["exams"] = _exam_rows(plan, now, colours)
