@@ -1575,3 +1575,37 @@ parameters predict them better still, is a number to read from their answers.
 **Measured.** Nothing yet: nobody uses the product. The tests check the measure on
 made-up answers: it equals the fitter's own log loss, and counts only the answers
 after a fit.
+
+## D56. How an exam went, asked after it, shared only with consent
+
+*Phase D, item D2 of docs/ENGINE-REVIEW.md; the owner said to start Phase D on
+2026-10-14, which this item's approval (the question and its privacy line) was
+waiting for.*
+
+**Chosen.** For three weeks after each exam (`EXAM_ASK_DAYS`), Today asks the two
+questions the plan named: "How did the course exam go?", one tap among five answers
+(passed, and well; passed; just passed; not passed; did not sit it), with a mark if
+the student likes, written as they write it (27/30, 14/20, B+); and "Did the plan
+help?", if they like (yes, a lot; a little; not really; I did not follow it). Then a
+box, unticked, that lets the owner read the answers.
+"Rather not say" keeps only that it was asked. The answer is kept in the plan
+(`exam_results`), so it goes in the plan's copy and is deleted with it, beside the
+recall the model predicted for that exam from the sessions reported, as it stood
+when the answer came (`recall_predicted`). `cps metrics` lists the shared answers,
+each with its prediction, without course or plan, and only counts the others (D55).
+The privacy page says all of this, in English, French and Italian.
+
+**Why.** Every number the plan shows is a prediction, and until now nothing checked
+one against an exam. A result per exam is the outcome students care about; set
+beside the recall predicted for it, a pilot of 10 to 20 students can show whether
+higher predictions go with better results, as counts to read rather than rates to
+test (D15).
+
+**Rejected.** A numeric grade on one scale: marks are out of 30 in Italy, 20 in
+France, letters elsewhere, so the five answers are what is compared and the mark is
+kept as written (invariant 13). More questions than the two (how prepared, hours spent):
+each one costs answers, and the plan already knows the hours. Consent ticked by default, or
+the answer sent anywhere without it. Asking by e-mail: the app does not know one.
+
+**Measured.** Nothing yet: no exam has passed for anyone using it. The tests check
+the question's three weeks, the consent and what the measures show.

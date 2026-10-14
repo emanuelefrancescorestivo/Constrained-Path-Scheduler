@@ -492,7 +492,14 @@ def _calibration_lines(c: dict) -> list[str]:
     def loss(x: float | None) -> str:
         return "-" if x is None else f"{x:.4f}"
 
-    cards, own, tests = c["cards"], c["own"], c["self_tests"]
+    cards, own, tests, exams = c["cards"], c["own"], c["self_tests"], c["exams"]
+    shared = [
+        f"    predicted {'-' if e['predicted'] is None else format(e['predicted'], '.0%')}: "
+        f"{e['result']}"
+        + (f" ({e['mark']})" if e["mark"] else "")
+        + (f", the plan helped: {e['helped']}" if e["helped"] else "")
+        for e in exams["shared"]
+    ]
     return [
         "recall predicted         mean log loss against what students reported, lower is better",
         f"  flashcards             {cards['answers']} answers by {cards['students']} students: "
@@ -501,6 +508,9 @@ def _calibration_lines(c: dict) -> list[str]:
         f"their own {loss(own['own'])}, FSRS-6 {loss(own['fsrs-6'])}",
         f"  self-tests             {tests['answers']} answers by {tests['students']} students: "
         f"the plan's prediction {loss(tests['predicted'])}",
+        f"  after the exam         {len(exams['shared'])} answers shared, {exams['private']} kept private, "
+        f"{exams['skipped']} not given",
+        *shared,
     ]
 
 

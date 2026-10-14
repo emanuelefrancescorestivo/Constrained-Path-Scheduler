@@ -3570,6 +3570,97 @@ def warm_ups(subscription: Subscription, now: datetime | None = None) -> list[di
     return sorted(out, key=lambda w: w["when"])
 
 
+# The question after an exam (D56, Phase D of the engine review): how it went, so
+# the pilot can set the recall the model predicted beside what happened.
+EXAM_ASK_DAYS = 21  # an exam is asked about for three weeks after it
+EXAM_RESULTS = {
+    "well": "Passed, and well",
+    "passed": "Passed",
+    "just": "Just passed",
+    "failed": "Not passed",
+    "absent": "Did not sit it",
+}
+EXAM_HELPED = {
+    "lot": "Yes, a lot",
+    "little": "A little",
+    "not": "Not really",
+    "unused": "I did not follow it",
+}
+MARK_CHARS = 20
+
+
+def exam_questions(subscription: Subscription, now: datetime | None = None) -> list[dict]:
+    """The exams of the last `EXAM_ASK_DAYS` days not yet answered about, or said
+    no to (D56), soonest first."""
+    if subscription.plan is None:
+        return []
+    plan = PlanReport.from_dict(subscription.plan)
+    now = now or datetime.now(UTC)
+    zone = _zone(plan.settings.tz)
+    answered = subscription.options.get("exam_results", {})
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    out = []
+    for x in sorted(plan.subjects, key=lambda x: x.exam):
+        exam = datetime.fromisoformat(x.exam)
+        if exam <= now < exam + timedelta(days=EXAM_ASK_DAYS) and x.name not in answered:
+            out.append(
+                {
+                    "course": x.name,
+                    "when": format_date(exam.astimezone(zone).date(), "short"),
+                    "color": colours.get(x.name.casefold()),
+                }
+            )
+    return out
+
+
+def recall_predicted(plan: PlanReport, course: str) -> float | None:
+    """The mean recall the model predicts for a course's topics on its exam day,
+    from the sessions reported (an unreported self-test counts for nothing, D44)."""
+    members = [s for s in plan.specs if s.get("subject", s["name"]) == course]
+    if not members:
+        return None
+    model = model_of(plan.settings)
+    return _recall_at_exam(members, _replay(plan.specs, plan.history, model), model)
+
+
+def answer_exam(
+    subscription: Subscription, course: str, form: Mapping[str, str], now: datetime | None = None
+) -> Subscription:
+    """How an exam went (D56): one of `EXAM_RESULTS`, a mark if the student gives
+    one, whether the plan helped (`EXAM_HELPED`, optional), and whether the owner
+    may read it without their name. "Rather not say"
+    (`skip`) keeps nothing but that it was asked. The recall the model predicted
+    for the exam is kept beside the answer, as it stood when the answer came."""
+    now = now or datetime.now(UTC)
+    if course not in {q["course"] for q in exam_questions(subscription, now)}:
+        raise InvalidInput(_("this exam is not waiting for an answer"))
+    stamp = now.astimezone(UTC).isoformat(timespec="seconds")
+    if form.get("skip"):
+        record: dict[str, Any] = {"skipped": True, "at": stamp}
+    else:
+        result = str(form.get("result") or "")
+        if result not in EXAM_RESULTS:
+            raise InvalidInput(_("choose how it went"))
+        mark = " ".join(str(form.get("mark") or "").split())
+        if len(mark) > MARK_CHARS:
+            raise InvalidInput(_("at most {n} characters here", n=MARK_CHARS))
+        helped = str(form.get("helped") or "")
+        if helped and helped not in EXAM_HELPED:
+            raise InvalidInput(_("choose whether the plan helped"))
+        assert subscription.plan is not None  # an exam to ask about means a plan
+        predicted = recall_predicted(PlanReport.from_dict(subscription.plan), course)
+        record = {
+            "result": result,
+            "mark": mark,
+            "helped": helped,
+            "consent": form.get("consent") == "1",
+            "predicted": None if predicted is None else round(predicted, 4),
+            "at": stamp,
+        }
+    answers = {**subscription.options.get("exam_results", {}), course: record}
+    return replace(subscription, options={**subscription.options, "exam_results": answers})
+
+
 def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     """What the Today page shows: sessions to report, the one in progress or next,
     what comes after, deadlines, exams, and anything wrong."""
@@ -5587,10 +5678,13 @@ def calibration(store: str | os.PathLike) -> dict:
       predicted by them and by FSRS-6's defaults: out of sample, as the fit never
       saw them;
     - self_tests: each self-test answered with how much was recalled (D25),
-      against the recall the plan predicted for it."""
+      against the recall the plan predicted for it;
+    - exams: how the exams went (D56), beside the recall predicted for them, for
+      the students who agreed to share it."""
     where = _store(store)
     six, old = MODELS["fsrs-6"], MODELS["fsrs-4.5"]
     sums: dict[str, list] = {"cards": [0.0, 0.0, 0, 0], "own": [0.0, 0.0, 0, 0], "self_tests": [0.0, 0, 0]}
+    exams: dict[str, Any] = {"shared": [], "private": 0, "skipped": 0}
     for token in where.tokens():
         log = flashcards.answer_log(where, token, flashcards.MAX_CARDS)
         if log:
@@ -5611,6 +5705,20 @@ def calibration(store: str | os.PathLike) -> dict:
         subscription = load_subscription(store, token)
         if subscription is None or subscription.plan is None:
             continue
+        for record in subscription.options.get("exam_results", {}).values():
+            if record.get("skipped"):
+                exams["skipped"] += 1
+            elif record.get("consent"):
+                exams["shared"].append(
+                    {
+                        "predicted": record.get("predicted"),
+                        "result": record["result"],
+                        "mark": record["mark"],
+                        "helped": record.get("helped", ""),
+                    }
+                )
+            else:
+                exams["private"] += 1
         answered = [
             s for s in PlanReport.from_dict(subscription.plan).history if s.kind in _REVIEW_KINDS and s.grade
         ]
@@ -5634,6 +5742,12 @@ def calibration(store: str | os.PathLike) -> dict:
         },
         "own": {"answers": o[2], "students": o[3], "own": mean(o[0], o[2]), "fsrs-6": mean(o[1], o[2])},
         "self_tests": {"answers": st[1], "students": st[2], "predicted": mean(st[0], st[1])},
+        # After the exam (D56): the answers shared, without plan or course, by the
+        # recall predicted; those kept private and those not given are only counted.
+        "exams": {
+            **exams,
+            "shared": sorted(exams["shared"], key=lambda e: (e["predicted"] is None, e["predicted"] or 0.0)),
+        },
     }
 
 
