@@ -458,3 +458,252 @@ def stability_for_interval(days: float, target_retention: float = 0.9) -> float:
     if not 0.0 < target_retention < 1.0:
         raise ValueError("target_retention must lie in (0, 1)")
     return FACTOR * days / (target_retention ** (1.0 / DECAY) - 1.0)
+
+
+# --------------------------------------------------------------------------- #
+# FSRS-6 (DECISIONS.md D52)
+# --------------------------------------------------------------------------- #
+#
+# The product moved to FSRS-6 in October 2026: on the open benchmark of about 350
+# million reviews it predicts recall better than FSRS-4.5 with default parameters
+# (log loss 0.3460 against 0.3625, [ref:srs-benchmark]), and it is the version whose
+# parameters a student's own answers can be fitted to (D53). The research planner
+# (`ssp`, `clock`, `plan`, `rolling`) stays on FSRS-4.5 above: its value functions,
+# its proofs of admissibility and every number quoted for it were made on that
+# model, and they stay true of it.
+#
+# Three changes from FSRS-4.5, all from py-fsrs 6.3.2 [ref:py-fsrs-2026] and pinned
+# to it value by value in tests/test_memory6.py:
+#   * the forgetting curve's shape is a parameter (w20): R = (1 + f t/S)^-w20,
+#     with f chosen so that R(S) = 0.9 still;
+#   * a review on the same day as the last one (under a day) uses a short-term
+#     stability update (w17, w18, w19) instead of the forgetting curve;
+#   * initial difficulty is exponential in the grade, difficulty moves less near
+#     10 (linear damping) and reverts toward D0(EASY), and a lapse never leaves
+#     more stability than S / e^(w17 w18).
+
+
+@dataclass(frozen=True, slots=True)
+class Weights6:
+    """The 21 FSRS-6 parameters, named as `Weights` names FSRS-4.5's."""
+
+    s_again: float  # w0..w3: initial stability per grade (days)
+    s_hard: float
+    s_good: float
+    s_easy: float
+    d_init: float  # w4: D0(g) = d_init - e^(d_exp (g - 1)) + 1
+    d_exp: float  # w5
+    d_delta: float  # w6: sensitivity of D to (grade - 3)
+    d_reversion: float  # w7: mean-reversion weight toward D0(EASY)
+    sinc_scale: float  # w8..w10: stability on recall, as in FSRS-4.5
+    sinc_s_decay: float
+    sinc_r_gain: float
+    lapse_scale: float  # w11..w14: stability on lapse, as in FSRS-4.5
+    lapse_d_decay: float
+    lapse_s_gain: float
+    lapse_r_gain: float
+    hard_penalty: float  # w15
+    easy_bonus: float  # w16
+    short_scale: float  # w17..w19: a review on the same day
+    short_offset: float
+    short_s_decay: float
+    decay: float  # w20: the forgetting curve's exponent, R = (1 + f t/S)^-decay
+
+    @classmethod
+    def from_vector(cls, v: Sequence[float]) -> Weights6:
+        if len(v) != 21:
+            raise ValueError(f"FSRS-6 takes 21 parameters, got {len(v)}")
+        return cls(*(float(x) for x in v))
+
+    def as_vector(self) -> tuple[float, ...]:
+        return tuple(getattr(self, name) for name in self.__slots__)
+
+    def validate(self) -> None:
+        """The bounds py-fsrs 6.3.2 enforces (LOWER_ and UPPER_BOUNDS_PARAMETERS),
+        and the ordering the initial stabilities must keep."""
+        for name, value, (lo, hi) in zip(self.__slots__, self.as_vector(), _BOUNDS_6, strict=True):
+            if not lo <= value <= hi:
+                raise ValueError(f"{name} = {value} outside [{lo}, {hi}]")
+        if not self.s_again <= self.s_hard <= self.s_good <= self.s_easy:
+            raise ValueError("initial stabilities must not decrease with the grade")
+
+
+_BOUNDS_6 = (
+    *[(0.001, 100.0)] * 4,
+    (1.0, 10.0),
+    (0.001, 4.0),
+    (0.001, 4.0),
+    (0.001, 0.75),
+    (0.0, 4.5),
+    (0.0, 0.8),
+    (0.001, 3.5),
+    (0.001, 5.0),
+    (0.001, 0.25),
+    (0.001, 0.9),
+    (0.0, 4.0),
+    (0.0, 1.0),
+    (1.0, 6.0),
+    (0.0, 2.0),
+    (0.0, 2.0),
+    (0.0, 0.8),
+    (0.1, 0.8),
+)
+
+# py-fsrs 6.3.2, DEFAULT_PARAMETERS: population defaults, not a fit to anyone.
+# fmt: off
+DEFAULT_WEIGHTS_6 = Weights6.from_vector(
+    [
+        0.212, 1.2931, 2.3065, 8.2956,     # initial stability, grades 1..4
+        6.4133, 0.8334,                     # initial difficulty
+        3.0194, 0.001,                      # difficulty update
+        1.8722, 0.1666, 0.796,              # stability on recall
+        1.4835, 0.0614, 0.2629, 1.6483,     # stability on lapse
+        0.6014, 1.8729,                     # hard penalty, easy bonus
+        0.5425, 0.0912, 0.0658,             # a review on the same day
+        0.1542,                             # the forgetting curve's decay
+    ]
+)
+# fmt: on
+DEFAULT_WEIGHTS_6.validate()
+
+
+def _factor6(w: Weights6) -> float:
+    """f such that (1 + f)^-decay = 0.9: stability stays the 90% interval."""
+    return 0.9 ** (-1.0 / w.decay) - 1.0
+
+
+def retrievability6(elapsed_days: float, stability: float, w: Weights6 = DEFAULT_WEIGHTS_6) -> float:
+    if elapsed_days < 0:
+        raise ValueError("elapsed_days must be >= 0")
+    return (1.0 + _factor6(w) * elapsed_days / max(stability, S_MIN)) ** -w.decay
+
+
+def interval_for_retention6(
+    stability: float, target_retention: float = 0.9, w: Weights6 = DEFAULT_WEIGHTS_6
+) -> float:
+    if not 0.0 < target_retention < 1.0:
+        raise ValueError("target_retention must lie in (0, 1)")
+    return max(stability, S_MIN) / _factor6(w) * (target_retention ** (-1.0 / w.decay) - 1.0)
+
+
+def stability_for_interval6(
+    days: float, target_retention: float = 0.9, w: Weights6 = DEFAULT_WEIGHTS_6
+) -> float:
+    if days <= 0:
+        raise ValueError("days must be > 0")
+    if not 0.0 < target_retention < 1.0:
+        raise ValueError("target_retention must lie in (0, 1)")
+    return _factor6(w) * days / (target_retention ** (-1.0 / w.decay) - 1.0)
+
+
+def initial_difficulty6(grade: Grade, w: Weights6 = DEFAULT_WEIGHTS_6, clamp: bool = True) -> float:
+    d = w.d_init - math.exp(w.d_exp * (grade - 1)) + 1.0
+    return _clamp(d, D_MIN, D_MAX) if clamp else d
+
+
+def initial_state6(grade: Grade, w: Weights6 = DEFAULT_WEIGHTS_6) -> MemoryState:
+    s0 = (w.s_again, w.s_hard, w.s_good, w.s_easy)[grade - 1]
+    return MemoryState(max(s0, S_MIN), initial_difficulty6(grade, w))
+
+
+def _next_difficulty6(difficulty: float, grade: Grade, w: Weights6) -> float:
+    delta = -w.d_delta * (grade - 3)
+    damped = difficulty + (10.0 - difficulty) * delta / 9.0
+    target = initial_difficulty6(Grade.EASY, w, clamp=False)
+    return _clamp(w.d_reversion * target + (1.0 - w.d_reversion) * damped, D_MIN, D_MAX)
+
+
+def _short_term6(stability: float, grade: Grade, w: Weights6) -> float:
+    increase = math.exp(w.short_scale * (grade - 3 + w.short_offset)) * stability**-w.short_s_decay
+    if grade != Grade.AGAIN:
+        increase = max(increase, 1.0)
+    return max(stability * increase, S_MIN)
+
+
+def _recall6(stability: float, difficulty: float, r: float, grade: Grade, w: Weights6) -> float:
+    hard = w.hard_penalty if grade == Grade.HARD else 1.0
+    easy = w.easy_bonus if grade == Grade.EASY else 1.0
+    gain = (
+        math.exp(w.sinc_scale)
+        * (11.0 - difficulty)
+        * stability ** (-w.sinc_s_decay)
+        * (math.exp((1.0 - r) * w.sinc_r_gain) - 1.0)
+        * hard
+        * easy
+    )
+    return max(stability * (1.0 + gain), S_MIN)
+
+
+def _lapse6(stability: float, difficulty: float, r: float, w: Weights6) -> float:
+    long_term = (
+        w.lapse_scale
+        * difficulty ** (-w.lapse_d_decay)
+        * ((stability + 1.0) ** w.lapse_s_gain - 1.0)
+        * math.exp((1.0 - r) * w.lapse_r_gain)
+    )
+    short_term = stability / math.exp(w.short_scale * w.short_offset)
+    return max(min(long_term, short_term), S_MIN)
+
+
+def review6(
+    state: MemoryState, elapsed_days: float, grade: Grade, w: Weights6 = DEFAULT_WEIGHTS_6
+) -> MemoryState:
+    """One FSRS-6 review, `elapsed_days` after the previous one. Under a day is a
+    review on the same day (py-fsrs counts whole days: `(now - last).days < 1`)."""
+    s = max(state.stability, S_MIN)
+    if elapsed_days < 1.0:
+        s_next = _short_term6(s, grade, w)
+    else:
+        r = retrievability6(elapsed_days, s, w)
+        s_next = (
+            _lapse6(s, state.difficulty, r, w)
+            if grade == Grade.AGAIN
+            else _recall6(s, state.difficulty, r, grade, w)
+        )
+    return MemoryState(s_next, _next_difficulty6(state.difficulty, grade, w))
+
+
+# --------------------------------------------------------------------------- #
+# A memory model as one value (D52): FSRS-4.5 for the research planner, FSRS-6
+# for the product. Callers that serve both take a `Model` instead of importing
+# the functions above.
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True, slots=True)
+class Model:
+    """A memory model: its forgetting curve, its review, its first state and its
+    intervals, with its weights."""
+
+    name: str
+    weights: Weights | Weights6
+
+    def retrievability(self, elapsed_days: float, stability: float) -> float:
+        if isinstance(self.weights, Weights6):
+            return retrievability6(elapsed_days, stability, self.weights)
+        return retrievability(elapsed_days, stability)
+
+    def review(self, state: MemoryState, elapsed_days: float, grade: Grade) -> MemoryState:
+        if isinstance(self.weights, Weights6):
+            return review6(state, elapsed_days, grade, self.weights)
+        return review(state, elapsed_days, grade, self.weights)
+
+    def initial_state(self, grade: Grade) -> MemoryState:
+        if isinstance(self.weights, Weights6):
+            return initial_state6(grade, self.weights)
+        return initial_state(grade, self.weights)
+
+    def interval(self, stability: float, target_retention: float = 0.9) -> float:
+        if isinstance(self.weights, Weights6):
+            return interval_for_retention6(stability, target_retention, self.weights)
+        return interval_for_retention(stability, target_retention)
+
+    def stability_for_interval(self, days: float, target_retention: float = 0.9) -> float:
+        if isinstance(self.weights, Weights6):
+            return stability_for_interval6(days, target_retention, self.weights)
+        return stability_for_interval(days, target_retention)
+
+
+FSRS_4_5 = Model("FSRS-4.5", DEFAULT_WEIGHTS)
+FSRS_6 = Model("FSRS-6", DEFAULT_WEIGHTS_6)
+MODELS = {"fsrs-4.5": FSRS_4_5, "fsrs-6": FSRS_6}

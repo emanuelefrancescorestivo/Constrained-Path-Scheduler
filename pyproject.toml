@@ -32,7 +32,10 @@ cps = "cps.cli:main"
 
 [project.optional-dependencies]
 # Versions are the ones the checks were run with in milestone M4.
-dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3", "httpx>=0.28"]
+# fsrs (py-fsrs 6.3.2, MIT, pure Python) is the reference FSRS-6 the tests compare
+# `cps.memory` with (D52); the owner approved it as a test dependency on 2026-10-14.
+# Not its `optimizer` extra, which brings PyTorch (D53).
+dev = ["pytest>=8.0", "pytest-cov>=7.0", "ruff>=0.16", "mypy>=2.3", "httpx>=0.28", "fsrs==6.3.2"]
 # The web front end (app.py). Tested with Streamlit 1.64; it brings pandas and
 # altair, which app.py uses for its tables and chart.
 app = ["streamlit>=1.64"]
