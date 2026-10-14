@@ -767,3 +767,11 @@ each session's start and end. Fixed: the feed takes each session's own times
 assumption (sessions times the block length) and now add the sessions' own lengths.
 Status: fixed; `tests/test_engine_review.py` checks every session of a plan, a moved
 one and a quick one against the feed.
+
+**61. A test left a database connection open.** Found while reading Gate C's full
+run, whose one warning was a `ResourceWarning: unclosed database` raised during a
+tasks test: `tests/test_store.py` read the store with `with sqlite3.connect(...) as
+db`, which commits on leaving but does not close the connection, so it was closed by
+the garbage collector later, during whichever test was running. The product's own
+connections were closed (`Store._connect`). Fixed: the test closes it
+(`contextlib.closing`). Status: fixed; the full run has no warning.
