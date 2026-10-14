@@ -10,6 +10,8 @@
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 <p class="lede">{{ _("Your own cards, by course. Each comes back when the memory model predicts you are about to forget it: often at first, then less and less.") }}</p>
+{% if view.fitted %}<p class="hint">{{ _n("The intervals are fitted to your own memory, from {n} of your answers.", "The intervals are fitted to your own memory, from {n} of your answers.", view.fitted) }}</p>
+{% elif view.decks and view.to_fit %}<p class="hint">{{ _n("The intervals follow how most people remember. After {n} more answer on a later day, they will be fitted to your own memory.", "The intervals follow how most people remember. After {n} more answers on later days, they will be fitted to your own memory.", view.to_fit) }}</p>{% endif %}
 
 {% if view.decks %}
 <div class="section">

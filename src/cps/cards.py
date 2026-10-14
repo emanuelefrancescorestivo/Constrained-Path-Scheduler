@@ -16,22 +16,27 @@ FSRS:
 - At most `NEW_PER_DAY` cards are shown for the first time each day, so a deck
   pasted at once does not become a wall of reviews the next week.
 
-Intervals are FSRS's population defaults, not fitted to the student (AUDIT,
-"FSRS weights are population defaults").
+Intervals follow FSRS-6's population defaults until the student has given
+`fitting.MIN_REVIEWS` answers a day or more after the one before; from then on,
+parameters fitted to their own answers (`refit`, D53), fitted again each time those
+answers have grown by a quarter (`REFIT_GROWTH`).
 """
 
 from __future__ import annotations
 
+import json
 import secrets
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import memory
+from . import fitting, memory
 from .i18n import _
 from .store import Store
 
-MODEL = memory.FSRS_6  # D52
+MODEL = memory.FSRS_6  # D52: until the student's own parameters (D53)
+REFIT_GROWTH = 1.25  # fit again once the scored answers have grown by a quarter
+FIT_CARDS = 1000  # a fit reads the cards answered most recently, so it stays quick
 
 RETENTION = 0.9  # the recall a card is scheduled for, FSRS's usual default
 RELEARN = timedelta(minutes=10)  # "Again": back in the same sitting
@@ -230,21 +235,103 @@ def queue(store: Store, token: str, now: datetime, zone: ZoneInfo, course: str =
 
 
 def schedule(
-    card: Card, grade: memory.Grade, now: datetime
+    card: Card, grade: memory.Grade, now: datetime, model: memory.Model = MODEL
 ) -> tuple[memory.MemoryState, datetime, float | None]:
     """The card's state after this answer, when it comes back, and the days since
     its last review (None for a first answer)."""
     state = card.state()
     if state is None or card.last is None:
-        after, elapsed = MODEL.initial_state(grade), None
+        after, elapsed = model.initial_state(grade), None
     else:
         elapsed = max(0.0, (now - datetime.fromisoformat(card.last)) / timedelta(days=1))
-        after = MODEL.review(state, elapsed, grade)
+        after = model.review(state, elapsed, grade)
     if grade == memory.Grade.AGAIN:
         due = now + RELEARN
     else:
-        due = now + timedelta(days=MODEL.interval(after.stability, RETENTION))
+        due = now + timedelta(days=model.interval(after.stability, RETENTION))
     return after, due, elapsed
+
+
+@dataclass(frozen=True)
+class Personal:
+    """A student's own parameters (D53): the scored answers they were fitted to,
+    when, and the model they make."""
+
+    reviews: int
+    at: str
+    model: memory.Model
+
+
+def personal(store: Store, token: str) -> Personal | None:
+    with store.connection() as db:
+        row = db.execute("SELECT weights, reviews, at FROM card_fits WHERE token = ?", (token,)).fetchone()
+    if row is None:
+        return None
+    weights = memory.Weights6.from_vector(json.loads(row[0]))
+    return Personal(int(row[1]), str(row[2]), memory.Model("FSRS-6, fitted", weights))
+
+
+def model_for(store: Store, token: str) -> memory.Model:
+    """The student's own parameters once fitted, else the population's."""
+    found = personal(store, token)
+    return found.model if found else MODEL
+
+
+def scored(store: Store, token: str) -> int:
+    """The answers a fit learns from: a day or more after the card's previous one
+    (a first answer has no time since the last)."""
+    with store.connection() as db:
+        return int(
+            db.execute(
+                "SELECT COUNT(*) FROM card_reviews WHERE token = ? AND elapsed >= 1", (token,)
+            ).fetchone()[0]
+        )
+
+
+def histories(store: Store, token: str, cards: int = FIT_CARDS) -> list[fitting.History]:
+    """Each card's answers in order, for the `cards` answered most recently."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT card, grade, elapsed FROM card_reviews WHERE token = ? AND card IN ("
+            "SELECT card FROM card_reviews WHERE token = ? GROUP BY card ORDER BY MAX(at) DESC LIMIT ?) "
+            "ORDER BY card, at, rowid",
+            (token, token, cards),
+        ).fetchall()
+    by_card: dict[str, list[tuple[float | None, memory.Grade]]] = {}
+    for card, grade, elapsed in rows:
+        by_card.setdefault(card, []).append((elapsed, memory.Grade(grade)))
+    # A history starts with a first answer; a card whose first answer is not kept
+    # (it cannot happen today, but a copy of the store might) is left out.
+    return [h for h in by_card.values() if h[0][0] is None]
+
+
+def refit(store: Store, token: str, now: datetime) -> fitting.Fit | None:
+    """Fit the student's own parameters when they have enough answers and none
+    were fitted yet, or the answers have grown by `REFIT_GROWTH` since; the new fit,
+    or None when nothing was due."""
+    count = scored(store, token)
+    if count < fitting.MIN_REVIEWS:
+        return None
+    found = personal(store, token)
+    if found is not None and count < found.reviews * REFIT_GROWTH:
+        return None
+    result = fitting.fit(histories(store, token))
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO card_fits (token, weights, reviews, at, loss, default_loss) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(token) DO UPDATE SET weights = excluded.weights, reviews = excluded.reviews, "
+            "at = excluded.at, loss = excluded.loss, default_loss = excluded.default_loss",
+            (
+                token,
+                json.dumps(list(result.weights.as_vector())),
+                count,
+                _stamp(now),
+                result.loss,
+                result.default_loss,
+            ),
+        )
+    return result
 
 
 def answer(store: Store, token: str, card_id: str, grade: str, now: datetime) -> Card:
@@ -254,7 +341,7 @@ def answer(store: Store, token: str, card_id: str, grade: str, now: datetime) ->
         raise CardError(_("this card is not, or no longer, there"))
     if grade not in GRADES:
         raise CardError(_("choose how well you recalled it"))
-    after, due, elapsed = schedule(card, GRADES[grade], now)
+    after, due, elapsed = schedule(card, GRADES[grade], now, model_for(store, token))
     lapse = GRADES[grade] == memory.Grade.AGAIN and not card.new
     with store.connection() as db:
         db.execute(

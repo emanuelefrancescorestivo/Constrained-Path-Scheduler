@@ -59,6 +59,7 @@ import numpy as np
 from . import accounts as _accounts
 from . import ai as _ai
 from . import cards as flashcards
+from . import fitting
 from . import i18n as _i18n
 from . import inbox as _inbox
 from . import progress as _progress
@@ -5072,7 +5073,11 @@ def cards_view(
         deck["new" if card.new else "due"] += 1
     later = flashcards.next_due(where, token, now)
     chosen = [c for c in every if course and c.course.casefold() == course.casefold()]
+    own = flashcards.personal(where, token)
     return {
+        # D53: the intervals' parameters, the student's own once fitted.
+        "fitted": own.reviews if own else 0,
+        "to_fit": 0 if own else max(0, fitting.MIN_REVIEWS - flashcards.scored(where, token)),
         "decks": sorted(decks.values(), key=lambda d: d["course"].casefold()),
         "waiting": len(waiting),
         "total": len(every),
@@ -5104,8 +5109,9 @@ def card_review_view(
         card = waiting[0]
         view["card"] = _card_dict(card, now)
         view["options"] = []
+        model = flashcards.model_for(where, subscription.token)
         for grade in CARD_GRADES:
-            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now)
+            _after, due, _elapsed = flashcards.schedule(card, flashcards.GRADES[grade], now, model)
             view["options"].append({"grade": grade, "when": wait_words(due - now)})
     else:
         later = flashcards.next_due(where, subscription.token, now, course)
@@ -5147,6 +5153,13 @@ def answer_card(
     now = now or datetime.now(UTC)
     where = _store(store)
     _flash(lambda: flashcards.answer(where, subscription.token, card_id, grade, now))
+
+
+def refit_cards(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> bool:
+    """Fit the student's own parameters for their cards if it is due (D53):
+    enough answers and none fitted, or a quarter more since. Seconds of work, so
+    the web app runs it after answering, not before. True when it fitted."""
+    return flashcards.refit(_store(store), subscription.token, now or datetime.now(UTC)) is not None
 
 
 def card_view(store: str | os.PathLike, subscription: Subscription, card_id: str) -> dict | None:

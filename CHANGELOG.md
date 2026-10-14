@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A student's own memory parameters (D53, the engine review's C2): after 400 flashcard
+  answers on later days, the cards are scheduled with FSRS-6 parameters fitted to the
+  student's answers (`src/cps/fitting.py`, NumPy only), fitted again as answers grow;
+  the Flashcards page says which. `benchmarks/personal_fsrs.py` measures the threshold
+  on made-up students.
 - FSRS-6 (D52, the engine review's C1): `memory.FSRS_6`, checked against py-fsrs 6.3.2
   to 2e-12 on two trajectories; the product's plans, forecasts and flashcards use it
   (a plan names its model; older plans move at their next refresh), the research

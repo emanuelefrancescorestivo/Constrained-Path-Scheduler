@@ -102,7 +102,8 @@ synthetic four-month semester to try the page on.
   (`src/cps/memory.py`): FSRS-6 in the product's plans and flashcards (DECISIONS.md
   D52), FSRS-4.5 in the research planner. Each matches the reference implementation
   of its version on two pinned trajectories: py-fsrs 2.5.1 to 4e-14, py-fsrs 6.3.2 to
-  2e-12.
+  2e-12. After 400 flashcard answers, a student's cards use parameters fitted to their
+  own answers (`src/cps/fitting.py`, DECISIONS.md D53).
 - **The calendar.** An `.ics` export is expanded (recurrences, exclusions, time
   zones, daylight saving) into busy time, a study window is added because nobody's
   calendar says "sleep", and the free time is cut into study blocks
@@ -401,6 +402,7 @@ in a real browser are the owner's.
 | `src/cps/sources.py` | calendars from a link, with the refusals a server needs |
 | `src/cps/feed.py` | the feed server calendar apps subscribe to, and background refresh |
 | `src/cps/memory.py` | FSRS-4.5 and FSRS-6, checked against py-fsrs 2.5.1 and 6.3.2 |
+| `src/cps/fitting.py` | a student's own FSRS-6 parameters, fitted to their flashcard answers with NumPy |
 | `src/cps/calendar_io.py`, `timegrid.py` | calendars in and out; free time as a bitmask |
 | `src/cps/clock.py` | cost to reach a subject's target before its exam |
 | `src/cps/ssp.py` | the unconstrained optimum (SSP-MMC) and its admissible bound |
@@ -424,6 +426,7 @@ python benchmarks/replanning.py           # the results table above
 python benchmarks/semester.py             # a semester, with and without lectures as topics
 python benchmarks/rule_vs_planner.py      # the research planner against one-line rules
 python benchmarks/fsrs6_product.py        # the assistant with FSRS-6 and with FSRS-4.5 (D52)
+python benchmarks/personal_fsrs.py        # a student's own parameters: how many answers before they help (D53)
 python benchmarks/figures.py              # the README's figures, from the runs above
 python benchmarks/reviews.py              # competitors' App Store reviews, coded by theme
 ```

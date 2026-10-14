@@ -168,6 +168,17 @@ CREATE TABLE IF NOT EXISTS card_reviews (
     elapsed REAL
 );
 CREATE INDEX IF NOT EXISTS card_reviews_by_token ON card_reviews (token, at);
+-- A student's own FSRS-6 parameters for their cards (D53), once their answers are
+-- enough: 21 numbers as JSON, the scored answers they were fitted to, when, and the
+-- mean log loss there of theirs and of the population's.
+CREATE TABLE IF NOT EXISTS card_fits (
+    token        TEXT PRIMARY KEY,
+    weights      TEXT NOT NULL,
+    reviews      INTEGER NOT NULL,
+    at           TEXT NOT NULL,
+    loss         REAL NOT NULL,
+    default_loss REAL NOT NULL
+);
 -- Accounts that last (D35): a plan's passkeys, of which only the public half is
 -- kept, and the digest of its recovery code. A passkey ceremony's challenge waits
 -- here a few minutes and is used once.
@@ -282,6 +293,7 @@ _FORGET = (
     "DELETE FROM profiles WHERE token = :t",
     *LEAVE_GROUPS,
     "DELETE FROM card_reviews WHERE token = :t",
+    "DELETE FROM card_fits WHERE token = :t",
     "DELETE FROM cards WHERE token = :t",
     "DELETE FROM passkeys WHERE token = :t",
     "DELETE FROM recovery_codes WHERE token = :t",
@@ -320,6 +332,7 @@ _EXPORT = {
     "cards": "SELECT id, course, front, back, created, stability, difficulty, last, due, reps, lapses "
     "FROM cards WHERE token = :t ORDER BY created",
     "card_reviews": "SELECT card, at, grade, elapsed FROM card_reviews WHERE token = :t ORDER BY at",
+    "card_fit": "SELECT weights, reviews, at, loss, default_loss FROM card_fits WHERE token = :t",
     "passkeys": "SELECT device, created, used FROM passkeys WHERE token = :t ORDER BY created",
     "recovery_code": "SELECT created FROM recovery_codes WHERE token = :t",
     "reminder_devices": "SELECT device, created FROM push_devices WHERE token = :t ORDER BY created",

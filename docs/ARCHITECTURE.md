@@ -54,7 +54,8 @@ into study blocks, earliest first, capped per day.
 (`Weights6`); `memory.Model` gives either the same five functions. The research
 planner (`ssp`, `clock`, `plan`, `rolling`) is FSRS-4.5; the product's plans and the
 flashcards are FSRS-6, and a plan names its model (`service.model_of`, DECISIONS.md
-D52). Everything that predicts recall goes through it; `ssp` has a vectorised twin that a test keeps in
+D52). `fitting` fits FSRS-6's parameters to a student's own flashcard answers (D53),
+which `cards` uses from 400 of them. Everything that predicts recall goes through it; `ssp` has a vectorised twin that a test keeps in
 step. What is being remembered is a topic: a whole subject, or, when its lectures are
 in the calendar, one week of them, which exists from the day it is taught
 (METHOD.md §7).

@@ -1457,3 +1457,55 @@ prediction. The two models also disagree on the same sessions: FSRS-6 puts the
 lowest recall of FSRS-4.5's own 15-hour plan at 0.792 where FSRS-4.5 says 0.755.
 Neither is checked against students yet; that is Gate C's log loss and the pilot's
 (D15).
+
+## D53. A student's own memory parameters for their flashcards, from 400 answers
+
+*Phase C, item C2 of docs/ENGINE-REVIEW.md. The owner chose, on 2026-10-14, our own
+NumPy fitter over py-fsrs's optimizer, which brings PyTorch.*
+
+**Chosen.** Once a student has given 400 flashcard answers a day or more after the
+card's previous one (`fitting.MIN_REVIEWS`), their cards are scheduled with FSRS-6
+parameters fitted to their own answers (`cps/fitting.py`); fitted again each time
+those answers have grown by a quarter (`cards.REFIT_GROWTH`), from the 1,000 cards
+answered most recently. The fit is the most probable set of the 21 parameters under
+a prior centred on the population's: each parameter on a 0-to-1 scale between
+py-fsrs's bounds (the four first stabilities on a log scale), the summed log loss of
+the answers plus the squared distance from the defaults over twice 0.02 squared,
+minimised by Adam on finite differences, its step annealed, every parameter set
+replayed at once with NumPy. It takes seconds, so the web app runs it after the
+answer that makes it due. It is kept in `card_fits`, goes in the plan's copy and is
+deleted with the plan. The Flashcards page says which: "fitted to your own memory,
+from N of your answers", or how many answers are still to come.
+
+**Why.** Population parameters are wrong for a student in the same direction every
+time (the engine review's W3). A fit to the student's answers corrects that once
+there are enough of them; before, it chases noise, so the threshold is measured,
+not guessed.
+
+**Rejected.** py-fsrs's optimizer (PyTorch on a free server, for 21 numbers). A
+looser prior: with 0.05, the fit gains a little more at 400 answers but costs a
+student who is the population +0.0017 ± 0.0005, and 0.1 and 0.2 are worse
+(`benchmarks/personal_fsrs.py --prior`, on 16 other students). The fit for the
+plan's topics: a week of lectures is not a flashcard, and a semester at 15 hours a
+week has 155 self-tests (`benchmarks/fsrs6_product.py`), under the threshold; the
+plan keeps the population's parameters.
+
+**Measured** (`benchmarks/personal_fsrs.py`: 20 made-up students, ten new cards a day
+for 120 days, scheduled as the product schedules them, each fit tested on the three
+weeks of answers after it; mean change in log loss against the population's
+parameters, with its standard error):
+
+| answers | students whose parameters differ | better off | gap closed | students who are the population |
+|---|---|---|---|---|
+| 200 | -0.0016 ± 0.0006 | 70% | 29% | +0.0001 ± 0.0001 |
+| 400 | -0.0035 ± 0.0009 | 90% | 49% | +0.0002 ± 0.0002 |
+| 800 | -0.0054 ± 0.0012 | 90% | 56% | +0.0001 ± 0.0002 |
+
+The threshold is the fewest answers at which the fit is better by more than two
+standard errors, for at least three students in four, and costs a student who is
+the population less than 0.001: 400. The gain is small, as the gap it closes is
+small: at 400 answers, 0.4237 with the population's parameters, 0.4124 with the
+student's own. These are simulated students: how far real students are from the
+population (each parameter times e^N(0, 0.3)), how they choose a grade and how many
+new cards they already know are assumptions in `cps/fitting.py`. Whether it holds
+for real students is the pilot's to measure (Gate C, D15).

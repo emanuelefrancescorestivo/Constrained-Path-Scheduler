@@ -47,7 +47,7 @@ from typing import Any
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Query, Request
+from fastapi import BackgroundTasks, FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -1481,7 +1481,9 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="focus")
 
     @app.post("/p/{token}/cards/{card_id}/answer")
-    async def cards_answer(request: Request, token: str, card_id: str) -> Response:
+    async def cards_answer(
+        request: Request, token: str, card_id: str, background: BackgroundTasks
+    ) -> Response:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -1495,6 +1497,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         except service.ServiceError as error:
             return refused(request, token, error)
+        # The student's own parameters, when a fit is due (D53): after the answer.
+        background.add_task(service.refit_cards, store, subscription, config.clock())
         return RedirectResponse(f"/p/{token}/cards/review?course={quote(course)}", 303)
 
     @app.get("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
