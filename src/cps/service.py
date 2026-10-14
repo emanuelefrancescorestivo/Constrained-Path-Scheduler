@@ -3580,6 +3580,12 @@ EXAM_RESULTS = {
     "failed": "Not passed",
     "absent": "Did not sit it",
 }
+EXAM_HELPED = {
+    "lot": "Yes, a lot",
+    "little": "A little",
+    "not": "Not really",
+    "unused": "I did not follow it",
+}
 MARK_CHARS = 20
 
 
@@ -3621,7 +3627,8 @@ def answer_exam(
     subscription: Subscription, course: str, form: Mapping[str, str], now: datetime | None = None
 ) -> Subscription:
     """How an exam went (D56): one of `EXAM_RESULTS`, a mark if the student gives
-    one, and whether the owner may read it without their name. "Rather not say"
+    one, whether the plan helped (`EXAM_HELPED`, optional), and whether the owner
+    may read it without their name. "Rather not say"
     (`skip`) keeps nothing but that it was asked. The recall the model predicted
     for the exam is kept beside the answer, as it stood when the answer came."""
     now = now or datetime.now(UTC)
@@ -3637,11 +3644,15 @@ def answer_exam(
         mark = " ".join(str(form.get("mark") or "").split())
         if len(mark) > MARK_CHARS:
             raise InvalidInput(_("at most {n} characters here", n=MARK_CHARS))
+        helped = str(form.get("helped") or "")
+        if helped and helped not in EXAM_HELPED:
+            raise InvalidInput(_("choose whether the plan helped"))
         assert subscription.plan is not None  # an exam to ask about means a plan
         predicted = recall_predicted(PlanReport.from_dict(subscription.plan), course)
         record = {
             "result": result,
             "mark": mark,
+            "helped": helped,
             "consent": form.get("consent") == "1",
             "predicted": None if predicted is None else round(predicted, 4),
             "at": stamp,
@@ -5699,7 +5710,12 @@ def calibration(store: str | os.PathLike) -> dict:
                 exams["skipped"] += 1
             elif record.get("consent"):
                 exams["shared"].append(
-                    {"predicted": record.get("predicted"), "result": record["result"], "mark": record["mark"]}
+                    {
+                        "predicted": record.get("predicted"),
+                        "result": record["result"],
+                        "mark": record["mark"],
+                        "helped": record.get("helped", ""),
+                    }
                 )
             else:
                 exams["private"] += 1

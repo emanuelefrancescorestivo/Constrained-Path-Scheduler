@@ -7,7 +7,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 - How an exam went (D56, the engine review's D2): for three weeks after each exam,
-  Today asks how it went (five answers, a mark if you like), with a separate unticked
+  Today asks how it went (five answers, a mark if you like) and whether the plan
+  helped, with a separate unticked
   box to share it with the owner without name or course; the privacy page says so.
   `cps metrics` lists shared answers beside the recall predicted for each exam.
 - Predicted against reported recall (D55, Gate C of the engine review): `cps metrics`

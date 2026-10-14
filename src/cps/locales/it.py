@@ -1255,5 +1255,11 @@ MESSAGES: dict[str, str] = {
     "Thank you. Good luck with the next one.": "Grazie. In bocca al lupo per il prossimo.",
     "this exam is not waiting for an answer": "questo esame non aspetta una risposta",
     "choose how it went": "scegli com'è andato",
-    "After each exam, Today asks how it went, for three weeks. Answering is optional. Your answer, with the mark if you give one, is kept with your plan, beside the recall the plan predicted for that exam. Only if you tick the box is it shown to the owner of this service, with that prediction and without your plan, your course or anything that names you, to check whether the predictions hold; otherwise it is only counted. It is deleted with your plan.": "Dopo ogni esame, Oggi chiede com'è andato, per tre settimane. Rispondere è facoltativo. La tua risposta, con il voto se lo dai, è conservata con il tuo piano, accanto al ricordo che il piano prevedeva per quell'esame. Solo se spunti la casella viene mostrata al gestore di questo servizio, con quella previsione e senza il tuo piano, il tuo corso o qualcosa che ti identifichi, per verificare se le previsioni reggono; altrimenti viene solo contata. Viene eliminata con il tuo piano.",
+    "After each exam, Today asks how it went and whether the plan helped, for three weeks. Answering is optional. Your answer, with the mark if you give one, is kept with your plan, beside the recall the plan predicted for that exam. Only if you tick the box is it shown to the owner of this service, with that prediction and without your plan, your course or anything that names you, to check whether the predictions hold; otherwise it is only counted. It is deleted with your plan.": "Dopo ogni esame, Oggi chiede com'è andato e se il piano ha aiutato, per tre settimane. Rispondere è facoltativo. La tua risposta, con il voto se lo dai, è conservata con il tuo piano, accanto al ricordo che il piano prevedeva per quell'esame. Solo se spunti la casella viene mostrata al gestore di questo servizio, con quella previsione e senza il tuo piano, il tuo corso o qualcosa che ti identifichi, per verificare se le previsioni reggono; altrimenti viene solo contata. Viene eliminata con il tuo piano.",
+    "Did the plan help? (if you like)": "Il piano ti ha aiutato? (se vuoi)",
+    "Yes, a lot": "Sì, molto",
+    "A little": "Un po'",
+    "Not really": "Non proprio",
+    "I did not follow it": "Non l'ho seguito",
+    "choose whether the plan helped": "scegli se il piano ti ha aiutato",
 }

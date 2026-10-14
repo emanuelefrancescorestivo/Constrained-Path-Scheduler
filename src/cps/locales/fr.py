@@ -1282,5 +1282,11 @@ MESSAGES: dict[str, str] = {
     "Thank you. Good luck with the next one.": "Merci. Bonne chance pour le prochain.",
     "this exam is not waiting for an answer": "cet examen n'attend pas de réponse",
     "choose how it went": "choisis comment ça s'est passé",
-    "After each exam, Today asks how it went, for three weeks. Answering is optional. Your answer, with the mark if you give one, is kept with your plan, beside the recall the plan predicted for that exam. Only if you tick the box is it shown to the owner of this service, with that prediction and without your plan, your course or anything that names you, to check whether the predictions hold; otherwise it is only counted. It is deleted with your plan.": "Après chaque examen, Aujourd'hui demande comment il s'est passé, pendant trois semaines. Répondre est facultatif. Ta réponse, avec la note si tu la donnes, est gardée avec ton plan, à côté du rappel que le plan prévoyait pour cet examen. Seulement si tu coches la case, elle est montrée au responsable de ce service, avec cette prévision et sans ton plan, ton cours ni rien qui te nomme, pour vérifier si les prévisions tiennent ; sinon, elle est seulement comptée. Elle est supprimée avec ton plan.",
+    "After each exam, Today asks how it went and whether the plan helped, for three weeks. Answering is optional. Your answer, with the mark if you give one, is kept with your plan, beside the recall the plan predicted for that exam. Only if you tick the box is it shown to the owner of this service, with that prediction and without your plan, your course or anything that names you, to check whether the predictions hold; otherwise it is only counted. It is deleted with your plan.": "Après chaque examen, Aujourd'hui demande comment il s'est passé et si le plan a aidé, pendant trois semaines. Répondre est facultatif. Ta réponse, avec la note si tu la donnes, est gardée avec ton plan, à côté du rappel que le plan prévoyait pour cet examen. Seulement si tu coches la case, elle est montrée au responsable de ce service, avec cette prévision et sans ton plan, ton cours ni rien qui te nomme, pour vérifier si les prévisions tiennent ; sinon, elle est seulement comptée. Elle est supprimée avec ton plan.",
+    "Did the plan help? (if you like)": "Le plan t'a-t-il aidé ? (si tu veux)",
+    "Yes, a lot": "Oui, beaucoup",
+    "A little": "Un peu",
+    "Not really": "Pas vraiment",
+    "I did not follow it": "Je ne l'ai pas suivi",
+    "choose whether the plan helped": "choisis si le plan t'a aidé",
 }

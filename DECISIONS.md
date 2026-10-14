@@ -1582,10 +1582,12 @@ after a fit.
 2026-10-14, which this item's approval (the question and its privacy line) was
 waiting for.*
 
-**Chosen.** For three weeks after each exam (`EXAM_ASK_DAYS`), Today asks "How did
-the course exam go?": one tap among five answers (passed, and well; passed; just
-passed; not passed; did not sit it), a mark if the student likes, written as they
-write it (27/30, 14/20, B+), and a box, unticked, that lets the owner read the answer.
+**Chosen.** For three weeks after each exam (`EXAM_ASK_DAYS`), Today asks the two
+questions the plan named: "How did the course exam go?", one tap among five answers
+(passed, and well; passed; just passed; not passed; did not sit it), with a mark if
+the student likes, written as they write it (27/30, 14/20, B+); and "Did the plan
+help?", if they like (yes, a lot; a little; not really; I did not follow it). Then a
+box, unticked, that lets the owner read the answers.
 "Rather not say" keeps only that it was asked. The answer is kept in the plan
 (`exam_results`), so it goes in the plan's copy and is deleted with it, beside the
 recall the model predicted for that exam from the sessions reported, as it stood
@@ -1601,8 +1603,8 @@ test (D15).
 
 **Rejected.** A numeric grade on one scale: marks are out of 30 in Italy, 20 in
 France, letters elsewhere, so the five answers are what is compared and the mark is
-kept as written (invariant 13). More questions (how prepared, hours spent): each one
-costs answers, and the plan already knows the hours. Consent ticked by default, or
+kept as written (invariant 13). More questions than the two (how prepared, hours spent):
+each one costs answers, and the plan already knows the hours. Consent ticked by default, or
 the answer sent anywhere without it. Asking by e-mail: the app does not know one.
 
 **Measured.** Nothing yet: no exam has passed for anyone using it. The tests check

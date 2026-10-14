@@ -43,10 +43,13 @@ def test_today_asks_about_each_exam_for_three_weeks(plan_then):
 
 
 def test_an_answer_is_kept_with_the_prediction_and_shared_only_with_consent(plan_then):
-    answered = service.answer_exam(plan_then, "Algebra 3", {"result": "well", "mark": " 28 / 30 "}, AFTER)
+    answered = service.answer_exam(
+        plan_then, "Algebra 3", {"result": "well", "mark": " 28 / 30 ", "helped": "lot"}, AFTER
+    )
     record = answered.options["exam_results"]["Algebra 3"]
     plan = service.PlanReport.from_dict(plan_then.plan)
     assert record["result"] == "well" and record["mark"] == "28 / 30" and record["consent"] is False
+    assert record["helped"] == "lot"
     assert record["predicted"] == pytest.approx(service.recall_predicted(plan, "Algebra 3"), abs=1e-4)
     assert 0 < record["predicted"] < 1
     assert [q["course"] for q in service.exam_questions(answered, AFTER)] == ["Computer Programming 3"]
@@ -56,6 +59,7 @@ def test_an_answer_is_kept_with_the_prediction_and_shared_only_with_consent(plan
     for form, words in (
         ({"result": "excellent"}, "choose how it went"),
         ({"result": "passed", "mark": "x" * 21}, "at most 20 characters"),
+        ({"result": "passed", "helped": "maybe"}, "whether the plan helped"),
     ):
         with pytest.raises(service.InvalidInput, match=words):
             service.answer_exam(plan_then, "Algebra 3", form, AFTER)
@@ -67,7 +71,7 @@ def test_an_answer_is_kept_with_the_prediction_and_shared_only_with_consent(plan
 
 def test_the_measures_show_shared_answers_without_course_or_plan(tmp_path, plan_then, capsys):
     shared = service.answer_exam(
-        plan_then, "Algebra 3", {"result": "just", "mark": "18/30", "consent": "1"}, AFTER
+        plan_then, "Algebra 3", {"result": "just", "mark": "18/30", "helped": "little", "consent": "1"}, AFTER
     )
     service.save_subscription(tmp_path, shared)
     kept = service.answer_exam(
@@ -82,14 +86,14 @@ def test_the_measures_show_shared_answers_without_course_or_plan(tmp_path, plan_
     exams = service.calibration(tmp_path)["exams"]
     predicted = shared.options["exam_results"]["Algebra 3"]["predicted"]
     assert exams == {
-        "shared": [{"predicted": predicted, "result": "just", "mark": "18/30"}],
+        "shared": [{"predicted": predicted, "result": "just", "mark": "18/30", "helped": "little"}],
         "private": 1,
         "skipped": 0,
     }
     assert cli.main(["metrics", "--db", str(tmp_path)]) == 0
     printed = capsys.readouterr().out
     assert "after the exam         1 answers shared, 1 kept private, 0 not given" in printed
-    assert f"predicted {predicted:.0%}: just (18/30)" in printed
+    assert f"predicted {predicted:.0%}: just (18/30), the plan helped: little" in printed
     assert "Algebra" not in printed and shared.token not in printed
 
 
@@ -119,11 +123,11 @@ def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, conse
         assert question not in unescape(web.get(f"/p/{token}").text)
         now["at"] = AFTER
         today = unescape(web.get(f"/p/{token}").text)
-        assert question in today and consent in today
+        assert question in today and consent in today and 'name="helped" value="lot"' in today
         assert 'name="consent" value="1">' in today  # not ticked for the student
         answer = web.post(
             f"/p/{token}/exam",
-            data={"course": "Algebra 3", "result": "passed", "mark": "", "consent": "1"},
+            data={"course": "Algebra 3", "result": "passed", "mark": "", "helped": "not", "consent": "1"},
             follow_redirects=False,
         )
         assert answer.status_code == 303 and answer.headers["location"] == f"/p/{token}?saved=exam"

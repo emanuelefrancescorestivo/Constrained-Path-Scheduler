@@ -1542,6 +1542,6 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 
 /* How an exam went (D56): the choices, the mark and the consent on one card. */
 .exam-question .pills { margin: 8px 0 4px; }
-.exam-question label[for] { margin-top: 6px; font-size: 0.88rem; }
+.exam-question label[for], .exam-question p.label { margin: 6px 0 0; font-size: 0.88rem; font-weight: 600; }
 .exam-question input[name="mark"] { max-width: 16em; }
 .exam-question label.check-long { margin-top: 10px; font-size: 0.88rem; font-weight: 400; color: var(--muted); }

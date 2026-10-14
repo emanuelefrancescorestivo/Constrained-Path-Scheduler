@@ -562,6 +562,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "budget": service.budget_offer(subscription, now),
             "exam_questions": service.exam_questions(subscription, now),
             "exam_results": list(service.EXAM_RESULTS.items()),
+            "exam_helped": list(service.EXAM_HELPED.items()),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
