@@ -23,7 +23,10 @@ A block on a rest day, or beyond the week's budget, is left free. Otherwise:
    classical earliest-deadline-first test, and it is what makes "every deadline
    met" hold whenever the calendar allows it.
 2. **Exam practice.** In the last `practice_days` before an exam, past papers or
-   exam-style problems, a set number of blocks per exam, nearest exam first.
+   exam-style problems, a number of blocks set per exam (`service` sizes it by the
+   weeks the course was taught, D46). When several exams are in their last days,
+   the one with the most practice left per day before it goes first: exams in the
+   same week take turns, and the nearest wins once it falls behind.
 3. **Self-testing on what is being forgotten.** Among the topics taught so far whose
    exam is still ahead, the one with the lowest predicted recall (FSRS-4.5), if it
    has fallen to `review_below`. A topic just taught is reviewed first when it
@@ -245,18 +248,22 @@ def schedule(
 
         # 2. Exam practice in the last days before an exam.
         if choice is None:
-            due_exams = sorted(
-                (
-                    e
-                    for e in exams
-                    if practice[e.course] > 0
-                    and e.day - prefs.practice_days <= now < e.day
-                    and not held("practice", f"Exam practice: {e.course}", now)
-                ),
-                key=lambda e: e.day,
-            )
+            due_exams = [
+                e
+                for e in exams
+                if practice[e.course] > 0
+                and e.day - prefs.practice_days <= now < e.day
+                and not held("practice", f"Exam practice: {e.course}", now)
+            ]
             if due_exams:
-                exam = due_exams[0]
+                # The most practice left per day before the exam (D46). Rejected:
+                # nearest exam first, which did all of one course's practice before
+                # the next course's, so the last course's came in one block of days
+                # [ref:rohrer2020]: mixed practice beats blocked practice.
+                exam = max(
+                    due_exams,
+                    key=lambda e: (practice[e.course] / max(e.day - now, 1 / 24), -e.day),
+                )
                 practice[exam.course] -= 1
                 choice = Session(
                     block,
@@ -265,8 +272,9 @@ def schedule(
                     f"Exam practice: {exam.course}",
                     _(
                         "Do a past paper or exam-style problems under exam conditions, timed and "
-                        "without notes. Then mark it and write down what you missed: that list is "
-                        "what the next sessions are for."
+                        "without notes, with the kinds of question mixed as the exam will mix them, "
+                        "not one chapter at a time. Then mark it and write down what you missed: "
+                        "that list is what the next sessions are for."
                     ),
                     _(
                         "The exam is in {days} days; practice under exam conditions is what "
@@ -367,8 +375,10 @@ def _pinned_session(
             pin.course,
             pin.title,
             _(
-                "Do a past paper or exam-style problems under exam conditions, timed and without "
-                "notes. Then mark it and write down what you missed."
+                "Do a past paper or exam-style problems under exam conditions, timed and "
+                "without notes, with the kinds of question mixed as the exam will mix them, "
+                "not one chapter at a time. Then mark it and write down what you missed: "
+                "that list is what the next sessions are for."
             ),
             _("{why} The exam is in {days} days.", why=why, days=f"{days:.0f}"),
             pinned=True,

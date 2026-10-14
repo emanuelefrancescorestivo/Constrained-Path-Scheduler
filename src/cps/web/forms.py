@@ -49,8 +49,11 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
                 "found_when": r["found_when"],
                 "familiarity": r["familiarity"] or service.DEFAULT_FAMILIARITY,
                 "suggested": r["suggested"] == "1",
+                "practice": r["practice"],
             }
-            for r in _rows(form, "s", ("name", "exam", "found", "found_when", "familiarity", "suggested"))
+            for r in _rows(
+                form, "s", ("name", "exam", "found", "found_when", "familiarity", "suggested", "practice")
+            )
             if r["name"]
         ],
         "tasks": [r for r in _rows(form, "t", ("name", "course", "due", "hours")) if r["name"]],
@@ -109,7 +112,15 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         "preferences": {
             "weekly_hours": weekly_hours or None,
             "rest_days": list(values["rest_days"]),
-            "practice_hours": _number(str(values["practice_hours"] or 0), service.translate("exam practice")),
+            # Empty: sized by each course (D46).
+            "practice_hours": _number(str(values["practice_hours"]), service.translate("exam practice"))
+            if str(values["practice_hours"]).strip()
+            else None,
+            "practice": {
+                s["name"]: _number(str(s["practice"]), s["name"])
+                for s in values["subjects"]
+                if str(s.get("practice") or "").strip()
+            },
         },
         "study_window": (
             _number(str(values["study_window"][0]), service.translate("Study from")),

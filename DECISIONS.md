@@ -1206,3 +1206,39 @@ and 60 for the morning; the evening 32, 45 and 56. The evening at 15 and 18 hour
 the one real cost, four to six topics under the line. It is disclosed, not hidden:
 a session kept in the evening is worth more than one skipped in the morning, which
 the benchmark cannot see.
+
+## D46. Exam practice sized by the course, taking turns, mixed
+
+*Phase A, item A3 of docs/ENGINE-REVIEW.md (weak spot W6), approved by the owner on
+2026-10-13.*
+
+**Chosen.** Exam practice before an exam is sized by the weeks its course was taught
+(weeks with a lecture in the timetable before the exam, those before the plan
+included): 1.5 hours for every four weeks, at least 3 (`service.practice_hours_for`).
+A twelve-week course keeps the 4.5 hours every exam had; a four-week module gets 3; a
+sixteen-week course 6. A course with no lectures in the timetable keeps 4.5 hours.
+Settings offers "Sized by each course" (new plans) or the same hours for every exam,
+and each exam's row can set its own hours. Plans made before D46 keep the 4.5 hours
+stored with them. When several exams are in their last two weeks, the one with the
+most practice left per day before it gets the block: exams in the same week take
+turns, and the nearest wins once it falls behind. Every practice session asks for
+the kinds of question mixed as the exam will mix them, not one chapter at a time.
+
+**Why.** Practice tests beat restudying [ref:adesope2017], and mixing problem types
+beat blocking them on a delayed test, in a randomised classroom trial
+[ref:rohrer2020]. Before D46 the assistant did all of one course's practice before
+the next course's, so with six exams in five days the last course's practice came in
+one run of days, and every course got the same hours whatever its length.
+
+**Rejected.** 1.5 hours per three weeks, the review's first figure: it gives a
+twelve-week course 6 hours, taken from the self-tests of the last fortnight, for an
+amount the evidence does not fix either way; four weeks keeps today's hours for a
+typical semester and scales from there. Nearest exam first (the blocked order above);
+round-robin regardless of dates (it would starve an exam that is close).
+
+**Measured.** The benchmark semester's six courses were each taught 11 weeks (a test
+pins it), so sizing gives each 4.5 hours, and `benchmarks/rule_vs_planner.py` is
+unchanged: 174 sessions, 51 of 69 topics at 90% or more. On it, practice now takes
+turns: no course has two practice sessions in a row, and each is done before its
+exam (a test). How much practice is right is not measured: the memory model does not
+count practice at all, so no benchmark can show what it is worth.

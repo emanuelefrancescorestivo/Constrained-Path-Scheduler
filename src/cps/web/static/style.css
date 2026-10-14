@@ -646,9 +646,9 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 /* settings: one row per exam */
 .exam-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }
 .exam-main { flex: 1 1 240px; min-width: 0; }
-.exam-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.exam-side { flex: 0 0 190px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .exam-side select { width: auto; min-height: 34px; padding: 4px 32px 4px 10px; font-size: 0.88rem; }
-.exam-side .check { margin: 6px 0 0; font-size: 0.85rem; color: var(--muted); }
+.exam-side .check { margin: 2px 0 0; align-self: flex-end; font-size: 0.85rem; color: var(--muted); }
 input.bare { background: transparent !important; padding-left: 0 !important; min-height: 32px !important; font-weight: 650; font-size: 1.05rem; }
 input.bare:focus { padding-left: 0.6rem !important; background: var(--surface-2) !important; }
 details.inline > summary { display: inline-block; font-size: 0.85rem; margin: 4px 0; }
@@ -1209,7 +1209,8 @@ label.check.check-long input { margin-top: 3px; flex: none; }
   .scale { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .d { width: 18px; height: 18px; }
   .site { padding: 18px 16px 40px; }
-  .exam-side { flex-direction: row; align-items: center; gap: 12px; }
+  .exam-side { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .exam-side select { flex: 1 1 100%; min-width: 0; }
 }
 /* -- motion (D30) -------------------------------------------------------------
    Movement shows what changed: a page arriving, a ring filling, a session moving

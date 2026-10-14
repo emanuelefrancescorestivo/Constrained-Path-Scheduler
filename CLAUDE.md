@@ -52,7 +52,7 @@ more than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
-| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
+| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice (taking turns, D46), self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-4.5), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |

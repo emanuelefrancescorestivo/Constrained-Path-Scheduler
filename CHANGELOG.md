@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Exam practice sized by the course (D46, the engine review's A3): 1.5 hours for every
+  four weeks a course was taught, at least 3, changeable per exam in Settings; exams
+  in the same fortnight take turns; every practice session asks for mixed questions.
 - When you study best (D45, the engine review's A2): the questions about the week ask
   "When do you study best?" (morning, afternoon, evening, no preference), and each
   day's sessions go nearest that part of the day; half an hour after training or work

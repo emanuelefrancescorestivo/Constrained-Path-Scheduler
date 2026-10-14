@@ -9,6 +9,10 @@ many it is unsure of. Deadline work and exam practice are not affected.
 A2 (W1, D45): "When do you study best?" Each day's free time is cut into blocks
 nearest the part of the day the student prefers (earliest, as before, without a
 preference), and half an hour after training or work stays free.
+
+A3 (W6, D46): exam practice sized by the weeks each course was taught, changeable
+per exam; exams in their last days take turns, the most practice left per day first;
+every practice session asks for mixed kinds of question.
 """
 
 from __future__ import annotations
@@ -18,12 +22,14 @@ import re
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from html import unescape
+from itertools import pairwise
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from cps import service
+from cps.assistant import Exam, Preferences, schedule
 from cps.calendar_io import BusyEvent, availability_from_events
 from cps.plan import Block, tile_free_time
 from cps.timegrid import TimeGrid
@@ -222,6 +228,87 @@ def test_an_evening_student_s_sessions_are_in_the_evening():
     assert later.options["study_time"] == "evening" and _evening_share(later) > 0.8
 
 
+# --------------------------------------------------------------------------- #
+# A3: exam practice sized per course, taking turns, mixed
+# --------------------------------------------------------------------------- #
+
+
+def _semester() -> tuple[service.CalendarReport, list[service.SubjectSpec]]:
+    report = service.analyse_calendar(SEMESTER.read_bytes(), start=date(2026, 9, 29), tz="Europe/Paris")
+    return report, [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
+
+
+def _practice(plan: service.PlanReport) -> list[service.SessionView]:
+    return [s for s in plan.sessions if s.kind == "practice"]
+
+
+def test_practice_is_1_5_hours_for_every_four_weeks_taught_and_at_least_3():
+    sized = {w: service.practice_hours_for(w) for w in (0, 1, 4, 8, 9, 12, 13, 16, 17)}
+    assert sized == {0: 4.5, 1: 3.0, 4: 3.0, 8: 3.0, 9: 4.5, 12: 4.5, 13: 6.0, 16: 6.0, 17: 7.5}
+
+
+def test_a_course_taught_three_weeks_gets_less_practice_than_one_taught_eleven():
+    report, subjects = _semester()
+    exams = {a.subject: datetime.fromisoformat(a.when) for a in report.assessments}
+    assert {service.weeks_taught(report, name, when) for name, when in exams.items()} == {11}
+    # Algebra 3's lectures cut to its first three weeks: 3 hours, two blocks.
+    algebra = sorted(
+        (x for x in report.lectures if x.course == "Algebra 3"), key=lambda x: datetime.fromisoformat(x.end)
+    )
+    first = datetime.fromisoformat(algebra[0].end).date()
+    short = [
+        x
+        for x in report.lectures
+        if x.course != "Algebra 3" or (datetime.fromisoformat(x.end).date() - first).days < 21
+    ]
+    shorter = replace(report, lectures=tuple(short))
+    assert service.weeks_taught(shorter, "Algebra 3", exams["Algebra 3"]) == 3
+    plan = service.make_schedule(shorter, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=None)
+    per_course = {name: sum(s.subject == name for s in _practice(plan)) for name in exams}
+    assert per_course["Algebra 3"] == 2
+    assert all(n == 3 for name, n in per_course.items() if name != "Algebra 3")
+    assert plan.settings.preferences["practice_sized"]["Algebra 3"] == 3.0
+
+
+def test_one_exam_can_have_its_own_practice():
+    report, subjects = _semester()
+    plan = service.make_schedule(
+        report, subjects, weekly_hours=15, practice_hours=None, practice={"Algebra 3": 9, "Analysis 3": 0}
+    )
+    per_course = {s.name: sum(x.subject == s.name for x in _practice(plan)) for s in plan.subjects}
+    assert per_course["Algebra 3"] == 6 and per_course["Analysis 3"] == 0
+    assert {n for name, n in per_course.items() if name not in ("Algebra 3", "Analysis 3")} == {3}
+    with pytest.raises(service.InvalidInput, match="0 to 40 hours"):
+        service.make_schedule(report, subjects, practice={"Algebra 3": 41})
+
+
+def test_exams_in_the_same_week_take_turns_and_each_is_practised_before_it():
+    report, subjects = _semester()
+    plan = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
+    practice = _practice(plan)
+    assert len(practice) == 18
+    order = [s.subject for s in practice]
+    assert all(a != b for a, b in pairwise(order))  # never twice in a row
+    exam = {s.name: datetime.fromisoformat(s.exam) for s in plan.subjects}
+    assert all(datetime.fromisoformat(s.end) <= exam[s.subject] for s in practice)
+    assert all("mixed" in s.detail for s in practice)
+
+
+def test_the_nearest_exam_wins_once_it_falls_behind():
+    blocks = [Block(i, i, i + 0.5) for i in range(12)]
+    # Two exams a day apart with two blocks each: they alternate.
+    turns = schedule(blocks, first_weekday=0, exams=[Exam("A", 10.0, 2), Exam("B", 11.0, 2)])
+    assert [s.course for s in turns.sessions] == ["A", "B", "A", "B"]
+    # Tomorrow's exam with two blocks left goes before one in three days with three.
+    urgent = schedule(
+        blocks[:3],
+        first_weekday=0,
+        exams=[Exam("A", 2.0, 2), Exam("B", 3.0, 3)],
+        preferences=Preferences(practice_days=14),
+    )
+    assert [s.course for s in urgent.sessions] == ["A", "A", "B"]
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -267,7 +354,7 @@ def _form(html: str) -> dict:
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
-        form[name] = (chosen.group(1) or chosen.group(2)) if chosen else ""
+        form[name] = (chosen.group(2) if chosen.group(1) is None else chosen.group(1)) if chosen else ""
     return form
 
 
@@ -310,3 +397,34 @@ def test_the_question_is_asked_in_the_student_s_language(web):
         token = _web_start(web, lang)
         page = unescape(web.get(f"/p/{token}/routine?new=1").text)
         assert question in page and choice in page
+
+
+def test_settings_show_each_exam_s_practice_and_change_one(web):
+    token = _web_start(web)
+    page = unescape(web.get(f"/p/{token}/settings").text)
+    assert '<option value="" selected>Sized by each course</option>' in page
+    assert "Practice: 4.5 h" in page and 'name="s0_practice"' in page
+    fields = {**_form(web.get(f"/p/{token}/settings").text), "s0_practice": "9.0"}
+    name = fields["s0_name"]
+    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None
+    assert stored.options["preferences"]["practice"] == {name: 9.0}
+    assert stored.options["preferences"]["practice_hours"] is None
+    plan = service.PlanReport.from_dict(stored.plan)
+    assert sum(s.subject == name for s in _practice(plan)) == 6
+    assert '<option value="9.0" selected>' in web.get(f"/p/{token}/settings").text
+    refused = web.post(f"/p/{token}/settings", data={**fields, "s0_practice": "50"})
+    assert refused.status_code == 400 and "0 to 40 hours" in unescape(refused.text)
+    assert "Practice: 4.5 h" in unescape(refused.text)  # the other rows keep their default
+
+
+def test_a_plan_made_before_sizing_keeps_its_hours(web):
+    token = _web_start(web)
+    service.update_subscription(
+        web.path,
+        token,
+        lambda s: service.revise_subscription(s, preferences={"practice_hours": 4.5}, now=MORNING),
+    )
+    page = web.get(f"/p/{token}/settings").text
+    assert '<option value="4.5" selected>' in page

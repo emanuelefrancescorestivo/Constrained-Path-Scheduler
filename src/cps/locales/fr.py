@@ -229,7 +229,6 @@ MESSAGES: dict[str, str] = {
     "until": "à",
     "Sessions a day at most": "Séances par jour au plus",
     "Session length": "Durée d'une séance",
-    "Exam practice before each exam (hours)": "Entraînement avant chaque examen (heures)",
     "Busy times not in your timetable": "Créneaux occupés hors emploi du temps",
     "you have {n}.": "tu en as {n}.",
     "you have none yet.": "tu n'en as pas encore.",
@@ -346,8 +345,7 @@ MESSAGES: dict[str, str] = {
     # -- what each session says to do (written when the plan is made) ----------------------
     "a deadline is close": "une échéance approche",
     "nothing else needs this block": "rien d'autre n'a besoin de ce créneau",
-    "Do a past paper or exam-style problems under exam conditions, timed and without notes. Then mark it and write down what you missed: that list is what the next sessions are for.": "Fais une annale ou des exercices type examen en conditions réelles, chronométré et sans notes. Puis corrige-toi et note ce qui t'a manqué : cette liste, c'est le programme des séances suivantes.",
-    "Do a past paper or exam-style problems under exam conditions, timed and without notes. Then mark it and write down what you missed.": "Fais une annale ou des exercices type examen en conditions réelles, chronométré et sans notes. Puis corrige-toi et note ce qui t'a manqué.",
+    "Do a past paper or exam-style problems under exam conditions, timed and without notes, with the kinds of question mixed as the exam will mix them, not one chapter at a time. Then mark it and write down what you missed: that list is what the next sessions are for.": "Fais une annale ou des exercices type examen en conditions réelles, chronométré et sans notes, avec les types de questions mélangés comme l'examen les mélangera, pas un chapitre à la fois. Puis corrige-toi et note ce qui t'a manqué : cette liste, c'est le programme des séances suivantes.",
     "The exam is in {days} days; practice under exam conditions is what prepares for it ({done} of {n}).": "L'examen est dans {days} jours ; s'entraîner en conditions réelles est ce qui y prépare ({done} sur {n}).",
     "Predicted recall of {what} is down to about {recall}; testing yourself now is when it helps most.": "Mémorisation prévue pour {what} : environ {recall} ; c'est maintenant que te tester aide le plus.",
     "You put it here.": "Tu l'as placée ici.",
@@ -1235,4 +1233,12 @@ MESSAGES: dict[str, str] = {
     "Each day's sessions go to that part of the day when there is free time; otherwise as close to it as possible.": "Les séances de chaque jour vont à ce moment de la journée quand il est libre ; sinon, aussi près que possible.",
     "When you study best": "Quand tu travailles le mieux",
     "choose when you study best: morning, afternoon, evening or no preference": "choisis quand tu travailles le mieux : le matin, l'après-midi, le soir ou pas de préférence",
+    # Exam practice sized by the course (D46)
+    "Practice: {hours} h": "Entraînement : {hours} h",
+    "No practice": "Pas d'entraînement",
+    "Exam practice before each exam": "Entraînement avant chaque examen",
+    "Sized by each course": "Selon chaque cours",
+    "{hours} hours": "{hours} heures",
+    "Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. Change one exam beside it, above.": "Selon chaque cours : 1,5 heure pour quatre semaines de cours, au moins 3, dans les deux dernières semaines avant l'examen. Pour un seul examen, change-le à côté de celui-ci, plus haut.",
+    "exam practice must be 0 to {most} hours": "l'entraînement aux examens doit faire de 0 à {most} heures",
 }

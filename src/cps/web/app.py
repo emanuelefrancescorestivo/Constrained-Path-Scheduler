@@ -1877,8 +1877,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                 ),
             )
         except service.ServiceError as error:
-            # The offered exam rows came back as typed rows: not offered twice.
-            shown = {**service.setup_view(subscription), **values, "suggested": []}
+            # The offered exam rows came back as typed rows: not offered twice. Each
+            # keeps what its exam practice is when not chosen (D46).
+            stored = service.setup_view(subscription)
+            defaults = {s["name"]: s["practice_default"] for s in stored["subjects"]}
+            shown = {
+                **stored,
+                **values,
+                "subjects": [
+                    {**s, "practice_default": defaults.get(s["name"], service.PRACTICE_UNSIZED_HOURS)}
+                    for s in values["subjects"]
+                ],
+                "suggested": [],
+            }
             return page(
                 request,
                 "settings.html",

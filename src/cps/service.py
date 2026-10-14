@@ -2918,7 +2918,9 @@ class Refresher:
 
 # What a new student starts with, before changing anything: the benchmark's week
 # (benchmarks/rule_vs_planner.py). Stated defaults, not recommendations.
-DEFAULT_PREFERENCES: dict = {"weekly_hours": 15.0, "rest_days": ["Sun"], "practice_hours": 4.5}
+# Exam practice: None sizes it by the weeks each course was taught (D46); plans made
+# before D46 keep the 4.5 hours stored with them.
+DEFAULT_PREFERENCES: dict = {"weekly_hours": 15.0, "rest_days": ["Sun"], "practice_hours": None}
 DEFAULT_FAMILIARITY = 3
 # How far back the Today page asks about sessions.
 REPORT_WINDOW = timedelta(days=7)
@@ -3260,6 +3262,12 @@ def setup_view(subscription: Subscription) -> dict:
     drawn = drawn_courses(subscription)
     courses += [c for c in drawn if c.casefold() not in {x.casefold() for x in courses}]
     found_names = {f["subject"].casefold(): f["when"] for f in found}
+    prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
+    # Exam practice per exam (D46): the student's hours for it, else what applies.
+    chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+    sized: dict[str, float] = {}
+    if subscription.plan is not None:
+        sized = PlanReport.from_dict(subscription.plan).settings.preferences.get("practice_sized") or {}
     subjects = [
         {
             "name": x["name"],
@@ -3267,11 +3275,14 @@ def setup_view(subscription: Subscription) -> dict:
             "found": x.get("exam") is None,
             "found_when": found_names.get(x["name"].casefold(), ""),
             "familiarity": x.get("familiarity") or DEFAULT_FAMILIARITY,
+            "practice": chosen.get(x["name"].casefold(), ""),
+            "practice_default": prefs["practice_hours"]
+            if prefs["practice_hours"] is not None
+            else sized.get(x["name"], PRACTICE_UNSIZED_HOURS),
         }
         for x in subscription.subjects
     ]
     planned = {x["name"].casefold() for x in subscription.subjects}
-    prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
     return {
         "subjects": subjects,
         "unplanned_exams": [f for f in found if f["subject"].casefold() not in planned],
@@ -3292,7 +3303,11 @@ def setup_view(subscription: Subscription) -> dict:
         ],
         "weekly_hours": prefs["weekly_hours"],
         "rest_days": list(prefs["rest_days"]),
-        "practice_hours": prefs["practice_hours"],
+        "practice_hours": "" if prefs["practice_hours"] is None else prefs["practice_hours"],
+        "practice_choices": sorted(
+            {*PRACTICE_CHOICES, *(float(v) for v in chosen.values())}
+            | ({float(prefs["practice_hours"])} if prefs["practice_hours"] is not None else set())
+        ),
         "commute": int(options.get("commute_minutes", 0)),
         "study_time": str(options.get("study_time", "any")),
         "study_times": STUDY_TIME_WORDS,
@@ -5703,6 +5718,36 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
 
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
+# Exam practice sized by the course (D46): 1.5 hours for every four weeks it was
+# taught, at least 3; a twelve-week course keeps the 4.5 hours every exam had
+# before. A course with no lectures in the timetable gets those 4.5 hours.
+PRACTICE_HOURS_PER_WEEKS = (1.5, 4)
+PRACTICE_MIN_HOURS = 3.0
+PRACTICE_UNSIZED_HOURS = 4.5
+MAX_PRACTICE_HOURS = 40.0
+PRACTICE_CHOICES = (0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 12.0)  # offered in Settings
+
+
+def weeks_taught(report: CalendarReport, course: str, exam: datetime) -> int:
+    """The weeks (Monday to Sunday, local time) with a lecture of `course` in the
+    timetable before its exam, including those before the plan starts."""
+    zone = _zone(report.tz)
+    mondays = set()
+    for x in report.lectures:
+        end = datetime.fromisoformat(x.end)
+        if x.course.casefold() == course.casefold() and end < exam:
+            local = end.astimezone(zone).date()
+            mondays.add(local - timedelta(days=local.weekday()))
+    return len(mondays)
+
+
+def practice_hours_for(weeks: int) -> float:
+    """Exam practice for a course taught `weeks` weeks (D46)."""
+    if weeks <= 0:
+        return PRACTICE_UNSIZED_HOURS
+    hours, per = PRACTICE_HOURS_PER_WEEKS
+    return max(PRACTICE_MIN_HOURS, hours * math.ceil(weeks / per))
+
 
 def make_schedule(
     report: CalendarReport,
@@ -5712,7 +5757,8 @@ def make_schedule(
     weekly_hours: float | None = None,
     rest_days: Sequence[str] = (),
     practice_days: float = 14.0,
-    practice_hours: float = 4.5,
+    practice_hours: float | None = 4.5,
+    practice: Mapping[str, float] | None = None,
     retention: float = 0.9,
     lectures_as_topics: bool = True,
     done: Sequence[SessionView] = (),
@@ -5723,6 +5769,10 @@ def make_schedule(
     deadlines first when they get close, exam practice before each exam, self-testing
     on the taught material that is fading, work ahead otherwise, and free time
     when nothing needs it. Within `weekly_hours` a week, never on `rest_days`.
+
+    Exam practice is `practice_hours` before every exam, or with None sized by the
+    weeks each course was taught (`practice_hours_for`, D46); `practice` gives a
+    course its own hours, whichever applies otherwise.
 
     Instant, so it can be run again whenever anything changes: `done` and `now`
     continue from what already happened, as `continue_plan` does. A subject is
@@ -5744,7 +5794,11 @@ def make_schedule(
         )
     if len(set(rest_days)) >= 7:
         raise InvalidInput(_("leave at least one day of the week for studying"))
-    if practice_days < 0 or practice_hours < 0:
+    chosen = {str(k): v for k, v in (practice or {}).items()}
+    for hours in (practice_hours, *chosen.values()):
+        if hours is not None and not 0 <= float(hours) <= MAX_PRACTICE_HOURS:
+            raise InvalidInput(_("exam practice must be 0 to {most} hours", most=f"{MAX_PRACTICE_HOURS:.0f}"))
+    if practice_days < 0:
         raise InvalidInput(_("exam practice cannot be negative"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
@@ -5797,6 +5851,12 @@ def make_schedule(
             "rest_days": list(rest_days),
             "practice_days": practice_days,
             "practice_hours": practice_hours,
+            "practice": {k: float(v) for k, v in chosen.items()},
+            # What sizing gives each course, kept for the settings page (D46).
+            "practice_sized": {
+                course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
+                for course, exam in {s.get("subject", s["name"]): s["exam"] for s in specs}.items()
+            },
         },
     )
     views = tuple(
@@ -5882,12 +5942,26 @@ def _assist(
         )
         for s in specs
     ]
-    per_exam = blocks_for_hours(prefs["practice_hours"], minutes) if prefs["practice_hours"] > 0 else 0
+
+    def practice_blocks(course: str) -> int:
+        """The student's hours for this course, else their hours for every exam,
+        else the course's sized hours (D46); plans made before D46 have only the
+        second."""
+        chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+        fixed = prefs.get("practice_hours")
+        default = fixed if fixed is not None else (prefs.get("practice_sized") or {}).get(course)
+        hours = chosen.get(course.casefold(), PRACTICE_UNSIZED_HOURS if default is None else default)
+        return blocks_for_hours(hours, minutes) if hours > 0 else 0
+
     exams = {
         s.get("subject", s["name"]): Exam(
             s.get("subject", s["name"]),
             s["exam_day"],
-            max(per_exam - done_practice.get(s.get("subject", s["name"]), 0), 0),
+            max(
+                practice_blocks(s.get("subject", s["name"]))
+                - done_practice.get(s.get("subject", s["name"]), 0),
+                0,
+            ),
         )
         for s in specs
     }
