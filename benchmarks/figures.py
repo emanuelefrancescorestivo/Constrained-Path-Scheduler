@@ -36,7 +36,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "benchmarks"))
 
 from cps.console import ensure_utf8_output  # noqa: E402
-from cps.memory import Grade, MemoryState, initial_state, retrievability, review  # noqa: E402
+from cps.memory import FSRS_4_5, FSRS_6, Grade, MemoryState, Model  # noqa: E402
 
 OUT = ROOT / "docs" / "figures"
 FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
@@ -145,11 +145,13 @@ EXAM = 28.0  # the exam four weeks after the lectures
 HORIZON = 112.0  # twelve weeks after the exam: when a next course builds on it
 
 
-def spacing_data() -> dict:
-    """One week of lectures, "seen once and shaky" (FSRS-4.5 after a first review
+def spacing_data(model: Model = FSRS_4_5) -> dict:
+    """One week of lectures, "seen once and shaky" (`model` after a first review
     graded Hard, as the product assumes of every week of lectures), then three ways
     of preparing an exam four weeks later. Spaced self-tests follow the assistant's
-    rule: test yourself when predicted recall falls to 90%."""
+    rule: test yourself when predicted recall falls to 90%. The figure is FSRS-4.5,
+    the research planner's model; FSRS-6, the product's since D52, is printed too."""
+    initial_state, retrievability, review = model.initial_state, model.retrievability, model.review
     start = initial_state(Grade.HARD)
 
     def spaced(below: float = 0.9) -> list[float]:
@@ -548,12 +550,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.only in (None, "spacing"):
         curves = spacing_data()
-        for name, c in curves.items():
-            print(
-                f"spacing {name:8} sessions on days {', '.join(f'{d:g}' for d in c['days']) or '-'}; "
-                f"recall on exam day {c['exam']:.3f}, 12 weeks after {c['end']:.3f}, "
-                f"stability {c['stability']:.1f}"
-            )
+        for model, drawn in ((FSRS_4_5, curves), (FSRS_6, spacing_data(FSRS_6))):
+            for name, c in drawn.items():
+                print(
+                    f"spacing {model.name:8} {name:8} sessions on days "
+                    f"{', '.join(f'{d:g}' for d in c['days']) or '-'}; "
+                    f"recall on exam day {c['exam']:.3f}, 12 weeks after {c['end']:.3f}, "
+                    f"stability {c['stability']:.1f}"
+                )
         for theme in THEMES:
             draw_spacing(curves, theme).save(args.out / f"spacing-{theme.name}.svg")
     if args.only in (None, "planner"):

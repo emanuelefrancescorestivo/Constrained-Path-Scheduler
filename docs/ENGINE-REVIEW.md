@@ -141,9 +141,9 @@ the benchmarks before and after.
 - [x] B4 · An opt-in warm-up quiz before a lecture (D51: a prompt on Today, nothing scheduled)
 - [x] Gate B: the same, plus pages tried at phone and laptop widths in three languages (PR #20, merged 14 October)
 
-**Phase C · A memory model that learns** (needs the owner's approval of `fsrs[optimizer]` and `ortools`)
+**Phase C · A memory model that learns** (the owner, 2026-10-14: py-fsrs as a test dependency only, with our own NumPy fitter, no PyTorch; `ortools` an optional `trial` extra, used by a benchmark only)
 
-- [ ] C1 · W3: FSRS-6, reference re-pinned, every number re-run
+- [x] C1 · W3: FSRS-6, reference re-pinned, every number re-run (D52: the product's plans and flashcards on FSRS-6, to 2e-12 of py-fsrs 6.3.2; the research planner and `rule_vs_planner.py` stay FSRS-4.5, unchanged; the plan itself is mixed, 44 of 69 topics at 90% against 50 at 15 hours, the lowest recall up from 0.792 to 0.829, both scored by FSRS-6)
 - [ ] C2 · W3: per-student parameters above a measured threshold
 - [ ] C3 · CP-SAT placement trial against the rules
 - [ ] Gate C: the same, plus log loss of predicted against reported recall

@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- FSRS-6 (D52, the engine review's C1): `memory.FSRS_6`, checked against py-fsrs 6.3.2
+  to 2e-12 on two trajectories; the product's plans, forecasts and flashcards use it
+  (a plan names its model; older plans move at their next refresh), the research
+  planner stays on FSRS-4.5. `benchmarks/fsrs6_product.py` prints what it changes:
+  a mixed result, said as such. py-fsrs is a test dependency only.
 - A warm-up before today's lectures (D51, the engine review's B4): opt-in in Settings;
   Today lists the day's lectures still ahead with a two-minute guess-first prompt.
   Nothing is scheduled.

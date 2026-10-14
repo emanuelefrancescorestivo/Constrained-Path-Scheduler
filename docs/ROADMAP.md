@@ -91,8 +91,10 @@ request per phase, the benchmarks before and after).
       (W6); a weekly budget offered from what is kept (W7).
 - [x] **B New session shapes** (D48 to D51, PR #20): quick self-tests in gaps (W2); a weight per exam (W5);
       weeks weighted by lecture hours (W8); an opt-in warm-up quiz before a lecture.
-- [ ] **C A memory model that learns**: FSRS-6, then each student's own parameters
-      (W3); a CP-SAT placement trial. (owner: approve `fsrs[optimizer]` and `ortools`.)
+- [ ] **C A memory model that learns**: FSRS-6 (D52, done), then each student's own
+      parameters (W3); a CP-SAT placement trial. (owner, 2026-10-14: py-fsrs only to
+      test against, our own NumPy fitter; `ortools` an optional extra for the trial's
+      benchmark only.)
 - [ ] **D The pilot**: predicted against reported recall (W9); a post-exam survey with
       consent. (owner: approve the survey and its privacy line.)
 

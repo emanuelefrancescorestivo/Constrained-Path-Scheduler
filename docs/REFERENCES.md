@@ -372,6 +372,14 @@ detail came from when the publisher's page could not be opened.
 - status: checked
 - checked against: the repository's README, 2026-10-13: MIT licence, 21 weights by default, an `optimizer` extra (`pip install "fsrs[optimizer]"`) that fits parameters to a review log; no recommended minimum number of reviews is given.
 
+### py-fsrs-6.3.2
+- authors: Jarrett Ye, Joshua Hamilton
+- title: fsrs 6.3.2 (py-fsrs), Free Spaced Repetition Scheduler
+- year: 2026
+- venue: Python Package Index, pypi.org/project/fsrs/6.3.2; source github.com/open-spaced-repetition/py-fsrs
+- status: checked
+- checked against: the PyPI JSON record (name, version, authors, MIT licence, uploaded 2026-08-09) and the installed source, which `benchmarks/fsrs6_reference.py` runs, 2026-10-14: the 21 default weights, the FSRS-6 forgetting curve with its decay weight, the same-day update, the post-lapse cap.
+
 ### typesafe-jev
 - authors: TypeSafe AI
 - title: Jev documentation and home page

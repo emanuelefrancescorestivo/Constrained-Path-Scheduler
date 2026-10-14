@@ -472,7 +472,7 @@ def stability_for_interval(days: float, target_retention: float = 0.9) -> float:
 # its proofs of admissibility and every number quoted for it were made on that
 # model, and they stay true of it.
 #
-# Three changes from FSRS-4.5, all from py-fsrs 6.3.2 [ref:py-fsrs-2026] and pinned
+# Three changes from FSRS-4.5, all from py-fsrs 6.3.2 [ref:py-fsrs-6.3.2] and pinned
 # to it value by value in tests/test_memory6.py:
 #   * the forgetting curve's shape is a parameter (w20): R = (1 + f t/S)^-w20,
 #     with f chosen so that R(S) = 0.9 still;

@@ -1,6 +1,6 @@
 """
-Flashcards (DECISIONS.md D29): a student's own cards, scheduled by the planner's
-FSRS-4.5 model one card at a time; "Again" back in the same sitting; at most
+Flashcards (DECISIONS.md D29): a student's own cards, scheduled by FSRS-6 (D52),
+the model the product's plans use, one card at a time; "Again" back in the same sitting; at most
 NEW_PER_DAY first showings a day; private to the student.
 """
 
@@ -48,15 +48,15 @@ def test_a_card_follows_fsrs_from_its_first_answer(tmp_path, sub):
     assert card.new and card.due is None
     service.answer_card(tmp_path, sub, card.id, "good", now=NOW)
     first = cards.get(Store(tmp_path), sub.token, card.id)
-    assert first.state() == memory.initial_state(memory.Grade.GOOD)
+    assert first.state() == memory.FSRS_6.initial_state(memory.Grade.GOOD)
     # Stability is the interval at which recall falls to 90 %: a new card answered
-    # "good" comes back after its initial stability, 3.7145 days (FSRS-4.5 default).
+    # "good" comes back after its initial stability, 2.3065 days (FSRS-6 default).
     due = datetime.fromisoformat(first.due)
-    assert (due - NOW) / timedelta(days=1) == pytest.approx(3.7145, abs=1e-4)
+    assert (due - NOW) / timedelta(days=1) == pytest.approx(2.3065, abs=1e-4)
     later = NOW + timedelta(days=4)
     service.answer_card(tmp_path, sub, card.id, "hard", now=later)
     second = cards.get(Store(tmp_path), sub.token, card.id)
-    expected = memory.review(first.state(), 4.0, memory.Grade.HARD)
+    expected = memory.FSRS_6.review(first.state(), 4.0, memory.Grade.HARD)
     assert second.state().stability == pytest.approx(expected.stability)
     assert second.state().difficulty == pytest.approx(expected.difficulty)
     assert second.reps == 2 and second.lapses == 0
@@ -79,10 +79,13 @@ def test_again_brings_a_card_back_in_the_same_sitting(tmp_path, sub):
     assert [c.id for c in cards.queue(Store(tmp_path), sub.token, later + timedelta(minutes=11), zone)] == [
         card.id
     ]
-    # Minutes later, recall is near certain: FSRS-4.5 barely moves stability.
+    # Minutes later, FSRS-6's same-day update applies: "good" raises a short
+    # stability by a bounded factor (under 1.2 at 0.68 days), not a full review's.
     service.answer_card(tmp_path, sub, card.id, "good", now=later + timedelta(minutes=11))
     again = cards.get(Store(tmp_path), sub.token, card.id)
-    assert lapsed.stability < again.stability < 1.02 * lapsed.stability
+    expected = memory.FSRS_6.review(lapsed.state(), 11 / (24 * 60), memory.Grade.GOOD)
+    assert again.stability == pytest.approx(expected.stability)
+    assert lapsed.stability < again.stability < 1.2 * lapsed.stability
     assert again.difficulty < lapsed.difficulty  # the answer still moves difficulty
 
 
@@ -109,7 +112,7 @@ def test_the_queue_puts_the_overdue_first_and_shows_twenty_new_cards_a_day(tmp_p
         ("Analysis", 25, 0, 15),
     ]
     assert view["course"] == "Analysis" and len(view["cards"]) == 25 and view["today"] == 5
-    assert view["cards"][0]["due"] == "in 4 days" and view["cards"][-1]["due"] is None
+    assert view["cards"][0]["due"] == "in 2 days" and view["cards"][-1]["due"] is None
     assert service.cards_due(tmp_path, sub, NOW) == 2 + 15
 
 
@@ -158,12 +161,12 @@ def test_the_review_page_says_when_each_answer_brings_the_card_back(tmp_path, su
     assert [(o["grade"], o["when"]) for o in view["options"]] == [
         ("again", "in 10 minutes"),
         ("hard", "in 1 day"),
-        ("good", "in 4 days"),
-        ("easy", "in 14 days"),
-    ]
+        ("good", "in 2 days"),
+        ("easy", "in 8 days"),
+    ]  # FSRS-6's first stabilities: 1.29, 2.31 and 8.30 days (D52)
     service.answer_card(tmp_path, sub, card.id, "good", now=NOW)
     done = service.card_review_view(tmp_path, sub, NOW)
-    assert done["card"] is None and done["next"] == "in 4 days" and done["today"] == 1
+    assert done["card"] is None and done["next"] == "in 2 days" and done["today"] == 1
     assert service.wait_words(timedelta(days=61)) == "in 2 months"
     assert service.wait_words(timedelta(hours=5)) == "in 5 hours"
 

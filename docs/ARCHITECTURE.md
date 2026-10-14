@@ -17,7 +17,7 @@ flowchart TD
     SPEC["subjects: exam date,<br/>familiarity or (stability, difficulty)"] --> SVC
     CIO -- "lectures" --> TOPICS["service: a topic per week of lectures,<br/>studied from the day it is taught"]
     TOPICS --> ROLL
-    MEM["memory<br/>FSRS-4.5, checked against py-fsrs 2.5.1"] --> CLOCK
+    MEM["memory<br/>FSRS-4.5 and FSRS-6, checked against py-fsrs 2.5.1 and 6.3.2"] --> CLOCK
     MEM --> AOSTAR
 
     TASKS["deadlines, weekly hours, days off"] --> ASSIST
@@ -50,8 +50,11 @@ Python integer, one bit per half hour, so a free-time check is a mask and a comp
 and a grid is immutable and hashable. `plan.tile_free_time` cuts the free time
 into study blocks, earliest first, capped per day.
 
-**Model.** `memory` is FSRS-4.5 with its 17 named parameters. Everything that
-predicts recall goes through it; `ssp` has a vectorised twin that a test keeps in
+**Model.** `memory` is FSRS-4.5 with its 17 named parameters, and FSRS-6 with its 21
+(`Weights6`); `memory.Model` gives either the same five functions. The research
+planner (`ssp`, `clock`, `plan`, `rolling`) is FSRS-4.5; the product's plans and the
+flashcards are FSRS-6, and a plan names its model (`service.model_of`, DECISIONS.md
+D52). Everything that predicts recall goes through it; `ssp` has a vectorised twin that a test keeps in
 step. What is being remembered is a topic: a whole subject, or, when its lectures are
 in the calendar, one week of them, which exists from the day it is taught
 (METHOD.md §7).
@@ -124,6 +127,7 @@ plan: the link in a calendar event opens a page whose button records the report.
 | claim | where it is checked |
 |---|---|
 | the memory model is FSRS-4.5 | `tests/test_memory.py`, exact against py-fsrs 2.5.1 |
+| the product's memory model is FSRS-6 | `tests/test_memory6.py`, against py-fsrs 6.3.2 to 2e-12 |
 | the heuristic is admissible | `tests/test_plan.py` and `tests/test_rolling.py`, against exhaustive search at every reachable state |
 | the bound is below the estimate | `tests/test_clock.py` and `tests/test_ssp.py`, cell by cell |
 | estimates are calibrated | Monte Carlo with standard errors in `tests/test_clock.py`, `tests/test_ssp.py` |

@@ -17,6 +17,7 @@ every practice session asks for mixed kinds of question.
 
 from __future__ import annotations
 
+import importlib.util
 import random
 import re
 from dataclasses import replace
@@ -28,10 +29,10 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from cps import service
+from cps import memory, service
 from cps.assistant import WEIGHT_TIE, Exam, Preferences, Quick, Topic, schedule
 from cps.calendar_io import BusyEvent, availability_from_events
-from cps.memory import MemoryState, retrievability
+from cps.memory import MemoryState
 from cps.plan import Block, short_gaps, tile_free_time
 from cps.timegrid import TimeGrid
 
@@ -83,8 +84,10 @@ def test_a_self_test_not_reported_after_a_day_is_unknown_and_gains_nothing():
         for name in forecast_silent
     )
     # Unrounded: each topic with an unknown self-test is less stable than when reported.
-    silent_state = service._replay(plan.specs, plan.history)
-    reported_state = service._replay(plan_reported.specs, plan_reported.history)
+    silent_state = service._replay(plan.specs, plan.history, service.model_of(plan.settings))
+    reported_state = service._replay(
+        plan_reported.specs, plan_reported.history, service.model_of(plan.settings)
+    )
     doubted = {s.title for s in plan.history if s.outcome == "unknown"}
     assert doubted and all(silent_state[t][0].stability < reported_state[t][0].stability for t in doubted)
 
@@ -363,7 +366,10 @@ def test_without_quick_self_tests_the_plan_is_as_before():
     report = service.analyse_calendar(SEMESTER.read_bytes(), start=date(2026, 9, 29), tz="Europe/Paris")
     assert report.quick == ()
     subjects = [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
-    plan = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
+    # The benchmark's figures, made with FSRS-4.5 (benchmarks/rule_vs_planner.py, D52).
+    plan = service.make_schedule(
+        report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5, model="fsrs-4.5"
+    )
     assert len(plan.sessions) == 174 and {_minutes(s) for s in plan.sessions} == {90}
     assert sum(s.topics_ready for s in plan.subjects) == 51
 
@@ -462,9 +468,10 @@ def test_a_weight_chooses_only_between_topics_fading_together():
 
 
 def _algebra_recall(plan: service.PlanReport) -> float:
-    state = service._replay(plan.specs, plan.sessions)
+    model = service.model_of(plan.settings)
+    state = service._replay(plan.specs, plan.sessions, model)
     recall = [
-        retrievability(max(s["exam_day"] - state[s["name"]][1], 0.0), state[s["name"]][0].stability)
+        model.retrievability(max(s["exam_day"] - state[s["name"]][1], 0.0), state[s["name"]][0].stability)
         for s in plan.specs
         if s["subject"] == "Algebra 3"
     ]
@@ -867,3 +874,60 @@ def test_today_shows_the_warm_up_when_settings_ask_for_it(web):
     assert "Warm up before today's lectures" in today
     for w in service.warm_ups(stored, MORNING):
         assert f"<b>{w['when']}</b> {w['course']}" in today
+
+
+# C1 · FSRS-6 for the product (D52) --------------------------------------------
+
+
+def test_a_new_plan_names_fsrs6_and_an_older_one_keeps_fsrs45():
+    sub = _start()
+    plan = service.PlanReport.from_dict(sub.plan)
+    assert plan.settings.preferences["model"] == "fsrs-6"
+    assert service.model_of(plan.settings) is memory.FSRS_6
+    # A plan made before D52 names no model: it was made, and is read, with FSRS-4.5.
+    older = replace(
+        plan.settings, preferences={k: v for k, v in plan.settings.preferences.items() if k != "model"}
+    )
+    assert service.model_of(older) is memory.FSRS_4_5
+    # Its next refresh makes it again, from its history, with FSRS-6.
+    again = service.refresh_subscription(
+        service.Subscription.from_dict({**sub.to_dict(), "plan": replace(plan, settings=older).to_dict()}),
+        now=MORNING,
+    )
+    assert service.PlanReport.from_dict(again.plan).settings.preferences["model"] == "fsrs-6"
+    report = service.analyse_calendar(SEMESTER.read_bytes(), start=date(2026, 9, 29), tz="Europe/Paris")
+    subjects = [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
+    with pytest.raises(service.InvalidInput, match="model"):
+        service.make_schedule(report, subjects, model="fsrs-7")
+
+
+def test_a_lecture_week_starts_in_each_models_own_state():
+    for model in (memory.FSRS_4_5, memory.FSRS_6):
+        assert service.familiarity_prior(service.LECTURE_FAMILIARITY, model) == model.initial_state(
+            memory.Grade(service.LECTURE_FAMILIARITY)
+        )
+
+
+def test_the_fsrs6_numbers_quoted_are_the_benchmarks():
+    spec = importlib.util.spec_from_file_location(
+        "fsrs6_product", EXAMPLES.parent / "benchmarks" / "fsrs6_product.py"
+    )
+    bench = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bench)
+    rows = {(r["hours"], r["made"]): r for r in bench.results()["rows"]}
+    six, old = rows[(15, "fsrs-6")], rows[(15, "fsrs-4.5")]
+    readme = " ".join((EXAMPLES.parent / "README.md").read_text(encoding="utf-8").split())
+    assert (
+        f"the same week planned with it has {six['sessions']} sessions, {six['fsrs-6']['ready']} of the 69 "
+        f"topics at 90% or more and the lowest recall at an exam {six['fsrs-6']['lowest']:.3f}; planned "
+        f"with FSRS-4.5, {old['fsrs-6']['ready']} topics and {old['fsrs-6']['lowest']:.3f}"
+    ) in readme
+    decisions = " ".join((EXAMPLES.parent / "DECISIONS.md").read_text(encoding="utf-8").split())
+    for hours in bench.HOURS:
+        six, old = rows[(hours, "fsrs-6")], rows[(hours, "fsrs-4.5")]
+        a, b = six["fsrs-6"], old["fsrs-6"]
+        assert (
+            f"| {hours} | {a['ready']} against {b['ready']}{' of 69' if hours == 12 else ''} | "
+            f"{a['recall']:.3f} against {b['recall']:.3f} | {a['lowest']:.3f} against {b['lowest']:.3f} |"
+        ) in decisions
+    assert rows[(15, "fsrs-6")]["once"] == 0 and rows[(15, "fsrs-4.5")]["once"] == 2

@@ -1,18 +1,18 @@
 """
 Flashcards (DECISIONS.md D29): a student's own cards, by course, private, and
-scheduled by the same FSRS-4.5 model as the planner (`cps.memory`), one card at a
-time.
+scheduled by FSRS-6 (`cps.memory.FSRS_6`, D52), the model the product's plans use,
+one card at a time. Before D52 it was FSRS-4.5; a card's stored stability and
+difficulty carry over, and the next answer updates them with FSRS-6.
 
-A card's first answer sets its memory state (`memory.initial_state`); each later
-answer updates it with the time since the last review (`memory.review`). The card
+A card's first answer sets its memory state (`MODEL.initial_state`); each later
+answer updates it with the time since the last review (`MODEL.review`). The card
 comes back when its predicted recall falls to `RETENTION`, which is FSRS's own
-interval (`memory.interval_for_retention`). Two stated choices sit on top of the
-model and are not FSRS:
+interval (`MODEL.interval`). Two stated choices sit on top of the model and are not
+FSRS:
 
 - "Again" brings the card back `RELEARN` later in the same sitting, as Anki and
-  py-fsrs do with their relearning steps; FSRS-4.5 has no same-day formula, and a
-  review minutes later barely moves stability (recall is near certain, so the
-  model sees little to gain) while difficulty still moves with the answer.
+  py-fsrs do with their relearning steps; the answer then, under a day after the
+  last, uses FSRS-6's same-day update.
 - At most `NEW_PER_DAY` cards are shown for the first time each day, so a deck
   pasted at once does not become a wall of reviews the next week.
 
@@ -30,6 +30,8 @@ from zoneinfo import ZoneInfo
 from . import memory
 from .i18n import _
 from .store import Store
+
+MODEL = memory.FSRS_6  # D52
 
 RETENTION = 0.9  # the recall a card is scheduled for, FSRS's usual default
 RELEARN = timedelta(minutes=10)  # "Again": back in the same sitting
@@ -234,14 +236,14 @@ def schedule(
     its last review (None for a first answer)."""
     state = card.state()
     if state is None or card.last is None:
-        after, elapsed = memory.initial_state(grade), None
+        after, elapsed = MODEL.initial_state(grade), None
     else:
         elapsed = max(0.0, (now - datetime.fromisoformat(card.last)) / timedelta(days=1))
-        after = memory.review(state, elapsed, grade)
+        after = MODEL.review(state, elapsed, grade)
     if grade == memory.Grade.AGAIN:
         due = now + RELEARN
     else:
-        due = now + timedelta(days=memory.interval_for_retention(after.stability, RETENTION))
+        due = now + timedelta(days=MODEL.interval(after.stability, RETENTION))
     return after, due, elapsed
 
 

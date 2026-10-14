@@ -1405,3 +1405,55 @@ unasked prompt on every class day is noise).
 **Measured.** Nothing: the memory model has no notion of a pretest, and the plan is
 the same with it on (a test). Whether students use it is a question for the pilot
 (D15), which counts Today's visits but not this card.
+
+## D52. The product runs on FSRS-6; the research planner stays on FSRS-4.5
+
+*Phase C, item C1 of docs/ENGINE-REVIEW.md, approved by the owner on 2026-10-14.*
+
+**Chosen.** FSRS-6 with its default weights (`memory.FSRS_6`), implemented in
+`memory.py` beside FSRS-4.5 and checked against py-fsrs 6.3.2 [ref:py-fsrs-6.3.2]
+on two trajectories to 2e-12 (`benchmarks/fsrs6_reference.py`, pinned in
+`tests/test_memory6.py`; invariant 9). A plan made by `make_schedule` (the
+assistant, every student's plan) names its model in its preferences, `fsrs-6` from
+now on; replays, the exam forecast, each self-test's gain, the recall curve and the
+flashcards (`cards.MODEL`) all ask `service.model_of(plan.settings)`. A plan made
+before D52 says nothing and keeps FSRS-4.5 until its next refresh, which makes it
+again from its history with FSRS-6. A flashcard's stored stability and difficulty
+carry over; its next answer updates them with FSRS-6.
+
+**Why.** FSRS-6 predicts recall better on the open benchmark's review logs: log loss
+0.3460 against FSRS-4.5's 0.3625 [ref:srs-benchmark]. It has a formula for a review
+less than a day after the last, which a flashcard answered "Again" gets ten minutes
+later (D29 had to work around its absence). And per-student parameters (C2) are
+fitted in FSRS-6's form, so the product must run it first.
+
+**Rejected.** Moving the research planner too: `clock.py`'s value functions and
+their admissible bounds were built and checked on FSRS-4.5's curve (invariants 1
+and 2), and re-deriving them buys the product nothing, since the product runs the
+assistant (AUDIT item 36). `benchmarks/rule_vs_planner.py` compares the planner and
+the rules on one model, FSRS-4.5, so every number it prints is unchanged. FSRS-7: on
+default parameters no better than FSRS-4.5 on the benchmark (0.3620). A dependency
+on py-fsrs at run time: the model is 21 numbers and a few formulas, and py-fsrs is
+only a test dependency (the `dev` extra), to pin ours.
+
+**Measured** (`benchmarks/fsrs6_product.py`, the synthetic semester of 69 topics,
+Sundays off, 4.5 hours of practice per exam, every review assumed to succeed). The
+plans differ by a session or two. Scored by FSRS-6, the plan made with FSRS-6
+against the plan made with FSRS-4.5:
+
+| hours a week | at 90% or more | mean recall at the exams | lowest |
+|---|---|---|---|
+| 12 | 31 against 30 of 69 | 0.875 against 0.874 | 0.761 against 0.752 |
+| 15 | 44 against 50 | 0.917 against 0.923 | 0.829 against 0.792 |
+| 18 | 58 against 62 | 0.943 against 0.940 | 0.849 against 0.876 |
+
+A mixed result, said as such: the assistant is a rule (the most faded topic first),
+not an optimiser, so a better model does not make its plan better on every measure.
+At 15 hours the FSRS-6 plan reviews every topic at least twice (FSRS-4.5's leaves two
+topics at one review), which raises the lowest recall, and leaves more topics just
+under 90%. The reason to move is the forecast, not the plan: a student reads
+predicted recall on Today, Progress and every self-test, and FSRS-6's is the better
+prediction. The two models also disagree on the same sessions: FSRS-6 puts the
+lowest recall of FSRS-4.5's own 15-hour plan at 0.792 where FSRS-4.5 says 0.755.
+Neither is checked against students yet; that is Gate C's log loss and the pilot's
+(D15).
