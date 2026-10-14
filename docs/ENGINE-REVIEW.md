@@ -146,7 +146,7 @@ the benchmarks before and after.
 - [x] C1 · W3: FSRS-6, reference re-pinned, every number re-run (D52: the product's plans and flashcards on FSRS-6, to 2e-12 of py-fsrs 6.3.2; the research planner and `rule_vs_planner.py` stay FSRS-4.5, unchanged; the plan itself is mixed, 44 of 69 topics at 90% against 50 at 15 hours, the lowest recall up from 0.792 to 0.829, both scored by FSRS-6)
 - [x] C2 · W3: per-student parameters above a measured threshold (D53: flashcards, from 400 answers on later days; log loss 0.0035 ± 0.0009 lower over the next three weeks for made-up students who differ, +0.0002 for one who is the population; the plan's topics keep the population's parameters)
 - [x] C3 · CP-SAT placement trial against the rules (D54: re-solved weekly, a few more topics at 90% but the lowest recall about 0.53 against 0.76 to 0.85, and the mean lower; the rules stay)
-- [ ] Gate C: the same, plus log loss of predicted against reported recall
+- [x] Gate C: the same, plus log loss of predicted against reported recall (D55, in `cps metrics`; PR #21, merged 14 October)
 
 **Phase D · The pilot**
 
