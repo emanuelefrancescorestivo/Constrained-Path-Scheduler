@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Design polish (D57): large type in the system's display cut and tabular figures; a
+  spinner on a button whose answer is slow; capsule large buttons; disclosures that
+  open smoothly; visible segmented controls in dark mode, a filled tab icon, the
+  footer at the bottom of short pages. Selects inside cards have their chevron
+  again, and Progress's count is its full size.
 - How an exam went (D56, the engine review's D2): for three weeks after each exam,
   Today asks how it went (five answers, a mark if you like) and whether the plan
   helped, with a separate unticked

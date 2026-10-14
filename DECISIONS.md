@@ -1609,3 +1609,46 @@ the answer sent anywhere without it. Asking by e-mail: the app does not know one
 
 **Measured.** Nothing yet: no exam has passed for anyone using it. The tests check
 the question's three weeks, the consent and what the measures show.
+
+## D57. Polish: type, buttons, smoothness
+
+*The owner, 2026-10-14: "polish the design of font, buttons, smoothness, etc."*
+
+**Chosen.** A pass over the stylesheet and two scripts, keeping every page's layout
+and words (no new sentence, so nothing new to translate):
+
+1. **Type.** Large type (page titles, the big numbers of Today, Progress and
+   Focus) takes the display cut of the system face where there is one: SF Pro
+   Display on Apple devices, Segoe UI Variable Display on Windows; body text keeps
+   the text cut. Titles are a little tighter; numbers that change (counts, badges,
+   stats) use tabular figures, so they do not shift sideways as they count up (D30).
+2. **Buttons.** A button whose answer takes more than 150 ms shows a small spinner
+   in place of its words until the answer comes, both for forms sent in the
+   background (ui.js) and for ordinary ones (motion.js, cleared if the browser
+   brings the page back from its cache); its neighbours stay disabled as before.
+   The large buttons are capsules, as iOS draws its large buttons. Taps do not
+   wait for a double-tap zoom.
+3. **Smoothness.** Disclosures open and close with a short ease where the browser
+   can animate to "auto"; fields ease into their focus ring; scrolling inside a
+   panel, sheet or menu stops at its end instead of dragging the page behind it.
+4. **Details.** The selected segment of a segmented control is white in light mode
+   and gray in dark (it was the card colour, nearly invisible on dark); the selected
+   tab's icon is filled; the flashcards card on Focus has the chevron the other
+   cards that lead somewhere have; selected text and the caret take the app's tint;
+   the footer sits at the bottom of a short page instead of halfway up.
+
+Three defects found on the way, fixed here (AUDIT items 62 to 64): the field rule
+inside cards used the `background` shorthand and so wiped the chevron of every select
+in a card; a rule meant for a card's caption also shrank the number that counts up
+beside it ("4/8" on Progress); and the segmented thumbs above in dark mode.
+
+**Rejected.** A web font (San Francisco is already the face on Apple devices, and a
+download costs every first visit); a spinner library or an animated SVG (one CSS
+ring); a spinner at once on every press (most answers come in under 150 ms, and a
+flash of spinner reads as a flicker); animating disclosures with a script (the CSS
+way needs nothing and falls back to opening at once).
+
+**Disclosed.** As D37: checked in Chromium only, at 390 and 1280 px wide, light and
+dark, with motion on and reduced; not on an iPhone or in Firefox. Under reduced
+motion the spinner is a still ring and disclosures open at once. The display cut
+depends on the device's fonts; where it is missing, large type uses the text cut.

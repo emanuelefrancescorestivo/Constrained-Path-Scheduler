@@ -49,6 +49,14 @@
   --shadow-sm: 0 1px 3px rgb(0 0 0 / 6%);
   --topbar: 52px;
   --tabbar: 56px;
+  /* The selected segment of a segmented control (iOS: white in light, gray 3 in dark) */
+  --thumb: #ffffff;
+  /* Large type gets the display cut of the system face where there is one: SF Pro
+     Display on Apple devices (automatic), Segoe UI Variable Display on Windows. */
+  --font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Course colours: a palette checked for colour-blind separation in both themes
      (the first seven slots of the reference palette). Red is not among them: in
      the calendar, red means an exam, and today. */
@@ -69,6 +77,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --thumb: #636366;
     --bg: #000000;
     --surface: #1c1c1e;
     --surface-2: #2c2c2e;
@@ -112,6 +121,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --thumb: #636366;
   --bg: #000000;
   --surface: #1c1c1e;
   --surface-2: #2c2c2e;
@@ -159,8 +169,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
+  font: 15px/1.47 var(--font-text);
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -204,7 +213,7 @@ small, .muted { color: var(--muted); }
   padding: 4px 14px; border-radius: 7px;
   color: var(--text); font-size: 0.87rem; font-weight: 500; text-decoration: none !important;
 }
-.nav a[aria-current="page"] { background: var(--elevated); box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); font-weight: 600; }
+.nav a[aria-current="page"] { background: var(--thumb); box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); font-weight: 600; }
 .topbar .spacer { flex: 1; }
 .topbar .link { font-size: 0.9rem; font-weight: 500; }
 
@@ -264,7 +273,7 @@ small, .muted { color: var(--muted); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-destructive { background: transparent; color: var(--danger-text); }
 .btn-sm { min-height: 30px; padding: 4px 12px; font-size: 0.85rem; }
-.btn-lg { min-height: 50px; padding: 12px 22px; font-size: 1.05rem; border-radius: 14px; }
+.btn-lg { min-height: 50px; padding: 12px 24px; font-size: 1.05rem; }
 .btn-block { width: 100%; }
 .btn-icon { width: 36px; padding: 0; }
 .btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
@@ -303,7 +312,8 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, tex
   -webkit-appearance: none; appearance: none;
 }
 .card input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .card select, fieldset input:not([type="checkbox"]):not([type="radio"]), fieldset select {
-  background: var(--surface-2);
+  /* The colour only: the shorthand would also wipe a select's chevron (D57). */
+  background-color: var(--surface-2);
 }
 select {
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
@@ -451,7 +461,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
   border: 0; background: transparent; font: inherit; font-size: 0.82rem; font-weight: 500; color: var(--text);
   padding: 4px 12px; border-radius: 7px; cursor: pointer; min-height: 28px;
 }
-.segmented button[aria-pressed="true"] { background: var(--elevated); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); }
+.segmented button[aria-pressed="true"] { background: var(--thumb); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); }
 
 /* panel pieces */
 .hello { margin: 0 4px 16px; }
@@ -690,7 +700,7 @@ details.inline > summary::before { content: none; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .pair .card { display: flex; align-items: center; gap: 16px; margin: 0; }
 .pair .card > div { display: flex; flex-direction: column; align-items: flex-start; text-align: left; min-width: 0; }
-.pair .card span { font-size: 0.9rem; }
+.pair .card > div > span { font-size: 0.9rem; }
 .pair .muted { font-size: 0.82rem; }
 .big { font-size: 2.2rem; line-height: 1.05; font-weight: 700; letter-spacing: -0.04em; }
 .big small { font-size: 1.2rem; color: var(--muted); font-weight: 600; letter-spacing: -0.02em; }
@@ -812,7 +822,7 @@ td.d { display: table-cell; padding: 0; }
 }
 .seg-links a { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
 .seg-links .count { min-width: 17px; height: 17px; padding: 0 5px; font-size: 0.68rem; vertical-align: 1px; margin-left: 2px; }
-.seg-links a[aria-current="page"] { background: var(--elevated); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); }
+.seg-links a[aria-current="page"] { background: var(--thumb); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); }
 .filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; margin: 0 0 14px; align-items: center; }
 .search { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
 .join { text-align: center; padding: 26px 22px; margin-bottom: 18px; }
@@ -1415,11 +1425,10 @@ details > summary::before { transition: transform 0.3s var(--ease-out); }
 @supports (corner-shape: squircle) {
   :root { --radius: 22px; --radius-sm: 16px; --radius-lg: 30px; }
   :is(.card, fieldset, .stat, .tile, .notice, .alert, .features li, .menu-items, .pop, .sheet[popover],
-    .sheet-group, .cards-due, .running-focus, .review-numbers span, .handle-input, .photos, .btn-lg, .drop,
+    .sheet-group, .cards-due, .running-focus, .review-numbers span, .handle-input, .photos, .drop,
     .code, .way-icon, .ev, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
     corner-shape: squircle;
   }
-  .btn-lg { border-radius: 20px; }
   .drop, .recovery .code { border-radius: 18px; }
   .way-icon { border-radius: 15px; }
   .ev { border-radius: 9px; }
@@ -1545,3 +1554,70 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .exam-question label[for], .exam-question p.label { margin: 6px 0 0; font-size: 0.88rem; font-weight: 600; }
 .exam-question input[name="mark"] { max-width: 16em; }
 .exam-question label.check-long { margin-top: 10px; font-size: 0.88rem; font-weight: 400; color: var(--muted); }
+
+/* -- polish (D57): type, buttons, smoothness ----------------------------------------
+   Small things, each checked in Chromium at phone and laptop widths, light and dark.
+   Everything here is decoration over a page that already works; reduced motion stops
+   every transition and animation in it (the rules above). */
+
+/* Large type in the display cut of the system face; counts line up digit for digit. */
+h1, .big, .stat b, .group-total b, .board-bar .range, .focus-timer { font-family: var(--font-display); }
+h1 { letter-spacing: -0.025em; }
+.big, .stat b, .count, .badge { font-variant-numeric: tabular-nums; }
+
+/* The page fills the window: on a short page the footer sits at the bottom, not
+   halfway up the screen. The plan screen keeps its own fixed height. */
+body { display: flex; flex-direction: column; min-height: 100dvh; }
+body > main.site { flex: 1 0 auto; width: 100%; }
+body > .plan { flex: none; }
+
+/* Text selected and the caret in the app's own tint. */
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+input, textarea { caret-color: var(--accent); }
+
+/* Fields ease into their focus ring instead of snapping to it. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea {
+  transition: box-shadow 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+}
+
+/* No double-tap zoom wait on what is tapped. */
+a, button, summary, label, .pill { touch-action: manipulation; }
+
+/* A button that sent its form shows it is working: its words give way to a small
+   spinner until the answer comes (ui.js and motion.js mark it "busy"). The other
+   buttons of the form are disabled meanwhile; this one stays at full strength. */
+.btn.busy { position: relative; color: transparent !important; }
+.btn.busy:disabled { opacity: 1; }
+.btn.busy::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+.btn-primary.busy::after, .btn-danger.busy::after { border-color: var(--on-accent); border-right-color: transparent; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The selected tab's icon is filled, as Apple's tab bars fill theirs. */
+.tabbar a[aria-current="page"] svg { fill: color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* A card that leads somewhere says so, as the nudge cards do. */
+.cards-link b::after { content: " ›"; content: " ›" / ""; color: var(--accent); } /* silent to screen readers */
+
+/* Scrolling inside a panel, a sheet or a menu stops at its end instead of moving
+   the page behind it. */
+.panel, .pop, .sheet[popover], .menu-items, .board-fallback { overscroll-behavior: contain; }
+
+/* Disclosures open and close smoothly where the browser can animate to "auto"
+   (Chromium 131+, Safari 18.4+); elsewhere they open at once, as before. Menus and
+   the flashcard's answer keep their own behaviour. */
+@supports (interpolate-size: allow-keywords) and selector(::details-content) {
+  :root { interpolate-size: allow-keywords; }
+  details:not(.menu):not(.flash-answer)::details-content { block-size: 0; overflow-y: clip; }
+  details:not(.menu):not(.flash-answer)[open]::details-content { block-size: auto; }
+  /* The reduced-motion rules above do not reach this part (it is neither ::before
+     nor ::after), so the movement is asked for here only when motion is welcome. */
+  @media (prefers-reduced-motion: no-preference) {
+    :root:not([data-motion="reduce"]) details:not(.menu):not(.flash-answer)::details-content {
+      transition: block-size 0.35s var(--ease-out), content-visibility 0.35s allow-discrete;
+    }
+  }
+}
