@@ -182,6 +182,32 @@ def tile_free_time(
         blocks += [Block(first + k, day, grid.days_from_start(first + k)) for k in sorted(chosen)]
     return tuple(blocks)
 
+    return tuple(blocks)
+
+
+def short_gaps(grid: TimeGrid, block_slots: int, min_slots: int = 2) -> tuple[tuple[Block, int], ...]:
+    """The free stretches too short for a study block: each whole run of free slots
+    of `min_slots` or more but fewer than `block_slots`, as its first slot and its
+    length, at most one a day (the first). A gap between two busy times (a class,
+    or the edge of the study window), never the tail of a longer free stretch, so a
+    quick session never runs on from a block (DECISIONS.md D48)."""
+    gaps: list[tuple[Block, int]] = []
+    per_day = grid.slots_per_day
+    for day in range(grid.days):
+        first, k = day * per_day, 0
+        while k < per_day:
+            if not grid.is_free(first + k):
+                k += 1
+                continue
+            j = k
+            while j < per_day and grid.is_free(first + j):
+                j += 1
+            if min_slots <= j - k < block_slots:
+                gaps.append((Block(first + k, day, grid.days_from_start(first + k)), j - k))
+                break
+            k = j
+    return tuple(gaps)
+
 
 @dataclass(frozen=True, slots=True)
 class Instance:

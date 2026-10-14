@@ -66,7 +66,7 @@ from . import reminders as _reminders
 from . import social as social
 from . import trends as _trends
 from . import universities as _universities
-from .assistant import Exam, Pin, Preferences, Task, Topic, blocks_for_hours
+from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
     BusyEvent,
@@ -92,7 +92,7 @@ from .memory import (
     retrievability,
     review,
 )
-from .plan import Block, tile_free_time
+from .plan import Block, short_gaps, tile_free_time
 from .rolling import DEFAULT_FAILURE_PENALTY, Subject, run_rolling, solve_deadlines
 from .sources import SourceError
 from .sources import fetch_calendar as _fetch
@@ -268,15 +268,27 @@ class BlockView:
     start_day: float
     start: str
     end: str
+    # "" for a study block; "gap" for a quick self-test in a gap between classes,
+    # "way" for one on the way to university (D48): self-tests only, shorter.
+    quick: str = ""
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "slot": self.slot,
             "day": self.day,
             "start_day": self.start_day,
             "start": self.start,
             "end": self.end,
         }
+        if self.quick:
+            out["quick"] = self.quick
+        return out
+
+    @property
+    def minutes(self) -> int:
+        return round(
+            (datetime.fromisoformat(self.end) - datetime.fromisoformat(self.start)) / timedelta(minutes=1)
+        )
 
     def as_block(self) -> Block:
         return Block(self.slot, self.day, self.start_day)
@@ -332,6 +344,11 @@ class CalendarReport:
     commute_minutes: int = 0
     # When the student studies best: each day's free time is filled from that end (D45).
     study_time: str = "any"
+    # Quick self-tests (D48): in gaps too short for a block, and on the way to
+    # university when the student can study there.
+    quick: tuple[BlockView, ...] = ()
+    quick_tests: bool = False
+    study_on_the_way: bool = False
 
     @property
     def block_slots(self) -> int:
@@ -356,6 +373,9 @@ class CalendarReport:
             "lectures": [x.to_dict() for x in self.lectures],
             "commute_minutes": self.commute_minutes,
             "study_time": self.study_time,
+            "quick": [b.to_dict() for b in self.quick],
+            "quick_tests": self.quick_tests,
+            "study_on_the_way": self.study_on_the_way,
         }
 
 
@@ -407,6 +427,12 @@ STUDY_TIMES = {"any": None, "morning": None, "afternoon": 15.0, "evening": 24.0}
 # Free time kept after training or work before a session (D45): to get home and eat.
 PAUSE_AFTER = timedelta(minutes=30)
 _PAUSE_KINDS = ("training", "work")
+# Quick self-tests (D48): a gap of an hour between classes holds one of 45 minutes,
+# 15 left to get to the next class; a trip of at least half an hour holds one on
+# the way, when the student says they can study there.
+QUICK_SLACK = timedelta(minutes=15)
+QUICK_MIN_SLOTS = 2
+WAY_MIN = timedelta(minutes=30)
 
 # The longest trip asked about (the question offers up to 90 minutes; a typed
 # value above this is refused rather than blocking a whole morning by mistake).
@@ -451,8 +477,12 @@ def analyse_calendar(
     busy_rows: Iterable[BusyRow | Mapping] = (),
     commute_minutes: int = 0,
     study_time: str = "any",
+    quick_tests: bool = False,
+    study_on_the_way: bool = False,
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
+    With `quick_tests`, also the gaps too short for a block, for quick self-tests;
+    with `study_on_the_way`, the trips to campus (D48).
     With `commute_minutes`, the trip to campus and back is busy too, around each
     day's events of the timetable and classes drawn by hand (`commute_events`).
 
@@ -512,6 +542,38 @@ def analyse_calendar(
     def clock(slot: int) -> datetime:
         return midnight + timedelta(minutes=slot * minutes_per_slot)
 
+    quick: list[BlockView] = []
+    if quick_tests:
+        quick += [
+            BlockView(
+                b.slot,
+                b.day,
+                b.start_day,
+                _iso(clock(b.slot)),
+                _iso(clock(b.slot + n) - QUICK_SLACK),
+                "gap",
+            )
+            for b, n in short_gaps(grid, block_slots, QUICK_MIN_SLOTS)
+        ]
+    if study_on_the_way:
+        for e, source in tagged:
+            if source == "commute" and e.end - e.start >= WAY_MIN:
+                begin = (e.start.astimezone(zone) - midnight) / timedelta(minutes=minutes_per_slot)
+                slot = math.floor(begin + 1e-9)
+                quick.append(
+                    BlockView(
+                        slot,
+                        slot // grid.slots_per_day,
+                        _days_after(start, e.start.astimezone(zone)),
+                        _iso(e.start.astimezone(zone)),
+                        _iso(
+                            min(e.end, e.start + timedelta(minutes=block_minutes) - QUICK_SLACK).astimezone(
+                                zone
+                            )
+                        ),
+                        "way",
+                    )
+                )
     return CalendarReport(
         start=start,
         tz=tz,
@@ -533,6 +595,9 @@ def analyse_calendar(
         lectures=lectures,
         commute_minutes=commute_minutes,
         study_time=study_time,
+        quick=tuple(sorted(quick, key=lambda b: b.start_day)),
+        quick_tests=quick_tests,
+        study_on_the_way=study_on_the_way,
     )
 
 
@@ -820,35 +885,69 @@ def _topics(report: CalendarReport, specs: Sequence[dict]) -> list[dict[str, Any
                     "target_days": _week_target(spec["exam_day"]),
                 }
             )
-        weeks: dict[date, datetime] = {}
-        for end in ends:
-            if end > midnight:
+        weeks: dict[date, list[tuple[datetime, datetime]]] = {}
+        for x in report.lectures:
+            begin, end = datetime.fromisoformat(x.start), datetime.fromisoformat(x.end)
+            if x.course.casefold() == spec["subject"].casefold() and midnight < end < exam:
                 local = end.astimezone(zone)
-                monday = local.date() - timedelta(days=local.weekday())
-                weeks[monday] = max(weeks.get(monday, end), end)
-        for monday, last in sorted(weeks.items()):
-            available = _days_after(report.start, last)
-            if available >= spec["exam_day"]:
-                continue
-            label = f"week of {monday:%d %b}"
-            out.append(
-                {
-                    **spec,
-                    "name": f"{spec['subject']} · {label}",
-                    "topic": label,
-                    "note": _(
-                        "Review the lectures of the week of {day}.", day=format_date(monday, "day_short")
-                    ),
-                    "about": _("the lectures of the week of {day}", day=format_date(monday, "day")),
-                    "stability": lecture_memory.stability,
-                    "difficulty": lecture_memory.difficulty,
-                    "last_review_day": available,
-                    "available_day": available,
-                    "target_days": _week_target(spec["exam_day"] - available),
-                    "prior": f"lectures, familiarity {LECTURE_FAMILIARITY}",
-                }
-            )
+                weeks.setdefault(local.date() - timedelta(days=local.weekday()), []).append((begin, end))
+        for monday, taught in sorted(weeks.items()):
+            parts = _week_parts(sorted(taught))
+            for k, part in enumerate(parts, start=1):
+                available = _days_after(report.start, max(end for _, end in part))
+                if available >= spec["exam_day"]:
+                    continue
+                label = f"week of {monday:%d %b}" + (f" ({k} of {len(parts)})" if len(parts) > 1 else "")
+                day_short, day = format_date(monday, "day_short"), format_date(monday, "day")
+                out.append(
+                    {
+                        **spec,
+                        "name": f"{spec['subject']} · {label}",
+                        "topic": label,
+                        "note": _("Review the lectures of the week of {day}.", day=day_short)
+                        if len(parts) == 1
+                        else _(
+                            "Review the lectures of the week of {day}, part {k} of {n}.",
+                            day=day_short,
+                            k=k,
+                            n=len(parts),
+                        ),
+                        "about": _("the lectures of the week of {day}", day=day)
+                        if len(parts) == 1
+                        else _(
+                            "the lectures of the week of {day}, part {k} of {n}", day=day, k=k, n=len(parts)
+                        ),
+                        "stability": lecture_memory.stability,
+                        "difficulty": lecture_memory.difficulty,
+                        "last_review_day": available,
+                        "available_day": available,
+                        "target_days": _week_target(spec["exam_day"] - available),
+                        "prior": f"lectures, familiarity {LECTURE_FAMILIARITY}",
+                    }
+                )
     return out
+
+
+# A week of one course with more lecture hours than this is more than one session
+# can review (D50): it becomes as many topics as it has three-hour shares, its
+# lectures split in the order taught.
+LECTURE_HOURS_PER_TOPIC = 3.0
+
+
+def _week_parts(taught: Sequence[tuple[datetime, datetime]]) -> list[list[tuple[datetime, datetime]]]:
+    """A week's lectures (in order) in as many parts as `LECTURE_HOURS_PER_TOPIC`
+    shares of its hours, each about as long; one part for three hours or fewer."""
+    hours = [(end - begin) / timedelta(hours=1) for begin, end in taught]
+    count = max(1, math.ceil(sum(hours) / LECTURE_HOURS_PER_TOPIC - 1e-9))
+    count = min(count, len(taught))
+    share, done = sum(hours) / count, 0.0
+    parts: list[list[tuple[datetime, datetime]]] = [[]]
+    for lecture, length in zip(taught, hours, strict=True):
+        if parts[-1] and done >= share * len(parts) - 1e-9 and len(parts) < count:
+            parts.append([])
+        parts[-1].append(lecture)
+        done += length
+    return parts
 
 
 def _extend(report: CalendarReport, days: int) -> CalendarReport:
@@ -863,6 +962,8 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         busy_rows=report.busy_rows,
         commute_minutes=report.commute_minutes,
         study_time=report.study_time,
+        quick_tests=report.quick_tests,
+        study_on_the_way=report.study_on_the_way,
     )
 
 
@@ -1255,6 +1356,7 @@ def export_ics(
         refresh=refresh,
         calendar_name=_("Study plan"),
         summaries=[f"{_('Study')}: {topic_words(s.title)}" for s in shown],
+        times=[(datetime.fromisoformat(s.start), datetime.fromisoformat(s.end)) for s in shown],
     )
     return text.encode("utf-8")
 
@@ -1717,6 +1819,7 @@ def new_subscription(
     require_plan: bool = True,
     lang: str | None = None,
     blank: bool = False,
+    quick_tests: bool = False,
 ) -> Subscription:
     """A new feed. With a `source_url`, the timetable is read again at every
     refresh; with `ics`, the file given now is the timetable for good. `plan`, if
@@ -1748,6 +1851,7 @@ def new_subscription(
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
             "lang": pick(lang) if lang else current_language(),
+            "quick_tests": quick_tests,
         },
     )
     if plan is not None:
@@ -1808,6 +1912,8 @@ def _refresh(
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
             study_time=str(options.get("study_time", "any")),
+            quick_tests=bool(options.get("quick_tests", False)),
+            study_on_the_way=bool(options.get("study_on_the_way", False)),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2088,6 +2194,9 @@ def revise_subscription(
     strict: bool = True,
     commute_minutes: int | None = None,
     study_time: str | None = None,
+    quick_tests: bool | None = None,
+    study_on_the_way: bool | None = None,
+    warm_up: bool | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2112,6 +2221,12 @@ def revise_subscription(
         if study_time not in STUDY_TIMES:
             raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
         merged["study_time"] = study_time
+    if quick_tests is not None:
+        merged["quick_tests"] = bool(quick_tests)
+    if study_on_the_way is not None:
+        merged["study_on_the_way"] = bool(study_on_the_way)
+    if warm_up is not None:
+        merged["warm_up"] = bool(warm_up)
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -2238,6 +2353,7 @@ def routine_view(subscription: Subscription) -> dict:
         "choices": sorted({*COMMUTE_CHOICES, commute}),
         "study_time": str(subscription.options.get("study_time", "any")),
         "study_times": STUDY_TIME_WORDS,
+        "study_on_the_way": bool(subscription.options.get("study_on_the_way", False)),
         "questions": [
             {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
             for kind, question, example in ROUTINE_QUESTIONS
@@ -2255,6 +2371,7 @@ def answer_routine(
     answers: Iterable[Mapping],
     now: datetime | None = None,
     study_time: str | None = None,
+    study_on_the_way: bool | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
@@ -2286,6 +2403,7 @@ def answer_routine(
         busy_rows=rows,
         commute_minutes=commute_minutes,
         study_time=study_time,
+        study_on_the_way=study_on_the_way,
         now=now,
         strict=False,
     )
@@ -2967,6 +3085,7 @@ def start_subscription(
         require_plan=False,
         lang=lang,
         blank=ics is None,
+        quick_tests=True,  # new plans use the gaps between classes (D48)
     )
 
 
@@ -3339,6 +3458,7 @@ def setup_view(subscription: Subscription) -> dict:
     prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
     # Exam practice per exam (D46): the student's hours for it, else what applies.
     chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+    weighs = {k.casefold(): float(v) for k, v in (prefs.get("weights") or {}).items()}
     sized: dict[str, float] = {}
     if subscription.plan is not None:
         sized = PlanReport.from_dict(subscription.plan).settings.preferences.get("practice_sized") or {}
@@ -3350,6 +3470,7 @@ def setup_view(subscription: Subscription) -> dict:
             "found_when": found_names.get(x["name"].casefold(), ""),
             "familiarity": x.get("familiarity") or DEFAULT_FAMILIARITY,
             "practice": chosen.get(x["name"].casefold(), ""),
+            "weight": weighs.get(x["name"].casefold(), 1.0),
             "practice_default": prefs["practice_hours"]
             if prefs["practice_hours"] is not None
             else sized.get(x["name"], PRACTICE_UNSIZED_HOURS),
@@ -3378,6 +3499,7 @@ def setup_view(subscription: Subscription) -> dict:
         "weekly_hours": prefs["weekly_hours"],
         "rest_days": list(prefs["rest_days"]),
         "practice_hours": "" if prefs["practice_hours"] is None else prefs["practice_hours"],
+        "weights": EXAM_WEIGHTS,
         "practice_choices": sorted(
             {*PRACTICE_CHOICES, *(float(v) for v in chosen.values())}
             | ({float(prefs["practice_hours"])} if prefs["practice_hours"] is not None else set())
@@ -3385,6 +3507,9 @@ def setup_view(subscription: Subscription) -> dict:
         "commute": int(options.get("commute_minutes", 0)),
         "study_time": str(options.get("study_time", "any")),
         "study_times": STUDY_TIME_WORDS,
+        "quick_tests": bool(options.get("quick_tests", False)),
+        "study_on_the_way": bool(options.get("study_on_the_way", False)),
+        "warm_up": bool(options.get("warm_up", False)),
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],
@@ -3396,6 +3521,30 @@ def setup_view(subscription: Subscription) -> dict:
         "imported": sorted(set(options.get("imported", {}).values())),
         "weekdays": list(WEEKDAY_NAMES),
     }
+
+
+def warm_ups(subscription: Subscription, now: datetime | None = None) -> list[dict]:
+    """Today's lectures still ahead, of the courses being planned, when the student
+    asked for a warm-up before each (D51): guessing what a lecture will answer
+    before it helps learn it [ref:pan2023]. Nothing is scheduled: it is a prompt on
+    Today, and the week's hours are not touched."""
+    if not subscription.options.get("warm_up") or subscription.plan is None:
+        return []
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = (now or datetime.now(UTC)).astimezone(zone)
+    courses = {s.name.casefold(): s.name for s in plan.subjects}
+    exams = {datetime.fromisoformat(s.exam) for s in plan.subjects}
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    out = []
+    for e in plan.events:
+        start = datetime.fromisoformat(e.start).astimezone(zone)
+        course = course_of(e.summary).casefold()
+        if e.source != "calendar" or start.date() != local.date() or start <= local:
+            continue
+        if course in courses and start not in exams:
+            out.append({"course": courses[course], "when": f"{start:%H:%M}", "color": colours.get(course)})
+    return sorted(out, key=lambda w: w["when"])
 
 
 def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
@@ -3414,6 +3563,7 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         "tasks": [],
         "exams": [],
         "warnings": [],
+        "warm_up": warm_ups(subscription, now),
     }
     if subscription.plan is None:
         return view
@@ -3449,7 +3599,14 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     ]
     view["week"] = {
         "sessions": len(coming),
-        "hours": round(len(coming) * plan.settings.block_minutes / 60, 1),
+        # Each session's own length: a quick self-test is not a block (D48).
+        "hours": round(
+            sum(
+                (datetime.fromisoformat(s.end) - datetime.fromisoformat(s.start)) / timedelta(hours=1)
+                for s in coming
+            ),
+            1,
+        ),
     }
     view["tasks"] = [t for t in _task_rows(subscription, plan, now, colours) if not t["finished"]]
     view["exams"] = _exam_rows(plan, now, colours)
@@ -5800,6 +5957,9 @@ PRACTICE_MIN_HOURS = 3.0
 PRACTICE_UNSIZED_HOURS = 4.5
 MAX_PRACTICE_HOURS = 40.0
 PRACTICE_CHOICES = (0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 12.0)  # offered in Settings
+# How much an exam weighs (D49): only between topics fading together.
+EXAM_WEIGHTS = ((0.5, "Weighs less"), (1.0, "Usual weight"), (2.0, "Weighs more"))
+_WEIGHT_VALUES = {w for w, _ in EXAM_WEIGHTS}
 
 
 def weeks_taught(report: CalendarReport, course: str, exam: datetime) -> int:
@@ -5833,6 +5993,7 @@ def make_schedule(
     practice_days: float = 14.0,
     practice_hours: float | None = 4.5,
     practice: Mapping[str, float] | None = None,
+    weights: Mapping[str, float] | None = None,
     retention: float = 0.9,
     lectures_as_topics: bool = True,
     done: Sequence[SessionView] = (),
@@ -5846,7 +6007,8 @@ def make_schedule(
 
     Exam practice is `practice_hours` before every exam, or with None sized by the
     weeks each course was taught (`practice_hours_for`, D46); `practice` gives a
-    course its own hours, whichever applies otherwise.
+    course its own hours, whichever applies otherwise. `weights` gives an exam a
+    weight (`EXAM_WEIGHTS`, D49), used only between topics fading together.
 
     Instant, so it can be run again whenever anything changes: `done` and `now`
     continue from what already happened, as `continue_plan` does. A subject is
@@ -5874,6 +6036,8 @@ def make_schedule(
             raise InvalidInput(_("exam practice must be 0 to {most} hours", most=f"{MAX_PRACTICE_HOURS:.0f}"))
     if practice_days < 0:
         raise InvalidInput(_("exam practice cannot be negative"))
+    if any(float(w) not in _WEIGHT_VALUES for w in (weights or {}).values()):
+        raise InvalidInput(_("an exam weighs less, as usual or more"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
         raise InvalidInput(_("every task needs a name of its own"))
@@ -5926,6 +6090,7 @@ def make_schedule(
             "practice_days": practice_days,
             "practice_hours": practice_hours,
             "practice": {k: float(v) for k, v in chosen.items()},
+            "weights": {str(k): float(v) for k, v in (weights or {}).items() if float(v) != 1.0},
             # What sizing gives each course, kept for the settings page (D46).
             "practice_sized": {
                 course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
@@ -5951,7 +6116,7 @@ def make_schedule(
         for i, x in enumerate(sorted((x for x in done if x.title in known), key=lambda x: x.start_day))
     )
     after = _days_after(report.start, now.astimezone(zone)) if now is not None else -1.0
-    return _assist(settings, specs, views, report.blocks, report.events, history, after, pins)
+    return _assist(settings, specs, views, report.blocks + report.quick, report.events, history, after, pins)
 
 
 def _assist(
@@ -6004,6 +6169,14 @@ def _assist(
             done_task[h.title] = done_task.get(h.title, 0) + 1
         elif h.kind == "practice":
             done_practice[h.subject] = done_practice.get(h.subject, 0) + 1
+    weights = {k.casefold(): float(v) for k, v in (prefs.get("weights") or {}).items()}
+    # Topics whose last self-test went poorly (forgotten, or some recalled): their
+    # next self-test takes a full block (D50).
+    last: dict[str, SessionView] = {}
+    for h in sorted(history, key=lambda x: x.start_day):
+        if h.kind in _REVIEW_KINDS and h.outcome not in _NO_MEMORY:
+            last[h.title] = h
+    poor = {name for name, h in last.items() if h.outcome == "lapsed" or h.grade in ("again", "hard")}
     topics = [
         Topic(
             s["name"],
@@ -6013,6 +6186,8 @@ def _assist(
             s.get("available_day", 0.0),
             s["exam_day"],
             s.get("about", s.get("subject", s["name"])),
+            weights.get(s.get("subject", s["name"]).casefold(), 1.0),
+            s["name"] in poor,
         )
         for s in specs
     ]
@@ -6044,13 +6219,16 @@ def _assist(
         for t in tasks
     ]
     first_weekday = settings.start.weekday()
+    # The week's budget in minutes (D48): a quick self-test spends its own length.
     week_used: dict[int, int] = {}
     for h in counted:
         w = (first_weekday + h.day) // 7
-        week_used[w] = week_used.get(w, 0) + 1
+        length = (datetime.fromisoformat(h.end) - datetime.fromisoformat(h.start)) / timedelta(minutes=1)
+        week_used[w] = week_used.get(w, 0) + round(length)
     weekly = prefs["weekly_hours"]
+    ahead = [b for b in blocks if b.start_day > after_day]
     result = assist(
-        [b.as_block() for b in blocks if b.start_day > after_day],
+        [b.as_block() for b in ahead if not b.quick],
         first_weekday=first_weekday,
         topics=topics,
         tasks=work,
@@ -6060,9 +6238,12 @@ def _assist(
             rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
             practice_days=prefs["practice_days"],
             review_below=settings.retention,
+            weekly_minutes=None if weekly is None else max(minutes, round(weekly * 60)),
+            block_minutes=minutes,
         ),
         week_used=week_used,
         pins=forced,
+        quick=[Quick(b.as_block(), b.minutes, b.quick) for b in ahead if b.quick],
     )
 
     by_slot = {b.slot: b for b in (*blocks, *pinned_views)}

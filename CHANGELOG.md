@@ -6,6 +6,20 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A warm-up before today's lectures (D51, the engine review's B4): opt-in in Settings;
+  Today lists the day's lectures still ahead with a two-minute guess-first prompt.
+  Nothing is scheduled.
+- The calendar feed puts each session at its own times (AUDIT 60): a moved session was
+  at 23:30 the night before the plan began, a quick self-test was 90 minutes.
+- A heavy week in parts (D50, the engine review's B3): a week of a course with more
+  than three hours of lectures becomes two or more topics; after a poor self-test the
+  next one is a full block, not a quick one.
+- How much an exam weighs (D49, the engine review's B2): less, as usual or more, in
+  Settings beside each exam; it only chooses between topics fading together, so no
+  course is left without self-tests.
+- Quick self-tests (D48, the engine review's B1): a 45-minute self-test in an hour
+  between two classes, at most one a day, and on the way when the student can study
+  there; the weekly budget counted in minutes. On for new plans, a switch in Settings.
 - A weekly budget offered from what is kept (D47, the engine review's A4): after three
   full weeks with fewer than 7 sessions in 10 done, Today offers a budget equal to the
   hours kept, with what it predicts at the exams; one tap takes it, "Not now" waits

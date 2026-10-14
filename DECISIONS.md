@@ -1276,3 +1276,132 @@ weeks (40, 30 and 30% kept, about 5 of 15 hours), the offer is 4.5 hours; with t
 three (70, 70 and 60%), there is none, because 70% is not under 70%; with nothing
 reported, none; with two full weeks only, none; "Not now" holds for three weeks. No
 benchmark: the benchmarks assume every session is kept.
+
+## D48. Quick self-tests in the gaps between classes, and on the way
+
+*Phase B, item B1 of docs/ENGINE-REVIEW.md (weak spot W2), approved by the owner on
+2026-10-14.*
+
+**Chosen.** Free time too short for a study block but at least an hour (with
+90-minute blocks: exactly an hour, between two classes or between the study window's
+edge and a class) holds a quick self-test of 45 minutes, 15 left to get to the next
+class (`plan.short_gaps`, `service.QUICK_SLACK`). At most one a day, the day's first
+such gap. Only the self-testing rule uses it: deadline work and exam practice need a
+full block. The weekly budget is counted in minutes, so a quick self-test spends 45
+of the week's minutes and a block 90; with blocks alone this is the old count
+exactly. When the student says they can study on the way (train, bus), each trip of
+half an hour or more holds a quick self-test too, for the length of the trip. New
+plans have quick self-tests on (Settings: "Quick self-tests in the hour between two
+classes"); plans made before D48 keep them off until the student turns them on. On
+the way is off until the student says so, in the trip question or in Settings.
+
+**Why.** The review found hour-long gaps wasted: the sample semester has 35 of them,
+about two a week. Retrieval practice works in short sessions too: what matters is
+recalling before checking [ref:adesope2017], and a gap an hour long is time enough
+for five questions and their answers. Half-hour gaps are left free: that is the walk
+between rooms.
+
+**Rejected.** A quick self-test in any leftover free time (the tail of a long free
+stretch would make a 2¼-hour session out of a block and a quick one); more than one a
+day (the day's cap on blocks is there for fatigue); quick deadline work (a task's
+hours are counted in blocks); studying on every trip without asking (many students
+drive or walk).
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last rows: with quick self-tests, at
+15 hours a week, 184 sessions instead of 174 (152 blocks and 32 quick ones), 53 of 69
+topics at 90% instead of 51, mean recall at the exams 0.934 instead of 0.923, the
+lowest topic 0.801 instead of 0.755, in 252 hours studied instead of 261; at 12 hours
+34 instead of 30, at 18 hours 60 as before. **The limit:** FSRS counts a review, not
+its length, so in the model a 45-minute self-test raises a topic's memory as much as
+a 90-minute one, which it does not in a student; part of that gain is the model's,
+not the student's. Without quick self-tests the plan is the same as before (a test).
+
+## D49. How much an exam weighs, only between topics fading together
+
+*Phase B, item B2 of docs/ENGINE-REVIEW.md (weak spot W5), approved by the owner on
+2026-10-14.*
+
+**Chosen.** Each exam can weigh less, as usual or more (Settings, beside the exam;
+0.5, 1 and 2). The self-testing rule still takes the most faded topic, except among
+the topics fading together, within 0.06 of predicted recall of the most faded
+(`assistant.WEIGHT_TIE`): there the topic whose exam weighs most goes first. A
+topic more faded than that is never passed over, so no course is left without
+self-tests. With every exam as usual, the plan is the same as before.
+
+**Why.** Students do not value every exam alike (credits, a course they must pass,
+one they have already passed once). The review judged this a product need, not a
+learning finding, so the weight only reorders near ties: it cannot starve a course,
+and it does not change how many sessions there are.
+
+**Rejected.** A weight multiplying how often a course is reviewed (it would starve
+the light courses under a tight budget); a desired retention per course (FSRS's own
+knob: it changes what "ready" means, and the forecast would then show each course
+against a different line); a tie of 0.03, tried first: at 18 hours a week the heavier
+course's recall at its exam went down instead of up.
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last table, Algebra 3 weighing more or
+less: its mean predicted recall at the exam goes from 0.856 to 0.881 (more) or 0.814
+(less) at 12 hours a week, from 0.897 to 0.923 or 0.856 at 15, from 0.931 to 0.935 or
+0.919 at 18. The other courses pay for it: mean recall over all topics 0.923 against
+0.915 (more) at 15 hours, and the lowest topic falls at 18 hours (0.872 against
+0.820). A test pins that the heavier course is remembered better at all three budgets
+and that every course still gets self-tests.
+
+## D50. A heavy week is more than one topic; a poor self-test asks for a full block
+
+*Phase B, item B3 of docs/ENGINE-REVIEW.md (weak spot W8), approved by the owner on
+2026-10-14.*
+
+**Chosen.** A week of one course with more than three hours of its lectures becomes
+as many topics as it has three-hour shares, its lectures split in the order taught
+("week of 05 Oct (1 of 2)", each available once its last lecture is over;
+`service.LECTURE_HOURS_PER_TOPIC`, `service._week_parts`). Up to three hours, one
+topic, as before. And after a self-test that went poorly (nothing or only some
+recalled, or a lapse), the topic's next self-test waits for a full block: it is not
+given a quick 45-minute one (D48).
+
+**Why.** One 90-minute self-test cannot cover six hours of lectures as it covers
+three: a week of a lab-heavy or intensive course was one topic, reviewed as if it
+were a light one. Splitting by the lectures as taught keeps each part a real piece
+of the course and each review honest about its size. A topic the student could not
+recall needs relearning, not a quick check, which is what a short session is for.
+
+**Rejected.** A topic's weight by hours inside the memory model (FSRS has no notion
+of how much material a card holds; two topics model two reviews honestly); splitting
+by fixed hours inside a lecture (a lecture is the unit a student remembers); a longer
+than usual block after a poor self-test (it would break the student's chosen session
+length; a full block instead of a quick one keeps it).
+
+**Measured.** The sample semester has no week over three hours of one course (19
+weeks of 1.5 hours, 65 of 3), so `benchmarks/rule_vs_planner.py` and
+`benchmarks/semester.py` are unchanged. Tests pin the split (1.5 + 1.5 + 1.5 hours:
+two topics of two and one lectures; six hours: two of two), a heavier Algebra 3
+(twice the topics, the other courses unchanged), a US timetable with two lectures and
+a lab a week (tests/test_generality.py), and the full block after a forgotten
+self-test.
+
+## D51. A warm-up before today's lectures, opt-in
+
+*Phase B, item B4 of docs/ENGINE-REVIEW.md, approved by the owner on 2026-10-14.*
+
+**Chosen.** In Settings, "A warm-up before each lecture" (off unless the student
+turns it on). Today then lists the day's lectures still ahead, of the courses being
+planned, with one instruction: two minutes before each, write two questions you
+think it will answer and guess the answers (`service.warm_ups`). Nothing is
+scheduled: no session, no block, nothing in the feed, no hours from the week's budget.
+
+**Why.** A test before learning helps: classroom studies report about 12 to 13 points
+higher on later exams [ref:pan2023], as summarised by [ref:sana2023]; wrong guesses
+help too, because the student then notices the right answer. Two minutes cost almost
+nothing, so the prompt need not take a slot of the plan.
+
+**Rejected.** A scheduled warm-up session (a slot before each lecture is often the
+trip or the walk between rooms; and it would spend the budget on something the model
+cannot value); questions written for the student (the app does not know what a
+lecture will cover; Claude could guess from a course name, but D12 keeps AI opt-in
+and capped, and a guess at the syllabus is not worth it here); on by default (an
+unasked prompt on every class day is noise).
+
+**Measured.** Nothing: the memory model has no notion of a pretest, and the plan is
+the same with it on (a test). Whether students use it is a question for the pilot
+(D15), which counts Today's visits but not this card.

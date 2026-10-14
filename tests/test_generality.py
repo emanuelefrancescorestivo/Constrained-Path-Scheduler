@@ -32,7 +32,7 @@ def _ics(
     cal.add("version", "2.0")
     for i, title in enumerate(lectures):
         event = Event()
-        first = datetime(2026, 9, 28 + i % 5, 9 + 2 * (i // 5), 0, tzinfo=zone)
+        first = datetime(2026, 9, 28, 9 + 2 * (i // 5), 0, tzinfo=zone) + timedelta(days=i % 5)
         event.add("summary", title)
         event.add("dtstart", first)
         event.add("dtend", first + timedelta(hours=1, minutes=30))
@@ -224,3 +224,24 @@ def test_an_all_day_exam_is_not_a_trip():
     )
     exam_day = date(2027, 1, 11)
     assert not any(e.source == "commute" and e.start.startswith(exam_day.isoformat()) for e in report.events)
+
+
+def test_a_course_with_many_hours_a_week_is_reviewed_in_parts():
+    """A US course with two lectures and a lab a week (4.5 hours) is two topics a
+    week; a course with one lecture stays one (DECISIONS.md D50)."""
+    tz = "America/New_York"
+    lectures = [
+        "CHEM 101 General Chemistry - Lecture",
+        "CHEM 101 General Chemistry - Lecture",
+        "CHEM 101 General Chemistry - Lab",
+        "MATH 221 Calculus - Lecture",
+    ]
+    exams = ["CHEM 101 General Chemistry - Final Exam", "MATH 221 Calculus - Final Exam"]
+    report = service.analyse_calendar(_ics(lectures, exams, tz), start=START, tz=tz)
+    subjects = [service.SubjectSpec(a.subject, None, familiarity=3) for a in report.assessments]
+    plan = service.make_schedule(report, subjects, weekly_hours=15)
+    chem = [s["topic"] for s in plan.specs if s["subject"] == "CHEM 101 General Chemistry"]
+    math = [s["topic"] for s in plan.specs if s["subject"] == "MATH 221 Calculus"]
+    assert len(chem) == 2 * len(math) == 24
+    assert chem[:2] == ["week of 28 Sep (1 of 2)", "week of 28 Sep (2 of 2)"]
+    assert math[0] == "week of 28 Sep"

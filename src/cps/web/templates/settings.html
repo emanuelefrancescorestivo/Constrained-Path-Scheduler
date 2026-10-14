@@ -48,6 +48,9 @@
       <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
         {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
       </select>
+      <select id="s{{ i }}_weight" name="s{{ i }}_weight" aria-label="{{ _('How much this exam weighs') }}">
+        {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
+      </select>
       <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
         <option value="">{{ _("Practice: {hours} h", hours=s.practice_default | hours) }}</option>
         {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
@@ -177,12 +180,18 @@
     {% for h in values.practice_choices %}<option value="{{ h }}"{% if values.practice_hours != "" and values.practice_hours is not none and values.practice_hours | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("{hours} hours", hours=h | hours) }}{% endif %}</option>{% endfor %}
   </select>
   <p class="hint">{{ _("Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. Change one exam beside it, above.") }}</p>
+  <input type="hidden" name="quick_shown" value="1">
+  <label class="check"><input type="checkbox" name="quick_tests" value="1"{% if values.quick_tests %} checked{% endif %}> {{ _("Quick self-tests in the hour between two classes") }}</label>
+  <p class="hint">{{ _("45 minutes, at most one a day, counted in your weekly hours.") }}</p>
+  <label class="check"><input type="checkbox" name="warm_up" value="1"{% if values.warm_up %} checked{% endif %}> {{ _("A warm-up before each lecture") }}</label>
+  <p class="hint">{{ _("Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.") }}</p>
   {% if not new %}
   <label for="study_time">{{ _("When you study best") }}</label>
   <select id="study_time" name="study_time">{% for k, words in values.study_times %}<option value="{{ k }}"{% if k == values.study_time %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}</select>
   <label for="commute">{{ _("Trip to university, one way") }}</label>
   <select id="commute" name="commute">{% for m in values.commute_choices %}<option value="{{ m }}"{% if m == values.commute | int %} selected{% endif %}>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</option>{% endfor %}</select>
   <p class="hint">{{ _("Kept free before your first class and after your last, on each day you have classes.") }}</p>
+  <label class="check"><input type="checkbox" name="study_on_the_way" value="1"{% if values.study_on_the_way %} checked{% endif %}> {{ _("I can study on the way (train, bus)") }}</label>
   {% endif %}
 </fieldset>
 

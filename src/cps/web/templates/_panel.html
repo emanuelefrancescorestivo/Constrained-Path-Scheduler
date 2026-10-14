@@ -35,6 +35,15 @@
 </div>
 {% endif %}
 
+{% if view.warm_up %}
+{# A warm-up before today's lectures (D51): a prompt, nothing scheduled. #}
+<div class="card warm-up">
+  <h3>{{ _("Warm up before today's lectures") }}</h3>
+  <p class="muted">{{ _("Two minutes before each: write two questions you think it will answer, and guess the answers. Wrong guesses help too: you notice the right answer when it comes.") }}</p>
+  <ul class="warm-up-list">{% for w in view.warm_up %}<li class="{% if w.color is not none %}c{{ w.color }}{% else %}cn{% endif %}"><b>{{ w.when }}</b> {{ w.course }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
 {% if not view.planned %}
 <div class="card">
   <h2>{{ _("Nothing to plan yet") }}</h2>

@@ -1246,4 +1246,25 @@ MESSAGES: dict[str, str] = {
     "For three weeks you kept fewer than 7 sessions in 10: about {kept} of the {planned} hours planned each week.": "Pendant trois semaines, tu as tenu moins de 7 séances sur 10 : environ {kept} des {planned} heures prévues chaque semaine.",
     "A plan of {hours} hours a week predicts {ready} of {topics} topics at 90% or more at their exams; the present one {now}, if every session is kept.": "Un plan de {hours} heures par semaine prévoit {ready} thèmes sur {topics} à 90 % ou plus à leurs examens ; le plan actuel {now}, si chaque séance est tenue.",
     "Plan {hours} hours a week": "Prévoir {hours} heures par semaine",
+    # Quick self-tests (D48)
+    "A quick self-test on the way, {minutes} minutes, on {what}: answer the questions you wrote for it, or your flashcards, from memory; check the answers when you arrive.": "Un auto-test rapide en route, {minutes} minutes, sur {what} : réponds de mémoire aux questions que tu as écrites, ou à tes cartes ; vérifie les réponses en arrivant.",
+    "A quick self-test of {minutes} minutes on {what}: from memory, answer five questions on it, then check each against your notes.": "Un auto-test rapide de {minutes} minutes sur {what} : de mémoire, réponds à cinq questions, puis vérifie chacune dans tes notes.",
+    "Quick self-tests in the hour between two classes": "Des auto-tests rapides dans l'heure entre deux cours",
+    "45 minutes, at most one a day, counted in your weekly hours.": "45 minutes, au plus un par jour, comptés dans tes heures de la semaine.",
+    "I can study on the way (train, bus)": "Je peux réviser en route (train, bus)",
+    "A trip of half an hour or more then holds a quick self-test.": "Un trajet d'une demi-heure ou plus accueille alors un auto-test rapide.",
+    # How much an exam weighs (D49)
+    "How much this exam weighs": "Le poids de cet examen",
+    "Weighs less": "Compte moins",
+    "Usual weight": "Poids habituel",
+    "Weighs more": "Compte plus",
+    "an exam weighs less, as usual or more": "un examen compte moins, comme d'habitude ou plus",
+    # A heavy week in parts (D50)
+    "Review the lectures of the week of {day}, part {k} of {n}.": "Révise les cours de la semaine du {day}, partie {k} sur {n}.",
+    "the lectures of the week of {day}, part {k} of {n}": "les cours de la semaine du {day}, partie {k} sur {n}",
+    # A warm-up before lectures (D51)
+    "A warm-up before each lecture": "Un échauffement avant chaque cours",
+    "Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.": "Aujourd'hui te le rappelle : deux minutes pour deviner à quoi le cours va répondre. Pas compté dans tes heures.",
+    "Warm up before today's lectures": "Échauffe-toi avant les cours d'aujourd'hui",
+    "Two minutes before each: write two questions you think it will answer, and guess the answers. Wrong guesses help too: you notice the right answer when it comes.": "Deux minutes avant chacun : écris deux questions auxquelles il va répondre, selon toi, et devine les réponses. Se tromper aide aussi : tu remarques la bonne réponse quand elle arrive.",
 }

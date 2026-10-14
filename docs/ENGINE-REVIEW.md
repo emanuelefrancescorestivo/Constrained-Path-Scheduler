@@ -131,15 +131,15 @@ the benchmarks before and after.
 - [x] A2 · W1: a preferred time of day; 30 minutes after training and work (D45: mean recall at the exams the same; evening 45 of 69 topics at 90% instead of 51)
 - [x] A3 · W6: exam practice sized per course, alternating, mixed (D46: 1.5 hours per four weeks taught, not three, so a twelve-week course keeps 4.5; the benchmark unchanged)
 - [x] A4 · W7: a weekly budget offered from what is kept (D47: offered on Today, taken only on a tap)
-- [ ] Gate A: benchmarks within today's error bars, CI green, the owner approves
+- [x] Gate A: benchmarks within today's error bars, CI green, the owner approves (PR #19, merged 14 October)
 
 **Phase B · New session shapes**
 
-- [ ] B1 · W2: quick self-tests in gaps; the budget in minutes
-- [ ] B2 · W5: an optional weight per exam
-- [ ] B3 · W8: weeks weighted by lecture hours
-- [ ] B4 · An opt-in warm-up quiz before a lecture
-- [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages
+- [x] B1 · W2: quick self-tests in gaps; the budget in minutes (D48: 45 minutes in an hour's gap, one a day, and on the way on request; 53 of 69 topics at 90% instead of 51, partly the model's)
+- [x] B2 · W5: an optional weight per exam (D49: only between topics within 0.06 of the most faded; the heavier course's recall at its exam up at 12, 15 and 18 hours)
+- [x] B3 · W8: weeks weighted by lecture hours (D50: over three hours, split into topics; a full block after a poor self-test)
+- [x] B4 · An opt-in warm-up quiz before a lecture (D51: a prompt on Today, nothing scheduled)
+- [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages (pages tried; the pull request waits for CI and the owner)
 
 **Phase C · A memory model that learns** (needs the owner's approval of `fsrs[optimizer]` and `ortools`)
 

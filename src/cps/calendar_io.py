@@ -761,10 +761,14 @@ def plan_to_ics(
     uid_prefix: str = "",
     refresh: timedelta | None = None,
     summaries: Sequence[str] | None = None,
+    times: Sequence[tuple[datetime, datetime]] | None = None,
 ) -> str:
     """Turn scheduled blocks into an importable calendar.
 
-    `sessions` is (absolute slot index, subject, rationale). `summaries`, if given,
+    `sessions` is (absolute slot index, subject, rationale). `times`, if given, are
+    each session's own start and end: a quick self-test is shorter than a block, and
+    a session the student moved has no slot of the grid (AUDIT.md item 60); without
+    them, each session is a block of `block_slots` from its slot. `summaries`, if given,
     are the events' titles in the student's language; the UID is made from the
     subject either way, so that a change of language updates the events instead of
     duplicating them. The rationale goes
@@ -791,11 +795,15 @@ def plan_to_ics(
 
     midnight = datetime.combine(start_date, time(0, 0), tzinfo=zone)
     for index, (slot, subject, rationale) in enumerate(sessions):
-        begin = midnight + timedelta(minutes=slot * minutes_per_slot)
+        if times is not None:
+            begin, end = (moment.astimezone(zone) for moment in times[index])
+        else:
+            begin = midnight + timedelta(minutes=slot * minutes_per_slot)
+            end = begin + timedelta(minutes=block_slots * minutes_per_slot)
         event = Event()
         event.add("summary", summaries[index] if summaries is not None else f"Study: {subject}")
         event.add("dtstart", begin)
-        event.add("dtend", begin + timedelta(minutes=block_slots * minutes_per_slot))
+        event.add("dtend", end)
         event.add("description", rationale)
         name = subject.replace(" ", "-").lower()
         event.add("uid", f"cps-{uid_prefix}{slot}-{name}@constrained-path-scheduler")

@@ -86,10 +86,10 @@ Decided by the owner on 2026-10-13 (docs/ENGINE-REVIEW.md: each weak spot checke
 against the code and the learning-science evidence; one commit per item, one pull
 request per phase, the benchmarks before and after).
 
-- [ ] **A Rules only**: unreported sessions count as unknown (W4); a preferred time of
+- [x] **A Rules only** (D44 to D47, PR #19): unreported sessions count as unknown (W4); a preferred time of
       day and a pause after training (W1); exam practice sized per course and mixed
       (W6); a weekly budget offered from what is kept (W7).
-- [ ] **B New session shapes**: quick self-tests in gaps (W2); a weight per exam (W5);
+- [ ] **B New session shapes** (D48 to D51, in review): quick self-tests in gaps (W2); a weight per exam (W5);
       weeks weighted by lecture hours (W8); an opt-in warm-up quiz before a lecture.
 - [ ] **C A memory model that learns**: FSRS-6, then each student's own parameters
       (W3); a CP-SAT placement trial. (owner: approve `fsrs[optimizer]` and `ortools`.)

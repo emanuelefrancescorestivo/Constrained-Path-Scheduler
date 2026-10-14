@@ -20,6 +20,9 @@
     <label class="pill"><input type="radio" name="commute" value="{{ m }}"{% if m == view.commute %} checked{% endif %}><span>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</span></label>
     {% endfor %}
   </div>
+  <input type="hidden" name="way_shown" value="1">
+  <label class="check"><input type="checkbox" name="study_on_the_way" value="1"{% if view.study_on_the_way %} checked{% endif %}> {{ _("I can study on the way (train, bus)") }}</label>
+  <p class="hint">{{ _("A trip of half an hour or more then holds a quick self-test.") }}</p>
 </section>
 
 <section class="card question">
