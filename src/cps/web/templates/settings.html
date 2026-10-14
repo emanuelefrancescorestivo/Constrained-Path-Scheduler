@@ -183,6 +183,8 @@
   <input type="hidden" name="quick_shown" value="1">
   <label class="check"><input type="checkbox" name="quick_tests" value="1"{% if values.quick_tests %} checked{% endif %}> {{ _("Quick self-tests in the hour between two classes") }}</label>
   <p class="hint">{{ _("45 minutes, at most one a day, counted in your weekly hours.") }}</p>
+  <label class="check"><input type="checkbox" name="warm_up" value="1"{% if values.warm_up %} checked{% endif %}> {{ _("A warm-up before each lecture") }}</label>
+  <p class="hint">{{ _("Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.") }}</p>
   {% if not new %}
   <label for="study_time">{{ _("When you study best") }}</label>
   <select id="study_time" name="study_time">{% for k, words in values.study_times %}<option value="{{ k }}"{% if k == values.study_time %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}</select>

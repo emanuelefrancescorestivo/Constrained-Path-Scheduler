@@ -1537,3 +1537,5 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .panel-foot { margin: 28px 0 8px; font-size: 0.8rem; color: var(--muted); text-align: center; }
 .panel-foot a { color: var(--muted); }
 .forecast-unsure { margin: 8px 0 0; font-size: 0.82rem; color: var(--muted); }
+.warm-up-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 0.92rem; }
+.warm-up-list li b { display: inline-block; min-width: 3.2em; font-variant-numeric: tabular-nums; }

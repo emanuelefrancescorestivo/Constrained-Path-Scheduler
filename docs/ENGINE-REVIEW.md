@@ -138,7 +138,7 @@ the benchmarks before and after.
 - [x] B1 · W2: quick self-tests in gaps; the budget in minutes (D48: 45 minutes in an hour's gap, one a day, and on the way on request; 53 of 69 topics at 90% instead of 51, partly the model's)
 - [x] B2 · W5: an optional weight per exam (D49: only between topics within 0.06 of the most faded; the heavier course's recall at its exam up at 12, 15 and 18 hours)
 - [x] B3 · W8: weeks weighted by lecture hours (D50: over three hours, split into topics; a full block after a poor self-test)
-- [ ] B4 · An opt-in warm-up quiz before a lecture
+- [x] B4 · An opt-in warm-up quiz before a lecture (D51: a prompt on Today, nothing scheduled)
 - [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages
 
 **Phase C · A memory model that learns** (needs the owner's approval of `fsrs[optimizer]` and `ortools`)

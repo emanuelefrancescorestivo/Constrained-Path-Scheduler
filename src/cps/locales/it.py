@@ -1235,4 +1235,9 @@ MESSAGES: dict[str, str] = {
     # A heavy week in parts (D50)
     "Review the lectures of the week of {day}, part {k} of {n}.": "Ripassa le lezioni della settimana del {day}, parte {k} di {n}.",
     "the lectures of the week of {day}, part {k} of {n}": "le lezioni della settimana del {day}, parte {k} di {n}",
+    # A warm-up before lectures (D51)
+    "A warm-up before each lecture": "Un riscaldamento prima di ogni lezione",
+    "Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.": "Oggi te lo ricorda: due minuti per indovinare a cosa risponderà la lezione. Non conta nelle tue ore.",
+    "Warm up before today's lectures": "Riscaldati prima delle lezioni di oggi",
+    "Two minutes before each: write two questions you think it will answer, and guess the answers. Wrong guesses help too: you notice the right answer when it comes.": "Due minuti prima di ciascuna: scrivi due domande a cui pensi che risponderà e indovina le risposte. Anche sbagliare aiuta: noti la risposta giusta quando arriva.",
 }

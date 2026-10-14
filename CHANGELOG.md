@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A warm-up before today's lectures (D51, the engine review's B4): opt-in in Settings;
+  Today lists the day's lectures still ahead with a two-minute guess-first prompt.
+  Nothing is scheduled.
+- The calendar feed puts each session at its own times (AUDIT 60): a moved session was
+  at 23:30 the night before the plan began, a quick self-test was 90 minutes.
 - A heavy week in parts (D50, the engine review's B3): a week of a course with more
   than three hours of lectures becomes two or more topics; after a poor self-test the
   next one is a full block, not a quick one.

@@ -563,6 +563,41 @@ def test_a_forgotten_self_test_is_followed_by_a_full_block_in_the_plan():
     assert following and _minutes(following[0]) == 90
 
 
+# --------------------------------------------------------------------------- #
+# B4: a warm-up before today's lectures, opt-in (D51)
+# --------------------------------------------------------------------------- #
+
+
+def test_the_warm_up_lists_today_s_lectures_still_ahead_only_when_asked():
+    first = _start()
+    assert service.today_view(first, MORNING)["warm_up"] == []  # off unless asked
+    on = service.revise_subscription(first, warm_up=True, now=MORNING)
+    plan = service.PlanReport.from_dict(on.plan)
+    courses = {s.name for s in plan.subjects}
+    today = [
+        e
+        for e in plan.events
+        if e.source == "calendar"
+        and datetime.fromisoformat(e.start).astimezone(PARIS).date() == MORNING.astimezone(PARIS).date()
+    ]
+    warm = service.warm_ups(on, MORNING)
+    assert warm and {w["course"] for w in warm} <= courses
+    expected = sorted(
+        datetime.fromisoformat(e.start).astimezone(PARIS).strftime("%H:%M")
+        for e in today
+        if service.course_of(e.summary) in courses and datetime.fromisoformat(e.start) > MORNING
+    )
+    assert [w["when"] for w in warm] == expected
+    assert service.today_view(on, MORNING)["warm_up"] == warm
+    # Once the day's last lecture has begun, nothing is left to warm up for.
+    last = max(datetime.fromisoformat(e.start) for e in today)
+    assert service.warm_ups(on, last) == []
+    # Nothing is scheduled for it: the plan is the same with or without.
+    assert [s.start for s in plan.sessions] == [
+        s.start for s in service.PlanReport.from_dict(first.plan).sessions
+    ]
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -819,3 +854,16 @@ def test_settings_give_an_exam_its_weight(web):
     web.post(f"/p/{token}/settings", data={**fields, "s0_weight": "1.0"})
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["preferences"]["weights"] == {}
+
+
+def test_today_shows_the_warm_up_when_settings_ask_for_it(web):
+    token = _web_start(web)
+    assert "Warm up before today's lectures" not in unescape(web.get(f"/p/{token}").text)
+    fields = {**_form(web.get(f"/p/{token}/settings").text), "warm_up": "1"}
+    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    stored = service.load_subscription(web.path, token)
+    assert stored is not None and stored.options["warm_up"] is True
+    today = unescape(web.get(f"/p/{token}").text)
+    assert "Warm up before today's lectures" in today
+    for w in service.warm_ups(stored, MORNING):
+        assert f"<b>{w['when']}</b> {w['course']}" in today

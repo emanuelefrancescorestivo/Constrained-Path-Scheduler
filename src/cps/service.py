@@ -2196,6 +2196,7 @@ def revise_subscription(
     study_time: str | None = None,
     quick_tests: bool | None = None,
     study_on_the_way: bool | None = None,
+    warm_up: bool | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2224,6 +2225,8 @@ def revise_subscription(
         merged["quick_tests"] = bool(quick_tests)
     if study_on_the_way is not None:
         merged["study_on_the_way"] = bool(study_on_the_way)
+    if warm_up is not None:
+        merged["warm_up"] = bool(warm_up)
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -3506,6 +3509,7 @@ def setup_view(subscription: Subscription) -> dict:
         "study_times": STUDY_TIME_WORDS,
         "quick_tests": bool(options.get("quick_tests", False)),
         "study_on_the_way": bool(options.get("study_on_the_way", False)),
+        "warm_up": bool(options.get("warm_up", False)),
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],
@@ -3517,6 +3521,30 @@ def setup_view(subscription: Subscription) -> dict:
         "imported": sorted(set(options.get("imported", {}).values())),
         "weekdays": list(WEEKDAY_NAMES),
     }
+
+
+def warm_ups(subscription: Subscription, now: datetime | None = None) -> list[dict]:
+    """Today's lectures still ahead, of the courses being planned, when the student
+    asked for a warm-up before each (D51): guessing what a lecture will answer
+    before it helps learn it [ref:pan2023]. Nothing is scheduled: it is a prompt on
+    Today, and the week's hours are not touched."""
+    if not subscription.options.get("warm_up") or subscription.plan is None:
+        return []
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = (now or datetime.now(UTC)).astimezone(zone)
+    courses = {s.name.casefold(): s.name for s in plan.subjects}
+    exams = {datetime.fromisoformat(s.exam) for s in plan.subjects}
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    out = []
+    for e in plan.events:
+        start = datetime.fromisoformat(e.start).astimezone(zone)
+        course = course_of(e.summary).casefold()
+        if e.source != "calendar" or start.date() != local.date() or start <= local:
+            continue
+        if course in courses and start not in exams:
+            out.append({"course": courses[course], "when": f"{start:%H:%M}", "color": colours.get(course)})
+    return sorted(out, key=lambda w: w["when"])
 
 
 def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
@@ -3535,6 +3563,7 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
         "tasks": [],
         "exams": [],
         "warnings": [],
+        "warm_up": warm_ups(subscription, now),
     }
     if subscription.plan is None:
         return view

@@ -1379,3 +1379,29 @@ two topics of two and one lectures; six hours: two of two), a heavier Algebra 3
 (twice the topics, the other courses unchanged), a US timetable with two lectures and
 a lab a week (tests/test_generality.py), and the full block after a forgotten
 self-test.
+
+## D51. A warm-up before today's lectures, opt-in
+
+*Phase B, item B4 of docs/ENGINE-REVIEW.md, approved by the owner on 2026-10-14.*
+
+**Chosen.** In Settings, "A warm-up before each lecture" (off unless the student
+turns it on). Today then lists the day's lectures still ahead, of the courses being
+planned, with one instruction: two minutes before each, write two questions you
+think it will answer and guess the answers (`service.warm_ups`). Nothing is
+scheduled: no session, no block, nothing in the feed, no hours from the week's budget.
+
+**Why.** A test before learning helps: classroom studies report about 12 to 13 points
+higher on later exams [ref:pan2023], as summarised by [ref:sana2023]; wrong guesses
+help too, because the student then notices the right answer. Two minutes cost almost
+nothing, so the prompt need not take a slot of the plan.
+
+**Rejected.** A scheduled warm-up session (a slot before each lecture is often the
+trip or the walk between rooms; and it would spend the budget on something the model
+cannot value); questions written for the student (the app does not know what a
+lecture will cover; Claude could guess from a course name, but D12 keeps AI opt-in
+and capped, and a guess at the syllabus is not worth it here); on by default (an
+unasked prompt on every class day is noise).
+
+**Measured.** Nothing: the memory model has no notion of a pretest, and the plan is
+the same with it on (a test). Whether students use it is a question for the pilot
+(D15), which counts Today's visits but not this card.
