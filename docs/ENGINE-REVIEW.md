@@ -139,7 +139,7 @@ the benchmarks before and after.
 - [x] B2 · W5: an optional weight per exam (D49: only between topics within 0.06 of the most faded; the heavier course's recall at its exam up at 12, 15 and 18 hours)
 - [x] B3 · W8: weeks weighted by lecture hours (D50: over three hours, split into topics; a full block after a poor self-test)
 - [x] B4 · An opt-in warm-up quiz before a lecture (D51: a prompt on Today, nothing scheduled)
-- [ ] Gate B: the same, plus pages tried at phone and laptop widths in three languages (pages tried; the pull request waits for CI and the owner)
+- [x] Gate B: the same, plus pages tried at phone and laptop widths in three languages (PR #20, merged 14 October)
 
 **Phase C · A memory model that learns** (needs the owner's approval of `fsrs[optimizer]` and `ortools`)
 
