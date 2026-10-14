@@ -1130,3 +1130,149 @@ means: readable by a person and by another program).
 blocks `sendBeacon` and `fetch` to the site sends no errors. The error log keeps an
 error's message cut to 300 characters: a message that quotes what a student typed
 keeps what fits. Checked in Chromium at 390 and 1280 px.
+
+## D44. Silence is not success: a self-test not reported counts as unknown
+
+*Phase A, item A1 of docs/ENGINE-REVIEW.md (weak spot W4), approved by the owner on
+2026-10-13. Replaces, for self-tests, the planner's rule that a session not reported
+counts as done as planned, and the line of D24 that the forecast counts "an
+unreported one as done".*
+
+**Chosen.** A self-test (a first review or a review) with no report a day after it
+ended (`service.UNREPORTED_AFTER`) is replayed as "unknown": it stays on the
+calendar and in the feed, but its topic gains no memory from it, so the plan brings
+the topic back as if it had not happened. Until a day has passed it still counts as
+done as planned, so the plan does not change the minute a session ends. A late
+report, of any kind, counts again from then. The exam forecast on Trends says how
+many self-tests it did not count, and sends the student to Today, which already asks
+about the past week. Deadline work and exam practice not reported still count as
+done: no memory hangs on them, and doubting them would plan work twice.
+
+**Why.** Students already judge what they know too kindly: most reread rather than
+test themselves and feel they know material they do not [ref:karpicke2009]. A plan that took silence for success would show a student who
+stopped reporting as perfectly on track, and its forecast would be least true for
+the students who most need it. Progress and the streak already refused it (D8, D9);
+the planner now agrees with them.
+
+**Rejected.** Treating silence as skipped (the session would vanish from the
+calendar and the feed, as if it had not been planned); asking the moment a session
+ends (a push for every session is noise; the reminder comes before, D38); a shorter
+grace (students report in the evening for the day).
+
+**Measured.** The benchmarks are unchanged: they replay every session as reported.
+Tests pin the rule: overdue self-tests are unknown, tasks and practice are not, a
+session within its day still counts, a late report counts again, an unknown session
+stays in the feed, and a silent week leaves every doubted topic less stable than the
+same week reported.
+
+## D45. When the student studies best, and a pause after training or work
+
+*Phase A, item A2 of docs/ENGINE-REVIEW.md (weak spot W1), approved by the owner on
+2026-10-13.*
+
+**Chosen.** The questions about the week (D42) ask "When do you study best?":
+morning, afternoon, evening or no preference; Settings can change it. Each day's free
+time is then cut into blocks nearest that part of the day (`plan.tile_free_time`
+with `around`: 15:00 for the afternoon, as late as the study window allows for the
+evening), and, when it is busy, as near to it as the day allows. Morning and no
+preference keep the earliest free time, exactly as before (a test compares the new
+code with the old on 400 random calendars), so a student who does not answer, and
+every benchmark row above the new table, is unchanged. Half an hour after training
+or work stays free (`service.PAUSE_AFTER`), to get home and eat; it is free time
+kept, not an event on the calendar. Other weekly busy time gets no pause: it can be
+anything, a choir or a nap.
+
+**Why.** About 60% of 14,894 students were "jet-lagged" by their class times, and
+the mismatch went with lower grades [ref:smarr2018]; that is correlational and from
+one university, and the laboratory evidence on the time of day is mixed and small
+[ref:bettencourt2024]. So the answer is the student's preference, not a rule about
+chronotypes: a session at a time a student keeps is worth more than one at a time
+the model prefers. Exercise a few hours after learning did not hurt recall
+[ref:vandongen2016], so training after study is no problem, and the pause is about
+logistics, not memory.
+
+**Rejected.** Asking for exact hours (a second study window the student would have
+to maintain; Settings already has one); a chronotype questionnaire (minutes of
+questions for a preference the student can state in one tap); a pause after every
+busy time (it would eat the gaps between classes).
+
+**Measured.** `benchmarks/rule_vs_planner.py`, last table, the assistant with
+Sundays off and 4.5 hours of practice. Mean predicted recall at the exams is the
+same within 0.005 for every preference at 12, 15 and 18 hours a week (0.923, 0.919,
+0.918 at 15 hours), and the evening's lowest topic is higher than the morning's
+(0.772 against 0.755 at 15 hours). Which topics reach 90% moves, because many sit
+just around the line: the afternoon gives 31, 51 and 59 of 69 topics against 30, 51
+and 60 for the morning; the evening 32, 45 and 56. The evening at 15 and 18 hours is
+the one real cost, four to six topics under the line. It is disclosed, not hidden:
+a session kept in the evening is worth more than one skipped in the morning, which
+the benchmark cannot see.
+
+## D46. Exam practice sized by the course, taking turns, mixed
+
+*Phase A, item A3 of docs/ENGINE-REVIEW.md (weak spot W6), approved by the owner on
+2026-10-13.*
+
+**Chosen.** Exam practice before an exam is sized by the weeks its course was taught
+(weeks with a lecture in the timetable before the exam, those before the plan
+included): 1.5 hours for every four weeks, at least 3 (`service.practice_hours_for`).
+A twelve-week course keeps the 4.5 hours every exam had; a four-week module gets 3; a
+sixteen-week course 6. A course with no lectures in the timetable keeps 4.5 hours.
+Settings offers "Sized by each course" (new plans) or the same hours for every exam,
+and each exam's row can set its own hours. Plans made before D46 keep the 4.5 hours
+stored with them. When several exams are in their last two weeks, the one with the
+most practice left per day before it gets the block: exams in the same week take
+turns, and the nearest wins once it falls behind. Every practice session asks for
+the kinds of question mixed as the exam will mix them, not one chapter at a time.
+
+**Why.** Practice tests beat restudying [ref:adesope2017], and mixing problem types
+beat blocking them on a delayed test, in a randomised classroom trial
+[ref:rohrer2020]. Before D46 the assistant did all of one course's practice before
+the next course's, so with six exams in five days the last course's practice came in
+one run of days, and every course got the same hours whatever its length.
+
+**Rejected.** 1.5 hours per three weeks, the review's first figure: it gives a
+twelve-week course 6 hours, taken from the self-tests of the last fortnight, for an
+amount the evidence does not fix either way; four weeks keeps today's hours for a
+typical semester and scales from there. Nearest exam first (the blocked order above);
+round-robin regardless of dates (it would starve an exam that is close).
+
+**Measured.** The benchmark semester's six courses were each taught 11 weeks (a test
+pins it), so sizing gives each 4.5 hours, and `benchmarks/rule_vs_planner.py` is
+unchanged: 174 sessions, 51 of 69 topics at 90% or more. On it, practice now takes
+turns: no course has two practice sessions in a row, and each is done before its
+exam (a test). How much practice is right is not measured: the memory model does not
+count practice at all, so no benchmark can show what it is worth.
+
+## D47. A weekly budget offered from what is kept
+
+*Phase A, item A4 of docs/ENGINE-REVIEW.md (weak spot W7), approved by the owner on
+2026-10-13.*
+
+**Chosen.** When each of the last three full weeks of a plan had fewer than 70% of
+its past sessions done, and at least one session reported, Today offers a weekly
+budget equal to the hours kept, in whole blocks and at least two
+(`service.budget_offer`). The card says what was kept against what was planned, and
+what the plan predicts at the exams with the smaller budget and with the present one
+"if every session is kept". One tap ("Plan 4.5 hours a week") makes the plan again
+with it; "Not now" leaves the budget as it is and asks again after three more full
+weeks. Nothing changes without the tap.
+
+**Why.** A plan nobody follows schedules nothing: when the student skips at random,
+the rules no longer decide which topics get the time. A smaller plan the student
+keeps lets them choose again, the most faded topic first. If-then plans raise goal
+attainment (d = 0.65 over 94 tests, [ref:gollwitzer2006]): a plan matched to the
+week the student actually has is the kind they carry out. This is a product
+judgement, not a measured effect on learning (the review's verdict on W7).
+
+**Rejected.** Shrinking the budget silently (the student would not know why the plan
+changed, and a bad fortnight would cut a good plan); offering after one or two weeks
+(an exam week or an illness is not a habit); counting a week with nothing reported
+as kept nothing (silence is unknown, D44: Today asks for reports instead); hiding
+the cost (the card says how many fewer topics the smaller plan predicts, even when
+that argues against taking it).
+
+**Measured.** Tests on the sample semester: with one session in three done for three
+weeks (40, 30 and 30% kept, about 5 of 15 hours), the offer is 4.5 hours; with two in
+three (70, 70 and 60%), there is none, because 70% is not under 70%; with nothing
+reported, none; with two full weeks only, none; "Not now" holds for three weeks. No
+benchmark: the benchmarks assume every session is kept.

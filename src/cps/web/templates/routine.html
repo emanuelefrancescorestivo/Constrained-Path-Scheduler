@@ -22,6 +22,16 @@
   </div>
 </section>
 
+<section class="card question">
+  <h2 id="q-when">{{ _("When do you study best?") }}</h2>
+  <p class="hint">{{ _("Each day's sessions go to that part of the day when there is free time; otherwise as close to it as possible.") }}</p>
+  <div class="pills" role="radiogroup" aria-labelledby="q-when">
+    {% for k, words in view.study_times %}
+    <label class="pill"><input type="radio" name="study_time" value="{{ k }}"{% if k == view.study_time %} checked{% endif %}><span>{{ _(words) }}</span></label>
+    {% endfor %}
+  </div>
+</section>
+
 {% set counter = namespace(i=0) %}
 {% for q in view.questions %}
 <section class="card question">

@@ -210,7 +210,7 @@ def _form(html: str) -> dict:
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
-        form[name] = (chosen.group(1) or chosen.group(2)) if chosen else ""
+        form[name] = (chosen.group(2) if chosen.group(1) is None else chosen.group(1)) if chosen else ""
     return form
 
 

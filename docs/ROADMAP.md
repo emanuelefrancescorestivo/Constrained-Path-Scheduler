@@ -80,6 +80,22 @@ Decided by the owner on 2026-10-08 (DECISIONS.md, D8 to D15; docs/STRATEGY.md).
 - [ ] **C3 (owner)** Run `python benchmarks/reviews.py` and keep its output in
       docs/MARKET.md §4.
 
+## Phase 1c: the engine, weak spot by weak spot
+
+Decided by the owner on 2026-10-13 (docs/ENGINE-REVIEW.md: each weak spot checked
+against the code and the learning-science evidence; one commit per item, one pull
+request per phase, the benchmarks before and after).
+
+- [ ] **A Rules only**: unreported sessions count as unknown (W4); a preferred time of
+      day and a pause after training (W1); exam practice sized per course and mixed
+      (W6); a weekly budget offered from what is kept (W7).
+- [ ] **B New session shapes**: quick self-tests in gaps (W2); a weight per exam (W5);
+      weeks weighted by lecture hours (W8); an opt-in warm-up quiz before a lecture.
+- [ ] **C A memory model that learns**: FSRS-6, then each student's own parameters
+      (W3); a CP-SAT placement trial. (owner: approve `fsrs[optimizer]` and `ortools`.)
+- [ ] **D The pilot**: predicted against reported recall (W9); a post-exam survey with
+      consent. (owner: approve the survey and its privacy line.)
+
 ## Phase 2: once the pilot runs
 
 - [ ] **W10 Writing into Google Calendar directly.** (owner: a Google Cloud project and

@@ -29,10 +29,11 @@
     <div class="card-title"><h3>{{ f.name }}</h3><span class="meta">{{ f.when }} · {{ _n("in {n} day", "in {n} days", f.days) }}</span></div>
     <div class="meter-row"><span>{{ _("With your plan") }}</span><div class="meter"><span class="fill w{{ (f.with_plan // 10) * 10 }}"></span></div><b>{{ f.with_plan }} %</b></div>
     <div class="meter-row"><span>{{ _("If you stopped today") }}</span><div class="meter"><span class="fill-muted w{{ (f.if_stopped // 10) * 10 }}"></span></div><b>{{ f.if_stopped }} %</b></div>
+    {% if f.unknown %}<p class="forecast-unsure">{{ _n("{n} self-test not reported is not counted yet: say how it went on Today.", "{n} self-tests not reported are not counted yet: say how they went on Today.", f.unknown) }}</p>{% endif %}
     {% if f.path | length > 1 %}<div class="spark-row"><span class="meta">{{ _("Built so far, week by week") }}</span>{{ spark(f.path, _("Predicted recall on exam day from the sessions done, week by week: {values}", values=f.path | join(" %, ") ~ " %")) }}<b class="spark-ends">{{ f.path[0] }} → {{ f.path[-1] }} %</b></div>{% endif %}
   </article>
   {% endfor %}
-  <p class="hint">{{ _("Predicted recall of the course's topics on exam day, by the FSRS memory model with average memory, not yours, and a guessed start; rounded to 5 %. A self-test you answered counts as you said (nothing, some, most, all); one reported done counts as recalled, hard as forgotten, and one not reported as done.") }}</p>
+  <p class="hint">{{ _("Predicted recall of the course's topics on exam day, by the FSRS memory model with average memory, not yours, and a guessed start; rounded to 5 %. A self-test you answered counts as you said (nothing, some, most, all); one reported done counts as recalled, hard as forgotten, and one not reported a day after it is not counted until you say how it went.") }}</p>
 </div>
 {% endif %}
 

@@ -26,8 +26,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 658 passed, 17 deselected, 1 xfailed, about 150 s
-    pytest -m "slow or not slow" --cov=cps   # all 675 + 1 xfailed, 93% coverage, about 6 min; CI runs this
+    pytest                                   # 685 passed, 17 deselected, 1 xfailed, about 150 s
+    pytest -m "slow or not slow" --cov=cps   # all 702 + 1 xfailed, 93% coverage, about 6 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -52,14 +52,14 @@ more than an impressive number.
 | `budget.py` | `V(D, S, b)`: cost with a finite block budget. Superseded by `clock.py` (AUDIT item 20) |
 | `plan.py` | AO* on the AND/OR calendar graph, exact solver, heuristics, aggregation |
 | `rolling.py` | receding-horizon replanning built on `clock.py` and `plan.py`, per-topic exams, topics that appear when taught |
-| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice, self-testing, free time; sessions the student moved (pins) |
+| `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice (taking turns, D46), self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-4.5), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39) |
-| `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); typed errors; no UI imports |
+| `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep (12 months after the last visit, D36), backups; a plan's rows of every table for its copy (`_EXPORT`, D43) |
@@ -153,12 +153,16 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   (`benchmarks/rule_vs_planner.py`, AUDIT item 36). Do not present the search as
   what makes the product better; `docs/PRODUCT.md` is the product plan.
 
+- When the student studies best (D45) moves which topics reach 90%: with evening
+  sessions, 45 of 69 instead of 51 at 15 hours a week; mean recall at the exams is
+  the same within 0.005 (`benchmarks/rule_vs_planner.py`).
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
 - With lectures in the calendar, a topic is one week of one subject, reviewed in one
   block and starting "seen once and shaky"; each window considers at most four
   topics (METHOD.md §7). A semester takes about half a minute to plan.
-- Sessions not reported count as done as planned. In `cps web` a report reaches the
+- Sessions not reported count as done as planned, except a self-test a day after it
+  ended, which counts as unknown and gains no memory (D44). In `cps web` a report reaches the
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
   owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.

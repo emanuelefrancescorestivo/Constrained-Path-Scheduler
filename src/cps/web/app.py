@@ -559,6 +559,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "cards_due": service.cards_due(store, subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
+            "budget": service.budget_offer(subscription, now),
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -1877,8 +1878,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                 ),
             )
         except service.ServiceError as error:
-            # The offered exam rows came back as typed rows: not offered twice.
-            shown = {**service.setup_view(subscription), **values, "suggested": []}
+            # The offered exam rows came back as typed rows: not offered twice. Each
+            # keeps what its exam practice is when not chosen (D46).
+            stored = service.setup_view(subscription)
+            defaults = {s["name"]: s["practice_default"] for s in stored["subjects"]}
+            shown = {
+                **stored,
+                **values,
+                "subjects": [
+                    {**s, "practice_default": defaults.get(s["name"], service.PRACTICE_UNSIZED_HOURS)}
+                    for s in values["subjects"]
+                ],
+                "suggested": [],
+            }
             return page(
                 request,
                 "settings.html",
@@ -1929,13 +1941,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store,
                 token,
                 lambda current: service.answer_routine(
-                    current, commute_minutes=commute, answers=answers, now=config.clock()
+                    current,
+                    commute_minutes=commute,
+                    answers=answers,
+                    now=config.clock(),
+                    study_time=str(form.get("study_time") or "") or None,
                 ),
             )
         except service.ServiceError as error:
             view = service.routine_view(subscription)
             if str(form.get("commute") or "").isdigit():
                 view["commute"] = int(str(form.get("commute")))
+            if form.get("study_time"):
+                view["study_time"] = str(form.get("study_time"))
             return page(
                 request,
                 "routine.html",
@@ -2129,6 +2147,47 @@ def create_app(config: Config | None = None) -> FastAPI:
             return too_many(request)
         code = service.make_recovery_code(store, token, config.clock())
         return page(request, "recovery.html", token=token, code=code, recovered=False, tab="settings")
+
+    # -- a weekly budget from what is kept (D47) ---------------------------------
+
+    @app.post("/p/{token}/budget")
+    async def take_budget(request: Request, token: str) -> Response:
+        """The budget Today offered, taken with one tap: the plan is made again."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        try:
+            hours = float(str(form.get("hours") or "").replace(",", "."))
+            if not 0 < hours <= 80:
+                raise ValueError(hours)
+        except ValueError:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=service.translate("the weekly hours must be positive, or left out for no limit"),
+            )
+        service.update_subscription(
+            store,
+            token,
+            lambda current: service.revise_subscription(
+                current, preferences={"weekly_hours": hours}, now=config.clock(), fetch=config.fetch
+            ),
+        )
+        service.log_event(store, token, "budget")
+        return RedirectResponse(f"/p/{token}?saved=1", 303)
+
+    @app.post("/p/{token}/budget/later")
+    def budget_later(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.budget_later(current, config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
 
     @app.post("/p/{token}/account/later")
     def account_later(request: Request, token: str) -> Response:

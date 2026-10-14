@@ -6,7 +6,10 @@ week of lectures, 246 free blocks of 90 minutes), the same topics, the same memo
 model, every review assumed to succeed. The research planner (clock value
 functions and AO* over windows of four blocks) against rules that each fit in one
 sentence, and against the assistant with a student's week around it: 15 hours at
-most, Sundays off, exam practice before each exam (AUDIT.md item 36).
+most, Sundays off, exam practice before each exam (AUDIT.md item 36). Last, the
+assistant for each answer to "When do you study best?" (DECISIONS.md D45) at 12, 15
+and 18 hours a week: mean and lowest predicted recall at the exams, and the topics
+at 90% or more.
 
     python benchmarks/rule_vs_planner.py
 
@@ -106,6 +109,22 @@ def results() -> dict:
     week = service.make_schedule(report, subjects, weekly_hours=15, rest_days=("Sun",), practice_hours=4.5)
     seconds = time.perf_counter() - begin
     reviews = [x for x in week.sessions if x.kind in ("review", "first review")]
+
+    # When the student studies best (D45). "morning" is "any": both take each day's
+    # earliest free time, the rows above.
+    ics = (ROOT / "examples" / "sample-semester.ics").read_bytes()
+    by_time = []
+    for when in ("any", "afternoon", "evening"):
+        timed = service.analyse_calendar(ics, start=START, tz="Europe/Paris", study_time=when)
+        for hours in (12, 15, 18):
+            w = service.make_schedule(
+                timed, subjects, weekly_hours=hours, rest_days=("Sun",), practice_hours=4.5
+            )
+            r = row(f"{when}, {hours} h", service._replay(w.specs, w.sessions), len(w.sessions), 0.0)
+            # The assistant's own measure, as in the line above the table: topics
+            # predicted at 90% or more at their exam.
+            r["ready"] = sum(s.topics_ready for s in w.subjects)
+            by_time.append({**r, "when": when, "hours": hours})
     return {
         "topics": len(topics),
         "blocks": len(plan.blocks),
@@ -116,6 +135,7 @@ def results() -> dict:
             "ready": sum(s.topics_ready for s in week.subjects),
             "seconds": seconds,
         },
+        "study_time": by_time,
     }
 
 
@@ -136,6 +156,11 @@ def main() -> int:
         f"{a['ready']} of {out['topics']} topics predicted at 90% or more at "
         f"the exam, in {a['seconds']:.2f} s"
     )
+    print("\nthe assistant by when the student studies best (Sundays off, 4.5 hours of practice)")
+    print(f"{'preference, hours a week':44}{'sessions':>9}{'at 90%+':>11}{'recall at exam':>16}{'lowest':>8}")
+    for r in out["study_time"]:
+        ready = f"{r['ready']}/{out['topics']}"
+        print(f"{r['label']:44}{r['sessions']:>9}{ready:>11}{r['recall']:>16.3f}{r['lowest']:>8.3f}")
     return 0
 
 

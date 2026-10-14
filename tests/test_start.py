@@ -109,7 +109,7 @@ def _inputs(html: str) -> dict[str, str]:
             found[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
-        found[name] = (chosen.group(1) or chosen.group(2)) if chosen else ""
+        found[name] = (chosen.group(2) if chosen.group(1) is None else chosen.group(1)) if chosen else ""
     return found
 
 

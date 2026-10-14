@@ -330,6 +330,8 @@ class CalendarReport:
     lectures: tuple[LectureView, ...] = field(default=(), repr=False)
     # The trip to campus, one way, kept around each day's classes (`commute_events`).
     commute_minutes: int = 0
+    # When the student studies best: each day's free time is filled from that end (D45).
+    study_time: str = "any"
 
     @property
     def block_slots(self) -> int:
@@ -353,6 +355,7 @@ class CalendarReport:
             "busy_rows": [_row_to_dict(r) for r in self.busy_rows],
             "lectures": [x.to_dict() for x in self.lectures],
             "commute_minutes": self.commute_minutes,
+            "study_time": self.study_time,
         }
 
 
@@ -397,6 +400,14 @@ def _iso(moment: datetime) -> str:
     return moment.isoformat(timespec="minutes")
 
 
+# When a student studies best (D45), as the hour of the day each day's sessions
+# gather around (`plan.tile_free_time`): None is the earliest free time, as before
+# the question existed; 24 is as late as the study window allows.
+STUDY_TIMES = {"any": None, "morning": None, "afternoon": 15.0, "evening": 24.0}
+# Free time kept after training or work before a session (D45): to get home and eat.
+PAUSE_AFTER = timedelta(minutes=30)
+_PAUSE_KINDS = ("training", "work")
+
 # The longest trip asked about (the question offers up to 90 minutes; a typed
 # value above this is refused rather than blocking a whole morning by mistake).
 MAX_COMMUTE_MINUTES = 180
@@ -439,6 +450,7 @@ def analyse_calendar(
     block_minutes: int = 90,
     busy_rows: Iterable[BusyRow | Mapping] = (),
     commute_minutes: int = 0,
+    study_time: str = "any",
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
     With `commute_minutes`, the trip to campus and back is busy too, around each
@@ -460,6 +472,8 @@ def analyse_calendar(
         raise InvalidInput(_("the study window must run from an earlier to a later hour, within 0 to 24"))
     if blocks_per_day < 1 or block_minutes < 30:
         raise InvalidInput(_("use at least one block a day of at least 30 minutes"))
+    if study_time not in STUDY_TIMES:
+        raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
     if not 0 <= commute_minutes <= MAX_COMMUTE_MINUTES:
         raise InvalidInput(_("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES))
     text = decode_ics(ics) if ics is not None else None
@@ -481,10 +495,17 @@ def analyse_calendar(
             tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
         )
     events = [e for e, _ in tagged]
-    grid = availability_from_events(events, start, days, SLOTS_PER_DAY, study_window)
+    # A pause after training or work (D45): busy for the grid, not an event to show.
+    pauses = [
+        BusyEvent(e.end, e.end + PAUSE_AFTER, "")
+        for e in busy_from_table([r for r in rows if r.kind in _PAUSE_KINDS], start, days, tz)
+    ]
+    grid = availability_from_events(events + pauses, start, days, SLOTS_PER_DAY, study_window)
     minutes_per_slot = 24 * 60 // grid.slots_per_day
     block_slots = max(1, block_minutes // minutes_per_slot)
-    tiles = tile_free_time(grid, block_slots=block_slots, max_blocks_per_day=blocks_per_day)
+    tiles = tile_free_time(
+        grid, block_slots=block_slots, max_blocks_per_day=blocks_per_day, around=STUDY_TIMES[study_time]
+    )
     zone = _zone(tz)
     midnight = datetime.combine(start, time(0, 0), tzinfo=zone)
 
@@ -511,6 +532,7 @@ def analyse_calendar(
         busy_rows=rows,
         lectures=lectures,
         commute_minutes=commute_minutes,
+        study_time=study_time,
     )
 
 
@@ -573,7 +595,9 @@ class SessionView:
     start_day: float
     slot: int
     recall: float  # predicted probability of recall when the session starts
-    outcome: str  # "recalled", "lapsed" or "skipped"
+    # "recalled", "lapsed" or "skipped"; "unknown" for a self-test nobody reported
+    # within a day (`UNREPORTED_AFTER`): still on the calendar, no memory gained.
+    outcome: str
     stability_before: float
     stability_after: float
     rationale: str
@@ -838,6 +862,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         block_minutes=report.block_minutes,
         busy_rows=report.busy_rows,
         commute_minutes=report.commute_minutes,
+        study_time=report.study_time,
     )
 
 
@@ -1165,8 +1190,8 @@ def _replay(specs: Sequence[dict], done: Sequence[SessionView]) -> dict[str, tup
     with exact FSRS transitions (a single source of truth, not stored numbers)."""
     state = {s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in specs}
     for session in sorted(done, key=lambda x: x.start_day):
-        if session.outcome == "skipped" or session.title not in state:
-            continue  # a task or exam practice: nothing to remember
+        if session.outcome in _NO_MEMORY or session.title not in state:
+            continue  # skipped, not reported, or a task or exam practice: nothing to remember
         memory, last = state[session.title]
         state[session.title] = (review(memory, session.start_day - last, _grade(session)), session.start_day)
     return state
@@ -1245,7 +1270,7 @@ def recall_curve(plan: PlanReport, subject: str, step: float = 0.25) -> list[tup
     specs = [s for s in plan.specs if s.get("subject", s["name"]) == subject]
     if not specs:
         raise InvalidInput(f"no subject called {subject!r} in this plan")
-    done = [s for s in plan.history + plan.sessions if s.outcome != "skipped"]
+    done = [s for s in plan.history + plan.sessions if s.outcome not in _NO_MEMORY]
     if len(specs) == 1 and not specs[0].get("topic"):
         return _topic_curve(specs[0], [s for s in done if s.title == specs[0]["name"]], step)
     curves = [(s, dict(_topic_curve(s, [x for x in done if x.title == s["name"]], step))) for s in specs]
@@ -1782,6 +1807,7 @@ def _refresh(
             block_minutes=options["block_minutes"],
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
+            study_time=str(options.get("study_time", "any")),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -1789,7 +1815,7 @@ def _refresh(
             cut = _days_after(previous.settings.start, now.astimezone(_zone(previous.settings.tz)))
             reported = subscription.outcomes
             done = tuple(
-                _as_reported(s, reported.get(session_id(s)))
+                _as_reported(s, reported.get(session_id(s)), now)
                 for s in previous.history + previous.sessions
                 if s.start_day < cut or session_id(s) in reported
             )
@@ -1837,11 +1863,26 @@ def session_id(session: SessionView) -> str:
     return hashlib.sha256(f"{session.start}|{session.title}".encode()).hexdigest()[:12]
 
 
-def _as_reported(session: SessionView, report: str | None) -> SessionView:
+# A self-test not reported this long after it ended counts as unknown: it stays on
+# the calendar, but its topic gains no memory from it (DECISIONS.md D44). Until then
+# it counts as done as planned, so the plan does not change the moment it ends.
+UNREPORTED_AFTER = timedelta(days=1)
+# Outcomes from which a topic gains no memory.
+_NO_MEMORY = ("skipped", "unknown")
+
+
+def _as_reported(session: SessionView, report: str | None, now: datetime | None = None) -> SessionView:
     """A session with the outcome the student reported. "struggled" is a lapse for
     something to remember (it comes back sooner) and done for a task or practice
-    (a task gets one more block instead, in `report_session`)."""
+    (a task gets one more block instead, in `report_session`). A self-test with no
+    report a day after it ended (`now` given) is "unknown": students judge what they
+    know too kindly already, and a plan that took silence for success would show a
+    student who stopped reporting as perfectly on track (ENGINE-REVIEW W4). A task or
+    exam practice not reported still counts as done: no memory hangs on it."""
     if report is None:
+        overdue = now is not None and datetime.fromisoformat(session.end) <= now - UNREPORTED_AFTER
+        if overdue and session.kind in _REVIEW_KINDS:
+            return replace(session, outcome="unknown", grade="")
         return session
     if report == "skipped":
         return replace(session, outcome="skipped")
@@ -2046,6 +2087,7 @@ def revise_subscription(
     fetch: Callable[[str], bytes] = fetch_calendar,
     strict: bool = True,
     commute_minutes: int | None = None,
+    study_time: str | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2066,6 +2108,10 @@ def revise_subscription(
                 _("the trip to university must be 0 to {most} minutes", most=MAX_COMMUTE_MINUTES)
             )
         merged["commute_minutes"] = int(commute_minutes)
+    if study_time is not None:
+        if study_time not in STUDY_TIMES:
+            raise InvalidInput(_("choose when you study best: morning, afternoon, evening or no preference"))
+        merged["study_time"] = study_time
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -2171,6 +2217,13 @@ ROUTINE_QUESTIONS = (
 )
 ROUTINE_ANSWERS = 2  # answers per question on the page; more go on the calendar
 _ROUTINE_NAMES = {"training": "Training", "work": "Work", "other": "Busy"}
+# The answers to "When do you study best?" (D45), in the order the page offers them.
+STUDY_TIME_WORDS = (
+    ("morning", "Morning"),
+    ("afternoon", "Afternoon"),
+    ("evening", "Evening"),
+    ("any", "No preference"),
+)
 
 
 def routine_view(subscription: Subscription) -> dict:
@@ -2183,6 +2236,8 @@ def routine_view(subscription: Subscription) -> dict:
     return {
         "commute": commute,
         "choices": sorted({*COMMUTE_CHOICES, commute}),
+        "study_time": str(subscription.options.get("study_time", "any")),
+        "study_times": STUDY_TIME_WORDS,
         "questions": [
             {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
             for kind, question, example in ROUTINE_QUESTIONS
@@ -2199,6 +2254,7 @@ def answer_routine(
     commute_minutes: int,
     answers: Iterable[Mapping],
     now: datetime | None = None,
+    study_time: str | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
@@ -2226,7 +2282,12 @@ def answer_routine(
             for day in days
         ]
     return revise_subscription(
-        subscription, busy_rows=rows, commute_minutes=commute_minutes, now=now, strict=False
+        subscription,
+        busy_rows=rows,
+        commute_minutes=commute_minutes,
+        study_time=study_time,
+        now=now,
+        strict=False,
     )
 
 
@@ -2857,7 +2918,9 @@ class Refresher:
 
 # What a new student starts with, before changing anything: the benchmark's week
 # (benchmarks/rule_vs_planner.py). Stated defaults, not recommendations.
-DEFAULT_PREFERENCES: dict = {"weekly_hours": 15.0, "rest_days": ["Sun"], "practice_hours": 4.5}
+# Exam practice: None sizes it by the weeks each course was taught (D46); plans made
+# before D46 keep the 4.5 hours stored with them.
+DEFAULT_PREFERENCES: dict = {"weekly_hours": 15.0, "rest_days": ["Sun"], "practice_hours": None}
 DEFAULT_FAMILIARITY = 3
 # How far back the Today page asks about sessions.
 REPORT_WINDOW = timedelta(days=7)
@@ -3007,6 +3070,80 @@ def semester_over(subscription: Subscription, now: datetime | None = None) -> bo
         datetime.fromisoformat(t.due) for t in plan.tasks if not t.done
     ]
     return all(moment < now for moment in ahead)
+
+
+# A weekly budget offered from what is kept (DECISIONS.md D47): after this many
+# full weeks in a row with fewer than this share of their sessions done, Today
+# offers a budget equal to the hours kept, at least two blocks. "Not now" waits for
+# as many full weeks again.
+BUDGET_WEEKS = 3
+BUDGET_KEPT_BELOW = 70  # percent
+BUDGET_LEAST_BLOCKS = 2
+
+
+def budget_offer(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """The weekly budget to offer a student whose plan is bigger than their weeks
+    (D47), with what the plan predicts at the exams with it and with the budget
+    they have; None when there is nothing to offer.
+
+    Offered only when each of the last `BUDGET_WEEKS` full weeks had under
+    `BUDGET_KEPT_BELOW`% of its past sessions done and at least one session
+    reported (a student who reports nothing is asked to report, not told they kept
+    nothing: D44), when the plan began before them, when the hours kept are fewer
+    than the budget, and when "Not now" was not said since. Nothing changes until
+    the student takes it."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    if plan.settings.engine != "assistant" or not plan.subjects:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    this_week = local.date() - timedelta(days=local.weekday())
+    weeks = [this_week - timedelta(weeks=k) for k in range(BUDGET_WEEKS, 0, -1)]
+    began = date.fromisoformat(subscription.options["start"])
+    later = subscription.options.get("budget_later")
+    # Full weeks of this plan only: not the week it began in, nor any before "Not now".
+    if weeks[0] < began or (later and date.fromisoformat(later) >= weeks[0]):
+        return None
+    sessions = [s for s in progress_sessions(subscription) if s.planned]
+    reported = {_progress.monday(s.start.date()) for s in sessions if s.report and s.start <= local}
+    measured = _trends.weekly(sessions, (), weeks, local)
+    if any(w.kept is None or w.kept >= BUDGET_KEPT_BELOW or w.first not in reported for w in measured):
+        return None
+    minutes = plan.settings.block_minutes
+    kept = sum(w.hours for w in measured) / len(measured)
+    hours = max(BUDGET_LEAST_BLOCKS, round(kept * 60 / minutes)) * minutes / 60
+    current = plan.settings.preferences.get("weekly_hours")
+    if current is not None and hours >= current - 1e-9:
+        return None
+    preferences = {**subscription.options.get("preferences", {}), "weekly_hours": hours}
+    smaller = _refresh(
+        replace(subscription, options={**subscription.options, "preferences": preferences}),
+        now=now,
+        reread=False,
+    )
+    if smaller.plan is None or smaller.error:
+        return None
+    offered = PlanReport.from_dict(smaller.plan)
+    return {
+        "hours": hours,
+        "kept": round(kept, 1),
+        "planned": round(sum(w.hours_planned for w in measured) / len(measured), 1),
+        "weeks": [w.kept for w in measured],
+        "ready": sum(s.topics_ready for s in offered.subjects),
+        "ready_now": sum(s.topics_ready for s in plan.subjects),
+        "topics": sum(s.topics for s in plan.subjects),
+    }
+
+
+def budget_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """ "Not now" to the budget offered (D47): asked again after `BUDGET_WEEKS` more
+    full weeks."""
+    local = (now or datetime.now(UTC)).astimezone(_zone(subscription.options["tz"]))
+    week = local.date() - timedelta(days=local.weekday())
+    return replace(subscription, options={**subscription.options, "budget_later": week.isoformat()})
 
 
 def _when(moment: datetime, now: datetime) -> str:
@@ -3199,6 +3336,12 @@ def setup_view(subscription: Subscription) -> dict:
     drawn = drawn_courses(subscription)
     courses += [c for c in drawn if c.casefold() not in {x.casefold() for x in courses}]
     found_names = {f["subject"].casefold(): f["when"] for f in found}
+    prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
+    # Exam practice per exam (D46): the student's hours for it, else what applies.
+    chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+    sized: dict[str, float] = {}
+    if subscription.plan is not None:
+        sized = PlanReport.from_dict(subscription.plan).settings.preferences.get("practice_sized") or {}
     subjects = [
         {
             "name": x["name"],
@@ -3206,11 +3349,14 @@ def setup_view(subscription: Subscription) -> dict:
             "found": x.get("exam") is None,
             "found_when": found_names.get(x["name"].casefold(), ""),
             "familiarity": x.get("familiarity") or DEFAULT_FAMILIARITY,
+            "practice": chosen.get(x["name"].casefold(), ""),
+            "practice_default": prefs["practice_hours"]
+            if prefs["practice_hours"] is not None
+            else sized.get(x["name"], PRACTICE_UNSIZED_HOURS),
         }
         for x in subscription.subjects
     ]
     planned = {x["name"].casefold() for x in subscription.subjects}
-    prefs = {**DEFAULT_PREFERENCES, **options.get("preferences", {})}
     return {
         "subjects": subjects,
         "unplanned_exams": [f for f in found if f["subject"].casefold() not in planned],
@@ -3231,8 +3377,14 @@ def setup_view(subscription: Subscription) -> dict:
         ],
         "weekly_hours": prefs["weekly_hours"],
         "rest_days": list(prefs["rest_days"]),
-        "practice_hours": prefs["practice_hours"],
+        "practice_hours": "" if prefs["practice_hours"] is None else prefs["practice_hours"],
+        "practice_choices": sorted(
+            {*PRACTICE_CHOICES, *(float(v) for v in chosen.values())}
+            | ({float(prefs["practice_hours"])} if prefs["practice_hours"] is not None else set())
+        ),
         "commute": int(options.get("commute_minutes", 0)),
+        "study_time": str(options.get("study_time", "any")),
+        "study_times": STUDY_TIME_WORDS,
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
         "blocks_per_day": options["blocks_per_day"],
@@ -5395,7 +5547,7 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
     }
     out: dict[str, dict] = {}
     for session in sorted(plan.history + plan.sessions, key=lambda x: x.start_day):
-        if session.title not in states or session.outcome == "skipped":
+        if session.title not in states or session.outcome in _NO_MEMORY:
             continue
         memory, last = states[session.title]
         elapsed = max(session.start_day - last, 0.0)
@@ -5442,6 +5594,10 @@ def forecast(plan: PlanReport, now: datetime, weeks: Sequence[date] = ()) -> lis
                 "days": max(0, (exam.astimezone(zone).date() - now.astimezone(zone).date()).days),
                 "with_plan": _five(subject.recall_at_exam),
                 "if_stopped": _five(_recall_at_exam(members, current)),
+                # self-tests behind with no report: not counted until answered (D44)
+                "unknown": sum(
+                    1 for h in plan.history if h.outcome == "unknown" and h.subject == subject.name
+                ),
                 "path": path,
                 "topics": len(members),
                 "color": colours.get(subject.name.casefold()),
@@ -5636,6 +5792,36 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
 
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
+# Exam practice sized by the course (D46): 1.5 hours for every four weeks it was
+# taught, at least 3; a twelve-week course keeps the 4.5 hours every exam had
+# before. A course with no lectures in the timetable gets those 4.5 hours.
+PRACTICE_HOURS_PER_WEEKS = (1.5, 4)
+PRACTICE_MIN_HOURS = 3.0
+PRACTICE_UNSIZED_HOURS = 4.5
+MAX_PRACTICE_HOURS = 40.0
+PRACTICE_CHOICES = (0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 12.0)  # offered in Settings
+
+
+def weeks_taught(report: CalendarReport, course: str, exam: datetime) -> int:
+    """The weeks (Monday to Sunday, local time) with a lecture of `course` in the
+    timetable before its exam, including those before the plan starts."""
+    zone = _zone(report.tz)
+    mondays = set()
+    for x in report.lectures:
+        end = datetime.fromisoformat(x.end)
+        if x.course.casefold() == course.casefold() and end < exam:
+            local = end.astimezone(zone).date()
+            mondays.add(local - timedelta(days=local.weekday()))
+    return len(mondays)
+
+
+def practice_hours_for(weeks: int) -> float:
+    """Exam practice for a course taught `weeks` weeks (D46)."""
+    if weeks <= 0:
+        return PRACTICE_UNSIZED_HOURS
+    hours, per = PRACTICE_HOURS_PER_WEEKS
+    return max(PRACTICE_MIN_HOURS, hours * math.ceil(weeks / per))
+
 
 def make_schedule(
     report: CalendarReport,
@@ -5645,7 +5831,8 @@ def make_schedule(
     weekly_hours: float | None = None,
     rest_days: Sequence[str] = (),
     practice_days: float = 14.0,
-    practice_hours: float = 4.5,
+    practice_hours: float | None = 4.5,
+    practice: Mapping[str, float] | None = None,
     retention: float = 0.9,
     lectures_as_topics: bool = True,
     done: Sequence[SessionView] = (),
@@ -5656,6 +5843,10 @@ def make_schedule(
     deadlines first when they get close, exam practice before each exam, self-testing
     on the taught material that is fading, work ahead otherwise, and free time
     when nothing needs it. Within `weekly_hours` a week, never on `rest_days`.
+
+    Exam practice is `practice_hours` before every exam, or with None sized by the
+    weeks each course was taught (`practice_hours_for`, D46); `practice` gives a
+    course its own hours, whichever applies otherwise.
 
     Instant, so it can be run again whenever anything changes: `done` and `now`
     continue from what already happened, as `continue_plan` does. A subject is
@@ -5677,7 +5868,11 @@ def make_schedule(
         )
     if len(set(rest_days)) >= 7:
         raise InvalidInput(_("leave at least one day of the week for studying"))
-    if practice_days < 0 or practice_hours < 0:
+    chosen = {str(k): v for k, v in (practice or {}).items()}
+    for hours in (practice_hours, *chosen.values()):
+        if hours is not None and not 0 <= float(hours) <= MAX_PRACTICE_HOURS:
+            raise InvalidInput(_("exam practice must be 0 to {most} hours", most=f"{MAX_PRACTICE_HOURS:.0f}"))
+    if practice_days < 0:
         raise InvalidInput(_("exam practice cannot be negative"))
     names = [t.name.strip() for t in tasks]
     if any(not n for n in names) or len(set(n.casefold() for n in names)) != len(names):
@@ -5730,6 +5925,12 @@ def make_schedule(
             "rest_days": list(rest_days),
             "practice_days": practice_days,
             "practice_hours": practice_hours,
+            "practice": {k: float(v) for k, v in chosen.items()},
+            # What sizing gives each course, kept for the settings page (D46).
+            "practice_sized": {
+                course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
+                for course, exam in {s.get("subject", s["name"]): s["exam"] for s in specs}.items()
+            },
         },
     )
     views = tuple(
@@ -5815,12 +6016,26 @@ def _assist(
         )
         for s in specs
     ]
-    per_exam = blocks_for_hours(prefs["practice_hours"], minutes) if prefs["practice_hours"] > 0 else 0
+
+    def practice_blocks(course: str) -> int:
+        """The student's hours for this course, else their hours for every exam,
+        else the course's sized hours (D46); plans made before D46 have only the
+        second."""
+        chosen = {k.casefold(): v for k, v in (prefs.get("practice") or {}).items()}
+        fixed = prefs.get("practice_hours")
+        default = fixed if fixed is not None else (prefs.get("practice_sized") or {}).get(course)
+        hours = chosen.get(course.casefold(), PRACTICE_UNSIZED_HOURS if default is None else default)
+        return blocks_for_hours(hours, minutes) if hours > 0 else 0
+
     exams = {
         s.get("subject", s["name"]): Exam(
             s.get("subject", s["name"]),
             s["exam_day"],
-            max(per_exam - done_practice.get(s.get("subject", s["name"]), 0), 0),
+            max(
+                practice_blocks(s.get("subject", s["name"]))
+                - done_practice.get(s.get("subject", s["name"]), 0),
+                0,
+            ),
         )
         for s in specs
     }

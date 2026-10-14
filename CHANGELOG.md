@@ -6,6 +6,22 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A weekly budget offered from what is kept (D47, the engine review's A4): after three
+  full weeks with fewer than 7 sessions in 10 done, Today offers a budget equal to the
+  hours kept, with what it predicts at the exams; one tap takes it, "Not now" waits
+  three weeks.
+- Exam practice sized by the course (D46, the engine review's A3): 1.5 hours for every
+  four weeks a course was taught, at least 3, changeable per exam in Settings; exams
+  in the same fortnight take turns; every practice session asks for mixed questions.
+- When you study best (D45, the engine review's A2): the questions about the week ask
+  "When do you study best?" (morning, afternoon, evening, no preference), and each
+  day's sessions go nearest that part of the day; half an hour after training or work
+  stays free. `benchmarks/rule_vs_planner.py` prints the assistant for each answer.
+- Silence is not success (D44, the engine review's A1): a self-test not reported a day
+  after it ended counts as unknown; its topic gains no memory from it and comes back
+  sooner; the exam forecast says how many it did not count.
+- The engine review (docs/ENGINE-REVIEW.md): the planning engine's nine weak spots
+  checked against the code and the learning-science literature, and the plan.
 - Before friends try it (D43): "Send feedback" from every page, read by the owner at
   `/admin/<key>/inbox`; "Download a copy of my data" in Settings, one JSON file with
   everything kept under the plan's address; a draft of the terms of use (`/terms`),

@@ -48,6 +48,10 @@
       <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
         {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
       </select>
+      <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
+        <option value="">{{ _("Practice: {hours} h", hours=s.practice_default | hours) }}</option>
+        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
+      </select>
       <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> {{ _("Skip") }}</label>
     </div>
   </div>
@@ -167,9 +171,15 @@
     <div><label for="block_minutes">{{ _("Session length") }}</label>
     <select id="block_minutes" name="block_minutes">{% for m in (45, 60, 90, 120) %}<option value="{{ m }}"{% if m == values.block_minutes | int %} selected{% endif %}>{{ m }} min</option>{% endfor %}</select></div>
   </div>
-  <label for="practice_hours">{{ _("Exam practice before each exam (hours)") }}</label>
-  <input id="practice_hours" name="practice_hours" type="number" min="0" max="40" step="0.5" value="{{ values.practice_hours }}" inputmode="decimal">
+  <label for="practice_hours">{{ _("Exam practice before each exam") }}</label>
+  <select id="practice_hours" name="practice_hours">
+    <option value=""{% if values.practice_hours == "" or values.practice_hours is none %} selected{% endif %}>{{ _("Sized by each course") }}</option>
+    {% for h in values.practice_choices %}<option value="{{ h }}"{% if values.practice_hours != "" and values.practice_hours is not none and values.practice_hours | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("{hours} hours", hours=h | hours) }}{% endif %}</option>{% endfor %}
+  </select>
+  <p class="hint">{{ _("Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. Change one exam beside it, above.") }}</p>
   {% if not new %}
+  <label for="study_time">{{ _("When you study best") }}</label>
+  <select id="study_time" name="study_time">{% for k, words in values.study_times %}<option value="{{ k }}"{% if k == values.study_time %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}</select>
   <label for="commute">{{ _("Trip to university, one way") }}</label>
   <select id="commute" name="commute">{% for m in values.commute_choices %}<option value="{{ m }}"{% if m == values.commute | int %} selected{% endif %}>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</option>{% endfor %}</select>
   <p class="hint">{{ _("Kept free before your first class and after your last, on each day you have classes.") }}</p>
