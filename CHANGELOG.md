@@ -6,6 +6,8 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The calendar shows the whole day, midnight to midnight (D59), opening at the study
+  window or near now as before.
 - A new home page (D58): the pitch with room around it over a field of neurons whose
   signals travel between them, the ways in as glass, the steps and promises as nodes
   on a line, and a softer dark theme everywhere (ink instead of pure black).

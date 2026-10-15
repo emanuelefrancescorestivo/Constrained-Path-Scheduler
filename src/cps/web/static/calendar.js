@@ -210,11 +210,12 @@ export class Calendar {
     this.data = data;
     this.loadedAt = Date.now();
     const days = data.days;
-    const spans = data.items.map((i) => [i.start, i.end]).concat(
-      data.activities.map((r) => [toMin(r.start), toMin(r.end) > toMin(r.start) ? toMin(r.end) : 1440]),
-    );
-    this.top = Math.min(7, ...spans.map(([a]) => Math.floor(a / 60))) * 60;
-    this.bottom = Math.max(23, ...spans.map(([, b]) => Math.ceil(b / 60))) * 60;
+    // The whole day, midnight to midnight, as Apple Calendar draws it (D59): an
+    // early class, a late shift or a night out is on the grid like the rest. It
+    // still opens at the study window, or near now on today (below), and the hours
+    // outside the window are shaded.
+    this.top = 0;
+    this.bottom = 24 * 60;
     const height = (this.bottom - this.top) * PX;
     const columns = `${GUTTER}px repeat(${days.length}, minmax(0, 1fr))`;
 
@@ -235,8 +236,9 @@ export class Calendar {
     body.style.height = `${height}px`;
     const gutter = h("div", { class: "cal-gutter" });
     this.gutter = gutter;
-    for (let m = this.top + 60; m < this.bottom; m += 60) {
-      const label = h("div", { class: "cal-hour" }, toClock(m));
+    for (let m = this.top; m < this.bottom; m += 60) {
+      // Midnight is named too, set under the top edge rather than across it.
+      const label = h("div", { class: `cal-hour${m === this.top ? " first" : ""}` }, toClock(m));
       label.style.top = `${(m - this.top) * PX}px`;
       gutter.append(label);
     }
