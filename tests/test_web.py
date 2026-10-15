@@ -1437,6 +1437,13 @@ def test_pages_carry_what_moves_and_the_stylesheet_keeps_it_still_on_request(web
     assert "@media (prefers-reduced-motion: reduce) {\n  " + still in css
     assert ':root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before' in css
     assert ':root[data-motion="reduce"]::view-transition-group(*)' in css
+    # Those rules do not reach a disclosure's ::details-content, so its movement (D57)
+    # is asked for only where motion is welcome.
+    opened = css.split("selector(::details-content) {", 1)[1].split("\n}\n", 1)[0]
+    assert "transition" in opened
+    for rule in opened.split("@media (prefers-reduced-motion: no-preference) {", 1)[0].split("}"):
+        assert "transition" not in rule
+    assert ':root:not([data-motion="reduce"]) details' in opened
     # Entrance animations are for a page's arrival: motion.js settles them.
     assert "html:not(.settled) .ring-arc" in css
     js = (Path(__file__).resolve().parent.parent / "src/cps/web/static/motion.js").read_text()

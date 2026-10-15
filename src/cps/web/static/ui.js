@@ -85,6 +85,9 @@ document.addEventListener("submit", async (event) => {
   const finishing = form.action.endsWith("/tasks/done") && form.elements.done && form.elements.done.value === "1";
   if (task && finishing) task.classList.add("ticking"); // the tick shows at once
   form.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  // The button pressed shows a spinner if the answer takes more than a moment (D57).
+  const pressed = event.submitter && event.submitter.classList.contains("btn") ? event.submitter : null;
+  const busy = pressed && setTimeout(() => pressed.classList.add("busy"), 150);
   try {
     const answer = await send(form, event.submitter);
     if (!answer.ok) {
@@ -110,6 +113,8 @@ document.addEventListener("submit", async (event) => {
     toast(t("No connection to the server. Try again."), { bad: true });
     if (task) task.classList.remove("ticking");
   } finally {
+    clearTimeout(busy);
+    if (pressed) pressed.classList.remove("busy");
     form.querySelectorAll("button").forEach((b) => (b.disabled = false));
   }
 });

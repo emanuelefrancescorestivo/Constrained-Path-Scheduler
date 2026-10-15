@@ -13,6 +13,8 @@
 //   on this device.
 // - The CSS's entrance animations run on a page's first paint only: the class
 //   "settled" on <html> turns them off once the page has arrived.
+// - A button that sent its form the ordinary way shows a spinner until the next page
+//   arrives (D57); forms sent in the background mark their own button (ui.js).
 
 const root = document.documentElement;
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -233,3 +235,18 @@ new MutationObserver((changes) => {
 const settle = () => setTimeout(() => root.classList.add("settled"), 1400);
 if (document.readyState === "complete") settle();
 else addEventListener("load", settle, { once: true });
+
+// A form sent the ordinary way, to a page that can take a moment (making a plan takes
+// a second or two): the button pressed shows it is working. Not for forms a script
+// sends itself (it prevents the default), and not for answers quicker than 150 ms.
+document.addEventListener("submit", (event) => {
+  const button = event.submitter;
+  if (!button || !button.classList.contains("btn")) return;
+  setTimeout(() => {
+    if (!event.defaultPrevented) button.classList.add("busy");
+  }, 150);
+});
+// Back on a page the browser kept: nothing is being sent any more.
+addEventListener("pageshow", (event) => {
+  if (event.persisted) document.querySelectorAll(".btn.busy").forEach((b) => b.classList.remove("busy"));
+});

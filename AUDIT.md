@@ -775,3 +775,24 @@ db`, which commits on leaving but does not close the connection, so it was close
 the garbage collector later, during whichever test was running. The product's own
 connections were closed (`Store._connect`). Fixed: the test closes it
 (`contextlib.closing`). Status: fixed; the full run has no warning.
+
+**62. Selects inside a card had no chevron.** Found in the design pass (D57), on
+screenshots of every page: the rule that gives fields inside a card their gray set
+`background`, a shorthand, which also reset the `background-image` that draws a
+select's chevron, so every select in a card (Settings, the setup page) looked like a
+text field. Fixed: the rule sets `background-color` only. Status: fixed; checked in
+Chromium, light and dark.
+
+**63. Progress's count was drawn at caption size.** Found in the same pass: the rule
+meant for the caption under a number in a pair of cards (`.pair .card span`) also
+matched the spans motion.js wraps around a number that counts up (D30), so "4/8" on
+Progress was drawn at 0.9rem instead of the large size. Fixed: the rule matches the
+caption only (`.pair .card > div > span`). Status: fixed; checked in Chromium.
+
+**64. In dark mode the selected segment could not be seen.** Found in the same pass:
+the selected segment of a segmented control (the calendar's Day / 3 Days / Week, the
+top navigation, Community's tabs) was drawn in the card colour, which in dark mode
+(#2c2c2e) is the colour of the control's own track, so nothing showed which one was
+selected except the weight of its words. Fixed: a thumb colour of its own, white in
+light and gray in dark (`--thumb`), as iOS draws it. Status: fixed; checked in
+Chromium.
