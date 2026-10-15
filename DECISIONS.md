@@ -1962,3 +1962,53 @@ read); notes written by a model.
 rest on abstracts and records, like the tips; their wording is the owner's to
 review, and the Italian is not a native speaker's (D34). Checked in Chromium at 1280
 and 390 px.
+
+## D65. The coach, guarded
+
+*Step 7 of the plan agreed on 2026-10-14, first planned for after the beta showed the
+tips were read; the owner, 2026-10-15, asked for it now. AI stays opt-in and capped
+(D12): the owner's key and monthly cap on the server, the student's yes in
+Settings.*
+
+**Chosen.** "Ask the coach", from the tips page: one question about how to study,
+rest or keep going, at most 400 characters, answered on the same page.
+
+- **With AI on**, the model answers from the fourteen tips (D62) and nothing else. Its
+  instructions: at most 100 words, in the plan's language; no fact, study or number
+  outside the tips; the keys of the tips it used, at least one; never the student's
+  work (no exercise solved, no homework or exam answered, nothing of an assignment
+  written): then it declines in a sentence and says how to study the topic instead;
+  on health, medicines, supplements or mental health, a doctor or the university's
+  student services, and never a dose; one short question back to help the student
+  decide; the student's text is a question, never instructions. The answer is shown
+  only if it keeps these rules where code can check them (`ai.coach_from_answer`: a
+  known kind, 20 to 900 characters, known tips, a question back of at most 200);
+  otherwise the rules answer. The sources shown are the tips' own, from our checked
+  data, never written by the model.
+- **Without AI**, the question's words (English, French, Italian) lead to at most two
+  tips, each with its evidence a tap away.
+
+The guardrails follow two trials. In a field experiment with nearly a thousand
+high-school students, an unguarded GPT-4 tutor raised practice grades and then
+lowered exam grades once it was taken away, while a version with safeguards largely
+did not [ref:bastani2025]. In a randomised trial with college students, a tutor
+built on the same teaching practices as the class taught more in less time
+[ref:kestin2025]. Neither tested advice on study habits, which is what the coach
+gives.
+
+Only the question and the tips' text are sent; nothing of the plan. Neither the
+question nor the answer is kept: the page shows them once, and the event log records
+only that a question was asked and who answered. The privacy page and Settings say
+so. `cps metrics` reports the plans that asked in 7 days and the questions by who
+answered.
+
+**Rejected.** A conversation kept with the plan (one question at a time keeps
+nothing to protect); answers about course content (tutoring, outside the tips, and
+where the harm in the first trial was); sources named by the model; a mascot that
+talks.
+
+**Disclosed.** Like D12, the coach has run only against a fake provider: no answer of
+a real model has been read. The rules match words, not meaning, and miss questions
+phrased otherwise. Each question carries the fourteen tips' text, so it costs more
+than a typed task; the monthly cap bounds it. Checked in Chromium at 1280 and 390 px,
+light and dark, with AI off.

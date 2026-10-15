@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Ask the coach") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/tips">{{ _("Study tips") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Ask the coach") }}</h1>
+  <p>{{ _("A question about how to study, rest or keep going. The coach answers from the tips' research, and helps you study rather than doing the work for you.") }}</p>
+</div>
+
+<form method="post" action="/p/{{ token }}/coach" class="card coach-form">
+  <label for="coach-question">{{ _("Your question") }}</label>
+  <textarea id="coach-question" name="question" rows="3" maxlength="{{ limit }}" required placeholder="{{ _('I have two exams next week. How should I split my time?') }}">{{ asked or "" }}</textarea>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <div class="row-end"><button type="submit" class="btn btn-primary">{{ _("Ask") }}</button></div>
+  <p class="hint">{% if by_ai %}{{ _("AI is on: Claude, a model by Anthropic, answers, using only the tips. Your question is not kept.") }}{% else %}{{ _("AI is off: the coach matches your question to the tips.") }}{% if ai_available %} <a href="/p/{{ token }}/settings#ai">{{ _("Turn AI on in Settings") }}</a>{% endif %}{% endif %}</p>
+</form>
+
+{% if answer %}
+<section class="section coach-answer" aria-live="polite">
+  <div class="card neuron-tip">
+    {% include "_neuron.html" %}
+    <div class="neuron-words">
+      <span class="tip-reason">{% if answer.by == "ai" %}{{ _("The coach, with AI") }}{% else %}{{ _("The coach, from the tips") }}{% endif %}</span>
+      <p>{{ answer.answer }}</p>
+      {% if answer.ask %}<p><b>{{ answer.ask }}</b></p>{% endif %}
+    </div>
+  </div>
+  {% for tip in answer.tips %}
+  <a class="card link-card cards-link" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
+    <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
+    <b>{{ tip.advice }}</b>
+    <span>{% for s in tip.sources %}{{ s.cite }}{% if not loop.last %}; {% endif %}{% endfor %} ›</span>
+  </a>
+  {% endfor %}
+  {% if answer.by == "ai" %}<p class="hint">{{ _("Written by AI from the tips above: check it against them. It can be wrong.") }}</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

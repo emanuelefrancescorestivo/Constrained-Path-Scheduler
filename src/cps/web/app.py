@@ -672,6 +672,45 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_tips(store, token)
         return page(request, "tips.html", token=token, view=service.tips_view(), tab="focus")
 
+    def coach_page(
+        request: Request, token: str, subscription: service.Subscription, **context: Any
+    ) -> HTMLResponse:
+        return page(
+            request,
+            "coach.html",
+            token=token,
+            limit=service.COACH_MAX,
+            by_ai=service.ai_available() and service.ai_on(subscription),
+            ai_available=service.ai_available(),
+            tab="focus",
+            **context,
+        )
+
+    @app.get("/p/{token}/coach", response_class=HTMLResponse)
+    def coach(request: Request, token: str) -> HTMLResponse:
+        """Ask the coach (D65): a question about studying, answered from the tips."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        return coach_page(request, token, subscription)
+
+    @app.post("/p/{token}/coach", response_class=HTMLResponse)
+    async def ask_coach(request: Request, token: str) -> HTMLResponse:
+        """The answer, on the same page; neither the question nor the answer is kept."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        asked = str(form.get("question") or "")[: service.COACH_MAX + 100]
+        try:
+            answer = service.coach(store, subscription, asked, now=config.clock())
+        except service.ServiceError as error:
+            return coach_page(request, token, subscription, asked=asked, error=str(error))
+        return coach_page(request, token, subscription, asked=asked, answer=answer)
+
     @app.get("/p/{token}/weekly", response_class=HTMLResponse)
     def weekly(request: Request, token: str) -> HTMLResponse:
         """The weekly notes so far, this week's first (D64)."""

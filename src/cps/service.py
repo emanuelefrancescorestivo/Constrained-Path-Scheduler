@@ -6077,6 +6077,228 @@ def log_tips(store: str | os.PathLike, token: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# The coach (DECISIONS.md D65)
+
+COACH_MAX = 400  # characters in a question
+# The rules' coach: words of a question (English, French, Italian) and the tips
+# they lead to. A pattern starts at a word's start; short words are whole words.
+_SLEEP = (
+    r"\bsleep",
+    r"\bnap\b",
+    r"\ball[- ]nighter",
+    r"\bdormir",
+    r"\bsommeil",
+    r"\bnuit blanche",
+    r"\bsieste",
+    r"\bdormire",
+    r"\bsonno",
+    r"\bnotte in bianco",
+)
+_COACH_WORDS = {
+    "self-test": (
+        r"\bre-?read",
+        r"\bhighlight",
+        r"\btest(ing)? myself",
+        r"\bmemori",
+        r"\bremember",
+        r"\bretain",
+        r"\bforget",
+        r"\brelir",
+        r"\brelis",
+        r"\brelecture",
+        r"\bsurlign",
+        r"\bmémoris",
+        r"\bretenir",
+        r"\boubli",
+        r"\brilegg",
+        r"\brilettur",
+        r"\bsottolin",
+        r"\bmemorizz",
+        r"\bricord",
+        r"\bdimentic",
+    ),
+    "spacing": (
+        r"\bcram",
+        r"\blast[- ]minute",
+        r"\bnight before",
+        r"\bspread",
+        r"\bspac(e|ing)\b",
+        r"\bbachot",
+        r"\bdernière minute",
+        r"\bla veille",
+        r"\bétaler",
+        r"\bultimo momento",
+        r"\bnotte prima",
+        r"\bdistribuir",
+    ),
+    "class-quizzes": (
+        r"\bquiz",
+        r"\bmidterm",
+        r"\binterro",
+        r"\bpartiel",
+        r"\bcompitin",
+        r"\bprov[ae] intermedi",
+    ),
+    "interleave": (
+        r"\bmix",
+        r"\binterleav",
+        r"\bexercises\b",
+        r"\bproblem",
+        r"\bmaths?\b",
+        r"\bmélang",
+        r"\bexercices\b",
+        r"\bproblème",
+        r"\bmescol",
+        r"\balternar",
+        r"\besercizi",
+        r"\bproblemi",
+        r"\bmatematic",
+    ),
+    "pretest": (r"before (the )?(lecture|class)", r"avant (le|la) cours", r"prima della lezione"),
+    "attend": (
+        r"\bskip(ping)? (a |the )?(class|lecture)",
+        r"\battend",
+        r"\bgo(ing)? to (class|lectures?)",
+        r"\bsécher",
+        r"\baller en cours",
+        r"\bassiduité",
+        r"\bsaltare (la |le )?lezion",
+        r"\bfrequenz",
+        r"\bandare a lezione",
+    ),
+    "sleep-after": _SLEEP,
+    "sleep-regular": _SLEEP,
+    "exercise": (
+        r"\bsport",
+        r"\bgym\b",
+        r"\brunning\b",
+        r"\bexercise\b",
+        r"\bworkout",
+        r"\bcourir",
+        r"\bpalestra",
+        r"\bcorrere",
+        r"\ballenament",
+    ),
+    "caffeine": (
+        r"\bcoffee",
+        r"\bcaffein",
+        r"\btea\b",
+        r"\benergy drink",
+        r"\btheanin",
+        r"\bcafé",
+        r"\bthé\b",
+        r"\bthéanin",
+        r"\bcaffè",
+        r"\btè\b",
+        r"\bteanin",
+    ),
+    "breaks": (
+        r"\bbreaks?\b",
+        r"\bpomodoro",
+        r"\btired",
+        r"\bfocus",
+        r"\bconcentr",
+        r"\bdistract",
+        r"\bpauses?\b",
+        r"\bfatigu",
+        r"\bpausa\b",
+        r"\bstanc",
+        r"\bdistra",
+    ),
+    "track": (r"\btrack", r"\bprogress", r"\bmonitor", r"\bprogrès", r"\bprogressi", r"\btraccia"),
+    "if-then": (
+        r"\bprocrastin",
+        r"\bget started",
+        r"\bstart studying",
+        r"\bmotiv",
+        r"\bcommencer",
+        r"\biniziare",
+        r"\bcominciare",
+    ),
+    "habit": (
+        r"\bhabit",
+        r"\broutine",
+        r"\bstreak",
+        r"\bevery day",
+        r"\bconsistent",
+        r"\bhabitude",
+        r"\btous les jours",
+        r"\babitudin",
+        r"\bogni giorno",
+        r"\bcostan",
+    ),
+}
+COACH_WORDS = {key: re.compile("|".join(words)) for key, words in _COACH_WORDS.items()}
+
+
+def _coach_rules(question: str) -> list[str]:
+    """The tips a question's words lead to, the most matched first, at most two."""
+    text = question.casefold()
+    scores = {key: len(pattern.findall(text)) for key, pattern in COACH_WORDS.items()}
+    order = [t.key for t in _tips.TIPS]
+    ranked = sorted((k for k, n in scores.items() if n), key=lambda k: (-scores[k], order.index(k)))
+    return ranked[:2]
+
+
+def coach(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    question: str,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict:
+    """A question about studying, answered from the tips (D65): by the model when AI
+    is on and allowed, and its answer keeps the rules (`ai.coach_from_answer`);
+    otherwise by matching the question's words to the tips. The question is not
+    kept; that one was asked, and how, is logged for the pilot's measures."""
+    now = now or datetime.now(UTC)
+    question = " ".join(str(question).split())
+    if len(question) < 3:
+        raise InvalidInput(_("ask a question in a few words"))
+    if len(question) > COACH_MAX:
+        raise InvalidInput(_("at most {n} characters, please", n=COACH_MAX))
+    by_key = {t.key: t for t in _tips.TIPS}
+    model = (provider or _ai.from_env()) if ai_on(subscription) else None
+    if model is not None:
+        language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
+        library = [{"key": t.key, "advice": t.advice, "why": t.why, "limits": t.limits} for t in _tips.TIPS]
+        system, prompt = _ai.coach_prompt(question, language, library)
+        data = _ai.ask(
+            _store(store),
+            subscription.token,
+            model,
+            "coach",
+            system=system,
+            prompt=prompt,
+            schema=_ai.COACH_SCHEMA,
+            max_tokens=1500,
+            now=now,
+        )
+        answer = _ai.coach_from_answer(data, list(by_key)) if data else None
+        if answer is not None:
+            log_event(store, subscription.token, "coach", "ai")
+            return {
+                "by": "ai",
+                "answer": answer["answer"],
+                "ask": answer["question"],
+                "declined": answer["kind"] == "declined",
+                "tips": [_tip(by_key[k]) for k in answer["tips"]],
+            }
+    matched = _coach_rules(question)
+    log_event(store, subscription.token, "coach", "rules")
+    return {
+        "by": "rules",
+        "answer": _("Here is what the research in the tips says about that.")
+        if matched
+        else _("No tip matches your question yet. All the tips are on the tips page."),
+        "ask": "",
+        "declined": False,
+        "tips": [_tip(by_key[k]) for k in matched],
+    }
+
+
+# --------------------------------------------------------------------------- #
 # AI, opt-in and capped (DECISIONS.md D12)
 
 
@@ -6292,6 +6514,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     - active: plans opened (a `visit`) in the last 7 and 30 days;
     - tips: plans that opened the tips page in the last 7 and 30 days (D62);
     - weekly: plans that opened a weekly note in the last 7 and 30 days (D64);
+    - coach: plans that asked the coach in the last 7 days, and the questions by who answered (D65);
     - north star: plans with a session confirmed (done or hard, or a focus session
       logged) in the last 7 days, as a share of plans set up;
     - confirmed: planned sessions of the last 7 days reported done or hard, of
@@ -6310,10 +6533,14 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     visits: dict[str, set[date]] = {}
     tips: dict[str, set[date]] = {}  # the tips page opened (D62)
     notes: dict[str, set[date]] = {}  # a weekly note opened (D64)
-    for t, at, kind, _detail in events:
-        days = {"visit": visits, "tips": tips, "weekly": notes}.get(kind)
+    asked: dict[str, set[date]] = {}  # a question to the coach (D65)
+    questions = {"ai": 0, "rules": 0}  # in the last 7 days, by who answered
+    for t, at, kind, detail in events:
+        days = {"visit": visits, "tips": tips, "weekly": notes, "coach": asked}.get(kind)
         if days is not None:
             days.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+        if kind == "coach" and detail in questions and datetime.fromisoformat(at) >= week_ago:
+            questions[detail] += 1
     tokens = where.tokens()
 
     def active(since: datetime, days: dict[str, set[date]] = visits) -> int:
@@ -6407,6 +6634,8 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "tips_30": active(month_ago, tips),
         "weekly_7": active(week_ago, notes),
         "weekly_30": active(month_ago, notes),
+        "coach_7": active(week_ago, asked),
+        "coach_questions_7": questions,
         "north_star": north,
         "planned_7": planned,
         "confirmed_7": confirmed,

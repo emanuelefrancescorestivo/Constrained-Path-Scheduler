@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The coach (D65): a question about studying, answered from the tips. With AI on,
+  the model answers from the tips only, cites them, never does the work, gives no
+  dose, and asks a question back; an answer that breaks the rules is not shown.
+  Without AI, the question's words lead to the tips. Neither question nor answer is
+  kept; the privacy page and Settings say what is sent.
 - The weekly note (D64): one study a week on how we learn, in plain words, with what
   it means for you, its limits and its sources; the first from a plan's first day, one
   more each Monday, ten in all; on Today until read, listed from the tips page.

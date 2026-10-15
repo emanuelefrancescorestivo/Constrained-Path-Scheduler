@@ -27,8 +27,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 758 passed, 17 deselected, 1 xfailed, about 200 s
-    pytest -m "slow or not slow" --cov=cps   # all 775 + 1 xfailed, 93% coverage, about 8 min; CI runs this
+    pytest                                   # 767 passed, 17 deselected, 1 xfailed, about 200 s
+    pytest -m "slow or not slow" --cov=cps   # all 784 + 1 xfailed, 93% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -40,7 +40,7 @@ more than an impressive number.
     python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
-    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read (D62, D64)
+    cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read, questions to the coach (D62, D64, D65)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
 
@@ -65,7 +65,7 @@ more than an impressive number.
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
-| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
+| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39) |
 | `service.py` | the API every front end uses; lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
@@ -75,7 +75,7 @@ more than an impressive number.
 | `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone) |
 | `reminders.py` | D38: Web Push before each session: the server's VAPID key (made once, kept in the store), devices at known push services only, a session reminded once, sending with `pywebpush` |
 | `passkeys.py`, `accounts.py` | D35: WebAuthn checked on the server (a small CBOR reader; ES256, Ed25519, RS256 with `cryptography`, imported lazily), a plan's passkeys, single-use challenges, the recovery code (a digest, used once) |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the neuron that brings them (`_neuron.html`, D63) and the weekly note (D64), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the neuron that brings them (`_neuron.html`, D63) the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
 | `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
@@ -198,8 +198,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   Chromium only.
 - The tips (D62) rest on abstracts and database records, not full texts; their wording is the
   owner's to review, and a tip may cite only a checked reference (`tests/test_tips.py`).
-- AI (D12) has run only against a fake provider: no model answer has been tried on
-  real sentences. With no `ANTHROPIC_API_KEY`, the rules answer, as they do whenever
+- AI (D12), the coach (D65) included, has run only against a fake provider: no model answer
+  has been tried on real sentences. With no `ANTHROPIC_API_KEY`, the rules answer, as they do whenever
   the model is off, over the cap or wrong.
 - Moodle deadlines are read from English event names only; their hours are a guess
   (2 h) until the student changes them. Tasks typed in one line are read by rules in

@@ -507,3 +507,21 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - doi: 10.2190/EC.49.1.a
 - status: checked
 - checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: 43 studies, 3,088 participants; pedagogical agents (on-screen characters that facilitate instruction) had a small but significant effect on learning; more beneficial for K-12 than post-secondary students; agents communicating with on-screen text helped more than narrating ones.
+
+### bastani2025
+- authors: Hamsa Bastani; Osbert Bastani; Alp Sungu; Haosen Ge; Özge Kabakcı; Rei Mariman
+- title: Generative AI without guardrails can harm learning: Evidence from high school mathematics
+- year: 2025
+- venue: Proceedings of the National Academy of Sciences 122(26), e2422633122
+- doi: 10.1073/pnas.2422633122
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 40560616 and Crossref's record, 2026-10-15: a field experiment giving nearly a thousand high-school maths students a GPT-4 tutor; with access, grades on practice problems rose 48 % ("GPT Base", a standard chat interface) and 127 % ("GPT Tutor", prompts designed to safeguard learning); once access was taken away, GPT Base students did 17 % worse than those who never had it, an effect largely mitigated by GPT Tutor's safeguards. A later correction (PNAS 122(34), e2518204122; PMC12403119) fixes one author's affiliation only.
+
+### kestin2025
+- authors: Greg Kestin; Kelly Miller; Anna Klales; Timothy Milbourne; Gregorio Ponti
+- title: AI tutoring outperforms in-class active learning: an RCT introducing a novel research-based design in an authentic educational setting
+- year: 2025
+- venue: Scientific Reports 15, 17458
+- doi: 10.1038/s41598-025-97652-6
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 40537565 (PMC12179260) and Crossref's record, 2026-10-15: a randomised controlled trial with college students; content through an AI tutor designed with the same pedagogical practices as the in-class active-learning lessons; students learned significantly more in less time with the tutor, and felt more engaged and motivated.

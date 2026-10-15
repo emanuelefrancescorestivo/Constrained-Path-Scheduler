@@ -1943,3 +1943,11 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-for-you .neuron { flex: none; width: 52px; height: 52px; overflow: visible; }
 .weekly-for-you p { margin: 0; }
 .weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+
+/* -- the coach (D65) ------------------------------------------------------------------ */
+.coach-form textarea { width: 100%; resize: vertical; }
+.coach-answer .neuron-words p { margin: 0; }
+.coach-answer .strength { align-self: flex-start; font-size: 0.74rem; }
+.coach-answer .strength-strong { color: var(--ok); }
+.coach-answer .strength-moderate { color: var(--accent); }
+.coach-answer .strength-early { color: var(--warn); }
