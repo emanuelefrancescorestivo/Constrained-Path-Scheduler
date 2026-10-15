@@ -497,3 +497,12 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - doi: 10.2903/j.efsa.2015.4102
 - status: checked
 - checked against: the abstract in Semantic Scholar's record of the DOI, Crossref's record, and EFSA's topic page (efsa.europa.eu/en/topics/topic/caffeine), 2026-10-15: single doses up to 200 mg and habitual intakes up to 400 mg a day give no safety concerns for healthy non-pregnant adults; up to 200 mg a day in pregnancy; a single 100 mg dose may affect sleep duration and patterns in some adults, particularly close to bedtime (the topic page). The publisher's page (onlinelibrary.wiley.com) answered 403. EFSA's 2011 opinion on L-theanine's health claims (EFSA Journal 9(6), 2238) could not be read and is not cited.
+
+### schroeder2013
+- authors: Noah L. Schroeder; Olusola O. Adesope; Rachel Barouch Gilbert
+- title: How Effective are Pedagogical Agents for Learning? A Meta-Analytic Review
+- year: 2013
+- venue: Journal of Educational Computing Research 49(1), pages 1–39
+- doi: 10.2190/EC.49.1.a
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: 43 studies, 3,088 participants; pedagogical agents (on-screen characters that facilitate instruction) had a small but significant effect on learning; more beneficial for K-12 than post-secondary students; agents communicating with on-screen text helped more than narrating ones.

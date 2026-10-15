@@ -1907,8 +1907,26 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   border-top: 0.5px solid var(--line); font-size: 0.88rem;
 }
 .tip-sources .muted { white-space: nowrap; }
-.tip-today { display: flex; flex-direction: column; gap: 3px; }
-.tip-today .kicker {
-  font-size: 0.78rem; font-weight: 650; color: var(--accent); text-transform: uppercase; letter-spacing: 0.02em;
+
+/* -- the neuron that brings a tip (D63) -------------------------------------------- */
+/* The home page's neurons (D58) as a small friend beside a tip. It breathes and a
+   signal runs down a dendrite to it; under reduced motion it keeps still. */
+.neuron-tip { display: flex; gap: 14px; align-items: center; }
+.neuron-tip .neuron { flex: none; width: 52px; height: 52px; overflow: visible; }
+.neuron-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.neuron-words > span { color: var(--muted); font-size: 0.92rem; }
+.neuron-words > .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+.neuron-dendrites { fill: none; stroke: color-mix(in srgb, var(--nf-2) 75%, transparent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.neuron-signal { fill: none; stroke: var(--nf-3); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 18 200; stroke-dashoffset: -100; }
+.neuron-glow { fill: var(--nf-1); opacity: 0.16; transform-box: fill-box; transform-origin: center; }
+.neuron-soma { fill: color-mix(in srgb, var(--nf-1) 65%, var(--nf-2)); }
+.neuron-eye { fill: #fff; }
+.neuron-smile { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .neuron-glow { animation: neuron-breathe 4s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .neuron-signal { animation: neuron-signal 3.6s ease-in infinite; }
 }
-.tip-today .tip-more { color: var(--muted); font-size: 0.9rem; }
+@keyframes neuron-breathe { 0%, 100% { transform: scale(0.9); opacity: 0.12; } 50% { transform: scale(1.1); opacity: 0.26; } }
+@keyframes neuron-signal { 0% { stroke-dashoffset: -100; opacity: 0; } 15% { opacity: 1; } 60%, 100% { stroke-dashoffset: 18; opacity: 0; } }
+.tip-today { margin-bottom: 14px; }
+.focus-break { width: 100%; max-width: 420px; margin-top: 8px; text-align: left; }

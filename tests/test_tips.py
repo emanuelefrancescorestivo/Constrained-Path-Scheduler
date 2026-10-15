@@ -109,6 +109,80 @@ def test_one_tip_a_day_and_every_tip_in_turn():
     assert tips.of_the_day(start) == tips.of_the_day(start + timedelta(days=len(tips.TIPS)))
 
 
+# Tips at the right moment (D63): the plan's day picks the tip, and says why.
+
+STATS = ("2026-09-29T09:00+02:00", "Advanced Statistics, Grp: CM ., Salle: Salle 3")  # Tue 09:00
+ALGEBRA = ("2026-10-01T16:00+02:00", "Algebra 3, Grp: TD ., Salle: Salle 2")  # Thu 16:00
+
+
+@pytest.fixture(scope="module")
+def semester():
+    return service.start_subscription(tz="Europe/Paris", ics=SEMESTER.read_bytes(), now=MORNING)
+
+
+def test_a_lecture_later_today_brings_the_questions_before_it(semester):
+    tip = service.tip_of_the_day(semester, MORNING)  # 08:00 in Paris, Statistics at 09:00
+    assert tip["key"] == "pretest" and tip["reason"] == "A lecture later today: Advanced Statistics at 09:00."
+    warmed = service.revise_subscription(semester, warm_up=True, now=MORNING)
+    assert service.tip_of_the_day(warmed, MORNING)["key"] != "pretest"  # Today already asks
+
+
+def test_what_cannot_wait_comes_first(semester):
+    quiz = service.change_lecture(semester, *ALGEBRA, "quiz", now=MORNING)
+    tip = service.tip_of_the_day(quiz, MORNING)
+    assert tip["key"] == "class-quizzes"
+    assert tip["reason"] == "A test is coming: Quiz: Algebra 3, Thu 1 Oct 16:00."
+    skipped = service.change_lecture(semester, *STATS, "skip", now=MORNING)
+    tip = service.tip_of_the_day(skipped, MORNING)
+    assert tip["key"] == "attend" and "Advanced Statistics" in tip["reason"]
+    # A catch-up is planned: nothing to say about going to class.
+    caught_up = service.change_lecture(semester, *STATS, "self", now=MORNING)
+    assert service.tip_of_the_day(caught_up, MORNING)["key"] != "attend"
+    before_exam = datetime(2027, 1, 23, 9, 0, tzinfo=UTC)  # two days before Computer Programming 3
+    tip = service.tip_of_the_day(semester, before_exam)
+    assert tip["key"] == "sleep-regular" and tip["reason"].startswith("Exam soon: Computer Programming 3,")
+
+
+def test_a_skipped_session_yesterday_and_an_evening_session(semester):
+    plan = service.PlanReport.from_dict(semester.plan)
+    first = plan.sessions[0]  # Thu 1 Oct 08:00
+    thursday = datetime.fromisoformat(first.end).astimezone(UTC) + timedelta(hours=1)
+    missed = service.report_session(semester, service.session_id(first), "skipped", now=thursday)
+    tip = service.tip_of_the_day(missed, thursday + timedelta(days=1))
+    assert tip["key"] == "habit" and tip["reason"] == "A session was skipped yesterday."
+
+    evenings = service.revise_subscription(semester, study_time="evening", now=MORNING)
+    late = next(
+        s
+        for s in service.PlanReport.from_dict(evenings.plan).sessions
+        if datetime.fromisoformat(s.start).hour >= 18
+    )
+    start = datetime.fromisoformat(late.start)
+    tip = service.tip_of_the_day(evenings, start.replace(hour=13))
+    assert tip["key"] == "caffeine" and tip["reason"] == f"You study this evening at {start:%H:%M}."
+
+
+def test_training_today_is_one_of_the_ordinary_moments(semester):
+    gym = {"label": "Gym", "weekday": 1, "start": "19:00", "end": "20:30", "kind": "training"}  # Tuesdays
+    trained = service.revise_subscription(semester, busy_rows=[gym], now=MORNING)
+    local = MORNING.astimezone(service._zone("Europe/Paris"))
+    urgent, usual = service._tip_moments(trained, local)
+    assert not urgent and ("exercise", "Training today: Gym at 19:00.") in usual
+    # Ordinary moments take turns day by day; tips the day does not call for, in turn.
+    keys = {service.tip_of_the_day(trained, MORNING + timedelta(days=7 * n))["key"] for n in range(6)}
+    assert "exercise" in keys
+
+
+def test_tips_can_be_turned_off(semester):
+    off = service.set_tips(semester, "off")
+    assert service.tip_of_the_day(off, MORNING) is None and service.focus_tip(off) is None
+    with pytest.raises(service.InvalidInput):
+        service.set_tips(semester, "sometimes")
+    with i18n.use("fr"):
+        reason = service.tip_of_the_day(semester, MORNING)["reason"]
+    assert reason.startswith("Un cours plus tard aujourd'hui")
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -137,10 +211,36 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
         web.get(f"/p/{token}/tips")  # twice the same day: counted once
 
         today = unescape(web.get(f"/p/{token}").text)
-        tip = tips.of_the_day(date(2026, 9, 29))  # 08:00 in Paris
-        assert f"/p/{token}/tips#tip-{tip.key}" in today
-        assert (catalogue or {}).get(tip.advice, tip.advice) in today
+        with i18n.use(lang):  # the day's tip and why, in the plan's language
+            tip = service.tip_of_the_day(service.load_subscription(tmp_path, token), MORNING)
+        assert f"/p/{token}/tips#tip-{tip['key']}" in today
+        assert tip["advice"] in today and tip["reason"] and tip["reason"] in today
         assert f'href="/p/{token}/tips"' in web.get(f"/p/{token}/focus").text
 
     measures = service.engagement(tmp_path)
     assert measures["tips_7"] == measures["tips_30"] == 1 and measures["plans"] == 1
+
+
+def test_the_neuron_on_today_and_focus_and_the_switch(tmp_path):
+    clock = {"now": MORNING}
+    config = Config(store=tmp_path, clock=lambda: clock["now"], background=False, sweep_every=None)
+    with TestClient(create_app(config)) as web:
+        files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+        start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+        token = start.headers["location"].split("/")[2]
+        today = unescape(web.get(f"/p/{token}").text)
+        assert 'class="neuron"' in today and "A lecture later today: Advanced Statistics at 09:00." in today
+        assert f"/p/{token}/tips#tip-pretest" in today
+
+        focus = unescape(web.get(f"/p/{token}/focus").text)
+        assert "Before you start" in focus and f"/p/{token}/tips#tip-breaks" in focus
+        web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
+        running = web.get(f"/p/{token}/focus").text
+        assert 'data-break-at="1440" hidden' in running  # shown by the clock at 24 minutes
+        clock["now"] = MORNING + timedelta(minutes=30)
+        assert 'data-break-at="1440">' in web.get(f"/p/{token}/focus").text  # past it: shown
+
+        switched = web.post(f"/p/{token}/tip-setting", data={"tips": "off"}, follow_redirects=False)
+        assert switched.status_code == 303
+        assert 'class="neuron"' not in web.get(f"/p/{token}").text
+        assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text

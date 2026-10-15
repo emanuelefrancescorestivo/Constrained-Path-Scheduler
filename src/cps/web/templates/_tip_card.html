@@ -1,0 +1,10 @@
+{# Today's tip, brought by the neuron (D62, D63): why now, the advice, and its
+   evidence a tap away on the tips page. #}
+<a class="card link-card neuron-tip tip-today section" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
+  {% include "_neuron.html" %}
+  <span class="neuron-words">
+    <span class="tip-reason">{{ tip.reason or _("Tip of the day") }}</span>
+    <b>{{ tip.advice }}</b>
+    <span class="tip-more">{{ _("Why, and the evidence") }} ›</span>
+  </span>
+</a>

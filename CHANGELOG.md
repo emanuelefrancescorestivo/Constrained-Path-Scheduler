@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Tips at the right moment (D63): Today's tip is the one the day calls for (an exam
+  within three days, a test coming, a session or a class skipped, an evening session,
+  a lecture, training, a self-test), with why now, brought by a small neuron; Focus
+  says to plan breaks, and asks for one after 24 minutes. Tips can be turned off.
 - Tips with their sources (D62): a Tips page, from Focus, and one tip a day on
   Today. Fourteen tips on studying, sleep, movement, coffee, breaks and habits, each
   with how strong its evidence is, what it does not show and its sources, linked and

@@ -657,6 +657,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             focus=service.focus_view(subscription, config.clock()),
             cards_due=service.cards_due(store, subscription, config.clock()),
+            tip=service.focus_tip(subscription),
             tab="focus",
         )
 
@@ -1727,6 +1728,20 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "motion", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
 
+    @app.post("/p/{token}/tip-setting")
+    async def tip_setting(request: Request, token: str) -> Response:
+        """Tips on Today and Focus, on or off (D63)."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("tips") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_tips(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "tips setting", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
         """The week as a list of days: the calendar for a browser without scripts."""
@@ -1922,6 +1937,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             account=service.account_view(store, subscription, config.clock()),
             reminders=service.reminders_view(store, subscription),
+            tips_on=service.tips_on(subscription),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)

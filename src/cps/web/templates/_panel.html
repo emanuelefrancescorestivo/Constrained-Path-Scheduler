@@ -8,6 +8,8 @@
 {% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 {% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
+{# A tip the day calls for, near the top (D63) #}
+{% if tip and tip.reason %}{% include "_tip_card.html" %}{% endif %}
 {% if cards_due %}<a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Flashcards") }} ›</span></a>{% endif %}
 {% if semester_over %}
 <a class="card nudge-card" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
@@ -167,8 +169,8 @@
 
 {% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
 
-{# One tip a day, with its sources a tap away (D62) #}
-{% if tip %}<a class="card link-card tip-today section" href="/p/{{ token }}/tips#tip-{{ tip.key }}"><span class="kicker">{{ _("Tip of the day") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></a>{% endif %}
+{# A tip that takes turns, when nothing in the day calls for one (D62) #}
+{% if tip and not tip.reason %}{% include "_tip_card.html" %}{% endif %}
 
 {# A word to the owner from where students spend their time (D43) #}
 <p class="panel-foot"><a href="/p/{{ token }}/feedback?from=/p/{{ token }}">{{ _("Something not right? Send feedback") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>

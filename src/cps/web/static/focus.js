@@ -15,6 +15,9 @@ let beatTimer = null;
 let lock = null;
 
 const sweep = document.getElementById("focus-sweep");
+// The neuron's break nudge (D63): the server says after how long; it is in the page,
+// hidden, and shown when the clock gets there.
+const nudge = document.querySelector(".focus-break[data-break-at]");
 const pad = (n) => String(n).padStart(2, "0");
 
 // The ring round the clock goes round once a minute (D30), in step with the seconds:
@@ -27,6 +30,7 @@ function syncSweep() {
 function draw() {
   const seconds = Math.floor(elapsed + (performance.now() - since) / 1000);
   clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+  if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
 }
 
 async function beat() {

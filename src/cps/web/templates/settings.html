@@ -317,6 +317,13 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.") }}</p>
+<form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" aria-label="{{ _('Tips') }}">
+  <span class="pills-label">{{ _("Tips") }}</span>
+  {% for value, word in (("on", _("On")), ("off", _("Off"))) %}
+  <button type="submit" name="tips" value="{{ value }}" class="btn btn-sm"{% if ("on" if tips_on else "off") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("A study tip on Today and Focus, chosen for your day. The tips page stays in Focus either way.") }}</p>
 <h2 class="section" id="ai">{{ _("AI") }}</h2>
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">

@@ -3837,7 +3837,12 @@ def warm_ups(subscription: Subscription, now: datetime | None = None) -> list[di
         return []
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
-    local = (now or datetime.now(UTC)).astimezone(zone)
+    return _lectures_ahead_today(plan, (now or datetime.now(UTC)).astimezone(zone))
+
+
+def _lectures_ahead_today(plan: PlanReport, local: datetime) -> list[dict]:
+    """The lectures of planned courses still ahead today (exams aside), by time."""
+    zone = local.tzinfo
     courses = {s.name.casefold(): s.name for s in plan.subjects}
     exams = {datetime.fromisoformat(s.exam) for s in plan.subjects}
     colours = {name.casefold(): index for name, index in course_colours(plan)}
@@ -5867,11 +5872,142 @@ def tips_view() -> dict:
     }
 
 
-def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> dict:
-    """Today's tip for the Today page: its words and its place on the tips page."""
+TIP_SETTINGS = ("on", "off")
+
+
+def tips_on(subscription: Subscription) -> bool:
+    """Whether Today and Focus show tips (D63); the tips page is always there."""
+    return subscription.options.get("tips", "on") != "off"
+
+
+def set_tips(subscription: Subscription, value: str) -> Subscription:
+    if value not in TIP_SETTINGS:
+        raise InvalidInput(_("choose On or Off"))
+    return replace(subscription, options={**subscription.options, "tips": value})
+
+
+def _tip_moments(subscription: Subscription, local: datetime) -> tuple[list, list]:
+    """What in the plan today a tip speaks to (D63), as (tip key, why now) pairs:
+    first what cannot wait (an exam or a test close, a session or a class skipped,
+    caffeine before an evening session), then what is ordinary (a lecture, training,
+    a self-test, the evening after studying). Only facts the plan holds; the tip
+    itself says what the research found."""
+    urgent: list[tuple[str, str]] = []
+    usual: list[tuple[str, str]] = []
+    if subscription.plan is None:
+        return urgent, usual
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = local.tzinfo
+    today = local.date()
+
+    def at(stamp: str) -> datetime:
+        return datetime.fromisoformat(stamp).astimezone(zone)
+
+    exams = [(at(s.exam), s.name) for s in plan.subjects]
+    exams += [(at(e.start), test_label("partial", e.summary)) for e in plan.events if e.source == "partial"]
+    soon = sorted(x for x in exams if local < x[0] < local + timedelta(days=4))
+    if soon:
+        urgent.append(
+            ("sleep-regular", _("Exam soon: {name}, {when}.", name=soon[0][1], when=_when(soon[0][0], local)))
+        )
+    tests = sorted(
+        (at(e.start), test_label(e.source, e.summary))
+        for e in plan.events
+        if e.source in ("quiz", "mock") and local < at(e.start) < local + timedelta(days=7)
+    )
+    if tests:
+        urgent.append(
+            (
+                "class-quizzes",
+                _("A test is coming: {name}, {when}.", name=tests[0][1], when=_when(tests[0][0], local)),
+            )
+        )
+    if any(s.outcome == "skipped" and at(s.start).date() == today - timedelta(days=1) for s in plan.history):
+        urgent.append(("habit", _("A session was skipped yesterday.")))
+    for change in subscription.options.get("lecture_changes", ()):
+        if change.get("action") != "skip":
+            continue  # a catch-up is planned, or the class is a test
+        course = course_of(change["summary"]) or short_title(change["summary"])
+        if "at" in change and abs((at(change["at"]).date() - today).days) < 7:
+            day = format_date(at(change["at"]).date(), "short")
+            urgent.append(
+                ("attend", _("A class skipped this week: {course}, {day}.", course=course, day=day))
+            )
+            break
+        if "weekday" in change and date.fromisoformat(change["from"]) < today + timedelta(days=7):
+            urgent.append(("attend", _("A class you skip every week: {course}.", course=course)))
+            break
+    sessions = [s for s in plan.history + plan.sessions if at(s.start).date() == today]
+    evening = [at(s.start) for s in sessions if at(s.start) > local and at(s.start).hour >= 18]
+    if evening and local.hour >= 12:
+        urgent.append(("caffeine", _("You study this evening at {time}.", time=f"{min(evening):%H:%M}")))
+
+    if not subscription.options.get("warm_up"):
+        lectures = _lectures_ahead_today(plan, local)
+        if lectures:
+            first = lectures[0]
+            usual.append(
+                (
+                    "pretest",
+                    _(
+                        "A lecture later today: {course} at {time}.",
+                        course=first["course"],
+                        time=first["when"],
+                    ),
+                )
+            )
+    for row in subscription.busy_rows:
+        weekly = row.get("weekday") is not None and int(row["weekday"]) == today.weekday()
+        if row.get("kind") == "training" and (weekly or row.get("date") == today.isoformat()):
+            usual.append(
+                (
+                    "exercise",
+                    _(
+                        "Training today: {name} at {time}.",
+                        name=row.get("label", ""),
+                        time=str(row.get("start", ""))[:5],
+                    ),
+                )
+            )
+            break
+    tests_today = [s for s in sessions if s.kind in ("review", "first review") and at(s.end) > local]
+    if tests_today:
+        usual.append(("self-test", _("A self-test today: {subject}.", subject=tests_today[0].subject)))
+    studied = [s for s in sessions if at(s.end) <= local and s.outcome != "skipped"]
+    if studied and local.hour >= 20:
+        usual.append(("sleep-after", _("You studied today.")))
+    return urgent, usual
+
+
+def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's tip (D63): the one the plan's day calls for, with why now; when
+    several ordinary moments apply, they take turns day by day; when none does, the
+    tips take turns (D62). None when the student turned tips off."""
+    if not tips_on(subscription):
+        return None
     now = now or datetime.now(UTC)
-    tip = _tips.of_the_day(now.astimezone(_zone(subscription.options["tz"])).date())
-    return {"key": tip.key, "advice": _(tip.advice)}
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    urgent, usual = _tip_moments(subscription, local)
+    day = local.date().toordinal()
+    if urgent or usual:
+        key, reason = urgent[0] if urgent else usual[day % len(usual)]
+        tip = next(t for t in _tips.TIPS if t.key == key)
+    else:
+        tip, reason = _tips.of_the_day(local.date()), ""
+    return {"key": tip.key, "advice": _(tip.advice), "reason": reason}
+
+
+def focus_tip(subscription: Subscription) -> dict | None:
+    """The tip the focus page shows (D63): plan breaks before starting, and take one
+    after `BREAK_AFTER` of a running session, the study's 24-minute blocks
+    [ref:biwer2023]. None when tips are off."""
+    if not tips_on(subscription):
+        return None
+    tip = next(t for t in _tips.TIPS if t.key == "breaks")
+    return {"key": tip.key, "advice": _(tip.advice), "break_after": int(BREAK_AFTER.total_seconds())}
+
+
+BREAK_AFTER = timedelta(minutes=24)
 
 
 def log_tips(store: str | os.PathLike, token: str) -> None:

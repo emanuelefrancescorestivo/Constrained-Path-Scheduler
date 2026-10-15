@@ -1877,3 +1877,53 @@ is the owner's to review; the Italian was not written by a native speaker (D34).
 study shows that tips in an app improve students' results: these are information,
 and whether students read them is measured. Checked in Chromium at 1280 and 390 px,
 light and dark, and without scripts at 390 px.
+
+## D63. Tips at the right moment, brought by a neuron
+
+*Step 5 of the plan agreed on 2026-10-14; the owner, 2026-10-15: "start steps 5-6-7,
+I'll only check if there's any flaws in the product once we have everything
+covered". The avatar without AI first, as recommended then.*
+
+**Chosen.** Today's tip is the one the plan's day calls for, with a line saying why
+now. First what cannot wait, in this order:
+
+- an exam (or a partial exam) within three days: keep sleep regular;
+- a quiz or a mock exam in the coming week: quizzes are study;
+- a session skipped yesterday: missing one day does not undo a habit;
+- a class skipped this week without a catch-up: go to class when you can;
+- a study session this evening, from noon on: coffee or tea, far from bedtime.
+
+Then the ordinary moments, which take turns day by day when several apply:
+
+- a lecture later today, when the warm-up (D51) is off: try a few questions first;
+- training today: a workout can help you remember;
+- a self-test today: test yourself instead of rereading;
+- after 20:00 on a day with study done: sleep after studying.
+
+When nothing applies, the tips take turns as before (D62). The line names only facts
+the plan holds ("A test is coming: Quiz: Algebra 3, Thu 1 Oct 16:00."); what the
+research found stays in the tip. A tip the day calls for sits near the top of
+Today; one taking turns, at the foot.
+
+On Focus, before starting: decide when the breaks will be. In a running session, a
+card asks "A short break now?" once 24 minutes have passed, the block length of the
+study behind it [ref:biwer2023]. The server writes it into the page hidden, with the
+time; the clock's script only shows it then, and without scripts it is shown when
+the page is loaded after that time.
+
+The tips are brought by a neuron: the home page's neurons (D58) as a small cell
+with a face, dendrites above and an axon to its terminals. It breathes and a signal
+runs down a dendrite to it; under reduced motion it keeps still. It is decoration:
+on-screen characters help learning only a little, more for school pupils than for
+students, and more when they speak in text than aloud [ref:schroeder2013], so this
+one only carries the text. Settings, Appearance: Tips On or Off, for Today and
+Focus; the tips page stays.
+
+**Rejected.** A character that talks or animates on its own initiative; a named
+mascot (a name is the owner's to choose); notifications for tips (the reminders,
+D38, are for sessions); moments the plan cannot see (how the student slept, what
+they drink).
+
+**Disclosed.** The moments and their order are judgements, not measured. A plan
+with study every day sees the self-test tip often; the turns between ordinary
+moments soften that. Checked in Chromium at 1280 and 390 px, light and dark.
