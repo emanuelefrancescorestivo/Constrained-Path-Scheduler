@@ -1699,3 +1699,25 @@ The field is decoration, hidden from screen readers. Masks, gradient text and th
 scroll-linked rise need recent browsers; elsewhere the field has hard edges or the
 parts are simply there. The field keeps running while the home page is open, which
 costs some battery on a phone; not measured.
+
+## D59. The calendar shows the whole day
+
+*The owner, 2026-10-15: "the calendar should show the whole 24h, not just 8 to 23".
+Step 1 of the plan agreed that day (the next steps: changing a lecture, lectures that
+become tests, the tips).*
+
+**Chosen.** The calendar's grid runs from midnight to midnight in every view (Day,
+3 Days, Week), with midnight named at the top, as Apple Calendar draws it. It still
+opens where it did: at the start of the study window, or an hour and a half before
+now on today; the hours outside the study window stay shaded. Nothing else changes:
+the planner still studies only inside the window, and the student's own busy times
+and classes can now be drawn at any hour.
+
+**Rejected.** Growing the grid only when an event falls outside 07:00 to 23:00, as
+before: a class at 07:30 is on the grid, but the student cannot draw a 06:00 run or a
+night shift on an empty morning. A setting for the visible hours: one more question
+for something scrolling already answers.
+
+**Disclosed.** The grid is 1,296 pixels tall at every width; the page scrolls inside
+it. An event that crosses midnight is still cut at midnight, as before. Checked in
+Chromium at 1280 and 390 px.

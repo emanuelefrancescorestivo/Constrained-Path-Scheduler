@@ -591,6 +591,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .cal-body { display: grid; position: relative; }
 .cal-gutter { position: relative; }
 .cal-hour { position: absolute; right: 8px; font-size: 0.7rem; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; font-weight: 500; }
+.cal-hour.first { transform: translateY(2px); }
 .cal-col { position: relative; border-left: 0.5px solid var(--line); touch-action: pan-y; }
 .cal-col.can-add { cursor: cell; }
 .cal-line { position: absolute; left: 0; right: 0; border-top: 0.5px solid var(--line); pointer-events: none; }

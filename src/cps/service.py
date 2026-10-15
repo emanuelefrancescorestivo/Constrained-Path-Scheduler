@@ -3451,7 +3451,7 @@ def calendar_view(
         ],
         "drawn": subscription.ics_text is None and subscription.source_url is None,
         "kinds": [{"id": k, "label": _(label)} for k, label in ACTIVITY_KINDS],
-        "hours": [7, 23],
+        "hours": [0, 24],  # the grid's first and last hour: the whole day (D59)
         "window": list(options["study_window"]),
         "first": first.isoformat(),
         "planned": subscription.plan is not None,

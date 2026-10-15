@@ -592,6 +592,7 @@ def test_the_calendar_data_has_the_timetable_the_sessions_and_the_busy_times(web
     assert all(i["id"] and i["label"].split(":")[0] in ("Self-test", "Work on", "Practice") for i in study)
     assert all("Grp:" not in i["label"] for i in data["items"])
     assert data["activities"] == [] and data["planned"] and data["window"] == [8.0, 22.0]
+    assert data["hours"] == [0, 24]  # the whole day (D59)
     assert [k["id"] for k in data["kinds"]] == ["class", "training", "commute", "work", "timeoff", "other"]
     assert web.get(f"/p/{planned}/calendar.json?start=nonsense").status_code == 400
     assert web.get("/p/" + "x" * 32 + "/calendar.json").status_code == 404
