@@ -30,6 +30,7 @@ and fills templates (invariant 11).
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -558,6 +559,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
             "tip": service.tip_of_the_day(subscription, now),
+            "weekly_note": service.note_of_the_week(subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
@@ -669,6 +671,32 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_visit(store, token, config.clock())
         service.log_tips(store, token)
         return page(request, "tips.html", token=token, view=service.tips_view(), tab="focus")
+
+    @app.get("/p/{token}/weekly", response_class=HTMLResponse)
+    def weekly(request: Request, token: str) -> HTMLResponse:
+        """The weekly notes so far, this week's first (D64)."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        view = service.weekly_view(subscription, config.clock())
+        return page(request, "weekly.html", token=token, view=view, tab="focus")
+
+    @app.get("/p/{token}/weekly/{key}", response_class=HTMLResponse)
+    def weekly_note(request: Request, token: str, key: str) -> HTMLResponse:
+        """One weekly note; opening it marks it read (D64)."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        note = service.weekly_note(subscription, key, config.clock())
+        if note is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        if note["unread"]:
+            with contextlib.suppress(service.ServiceError):
+                service.update_subscription(store, token, lambda now: service.mark_note_read(now, key))
+        service.log_event(store, token, "weekly", key)
+        return page(request, "weekly_note.html", token=token, note=note, tab="focus")
 
     async def focus_change(
         request: Request,

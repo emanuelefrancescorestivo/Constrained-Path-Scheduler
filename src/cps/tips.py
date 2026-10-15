@@ -217,6 +217,28 @@ SOURCES = {
             "https://doi.org/10.1002/ejsp.674",
             CHECKED,
         ),
+        # Cited by the weekly notes (D64) only.
+        Source(
+            "karpicke2009",
+            "Karpicke et al., 2009",
+            "Memory",
+            "https://doi.org/10.1080/09658210802647009",
+            date(2026, 10, 13),
+        ),
+        Source(
+            "koriat2005",
+            "Koriat & Bjork, 2005",
+            "Journal of Experimental Psychology: Learning, Memory, and Cognition",
+            "https://doi.org/10.1037/0278-7393.31.2.187",
+            CHECKED,
+        ),
+        Source(
+            "kukushkin2024",
+            "Kukushkin et al., 2024",
+            "Nature Communications",
+            "https://doi.org/10.1038/s41467-024-53922-x",
+            date(2026, 10, 13),
+        ),
     )
 }
 

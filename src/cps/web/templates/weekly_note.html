@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ note.title }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/weekly">{{ _("The weekly note") }}</a></p>
+<article class="weekly-note">
+  <p class="kicker">{{ _("Week {n}", n=note.week) }}</p>
+  <h1>{{ note.title }}</h1>
+  {% for p in note.paragraphs %}<p>{{ p }}</p>{% endfor %}
+  <div class="card weekly-for-you">
+    {% include "_neuron.html" %}
+    <p><b>{{ _("What it means for you") }}</b> {{ note.for_you }}</p>
+  </div>
+  <p class="tip-note"><b>{{ _("Limits") }}</b> {{ note.limits }}</p>
+  <ul class="tip-sources" aria-label="{{ _('Sources') }}">
+    {% for s in note.sources %}<li><a href="{{ s.url }}" rel="noopener noreferrer" target="_blank">{{ s.cite }}</a>, <i>{{ s.venue }}</i> <span class="muted">· {{ _("read on {day}", day=s.checked) }}</span></li>{% endfor %}
+  </ul>
+</article>
+<p class="section hint">{{ _("General information about studying, not medical advice. Each source was read at its publisher or in a public research database on the day shown.") }} <a href="/p/{{ token }}/feedback">{{ _("Spotted a mistake? Tell us.") }}</a></p>
+{% endblock %}

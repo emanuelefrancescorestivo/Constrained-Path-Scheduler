@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import i18n, service, tips
+from cps import i18n, service, tips, weekly
 from cps.locales.fr import MESSAGES as FRENCH
 from cps.locales.it import MESSAGES as ITALIAN
 
@@ -44,7 +44,8 @@ def test_every_tip_has_advice_evidence_limits_and_sources():
         assert tip.advice.endswith(".") and tip.why.strip() and tip.limits.strip(), tip.key
         assert tip.sources and all(key in tips.SOURCES for key in tip.sources), tip.key
     assert {t.topic for t in tips.TIPS} == set(tips.TOPICS)  # no empty topic
-    assert {key for t in tips.TIPS for key in t.sources} == set(tips.SOURCES)  # no source unused
+    cited = {key for t in (*tips.TIPS, *weekly.NOTES) for key in t.sources}
+    assert cited == set(tips.SOURCES)  # no source unused, by a tip or a weekly note (D64)
     assert {t.strength for t in tips.TIPS} == set(tips.STRENGTHS)  # every level is used
 
 
@@ -71,19 +72,23 @@ def _numbers(text: str) -> list[float]:
     return [float(n.rstrip(",").replace(",", "")) for n in NUMBER.findall(text)]
 
 
-def test_every_number_in_a_tip_is_one_its_sources_state():
-    """Each figure a tip gives (in digits) is in what was read of its sources, or
-    within 5 % of one of them ("over 21,000" for 21,195): no number from memory."""
+def test_every_number_in_a_tip_or_a_note_is_one_its_sources_state():
+    """Each figure a tip or a weekly note gives (in digits) is in what was read of
+    its sources, or within 5 % of one of them ("over 21,000" for 21,195): no number
+    from memory."""
     found = entries()
-    for tip in tips.TIPS:
+    texts = [(t.key, t.sources, f"{t.why} {t.limits}") for t in tips.TIPS]
+    for n in weekly.NOTES:
+        texts.append((n.key, n.sources, " ".join((n.title, *n.paragraphs, n.for_you, n.limits))))
+    for key, sources, text in texts:
         read = " ".join(
-            f"{found[key]['year']} {found[key]['title']} "
-            + re.sub(r"\d{4}-\d{2}-\d{2}", " ", found[key]["checked against"])
-            for key in tip.sources
+            f"{found[s]['year']} {found[s]['title']} "
+            + re.sub(r"\d{4}-\d{2}-\d{2}", " ", found[s]["checked against"])
+            for s in sources
         )
         stated = _numbers(read)
-        for n in _numbers(f"{tip.why} {tip.limits}"):
-            assert any(abs(x - n) <= 0.05 * n for x in stated), (tip.key, n)
+        for n in _numbers(text):
+            assert any(abs(x - n) <= 0.05 * n for x in stated), (key, n)
 
 
 def test_the_check_would_catch_a_number_from_memory():
@@ -183,6 +188,33 @@ def test_tips_can_be_turned_off(semester):
     assert reason.startswith("Un cours plus tard aujourd'hui")
 
 
+# The weekly note (D64)
+
+
+def test_a_note_a_week_from_the_plan_s_first_day():
+    start = date(2026, 9, 29)  # a Tuesday
+    assert weekly.unlocked(start, start - timedelta(days=1)) == 0
+    assert weekly.unlocked(start, start) == weekly.unlocked(start, date(2026, 10, 4)) == 1  # to Sunday
+    assert weekly.unlocked(start, date(2026, 10, 5)) == 2  # the next Monday
+    assert weekly.unlocked(start, date(2027, 6, 1)) == len(weekly.NOTES)  # all of them, no more
+    assert len({n.key for n in weekly.NOTES}) == len(weekly.NOTES) >= 8
+    for note in weekly.NOTES:
+        assert note.sources and len(note.paragraphs) >= 2 and note.for_you and note.limits, note.key
+
+
+def test_this_week_s_note_on_today_until_it_is_read(semester):
+    view = service.weekly_view(semester, MORNING)
+    assert [n["week"] for n in view["notes"]] == [1] and view["next"] == "Monday 5 October"
+    assert service.note_of_the_week(semester, MORNING)["key"] == weekly.NOTES[0].key
+    read = service.mark_note_read(semester, weekly.NOTES[0].key)
+    assert service.note_of_the_week(read, MORNING) is None
+    later = MORNING + timedelta(days=7)  # a new note on Monday
+    assert service.note_of_the_week(read, later)["key"] == weekly.NOTES[1].key
+    assert service.weekly_note(read, weekly.NOTES[5].key, later) is None  # not yet
+    with i18n.use("it"):
+        assert service.weekly_view(semester, MORNING)["notes"][0]["title"] == ITALIAN[weekly.NOTES[0].title]
+
+
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -206,7 +238,7 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
             assert f'id="tip-{tip.key}"' in text
             assert (catalogue or {}).get(tip.advice, tip.advice) in text
             assert (catalogue or {}).get(tip.limits, tip.limits) in text
-        for source in tips.SOURCES.values():
+        for source in {tips.SOURCES[key] for tip in tips.TIPS for key in tip.sources}:
             assert f'href="{source.url}"' in text and source.cite in text
         web.get(f"/p/{token}/tips")  # twice the same day: counted once
 
@@ -244,3 +276,26 @@ def test_the_neuron_on_today_and_focus_and_the_switch(tmp_path):
         assert switched.status_code == 303
         assert 'class="neuron"' not in web.get(f"/p/{token}").text
         assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text
+
+
+def test_the_weekly_note_pages(tmp_path):
+    config = Config(store=tmp_path, clock=lambda: MORNING, background=False, sweep_every=None)
+    first, locked = weekly.NOTES[0], weekly.NOTES[3]
+    with TestClient(create_app(config)) as web:
+        files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+        start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+        token = start.headers["location"].split("/")[2]
+        today = unescape(web.get(f"/p/{token}").text)
+        assert "This week's note" in today and f"/p/{token}/weekly/{first.key}" in today
+        assert f'href="/p/{token}/weekly"' in web.get(f"/p/{token}/tips").text
+        listed = unescape(web.get(f"/p/{token}/weekly").text)
+        assert first.title in listed and "New" in listed and locked.title not in listed
+
+        note = unescape(web.get(f"/p/{token}/weekly/{first.key}").text)
+        assert all(p in note for p in first.paragraphs) and first.for_you in note and first.limits in note
+        for key in first.sources:
+            assert f'href="{tips.SOURCES[key].url}"' in note
+        assert "This week's note" not in unescape(web.get(f"/p/{token}").text)  # read
+        assert web.get(f"/p/{token}/weekly/{locked.key}").status_code == 404
+    measures = service.engagement(tmp_path)
+    assert measures["weekly_7"] == 1

@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The weekly note (D64): one study a week on how we learn, in plain words, with what
+  it means for you, its limits and its sources; the first from a plan's first day, one
+  more each Monday, ten in all; on Today until read, listed from the tips page.
 - Tips at the right moment (D63): Today's tip is the one the day calls for (an exam
   within three days, a test coming, a session or a class skipped, an evening session,
   a lecture, training, a self-test), with why now, brought by a small neuron; Focus

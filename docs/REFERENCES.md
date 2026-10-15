@@ -121,7 +121,7 @@ the entry gives surnames only.
 - venue: Advances in Experimental Social Psychology 38, pages 69–119
 - doi: 10.1016/S0065-2601(06)38002-1
 - status: checked
-- checked against: the abstract in Semantic Scholar's record of the DOI and Crossref's record (authors, title, volume, pages), 2026-10-15: 94 independent tests; implementation intentions ("If situation Y is encountered, then I will initiate goal-directed behavior X!") had a positive effect of medium-to-large magnitude (d = .65) on goal attainment. The chapter itself was not read.
+- checked against: the abstract in Semantic Scholar's record of the DOI and Crossref's record (authors, title, volume, pages), 2026-10-15: 94 independent tests; implementation intentions ("If situation Y is encountered, then I will initiate goal-directed behavior X!") had a positive effect of medium-to-large magnitude (d = .65) on goal attainment; they helped to initiate goal striving, shield it from unwanted influences, and disengage from failing courses of action. The chapter itself was not read.
 
 ### hamari2014
 - authors: Hamari; Koivisto; Sarsa
@@ -218,8 +218,9 @@ from memory.
 - title: Illusions of competence in monitoring one's knowledge during study
 - year: 2005
 - venue: Journal of Experimental Psychology: Learning, Memory, and Cognition 31(2), pages 187–194
-- status: unchecked
-- checked against: a search engine's index of the University of Haifa's research portal (cris.haifa.ac.il) and an author-hosted PDF, 2026-10-08: judgments of learning made while the answer is present overestimate later recall. The PDF was not opened.
+- doi: 10.1037/0278-7393.31.2.187
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 15755238, 2026-10-15: judgments of learning are made in the presence of information that is absent but solicited at test; failing to discount it can instil a sense of competence during learning that proves unwarranted during testing; studied with a paired-associates task.
 
 ### adesope2017
 - authors: Olusola O. Adesope; Dominic A. Trevisan; Narayankripa Sundararajan

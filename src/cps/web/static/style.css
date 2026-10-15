@@ -1930,3 +1930,16 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 @keyframes neuron-signal { 0% { stroke-dashoffset: -100; opacity: 0; } 15% { opacity: 1; } 60%, 100% { stroke-dashoffset: 18; opacity: 0; } }
 .tip-today { margin-bottom: 14px; }
 .focus-break { width: 100%; max-width: 420px; margin-top: 8px; text-align: left; }
+
+/* -- the weekly note on the science of learning (D64) ------------------------------- */
+.weekly-row { display: flex; align-items: center; gap: 10px; width: 100%; color: inherit; text-decoration: none !important; }
+.weekly-row .grow { display: flex; flex-direction: column; gap: 1px; }
+.weekly-row .chev { color: var(--muted); font-size: 1.2rem; }
+.weekly-note { max-width: 40rem; }
+.weekly-note .kicker { margin: 0; color: var(--accent); font-size: 0.82rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.02em; }
+.weekly-note h1 { margin: 2px 0 14px; font-size: 1.9rem; letter-spacing: -0.02em; line-height: 1.15; }
+.weekly-note > p { font-size: 1.04rem; line-height: 1.55; }
+.weekly-for-you { display: flex; gap: 14px; align-items: center; margin: 18px 0; }
+.weekly-for-you .neuron { flex: none; width: 52px; height: 52px; overflow: visible; }
+.weekly-for-you p { margin: 0; }
+.weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }

@@ -1927,3 +1927,38 @@ they drink).
 **Disclosed.** The moments and their order are judgements, not measured. A plan
 with study every day sees the self-test tip often; the turns between ordinary
 moments soften that. Checked in Chromium at 1280 and 390 px, light and dark.
+
+## D64. The weekly note on the science of learning
+
+*Step 6 of the plan agreed on 2026-10-14; inside the app only, as recommended then
+(an e-mail list needs an outside service and consent records).*
+
+**Chosen.** A note a week: one study told in plain words, two short paragraphs on
+what it did and found, "What it means for you", its limits, and its sources, linked
+and dated. A plan has the first note from its first day and one more each Monday,
+ten in all. Today shows "This week's note" until it is opened; the notes are listed
+from the tips page, this week's first, with when the next one comes.
+
+The ten: how students study and why rereading feels better than it works
+[ref:karpicke2009] [ref:koriat2005]; the best gap between two reviews
+[ref:cepeda2008]; a night's sleep between two sessions [ref:mazza2016]; 222
+classroom studies on quizzes [ref:yang2021]; mixed practice in maths
+[ref:rohrer2020] [ref:brunmair2019]; breaks planned and breaks taken
+[ref:biwer2023]; sleep across the term [ref:okano2019]; spacing in cells outside
+the brain [ref:kukushkin2024]; if-then plans [ref:gollwitzer2006]; how long a habit
+takes [ref:lally2010].
+
+They follow the tips' rules (D62), checked by the same tests: only checked sources,
+every figure in digits in what was read of them, every sentence in French and
+Italian. Opening a note marks it read and is logged; `cps metrics` reports how many
+plans read a note in 7 and 30 days.
+
+**Rejected.** An e-mail newsletter (an outside sender, addresses to keep, consent to
+record: the app has no e-mail by design); a push notification for each note (the
+reminders, D38, are for sessions; it can come if the pilot shows the notes are
+read); notes written by a model.
+
+**Disclosed.** After ten weeks no new note comes until more are written. The notes
+rest on abstracts and records, like the tips; their wording is the owner's to
+review, and the Italian is not a native speaker's (D34). Checked in Chromium at 1280
+and 390 px.

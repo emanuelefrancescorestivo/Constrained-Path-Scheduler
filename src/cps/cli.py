@@ -464,6 +464,8 @@ def command_metrics(args) -> int:
         f"active, last 30 days     {_share(m['active_30'], m['plans'])}",
         f"read the tips            {_share(m['tips_7'], m['plans'])} in 7 days, "
         f"{_share(m['tips_30'], m['plans'])} in 30",
+        f"read a weekly note       {_share(m['weekly_7'], m['plans'])} in 7 days, "
+        f"{_share(m['weekly_30'], m['plans'])} in 30",
         f"north star               {_share(m['north_star'], m['plans'])} confirmed a session in 7 days",
         f"sessions confirmed       {_share(m['confirmed_7'], m['planned_7'])} planned in the last 7 days",
         f"back on day 7            {_share(*m['return_7'])} of those set up 7 or more days ago",

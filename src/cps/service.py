@@ -68,6 +68,7 @@ from . import social as social
 from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
+from . import weekly as _weekly
 from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -6010,6 +6011,65 @@ def focus_tip(subscription: Subscription) -> dict | None:
 BREAK_AFTER = timedelta(minutes=24)
 
 
+def _plan_start(subscription: Subscription) -> date:
+    return date.fromisoformat(str(subscription.options["start"])[:10])
+
+
+def _note(note: _weekly.Note, week: int, read: Iterable[str]) -> dict:
+    return {
+        "key": note.key,
+        "week": week,
+        "title": _(note.title),
+        "paragraphs": [_(p) for p in note.paragraphs],
+        "for_you": _(note.for_you),
+        "limits": _(note.limits),
+        "unread": note.key not in set(read),
+        "sources": [
+            {
+                "cite": s.cite,
+                "venue": s.venue,
+                "url": s.url,
+                "checked": f"{format_date(s.checked, 'day_short')} {s.checked.year}",
+            }
+            for s in (_tips.SOURCES[k] for k in note.sources)
+        ],
+    }
+
+
+def weekly_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The weekly notes a plan has so far (D64), this week's first, and when the
+    next one comes."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    start = _plan_start(subscription)
+    count = _weekly.unlocked(start, today)
+    read = subscription.options.get("weekly_read", ())
+    notes = [_note(n, i + 1, read) for i, n in enumerate(_weekly.NOTES[:count])]
+    following = _weekly.monday(today) + timedelta(days=7)
+    return {
+        "notes": list(reversed(notes)),
+        "next": format_date(following, "long") if count < len(_weekly.NOTES) else "",
+    }
+
+
+def weekly_note(subscription: Subscription, key: str, now: datetime | None = None) -> dict | None:
+    """One note, if this plan has it yet (D64)."""
+    return next((n for n in weekly_view(subscription, now)["notes"] if n["key"] == key), None)
+
+
+def mark_note_read(subscription: Subscription, key: str) -> Subscription:
+    read = list(subscription.options.get("weekly_read", ()))
+    if key in read:
+        return subscription
+    return replace(subscription, options={**subscription.options, "weekly_read": [*read, key]})
+
+
+def note_of_the_week(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """This week's note, for Today, until it is read (D64)."""
+    notes = weekly_view(subscription, now)["notes"]
+    return {"key": notes[0]["key"], "title": notes[0]["title"]} if notes and notes[0]["unread"] else None
+
+
 def log_tips(store: str | os.PathLike, token: str) -> None:
     """The tips page was opened (once a day per plan), for the pilot's measures:
     whether students read the tips decides the AI coach (D62)."""
@@ -6231,6 +6291,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     - plans: set up in all, and those set up in the last 30 days;
     - active: plans opened (a `visit`) in the last 7 and 30 days;
     - tips: plans that opened the tips page in the last 7 and 30 days (D62);
+    - weekly: plans that opened a weekly note in the last 7 and 30 days (D64);
     - north star: plans with a session confirmed (done or hard, or a focus session
       logged) in the last 7 days, as a share of plans set up;
     - confirmed: planned sessions of the last 7 days reported done or hard, of
@@ -6248,9 +6309,11 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     started = {t: datetime.fromisoformat(at) for t, at, kind, _detail in events if kind == "start"}
     visits: dict[str, set[date]] = {}
     tips: dict[str, set[date]] = {}  # the tips page opened (D62)
+    notes: dict[str, set[date]] = {}  # a weekly note opened (D64)
     for t, at, kind, _detail in events:
-        if kind in ("visit", "tips"):
-            (visits if kind == "visit" else tips).setdefault(t, set()).add(datetime.fromisoformat(at).date())
+        days = {"visit": visits, "tips": tips, "weekly": notes}.get(kind)
+        if days is not None:
+            days.setdefault(t, set()).add(datetime.fromisoformat(at).date())
     tokens = where.tokens()
 
     def active(since: datetime, days: dict[str, set[date]] = visits) -> int:
@@ -6342,6 +6405,8 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "active_30": active(month_ago),
         "tips_7": active(week_ago, tips),
         "tips_30": active(month_ago, tips),
+        "weekly_7": active(week_ago, notes),
+        "weekly_30": active(month_ago, notes),
         "north_star": north,
         "planned_7": planned,
         "confirmed_7": confirmed,

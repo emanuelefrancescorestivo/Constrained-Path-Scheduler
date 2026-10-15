@@ -169,6 +169,9 @@
 
 {% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
 
+{# This week's note on the science of learning, until it is read (D64) #}
+{% if weekly_note %}<a class="card link-card cards-link weekly-today section" href="/p/{{ token }}/weekly/{{ weekly_note.key }}"><span class="tip-reason">{{ _("This week's note") }}</span><b>{{ weekly_note.title }}</b></a>{% endif %}
+
 {# A tip that takes turns, when nothing in the day calls for one (D62) #}
 {% if tip and not tip.reason %}{% include "_tip_card.html" %}{% endif %}
 
