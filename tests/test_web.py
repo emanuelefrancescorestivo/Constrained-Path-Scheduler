@@ -113,6 +113,22 @@ def test_the_home_page_and_health(web):
     assert web.get("/docs").status_code == 404  # no API explorer on a public server
 
 
+def test_the_home_page_pitches_first_and_keeps_an_error_beside_the_forms(web):
+    """D58: the hero carries the field of neurons that `cps.web.neural` draws, then
+    come the ways in; after a failed start the hero is short and the message sits
+    with the forms, not below a screen of pitch."""
+    from cps.web import neural
+
+    assert neural.PARTIAL.read_text(encoding="utf-8") == neural.render()
+    home = web.get("/").text
+    assert '<svg class="neural"' in home and '<div class="hero-field" aria-hidden="true">' in home
+    assert home.index('class="hero"') < home.index('id="start"') < home.index('action="/start"')
+    assert 'href="#start"' in home  # the hero's button leads to the ways in
+    failed = web.post("/start", data={"tz": "Europe/Paris"}).text
+    assert 'class="hero hero-short"' in failed
+    assert failed.index('id="start"') < failed.index('role="alert"') < failed.index('action="/start"')
+
+
 def test_every_answer_carries_the_security_headers(web):
     for path in ("/", "/privacy", "/p/" + "x" * 32, "/static/style.css"):
         headers = web.get(path).headers

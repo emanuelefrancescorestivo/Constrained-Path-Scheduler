@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A new home page (D58): the pitch with room around it over a field of neurons whose
+  signals travel between them, the ways in as glass, the steps and promises as nodes
+  on a line, and a softer dark theme everywhere (ink instead of pure black).
 - Design polish (D57): large type in the system's display cut and tabular figures; a
   spinner on a button whose answer is slow; capsule large buttons; disclosures that
   open smoothly; visible segmented controls in dark mode, a filled tab icon, the

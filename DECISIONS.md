@@ -1652,3 +1652,50 @@ way needs nothing and falls back to opening at once).
 dark, with motion on and reduced; not on an iPhone or in Firefox. Under reduced
 motion the spinner is a still ring and disclosures open at once. The display cut
 depends on the device's fonts; where it is missing, large type uses the text cut.
+
+## D58. The home page: room to breathe, a field of neurons, a softer dark
+
+*The owner, 2026-10-15, on the demo's home page: the slogan was stuck to the rest,
+the page was all blocks, they wanted something "neuro-inspired, dynamic, flowing",
+and the black theme was overwhelming.*
+
+**Chosen.**
+
+1. **Room.** The pitch (headline, one paragraph, the button) fills most of the first
+   screen, centred, with space around it; the headline is larger. The demo's button
+   is right under the pitch, with a link down to the ways in; what the demo is
+   follows in two small lines instead of a card. The setup steps moved from above
+   the headline to where setup starts.
+2. **A field of neurons** behind the pitch: about fifty neurons joined by curved
+   synapses, in the app's blue, violet and teal, over a slow aurora glow. Signals run
+   along fourteen synapses at their own pace, the neurons glow and fade, the field
+   drifts. It is one SVG in the page, drawn once by a seeded script
+   (`python -m cps.web.neural`, checked by a test), coloured and moved by CSS, faded
+   behind the words. The headline's last words take the same colours.
+3. **Flowing, not blocks.** The two ways in are glass over a quieter glow, edged with
+   the field's colours, and lift a little under the pointer; "Already have a plan?"
+   is a passage under a hairline, not another box; the four promises are nodes on
+   one line (a column on a phone) instead of four boxes, the fourth no longer alone
+   on its row. The setup steps everywhere are nodes on a line, the current one
+   alight. As the page scrolls, each part rises into place.
+4. **A softer dark,** for every page: the background is a blue-black ink (#0e1015)
+   instead of pure black, the cards a little lighter (#1a1c23). The course colours
+   still pass every check of the reference palette's validator on the new surface
+   (lightness band, chroma, colour-blind separation, contrast).
+
+After a failed start the hero is short and the message sits with the forms, so it
+is not a screen below the pitch.
+
+**Rejected.** A canvas animation with a script (the page must read the same without
+scripts, and a canvas costs a frame loop even when nothing changes); a WebGL
+background (heavy on phones, nothing to show without it); a video (weight, and no
+light and dark); a photo or an illustration of a brain (literal, and it would date
+the page); pure black kept for OLED screens (the owner found it overwhelming, and
+the ink costs almost nothing on them); a web font.
+
+**Disclosed.** Checked in Chromium only, at 1440 and 390 px, light and dark, with
+motion on and reduced: under reduced motion nothing moves and nothing is hidden.
+The field is decoration, hidden from screen readers. Masks, gradient text and the
+scroll-linked rise need recent browsers; elsewhere the field has hard edges or the
+parts are simply there. The field keeps running while the home page is open, which
+costs some battery on a phone; not measured.

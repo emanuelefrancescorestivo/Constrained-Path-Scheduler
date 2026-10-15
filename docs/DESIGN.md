@@ -26,7 +26,7 @@ All in `:root` of `style.css`, redefined for dark mode.
 
 | group | tokens | values (light / dark) |
 |---|---|---|
-| backgrounds | `--bg`, `--surface`, `--elevated`, `--material` | `#f2f2f7` / `#000`, `#fff` / `#1c1c1e`, translucent bars |
+| backgrounds | `--bg`, `--surface`, `--elevated`, `--material` | `#f2f2f7` / `#0e1015` (ink, not pure black, D58), `#fff` / `#1a1c23`, translucent bars |
 | labels | `--text`, `--muted`, `--faint` | black, 60 % and 30 % grey; white and greys in dark |
 | tint | `--accent`, `--accent-soft` | `#007aff` / `#0a84ff` |
 | meaning | `--danger`, `--warn`, `--ok`, `--now` | red (exams, today, risk), orange (soon), green (done) |

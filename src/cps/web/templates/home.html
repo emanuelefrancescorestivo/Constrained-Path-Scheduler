@@ -2,30 +2,36 @@
 {% block title %}{{ _("Study plan: your timetable, your deadlines, your week") }}{% endblock %}
 {% block head %}<script type="module" src="/static/home.js"></script>
 <script type="module" src="/static/passkeys.js"></script>{% endblock %}
+{% block site_class %} home{% endblock %}
+{% block body_class %} home{% endblock %}
 {% block main %}
-<section class="hero">
-  {% set step = 1 %}{% include "_steps.html" %}
+{# The pitch first, with room to breathe, over a field of neurons whose signals
+   travel between them (D58); then the ways in. Nothing here needs a script. #}
+{# After a failed start or sign-in the hero is short, so the message is in view. #}
+<section class="hero{% if error or signin_error %} hero-short{% endif %}">
+  <div class="hero-field" aria-hidden="true">{% include "_neural.html" %}</div>
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
   <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
+  {% if demo %}
+  <form method="post" action="/demo" class="hero-actions">
+    <button type="submit" class="btn btn-primary btn-lg">{{ _("Start the demo") }}</button>
+    <a class="hero-more" href="#start">{{ _("Or start from zero, with your own week") }}</a>
+  </form>
+  <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
+  <p class="hero-note hint">{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}</p>
+  {% else %}
+  <p class="hero-actions"><a class="btn btn-primary btn-lg" href="#start">{{ _("Plan my semester") }}</a></p>
+  {% endif %}
 </section>
 
-{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
-
-{% if demo %}
-<form method="post" action="/demo" class="card demo-start">
-  <span class="badge badge-accent">{{ _("Demo") }}</span>
-  <h2>{{ _("Try it as a student, in a few seconds") }}</h2>
-  <p>{{ _("You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
-  <p class="hint">{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}</p>
-  <button type="submit" class="btn btn-primary btn-block btn-lg">{{ _("Start the demo") }}</button>
-</form>
-{% endif %}
-
+<section class="start" id="start">
 {# Two ways in, side by side: a timetable that exists somewhere, or none (D32) #}
-<div class="section-title ways-title">
+<div class="start-head">
+  {% set step = 1 %}{% include "_steps.html" %}
   <h2>{% if demo %}{{ _("Or start from zero, with your own week") }}{% else %}{{ _("How do you want to start?") }}{% endif %}</h2>
-  {% if demo %}<small>{{ _("kept on this demo server until it restarts") }}</small>{% endif %}
+  {% if demo %}<p class="hint">{{ _("kept on this demo server until it restarts") }}</p>{% endif %}
 </div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 <div class="ways">
 <form method="post" action="/start" enctype="multipart/form-data" class="card way">
   <input type="hidden" name="lang" value="{{ lang() }}">
@@ -64,8 +70,9 @@
 </form>
 </div>
 <p class="hint ways-note">{{ _("No e-mail, no password: your plan lives at a private address, like a calendar subscription link. Add a passkey to open it on any device.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
+</section>
 
-<section class="card signin" id="signin">
+<section class="signin" id="signin">
   <h2>{{ _("Already have a plan?") }}</h2>
   <p class="hint">{{ _("Open it with the passkey you added, or with your recovery code.") }}</p>
   <p><button type="button" class="btn btn-primary" data-passkey-signin hidden>{{ _("Sign in with a passkey") }}</button></p>

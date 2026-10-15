@@ -7,11 +7,11 @@
 <meta name="robots" content="noindex, nofollow">
 {% if theme in ("light", "dark") %}
 <meta name="color-scheme" content="{{ theme }}">
-<meta name="theme-color" content="{{ '#000000' if theme == 'dark' else '#f2f2f7' }}">
+<meta name="theme-color" content="{{ '#0e1015' if theme == 'dark' else '#f2f2f7' }}">
 {% else %}
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0e1015" media="(prefers-color-scheme: dark)">
 {% endif %}
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,7 +29,7 @@
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token %}has-tabs{% endif %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}>
+<body class="{% if token %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}>
 <header class="topbar">
   <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><img class="brand-mark" src="/static/icons/icon.svg" alt="" width="28" height="28">{{ _("Study plan") }}</a>
   {% if token %}

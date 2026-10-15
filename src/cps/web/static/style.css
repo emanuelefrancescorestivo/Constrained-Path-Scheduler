@@ -70,6 +70,15 @@
   --c-none: #8e8e93;
   --tint: 22%;
   --tint-lecture: 7%;
+  /* The home page's field of neurons and its glow (D58): blue, violet, teal */
+  --nf-1: #3b7bf6;
+  --nf-2: #7c5cf0;
+  --nf-3: #0e9f9a;
+  --nf-spark: #2f6fe8;
+  --nf-lines: 0.32;
+  --aurora-1: rgb(59 123 246 / 20%);
+  --aurora-2: rgb(124 92 240 / 15%);
+  --aurora-3: rgb(14 159 154 / 13%);
 }
 
 /* Dark: when the device is dark and the plan does not ask for light, or when the
@@ -77,12 +86,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --thumb: #636366;
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-2: #2c2c2e;
-    --elevated: #2c2c2e;
-    --material: rgb(30 30 32 / 78%);
+    --thumb: #5b5f6b;
+    --bg: #0e1015;
+    --surface: #1a1c23;
+    --surface-2: #252833;
+    --elevated: #252833;
+    --material: rgb(22 24 30 / 78%);
     --text: #ffffff;
     --muted: rgb(235 235 245 / 60%);
     --faint: rgb(235 235 245 / 30%);
@@ -117,16 +126,24 @@
     --c-none: #98989d;
     --tint: 36%;
     --tint-lecture: 13%;
+    --nf-1: #5b9bff;
+    --nf-2: #a48bff;
+    --nf-3: #34d1c4;
+    --nf-spark: #d6e4ff;
+    --nf-lines: 0.42;
+    --aurora-1: rgb(64 120 255 / 24%);
+    --aurora-2: rgb(140 100 255 / 20%);
+    --aurora-3: rgb(30 190 180 / 13%);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --thumb: #636366;
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-2: #2c2c2e;
-  --elevated: #2c2c2e;
-  --material: rgb(30 30 32 / 78%);
+  --thumb: #5b5f6b;
+  --bg: #0e1015;
+  --surface: #1a1c23;
+  --surface-2: #252833;
+  --elevated: #252833;
+  --material: rgb(22 24 30 / 78%);
   --text: #ffffff;
   --muted: rgb(235 235 245 / 60%);
   --faint: rgb(235 235 245 / 30%);
@@ -161,6 +178,14 @@
   --c-none: #98989d;
   --tint: 36%;
   --tint-lecture: 13%;
+  --nf-1: #5b9bff;
+  --nf-2: #a48bff;
+  --nf-3: #34d1c4;
+  --nf-spark: #d6e4ff;
+  --nf-lines: 0.42;
+  --aurora-1: rgb(64 120 255 / 24%);
+  --aurora-2: rgb(140 100 255 / 20%);
+  --aurora-3: rgb(30 190 180 / 13%);
 }
 
 * { box-sizing: border-box; }
@@ -229,13 +254,7 @@ small, .muted { color: var(--muted); }
 .page-title h1 { font-size: 2.1rem; }
 .page-title p { color: var(--muted); margin: 4px 0 0; font-size: 1rem; }
 
-.hero { padding: 40px 0 12px; text-align: center; }
-.hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); letter-spacing: -0.035em; line-height: 1.07; font-weight: 700; }
-.hero .lead { font-size: 1.2rem; color: var(--muted); max-width: 34rem; margin: 14px auto 0; line-height: 1.45; }
-.hero .steps { max-width: 30rem; margin: 0 auto 26px; text-align: left; }
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 28px 0; padding: 0; list-style: none; }
-.features li { background: var(--surface); border-radius: var(--radius); padding: 16px 18px; color: var(--muted); font-size: 0.92rem; }
-.features strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 1rem; }
+/* The home page's hero and features are in their own section near the end (D58). */
 
 /* -- components ------------------------------------------------------------------ */
 /* An inset grouped section */
@@ -899,11 +918,8 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .cards-due span { color: var(--accent); font-weight: 550; font-size: 0.9rem; }
 
 /* -- the public demo (D31) ------------------------------------------------------ */
-.demo-start { margin-bottom: 26px; }
-.demo-start h2 { margin: 8px 0 6px; }
 
 /* -- two ways to start: import a timetable, or draw a week (D32) ----------------- */
-.ways-title { margin-top: 8px; flex-wrap: wrap; }
 .ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .ways .card + .card { margin-top: 0; }
 .way { display: flex; flex-direction: column; }
@@ -1481,8 +1497,6 @@ a.nudge-card b::after { content: " ›"; color: var(--accent); }
   font-size: clamp(1rem, 4.6vw, 1.35rem); letter-spacing: 0.06em; font-weight: 600;
   overflow-wrap: anywhere; user-select: all;
 }
-.signin { margin-top: 26px; }
-.signin h2 { margin-top: 0; }
 .signin [data-passkey-status] { margin: 8px 0; }
 /* A heading reached by its anchor (#account, #semester) clears the translucent bar */
 h2[id] { scroll-margin-top: 72px; }
@@ -1621,3 +1635,225 @@ a, button, summary, label, .pill { touch-action: manipulation; }
     }
   }
 }
+
+/* -- the home page (D58): room to breathe, a field of neurons, a flowing path ------
+   The pitch fills most of the first screen over a field of neurons whose signals
+   travel between them, in the app's blue, violet and teal; the ways in follow, as
+   glass over a quieter glow; the steps and the four promises are nodes on one line.
+   All of it is decoration over a page that reads the same without it: reduced
+   motion stops every movement (the rules above), and a browser without masks or
+   scroll-driven animations shows the same page, still. */
+main.site.home { max-width: 58rem; padding-top: 0; }
+/* The field is as wide as the window: the page clips it rather than scrolling sideways. */
+body.home { overflow-x: hidden; overflow-x: clip; }
+
+.hero {
+  position: relative; isolation: isolate; text-align: center;
+  min-height: min(78vh, 760px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 72px 0 96px;
+}
+.hero.hero-short { min-height: 0; padding: 40px 0 36px; }
+.hero h1 {
+  margin: 0; max-width: 16ch;
+  font-size: clamp(2.6rem, 7.2vw, 4.75rem); line-height: 1.02; letter-spacing: -0.045em; font-weight: 750;
+}
+.hero .lead {
+  max-width: 36rem; margin: 26px auto 0;
+  font-size: clamp(1.08rem, 1.9vw, 1.28rem); line-height: 1.5; color: var(--muted);
+}
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 26px; margin: 38px 0 0; }
+.hero .btn-lg { padding: 14px 32px; box-shadow: 0 14px 34px -12px color-mix(in srgb, var(--accent) 70%, transparent); }
+@media (hover: hover) {
+  .hero .btn-lg:hover { transform: translateY(-1px); box-shadow: 0 18px 40px -12px color-mix(in srgb, var(--accent) 80%, transparent); }
+}
+.hero-more { font-weight: 600; text-decoration: none !important; }
+.hero-more::after { content: " ↓"; content: " ↓" / ""; }
+.hero-note { max-width: 36rem; margin: 30px auto 0; font-size: 0.92rem; line-height: 1.5; color: var(--muted); }
+.hero-note b { color: var(--text); font-weight: 600; }
+.hero-note .badge { vertical-align: 1px; margin-right: 2px; }
+.hero-note.hint { margin-top: 8px; font-size: 0.8rem; color: var(--faint); }
+
+/* The headline's last words take the field's colours, drifting slowly. */
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero h1 {
+    background: linear-gradient(100deg, var(--text) 0%, var(--text) 40%, var(--nf-1) 64%, var(--nf-2) 84%, var(--nf-3) 100%);
+    background-size: 150% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: sheen 16s ease-in-out infinite alternate;
+  }
+}
+@keyframes sheen { to { background-position: 100% 0; } }
+@media (forced-colors: active) { .hero h1 { background: none; color: CanvasText; } }
+
+/* The field: full width behind the hero, under the see-through top bar, fading out
+   at its top and bottom edges and behind the words. */
+.hero-field {
+  position: absolute; z-index: -1; top: calc(-1 * var(--topbar)); bottom: 0; left: 50%; width: 100vw;
+  transform: translateX(-50%); overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 70%, transparent 100%);
+}
+.hero-field::before {
+  content: ""; position: absolute; inset: -15% -10%;
+  background:
+    radial-gradient(38% 46% at 16% 32%, var(--aurora-1), transparent 70%),
+    radial-gradient(34% 42% at 84% 26%, var(--aurora-2), transparent 70%),
+    radial-gradient(46% 40% at 56% 86%, var(--aurora-3), transparent 70%);
+  animation: aurora 28s ease-in-out infinite alternate;
+}
+@keyframes aurora {
+  50% { transform: translate3d(2%, 2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 3%, 0) scale(1.02) rotate(2deg); }
+}
+.neural {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  -webkit-mask-image: radial-gradient(ellipse 58% 52% at 50% 46%, rgb(0 0 0 / 14%) 0, rgb(0 0 0 / 30%) 50%, #000 100%);
+  mask-image: radial-gradient(ellipse 58% 52% at 50% 46%, rgb(0 0 0 / 14%) 0, rgb(0 0 0 / 30%) 50%, #000 100%);
+  animation: drift 40s ease-in-out infinite alternate; will-change: transform;
+}
+@keyframes drift { to { transform: translate3d(-1.5%, 1%, 0) scale(1.04); } }
+.neural .nf-a { stop-color: var(--nf-1); }
+.neural .nf-b { stop-color: var(--nf-2); }
+.neural .nf-c { stop-color: var(--nf-3); }
+.neural .nf-glow-in { stop-color: var(--nf-1); stop-opacity: 0.5; }
+.neural .nf-glow-out { stop-color: var(--nf-1); stop-opacity: 0; }
+.neural path { fill: none; stroke: url(#nf-line); stroke-linecap: round; }
+.neural .nf-edges path { stroke-width: 1.3; opacity: var(--nf-lines); }
+.neural .nf-dendrites path { stroke-width: 1; opacity: calc(var(--nf-lines) * 0.7); }
+/* A signal: a short bright dash that runs along a synapse, then the line rests. */
+.neural .nf-signals path {
+  stroke: var(--nf-spark); stroke-width: 2.6; stroke-dasharray: 5 95; stroke-dashoffset: 100; opacity: 0;
+  animation: fire 7s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+@keyframes fire {
+  0% { stroke-dashoffset: 100; opacity: 0; }
+  6% { opacity: 1; }
+  52% { opacity: 1; }
+  58%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+.neural .s2 { animation-duration: 9s; animation-delay: -3s; }
+.neural .s3 { animation-duration: 6s; animation-delay: -1s; }
+.neural .s4 { animation-duration: 11s; animation-delay: -6s; }
+.neural .s5 { animation-duration: 8s; animation-delay: -2s; }
+.neural .s6 { animation-duration: 10s; animation-delay: -8s; }
+.neural .s7 { animation-duration: 7.5s; animation-delay: -4s; }
+.neural .s8 { animation-duration: 12s; animation-delay: -1.5s; }
+.neural .s9 { animation-duration: 6.5s; animation-delay: -5s; }
+.neural .s10 { animation-duration: 9.5s; animation-delay: -7s; }
+.neural .s11 { animation-duration: 8.5s; animation-delay: -0.5s; }
+.neural .s12 { animation-duration: 11.5s; animation-delay: -9s; }
+.neural .s13 { animation-duration: 7s; animation-delay: -3.5s; }
+.neural .s14 { animation-duration: 10.5s; animation-delay: -2.5s; }
+.neural .soma { fill: var(--nf-1); }
+.neural .soma.n1, .neural .soma.n4 { fill: var(--nf-2); }
+.neural .soma.n2 { fill: var(--nf-3); }
+.neural .glow { fill: url(#nf-glow); transform-box: fill-box; transform-origin: center; animation: glow 6s ease-in-out infinite; }
+.neural .glow.n1 { animation-delay: -1.2s; }
+.neural .glow.n2 { animation-delay: -2.4s; animation-duration: 7s; }
+.neural .glow.n3 { animation-delay: -3.6s; }
+.neural .glow.n4 { animation-delay: -4.8s; animation-duration: 8s; }
+@keyframes glow { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 0.9; transform: scale(1.15); } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .neural .nf-signals path { filter: drop-shadow(0 0 3px var(--nf-1)); }
+}
+:root[data-theme="dark"] .neural .nf-signals path { filter: drop-shadow(0 0 3px var(--nf-1)); }
+
+/* The pitch arrives in a short cascade, on the page's first paint only (D30). */
+html:not(.settled) .hero > :not(.hero-field) { animation: rise 0.9s var(--ease-out) both; }
+html:not(.settled) .hero > .lead { animation-delay: 0.08s; }
+html:not(.settled) .hero > .hero-actions { animation-delay: 0.16s; }
+html:not(.settled) .hero > .hero-note { animation-delay: 0.24s; }
+html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen 16s ease-in-out infinite alternate; }
+
+/* The ways in: glass over a quieter glow, edged with the field's colours. */
+.start { position: relative; isolation: isolate; padding-top: 8px; scroll-margin-top: calc(var(--topbar) + 8px); }
+.start::before {
+  content: ""; position: absolute; z-index: -1; inset: -60px -30% 0; pointer-events: none;
+  background:
+    radial-gradient(40% 36% at 30% 38%, var(--aurora-1), transparent 70%),
+    radial-gradient(36% 34% at 74% 48%, var(--aurora-2), transparent 70%);
+  opacity: 0.7;
+}
+.start-head { text-align: center; margin: 0 0 26px; }
+.start-head .steps { max-width: 32rem; margin: 0 auto 28px; text-align: left; }
+.start-head h2 { margin: 0; font-family: var(--font-display); font-size: clamp(1.5rem, 3.6vw, 2.1rem); letter-spacing: -0.03em; line-height: 1.15; }
+.start-head .hint { margin: 8px 0 0; }
+.home .ways { gap: 18px; }
+.home .way {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--surface) 84%, transparent), color-mix(in srgb, var(--surface) 84%, transparent)) padding-box,
+    linear-gradient(140deg, color-mix(in srgb, var(--nf-1) 50%, transparent), transparent 38%, transparent 62%, color-mix(in srgb, var(--nf-2) 45%, transparent)) border-box;
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 24px 60px -30px color-mix(in srgb, var(--nf-1) 45%, transparent);
+  transition: transform 0.5s var(--ease-out), box-shadow 0.5s var(--ease-out);
+}
+@media (hover: hover) {
+  .home .way:hover { transform: translateY(-3px); box-shadow: 0 32px 70px -30px color-mix(in srgb, var(--nf-1) 60%, transparent); }
+}
+.home .way-icon { background: linear-gradient(135deg, color-mix(in srgb, var(--nf-1) 22%, transparent), color-mix(in srgb, var(--nf-2) 22%, transparent)); }
+.home .ways-note { margin-top: 18px; }
+
+/* The steps of setting up: nodes joined by a line, the current one alight. */
+.steps li { position: relative; padding-top: 16px; }
+.steps li::before {
+  position: absolute; top: 0; left: 0; z-index: 1;
+  width: 9px; height: 9px; border-radius: 50%;
+}
+.steps li::after {
+  content: ""; position: absolute; top: 4px; left: 9px; right: -6px; height: 1px; background: var(--line-strong);
+}
+.steps li:last-child::after { display: none; }
+.steps li.done::after { background: var(--accent); }
+.steps li.current::before { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 14px var(--accent); }
+
+/* Already a plan: a quiet passage under a hairline, not another box. */
+.signin { position: relative; max-width: 34rem; margin: 64px auto 0; padding-top: 44px; text-align: center; }
+.signin::before {
+  content: ""; position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+.signin h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.4rem; letter-spacing: -0.02em; }
+.signin .recover { text-align: left; }
+
+/* The four promises: nodes on one line (a column on a phone). */
+.features { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin: 72px 0 24px; padding: 0; list-style: none; }
+.features li { position: relative; padding: 28px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+.features strong { display: block; margin-bottom: 6px; color: var(--text); font-size: 1rem; letter-spacing: -0.01em; }
+.features li::before {
+  content: ""; position: absolute; top: 0; left: 0; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--nf-1); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-1) 18%, transparent), 0 0 18px var(--nf-1);
+}
+.features li:nth-child(2)::before { background: var(--nf-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-2) 18%, transparent), 0 0 18px var(--nf-2); }
+.features li:nth-child(3)::before { background: var(--nf-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-3) 18%, transparent), 0 0 18px var(--nf-3); }
+.features li::after {
+  content: ""; position: absolute; top: 5px; left: 22px; right: -18px; height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--nf-1) 55%, transparent), color-mix(in srgb, var(--nf-2) 35%, transparent));
+}
+.features li:last-child::after { display: none; }
+@media (max-width: 860px) {
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .features li:nth-child(2n)::after { display: none; }
+}
+@media (max-width: 560px) {
+  .hero { min-height: 0; padding: 48px 0 64px; }
+  .hero-actions { flex-direction: column; gap: 16px; }
+  .features { grid-template-columns: 1fr; gap: 26px; margin-top: 56px; }
+  .features li { padding: 0 0 0 30px; }
+  .features li::before { top: 4px; }
+  .features li::after, .features li:nth-child(2n)::after { display: block; top: 22px; bottom: -22px; left: 5px; right: auto; width: 1px; height: auto; }
+  .features li:last-child::after { display: none; }
+}
+
+/* As the page scrolls, what comes into view rises into place (where the browser
+   ties animations to scrolling; elsewhere it is simply there). `translate`, not
+   `transform`, so a card's own lift on hover still works. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    :root:not([data-motion="reduce"]) :is(.start-head, .home .way, .home .ways-note, .signin, .features li) {
+      animation: surface linear both; animation-timeline: view(); animation-range: entry 0% entry 70%;
+    }
+  }
+}
+@keyframes surface { from { opacity: 0; translate: 0 32px; } to { opacity: 1; translate: none; } }
