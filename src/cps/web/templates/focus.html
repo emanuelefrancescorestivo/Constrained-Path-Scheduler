@@ -41,5 +41,9 @@
   <b>{{ _("Flashcards") }}</b>
   <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span>
 </a>
+<a class="card link-card cards-link" href="/p/{{ token }}/tips">
+  <b>{{ _("Study tips") }}</b>
+  <span>{{ _("What research says about studying well, with its sources.") }}</span>
+</a>
 {% endif %}
 {% endblock %}

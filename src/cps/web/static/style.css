@@ -1877,3 +1877,38 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 @keyframes surface { from { opacity: 0; translate: 0 32px; } to { opacity: 1; translate: none; } }
 .lecture-form { margin: 2px 0 0; }
 .lecture-form .btn { margin: 4px 6px 0 0; }
+
+/* -- tips with their sources (D62) ------------------------------------------------ */
+/* How strong the evidence is, in the status colours: never red, which is for exams
+   and today (CLAUDE.md). The words always say it; the colour only repeats them. */
+.strength {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 980px;
+  font-size: 0.74rem; font-weight: 600; white-space: nowrap;
+}
+.strength-strong { background: var(--ok-soft); color: var(--ok); }
+.strength-moderate { background: var(--accent-soft); color: var(--accent); }
+.strength-early { background: var(--warn-soft); color: var(--warn); }
+.strengths { display: grid; grid-template-columns: max-content 1fr; gap: 10px 12px; align-items: baseline; margin: 0 0 14px; }
+.strengths div { display: contents; }
+.strengths dd { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.tip-topics { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 4px; }
+.tip-topics a {
+  padding: 6px 12px; border-radius: 980px; background: var(--fill-3); color: var(--text);
+  font-size: 0.9rem; font-weight: 550; text-decoration: none;
+}
+.tip, .tip-topic { scroll-margin-top: calc(var(--topbar) + 8px); }
+.tip:target { box-shadow: 0 0 0 2px var(--accent); }
+.tip h3 { margin: 8px 0 6px; font-size: 1.12rem; letter-spacing: -0.01em; }
+.tip p { margin: 0 0 8px; }
+.tip-note { font-size: 0.93rem; color: var(--muted); }
+.tip-note b { color: var(--text); font-weight: 600; margin-right: 4px; }
+.tip-sources {
+  display: grid; gap: 4px; margin: 10px 0 0; padding: 10px 0 0; list-style: none;
+  border-top: 0.5px solid var(--line); font-size: 0.88rem;
+}
+.tip-sources .muted { white-space: nowrap; }
+.tip-today { display: flex; flex-direction: column; gap: 3px; }
+.tip-today .kicker {
+  font-size: 0.78rem; font-weight: 650; color: var(--accent); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.tip-today .tip-more { color: var(--muted); font-size: 0.9rem; }

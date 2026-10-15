@@ -557,6 +557,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             ),
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
+            "tip": service.tip_of_the_day(subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
@@ -658,6 +659,15 @@ def create_app(config: Config | None = None) -> FastAPI:
             cards_due=service.cards_due(store, subscription, config.clock()),
             tab="focus",
         )
+
+    @app.get("/p/{token}/tips", response_class=HTMLResponse)
+    def tips(request: Request, token: str) -> HTMLResponse:
+        """What research says about studying well, each tip with its evidence (D62)."""
+        if load(token) is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        service.log_tips(store, token)
+        return page(request, "tips.html", token=token, view=service.tips_view(), tab="focus")
 
     async def focus_change(
         request: Request,

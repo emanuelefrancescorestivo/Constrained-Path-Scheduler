@@ -1812,3 +1812,68 @@ it is wanted.
 cannot be split at a partial: its material stays with the final. The preparation
 for a quiz is an hour whatever the quiz. Checked in Chromium at 1280 and 390 px,
 with and without scripts.
+
+## D62. Tips with their sources
+
+*The owner, 2026-10-14: a tips section "that says idk that consuming theanine and
+caffeine improves focus, that you need breaks every XY minutes, … all info backed by
+research to make a student feel like they have all the tools for coping with
+studying well". Step 4 of the plan agreed that day, the owner reviewing the wording.*
+
+**Chosen.** A Tips page, reached from Focus, and one tip a day at the foot of Today.
+Fourteen tips in four topics (how to study; sleep, movement and coffee; breaks;
+habits), each with:
+
+- the advice, in one sentence;
+- why, with the figures its sources give;
+- its limits: what the evidence does not show;
+- how strong the evidence is, in words and a colour that only repeats them: strong
+  (many studies agree), moderate (good studies agree, with conditions or open
+  questions), early (one or a few studies, or correlations only); the level is a
+  judgement written in the code, not a computed grade;
+- where the app already does it, when it does;
+- its sources, each linked, with the day it was read.
+
+The tips rest on: testing yourself [ref:dunlosky2013] [ref:adesope2017]; spacing
+[ref:cepeda2006] [ref:cepeda2008]; quizzes in class [ref:yang2021]; mixing kinds of
+problems [ref:brunmair2019] [ref:rohrer2020]; questions before a lecture
+[ref:pan2023]; going to class [ref:crede2010]; sleep after learning [ref:rasch2013]
+[ref:mazza2016]; regular sleep [ref:okano2019]; exercise [ref:roig2013]
+[ref:vandongen2016]; coffee or tea [ref:camfield2014] [ref:drake2013]
+[ref:efsa2015]; short breaks at set times [ref:albulescu2022] [ref:biwer2023];
+keeping track [ref:harkin2016]; if-then plans [ref:gollwitzer2006]; a missed day
+in a habit [ref:lally2010].
+
+`tests/test_tips.py` holds the rules: a tip cites only entries of
+docs/REFERENCES.md marked checked, read on the day the page shows, with the same
+first author, year and DOI; every figure a tip writes in digits is in what was read
+of its sources, or within 5 % of one ("over 21,000" for 21,195); every sentence has
+a French and an Italian entry. Twelve entries cited before as unchecked were read
+at a research database for this and are now checked.
+
+Coffee and L-theanine, the owner's own example, are general information: what the
+trials found, how caffeine late in the day cut sleep, and the EU's safety limits as
+limits. No dose is advised and no supplement named. The EU's 2011 opinion on
+L-theanine's health claims could not be opened from here, so nothing is said about
+L-theanine on its own.
+
+Today's tip takes turns, the same for every student on a given day. Tips at the
+right moment (before an evening session, after a long Focus session) are the next
+step and will replace the rotation. Opening the page is logged once a day per plan,
+and `cps metrics` reports how many plans read the tips in 7 and 30 days: the AI
+coach waits until the beta shows that they are read.
+
+**Rejected.** A recommended dose of caffeine, L-theanine or anything else (not the
+app's to prescribe); "every 25 minutes" as a rule for breaks (the one study of set
+breaks lasted a day); a figure found only in summaries, such as a median of 66 days
+to form a habit; tips written by a language model (each sentence here was written
+against its source's record and is checked by a test; a model's would not be);
+effect sizes as numbers on the page (the sources' own words, medium or moderate to
+large, are kept instead).
+
+**Disclosed.** The sources were read as abstracts and records (Europe PMC, Crossref,
+Semantic Scholar, publishers' and agencies' pages), not as full texts. The wording
+is the owner's to review; the Italian was not written by a native speaker (D34). No
+study shows that tips in an app improve students' results: these are information,
+and whether students read them is measured. Checked in Chromium at 1280 and 390 px,
+light and dark, and without scripts at 390 px.

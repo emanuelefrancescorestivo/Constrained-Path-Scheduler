@@ -65,6 +65,7 @@ from . import inbox as _inbox
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
+from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
 from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
@@ -5825,6 +5826,61 @@ def post_explanation(
 
 
 # --------------------------------------------------------------------------- #
+# Tips with their sources (DECISIONS.md D62)
+
+
+def _tip(tip: _tips.Tip) -> dict:
+    label, meaning = _tips.STRENGTHS[tip.strength]
+    return {
+        "key": tip.key,
+        "strength": tip.strength,
+        "strength_label": _(label),
+        "strength_meaning": _(meaning),
+        "advice": _(tip.advice),
+        "why": _(tip.why),
+        "limits": _(tip.limits),
+        "in_app": _(tip.in_app) if tip.in_app else "",
+        "sources": [
+            {
+                "cite": source.cite,
+                "venue": source.venue,
+                "url": source.url,
+                "checked": f"{format_date(source.checked, 'day_short')} {source.checked.year}",
+            }
+            for source in (_tips.SOURCES[key] for key in tip.sources)
+        ],
+    }
+
+
+def tips_view() -> dict:
+    """Every tip, by topic, in the plan's language, with what its evidence is worth
+    and where it comes from (D62)."""
+    return {
+        "strengths": [
+            {"key": key, "label": _(label), "meaning": _(meaning)}
+            for key, (label, meaning) in _tips.STRENGTHS.items()
+        ],
+        "topics": [
+            {"key": key, "name": _(name), "tips": [_tip(t) for t in _tips.TIPS if t.topic == key]}
+            for key, name in _tips.TOPICS.items()
+        ],
+    }
+
+
+def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> dict:
+    """Today's tip for the Today page: its words and its place on the tips page."""
+    now = now or datetime.now(UTC)
+    tip = _tips.of_the_day(now.astimezone(_zone(subscription.options["tz"])).date())
+    return {"key": tip.key, "advice": _(tip.advice)}
+
+
+def log_tips(store: str | os.PathLike, token: str) -> None:
+    """The tips page was opened (once a day per plan), for the pilot's measures:
+    whether students read the tips decides the AI coach (D62)."""
+    _store(store).log_daily(token, "tips")
+
+
+# --------------------------------------------------------------------------- #
 # AI, opt-in and capped (DECISIONS.md D12)
 
 
@@ -6038,6 +6094,7 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
 
     - plans: set up in all, and those set up in the last 30 days;
     - active: plans opened (a `visit`) in the last 7 and 30 days;
+    - tips: plans that opened the tips page in the last 7 and 30 days (D62);
     - north star: plans with a session confirmed (done or hard, or a focus session
       logged) in the last 7 days, as a share of plans set up;
     - confirmed: planned sessions of the last 7 days reported done or hard, of
@@ -6054,13 +6111,14 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     events = where.all_events((now - timedelta(days=400)).isoformat(timespec="seconds"))
     started = {t: datetime.fromisoformat(at) for t, at, kind, _detail in events if kind == "start"}
     visits: dict[str, set[date]] = {}
+    tips: dict[str, set[date]] = {}  # the tips page opened (D62)
     for t, at, kind, _detail in events:
-        if kind == "visit":
-            visits.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+        if kind in ("visit", "tips"):
+            (visits if kind == "visit" else tips).setdefault(t, set()).add(datetime.fromisoformat(at).date())
     tokens = where.tokens()
 
-    def active(since: datetime) -> int:
-        return sum(1 for t in tokens if any(d >= since.date() for d in visits.get(t, ())))
+    def active(since: datetime, days: dict[str, set[date]] = visits) -> int:
+        return sum(1 for t in tokens if any(d >= since.date() for d in days.get(t, ())))
 
     def returned(days: int) -> tuple[int, int]:
         eligible = [t for t in tokens if t in started and started[t] <= now - timedelta(days=days)]
@@ -6146,6 +6204,8 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "new_30": sum(1 for t in tokens if t in started and started[t] >= month_ago),
         "active_7": active(week_ago),
         "active_30": active(month_ago),
+        "tips_7": active(week_ago, tips),
+        "tips_30": active(month_ago, tips),
         "north_star": north,
         "planned_7": planned,
         "confirmed_7": confirmed,

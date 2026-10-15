@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import i18n, service
+from cps import i18n, service, tips
 from cps.locales.fr import MESSAGES
 from cps.locales.it import MESSAGES as ITALIAN
 
@@ -83,6 +83,7 @@ def indirect_sentences() -> set[str]:
         *service.REPORT_REASONS.values(),
         *service.EFFORT_WORDS.values(),
         *service.PROGRESS_WORDS.values(),
+        *tips.sentences(),  # the tips' text, translated where it is shown (D62)
     }
 
 

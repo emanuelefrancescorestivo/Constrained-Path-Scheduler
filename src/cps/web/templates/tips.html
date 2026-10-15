@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Study tips") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/focus">{{ _("Focus") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Study tips") }}</h1>
+  <p>{{ _("What research says about studying well, how sure it is, and where it comes from.") }}</p>
+</div>
+
+<dl class="card strengths">
+  {% for s in view.strengths %}<div><dt><span class="strength strength-{{ s.key }}">{{ s.label }}</span></dt><dd>{{ s.meaning }}</dd></div>{% endfor %}
+</dl>
+
+<nav class="tip-topics" aria-label="{{ _('Topics') }}">
+  {% for topic in view.topics %}<a href="#topic-{{ topic.key }}">{{ topic.name }}</a>{% endfor %}
+</nav>
+
+{% for topic in view.topics %}
+<section class="section tip-topic" id="topic-{{ topic.key }}" aria-labelledby="topic-{{ topic.key }}-name">
+  <div class="section-title"><h2 id="topic-{{ topic.key }}-name">{{ topic.name }}</h2></div>
+  {% for tip in topic.tips %}
+  <article class="card tip" id="tip-{{ tip.key }}">
+    <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
+    <h3>{{ tip.advice }}</h3>
+    <p>{{ tip.why }}</p>
+    <p class="tip-note"><b>{{ _("Limits") }}</b> {{ tip.limits }}</p>
+    {% if tip.in_app %}<p class="tip-note tip-app"><b>{{ _("In this app") }}</b> {{ tip.in_app }}</p>{% endif %}
+    <ul class="tip-sources" aria-label="{{ _('Sources') }}">
+      {% for s in tip.sources %}<li><a href="{{ s.url }}" rel="noopener noreferrer" target="_blank">{{ s.cite }}</a>, <i>{{ s.venue }}</i> <span class="muted">· {{ _("read on {day}", day=s.checked) }}</span></li>{% endfor %}
+    </ul>
+  </article>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<p class="section hint">{{ _("General information about studying, not medical advice. Each source was read at its publisher or in a public research database on the day shown.") }} <a href="/p/{{ token }}/feedback">{{ _("Spotted a mistake? Tell us.") }}</a></p>
+{% endblock %}

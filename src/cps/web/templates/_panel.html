@@ -167,5 +167,8 @@
 
 {% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
 
+{# One tip a day, with its sources a tap away (D62) #}
+{% if tip %}<a class="card link-card tip-today section" href="/p/{{ token }}/tips#tip-{{ tip.key }}"><span class="kicker">{{ _("Tip of the day") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></a>{% endif %}
+
 {# A word to the owner from where students spend their time (D43) #}
 <p class="panel-foot"><a href="/p/{{ token }}/feedback?from=/p/{{ token }}">{{ _("Something not right? Send feedback") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>

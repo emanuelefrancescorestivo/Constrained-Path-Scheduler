@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Tips with their sources (D62): a Tips page, from Focus, and one tip a day on
+  Today. Fourteen tips on studying, sleep, movement, coffee, breaks and habits, each
+  with how strong its evidence is, what it does not show and its sources, linked and
+  dated; a tip may cite only a reference read at its source. `cps metrics` counts the
+  plans that read them.
 - A class can be a test (D61): a pop-up quiz (an hour's preparation is planned), a
   mock exam (it counts as exam practice) or a partial exam (practised for, and, when
   passing it takes its material off the final, the weeks taught before it are
