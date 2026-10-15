@@ -1830,6 +1830,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 str(body.get("ref") or ""),
                 str(body.get("action") or ""),
                 every_week=bool(body.get("every_week")),
+                exempt=bool(body.get("exempt")),
                 now=config.clock(),
             )
 
@@ -1857,6 +1858,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     fields.get("ref", ""),
                     action.removesuffix("-weekly"),
                     every_week=weekly,
+                    exempt=fields.get("exempt") == "1",
                     now=config.clock(),
                 ),
             )

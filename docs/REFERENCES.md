@@ -340,6 +340,14 @@ detail came from when the publisher's page could not be opened.
 - status: unchecked
 - checked against: a reference list in a search engine's index, 2026-10-13; the publisher's page redirected to a login. Its findings are taken from the Psychonomic Society's summary [ref:sana2023].
 
+### yang2021
+- authors: Chunliang Yang; Liang Luo; Miguel A. Vadillo; Rongjun Yu; David R. Shanks
+- title: Testing (quizzing) boosts classroom learning: A systematic and meta-analytic review
+- year: 2021
+- venue: Psychological Bulletin 147(4), 399-435
+- status: unchecked
+- checked against: the abstract as listed by Hong Kong Baptist University's research portal and secondary summaries in a search engine's index, 2026-10-15 (222 studies, 48,478 students; overall g = 0.499); the full text was not read.
+
 ### sana2023
 - authors: Faria Sana
 - title: Test first, learn later: The power of pretesting to enhance learning

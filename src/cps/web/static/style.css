@@ -521,6 +521,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .pop-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
 .pop-actions .left { margin-right: auto; }
 .pop-actions.stacked { flex-direction: column; align-items: stretch; }
+.pop .check-long { margin-top: 12px; }
 .pop .kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pop hr { border: 0; border-top: 0.5px solid var(--line); margin: 14px 0; }
 .pop .colour-bar { width: 5px; align-self: stretch; border-radius: 5px; background: var(--cc, var(--accent)); }
@@ -637,6 +638,13 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 }
 .ev-skipped .l { text-decoration: line-through; font-weight: 500; }
 .ev-skipped::before { width: 2px; opacity: 0.35; }
+/* A class that is a test (D61): a quiz or a mock exam in its course's colour, edged
+   so it stands out from a class; a partial exam is drawn as an exam. */
+.ev-quiz, .ev-mock {
+  background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint), var(--surface)); color: var(--text);
+  outline: 1.5px solid color-mix(in srgb, var(--cc, var(--busy)) 70%, transparent); outline-offset: -1.5px;
+}
+.ev-quiz .l, .ev-mock .l { font-weight: 650; }
 .ev-exam { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); color: var(--text); --cc: var(--danger); }
 .ev-exam .l { font-weight: 700; }
 /* A study session: its course's colour, stronger; the one thing here to act on */

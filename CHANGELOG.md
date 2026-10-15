@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A class can be a test (D61): a pop-up quiz (an hour's preparation is planned), a
+  mock exam (it counts as exam practice) or a partial exam (practised for, and, when
+  passing it takes its material off the final, the weeks taught before it are
+  examined there).
 - A class of the timetable can be skipped (D60): once, or every week from it on, or
   skipped with a catch-up task as long as the class, due before the course's next
   one; it stays on the calendar, struck through, to be restored. From the calendar

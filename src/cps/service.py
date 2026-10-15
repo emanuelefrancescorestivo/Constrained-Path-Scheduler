@@ -263,8 +263,9 @@ class EventView:
     start: str  # ISO 8601, local
     end: str
     # "calendar" (the .ics), "typed" (busy rows), "commute" (made from the trip's
-    # length around each day's classes, `commute_events`) or "skipped" (a class of
-    # the .ics the student will not attend, D60: shown, but not busy)
+    # length around each day's classes, `commute_events`), "skipped" (a class of
+    # the .ics the student will not attend, D60: shown, but not busy), or a class
+    # that is a test (D61): "quiz", "mock" or "partial"
     source: str = "calendar"
 
     def to_dict(self) -> dict:
@@ -438,6 +439,22 @@ def _iso(moment: datetime) -> str:
 # the timetable gives them, so a change outlives a reading of the timetable's link;
 # a class the university moves is a new class, and the change stays with the old.
 LECTURE_ACTIONS = ("skip", "self")
+# A class may be a test (D61): a pop-up quiz, a mock exam, or a partial exam. It
+# stays busy; it is drawn and planned around as what it is.
+TEST_KINDS = ("quiz", "mock", "partial")
+# The preparation a quiz brings, as a task due when it starts: a short self-test of
+# what the course has taught, which is what a quiz rewards [ref:yang2021].
+QUIZ_PREPARATION_HOURS = 1.0
+
+
+def test_label(kind: str, summary: str) -> str:
+    """A class that is a test (D61), as the calendar names it."""
+    course = course_of(summary) or short_title(summary)
+    if kind == "quiz":
+        return _("Quiz: {course}", course=course)
+    if kind == "mock":
+        return _("Mock exam: {course}", course=course)
+    return _("Partial exam: {course}", course=course)
 
 
 def lecture_ref(summary: str) -> str:
@@ -559,7 +576,7 @@ def analyse_calendar(
     if days is not None and days < 1:
         raise InvalidInput("the horizon must be at least one day")
     found = find_deadlines(_events(text, rows, start, max(days or 0, ASSESSMENT_SEARCH_DAYS), tz))
-    lectures = _lectures(text, start, tz)
+    lectures = _lectures(text, start, tz, lecture_changes)
     if days is None:
         latest = max((_days_after(start, d.when) for d in found), default=21.0)
         days = max(1, math.ceil(latest - 1e-9))
@@ -568,14 +585,17 @@ def analyse_calendar(
     if lecture_changes:
         exams = {d.when for d in found}
         zone_ = _zone(tz)
-        tagged = [
-            (e, "skipped")
-            if source == "calendar" and e.start not in exams and _lecture_change(lecture_changes, e, zone_)
-            else (e, source)
-            for e, source in tagged
-        ]
+
+        def changed(e: BusyEvent, source: str) -> str:
+            change = _lecture_change(lecture_changes, e, zone_) if source == "calendar" else None
+            if change is None or e.start in exams:
+                return source
+            # Skipped: shown, not busy (D60). A test: busy, shown as what it is (D61).
+            return change["action"] if change["action"] in TEST_KINDS else "skipped"
+
+        tagged = [(e, changed(e, source)) for e, source in tagged]
     if commute_minutes:
-        campus = [e for e, source in tagged if source == "calendar"]
+        campus = [e for e, source in tagged if source in ("calendar", *TEST_KINDS)]
         campus += busy_from_table([r for r in rows if r.kind == "class"], start, days, tz)
         trips = commute_events(campus, commute_minutes, _zone(tz), _("Commute"))
         tagged = sorted(
@@ -662,8 +682,11 @@ def analyse_calendar(
 LECTURE_LOOKBACK_DAYS = 183
 
 
-def _lectures(ics_text: str | None, start: date, tz: str) -> tuple[LectureView, ...]:
-    """Teaching events of the .ics around the plan: see `CalendarReport.lectures`."""
+def _lectures(
+    ics_text: str | None, start: date, tz: str, changes: Sequence[Mapping] = ()
+) -> tuple[LectureView, ...]:
+    """Teaching events of the .ics around the plan: see `CalendarReport.lectures`.
+    A class marked as a test (D61) teaches nothing new: it is not one of them."""
     if ics_text is None:
         return ()
     zone = _zone(tz)
@@ -676,7 +699,11 @@ def _lectures(ics_text: str | None, start: date, tz: str) -> tuple[LectureView, 
         raise InvalidCalendar(
             f"the calendar file could not be read ({exc}); export it again as .ics"
         ) from exc
-    return tuple(LectureView(course, _iso(e.start), _iso(e.end)) for course, e in find_lectures(events))
+    return tuple(
+        LectureView(course, _iso(e.start), _iso(e.end))
+        for course, e in find_lectures(events)
+        if (_lecture_change(changes, e, zone) or {}).get("action") not in TEST_KINDS
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -988,6 +1015,72 @@ def _topics(report: CalendarReport, specs: Sequence[dict], model: Model = FSRS_4
     return out
 
 
+def _partials(report: CalendarReport) -> list[dict[str, Any]]:
+    """The classes of the timetable marked as partial exams (D61), in the plan's
+    horizon: each an exam of its own for its course, named for practice sessions
+    ("Algebra 3, partial exam of 12 Nov"), and `exempt` when passing it takes its
+    material off the final exam."""
+    zone = _zone(report.tz)
+    out = []
+    for e in report.events:
+        if e.source != "partial":
+            continue
+        start = datetime.fromisoformat(e.start)
+        change = _lecture_change(report.lecture_changes, BusyEvent(start, start, e.summary), zone) or {}
+        course = course_of(e.summary) or short_title(e.summary)
+        out.append(
+            {
+                "key": _(
+                    "{course}, partial exam of {day}", course=course, day=format_date(start.date(), "short")
+                ),
+                "course": course,
+                "exam": e.start,
+                "exam_day": _days_after(report.start, start),
+                "exempt": bool(change.get("exempt")),
+            }
+        )
+    return out
+
+
+def _mocks(report: CalendarReport) -> list[dict[str, Any]]:
+    """The classes of the timetable marked as mock exams (D61): practice for their
+    course's exam, held in class."""
+    return [
+        {
+            "course": course_of(e.summary) or short_title(e.summary),
+            "day": _days_after(report.start, datetime.fromisoformat(e.start)),
+            "hours": (datetime.fromisoformat(e.end) - datetime.fromisoformat(e.start)) / timedelta(hours=1),
+        }
+        for e in report.events
+        if e.source == "mock"
+    ]
+
+
+def _split_at_partials(report: CalendarReport, specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Weeks of lectures taught before a partial exam that takes its material off
+    the final (D61) are examined there: their exam is the partial's, so they are
+    reviewed for it and not after. A course that is one topic (its lectures are not
+    in the timetable) cannot be split, and keeps its final."""
+    out = []
+    for spec in specs:
+        spec = dict(spec)
+        for p in _partials(report):
+            if (
+                p["exempt"]
+                and spec.get("topic")
+                and spec["subject"].casefold() == p["course"].casefold()
+                and spec.get("available_day", 0.0) < p["exam_day"] < spec["exam_day"]
+            ):
+                spec.update(
+                    exam=p["exam"],
+                    exam_day=p["exam_day"],
+                    exam_key=p["key"],
+                    target_days=_week_target(p["exam_day"] - spec.get("available_day", 0.0)),
+                )
+        out.append(spec)
+    return out
+
+
 # A week of one course with more lecture hours than this is more than one session
 # can review (D50): it becomes as many topics as it has three-hour shares, its
 # lectures split in the order taught.
@@ -1073,7 +1166,7 @@ def _prepare(
     if lectures_as_topics:
         topics = _topics(report, specs, model)
         if any(t["topic"] for t in topics):
-            specs = topics
+            specs = _split_at_partials(report, topics)
     settings = PlanSettings(
         start=report.start,
         tz=report.tz,
@@ -1302,20 +1395,20 @@ def _topic_view(
 ) -> tuple[SubjectView, list[str]]:
     """A subject taught over the horizon, summarised over its topics: ready when
     every topic is, recall at the exam averaged over topics, and the weakest
-    topic's stability against its own target."""
-    exam_day = members[0][0]["exam_day"]
+    topic's stability against its own target. The subject's exam is its final: a
+    topic examined at a partial exam (D61) is measured at that one."""
     ready = [finals[s["name"]][0].stability >= t for s, t, _ in members]
     lost = [bad and not ok for (_, _, bad), ok in zip(members, ready, strict=True)]
     recall = [
-        retrievability(max(exam_day - finals[s["name"]][1], 0.0), finals[s["name"]][0].stability)
+        retrievability(max(s["exam_day"] - finals[s["name"]][1], 0.0), finals[s["name"]][0].stability)
         for s, _, _ in members
     ]
     weakest, weakest_target, _ = min(members, key=lambda m: finals[m[0]["name"]][0].stability / m[1])
-    head = members[0][0]
+    head = next((m[0] for m in members if not m[0].get("exam_key")), members[0][0])
     view = SubjectView(
         name=name,
         exam=head["exam"],
-        exam_day=exam_day,
+        exam_day=head["exam_day"],
         stability=head["stability"],
         difficulty=head["difficulty"],
         prior=head["prior"],
@@ -1605,16 +1698,21 @@ def calendar_week(
     for event in source.events:
         if event.source == "typed" and not typed:
             continue
-        kind = event.source if event.source in ("typed", "commute", "skipped") else "calendar"
+        kind = event.source if event.source in ("typed", "commute", "skipped", *TEST_KINDS) else "calendar"
         if event.start in exams and event.source not in ("commute", "skipped"):
             kind = "exam"
             shown_exams.add(event.start)
-        label = event.summary if kind == "exam" else short_title(event.summary)
+        label = (
+            event.summary
+            if kind == "exam"
+            else test_label(kind, event.summary)
+            if kind in TEST_KINDS
+            else short_title(event.summary)
+        )
         course = None if kind == "commute" else exams.get(event.start) or course_of(event.summary)
         lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
-        named = (
-            {"at": event.start, "ref": lecture_ref(event.summary)} if kind in ("calendar", "skipped") else {}
-        )
+        changeable = ("calendar", "skipped", *TEST_KINDS)
+        named = {"at": event.start, "ref": lecture_ref(event.summary)} if kind in changeable else {}
         place(lo, hi, label, kind, course=course, **named)
     for when, name in exams.items():
         if when not in shown_exams:
@@ -2273,18 +2371,27 @@ def change_lecture(
     action: str,
     *,
     every_week: bool = False,
+    exempt: bool = False,
     now: datetime | None = None,
 ) -> Subscription:
-    """Change one class of the timetable (D60), named by its start `at` and `which`,
-    its title as the timetable gives it or that title's `lecture_ref`: "skip" it (and, `every_week`, the
-    same class every week from this one on), skip it and study it on one's own
-    ("self": a task as long as the class, due before the course's next one), or
-    "restore" it (a weekly skip is restored for every week; a catch-up task not yet
-    finished goes with it). The plan is made again at once."""
+    """Change one class of the timetable (D60, D61), named by its start `at` and
+    `which`, its title as the timetable gives it or that title's `lecture_ref`:
+
+    - "skip" it (and, `every_week`, the same class every week from this one on), or
+      skip it and study it on one's own ("self": a task as long as the class, due
+      before the course's next one);
+    - mark it as a test (D61): a pop-up "quiz" (an hour's preparation, a task due
+      when it starts), a "mock" exam (it counts as exam practice), or a "partial"
+      exam (an exam of its own, practised for; `exempt` when passing it takes its
+      material off the final exam);
+    - or "restore" it (a weekly skip is restored for every week; a task it brought,
+      not yet finished, goes with it).
+
+    The plan is made again at once."""
     now = now or datetime.now(UTC)
     options = subscription.options
     zone = _zone(options["tz"])
-    if action not in (*LECTURE_ACTIONS, "restore"):
+    if action not in (*LECTURE_ACTIONS, *TEST_KINDS, "restore"):
         raise InvalidInput(_("choose to skip the class, to study it on your own, or to keep it"))
     try:
         start = datetime.fromisoformat(at)
@@ -2308,44 +2415,52 @@ def change_lecture(
         if current is None:
             raise InvalidInput(_("this class is not skipped"))
         changes = [c for c in changes if c != current]
-        catch_up = current.get("task")
-        tasks = [t for t in tasks if t.done or t.name != catch_up]
+        brought = current.get("task")
+        tasks = [t for t in tasks if t.done or t.name != brought]
+        return revise_subscription(subscription, tasks=tasks, lecture_changes=changes, now=now, strict=False)
+    if start <= now:
+        raise InvalidInput(_("this class has already begun"))
+    if every_week and action == "self":
+        raise InvalidInput(_("a class skipped every week is not caught up by itself: add the work as a task"))
+    if every_week and action in TEST_KINDS:
+        raise InvalidInput(_("a test is one class: mark each one"))
+    if current is not None:
+        if current.get("action") in TEST_KINDS:
+            raise InvalidInput(_("this class is already marked as a test"))
+        raise InvalidInput(_("this class is already skipped"))
+    if every_week:
+        change: dict = {
+            "weekday": local.weekday(),
+            "time": f"{local:%H:%M}",
+            "from": local.date().isoformat(),
+        }
     else:
-        if start <= now:
-            raise InvalidInput(_("this class has already begun"))
-        if every_week and action == "self":
-            raise InvalidInput(
-                _("a class skipped every week is not caught up by itself: add the work as a task")
-            )
-        if current is not None:
-            raise InvalidInput(_("this class is already skipped"))
-        if every_week:
-            change: dict = {
-                "weekday": local.weekday(),
-                "time": f"{local:%H:%M}",
-                "from": local.date().isoformat(),
-            }
-        else:
-            change = {"at": _iso(start)}
-        change.update(summary=summary, action=action)
-        if action == "self":
-            course = course_of(summary) or short_title(summary)
-            ahead = _events(text, (), local.date(), CATCH_UP_LOOKAHEAD.days + 1, options["tz"])
-            later = [
-                e.start for e in ahead if e.start > event.end and course_of(e.summary) == course_of(summary)
-            ]
-            due = min(later, default=event.start + timedelta(days=7)).astimezone(zone)
-            hours = max(0.5, math.ceil(event.duration / timedelta(minutes=30)) / 2)
-            name = _(
-                "Catch up: {course}, class of {day}", course=course, day=format_date(local.date(), "short")
-            )
-            taken = {t.name.casefold() for t in tasks}
-            base, n = name, 2
-            while name.casefold() in taken:
-                name, n = f"{base} ({n})", n + 1
-            tasks.append(TaskSpec(name, f"{due:%Y-%m-%d %H:%M}", hours, course))
-            change["task"] = name
-        changes.append(change)
+        change = {"at": _iso(start)}
+    change.update(summary=summary, action=action)
+    course = course_of(summary) or short_title(summary)
+    task: TaskSpec | None = None
+    if action == "self":
+        ahead = _events(text, (), local.date(), CATCH_UP_LOOKAHEAD.days + 1, options["tz"])
+        later = [e.start for e in ahead if e.start > event.end and course_of(e.summary) == course_of(summary)]
+        due = min(later, default=event.start + timedelta(days=7)).astimezone(zone)
+        hours = max(0.5, math.ceil(event.duration / timedelta(minutes=30)) / 2)
+        name = _("Catch up: {course}, class of {day}", course=course, day=format_date(local.date(), "short"))
+        task = TaskSpec(name, f"{due:%Y-%m-%d %H:%M}", hours, course)
+    elif action == "quiz":
+        name = _(
+            "Prepare for the quiz: {course}, {day}", course=course, day=format_date(local.date(), "short")
+        )
+        task = TaskSpec(name, f"{local:%Y-%m-%d %H:%M}", QUIZ_PREPARATION_HOURS, course)
+    elif action == "partial":
+        change["exempt"] = bool(exempt)
+    if task is not None:
+        taken = {t.name.casefold() for t in tasks}
+        base, n = task.name, 2
+        while task.name.casefold() in taken:
+            task, n = replace(task, name=f"{base} ({n})"), n + 1
+        tasks.append(task)
+        change["task"] = task.name
+    changes.append(change)
     return revise_subscription(subscription, tasks=tasks, lecture_changes=changes, now=now, strict=False)
 
 
@@ -3505,7 +3620,8 @@ def course_colours(source: CalendarReport | PlanReport, drawn: Sequence[str] = (
         names += sorted({t.course for t in source.tasks if t.course}, key=str.casefold)
     else:
         names += [a.subject for a in source.assessments]
-    taught = {course_of(e.summary) for e in source.events if e.source in ("calendar", "skipped")} - {""}
+    shown = ("calendar", "skipped", *TEST_KINDS)
+    taught = {course_of(e.summary) for e in source.events if e.source in shown} - {""}
     names += sorted(taught, key=str.casefold)
     names += list(drawn)
     seen: dict[str, int] = {}
@@ -3574,16 +3690,22 @@ def calendar_view(
         else set()
     )
     changes = tuple(options.get("lecture_changes", ()))
-    titles = {(e.start, lecture_ref(e.summary)): e.summary for e in source.events if e.source == "skipped"}
+    changed = ("skipped", *TEST_KINDS)
+    titles = {(e.start, lecture_ref(e.summary)): e.summary for e in source.events if e.source in changed}
     for item in week["items"]:
-        item["color"] = colours.get(str(item.get("course") or "").casefold())
-        if item["kind"] == "skipped":
+        course = str(item.get("course") or "").casefold()
+        # Practice for a partial exam (D61) wears its course's colour.
+        item["color"] = colours.get(
+            course, next((v for k, v in colours.items() if course.startswith(f"{k},")), None)
+        )
+        if item["kind"] in changed:
             at = datetime.fromisoformat(item["at"])
             title = titles.get((item["at"], item["ref"]), "")
             change = _lecture_change(changes, BusyEvent(at, at, title), zone) or {}
             item["weekly"] = not change.get("at")
-            item["catch_up"] = change.get("task")
-        if item["kind"] in ("calendar", "skipped"):
+            item["catch_up"] = change.get("task")  # a catch-up (D60) or a quiz's preparation (D61)
+            item["exempt"] = bool(change.get("exempt"))
+        if item["kind"] in ("calendar", *changed):
             item["past"] = datetime.fromisoformat(item["at"]) <= moment
         if item["kind"] == "study":
             started = _local(item["at"], zone) <= moment
@@ -6301,13 +6423,19 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
             "exam"
             if e.start in exams and e.source not in ("commute", "skipped")
             else e.source
-            if e.source in ("typed", "commute", "skipped")
+            if e.source in ("typed", "commute", "skipped", *TEST_KINDS)
             else "calendar"
         )
-        label = e.summary if kind == "exam" else short_title(e.summary)
+        label = (
+            e.summary
+            if kind == "exam"
+            else test_label(kind, e.summary)
+            if kind in TEST_KINDS
+            else short_title(e.summary)
+        )
         begin = datetime.fromisoformat(e.start)
         extra: dict[str, Any] = {}
-        if kind in ("calendar", "skipped"):
+        if kind in ("calendar", "skipped", *TEST_KINDS):
             # A class can be skipped from here too, without the calendar's script (D60).
             change = _lecture_change(changes, BusyEvent(begin, begin, e.summary), zone) or {}
             extra = {
@@ -6472,6 +6600,8 @@ def make_schedule(
     latest_due = max((day for _, _, day in dues), default=0.0)
     if latest_due > report.days:
         report = _extend(report, math.ceil(latest_due - 1e-9))
+    planned = {s.get("subject", s["name"]).casefold() for s in specs}
+    partials = [p for p in _partials(report) if p["course"].casefold() in planned and p["exam_day"] > 0]
     settings = replace(
         settings,
         horizon_days=report.days,
@@ -6485,11 +6615,25 @@ def make_schedule(
             "weights": {str(k): float(v) for k, v in (weights or {}).items() if float(v) != 1.0},
             # The memory model the rules and the forecasts use (D52).
             "model": model,
-            # What sizing gives each course, kept for the settings page (D46).
+            # What sizing gives each course, kept for the settings page (D46); a
+            # partial exam (D61) is sized like an exam, on the weeks taught before it.
             "practice_sized": {
-                course: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
-                for course, exam in {s.get("subject", s["name"]): s["exam"] for s in specs}.items()
+                key: practice_hours_for(weeks_taught(report, course, datetime.fromisoformat(exam)))
+                for key, (course, exam) in (
+                    {
+                        s.get("exam_key") or s.get("subject", s["name"]): (
+                            s.get("subject", s["name"]),
+                            s["exam"],
+                        )
+                        for s in specs
+                    }
+                    | {p["key"]: (p["course"], p["exam"]) for p in partials}
+                ).items()
             },
+            # Classes that are tests (D61): partial exams, practised for, and mock
+            # exams, which count as practice.
+            "partials": partials,
+            "mocks": _mocks(report),
         },
     )
     views = tuple(
@@ -6505,6 +6649,7 @@ def make_schedule(
     )
     known = {s["name"] for s in specs} | {t.name for t in views}
     known |= {f"Exam practice: {s['subject']}" for s in specs}
+    known |= {f"Exam practice: {p['key']}" for p in partials}
     history = tuple(
         replace(x, index=i)
         for i, x in enumerate(sorted((x for x in done if x.title in known), key=lambda x: x.start_day))
@@ -6597,17 +6742,19 @@ def _assist(
         hours = chosen.get(course.casefold(), PRACTICE_UNSIZED_HOURS if default is None else default)
         return blocks_for_hours(hours, minutes) if hours > 0 else 0
 
+    # A mock exam held in class (D61) is practice for its course's exam, done or to
+    # come: the practice planned for that exam is shorter by its length.
+    final_day = {s.get("subject", s["name"]): s["exam_day"] for s in specs if not s.get("exam_key")}
+    for mock in prefs.get("mocks") or ():
+        if mock["day"] < final_day.get(mock["course"], -1.0):
+            course = mock["course"]
+            done_practice[course] = done_practice.get(course, 0) + blocks_for_hours(mock["hours"], minutes)
+    # One exam per key: a course's final, or a partial exam of it (D61).
+    keyed = {s.get("exam_key") or s.get("subject", s["name"]): s["exam_day"] for s in specs}
+    keyed |= {p["key"]: p["exam_day"] for p in prefs.get("partials") or ()}
     exams = {
-        s.get("subject", s["name"]): Exam(
-            s.get("subject", s["name"]),
-            s["exam_day"],
-            max(
-                practice_blocks(s.get("subject", s["name"]))
-                - done_practice.get(s.get("subject", s["name"]), 0),
-                0,
-            ),
-        )
-        for s in specs
+        key: Exam(key, day, max(practice_blocks(key) - done_practice.get(key, 0), 0))
+        for key, day in keyed.items()
     }
     work = [
         Task(t.name, t.due_day, 0 if t.done else max(t.blocks - done_task.get(t.name, 0), 0), t.course)
@@ -6677,7 +6824,8 @@ def _assist(
         ]
         ok = [r >= settings.retention for r in recalls]
         ready = all(ok)
-        head = members[0]
+        # The subject's exam is its final, not a partial exam (D61).
+        head = next((s for s in members if not s.get("exam_key")), members[0])
         if len(members) == 1:
             line = f"{'ready' if ready else 'not ready'}: {recalls[0]:.0%} predicted at the exam"
         else:

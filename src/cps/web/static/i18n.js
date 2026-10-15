@@ -93,6 +93,22 @@ const FR = {
   "Skip this one": "Sauter celui-ci",
   "Skipped every week from this one on.": "Sauté chaque semaine à partir de celui-ci.",
   "Skip it every week": "Le sauter chaque semaine",
+  // A class that is a test (D61)
+  "Is it a test?": "C'est une épreuve ?",
+  "Pop-up quiz": "Interro surprise",
+  "Mock exam": "Examen blanc",
+  "Partial exam": "Partiel",
+  "Passing it takes its material off the final exam": "Le réussir retire sa matière de l'examen final",
+  "It's an ordinary class": "C'est un cours normal",
+  "A quiz in class. An hour to prepare for it is in your tasks.": "Une interro en cours. Une heure pour la préparer est dans tes tâches.",
+  "A mock exam in class: it counts as exam practice for its course.": "Un examen blanc en cours : il compte comme entraînement à l'examen de sa matière.",
+  "A partial exam: practice is planned in the days before it.": "Un partiel : de l'entraînement est prévu dans les jours d'avant.",
+  "Its material leaves the final exam.": "Sa matière sort de l'examen final.",
+  "Its material stays for the final exam.": "Sa matière reste pour l'examen final.",
+  "Back to an ordinary class.": "Redevenu un cours normal.",
+  "Marked as a quiz. An hour to prepare is in your tasks.": "Marqué comme interro. Une heure pour la préparer est dans tes tâches.",
+  "Marked as a mock exam. It counts as exam practice.": "Marqué comme examen blanc. Il compte comme entraînement à l'examen.",
+  "Marked as a partial exam. Practice is planned before it.": "Marqué comme partiel. De l'entraînement est prévu avant.",
 };
 
 
@@ -187,6 +203,22 @@ const IT = {
   "Skip this one": "Salta questa",
   "Skipped every week from this one on.": "Saltata ogni settimana da questa in poi.",
   "Skip it every week": "Saltala ogni settimana",
+  // A class that is a test (D61)
+  "Is it a test?": "È una prova?",
+  "Pop-up quiz": "Quiz a sorpresa",
+  "Mock exam": "Simulazione d'esame",
+  "Partial exam": "Prova intermedia",
+  "Passing it takes its material off the final exam": "Superarla toglie i suoi argomenti dall'esame finale",
+  "It's an ordinary class": "È una lezione normale",
+  "A quiz in class. An hour to prepare for it is in your tasks.": "Un quiz a lezione. Un'ora per prepararti è nelle tue attività.",
+  "A mock exam in class: it counts as exam practice for its course.": "Una simulazione d'esame a lezione: conta come esercitazione per l'esame del corso.",
+  "A partial exam: practice is planned in the days before it.": "Una prova intermedia: l'esercitazione è prevista nei giorni prima.",
+  "Its material leaves the final exam.": "I suoi argomenti escono dall'esame finale.",
+  "Its material stays for the final exam.": "I suoi argomenti restano per l'esame finale.",
+  "Back to an ordinary class.": "Di nuovo una lezione normale.",
+  "Marked as a quiz. An hour to prepare is in your tasks.": "Segnata come quiz. Un'ora per prepararti è nelle tue attività.",
+  "Marked as a mock exam. It counts as exam practice.": "Segnata come simulazione d'esame. Conta come esercitazione.",
+  "Marked as a partial exam. Practice is planned before it.": "Segnata come prova intermedia. L'esercitazione è prevista prima.",
 };
 
 const CATALOGUES = { fr: FR, it: IT };
