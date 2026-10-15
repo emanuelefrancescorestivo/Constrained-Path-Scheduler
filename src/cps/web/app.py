@@ -1815,8 +1815,56 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse({"message": "not a change to a session"}, 400)
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        service.log_event(store, token, kind, str(body.get("outcome", "")))
+        service.log_event(store, token, kind, str(body.get("outcome", body.get("action", ""))))
         return JSONResponse(view)
+
+    # A class of the timetable skipped, caught up on alone, or kept (D60).
+    @app.post("/p/{token}/lecture.json")
+    async def lecture_json(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:
+        """From the calendar: answered with the calendar as it is after the change."""
+
+        def change(current: service.Subscription, body: dict) -> service.Subscription:
+            return service.change_lecture(
+                current,
+                str(body.get("at") or ""),
+                str(body.get("ref") or ""),
+                str(body.get("action") or ""),
+                every_week=bool(body.get("every_week")),
+                now=config.clock(),
+            )
+
+        return await session_change(request, token, "", start, days, change, "lecture")
+
+    @app.post("/p/{token}/lecture")
+    async def lecture_form(request: Request, token: str) -> Response:
+        """From the week's list, the calendar for a browser without scripts."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=6)
+        fields = {k: str(v) for k, v in form.items()}
+        # One form, one button per choice: "skip-weekly" is a skip every week.
+        action = fields.get("action", "")
+        weekly = action.endswith("-weekly")
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.change_lecture(
+                    current,
+                    fields.get("at", ""),
+                    fields.get("ref", ""),
+                    action.removesuffix("-weekly"),
+                    every_week=weekly,
+                    now=config.clock(),
+                ),
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "lecture", fields.get("action", ""))
+        week = fields.get("w", "0")
+        return RedirectResponse(f"/p/{token}/agenda?w={int(week) if week.lstrip('-').isdigit() else 0}", 303)
 
     @app.post("/p/{token}/sessions/{sid}/move")
     async def move(

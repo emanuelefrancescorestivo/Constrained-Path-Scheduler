@@ -520,6 +520,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .pop .kicker { font-size: 0.8rem; color: var(--muted); font-weight: 600; display: flex; gap: 6px; align-items: center; }
 .pop-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
 .pop-actions .left { margin-right: auto; }
+.pop-actions.stacked { flex-direction: column; align-items: stretch; }
 .pop .kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pop hr { border: 0; border-top: 0.5px solid var(--line); margin: 14px 0; }
 .pop .colour-bar { width: 5px; align-self: stretch; border-radius: 5px; background: var(--cc, var(--accent)); }
@@ -628,6 +629,14 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .ev-calendar { background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint-lecture), var(--surface)); color: var(--text); }
 .ev-calendar .l { font-weight: 500; color: color-mix(in srgb, var(--text) 78%, transparent); }
 .ev-calendar::before { width: 2px; opacity: 0.7; }
+/* A class the student skips (D60): it keeps its place, faded and struck through, so
+   it can be restored; the plan may use its time. */
+.ev-skipped {
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--fill-4) 5px 10px), var(--surface);
+  color: var(--muted); outline: 1px dashed color-mix(in srgb, var(--cc, var(--busy)) 45%, transparent); outline-offset: -1px;
+}
+.ev-skipped .l { text-decoration: line-through; font-weight: 500; }
+.ev-skipped::before { width: 2px; opacity: 0.35; }
 .ev-exam { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); color: var(--text); --cc: var(--danger); }
 .ev-exam .l { font-weight: 700; }
 /* A study session: its course's colour, stronger; the one thing here to act on */
@@ -1858,3 +1867,5 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   }
 }
 @keyframes surface { from { opacity: 0; translate: 0 32px; } to { opacity: 1; translate: none; } }
+.lecture-form { margin: 2px 0 0; }
+.lecture-form .btn { margin: 4px 6px 0 0; }

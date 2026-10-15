@@ -410,7 +410,7 @@ export class Calendar {
       if (box.done) cls += " past";
       if (box.reported) cls += ` reported-${box.reported}`;
       if (box.movable) cls += " movable";
-    } else if (box.kind === "calendar") cls += colour;
+    } else if (box.kind === "calendar" || box.kind === "skipped") cls += colour;
     else if (box.kind === "own" && box.own === "class") cls += ` ev-class${colour}`;
     const tall = (to - from) * PX;
     if (tall < 34) cls += " short";
@@ -423,7 +423,7 @@ export class Calendar {
       short = box.label;
     } else if (box.kind === "study") {
       short = box.session_kind === "task" ? box.title : box.course || box.title;
-    } else if (box.kind === "calendar" && box.course) {
+    } else if ((box.kind === "calendar" || box.kind === "skipped") && box.course) {
       short = box.course;
     }
     const span = `${toClock(box.start)}–${toClock(box.end)}`;
@@ -712,8 +712,39 @@ export class Calendar {
         ? t("An exam from your timetable. Practice sessions are planned in the two weeks before it.")
         : box.kind === "commute"
           ? t("Your trip to university, before the day's first class and after its last. Change its length in Settings.")
-          : t("From your timetable. Nothing is planned at the same time.")),
+          : box.kind === "skipped"
+            ? (box.weekly ? t("You skip this class every week: its time is free for the plan.") : t("You skip this class: its time is free for the plan."))
+            : t("From your timetable. Nothing is planned at the same time.")),
+      box.catch_up ? h("p", { class: "hint" }, t("Its catch-up is in your tasks: {name}.", { name: box.catch_up })) : null,
+      ...this.lectureActions(box),
     ], box.label);
+  }
+
+  // A class of the timetable is the student's to skip, once or every week, and to
+  // catch up on alone (D60); the server decides, the calendar asks.
+  lectureActions(box) {
+    if (!["calendar", "skipped"].includes(box.kind) || !box.at) return [];
+    const send = (action, every_week, done) => () =>
+      this.change("lecture.json", { at: box.at, ref: box.ref, action, every_week }, done);
+    if (box.kind === "skipped") {
+      return [h("div", { class: "pop-actions" }, h("button", {
+        type: "button",
+        class: "btn btn-sm btn-tinted",
+        onclick: send("restore", false, t("Back in your week.")),
+      }, box.weekly ? t("Restore every week") : t("Restore")))];
+    }
+    if (box.past) return [];
+    return [
+      h("hr"),
+      h("p", { class: "label" }, t("Can't go?")),
+      h("div", { class: "pop-actions stacked" },
+        h("button", { type: "button", class: "btn btn-sm btn-tinted", onclick: send("self", false, t("Skipped. A catch-up as long as the class is in your tasks.")) },
+          t("Skip it and study it on my own")),
+        h("button", { type: "button", class: "btn btn-sm", onclick: send("skip", false, t("Skipped. Its time is free for the plan.")) },
+          t("Skip this one")),
+        h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: send("skip", true, t("Skipped every week from this one on.")) },
+          t("Skip it every week"))),
+    ];
   }
 
   openSession(box, anchor) {

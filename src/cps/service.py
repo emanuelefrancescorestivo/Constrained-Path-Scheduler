@@ -262,8 +262,9 @@ class EventView:
     summary: str
     start: str  # ISO 8601, local
     end: str
-    # "calendar" (the .ics), "typed" (busy rows) or "commute" (made from the trip's
-    # length around each day's classes, `commute_events`)
+    # "calendar" (the .ics), "typed" (busy rows), "commute" (made from the trip's
+    # length around each day's classes, `commute_events`) or "skipped" (a class of
+    # the .ics the student will not attend, D60: shown, but not busy)
     source: str = "calendar"
 
     def to_dict(self) -> dict:
@@ -358,6 +359,8 @@ class CalendarReport:
     quick: tuple[BlockView, ...] = ()
     quick_tests: bool = False
     study_on_the_way: bool = False
+    # Classes the student will not attend (D60), as `options["lecture_changes"]`.
+    lecture_changes: tuple[Mapping, ...] = ()
 
     @property
     def block_slots(self) -> int:
@@ -385,6 +388,7 @@ class CalendarReport:
             "quick": [b.to_dict() for b in self.quick],
             "quick_tests": self.quick_tests,
             "study_on_the_way": self.study_on_the_way,
+            "lecture_changes": [dict(c) for c in self.lecture_changes],
         }
 
 
@@ -427,6 +431,38 @@ def _tagged_events(
 
 def _iso(moment: datetime) -> str:
     return moment.isoformat(timespec="minutes")
+
+
+# Changing a class of the timetable (D60): the student skips it, once or every week,
+# and may catch up on their own. A class is known by its start and its title, as
+# the timetable gives them, so a change outlives a reading of the timetable's link;
+# a class the university moves is a new class, and the change stays with the old.
+LECTURE_ACTIONS = ("skip", "self")
+
+
+def lecture_ref(summary: str) -> str:
+    """How a page names a class of the timetable, with its start: a digest of its
+    title, so that the page never carries the timetable's raw text ("Grp: CM ., Salle:
+    ..."), which it shows only cleaned (`short_title`)."""
+    return hashlib.sha256(summary.encode("utf-8")).hexdigest()[:16]
+
+
+def _lecture_change(changes: Iterable[Mapping], event: BusyEvent, zone: ZoneInfo) -> Mapping | None:
+    """The change, once or weekly, that the timetable's `event` falls under."""
+    local = event.start.astimezone(zone)
+    for change in changes:
+        if change.get("summary") != event.summary:
+            continue
+        if change.get("at"):
+            if datetime.fromisoformat(change["at"]) == event.start:
+                return change
+        elif (
+            local.weekday() == change.get("weekday")
+            and f"{local:%H:%M}" == change.get("time")
+            and local.date() >= date.fromisoformat(change["from"])
+        ):
+            return change
+    return None
 
 
 # When a student studies best (D45), as the hour of the day each day's sessions
@@ -488,12 +524,15 @@ def analyse_calendar(
     study_time: str = "any",
     quick_tests: bool = False,
     study_on_the_way: bool = False,
+    lecture_changes: Sequence[Mapping] = (),
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
     With `quick_tests`, also the gaps too short for a block, for quick self-tests;
     with `study_on_the_way`, the trips to campus (D48).
     With `commute_minutes`, the trip to campus and back is busy too, around each
     day's events of the timetable and classes drawn by hand (`commute_events`).
+    `lecture_changes` names classes of the timetable the student will not attend
+    (D60): they stay in `events` as "skipped", and their time is free.
 
     Without `days` the horizon runs to the latest assessment found in the next year,
     including its day, or 21 days if there is none. Assessments are looked for over
@@ -526,6 +565,15 @@ def analyse_calendar(
         days = max(1, math.ceil(latest - 1e-9))
 
     tagged = _tagged_events(text, rows, start, days, tz)
+    if lecture_changes:
+        exams = {d.when for d in found}
+        zone_ = _zone(tz)
+        tagged = [
+            (e, "skipped")
+            if source == "calendar" and e.start not in exams and _lecture_change(lecture_changes, e, zone_)
+            else (e, source)
+            for e, source in tagged
+        ]
     if commute_minutes:
         campus = [e for e, source in tagged if source == "calendar"]
         campus += busy_from_table([r for r in rows if r.kind == "class"], start, days, tz)
@@ -533,7 +581,7 @@ def analyse_calendar(
         tagged = sorted(
             tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
         )
-    events = [e for e, _ in tagged]
+    events = [e for e, source in tagged if source != "skipped"]
     # A pause after training or work (D45): busy for the grid, not an event to show.
     pauses = [
         BusyEvent(e.end, e.end + PAUSE_AFTER, "")
@@ -607,6 +655,7 @@ def analyse_calendar(
         quick=tuple(sorted(quick, key=lambda b: b.start_day)),
         quick_tests=quick_tests,
         study_on_the_way=study_on_the_way,
+        lecture_changes=tuple(dict(c) for c in lecture_changes),
     )
 
 
@@ -975,6 +1024,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         study_time=report.study_time,
         quick_tests=report.quick_tests,
         study_on_the_way=report.study_on_the_way,
+        lecture_changes=report.lecture_changes,
     )
 
 
@@ -1555,14 +1605,17 @@ def calendar_week(
     for event in source.events:
         if event.source == "typed" and not typed:
             continue
-        kind = event.source if event.source in ("typed", "commute") else "calendar"
-        if event.start in exams and event.source != "commute":
+        kind = event.source if event.source in ("typed", "commute", "skipped") else "calendar"
+        if event.start in exams and event.source not in ("commute", "skipped"):
             kind = "exam"
             shown_exams.add(event.start)
         label = event.summary if kind == "exam" else short_title(event.summary)
         course = None if kind == "commute" else exams.get(event.start) or course_of(event.summary)
         lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
-        place(lo, hi, label, kind, course=course)
+        named = (
+            {"at": event.start, "ref": lecture_ref(event.summary)} if kind in ("calendar", "skipped") else {}
+        )
+        place(lo, hi, label, kind, course=course, **named)
     for when, name in exams.items():
         if when not in shown_exams:
             moment = datetime.fromisoformat(when)
@@ -1680,7 +1733,8 @@ def week_view(plan: PlanReport, week: int, first_hour: int = 7, last_hour: int =
             moment += timedelta(minutes=30)
 
     for event in plan.events:
-        paint(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary)
+        if event.source != "skipped":
+            paint(datetime.fromisoformat(event.start), datetime.fromisoformat(event.end), event.summary)
     for session in plan.sessions:
         paint(
             datetime.fromisoformat(session.start),
@@ -1937,6 +1991,7 @@ def _refresh(
             study_time=str(options.get("study_time", "any")),
             quick_tests=bool(options.get("quick_tests", False)),
             study_on_the_way=bool(options.get("study_on_the_way", False)),
+            lecture_changes=tuple(options.get("lecture_changes", ())),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2094,6 +2149,8 @@ def move_session(
     if _days_after(plan.settings.start, begin) >= plan.settings.horizon_days:
         raise InvalidInput(_("that is after the end of your plan"))
     for event in plan.events:
+        if event.source == "skipped":
+            continue
         lo, hi = _local(event.start, zone), _local(event.end, zone)
         if lo < end and begin < hi:
             raise InvalidInput(
@@ -2204,6 +2261,94 @@ def delete_task(subscription: Subscription, name: str, *, now: datetime | None =
     return revise_subscription(subscription, tasks=tasks, now=now, strict=False)
 
 
+# A class the student catches up on alone (D60) is due before the course's next
+# class, looked for this far ahead; with none, a week after the class missed.
+CATCH_UP_LOOKAHEAD = timedelta(days=14)
+
+
+def change_lecture(
+    subscription: Subscription,
+    at: str,
+    which: str,
+    action: str,
+    *,
+    every_week: bool = False,
+    now: datetime | None = None,
+) -> Subscription:
+    """Change one class of the timetable (D60), named by its start `at` and `which`,
+    its title as the timetable gives it or that title's `lecture_ref`: "skip" it (and, `every_week`, the
+    same class every week from this one on), skip it and study it on one's own
+    ("self": a task as long as the class, due before the course's next one), or
+    "restore" it (a weekly skip is restored for every week; a catch-up task not yet
+    finished goes with it). The plan is made again at once."""
+    now = now or datetime.now(UTC)
+    options = subscription.options
+    zone = _zone(options["tz"])
+    if action not in (*LECTURE_ACTIONS, "restore"):
+        raise InvalidInput(_("choose to skip the class, to study it on your own, or to keep it"))
+    try:
+        start = datetime.fromisoformat(at)
+    except ValueError:
+        raise InvalidInput(_("this class is not in your timetable any more")) from None
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=zone)
+    text = subscription.ics_text
+    local = start.astimezone(zone)
+    day = _events(text, (), local.date(), 1, options["tz"]) if text is not None else []
+    event = next((e for e in day if e.start == start and which in (e.summary, lecture_ref(e.summary))), None)
+    if event is None:
+        raise InvalidInput(_("this class is not in your timetable any more"))
+    summary = event.summary
+    if any(d.when == start for d in find_deadlines(day)):
+        raise InvalidInput(_("an exam is not skipped here: give it another date in Settings"))
+    changes = [dict(c) for c in options.get("lecture_changes", ())]
+    tasks = _task_specs(subscription)
+    current = _lecture_change(changes, event, zone)
+    if action == "restore":
+        if current is None:
+            raise InvalidInput(_("this class is not skipped"))
+        changes = [c for c in changes if c != current]
+        catch_up = current.get("task")
+        tasks = [t for t in tasks if t.done or t.name != catch_up]
+    else:
+        if start <= now:
+            raise InvalidInput(_("this class has already begun"))
+        if every_week and action == "self":
+            raise InvalidInput(
+                _("a class skipped every week is not caught up by itself: add the work as a task")
+            )
+        if current is not None:
+            raise InvalidInput(_("this class is already skipped"))
+        if every_week:
+            change: dict = {
+                "weekday": local.weekday(),
+                "time": f"{local:%H:%M}",
+                "from": local.date().isoformat(),
+            }
+        else:
+            change = {"at": _iso(start)}
+        change.update(summary=summary, action=action)
+        if action == "self":
+            course = course_of(summary) or short_title(summary)
+            ahead = _events(text, (), local.date(), CATCH_UP_LOOKAHEAD.days + 1, options["tz"])
+            later = [
+                e.start for e in ahead if e.start > event.end and course_of(e.summary) == course_of(summary)
+            ]
+            due = min(later, default=event.start + timedelta(days=7)).astimezone(zone)
+            hours = max(0.5, math.ceil(event.duration / timedelta(minutes=30)) / 2)
+            name = _(
+                "Catch up: {course}, class of {day}", course=course, day=format_date(local.date(), "short")
+            )
+            taken = {t.name.casefold() for t in tasks}
+            base, n = name, 2
+            while name.casefold() in taken:
+                name, n = f"{base} ({n})", n + 1
+            tasks.append(TaskSpec(name, f"{due:%Y-%m-%d %H:%M}", hours, course))
+            change["task"] = name
+        changes.append(change)
+    return revise_subscription(subscription, tasks=tasks, lecture_changes=changes, now=now, strict=False)
+
+
 def revise_subscription(
     subscription: Subscription,
     *,
@@ -2220,6 +2365,7 @@ def revise_subscription(
     quick_tests: bool | None = None,
     study_on_the_way: bool | None = None,
     warm_up: bool | None = None,
+    lecture_changes: Sequence[Mapping] | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2250,6 +2396,8 @@ def revise_subscription(
         merged["study_on_the_way"] = bool(study_on_the_way)
     if warm_up is not None:
         merged["warm_up"] = bool(warm_up)
+    if lecture_changes is not None:
+        merged["lecture_changes"] = [dict(c) for c in lecture_changes]
     if preferences is not None:
         merged["preferences"] = {**merged.get("preferences", {}), **preferences}
     if tasks is not None:
@@ -3357,7 +3505,7 @@ def course_colours(source: CalendarReport | PlanReport, drawn: Sequence[str] = (
         names += sorted({t.course for t in source.tasks if t.course}, key=str.casefold)
     else:
         names += [a.subject for a in source.assessments]
-    taught = {course_of(e.summary) for e in source.events if e.source == "calendar"} - {""}
+    taught = {course_of(e.summary) for e in source.events if e.source in ("calendar", "skipped")} - {""}
     names += sorted(taught, key=str.casefold)
     names += list(drawn)
     seen: dict[str, int] = {}
@@ -3414,6 +3562,7 @@ def calendar_view(
             # left out below (`typed=False`), the page draws them as activities
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
+            lecture_changes=tuple(options.get("lecture_changes", ())),
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
     moment = (now or datetime.now(UTC)).astimezone(zone)
@@ -3424,8 +3573,18 @@ def calendar_view(
         if isinstance(source, PlanReport) and source.settings.engine == "assistant"
         else set()
     )
+    changes = tuple(options.get("lecture_changes", ()))
+    titles = {(e.start, lecture_ref(e.summary)): e.summary for e in source.events if e.source == "skipped"}
     for item in week["items"]:
         item["color"] = colours.get(str(item.get("course") or "").casefold())
+        if item["kind"] == "skipped":
+            at = datetime.fromisoformat(item["at"])
+            title = titles.get((item["at"], item["ref"]), "")
+            change = _lecture_change(changes, BusyEvent(at, at, title), zone) or {}
+            item["weekly"] = not change.get("at")
+            item["catch_up"] = change.get("task")
+        if item["kind"] in ("calendar", "skipped"):
+            item["past"] = datetime.fromisoformat(item["at"]) <= moment
         if item["kind"] == "study":
             started = _local(item["at"], zone) <= moment
             item["started"] = started
@@ -6125,24 +6284,39 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
     days = [first + timedelta(days=d) for d in range(7)]
     entries: dict[date, list[dict]] = {d: [] for d in days}
 
-    def add(start: datetime, end: datetime, label: str, kind: str, sid: str | None = None) -> None:
+    def add(
+        start: datetime, end: datetime, label: str, kind: str, sid: str | None = None, **extra: Any
+    ) -> None:
         start, end = start.astimezone(zone), end.astimezone(zone)
         if start.date() in entries:
             entries[start.date()].append(
                 {"start": f"{start:%H:%M}", "end": f"{end:%H:%M}", "label": label, "kind": kind, "id": sid}
+                | extra
             )
 
     exams = {x.exam for x in plan.subjects}
+    changes = tuple(subscription.options.get("lecture_changes", ()))
     for e in plan.events:
         kind = (
             "exam"
-            if e.start in exams and e.source != "commute"
+            if e.start in exams and e.source not in ("commute", "skipped")
             else e.source
-            if e.source in ("typed", "commute")
+            if e.source in ("typed", "commute", "skipped")
             else "calendar"
         )
         label = e.summary if kind == "exam" else short_title(e.summary)
-        add(datetime.fromisoformat(e.start), datetime.fromisoformat(e.end), label, kind)
+        begin = datetime.fromisoformat(e.start)
+        extra: dict[str, Any] = {}
+        if kind in ("calendar", "skipped"):
+            # A class can be skipped from here too, without the calendar's script (D60).
+            change = _lecture_change(changes, BusyEvent(begin, begin, e.summary), zone) or {}
+            extra = {
+                "at": e.start,
+                "ref": lecture_ref(e.summary),
+                "upcoming": begin > now,
+                "weekly": not change.get("at"),
+            }
+        add(begin, datetime.fromisoformat(e.end), label, kind, **extra)
     for s in plan.history + plan.sessions:
         begin, end = datetime.fromisoformat(s.start), datetime.fromisoformat(s.end)
         add(begin, end, session_label(s), "study", session_id(s))

@@ -1721,3 +1721,50 @@ for something scrolling already answers.
 **Disclosed.** The grid is 1,296 pixels tall at every width; the page scrolls inside
 it. An event that crosses midnight is still cut at midnight, as before. Checked in
 Chromium at 1280 and 390 px.
+
+## D60. A class of the timetable is the student's to skip
+
+*The owner, 2026-10-15: lecture blocks "cannot be locked in, because if one day I
+cannot go I delete it and maybe put a block of self-study". Step 2 of the plan agreed
+that day; turning a class into a quiz, a mock exam or a partial exam is step 3.*
+
+**Chosen.** Tapping a class on the calendar (or, without the calendar's script, in
+the week's list) offers, under "Can't go?":
+
+- **Skip it and study it on my own**: the class is skipped and a task as long as the
+  class (to the half hour above) is added, "Catch up: course, class of day", due
+  when the course's next class begins (within two weeks; otherwise a week after the
+  class missed). The plan fits it in like any deadline, often into the time the
+  class freed, which is the self-study block the owner described. The student can
+  change it or move its session like any other.
+- **Skip this one**: its time is free for the plan.
+- **Skip it every week**: the same class (same title, weekday and start time) from
+  this one on.
+
+A skipped class keeps its place on the calendar, faded and struck through, with
+"Restore" (for a weekly skip, "Restore every week"); restoring removes the catch-up
+task unless it was finished. Changes are kept with the plan
+(`options["lecture_changes"]`), so they go in its copy and are deleted with it, and
+they are applied each time the timetable is read (`analyse_calendar`): the class is
+an event marked "skipped", shown but not busy, and it no longer brings a trip to
+campus, a warm-up (D51) or a refusal when a session is moved onto its time.
+
+A class is known by its start and its title, as the timetable gives them, so a
+change outlives a new reading of the timetable's link; pages name it by its start
+and a digest of its title (`lecture_ref`), so the timetable's raw text ("Grp: CM .,
+Salle: ...") never reaches a page, which shows only the cleaned title. Exams are not
+skipped here (their date is changed in Settings), nor classes already begun.
+
+**Rejected.** Deleting the class from the timetable (the next reading would bring it
+back, and the student could not undo it); fixing the catch-up at the class's own
+time (a student who cannot go is often busy then; the plan may still choose it, and
+the student can move it); a catch-up for a class skipped
+every week (one task a week would pile up unseen: the student adds the work as a
+task); asking why the class is skipped.
+
+**Disclosed.** The lectures still count as taught: a week's topic (D50) starts "seen
+once and shaky" whether or not the student went or caught up. A class the
+university moves is a new class: the change stays with the old one and the new one
+is not skipped. Attendance goes with grades in college (Credé, Roch and Kieszczynka
+2010, a correlation, not a cause), so the first choice offered is to catch up.
+Checked in Chromium at 1280 and 390 px.
