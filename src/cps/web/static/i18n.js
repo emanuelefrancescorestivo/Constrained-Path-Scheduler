@@ -79,6 +79,20 @@ const FR = {
   "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Les notifications sont bloquées pour ce site : autorise-les dans les réglages de ton navigateur, puis réessaie.",
   "This browser could not turn reminders on. Try again, or in another browser.": "Ce navigateur n'a pas pu activer les rappels. Réessaie, ou dans un autre navigateur.",
   "Copied.": "Copié.",
+  // Changing a class of the timetable (D60)
+  "You skip this class every week: its time is free for the plan.": "Tu sautes ce cours chaque semaine : son temps est libre pour le plan.",
+  "You skip this class: its time is free for the plan.": "Tu sautes ce cours : son temps est libre pour le plan.",
+  "Its catch-up is in your tasks: {name}.": "Son rattrapage est dans tes tâches : {name}.",
+  "Back in your week.": "De retour dans ta semaine.",
+  "Restore every week": "Rétablir chaque semaine",
+  "Restore": "Rétablir",
+  "Can't go?": "Tu ne peux pas y aller ?",
+  "Skipped. A catch-up as long as the class is in your tasks.": "Sauté. Un rattrapage de la durée du cours est dans tes tâches.",
+  "Skip it and study it on my own": "Le sauter et l'étudier seul",
+  "Skipped. Its time is free for the plan.": "Sauté. Son temps est libre pour le plan.",
+  "Skip this one": "Sauter celui-ci",
+  "Skipped every week from this one on.": "Sauté chaque semaine à partir de celui-ci.",
+  "Skip it every week": "Le sauter chaque semaine",
 };
 
 
@@ -159,6 +173,20 @@ const IT = {
   "Notifications are blocked for this site: allow them in your browser's settings, then try again.": "Le notifiche sono bloccate per questo sito: consentile nelle impostazioni del browser, poi riprova.",
   "This browser could not turn reminders on. Try again, or in another browser.": "Questo browser non è riuscito ad attivare i promemoria. Riprova, o in un altro browser.",
   "Copied.": "Copiato.",
+  // Changing a class of the timetable (D60)
+  "You skip this class every week: its time is free for the plan.": "Salti questa lezione ogni settimana: il suo tempo è libero per il piano.",
+  "You skip this class: its time is free for the plan.": "Salti questa lezione: il suo tempo è libero per il piano.",
+  "Its catch-up is in your tasks: {name}.": "Il suo recupero è nelle tue attività: {name}.",
+  "Back in your week.": "Di nuovo nella tua settimana.",
+  "Restore every week": "Ripristina ogni settimana",
+  "Restore": "Ripristina",
+  "Can't go?": "Non puoi andarci?",
+  "Skipped. A catch-up as long as the class is in your tasks.": "Saltata. Un recupero lungo quanto la lezione è nelle tue attività.",
+  "Skip it and study it on my own": "Saltala e studiala da solo",
+  "Skipped. Its time is free for the plan.": "Saltata. Il suo tempo è libero per il piano.",
+  "Skip this one": "Salta questa",
+  "Skipped every week from this one on.": "Saltata ogni settimana da questa in poi.",
+  "Skip it every week": "Saltala ogni settimana",
 };
 
 const CATALOGUES = { fr: FR, it: IT };

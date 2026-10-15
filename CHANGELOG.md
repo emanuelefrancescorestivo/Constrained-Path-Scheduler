@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A class of the timetable can be skipped (D60): once, or every week from it on, or
+  skipped with a catch-up task as long as the class, due before the course's next
+  one; it stays on the calendar, struck through, to be restored. From the calendar
+  and from the week's list.
 - The calendar shows the whole day, midnight to midnight (D59), opening at the study
   window or near now as before.
 - A new home page (D58): the pitch with room around it over a field of neurons whose
