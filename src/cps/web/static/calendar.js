@@ -410,7 +410,8 @@ export class Calendar {
       if (box.done) cls += " past";
       if (box.reported) cls += ` reported-${box.reported}`;
       if (box.movable) cls += " movable";
-    } else if (box.kind === "calendar" || box.kind === "skipped") cls += colour;
+    } else if (["calendar", "skipped", "quiz", "mock"].includes(box.kind)) cls += colour;
+    else if (box.kind === "partial") cls += ` ev-exam${colour}`;
     else if (box.kind === "own" && box.own === "class") cls += ` ev-class${colour}`;
     const tall = (to - from) * PX;
     if (tall < 34) cls += " short";
@@ -423,7 +424,7 @@ export class Calendar {
       short = box.label;
     } else if (box.kind === "study") {
       short = box.session_kind === "task" ? box.title : box.course || box.title;
-    } else if ((box.kind === "calendar" || box.kind === "skipped") && box.course) {
+    } else if (["calendar", "skipped", "quiz", "mock", "partial"].includes(box.kind) && box.course) {
       short = box.course;
     }
     const span = `${toClock(box.start)}–${toClock(box.end)}`;
@@ -714,8 +715,14 @@ export class Calendar {
           ? t("Your trip to university, before the day's first class and after its last. Change its length in Settings.")
           : box.kind === "skipped"
             ? (box.weekly ? t("You skip this class every week: its time is free for the plan.") : t("You skip this class: its time is free for the plan."))
-            : t("From your timetable. Nothing is planned at the same time.")),
-      box.catch_up ? h("p", { class: "hint" }, t("Its catch-up is in your tasks: {name}.", { name: box.catch_up })) : null,
+            : box.kind === "quiz"
+              ? t("A quiz in class. An hour to prepare for it is in your tasks.")
+              : box.kind === "mock"
+                ? t("A mock exam in class: it counts as exam practice for its course.")
+                : box.kind === "partial"
+                  ? `${t("A partial exam: practice is planned in the days before it.")} ${box.exempt ? t("Its material leaves the final exam.") : t("Its material stays for the final exam.")}`
+                  : t("From your timetable. Nothing is planned at the same time.")),
+      box.catch_up && box.kind === "skipped" ? h("p", { class: "hint" }, t("Its catch-up is in your tasks: {name}.", { name: box.catch_up })) : null,
       ...this.lectureActions(box),
     ], box.label);
   }
@@ -723,9 +730,10 @@ export class Calendar {
   // A class of the timetable is the student's to skip, once or every week, and to
   // catch up on alone (D60); the server decides, the calendar asks.
   lectureActions(box) {
-    if (!["calendar", "skipped"].includes(box.kind) || !box.at) return [];
-    const send = (action, every_week, done) => () =>
-      this.change("lecture.json", { at: box.at, ref: box.ref, action, every_week }, done);
+    const tests = ["quiz", "mock", "partial"];
+    if (!["calendar", "skipped", ...tests].includes(box.kind) || !box.at) return [];
+    const send = (action, every_week, done, exempt = false) => () =>
+      this.change("lecture.json", { at: box.at, ref: box.ref, action, every_week, exempt }, done);
     if (box.kind === "skipped") {
       return [h("div", { class: "pop-actions" }, h("button", {
         type: "button",
@@ -733,7 +741,28 @@ export class Calendar {
         onclick: send("restore", false, t("Back in your week.")),
       }, box.weekly ? t("Restore every week") : t("Restore")))];
     }
+    if (tests.includes(box.kind)) {
+      return box.past ? [] : [h("div", { class: "pop-actions" }, h("button", {
+        type: "button",
+        class: "btn btn-sm",
+        onclick: send("restore", false, t("Back to an ordinary class.")),
+      }, t("It's an ordinary class")))];
+    }
     if (box.past) return [];
+    // A test announced in class (D61): the plan prepares for it.
+    const exempt = h("input", { type: "checkbox" });
+    const test = [
+      h("hr"),
+      h("p", { class: "label" }, t("Is it a test?")),
+      h("div", { class: "pop-actions stacked" },
+        h("button", { type: "button", class: "btn btn-sm", onclick: send("quiz", false, t("Marked as a quiz. An hour to prepare is in your tasks.")) },
+          t("Pop-up quiz")),
+        h("button", { type: "button", class: "btn btn-sm", onclick: send("mock", false, t("Marked as a mock exam. It counts as exam practice.")) },
+          t("Mock exam")),
+        h("button", { type: "button", class: "btn btn-sm", onclick: () => send("partial", false, t("Marked as a partial exam. Practice is planned before it."), exempt.checked)() },
+          t("Partial exam"))),
+      h("label", { class: "check check-long" }, exempt, ` ${t("Passing it takes its material off the final exam")}`),
+    ];
     return [
       h("hr"),
       h("p", { class: "label" }, t("Can't go?")),
@@ -744,6 +773,7 @@ export class Calendar {
           t("Skip this one")),
         h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: send("skip", true, t("Skipped every week from this one on.")) },
           t("Skip it every week"))),
+      ...test,
     ];
   }
 

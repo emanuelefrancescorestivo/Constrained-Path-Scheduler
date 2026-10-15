@@ -1768,3 +1768,47 @@ university moves is a new class: the change stays with the old one and the new o
 is not skipped. Attendance goes with grades in college (Credé, Roch and Kieszczynka
 2010, a correlation, not a cause), so the first choice offered is to catch up.
 Checked in Chromium at 1280 and 390 px.
+
+## D61. A class can be a test: a pop-up quiz, a mock exam, a partial exam
+
+*The owner, 2026-10-15: a lecture can turn into a quiz, a mock exam or a partial exam,
+"because professors decide to give tests to assess the class's level". Step 3 of the
+plan agreed that day.*
+
+**Chosen.** Under "Is it a test?" (the calendar's popover and the week's list), a
+class to come becomes:
+
+- **A pop-up quiz.** The class still takes its time; an hour to prepare (a task,
+  "Prepare for the quiz: course, day", due when it starts) is planned before it.
+  Quizzes in class raise learning (a meta-analysis of 222 classroom studies found a
+  medium effect, g of about 0.5 [ref:yang2021]), and a short self-test before one is
+  the practice it rewards.
+- **A mock exam.** It counts as exam practice for its course (D46): the practice the
+  plan schedules before the final is shorter by its length, rounded to blocks.
+- **A partial exam.** An exam of its own: practice is planned in the days before it,
+  sized like an exam's on the weeks taught before it (D46), under its own name
+  ("Algebra 3, partial exam of Thu 5 Nov", in the course's colour). The student says
+  whether passing it takes its material off the final. If it does, the weeks of
+  lectures taught before it are examined there: their exam is the partial's, so
+  they are reviewed for it and not after, and each week is forecast at its own exam.
+  If it does not, the weeks stay with the final and the partial only
+  brings its practice.
+
+A test teaches nothing new, so it is not a lecture: its week's topic ends with the
+classes before it. "It's an ordinary class" undoes the mark, and a quiz's
+preparation goes with it unless done. Like a skip (D60), the mark is kept with the
+plan and applied each time the timetable is read; a test is marked one class at a
+time, never every week. A course's own exam stays its final in the plan's summary.
+
+**Rejected.** Counting the quiz itself as a review of the course's topics in the
+memory model (which topics, and how well, the app cannot know without asking; a
+question after the quiz is a later step); a partial exam that is also on the final
+for the same topics with two targets (the rules review a topic while its recall
+falls below the target, whatever exam it is for, so keeping it for the final keeps
+it reviewed); the after-exam question (D56) for partial exams, until the pilot shows
+it is wanted.
+
+**Disclosed.** A course whose lectures are not in the timetable is one topic, and
+cannot be split at a partial: its material stays with the final. The preparation
+for a quiz is an hour whatever the quiz. Checked in Chromium at 1280 and 390 px,
+with and without scripts.

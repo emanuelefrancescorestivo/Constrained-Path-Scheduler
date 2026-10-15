@@ -15,15 +15,22 @@
   {% for e in day.entries %}
     <li><span class="meta">{{ e.start }}–{{ e.end }}</span>
     <div class="grow">{% if e.id %}<a href="/s/{{ token }}/{{ e.id }}">{{ e.label }}</a>{% elif e.kind == "skipped" %}<s>{{ e.label }}</s> <span class="muted">· {% if e.weekly %}{{ _("Skipped every week") }}{% else %}{{ _("Skipped") }}{% endif %}</span>{% else %}{{ e.label }}{% endif %}
-    {# A class of the timetable: skipped, caught up on alone, or kept (D60) #}
-    {% if e.kind == "skipped" or (e.kind == "calendar" and e.upcoming) %}
+    {# A class of the timetable: skipped, caught up on alone, or kept (D60); or a test (D61) #}
+    {% if e.kind in ("skipped", "quiz", "mock", "partial") or (e.kind == "calendar" and e.upcoming) %}
     <form method="post" action="/p/{{ token }}/lecture" class="lecture-form">
       <input type="hidden" name="at" value="{{ e.at }}"><input type="hidden" name="ref" value="{{ e.ref }}"><input type="hidden" name="w" value="{{ agenda.week }}">
       {% if e.kind == "skipped" %}<button type="submit" name="action" value="restore" class="btn btn-sm btn-tinted">{% if e.weekly %}{{ _("Restore every week") }}{% else %}{{ _("Restore") }}{% endif %}</button>
+      {% elif e.kind != "calendar" %}{% if e.upcoming %}<button type="submit" name="action" value="restore" class="btn btn-sm">{{ _("It's an ordinary class") }}</button>{% endif %}
       {% else %}<details class="inline"><summary>{{ _("Can't go?") }}</summary>
         <button type="submit" name="action" value="self" class="btn btn-sm btn-tinted">{{ _("Skip it and study it on my own") }}</button>
         <button type="submit" name="action" value="skip" class="btn btn-sm">{{ _("Skip this one") }}</button>
         <button type="submit" name="action" value="skip-weekly" class="btn btn-sm btn-ghost">{{ _("Skip it every week") }}</button>
+      </details>
+      <details class="inline"><summary>{{ _("Is it a test?") }}</summary>
+        <button type="submit" name="action" value="quiz" class="btn btn-sm">{{ _("Pop-up quiz") }}</button>
+        <button type="submit" name="action" value="mock" class="btn btn-sm">{{ _("Mock exam") }}</button>
+        <button type="submit" name="action" value="partial" class="btn btn-sm">{{ _("Partial exam") }}</button>
+        <label class="check check-long"><input type="checkbox" name="exempt" value="1"> {{ _("Passing it takes its material off the final exam") }}</label>
       </details>{% endif %}
     </form>
     {% endif %}</div></li>

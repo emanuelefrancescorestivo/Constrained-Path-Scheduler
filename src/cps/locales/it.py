@@ -1278,4 +1278,18 @@ MESSAGES: dict[str, str] = {
     "Skip it and study it on my own": "Saltala e studiala da solo",
     "Skip this one": "Salta questa",
     "Skip it every week": "Saltala ogni settimana",
+    # A class that is a test (D61)
+    "Quiz: {course}": "Quiz: {course}",
+    "Mock exam: {course}": "Simulazione d'esame: {course}",
+    "Partial exam: {course}": "Prova intermedia: {course}",
+    "Prepare for the quiz: {course}, {day}": "Preparati al quiz: {course}, {day}",
+    "{course}, partial exam of {day}": "{course}, prova intermedia del {day}",
+    "a test is one class: mark each one": "una prova è una sola lezione: segnale una per una",
+    "this class is already marked as a test": "questa lezione è già segnata come prova",
+    "Is it a test?": "È una prova?",
+    "Pop-up quiz": "Quiz a sorpresa",
+    "Mock exam": "Simulazione d'esame",
+    "Partial exam": "Prova intermedia",
+    "Passing it takes its material off the final exam": "Superarla toglie i suoi argomenti dall'esame finale",
+    "It's an ordinary class": "È una lezione normale",
 }
