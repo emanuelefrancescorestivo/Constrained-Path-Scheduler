@@ -1601,6 +1601,45 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .question .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .question .days .pill span { display: flex; width: 100%; min-width: 0; padding-left: 0; padding-right: 0; font-size: 0.84rem; }
 .routine-skip { text-align: center; margin: 18px 0 0; }
+/* Spark asks one card at a time, and a time is drawn on a bar of the day (D70) */
+.routine-guide { margin-bottom: 14px; }
+.routine-guide .guide-says { font-weight: 600; line-height: 1.35; }
+.routine-guide .guide-step { color: var(--muted); font-size: 0.86rem; }
+.guide-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.guide-nav .btn-primary { margin-left: auto; min-width: 120px; }
+.routine.guided .sticky-actions[hidden] { display: none; }
+.daybar { margin: 12px 0 14px; }
+.daybar-track {
+  position: relative; height: 44px; border-radius: 12px; background: var(--fill-3);
+  touch-action: none; cursor: crosshair; overflow: visible;
+}
+.daybar-track.dragging { cursor: grabbing; }
+.daybar-night {
+  position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.daybar-night:first-child { border-radius: 12px 0 0 12px; }
+.daybar-night:last-of-type { border-radius: 0 12px 12px 0; }
+.daybar-handle {
+  position: absolute; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface); box-shadow: var(--shadow-sm);
+  cursor: ew-resize; z-index: 2;
+}
+.daybar-handle svg { width: 20px; height: 20px; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.daybar-handle.wake svg { stroke: var(--warn); }
+.daybar-handle.bed svg { stroke: var(--accent); }
+.daybar-range {
+  position: absolute; top: 5px; bottom: 5px; min-width: 6px; border-radius: 9px; background: var(--accent);
+  color: var(--on-accent); font-size: 0.76rem; font-weight: 650; display: flex; align-items: center;
+  overflow: hidden; white-space: nowrap; cursor: grab; z-index: 1;
+}
+.daybar-range > span:first-child { padding: 0 12px; overflow: hidden; text-overflow: ellipsis; }
+.daybar-edge { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+.daybar-edge.start { left: 0; }
+.daybar-edge.end { right: 0; }
+.daybar-ticks { position: relative; height: 18px; margin-top: 4px; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.daybar-ticks span { position: absolute; transform: translateX(-50%); }
+.daybar-ticks span:first-child { transform: none; }
+.daybar-ticks span:last-child { transform: translateX(-100%); }
 
 /* The owner's inbox (D43) */
 .inbox-item .inbox-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }

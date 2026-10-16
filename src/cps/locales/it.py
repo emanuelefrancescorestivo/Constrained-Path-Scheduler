@@ -1494,4 +1494,11 @@ MESSAGES: dict[str, str] = {
     "leave at least three hours between getting up and going to bed, before midnight": "lascia almeno tre ore tra quando ti alzi e quando vai a letto, prima di mezzanotte",
     "say whether lunch is kept free": "di' se il pranzo resta libero",
     "lunch must end after it starts": "il pranzo deve finire dopo essere iniziato",
+    # Spark asks about the week, one card at a time (D70)
+    "Hi, I am Spark. Let us set up your week. Drag the sun and the moon to when you get up and go to bed, and the blue block to lunch, or type the times.": "Ciao, sono Spark. Prepariamo la tua settimana. Trascina il sole e la luna a quando ti alzi e vai a letto, e il blocco blu al pranzo, oppure scrivi gli orari.",
+    "How far is university? Pick the trip, one way.": "Quanto dista l'università? Scegli il tragitto, solo andata.",
+    "When does studying go best for you?": "Quando ti riesce meglio studiare?",
+    "Do you train or play a sport? Drag on the bar to draw when, then pick the days.": "Ti alleni o fai sport? Trascina sulla barra per disegnare quando, poi scegli i giorni.",
+    "A job? Draw its hours the same way, or type them.": "Un lavoro? Disegna i suoi orari allo stesso modo, oppure scrivili.",
+    "Anything else every week, like music lessons? Draw it too, or skip it. Then save, and I will plan around all of it.": "Altro ogni settimana, come lezioni di musica? Disegnalo pure, o salta. Poi salva, e pianificherò intorno a tutto questo.",
 }

@@ -2668,6 +2668,13 @@ ROUTINE_QUESTIONS = (
     ("other", "Anything else every week?", "Music lessons"),
 )
 ROUTINE_ANSWERS = 2  # answers per question on the page; more go on the calendar
+# What Spark says before each of these questions, while setting up (D70).
+ROUTINE_SAYS = {
+    "training": "Do you train or play a sport? Drag on the bar to draw when, then pick the days.",
+    "work": "A job? Draw its hours the same way, or type them.",
+    "other": "Anything else every week, like music lessons? Draw it too, or skip it. "
+    "Then save, and I will plan around all of it.",
+}
 _ROUTINE_NAMES = {"training": "Training", "work": "Work", "other": "Busy"}
 # The answers to "When do you study best?" (D45), in the order the page offers them.
 STUDY_TIME_WORDS = (
@@ -2777,7 +2784,13 @@ def routine_view(subscription: Subscription) -> dict:
         "study_times": STUDY_TIME_WORDS,
         "study_on_the_way": bool(subscription.options.get("study_on_the_way", False)),
         "questions": [
-            {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
+            {
+                "kind": kind,
+                "question": question,
+                "example": example,
+                "say": ROUTINE_SAYS[kind],
+                "have": counts.get(kind, 0),
+            }
             for kind, question, example in ROUTINE_QUESTIONS
         ],
         "answers": ROUTINE_ANSWERS,

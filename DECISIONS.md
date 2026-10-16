@@ -2152,3 +2152,39 @@ day that differs can be drawn on the calendar as busy time); asking for dinner t
 student who works nights, getting up in the evening, cannot say so here: the
 window is one stretch within a day. Checked in Chromium at 1280 and 390 px, light
 and dark.
+
+## D70. Spark asks about the week, and a time can be drawn
+
+*The owner, 2026-10-16: "it should be easier, maybe exactly the assistant can help
+the user at the start to set the times they do sport, work, sleep etc.. it is not
+really easy to do that with buttons with times and stuff like that, it'd be cool to
+choose to draw it too".*
+
+**Chosen.** While setting up, the questions about the week (D42, with the day of
+D69) come one card at a time, with Spark (D66) above them saying what the card asks
+and how to answer it ("Question 2 of 6"), Back and Next under each card, and the
+save button on the last; Spark waves at the first card, thinks through the others,
+cheers at the last. Next checks the card's own fields first, as the form would.
+
+Every time on the page can be drawn on a bar of the day, midnight to midnight, as
+well as typed: the sun and the moon are dragged to when the student gets up and
+goes to bed (the night is shaded, across midnight too), lunch is a block to move,
+and on the sport, job and other cards a drag across the bar draws the block (a tap,
+an hour from there), which moves, and whose ends move when it is wide enough to
+hold them (on a phone an hour is about a dozen pixels: there the block only moves,
+and the fields below set its length). Times snap to the quarter hour. The bar only
+fills in the fields and follows them; it is hidden from screen readers, which keep
+the fields.
+
+Without the script, or after an error, the page is the form with every card, as
+before. Outside setting up (from Settings), the cards are all shown, each with its
+bar.
+
+**Rejected.** A chat that types the answers in words (the AI is opt-in, D12, and
+times are clearer drawn than written); a week grid to draw on here (the calendar is
+one, after this page; a bar per answer is enough for one routine); answers kept
+until the end in the browser (the cards are one form, sent once).
+
+**Disclosed.** Drawing was checked in Chromium at 1280 and 390 px, with a mouse and
+with touch emulated, not on a real phone. What Spark says was written for this page;
+its French and Italian were not written by a native speaker (D34).

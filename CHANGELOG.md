@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Spark asks about the week (D70): while setting up, one card at a time, and every
+  time can be drawn on a bar of the day (the sun and the moon for getting up and
+  going to bed, a block for lunch, sport or a job) as well as typed.
 - Your day (D69): when you get up and go to bed (nothing is planned in the half hour
   after or before), and lunch, kept free every day or not; on the questions about the
   week and in Settings, in place of "Study from … until".

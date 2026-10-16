@@ -113,3 +113,20 @@ def test_the_day_on_the_questions_and_in_settings_without_scripts(tmp_path):
         refused = web.post(f"/p/{token}/routine", data={**form, "bed": "07:30"})
         assert refused.status_code == 400 and "three hours" in unescape(refused.text)
         assert 'value="07:30"' in unescape(refused.text)  # what was typed, sent back
+
+
+def test_spark_asks_the_questions_and_the_bars_draw_into_the_fields(tmp_path):
+    # D70: the script walks the cards one at a time and draws on the bars; the page
+    # it is given is the whole form, so nothing depends on it.
+    config = Config(store=tmp_path, clock=lambda: MORNING, background=False, sweep_every=None)
+    with TestClient(create_app(config)) as web:
+        files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+        start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+        token = start.headers["location"].split("/")[2]
+        page = unescape(web.get(f"/p/{token}/routine?new=1").text)
+        assert '<script type="module" src="/static/routine.js">' in page
+        assert 'class="card mascot-tip routine-guide" aria-live="polite" hidden' in page
+        assert page.count('<section class="card question"') == 6 and "<section hidden" not in page
+        assert 'data-night="wake,bed" data-range="lunch_start,lunch_end"' in page
+        assert 'data-range="x0_start,x0_end" data-label="Football" data-label-from="x0_label" hidden' in page
+        assert all(say in page for say in service.ROUTINE_SAYS.values())

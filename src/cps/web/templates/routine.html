@@ -1,5 +1,7 @@
 {% extends "base.html" %}
+{% from "_mascot.html" import mascot %}
 {% block title %}{{ _("Your week") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/routine.js"></script>{% endblock %}
 {% block main %}
 {# The questions about the week (D42): the trip to university, then sport, a job
    and anything else every week, each answer weekly busy time on the chosen days. #}
@@ -9,15 +11,22 @@
   <p>{{ _("So that nothing is planned while you are on the way, at training or at work. Skip what does not apply: all of it can be changed later on the calendar.") }}</p>
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{# Spark asks one card at a time while setting up (routine.js, D70); without the
+   script every card is shown and this stays hidden. #}
+<div class="card mascot-tip routine-guide" aria-live="polite" hidden>
+  {{ mascot("wave", "mascot-guide") }}
+  <span class="mascot-words"><b class="guide-says"></b><span class="guide-step"></span></span>
+</div>
 <form method="post" action="/p/{{ token }}/routine" class="routine">
 {% if new %}<input type="hidden" name="new" value="1">{% endif %}
 
-<section class="card question">
+<section class="card question" data-mood="wave" data-say="{{ _('Hi, I am Spark. Let us set up your week. Drag the sun and the moon to when you get up and go to bed, and the blue block to lunch, or type the times.') }}">
   <h2 id="q-day">{{ _("Your day") }}</h2>
+  <div class="daybar" data-night="wake,bed" data-range="lunch_start,lunch_end" data-label="{{ _('Lunch') }}" hidden></div>
   {% include "_day.html" %}
 </section>
 
-<section class="card question">
+<section class="card question" data-mood="think" data-say="{{ _('How far is university? Pick the trip, one way.') }}">
   <h2 id="q-commute">{{ _("How long is your trip to university?") }}</h2>
   <p class="hint">{{ _("One way. It is kept free before your first class and after your last, on each day you have classes.") }}</p>
   <div class="pills" role="radiogroup" aria-labelledby="q-commute">
@@ -30,7 +39,7 @@
   <p class="hint">{{ _("A trip of half an hour or more then holds a quick self-test.") }}</p>
 </section>
 
-<section class="card question">
+<section class="card question" data-mood="think" data-say="{{ _('When does studying go best for you?') }}">
   <h2 id="q-when">{{ _("When do you study best?") }}</h2>
   <p class="hint">{{ _("Each day's sessions go to that part of the day when there is free time; otherwise as close to it as possible.") }}</p>
   <div class="pills" role="radiogroup" aria-labelledby="q-when">
@@ -42,7 +51,7 @@
 
 {% set counter = namespace(i=0) %}
 {% for q in view.questions %}
-<section class="card question">
+<section class="card question" data-mood="think" data-say="{{ _(q.say) }}">
   <h2 id="q-{{ q.kind }}">{{ _(q.question) }}</h2>
   {% if q.have %}<p class="hint">{{ _n("You have {n} already on the calendar; add more here.", "You have {n} already on the calendar; add more here.", q.have) }}</p>{% endif %}
   {% for k in range(view.answers) %}
@@ -52,6 +61,7 @@
     <input type="hidden" name="x{{ i }}_kind" value="{{ q.kind }}">
     <label for="x{{ i }}_label">{{ _("What") }}</label>
     <input id="x{{ i }}_label" name="x{{ i }}_label" value="{{ a.label or '' }}" maxlength="60" placeholder="{{ _(q.example) }}" autocomplete="off">
+    <div class="daybar" data-range="x{{ i }}_start,x{{ i }}_end" data-label="{{ _(q.example) }}" data-label-from="x{{ i }}_label" hidden></div>
     <p class="label" id="x{{ i }}_days_label">{{ _("Which days") }}</p>
     <div class="pills days" role="group" aria-labelledby="x{{ i }}_days_label">
       {% for d in view.weekdays %}<label class="pill"><input type="checkbox" name="x{{ i }}_days" value="{{ d }}"{% if d in (a.days or []) %} checked{% endif %}><span>{{ _(d) }}</span></label>{% endfor %}

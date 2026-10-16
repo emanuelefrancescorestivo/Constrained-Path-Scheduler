@@ -110,6 +110,10 @@ const FR = {
   "Marked as a quiz. An hour to prepare is in your tasks.": "Marqué comme interro. Une heure pour la préparer est dans tes tâches.",
   "Marked as a mock exam. It counts as exam practice.": "Marqué comme examen blanc. Il compte comme entraînement à l'examen.",
   "Marked as a partial exam. Practice is planned before it.": "Marqué comme partiel. De l'entraînement est prévu avant.",
+  // Spark asks about the week (D70)
+  "Question {n} of {total}": "Question {n} sur {total}",
+  "Back": "Retour",
+  "Next": "Suivant",
 };
 
 
@@ -221,6 +225,10 @@ const IT = {
   "Marked as a quiz. An hour to prepare is in your tasks.": "Segnata come quiz. Un'ora per prepararti è nelle tue attività.",
   "Marked as a mock exam. It counts as exam practice.": "Segnata come simulazione d'esame. Conta come esercitazione.",
   "Marked as a partial exam. Practice is planned before it.": "Segnata come prova intermedia. L'esercitazione è prevista prima.",
+  // Spark asks about the week (D70)
+  "Question {n} of {total}": "Domanda {n} di {total}",
+  "Back": "Indietro",
+  "Next": "Avanti",
 };
 
 const CATALOGUES = { fr: FR, it: IT };
