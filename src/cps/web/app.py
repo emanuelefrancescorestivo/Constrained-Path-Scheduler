@@ -768,7 +768,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     async def focus_start(request: Request, token: str) -> Response:
         def change(current: service.Subscription, form: Any) -> service.Subscription:
             sid = str(form.get("sid") or "") or None
-            return service.start_focus(current, str(form.get("course") or ""), sid=sid, now=config.clock())
+            goal = service.focus_goal(form.get("goal"))
+            return service.start_focus(
+                current, str(form.get("course") or ""), sid=sid, goal=goal, now=config.clock()
+            )
 
         done = await focus_change(request, token, change, "focus")
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
@@ -785,7 +788,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 409)
         view = service.focus_view(fresh, config.clock()) if fresh else {}
-        return JSONResponse({k: view.get(k) for k in ("elapsed", "away_minutes", "interruptions")})
+        return JSONResponse({k: view.get(k) for k in ("elapsed", "away", "away_minutes", "interruptions")})
 
     @app.post("/p/{token}/focus/finish")
     async def focus_finish(request: Request, token: str) -> Response:

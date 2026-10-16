@@ -2054,3 +2054,39 @@ working name; the sentences students read say "the app" until the owner names it
 [ref:schroeder2013]; which mood goes with which tip is a judgement, not measured.
 Checked in Chromium at 1280 and 390 px, light and dark, still and in motion; not on a
 real phone.
+
+## D67. A focus session's length, and its rewards
+
+*The owner, 2026-10-16: "when starting the focus to choose for how long and give
+'prizes' accordingly, like you get a badge for 30 mins, if u do 3hrs though you get
+rewards at idk min 30, 1h, 1h45, 2h30".*
+
+**Chosen.** Before starting the timer, the student picks how long: 25 or 45
+minutes, 1 h, 1 h 30, 2 h, 3 h, or no limit. The plan's session offers its own
+length first (the nearest of these); anything else offers 45 minutes. Rewards come
+at 30 minutes, at an hour, then every 45 minutes (1 h 45, 2 h 30, 3 h 15…), and at
+the length chosen: a 3-hour session has them at 30 min, 1 h, 1 h 45, 2 h 30 and 3
+h, the owner's example. The running page lists them as small chips, those reached
+and the next; when one comes, the spark cheers on a card ("1 h of focus! Next: 1 h
+45.") and confetti goes up once (D30). Going on past the length keeps the ladder
+going.
+
+Rewards count focused time: the clock less the time away from the page, as the
+heartbeats measure it (D17), so leaving the app does not earn them. The diary card
+says the length and whether it was reached, and how many rewards; the badge shelf
+(D41) gains five badges: a length reached ("A goal kept"), and the first timed
+session of 30 minutes, an hour, 1 h 45 and 2 h 30. They are earned only by
+sessions timed and checked by the page: minutes typed into the log earn none
+(such a session is no longer timed, D17).
+
+**Rejected.** D41 kept hours off the badge shelf, because hours reward showing
+off time; the owner asked for these, and they stay within the student's own
+sessions, with no ranking and nothing shown to others beyond the diary card the
+student already shares. A reward at every chosen length only, or at every 30
+minutes (too few for a long session, or too many); hiding the length's progress
+behind a ring (the chips can be read without colour).
+
+**Disclosed.** The ladder's steps are the owner's suggestion, not measured. Long
+sessions are not advice: the break card still comes after 24 minutes (D63), and a
+break on the page counts as focus, a break away from it does not. Checked in
+Chromium at 1280 and 390 px, light and dark.

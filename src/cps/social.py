@@ -236,6 +236,9 @@ def create_post(
             away_minutes=int(data.get("away_minutes") or 0),
             interruptions=int(data.get("interruptions") or 0),
         )
+        if data.get("goal"):
+            # The length chosen before starting the timer (D67), in minutes.
+            clean["goal"] = _scale(data["goal"], 1, 16 * 60, _("Minutes"))
         if data.get("sid"):
             clean["sid"] = str(data["sid"])[:32]
     elif kind == "notes":

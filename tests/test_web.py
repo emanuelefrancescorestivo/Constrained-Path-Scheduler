@@ -978,6 +978,22 @@ TINY_JPEG = (
 )
 
 
+def test_a_focus_session_with_a_length_lists_its_rewards(web, planned, clock):
+    # D67: the length is chosen on the page, without its script, and the running
+    # page lists the rewards, the next one shown, the rest hidden until it comes.
+    page = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "How long?" in page and 'name="goal" value="90"' in page and "No limit" in page
+    refused = web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3", "goal": "17"})
+    assert refused.status_code == 400 and "lengths offered" in unescape(refused.text)
+    web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3", "goal": "90"})
+    running = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "Your length: 1 h 30" in running and 'data-at="1800"' in running
+    assert 'data-at="3600" data-cheer="1 h of focus!" data-next="Next: 1 h 30." hidden' in running
+    assert 'class="reward is-goal" data-at="5400"' in running
+    assert web.post(f"/p/{planned}/focus/beat").json()["away"] == 0
+    web.post(f"/p/{planned}/focus/cancel")
+
+
 def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clock):
     page = unescape(web.get(f"/p/{planned}/focus").text)
     assert "Start this session" in page or "Start the timer" in page

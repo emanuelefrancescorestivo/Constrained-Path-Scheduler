@@ -3,6 +3,7 @@
 // stop timers on a hidden page, so a gap between beats is time away from it
 // (DECISIONS.md D17). This script measures nothing itself; the server decides.
 import { t } from "./i18n.js";
+import { celebrate } from "./motion.js";
 
 const section = document.querySelector(".focus");
 const token = section.dataset.token;
@@ -18,6 +19,12 @@ const sweep = document.getElementById("focus-sweep");
 // The break nudge (D63): the server says after how long; it is in the page,
 // hidden, and shown when the clock gets there.
 const nudge = document.querySelector(".focus-break[data-break-at]");
+// The rewards (D67): each at a second of focused time, the time on the page (the
+// clock less the time away, which the server measures); the server marks those
+// already reached, this script marks the rest as they come, and shows the next.
+const rewards = [...document.querySelectorAll(".focus-rewards [data-at]")];
+const rewardCard = document.querySelector(".focus-reward");
+let awaySeconds = Number(section.dataset.away || 0);
 const pad = (n) => String(n).padStart(2, "0");
 
 // The ring round the clock goes round once a minute (D30), in step with the seconds:
@@ -31,6 +38,21 @@ function draw() {
   const seconds = Math.floor(elapsed + (performance.now() - since) / 1000);
   clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
+  reward(seconds - awaySeconds);
+}
+
+function reward(focused) {
+  rewards.forEach((item, i) => {
+    if (item.classList.contains("is-reached") || focused < Number(item.dataset.at)) return;
+    item.classList.add("is-reached");
+    item.hidden = false;
+    if (rewards[i + 1]) rewards[i + 1].hidden = false;
+    if (!rewardCard) return;
+    document.getElementById("focus-reward-words").textContent = item.dataset.cheer;
+    document.getElementById("focus-reward-next").textContent = item.dataset.next;
+    rewardCard.hidden = false;
+    celebrate(rewardCard);
+  });
 }
 
 async function beat() {
@@ -39,6 +61,7 @@ async function beat() {
     if (!answer.ok) return stop();
     const state = await answer.json();
     elapsed = state.elapsed;
+    awaySeconds = Number(state.away || 0);
     since = performance.now();
     syncSweep();
     if (state.interruptions) {

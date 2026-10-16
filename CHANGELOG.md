@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A focus session's length and its rewards (D67): choose how long before starting
+  (25 minutes to 3 hours, or no limit); rewards at 30 minutes, an hour, then every 45
+  minutes, and at the length chosen, on time spent on the page; the diary card shows
+  them, and five badges join the shelf.
 - The spark (D66): the tips, the weekly note and the coach are brought by a small
   glowing spark with a face, chosen by the owner from three drawings, in place of the
   neuron. Its mood follows the tip (thinking, resting, cheering, waving); it moves

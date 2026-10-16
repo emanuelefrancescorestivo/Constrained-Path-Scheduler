@@ -38,7 +38,7 @@
     <div><dt>{{ _("Effort") }}</dt><dd>{{ p.effort }}/10 <small>{{ p.effort_word }}</small></dd></div>
     <div><dt>{{ _("Progress") }}</dt><dd>{{ p.progress_word }}</dd></div>
   </dl>
-  <p class="post-focus">{{ p.focus }}</p>
+  <p class="post-focus">{{ p.focus }}{% if p.goal %} · {{ p.goal }}{% endif %}{% if p.rewards %} · <span class="post-rewards">{{ _n("{n} reward", "{n} rewards", p.rewards) }}</span>{% endif %}</p>
   {% if p.simple %}<blockquote class="post-simple"><p class="kicker">{{ _("In simple words") }}</p><p>{{ p.simple }}</p></blockquote>{% endif %}
   {% if p.note %}<p class="post-note">{{ p.note }}</p>{% endif %}
   {% elif p.kind == "notes" %}

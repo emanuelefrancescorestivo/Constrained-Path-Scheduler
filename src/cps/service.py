@@ -4231,6 +4231,13 @@ BADGES = (
         0,
     ),
     ("semester", "A new semester", "Carry on into your next semester.", "leaf", 2),
+    # A focus session's rewards (D67): the owner asked for them; on focused time,
+    # timed and checked by the page, never typed.
+    ("goal", "A goal kept", "Choose how long before you start the timer, and get there.", "clock", 3),
+    ("focus_30", "Half an hour of focus", "Stay with the timer for 30 minutes in one session.", "focus", 4),
+    ("focus_60", "An hour of focus", "Stay with the timer for an hour in one session.", "focus", 4),
+    ("focus_105", "1 h 45 of focus", "Stay with the timer for 1 h 45 in one session.", "focus", 4),
+    ("focus_150", "2 h 30 of focus", "Stay with the timer for 2 h 30 in one session.", "focus", 4),
 )
 
 
@@ -4269,6 +4276,26 @@ def badges_view(
             "SELECT at FROM card_reviews WHERE token = ? ORDER BY at LIMIT 1 OFFSET 99", (subscription.token,)
         ).fetchone()
     earned["cards"] = datetime.fromisoformat(row[0]).astimezone(zone).date() if row else None
+    timed = sorted(
+        (
+            p
+            for p in social.posts_of(where, subscription.token, "session")
+            if p.data.get("timed") and p.data.get("checked")
+        ),
+        key=lambda p: (p.day, p.created),
+    )
+    for n in (30, 60, 105, 150):
+        earned[f"focus_{n}"] = next(
+            (date.fromisoformat(p.day) for p in timed if int(p.data.get("minutes", 0)) >= n), None
+        )
+    earned["goal"] = next(
+        (
+            date.fromisoformat(p.day)
+            for p in timed
+            if int(p.data.get("goal", 0)) and int(p.data.get("minutes", 0)) >= int(p.data["goal"])
+        ),
+        None,
+    )
     explained = social.posts_of(where, subscription.token, "explain")
     earned["teacher"] = (
         min(datetime.fromisoformat(x.created) for x in explained).astimezone(zone).date()
@@ -4645,11 +4672,54 @@ def _instant(moment: datetime) -> str:
     return moment.isoformat(timespec="seconds")
 
 
+# How long a focus session is meant to last, chosen before starting (D67), in
+# minutes; 0 is no length. Its rewards come at 30 minutes, at an hour, then every
+# 45 minutes, and when the length chosen is reached; all on focused time, the time
+# on the page, so leaving the app does not earn them.
+FOCUS_GOALS = (25, 45, 60, 90, 120, 180)
+FOCUS_LADDER = (30, 60, *range(105, 12 * 60 + 1, 45))
+# How far ahead the page lists rewards: the length chosen, or six hours.
+FOCUS_HORIZON = 6 * 60
+_MINUTE = timedelta(minutes=1)
+
+
+def focus_goal(value: object) -> int:
+    """A length the student may choose, in minutes (0: none)."""
+    try:
+        goal = int(str(value or 0))
+    except ValueError:
+        goal = -1
+    if goal != 0 and goal not in FOCUS_GOALS:
+        raise InvalidInput(_("choose one of the lengths offered"))
+    return goal
+
+
+def reward_points(goal: int, horizon: int) -> list[int]:
+    """The minutes at which a session with `goal` earns a reward, up to `horizon`:
+    the ladder's, and the goal's own (D67)."""
+    points = {m for m in FOCUS_LADDER if m <= horizon}
+    if goal:
+        points.add(goal)
+    return sorted(points)
+
+
+def rewards_earned(goal: int, minutes: int) -> int:
+    """How many rewards `minutes` of focus earned, with `goal` chosen."""
+    return len(reward_points(goal, minutes)) - (1 if goal > minutes else 0)
+
+
 def start_focus(
-    subscription: Subscription, course: str, *, sid: str | None = None, now: datetime | None = None
+    subscription: Subscription,
+    course: str,
+    *,
+    sid: str | None = None,
+    goal: int = 0,
+    now: datetime | None = None,
 ) -> Subscription:
-    """Start the timer for `course`, or for the plan's session `sid`."""
+    """Start the timer for `course`, or for the plan's session `sid`, meant to last
+    `goal` minutes (0: no length chosen, D67)."""
     now = now or datetime.now(UTC)
+    goal = focus_goal(goal)
     if sid:
         session = find_session(subscription, sid)
         if session is None:
@@ -4665,6 +4735,7 @@ def start_focus(
         "last": _instant(now),
         "away": 0,
         "interruptions": 0,
+        "goal": goal,
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
@@ -4720,6 +4791,7 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "interruptions": focus["interruptions"],
         "checked": bool(focus["beats"]),
         "timed": True,
+        "goal": int(focus.get("goal", 0)),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
     return replace(subscription, options={**options, "focus_draft": draft})
@@ -4736,29 +4808,76 @@ def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
     focus = subscription.options.get("focus")
-    view: dict = {"running": bool(focus), "courses": course_names(subscription), "suggested": None}
+    view: dict = {
+        "running": bool(focus),
+        "courses": course_names(subscription),
+        "suggested": None,
+        "goals": [{"minutes": g, "label": duration_words(g)} for g in FOCUS_GOALS]
+        + [{"minutes": 0, "label": _("No limit")}],
+        "goal": 45,
+    }
     if focus:
         started = datetime.fromisoformat(focus["started"])
+        elapsed = round((now - started).total_seconds())
+        goal = int(focus.get("goal", 0))
         view.update(
             course=focus["course"],
             started=_iso(started),
             started_local=f"{started.astimezone(zone):%H:%M}",
-            elapsed=round((now - started).total_seconds()),
+            elapsed=elapsed,
+            away=focus["away"],
             away_minutes=round(focus["away"] / 60),
             interruptions=focus["interruptions"],
             beat=round(FOCUS_BEAT.total_seconds()),
+            goal=goal,
+            goal_words=duration_words(goal) if goal else "",
+            rewards=_focus_rewards(goal, max(0, elapsed - focus["away"])),
         )
     elif subscription.plan is not None:
         today = today_view(subscription, now)
         card = today.get("now") or (today.get("next") or [None])[0]
         if card is not None:
+            session = find_session(subscription, card["id"])
+            length = (
+                round((datetime.fromisoformat(session.end) - datetime.fromisoformat(session.start)) / _MINUTE)
+                if session is not None
+                else 45
+            )
             view["suggested"] = {
                 "id": card["id"],
                 "title": card["title"],
                 "label": card["label"],
                 "when": card["when"],
+                # The length offered first: the one nearest the session's own.
+                "goal": min(FOCUS_GOALS, key=lambda g: (abs(g - length), g)),
             }
     return view
+
+
+def _focus_rewards(goal: int, focused: int) -> list[dict]:
+    """The rewards a running session lists (D67): each at its focused second, with
+    what the spark says when it comes; those reached, and the next, are shown."""
+    rewards = []
+    shown_next = False
+    for minutes in reward_points(goal, max(goal, FOCUS_HORIZON)):
+        reached = focused >= minutes * 60
+        words = duration_words(minutes)
+        rewards.append(
+            {
+                "at": minutes * 60,
+                "label": words,
+                "goal": minutes == goal,
+                "reached": reached,
+                "shown": reached or not shown_next,
+                "cheer": _("Goal reached: {time} of focus.", time=words)
+                if minutes == goal
+                else _("{time} of focus!", time=words),
+            }
+        )
+        shown_next = shown_next or not reached
+    for reward, following in zip(rewards, [*rewards[1:], None], strict=True):
+        reward["next"] = _("Next: {time}.", time=following["label"]) if following else ""
+    return rewards
 
 
 def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
@@ -4774,6 +4893,7 @@ def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
         "checked": False,
         "away_minutes": 0,
         "interruptions": 0,
+        "goal": 0,
     }
 
 
@@ -4819,6 +4939,7 @@ def log_session(
         "checked": timed and draft["checked"],
         "away_minutes": draft["away_minutes"] if timed else 0,
         "interruptions": draft["interruptions"] if timed else 0,
+        "goal": draft.get("goal", 0) if timed else 0,
         "sid": draft.get("sid") or "",
     }
     visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
@@ -4901,6 +5022,17 @@ def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: Zon
         card["hours"] = format_number(int(d.get("minutes", 0)) / 60)
         card["duration"] = duration_words(int(d.get("minutes", 0)))
         if d.get("timed") and d.get("checked"):
+            goal, minutes = int(d.get("goal", 0)), int(d.get("minutes", 0))
+            card["rewards"] = rewards_earned(goal, minutes)
+            card["goal"] = (
+                (
+                    _("goal reached: {time}", time=duration_words(goal))
+                    if minutes >= goal
+                    else _("goal: {time}", time=duration_words(goal))
+                )
+                if goal
+                else ""
+            )
             card["focus"] = (
                 _n(
                     "left the app {n} time ({minutes} min)",
