@@ -768,7 +768,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     async def focus_start(request: Request, token: str) -> Response:
         def change(current: service.Subscription, form: Any) -> service.Subscription:
             sid = str(form.get("sid") or "") or None
-            return service.start_focus(current, str(form.get("course") or ""), sid=sid, now=config.clock())
+            goal = service.focus_goal(form.get("goal"))
+            return service.start_focus(
+                current, str(form.get("course") or ""), sid=sid, goal=goal, now=config.clock()
+            )
 
         done = await focus_change(request, token, change, "focus")
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
@@ -785,7 +788,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 409)
         view = service.focus_view(fresh, config.clock()) if fresh else {}
-        return JSONResponse({k: view.get(k) for k in ("elapsed", "away_minutes", "interruptions")})
+        return JSONResponse({k: view.get(k) for k in ("elapsed", "away", "away_minutes", "interruptions")})
 
     @app.post("/p/{token}/focus/finish")
     async def focus_finish(request: Request, token: str) -> Response:
@@ -1831,7 +1834,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             first = date.fromisoformat(start) if start else None
         except ValueError:
             raise service.InvalidInput(f"{start!r} is not a date like 2026-10-05") from None
-        return first, max(1, min(days, 14))
+        return first, max(1, min(days, service.CALENDAR_MOST_DAYS))
 
     @app.get("/p/{token}/calendar.json")
     def calendar(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:
@@ -2070,6 +2073,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "routine.html",
             token=token,
             view=service.routine_view(subscription),
+            day=service.day_view(subscription),
             new=bool(new),
             typed=[],
             tab="settings",
@@ -2085,6 +2089,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         form = await request.form(max_files=0, max_fields=200)
         new = form.get("new") == "1"
         answers: list[dict] = []
+        day = (
+            {k: str(form.get(k) or "") for k in ("wake", "bed", "lunch", "lunch_start", "lunch_end")}
+            if form.get("wake") is not None
+            else None
+        )
         try:
             commute, answers = forms.routine_answers(form)
             service.update_subscription(
@@ -2097,6 +2106,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     now=config.clock(),
                     study_time=str(form.get("study_time") or "") or None,
                     study_on_the_way=bool(form.get("study_on_the_way")) if form.get("way_shown") else None,
+                    day=day,
                 ),
             )
         except service.ServiceError as error:
@@ -2113,6 +2123,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 400,
                 token=token,
                 view=view,
+                day={**service.day_view(subscription), **(day or {})},
                 new=new,
                 typed=answers,
                 error=str(error),

@@ -1,0 +1,29 @@
+{# Spark, floating on the plan's pages (D71): a speech bubble with the spark in it.
+   Without a script it is a link to the coach; ui.js opens the sheet below instead,
+   with a question for the coach and the ways Spark helps. #}
+{% from "_mascot.html" import mascot %}
+<a class="spark-fab" href="/p/{{ token }}/coach" data-spark aria-haspopup="dialog" aria-label="{{ _('Ask Spark') }}" title="{{ _('Ask Spark') }}">{{ mascot("idle", "mascot-fab") }}</a>
+<div id="spark-help" class="sheet spark-sheet" popover aria-label="{{ _('Ask Spark') }}">
+  <div class="sheet-head">
+    <button type="button" class="btn btn-plain" popovertarget="spark-help" popovertargetaction="hide">{{ _("Close") }}</button>
+    <h2>Spark</h2>
+    <span></span>
+  </div>
+  <div class="sheet-body">
+    <div class="mascot-tip spark-hello">
+      {{ mascot("wave", "mascot-hello") }}
+      <span class="mascot-words"><b>{{ _("Hi! How can I help?") }}</b><span>{{ _("Ask me about studying, or pick one of these.") }}</span></span>
+    </div>
+    <form method="post" action="/p/{{ token }}/coach" class="spark-ask">
+      <label class="visually-hidden" for="spark-question">{{ _("Your question") }}</label>
+      <textarea id="spark-question" name="question" rows="2" maxlength="400" required placeholder="{{ _('I have two exams next week. How should I split my time?') }}"></textarea>
+      <button type="submit" class="btn btn-primary btn-block">{{ _("Ask") }}</button>
+    </form>
+    <ul class="list spark-links">
+      <li><a href="/p/{{ token }}/routine">{{ _("Set up your day and your week") }}<span class="chev" aria-hidden="true">›</span></a></li>
+      <li><a href="/p/{{ token }}/focus">{{ _("Start a focus session") }}<span class="chev" aria-hidden="true">›</span></a></li>
+      <li><a href="/p/{{ token }}/tips">{{ _("Study tips") }}<span class="chev" aria-hidden="true">›</span></a></li>
+      <li><a href="/p/{{ token }}/weekly">{{ _("The weekly note") }}<span class="chev" aria-hidden="true">›</span></a></li>
+    </ul>
+  </div>
+</div>

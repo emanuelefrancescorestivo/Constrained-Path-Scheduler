@@ -2047,10 +2047,172 @@ hidden card (the break on Focus), are drawn right.
 **Rejected.** D63's neuron (the owner asked for a mascot); the brain in a cap (the
 owner's first pick, before the spark); a rendered 3D image (heavier, one picture per
 mood, not drawn in the page); an animation library (CSS is enough, and the
-Content-Security-Policy allows no inline script). A name: "Spark" is the drawing's
-working name; the sentences students read say "the app" until the owner names it.
+Content-Security-Policy allows no inline script). A name was left to the owner,
+who kept the drawing's working name on 2026-10-16 ("spark va bene"): Spark
+introduces itself while setting up (D70) and floats as the assistant (D71).
 
 **Disclosed.** As in D63, it is decoration and only carries the text
 [ref:schroeder2013]; which mood goes with which tip is a judgement, not measured.
 Checked in Chromium at 1280 and 390 px, light and dark, still and in motion; not on a
 real phone.
+
+## D67. A focus session's length, and its rewards
+
+*The owner, 2026-10-16: "when starting the focus to choose for how long and give
+'prizes' accordingly, like you get a badge for 30 mins, if u do 3hrs though you get
+rewards at idk min 30, 1h, 1h45, 2h30".*
+
+**Chosen.** Before starting the timer, the student picks how long: 25 or 45
+minutes, 1 h, 1 h 30, 2 h, 3 h, or no limit. The plan's session offers its own
+length first (the nearest of these); anything else offers 45 minutes. Rewards come
+at 30 minutes, at an hour, then every 45 minutes (1 h 45, 2 h 30, 3 h 15…), and at
+the length chosen: a 3-hour session has them at 30 min, 1 h, 1 h 45, 2 h 30 and 3
+h, the owner's example. The running page lists them as small chips, those reached
+and the next; when one comes, the spark cheers on a card ("1 h of focus! Next: 1 h
+45.") and confetti goes up once (D30). Going on past the length keeps the ladder
+going.
+
+Rewards count focused time: the clock less the time away from the page, as the
+heartbeats measure it (D17), so leaving the app does not earn them. The diary card
+says the length and whether it was reached, and how many rewards; the badge shelf
+(D41) gains five badges: a length reached ("A goal kept"), and the first timed
+session of 30 minutes, an hour, 1 h 45 and 2 h 30. They are earned only by
+sessions timed and checked by the page: minutes typed into the log earn none
+(such a session is no longer timed, D17).
+
+**Rejected.** D41 kept hours off the badge shelf, because hours reward showing
+off time; the owner asked for these, and they stay within the student's own
+sessions, with no ranking and nothing shown to others beyond the diary card the
+student already shares. A reward at every chosen length only, or at every 30
+minutes (too few for a long session, or too many); hiding the length's progress
+behind a ring (the chips can be read without colour).
+
+**Disclosed.** The ladder's steps are the owner's suggestion, not measured. Long
+sessions are not advice: the break card still comes after 24 minutes (D63), and a
+break on the page counts as focus, a break away from it does not. Checked in
+Chromium at 1280 and 390 px, light and dark.
+
+## D68. The calendar scrolls sideways, a day at a time
+
+*The owner, 2026-10-16: "make the calendar scrollable left and right like notion
+calendar or google calendar".*
+
+**Chosen.** The calendar is a strip of days: the days shown (one, three or seven,
+D59) and a week drawn ahead on each side. A swipe, a trackpad or Shift and the
+wheel moves it sideways, and it comes to rest on a whole day (CSS scroll snapping),
+as Notion Calendar does; the arrows, the arrow keys and Today slide it by the days
+shown, or to today. The day names ride along with the columns, held at the top,
+and the hours stay at the left. When the strip comes to rest within two days of
+either end, it is drawn again around the first day shown, so it never runs out;
+the bar names the days shown, not all those drawn. A study session or a busy time
+dragged to the strip's edge carries it along. A swipe at either end stays in the
+calendar instead of going back a page (`overscroll-behavior-x`).
+
+The server draws up to 21 days at once (a week shown, a week each side), up from
+14; 21 days take about 12 ms to make (measured on the sample semester, this
+machine). Drawing a week by hand (D32) stays a single week: it is weekdays, not
+dates.
+
+**Rejected.** Pages that turn by the days shown, as Google Calendar's web page does
+(the owner named both, and the continuous strip is the one that feels like a
+phone); drawing days one by one as they come into view (more requests, and a block
+dragged across days needs both drawn); a library for it (the CSS does the
+snapping).
+
+**Disclosed.** Checked in Chromium at 1280 and 390 px, with a mouse and with touch
+emulated; not on a real phone. Where a browser does not know the `scrollend` event
+(which ones was not checked), the strip's resting place is taken after a pause of
+160 ms.
+
+## D69. The student's day: getting up, going to bed, lunch
+
+*The owner, 2026-10-16: "the user can choose when they go to bed and when they wake
+up, when they have lunch if they want to work or not".*
+
+**Chosen.** "Your day" is the first card of the questions about the week (D42) and
+replaces "Study from … until …" in Settings: when the student gets up and goes to
+bed (times to the quarter hour), and lunch, from and to, with "Keep it free" (the
+default) or "I can study then". Sessions are planned from half an hour after getting
+up to half an hour before bed: the study window is made from them, rounded
+inward to the quarter hour. A bedtime after midnight ends the
+window at midnight, the planner's day. Lunch kept free is busy every day, weekends
+too, and shows on the calendar hatched like the trip to university (D42), with a
+line saying where to change it; studied through, it is kept but blocks nothing.
+
+A plan made before these questions keeps its study window and shows it widened by
+the half hours (8 to 22 reads "07:30" and "22:30"); nothing is kept free at lunch
+until the student says so. The questions refuse a day shorter than three hours, a
+time that is not one, and a lunch that ends before it starts.
+
+**Rejected.** Sleep as busy events on the calendar (the night is already shaded
+outside the window, D59); a lunch per weekday (one answer covers most students; a
+day that differs can be drawn on the calendar as busy time); asking for dinner too
+(not asked for; an evening class or a dinner is busy time like any other).
+
+**Disclosed.** The half hours at each end are a stated choice, not measured. A
+student who works nights, getting up in the evening, cannot say so here: the
+window is one stretch within a day. Checked in Chromium at 1280 and 390 px, light
+and dark.
+
+## D70. Spark asks about the week, and a time can be drawn
+
+*The owner, 2026-10-16: "it should be easier, maybe exactly the assistant can help
+the user at the start to set the times they do sport, work, sleep etc.. it is not
+really easy to do that with buttons with times and stuff like that, it'd be cool to
+choose to draw it too".*
+
+**Chosen.** While setting up, the questions about the week (D42, with the day of
+D69) come one card at a time, with Spark (D66) above them saying what the card asks
+and how to answer it ("Question 2 of 6"), Back and Next under each card, and the
+save button on the last; Spark waves at the first card, thinks through the others,
+cheers at the last. Next checks the card's own fields first, as the form would.
+
+Every time on the page can be drawn on a bar of the day, midnight to midnight, as
+well as typed: the sun and the moon are dragged to when the student gets up and
+goes to bed (the night is shaded, across midnight too), lunch is a block to move,
+and on the sport, job and other cards a drag across the bar draws the block (a tap,
+an hour from there), which moves, and whose ends move when it is wide enough to
+hold them (on a phone an hour is about a dozen pixels: there the block only moves,
+and the fields below set its length). Times snap to the quarter hour. The bar only
+fills in the fields and follows them; it is hidden from screen readers, which keep
+the fields.
+
+Without the script, or after an error, the page is the form with every card, as
+before. Outside setting up (from Settings), the cards are all shown, each with its
+bar.
+
+**Rejected.** A chat that types the answers in words (the AI is opt-in, D12, and
+times are clearer drawn than written); a week grid to draw on here (the calendar is
+one, after this page; a bar per answer is enough for one routine); answers kept
+until the end in the browser (the cards are one form, sent once).
+
+**Disclosed.** Drawing was checked in Chromium at 1280 and 390 px, with a mouse and
+with touch emulated, not on a real phone. What Spark says was written for this page;
+its French and Italian were not written by a native speaker (D34).
+
+## D71. Spark floats on the plan's pages
+
+*The owner, 2026-10-16: "make the assistant a floating cloud on the screen that you
+can click to help you".*
+
+**Chosen.** On every page of a plan, low on the right (above the tab bar on a
+phone), Spark (D66) floats in a speech bubble. Tapped, it opens a sheet: "Hi! How
+can I help?", a question for the coach (D65), and the ways Spark helps: setting up
+the day and the week (D69, D70), a focus session, the study tips, the weekly note.
+Where the browser knows popovers it is the same kind of sheet as the new task's;
+without a script, or without popovers, the bubble is a link to the coach's page,
+which links to the rest.
+
+It stays out of the way: not while setting up, not on the coach's own page, not over
+a running focus session's clock, and not over a form whose save button sticks to
+the bottom of a phone's screen (Settings, the session log). Pages end with room for
+it, so their last lines scroll above it.
+
+**Rejected.** A chat window that opens on its own, or a bubble that speaks first
+(D63: the character only carries the text, and a student came to do something
+else); the tip of the day in the sheet (it is on Today and Focus already, and every
+page would have to work it out).
+
+**Disclosed.** Checked in Chromium at 1280 and 390 px, light and dark, not on a real
+phone. Over the calendar it covers the corner of the last column's late evening; the
+calendar scrolls.

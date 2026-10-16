@@ -6,6 +6,22 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Spark floats on the plan's pages (D71): a speech bubble that opens a sheet with a
+  question for the coach and the ways Spark helps; without a script, a link to the
+  coach.
+- Spark asks about the week (D70): while setting up, one card at a time, and every
+  time can be drawn on a bar of the day (the sun and the moon for getting up and
+  going to bed, a block for lunch, sport or a job) as well as typed.
+- Your day (D69): when you get up and go to bed (nothing is planned in the half hour
+  after or before), and lunch, kept free every day or not; on the questions about the
+  week and in Settings, in place of "Study from … until".
+- The calendar scrolls sideways, a day at a time (D68), with a swipe or a trackpad,
+  as Notion Calendar and Google Calendar do; the day names stay on top and the hours
+  on the left.
+- A focus session's length and its rewards (D67): choose how long before starting
+  (25 minutes to 3 hours, or no limit); rewards at 30 minutes, an hour, then every 45
+  minutes, and at the length chosen, on time spent on the page; the diary card shows
+  them, and five badges join the shelf.
 - The spark (D66): the tips, the weekly note and the coach are brought by a small
   glowing spark with a face, chosen by the owner from three drawings, in place of the
   neuron. Its mood follows the tip (thinking, resting, cheering, waving); it moves
@@ -407,6 +423,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The focus clock starts at 0:00:00, and a page kept open no longer counts as time
+  away from it (AUDIT item 65).
 - A long button on the invitation page wraps on a phone (AUDIT item 56).
 - Chrome's push addresses are accepted for reminders (AUDIT item 55).
 - On a phone, the floating "+" no longer covers the Save button and the end of the

@@ -24,6 +24,7 @@ const FR = {
     "Un examen de ton emploi du temps. Des séances d'entraînement sont prévues dans les deux semaines qui le précèdent.",
   "From your timetable. Nothing is planned at the same time.": "De ton emploi du temps. Rien n'est prévu en même temps.",
   "Your trip to university, before the day's first class and after its last. Change its length in Settings.": "Ton trajet vers la fac, avant le premier cours de la journée et après le dernier. Change sa durée dans les Réglages.",
+  "Lunch, kept free every day. Change its time in Settings.": "Le déjeuner, gardé libre chaque jour. Change son heure dans les Réglages.",
   "Placed by you": "Placée par toi",
   "How did it go?": "Comment ça s'est passé ?",
   "Recorded: {word}. The plan has adjusted.": "Noté : {word}. Le plan s'est adapté.",
@@ -109,6 +110,10 @@ const FR = {
   "Marked as a quiz. An hour to prepare is in your tasks.": "Marqué comme interro. Une heure pour la préparer est dans tes tâches.",
   "Marked as a mock exam. It counts as exam practice.": "Marqué comme examen blanc. Il compte comme entraînement à l'examen.",
   "Marked as a partial exam. Practice is planned before it.": "Marqué comme partiel. De l'entraînement est prévu avant.",
+  // Spark asks about the week (D70)
+  "Question {n} of {total}": "Question {n} sur {total}",
+  "Back": "Retour",
+  "Next": "Suivant",
 };
 
 
@@ -135,6 +140,7 @@ const IT = {
   "An exam from your timetable. Practice sessions are planned in the two weeks before it.": "Un esame del tuo orario. Le esercitazioni sono pianificate nelle due settimane prima.",
   "From your timetable. Nothing is planned at the same time.": "Dal tuo orario. Niente viene pianificato nello stesso momento.",
   "Your trip to university, before the day's first class and after its last. Change its length in Settings.": "Il tuo tragitto verso l'università, prima della prima lezione del giorno e dopo l'ultima. Cambia la durata nelle Impostazioni.",
+  "Lunch, kept free every day. Change its time in Settings.": "Il pranzo, tenuto libero ogni giorno. Cambia l'orario nelle Impostazioni.",
   "Placed by you": "Messa da te",
   "How did it go?": "Com'è andata?",
   "Recorded: {word}. The plan has adjusted.": "Registrato: {word}. Il piano si è adattato.",
@@ -219,6 +225,10 @@ const IT = {
   "Marked as a quiz. An hour to prepare is in your tasks.": "Segnata come quiz. Un'ora per prepararti è nelle tue attività.",
   "Marked as a mock exam. It counts as exam practice.": "Segnata come simulazione d'esame. Conta come esercitazione.",
   "Marked as a partial exam. Practice is planned before it.": "Segnata come prova intermedia. L'esercitazione è prevista prima.",
+  // Spark asks about the week (D70)
+  "Question {n} of {total}": "Domanda {n} di {total}",
+  "Back": "Indietro",
+  "Next": "Avanti",
 };
 
 const CATALOGUES = { fr: FR, it: IT };

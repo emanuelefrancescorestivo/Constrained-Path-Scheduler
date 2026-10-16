@@ -56,6 +56,20 @@ def test_the_timer_counts_time_away_from_the_page(sub):
     assert "focus" not in done.options
 
 
+def test_the_clock_starts_at_zero_and_a_page_kept_open_is_not_time_away(sub):
+    # AUDIT item 65: the times were kept to the minute, so a session started 50 s
+    # into a minute showed 0:00:50 at once, and each heartbeat measured its gap from
+    # the minute before, often more than the grace: time away on a page kept open.
+    start = NOW + timedelta(seconds=50)
+    running = service.start_focus(sub, "Algebra 3", now=start)
+    assert service.focus_view(running, start)["elapsed"] == 0
+    running = _beats(running, start, range(0, 600, 30))
+    view = service.focus_view(running, start + timedelta(seconds=600))
+    assert view["elapsed"] == 600 and view["interruptions"] == 0
+    draft = service.log_draft(service.finish_focus(running, now=start + timedelta(seconds=600)))
+    assert draft["minutes"] == 10 and draft["away_minutes"] == 0 and draft["interruptions"] == 0
+
+
 def test_without_the_script_the_focus_is_not_checked(sub):
     started = service.start_focus(sub, "Algebra 3", now=NOW)
     draft = service.log_draft(service.finish_focus(started, now=NOW + timedelta(minutes=45)))
@@ -212,3 +226,56 @@ def test_a_session_timed_from_the_plan_is_counted_once(sub, tmp_path):
     day = next(d for row in view["grid"] for d in row if d["date"] == start.date().isoformat())
     assert day["done"] == 1 and view["week"]["logged"] == 0
     assert "also logged" not in service.weekly_review(done, later, logged=logged, weeks_back=0)["text"]
+
+
+# A session's length and its rewards (D67): rewards at 30 minutes, an hour, then
+# every 45 minutes, and at the length chosen; all on focused time.
+
+
+def test_the_rewards_of_a_session_come_at_its_ladder_and_its_length():
+    assert service.reward_points(180, 180) == [30, 60, 105, 150, 180]  # the owner's example
+    assert service.reward_points(0, 200) == [30, 60, 105, 150, 195]
+    assert service.reward_points(45, 45) == [30, 45]
+    assert service.rewards_earned(90, 100) == 3  # 30, 60, the length
+    assert service.rewards_earned(120, 100) == 2  # the length not reached
+    assert service.rewards_earned(0, 29) == 0
+    assert service.focus_goal("90") == 90 and service.focus_goal("") == 0
+    with pytest.raises(service.InvalidInput):
+        service.focus_goal("17")
+
+
+def test_rewards_count_the_time_on_the_page_only(sub):
+    running = service.start_focus(sub, "Algebra 3", goal=90, now=NOW)
+    # 20 min on the page, 15 away, 20 more on the page: 55 on the clock, 40 focused.
+    beats = [*range(0, 1200, 30), *range(2100, 3300, 30)]
+    running = _beats(running, NOW, beats)
+    view = service.focus_view(running, NOW + timedelta(seconds=3300))
+    assert view["goal"] == 90 and view["goal_words"] == "1 h 30"
+    rewards = {r["label"]: r for r in view["rewards"]}
+    assert rewards["30 min"]["reached"] and not rewards["1 h"]["reached"]
+    assert rewards["1 h"]["shown"] and not rewards["1 h 30"]["shown"]  # the next only
+    assert rewards["1 h 30"]["goal"] and rewards["1 h 30"]["cheer"] == "Goal reached: 1 h 30 of focus."
+    assert rewards["30 min"]["next"] == "Next: 1 h."
+    with pytest.raises(service.InvalidInput):
+        service.start_focus(sub, "Algebra 3", goal=17, now=NOW)
+
+
+def test_a_length_reached_is_in_the_diary_and_on_the_badge_shelf(sub, tmp_path):
+    running = service.start_focus(sub, "Algebra 3", goal=60, now=NOW)
+    finished = service.finish_focus(_beats(running, NOW, range(0, 3900, 30)), now=NOW + timedelta(minutes=65))
+    assert service.log_draft(finished)["goal"] == 60
+    form = {"effort": "6", "progress": "3", "visibility": "me"}
+    logged, post = service.log_session(tmp_path, finished, form, now=NOW + timedelta(minutes=65))
+    assert post.data["goal"] == 60 and post.data["minutes"] == 65
+    card = service.diary_view(tmp_path, logged, NOW + timedelta(minutes=65))["posts"][0]
+    assert card["goal"] == "goal reached: 1 h" and card["rewards"] == 2
+    later = NOW + timedelta(minutes=65)
+    shelf = {b["key"]: b for b in service.badges_view(tmp_path, logged, later)["badges"]}
+    assert shelf["goal"]["earned"] and shelf["focus_30"]["earned"] and shelf["focus_60"]["earned"]
+    assert not shelf["focus_105"]["earned"]
+    # Minutes typed by hand earn nothing: the session is no longer timed.
+    typed, _ = service.log_session(
+        tmp_path, logged, {"course": "Algebra 3", "effort": "5", "progress": "3", "minutes": "200"}, now=NOW
+    )
+    shelf = {b["key"]: b for b in service.badges_view(tmp_path, typed, NOW + timedelta(hours=4))["badges"]}
+    assert not shelf["focus_150"]["earned"]

@@ -596,6 +596,11 @@ def test_the_calendar_data_has_the_timetable_the_sessions_and_the_busy_times(web
     assert [k["id"] for k in data["kinds"]] == ["class", "training", "commute", "work", "timeoff", "other"]
     assert web.get(f"/p/{planned}/calendar.json?start=nonsense").status_code == 400
     assert web.get("/p/" + "x" * 32 + "/calendar.json").status_code == 404
+    # The strip that scrolls sideways (D68) draws a week each side of the week
+    # shown: 21 days at most, anything more is cut to that.
+    strip = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=21").json()
+    assert len(strip["days"]) == 21 and strip["days"][-1]["date"] == "2026-10-19"
+    assert len(web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=60").json()["days"]) == 21
 
 
 def test_a_busy_time_drawn_on_the_calendar_moves_the_plan(web, planned):
@@ -976,6 +981,22 @@ TINY_JPEG = (
     b"\xff\xc0\x00\x11\x08\x00\x10\x00\x10\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01"
     b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00pixels\xff\xd9"
 )
+
+
+def test_a_focus_session_with_a_length_lists_its_rewards(web, planned, clock):
+    # D67: the length is chosen on the page, without its script, and the running
+    # page lists the rewards, the next one shown, the rest hidden until it comes.
+    page = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "How long?" in page and 'name="goal" value="90"' in page and "No limit" in page
+    refused = web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3", "goal": "17"})
+    assert refused.status_code == 400 and "lengths offered" in unescape(refused.text)
+    web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3", "goal": "90"})
+    running = unescape(web.get(f"/p/{planned}/focus").text)
+    assert "Your length: 1 h 30" in running and 'data-at="1800"' in running
+    assert 'data-at="3600" data-cheer="1 h of focus!" data-next="Next: 1 h 30." hidden' in running
+    assert 'class="reward is-goal" data-at="5400"' in running
+    assert web.post(f"/p/{planned}/focus/beat").json()["away"] == 0
+    web.post(f"/p/{planned}/focus/cancel")
 
 
 def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clock):

@@ -471,7 +471,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 }
 .board-bar .range { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; margin: 0 6px; }
 .board-bar .spacer { flex: 1; }
-#calendar { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#calendar { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .board-fallback { padding: 16px; overflow: auto; }
 
 /* A segmented control: Day / 3 Days / Week */
@@ -579,7 +579,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .other-hours { width: 92px !important; min-height: 34px !important; padding: 4px 10px !important; }
 
 /* -- the calendar, in the manner of Apple Calendar --------------------------------- */
-.cal { display: flex; flex-direction: column; min-height: 0; flex: 1; user-select: none; -webkit-user-select: none; }
+.cal { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; user-select: none; -webkit-user-select: none; }
 .cal-head { display: grid; border-bottom: 0.5px solid var(--line-strong); background: var(--surface); }
 .cal-day { padding: 8px 4px 8px; text-align: center; min-width: 0; }
 .cal-day .wd { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -590,8 +590,24 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .cal-day.today.weekend .dn { color: #fff; }
 .cal-day.out { opacity: 0.4; }
 .cal-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; overscroll-behavior: contain; }
+.cal-scroll > .cal-head { position: sticky; top: 0; z-index: 6; }
 .cal-body { display: grid; position: relative; }
 .cal-gutter { position: relative; }
+/* The strip (D68): sideways a day at a time, the day names held at the top and the
+   hours at the left while the columns pass beneath; a swipe at either end stays in
+   the calendar instead of going back a page. */
+.cal-scroll.days-strip {
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 52px;
+  overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.cal-scroll.days-strip::-webkit-scrollbar { display: none; }
+.cal-scroll.days-strip.dragging { scroll-snap-type: none; }
+.cal-scroll.days-strip .cal-head, .cal-scroll.days-strip .cal-body { width: max-content; min-width: 100%; }
+.cal-scroll.days-strip .cal-col { scroll-snap-align: start; touch-action: pan-x pan-y; }
+.cal-scroll.days-strip .cal-gutter, .cal-scroll.days-strip .cal-head > :first-child {
+  position: sticky; left: 0; z-index: 5; background: var(--surface);
+}
+.cal-scroll.days-strip .cal-head > :first-child { z-index: 7; }
 .cal-hour { position: absolute; right: 8px; font-size: 0.7rem; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; font-weight: 500; }
 .cal-hour.first { transform: translateY(2px); }
 .cal-col { position: relative; border-left: 0.5px solid var(--line); touch-action: pan-y; }
@@ -668,12 +684,13 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .ev-own::before { background: var(--busy); }
 /* The trip to campus, made from the answer about it (D42): busy like the student's
    own time, but not theirs to drag; Settings changes its length */
-.ev-commute {
+/* The trip, and lunch kept free (D69): time the plan keeps clear, hatched. */
+.ev-commute, .ev-lunch {
   background: repeating-linear-gradient(135deg, var(--fill-4) 0 4px, transparent 4px 8px), var(--surface);
   color: var(--text);
 }
-.ev-commute .l { color: var(--muted); }
-.ev-commute::before { background: var(--busy); opacity: 0.6; width: 2px; }
+.ev-commute .l, .ev-lunch .l { color: var(--muted); }
+.ev-commute::before, .ev-lunch::before { background: var(--busy); opacity: 0.6; width: 2px; }
 .ev .grip { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
 .ev.dragging { z-index: 20; opacity: 0.95; box-shadow: var(--shadow); cursor: grabbing; transform: scale(1.02); }
 .ev.ghost { z-index: 15; opacity: 0.8; background: var(--accent-soft); color: var(--accent); pointer-events: none; border-radius: 6px; }
@@ -795,6 +812,20 @@ td.d { display: table-cell; padding: 0; }
 .focus-hint { max-width: 26rem; }
 .focus-cancel { margin-top: 6px; }
 .start-planned h2 { margin: 2px 0 12px; }
+/* A session's length and its rewards (D67) */
+.focus-lengths { margin: 4px 0 14px; padding: 0; border: 0; }
+.focus-lengths legend { margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; }
+.focus-goal { margin: -8px 0 10px; color: var(--muted); font-weight: 600; }
+.focus-rewards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; }
+.reward {
+  padding: 5px 12px; border-radius: 980px; background: var(--fill-3); color: var(--muted);
+  font-size: 0.86rem; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.reward::before { content: "\2606\00a0"; }
+.reward.is-goal { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--text); }
+.reward.is-reached { background: var(--ok-soft); color: var(--ok); box-shadow: none; }
+.reward.is-reached::before { content: "\2605\00a0"; }
+.focus-reward { width: 100%; max-width: 420px; margin: 0 0 14px; text-align: left; }
 .start-focus { margin-top: 10px; }
 .running-focus {
   display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 14px;
@@ -1570,6 +1601,45 @@ html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--eas
 .question .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .question .days .pill span { display: flex; width: 100%; min-width: 0; padding-left: 0; padding-right: 0; font-size: 0.84rem; }
 .routine-skip { text-align: center; margin: 18px 0 0; }
+/* Spark asks one card at a time, and a time is drawn on a bar of the day (D70) */
+.routine-guide { margin-bottom: 14px; }
+.routine-guide .guide-says { font-weight: 600; line-height: 1.35; }
+.routine-guide .guide-step { color: var(--muted); font-size: 0.86rem; }
+.guide-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.guide-nav .btn-primary { margin-left: auto; min-width: 120px; }
+.routine.guided .sticky-actions[hidden] { display: none; }
+.daybar { margin: 12px 0 14px; }
+.daybar-track {
+  position: relative; height: 44px; border-radius: 12px; background: var(--fill-3);
+  touch-action: none; cursor: crosshair; overflow: visible;
+}
+.daybar-track.dragging { cursor: grabbing; }
+.daybar-night {
+  position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.daybar-night:first-child { border-radius: 12px 0 0 12px; }
+.daybar-night:last-of-type { border-radius: 0 12px 12px 0; }
+.daybar-handle {
+  position: absolute; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface); box-shadow: var(--shadow-sm);
+  cursor: ew-resize; z-index: 2;
+}
+.daybar-handle svg { width: 20px; height: 20px; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.daybar-handle.wake svg { stroke: var(--warn); }
+.daybar-handle.bed svg { stroke: var(--accent); }
+.daybar-range {
+  position: absolute; top: 5px; bottom: 5px; min-width: 6px; border-radius: 9px; background: var(--accent);
+  color: var(--on-accent); font-size: 0.76rem; font-weight: 650; display: flex; align-items: center;
+  overflow: hidden; white-space: nowrap; cursor: grab; z-index: 1;
+}
+.daybar-range > span:first-child { padding: 0 12px; overflow: hidden; text-overflow: ellipsis; }
+.daybar-edge { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+.daybar-edge.start { left: 0; }
+.daybar-edge.end { right: 0; }
+.daybar-ticks { position: relative; height: 18px; margin-top: 4px; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.daybar-ticks span { position: absolute; transform: translateX(-50%); }
+.daybar-ticks span:first-child { transform: none; }
+.daybar-ticks span:last-child { transform: translateX(-100%); }
 
 /* The owner's inbox (D43) */
 .inbox-item .inbox-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
@@ -1993,6 +2063,33 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-for-you { display: flex; gap: 14px; align-items: center; margin: 18px 0; }
 .weekly-for-you p { margin: 0; }
 .weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+
+/* -- Spark, floating (D71) ------------------------------------------------------------ */
+/* A speech bubble with the spark in it, low on the right, above the tab bar on a
+   phone; hidden over a form whose save button sticks to the bottom. */
+.spark-fab {
+  position: fixed; z-index: 35; right: max(18px, env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
+  width: 62px; height: 62px; display: grid; place-items: center;
+  border-radius: 50% 50% 12px 50%; background: var(--surface); border: 0.5px solid var(--line);
+  box-shadow: var(--shadow); text-decoration: none !important;
+  transition: transform 0.2s var(--ease-out);
+}
+.spark-fab:hover { transform: translateY(-2px); }
+.spark-fab:active { transform: scale(0.94); }
+.spark-fab .mascot { width: 48px; height: 48px; }
+body:has(.sticky-actions) .spark-fab, body:has(.focus) .spark-fab { display: none; }
+/* Room at the end of a page, so its last lines can be scrolled above the bubble. */
+body:has(.spark-fab) .footer { padding-bottom: 84px; }
+@media (max-width: 900px) {
+  body.has-tabs .spark-fab { bottom: calc(var(--tabbar) + 14px + env(safe-area-inset-bottom)); width: 56px; height: 56px; }
+  body.has-tabs .spark-fab .mascot { width: 42px; height: 42px; }
+}
+.spark-hello { margin-bottom: 14px; }
+.spark-ask { display: grid; gap: 10px; }
+.spark-ask textarea { width: 100%; resize: vertical; }
+.spark-links { margin-top: 16px; }
+.spark-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: inherit; text-decoration: none !important; }
+.spark-links .chev { color: var(--muted); font-size: 1.2rem; }
 
 /* -- the coach (D65) ------------------------------------------------------------------ */
 .coach-form textarea { width: 100%; resize: vertical; }

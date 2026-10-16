@@ -1,16 +1,34 @@
 {% extends "base.html" %}
 {% from "_mascot.html" import mascot %}
+{# How long a session is meant to last, chosen before starting (D67). #}
+{% macro lengths(goals, chosen) %}
+<fieldset class="focus-lengths">
+  <legend>{{ _("How long?") }}</legend>
+  <div class="pills">{% for g in goals %}<label class="pill"><input type="radio" name="goal" value="{{ g.minutes }}"{% if g.minutes == chosen %} checked{% endif %}><span>{{ g.label }}</span></label>{% endfor %}</div>
+</fieldset>
+{% endmacro %}
 {% block title %}{{ _("Focus") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}{% if focus.running %}<script type="module" src="/static/focus.js"></script>{% endif %}{% endblock %}
+{# A session running: nothing floats over the clock (D71). #}
+{% block spark %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}
 {% block main %}
 {% if focus.running %}
-<section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
+<section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
   <div class="focus-dial">
     <svg class="focus-orbit" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle class="track" cx="50" cy="50" r="49" pathLength="100"/><circle class="sweep" id="focus-sweep" cx="50" cy="50" r="49" pathLength="100" transform="rotate(-90 50 50)"/></svg>
     <time class="focus-timer" id="focus-timer" aria-live="off">{{ '%d:%02d' % (focus.elapsed // 3600, (focus.elapsed % 3600) // 60) }}</time>
   </div>
   <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+  {% set reached = focus.rewards | selectattr("reached") | list %}
+  {% if focus.goal %}<p class="focus-goal">{{ _("Your length: {time}", time=focus.goal_words) }}</p>{% endif %}
+  <ol class="focus-rewards" aria-label="{{ _('Rewards') }}">
+    {% for r in focus.rewards %}<li class="reward{% if r.reached %} is-reached{% endif %}{% if r.goal %} is-goal{% endif %}" data-at="{{ r.at }}" data-cheer="{{ r.cheer }}" data-next="{{ r.next }}"{% if not r.shown %} hidden{% endif %}>{{ r.label }}{% if r.goal %} · {{ _("goal") }}{% endif %}</li>{% endfor %}
+  </ol>
+  <div class="card mascot-tip focus-reward" aria-live="polite"{% if not reached %} hidden{% endif %}>
+    {{ mascot("cheer", "mascot-reward") }}
+    <span class="mascot-words"><b id="focus-reward-words">{{ reached[-1].cheer if reached else "" }}</b><span id="focus-reward-next">{{ reached[-1].next if reached else "" }}</span></span>
+  </div>
   <form method="post" action="/p/{{ token }}/focus/finish"><button class="btn btn-primary btn-lg focus-finish">{{ _("Finish") }}</button></form>
   <p class="focus-tools" hidden>
     <button type="button" class="btn btn-sm" id="focus-full">{{ _("Full screen") }}</button>
@@ -36,6 +54,7 @@
   <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
   <p class="kicker">{{ _("From your plan") }} · {{ focus.suggested.when }}</p>
   <h2>{{ focus.suggested.label }}</h2>
+  {{ lengths(focus.goals, focus.suggested.goal) }}
   <button class="btn btn-primary btn-lg btn-block">{{ _("Start this session") }}</button>
 </form>
 {% endif %}
@@ -43,7 +62,9 @@
   <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>
   <input id="focus-course" name="course" list="focus-courses" required autocomplete="off" placeholder="{{ _('Course') }}">
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+  {{ lengths(focus.goals, focus.goal) }}
   <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
+  <p class="hint">{{ _("Rewards come at 30 minutes, at an hour, then every 45 minutes, and when you reach your length; only for time on this page.") }}</p>
 </form>
 <p class="section hint"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
 <a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">

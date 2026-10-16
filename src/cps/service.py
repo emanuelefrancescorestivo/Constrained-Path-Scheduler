@@ -265,7 +265,8 @@ class EventView:
     start: str  # ISO 8601, local
     end: str
     # "calendar" (the .ics), "typed" (busy rows), "commute" (made from the trip's
-    # length around each day's classes, `commute_events`), "skipped" (a class of
+    # length around each day's classes, `commute_events`), "lunch" (kept free every
+    # day, D69), "skipped" (a class of
     # the .ics the student will not attend, D60: shown, but not busy), or a class
     # that is a test (D61): "quiz", "mock" or "partial"
     source: str = "calendar"
@@ -364,6 +365,8 @@ class CalendarReport:
     study_on_the_way: bool = False
     # Classes the student will not attend (D60), as `options["lecture_changes"]`.
     lecture_changes: tuple[Mapping, ...] = ()
+    # Lunch, kept free every day (D69): its start and end, "12:30" and "13:30".
+    lunch: tuple[str, str] | None = None
 
     @property
     def block_slots(self) -> int:
@@ -392,6 +395,7 @@ class CalendarReport:
             "quick_tests": self.quick_tests,
             "study_on_the_way": self.study_on_the_way,
             "lecture_changes": [dict(c) for c in self.lecture_changes],
+            "lunch": list(self.lunch) if self.lunch else None,
         }
 
 
@@ -529,6 +533,21 @@ def commute_events(campus: Iterable[BusyEvent], minutes: int, zone: ZoneInfo, la
     return out
 
 
+def lunch_events(
+    lunch: tuple[str, str], start: date, days: int, zone: ZoneInfo, label: str
+) -> list[BusyEvent]:
+    """Lunch on each day of the horizon (D69), at the same wall-clock time."""
+    begin, end = (time.fromisoformat(x) for x in lunch)
+    return [
+        BusyEvent(
+            datetime.combine(start + timedelta(days=k), begin, tzinfo=zone),
+            datetime.combine(start + timedelta(days=k), end, tzinfo=zone),
+            label,
+        )
+        for k in range(days)
+    ]
+
+
 def analyse_calendar(
     ics: bytes | None = None,
     *,
@@ -544,6 +563,7 @@ def analyse_calendar(
     quick_tests: bool = False,
     study_on_the_way: bool = False,
     lecture_changes: Sequence[Mapping] = (),
+    lunch: tuple[str, str] | None = None,
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
     With `quick_tests`, also the gaps too short for a block, for quick self-tests;
@@ -551,7 +571,8 @@ def analyse_calendar(
     With `commute_minutes`, the trip to campus and back is busy too, around each
     day's events of the timetable and classes drawn by hand (`commute_events`).
     `lecture_changes` names classes of the timetable the student will not attend
-    (D60): they stay in `events` as "skipped", and their time is free.
+    (D60): they stay in `events` as "skipped", and their time is free. `lunch`,
+    a start and an end, is busy every day (D69).
 
     Without `days` the horizon runs to the latest assessment found in the next year,
     including its day, or 21 days if there is none. Assessments are looked for over
@@ -603,6 +624,9 @@ def analyse_calendar(
         tagged = sorted(
             tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
         )
+    if lunch:
+        meals = lunch_events(lunch, start, days, _zone(tz), _("Lunch"))
+        tagged = sorted(tagged + [(e, "lunch") for e in meals], key=lambda pair: (pair[0].start, pair[0].end))
     events = [e for e, source in tagged if source != "skipped"]
     # A pause after training or work (D45): busy for the grid, not an event to show.
     pauses = [
@@ -678,6 +702,7 @@ def analyse_calendar(
         quick_tests=quick_tests,
         study_on_the_way=study_on_the_way,
         lecture_changes=tuple(dict(c) for c in lecture_changes),
+        lunch=(str(lunch[0]), str(lunch[1])) if lunch else None,
     )
 
 
@@ -1120,6 +1145,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         quick_tests=report.quick_tests,
         study_on_the_way=report.study_on_the_way,
         lecture_changes=report.lecture_changes,
+        lunch=report.lunch,
     )
 
 
@@ -1673,8 +1699,8 @@ def calendar_week(
         if not 0 <= week < weeks:
             raise InvalidInput(f"week must be 0 to {weeks - 1}")
         first = start + timedelta(days=7 * week)
-    if not 1 <= count <= 14:
-        raise InvalidInput("show 1 to 14 days")
+    if not 1 <= count <= CALENDAR_MOST_DAYS:
+        raise InvalidInput(f"show 1 to {CALENDAR_MOST_DAYS} days")
     zone = _zone(tz)
     dates = [first + timedelta(days=d) for d in range(count)]
     items: list[dict] = []
@@ -1700,8 +1726,12 @@ def calendar_week(
     for event in source.events:
         if event.source == "typed" and not typed:
             continue
-        kind = event.source if event.source in ("typed", "commute", "skipped", *TEST_KINDS) else "calendar"
-        if event.start in exams and event.source not in ("commute", "skipped"):
+        kind = (
+            event.source
+            if event.source in ("typed", "commute", "lunch", "skipped", *TEST_KINDS)
+            else "calendar"
+        )
+        if event.start in exams and event.source not in ("commute", "lunch", "skipped"):
             kind = "exam"
             shown_exams.add(event.start)
         label = (
@@ -1711,7 +1741,7 @@ def calendar_week(
             if kind in TEST_KINDS
             else short_title(event.summary)
         )
-        course = None if kind == "commute" else exams.get(event.start) or course_of(event.summary)
+        course = None if kind in ("commute", "lunch") else exams.get(event.start) or course_of(event.summary)
         lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
         changeable = ("calendar", "skipped", *TEST_KINDS)
         named = {"at": event.start, "ref": lecture_ref(event.summary)} if kind in changeable else {}
@@ -1801,6 +1831,11 @@ def short_title(summary: str) -> str:
         if text:
             shown.append(text)
     return " · ".join(shown)
+
+
+# The most days the calendar draws at once: a week shown and a week each side,
+# for the strip that scrolls sideways (D68).
+CALENDAR_MOST_DAYS = 21
 
 
 def calendar_week_count(source: CalendarReport | PlanReport) -> int:
@@ -2092,6 +2127,7 @@ def _refresh(
             quick_tests=bool(options.get("quick_tests", False)),
             study_on_the_way=bool(options.get("study_on_the_way", False)),
             lecture_changes=tuple(options.get("lecture_changes", ())),
+            lunch=lunch_hours(options),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2483,6 +2519,7 @@ def revise_subscription(
     study_on_the_way: bool | None = None,
     warm_up: bool | None = None,
     lecture_changes: Sequence[Mapping] | None = None,
+    day: Mapping | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2497,6 +2534,18 @@ def revise_subscription(
     if unknown:
         raise InvalidInput(f"unknown settings: {', '.join(sorted(unknown))}")
     merged.update(options)
+    if day is not None:
+        # When the student gets up, goes to bed and has lunch (D69): it sets the
+        # study window too.
+        merged.update(
+            _day_options(
+                day.get("wake"),
+                day.get("bed"),
+                str(day.get("lunch") or ""),
+                day.get("lunch_start"),
+                day.get("lunch_end"),
+            )
+        )
     if commute_minutes is not None:
         if not 0 <= int(commute_minutes) <= MAX_COMMUTE_MINUTES:
             raise InvalidInput(
@@ -2619,6 +2668,13 @@ ROUTINE_QUESTIONS = (
     ("other", "Anything else every week?", "Music lessons"),
 )
 ROUTINE_ANSWERS = 2  # answers per question on the page; more go on the calendar
+# What Spark says before each of these questions, while setting up (D70).
+ROUTINE_SAYS = {
+    "training": "Do you train or play a sport? Drag on the bar to draw when, then pick the days.",
+    "work": "A job? Draw its hours the same way, or type them.",
+    "other": "Anything else every week, like music lessons? Draw it too, or skip it. "
+    "Then save, and I will plan around all of it.",
+}
 _ROUTINE_NAMES = {"training": "Training", "work": "Work", "other": "Busy"}
 # The answers to "When do you study best?" (D45), in the order the page offers them.
 STUDY_TIME_WORDS = (
@@ -2627,6 +2683,91 @@ STUDY_TIME_WORDS = (
     ("evening", "Evening"),
     ("any", "No preference"),
 )
+
+
+# The student's day (D69): when they get up and go to bed, and lunch. Study is
+# planned from half an hour after getting up to half an hour before bed (a bed
+# after midnight: until midnight, the planner's day); lunch is kept free every day
+# unless the student would rather study then.
+DAY_MARGIN = 0.5  # hours
+LUNCH_DEFAULT = ("12:30", "13:30")
+LUNCH_CHOICES = (("free", "Keep it free"), ("study", "I can study then"))
+SHORTEST_DAY = 3.0  # hours between getting up and going to bed, at least
+
+
+def _hours_of(text: object, what: str) -> float:
+    try:
+        moment = time.fromisoformat(str(text or "").strip())
+    except ValueError:
+        raise InvalidInput(_("{what}: give a time like 07:30", what=what)) from None
+    return moment.hour + moment.minute / 60
+
+
+def _clock_of(hours: float) -> str:
+    minutes = round(hours * 60) % (24 * 60)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def lunch_hours(options: Mapping) -> tuple[str, str] | None:
+    """Lunch's start and end when it is kept free (D69), else None."""
+    lunch = options.get("lunch") or {}
+    return (lunch["start"], lunch["end"]) if lunch.get("free") else None
+
+
+def day_view(subscription: Subscription) -> dict:
+    """When the student gets up and goes to bed, and lunch (D69). A plan made
+    before these questions shows its study window widened by the margins."""
+    options = subscription.options
+    first, last = (float(x) for x in options["study_window"])
+    lunch = options.get("lunch") or {}
+    return {
+        "wake": options.get("wake") or _clock_of(max(first - DAY_MARGIN, 0)),
+        "bed": options.get("bed") or _clock_of(min(last + DAY_MARGIN, 24)),
+        "lunch_start": lunch.get("start", LUNCH_DEFAULT[0]),
+        "lunch_end": lunch.get("end", LUNCH_DEFAULT[1]),
+        "lunch": ("free" if lunch.get("free") else "study") if lunch else "free",
+        "lunch_choices": LUNCH_CHOICES,
+    }
+
+
+def _day_options(wake: object, bed: object, lunch: str, lunch_start: object, lunch_end: object) -> dict:
+    """The options a day sets (D69), checked: the times, the study window they
+    leave, lunch."""
+    up = _hours_of(wake, _("Get up"))
+    down = _hours_of(bed, _("Go to bed"))
+    if down <= up:
+        down += 24  # to bed after midnight
+    first = math.ceil((up + DAY_MARGIN) * 4) / 4
+    last = math.floor(min(down - DAY_MARGIN, 24.0) * 4) / 4
+    if down - up < SHORTEST_DAY or last - first < SHORTEST_DAY - 2 * DAY_MARGIN:
+        raise InvalidInput(
+            _("leave at least three hours between getting up and going to bed, before midnight")
+        )
+    out: dict[str, Any] = {"wake": _clock_of(up), "bed": _clock_of(down), "study_window": [first, last]}
+    if lunch not in dict(LUNCH_CHOICES):
+        raise InvalidInput(_("say whether lunch is kept free"))
+    begin = _hours_of(lunch_start, _("Lunch"))
+    end = _hours_of(lunch_end, _("Lunch"))
+    if end <= begin:
+        raise InvalidInput(_("lunch must end after it starts"))
+    out["lunch"] = {"start": _clock_of(begin), "end": _clock_of(end), "free": lunch == "free"}
+    return out
+
+
+def set_day(
+    subscription: Subscription,
+    *,
+    wake: object,
+    bed: object,
+    lunch: str = "free",
+    lunch_start: object = LUNCH_DEFAULT[0],
+    lunch_end: object = LUNCH_DEFAULT[1],
+    now: datetime | None = None,
+    strict: bool = True,
+) -> Subscription:
+    """The student's day (D69), planned around at once."""
+    day = {"wake": wake, "bed": bed, "lunch": lunch, "lunch_start": lunch_start, "lunch_end": lunch_end}
+    return revise_subscription(subscription, day=day, now=now, strict=strict)
 
 
 def routine_view(subscription: Subscription) -> dict:
@@ -2643,7 +2784,13 @@ def routine_view(subscription: Subscription) -> dict:
         "study_times": STUDY_TIME_WORDS,
         "study_on_the_way": bool(subscription.options.get("study_on_the_way", False)),
         "questions": [
-            {"kind": kind, "question": question, "example": example, "have": counts.get(kind, 0)}
+            {
+                "kind": kind,
+                "question": question,
+                "example": example,
+                "say": ROUTINE_SAYS[kind],
+                "have": counts.get(kind, 0),
+            }
             for kind, question, example in ROUTINE_QUESTIONS
         ],
         "answers": ROUTINE_ANSWERS,
@@ -2660,13 +2807,15 @@ def answer_routine(
     now: datetime | None = None,
     study_time: str | None = None,
     study_on_the_way: bool | None = None,
+    day: Mapping | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
     times, one per day chosen, added to those already there. An answer left empty
     is no answer; one half given says what is missing.
 
-    `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`."""
+    `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`; `day`,
+    if given, `{"wake", "bed", "lunch", "lunch_start", "lunch_end"}` (D69)."""
     kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
     rows = [dict(r) for r in subscription.busy_rows]
     for answer in answers:
@@ -2692,6 +2841,7 @@ def answer_routine(
         commute_minutes=commute_minutes,
         study_time=study_time,
         study_on_the_way=study_on_the_way,
+        day=day,
         now=now,
         strict=False,
     )
@@ -3681,6 +3831,7 @@ def calendar_view(
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
             lecture_changes=tuple(options.get("lecture_changes", ())),
+            lunch=lunch_hours(options),
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
     moment = (now or datetime.now(UTC)).astimezone(zone)
@@ -3818,6 +3969,7 @@ def setup_view(subscription: Subscription) -> dict:
         "warm_up": bool(options.get("warm_up", False)),
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
+        "day": day_view(subscription),
         "blocks_per_day": options["blocks_per_day"],
         "block_minutes": options["block_minutes"],
         "tz": options["tz"],
@@ -4231,6 +4383,13 @@ BADGES = (
         0,
     ),
     ("semester", "A new semester", "Carry on into your next semester.", "leaf", 2),
+    # A focus session's rewards (D67): the owner asked for them; on focused time,
+    # timed and checked by the page, never typed.
+    ("goal", "A goal kept", "Choose how long before you start the timer, and get there.", "clock", 3),
+    ("focus_30", "Half an hour of focus", "Stay with the timer for 30 minutes in one session.", "focus", 4),
+    ("focus_60", "An hour of focus", "Stay with the timer for an hour in one session.", "focus", 4),
+    ("focus_105", "1 h 45 of focus", "Stay with the timer for 1 h 45 in one session.", "focus", 4),
+    ("focus_150", "2 h 30 of focus", "Stay with the timer for 2 h 30 in one session.", "focus", 4),
 )
 
 
@@ -4269,6 +4428,26 @@ def badges_view(
             "SELECT at FROM card_reviews WHERE token = ? ORDER BY at LIMIT 1 OFFSET 99", (subscription.token,)
         ).fetchone()
     earned["cards"] = datetime.fromisoformat(row[0]).astimezone(zone).date() if row else None
+    timed = sorted(
+        (
+            p
+            for p in social.posts_of(where, subscription.token, "session")
+            if p.data.get("timed") and p.data.get("checked")
+        ),
+        key=lambda p: (p.day, p.created),
+    )
+    for n in (30, 60, 105, 150):
+        earned[f"focus_{n}"] = next(
+            (date.fromisoformat(p.day) for p in timed if int(p.data.get("minutes", 0)) >= n), None
+        )
+    earned["goal"] = next(
+        (
+            date.fromisoformat(p.day)
+            for p in timed
+            if int(p.data.get("goal", 0)) and int(p.data.get("minutes", 0)) >= int(p.data["goal"])
+        ),
+        None,
+    )
     explained = social.posts_of(where, subscription.token, "explain")
     earned["teacher"] = (
         min(datetime.fromisoformat(x.created) for x in explained).astimezone(zone).date()
@@ -4638,11 +4817,61 @@ FOCUS_GRACE = timedelta(seconds=75)
 FOCUS_LONGEST = timedelta(hours=12)
 
 
+def _instant(moment: datetime) -> str:
+    """A focus session's times, to the second (AUDIT item 65): kept to the minute,
+    a session started 50 s into a minute showed 0:00:50 at once, and each heartbeat
+    measured its gap from the minute before, often past the grace."""
+    return moment.isoformat(timespec="seconds")
+
+
+# How long a focus session is meant to last, chosen before starting (D67), in
+# minutes; 0 is no length. Its rewards come at 30 minutes, at an hour, then every
+# 45 minutes, and when the length chosen is reached; all on focused time, the time
+# on the page, so leaving the app does not earn them.
+FOCUS_GOALS = (25, 45, 60, 90, 120, 180)
+FOCUS_LADDER = (30, 60, *range(105, 12 * 60 + 1, 45))
+# How far ahead the page lists rewards: the length chosen, or six hours.
+FOCUS_HORIZON = 6 * 60
+_MINUTE = timedelta(minutes=1)
+
+
+def focus_goal(value: object) -> int:
+    """A length the student may choose, in minutes (0: none)."""
+    try:
+        goal = int(str(value or 0))
+    except ValueError:
+        goal = -1
+    if goal != 0 and goal not in FOCUS_GOALS:
+        raise InvalidInput(_("choose one of the lengths offered"))
+    return goal
+
+
+def reward_points(goal: int, horizon: int) -> list[int]:
+    """The minutes at which a session with `goal` earns a reward, up to `horizon`:
+    the ladder's, and the goal's own (D67)."""
+    points = {m for m in FOCUS_LADDER if m <= horizon}
+    if goal:
+        points.add(goal)
+    return sorted(points)
+
+
+def rewards_earned(goal: int, minutes: int) -> int:
+    """How many rewards `minutes` of focus earned, with `goal` chosen."""
+    return len(reward_points(goal, minutes)) - (1 if goal > minutes else 0)
+
+
 def start_focus(
-    subscription: Subscription, course: str, *, sid: str | None = None, now: datetime | None = None
+    subscription: Subscription,
+    course: str,
+    *,
+    sid: str | None = None,
+    goal: int = 0,
+    now: datetime | None = None,
 ) -> Subscription:
-    """Start the timer for `course`, or for the plan's session `sid`."""
+    """Start the timer for `course`, or for the plan's session `sid`, meant to last
+    `goal` minutes (0: no length chosen, D67)."""
     now = now or datetime.now(UTC)
+    goal = focus_goal(goal)
     if sid:
         session = find_session(subscription, sid)
         if session is None:
@@ -4654,10 +4883,11 @@ def start_focus(
     focus = {
         "course": course,
         "sid": sid or "",
-        "started": _iso(now),
-        "last": _iso(now),
+        "started": _instant(now),
+        "last": _instant(now),
         "away": 0,
         "interruptions": 0,
+        "goal": goal,
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
@@ -4672,7 +4902,7 @@ def _beat(focus: dict, now: datetime) -> dict:
         interruptions += 1
     return {
         **focus,
-        "last": _iso(now),
+        "last": _instant(now),
         "away": away,
         "interruptions": interruptions,
         "beats": focus["beats"] + 1,
@@ -4707,12 +4937,13 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "course": focus["course"],
         "sid": focus["sid"],
         "started": focus["started"],
-        "ended": _iso(now),
+        "ended": _instant(now),
         "minutes": max(1, round(focused / timedelta(minutes=1))),
         "away_minutes": round(focus["away"] / 60),
         "interruptions": focus["interruptions"],
         "checked": bool(focus["beats"]),
         "timed": True,
+        "goal": int(focus.get("goal", 0)),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
     return replace(subscription, options={**options, "focus_draft": draft})
@@ -4729,29 +4960,76 @@ def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
     focus = subscription.options.get("focus")
-    view: dict = {"running": bool(focus), "courses": course_names(subscription), "suggested": None}
+    view: dict = {
+        "running": bool(focus),
+        "courses": course_names(subscription),
+        "suggested": None,
+        "goals": [{"minutes": g, "label": duration_words(g)} for g in FOCUS_GOALS]
+        + [{"minutes": 0, "label": _("No limit")}],
+        "goal": 45,
+    }
     if focus:
         started = datetime.fromisoformat(focus["started"])
+        elapsed = round((now - started).total_seconds())
+        goal = int(focus.get("goal", 0))
         view.update(
             course=focus["course"],
             started=_iso(started),
             started_local=f"{started.astimezone(zone):%H:%M}",
-            elapsed=round((now - started).total_seconds()),
+            elapsed=elapsed,
+            away=focus["away"],
             away_minutes=round(focus["away"] / 60),
             interruptions=focus["interruptions"],
             beat=round(FOCUS_BEAT.total_seconds()),
+            goal=goal,
+            goal_words=duration_words(goal) if goal else "",
+            rewards=_focus_rewards(goal, max(0, elapsed - focus["away"])),
         )
     elif subscription.plan is not None:
         today = today_view(subscription, now)
         card = today.get("now") or (today.get("next") or [None])[0]
         if card is not None:
+            session = find_session(subscription, card["id"])
+            length = (
+                round((datetime.fromisoformat(session.end) - datetime.fromisoformat(session.start)) / _MINUTE)
+                if session is not None
+                else 45
+            )
             view["suggested"] = {
                 "id": card["id"],
                 "title": card["title"],
                 "label": card["label"],
                 "when": card["when"],
+                # The length offered first: the one nearest the session's own.
+                "goal": min(FOCUS_GOALS, key=lambda g: (abs(g - length), g)),
             }
     return view
+
+
+def _focus_rewards(goal: int, focused: int) -> list[dict]:
+    """The rewards a running session lists (D67): each at its focused second, with
+    what the spark says when it comes; those reached, and the next, are shown."""
+    rewards = []
+    shown_next = False
+    for minutes in reward_points(goal, max(goal, FOCUS_HORIZON)):
+        reached = focused >= minutes * 60
+        words = duration_words(minutes)
+        rewards.append(
+            {
+                "at": minutes * 60,
+                "label": words,
+                "goal": minutes == goal,
+                "reached": reached,
+                "shown": reached or not shown_next,
+                "cheer": _("Goal reached: {time} of focus.", time=words)
+                if minutes == goal
+                else _("{time} of focus!", time=words),
+            }
+        )
+        shown_next = shown_next or not reached
+    for reward, following in zip(rewards, [*rewards[1:], None], strict=True):
+        reward["next"] = _("Next: {time}.", time=following["label"]) if following else ""
+    return rewards
 
 
 def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
@@ -4767,6 +5045,7 @@ def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
         "checked": False,
         "away_minutes": 0,
         "interruptions": 0,
+        "goal": 0,
     }
 
 
@@ -4812,6 +5091,7 @@ def log_session(
         "checked": timed and draft["checked"],
         "away_minutes": draft["away_minutes"] if timed else 0,
         "interruptions": draft["interruptions"] if timed else 0,
+        "goal": draft.get("goal", 0) if timed else 0,
         "sid": draft.get("sid") or "",
     }
     visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
@@ -4894,6 +5174,17 @@ def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: Zon
         card["hours"] = format_number(int(d.get("minutes", 0)) / 60)
         card["duration"] = duration_words(int(d.get("minutes", 0)))
         if d.get("timed") and d.get("checked"):
+            goal, minutes = int(d.get("goal", 0)), int(d.get("minutes", 0))
+            card["rewards"] = rewards_earned(goal, minutes)
+            card["goal"] = (
+                (
+                    _("goal reached: {time}", time=duration_words(goal))
+                    if minutes >= goal
+                    else _("goal: {time}", time=duration_words(goal))
+                )
+                if goal
+                else ""
+            )
             card["focus"] = (
                 _n(
                     "left the app {n} time ({minutes} min)",
@@ -6942,9 +7233,9 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
     for e in plan.events:
         kind = (
             "exam"
-            if e.start in exams and e.source not in ("commute", "skipped")
+            if e.start in exams and e.source not in ("commute", "lunch", "skipped")
             else e.source
-            if e.source in ("typed", "commute", "skipped", *TEST_KINDS)
+            if e.source in ("typed", "commute", "lunch", "skipped", *TEST_KINDS)
             else "calendar"
         )
         label = (

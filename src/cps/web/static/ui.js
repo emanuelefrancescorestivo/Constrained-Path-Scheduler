@@ -177,6 +177,18 @@ async function reopen(form, name) {
   document.dispatchEvent(new CustomEvent("cps:changed"));
 }
 
+// -- Spark, floating (D71) --------------------------------------------------------
+// The bubble is a link to the coach; where the browser knows popovers, it opens
+// Spark's sheet instead.
+const spark = document.querySelector("[data-spark]");
+const sparkSheet = document.getElementById("spark-help");
+if (spark && sparkSheet && "popover" in HTMLElement.prototype) {
+  spark.addEventListener("click", (event) => {
+    event.preventDefault();
+    sparkSheet.showPopover();
+  });
+}
+
 // -- the new-task sheet --------------------------------------------------------
 
 const sheet = document.getElementById("quick-add");

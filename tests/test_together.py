@@ -183,11 +183,16 @@ def test_a_pasted_link_or_code_is_read():
 # --------------------------------------------------------------------------- #
 
 
-def test_badges_carry_the_day_they_were_earned_and_never_count_hours(tmp_path):
+def test_badges_carry_the_day_they_were_earned_and_never_count_hours_in_total(tmp_path):
     sub = _plan(tmp_path, tz="Europe/Paris")
     view = service.badges_view(tmp_path, sub, NOW)
     assert view["earned"] == 0 and view["total"] == len(service.BADGES)
-    assert all("hour" not in (b["label"] + b["how"]).lower() for b in view["badges"])
+    # D41 kept hours off the shelf; the owner asked for a focus session's length to
+    # earn badges (D67). Those say "in one session"; no badge adds hours up.
+    timed = [b for b in view["badges"] if b["key"].startswith("focus_")]
+    assert len(timed) == 4 and all("in one session" in b["how"] for b in timed)
+    rest = [b for b in view["badges"] if not b["key"].startswith("focus_")]
+    assert all("hour" not in (b["label"] + b["how"]).lower() for b in rest)
     plan = service.PlanReport.from_dict(sub.plan)
     week = [s for s in plan.sessions if datetime.fromisoformat(s.start) < NOW + timedelta(days=7)]
     later = NOW + timedelta(days=8)
