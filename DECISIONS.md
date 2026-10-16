@@ -2047,8 +2047,9 @@ hidden card (the break on Focus), are drawn right.
 **Rejected.** D63's neuron (the owner asked for a mascot); the brain in a cap (the
 owner's first pick, before the spark); a rendered 3D image (heavier, one picture per
 mood, not drawn in the page); an animation library (CSS is enough, and the
-Content-Security-Policy allows no inline script). A name: "Spark" is the drawing's
-working name; the sentences students read say "the app" until the owner names it.
+Content-Security-Policy allows no inline script). A name was left to the owner,
+who kept the drawing's working name on 2026-10-16 ("spark va bene"): Spark
+introduces itself while setting up (D70) and floats as the assistant (D71).
 
 **Disclosed.** As in D63, it is decoration and only carries the text
 [ref:schroeder2013]; which mood goes with which tip is a judgement, not measured.
