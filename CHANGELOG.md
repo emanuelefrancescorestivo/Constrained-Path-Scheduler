@@ -407,6 +407,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The focus clock starts at 0:00:00, and a page kept open no longer counts as time
+  away from it (AUDIT item 65).
 - A long button on the invitation page wraps on a phone (AUDIT item 56).
 - Chrome's push addresses are accepted for reminders (AUDIT item 55).
 - On a phone, the floating "+" no longer covers the Save button and the end of the

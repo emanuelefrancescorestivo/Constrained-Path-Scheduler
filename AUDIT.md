@@ -796,3 +796,16 @@ top navigation, Community's tabs) was drawn in the card colour, which in dark mo
 selected except the weight of its words. Fixed: a thumb colour of its own, white in
 light and gray in dark (`--thumb`), as iOS draws it. Status: fixed; checked in
 Chromium.
+
+**65. The focus clock started late and counted a page kept open as time away.**
+Reported by the owner, 2026-10-16: started 30 seconds into a minute, the focus
+timer showed 0:00:30 at once. The cause was larger than the clock: a focus session's
+times were kept to the minute (`_iso`, made for the plan's events), so the start was
+the minute before, and so was every heartbeat's time. A heartbeat's gap was then
+measured from that earlier minute and often passed the 75-second grace: started at
+:50 and kept open for 10 minutes, a session counted 10 times away and 500 seconds
+lost, so the diary showed fewer focused minutes and "left the app" when the student
+never had. The tests started every session on a whole minute, where nothing is cut.
+Fixed: a focus session keeps its times to the second (`service._instant`); a test
+starts one 50 seconds into a minute. Status: fixed; sessions logged before the fix
+keep what was measured then.

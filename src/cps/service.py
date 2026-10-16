@@ -4638,6 +4638,13 @@ FOCUS_GRACE = timedelta(seconds=75)
 FOCUS_LONGEST = timedelta(hours=12)
 
 
+def _instant(moment: datetime) -> str:
+    """A focus session's times, to the second (AUDIT item 65): kept to the minute,
+    a session started 50 s into a minute showed 0:00:50 at once, and each heartbeat
+    measured its gap from the minute before, often past the grace."""
+    return moment.isoformat(timespec="seconds")
+
+
 def start_focus(
     subscription: Subscription, course: str, *, sid: str | None = None, now: datetime | None = None
 ) -> Subscription:
@@ -4654,8 +4661,8 @@ def start_focus(
     focus = {
         "course": course,
         "sid": sid or "",
-        "started": _iso(now),
-        "last": _iso(now),
+        "started": _instant(now),
+        "last": _instant(now),
         "away": 0,
         "interruptions": 0,
     }
@@ -4672,7 +4679,7 @@ def _beat(focus: dict, now: datetime) -> dict:
         interruptions += 1
     return {
         **focus,
-        "last": _iso(now),
+        "last": _instant(now),
         "away": away,
         "interruptions": interruptions,
         "beats": focus["beats"] + 1,
@@ -4707,7 +4714,7 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "course": focus["course"],
         "sid": focus["sid"],
         "started": focus["started"],
-        "ended": _iso(now),
+        "ended": _instant(now),
         "minutes": max(1, round(focused / timedelta(minutes=1))),
         "away_minutes": round(focus["away"] / 60),
         "interruptions": focus["interruptions"],

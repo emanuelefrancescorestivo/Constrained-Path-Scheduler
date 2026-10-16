@@ -56,6 +56,20 @@ def test_the_timer_counts_time_away_from_the_page(sub):
     assert "focus" not in done.options
 
 
+def test_the_clock_starts_at_zero_and_a_page_kept_open_is_not_time_away(sub):
+    # AUDIT item 65: the times were kept to the minute, so a session started 50 s
+    # into a minute showed 0:00:50 at once, and each heartbeat measured its gap from
+    # the minute before, often more than the grace: time away on a page kept open.
+    start = NOW + timedelta(seconds=50)
+    running = service.start_focus(sub, "Algebra 3", now=start)
+    assert service.focus_view(running, start)["elapsed"] == 0
+    running = _beats(running, start, range(0, 600, 30))
+    view = service.focus_view(running, start + timedelta(seconds=600))
+    assert view["elapsed"] == 600 and view["interruptions"] == 0
+    draft = service.log_draft(service.finish_focus(running, now=start + timedelta(seconds=600)))
+    assert draft["minutes"] == 10 and draft["away_minutes"] == 0 and draft["interruptions"] == 0
+
+
 def test_without_the_script_the_focus_is_not_checked(sub):
     started = service.start_focus(sub, "Algebra 3", now=NOW)
     draft = service.log_draft(service.finish_focus(started, now=NOW + timedelta(minutes=45)))
