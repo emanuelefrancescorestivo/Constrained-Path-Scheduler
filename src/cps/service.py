@@ -265,7 +265,8 @@ class EventView:
     start: str  # ISO 8601, local
     end: str
     # "calendar" (the .ics), "typed" (busy rows), "commute" (made from the trip's
-    # length around each day's classes, `commute_events`), "skipped" (a class of
+    # length around each day's classes, `commute_events`), "lunch" (kept free every
+    # day, D69), "skipped" (a class of
     # the .ics the student will not attend, D60: shown, but not busy), or a class
     # that is a test (D61): "quiz", "mock" or "partial"
     source: str = "calendar"
@@ -364,6 +365,8 @@ class CalendarReport:
     study_on_the_way: bool = False
     # Classes the student will not attend (D60), as `options["lecture_changes"]`.
     lecture_changes: tuple[Mapping, ...] = ()
+    # Lunch, kept free every day (D69): its start and end, "12:30" and "13:30".
+    lunch: tuple[str, str] | None = None
 
     @property
     def block_slots(self) -> int:
@@ -392,6 +395,7 @@ class CalendarReport:
             "quick_tests": self.quick_tests,
             "study_on_the_way": self.study_on_the_way,
             "lecture_changes": [dict(c) for c in self.lecture_changes],
+            "lunch": list(self.lunch) if self.lunch else None,
         }
 
 
@@ -529,6 +533,21 @@ def commute_events(campus: Iterable[BusyEvent], minutes: int, zone: ZoneInfo, la
     return out
 
 
+def lunch_events(
+    lunch: tuple[str, str], start: date, days: int, zone: ZoneInfo, label: str
+) -> list[BusyEvent]:
+    """Lunch on each day of the horizon (D69), at the same wall-clock time."""
+    begin, end = (time.fromisoformat(x) for x in lunch)
+    return [
+        BusyEvent(
+            datetime.combine(start + timedelta(days=k), begin, tzinfo=zone),
+            datetime.combine(start + timedelta(days=k), end, tzinfo=zone),
+            label,
+        )
+        for k in range(days)
+    ]
+
+
 def analyse_calendar(
     ics: bytes | None = None,
     *,
@@ -544,6 +563,7 @@ def analyse_calendar(
     quick_tests: bool = False,
     study_on_the_way: bool = False,
     lecture_changes: Sequence[Mapping] = (),
+    lunch: tuple[str, str] | None = None,
 ) -> CalendarReport:
     """Read a calendar (an `.ics`, typed rows, or both) and find the free blocks.
     With `quick_tests`, also the gaps too short for a block, for quick self-tests;
@@ -551,7 +571,8 @@ def analyse_calendar(
     With `commute_minutes`, the trip to campus and back is busy too, around each
     day's events of the timetable and classes drawn by hand (`commute_events`).
     `lecture_changes` names classes of the timetable the student will not attend
-    (D60): they stay in `events` as "skipped", and their time is free.
+    (D60): they stay in `events` as "skipped", and their time is free. `lunch`,
+    a start and an end, is busy every day (D69).
 
     Without `days` the horizon runs to the latest assessment found in the next year,
     including its day, or 21 days if there is none. Assessments are looked for over
@@ -603,6 +624,9 @@ def analyse_calendar(
         tagged = sorted(
             tagged + [(e, "commute") for e in trips], key=lambda pair: (pair[0].start, pair[0].end)
         )
+    if lunch:
+        meals = lunch_events(lunch, start, days, _zone(tz), _("Lunch"))
+        tagged = sorted(tagged + [(e, "lunch") for e in meals], key=lambda pair: (pair[0].start, pair[0].end))
     events = [e for e, source in tagged if source != "skipped"]
     # A pause after training or work (D45): busy for the grid, not an event to show.
     pauses = [
@@ -678,6 +702,7 @@ def analyse_calendar(
         quick_tests=quick_tests,
         study_on_the_way=study_on_the_way,
         lecture_changes=tuple(dict(c) for c in lecture_changes),
+        lunch=(str(lunch[0]), str(lunch[1])) if lunch else None,
     )
 
 
@@ -1120,6 +1145,7 @@ def _extend(report: CalendarReport, days: int) -> CalendarReport:
         quick_tests=report.quick_tests,
         study_on_the_way=report.study_on_the_way,
         lecture_changes=report.lecture_changes,
+        lunch=report.lunch,
     )
 
 
@@ -1700,8 +1726,12 @@ def calendar_week(
     for event in source.events:
         if event.source == "typed" and not typed:
             continue
-        kind = event.source if event.source in ("typed", "commute", "skipped", *TEST_KINDS) else "calendar"
-        if event.start in exams and event.source not in ("commute", "skipped"):
+        kind = (
+            event.source
+            if event.source in ("typed", "commute", "lunch", "skipped", *TEST_KINDS)
+            else "calendar"
+        )
+        if event.start in exams and event.source not in ("commute", "lunch", "skipped"):
             kind = "exam"
             shown_exams.add(event.start)
         label = (
@@ -1711,7 +1741,7 @@ def calendar_week(
             if kind in TEST_KINDS
             else short_title(event.summary)
         )
-        course = None if kind == "commute" else exams.get(event.start) or course_of(event.summary)
+        course = None if kind in ("commute", "lunch") else exams.get(event.start) or course_of(event.summary)
         lo, hi = datetime.fromisoformat(event.start), datetime.fromisoformat(event.end)
         changeable = ("calendar", "skipped", *TEST_KINDS)
         named = {"at": event.start, "ref": lecture_ref(event.summary)} if kind in changeable else {}
@@ -2097,6 +2127,7 @@ def _refresh(
             quick_tests=bool(options.get("quick_tests", False)),
             study_on_the_way=bool(options.get("study_on_the_way", False)),
             lecture_changes=tuple(options.get("lecture_changes", ())),
+            lunch=lunch_hours(options),
         )
         done: tuple[SessionView, ...] = ()
         if subscription.plan is not None:
@@ -2488,6 +2519,7 @@ def revise_subscription(
     study_on_the_way: bool | None = None,
     warm_up: bool | None = None,
     lecture_changes: Sequence[Mapping] | None = None,
+    day: Mapping | None = None,
     **options: Any,
 ) -> Subscription:
     """Change what the plan is made from (subjects, deadlines, activities, the trip
@@ -2502,6 +2534,18 @@ def revise_subscription(
     if unknown:
         raise InvalidInput(f"unknown settings: {', '.join(sorted(unknown))}")
     merged.update(options)
+    if day is not None:
+        # When the student gets up, goes to bed and has lunch (D69): it sets the
+        # study window too.
+        merged.update(
+            _day_options(
+                day.get("wake"),
+                day.get("bed"),
+                str(day.get("lunch") or ""),
+                day.get("lunch_start"),
+                day.get("lunch_end"),
+            )
+        )
     if commute_minutes is not None:
         if not 0 <= int(commute_minutes) <= MAX_COMMUTE_MINUTES:
             raise InvalidInput(
@@ -2634,6 +2678,91 @@ STUDY_TIME_WORDS = (
 )
 
 
+# The student's day (D69): when they get up and go to bed, and lunch. Study is
+# planned from half an hour after getting up to half an hour before bed (a bed
+# after midnight: until midnight, the planner's day); lunch is kept free every day
+# unless the student would rather study then.
+DAY_MARGIN = 0.5  # hours
+LUNCH_DEFAULT = ("12:30", "13:30")
+LUNCH_CHOICES = (("free", "Keep it free"), ("study", "I can study then"))
+SHORTEST_DAY = 3.0  # hours between getting up and going to bed, at least
+
+
+def _hours_of(text: object, what: str) -> float:
+    try:
+        moment = time.fromisoformat(str(text or "").strip())
+    except ValueError:
+        raise InvalidInput(_("{what}: give a time like 07:30", what=what)) from None
+    return moment.hour + moment.minute / 60
+
+
+def _clock_of(hours: float) -> str:
+    minutes = round(hours * 60) % (24 * 60)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def lunch_hours(options: Mapping) -> tuple[str, str] | None:
+    """Lunch's start and end when it is kept free (D69), else None."""
+    lunch = options.get("lunch") or {}
+    return (lunch["start"], lunch["end"]) if lunch.get("free") else None
+
+
+def day_view(subscription: Subscription) -> dict:
+    """When the student gets up and goes to bed, and lunch (D69). A plan made
+    before these questions shows its study window widened by the margins."""
+    options = subscription.options
+    first, last = (float(x) for x in options["study_window"])
+    lunch = options.get("lunch") or {}
+    return {
+        "wake": options.get("wake") or _clock_of(max(first - DAY_MARGIN, 0)),
+        "bed": options.get("bed") or _clock_of(min(last + DAY_MARGIN, 24)),
+        "lunch_start": lunch.get("start", LUNCH_DEFAULT[0]),
+        "lunch_end": lunch.get("end", LUNCH_DEFAULT[1]),
+        "lunch": ("free" if lunch.get("free") else "study") if lunch else "free",
+        "lunch_choices": LUNCH_CHOICES,
+    }
+
+
+def _day_options(wake: object, bed: object, lunch: str, lunch_start: object, lunch_end: object) -> dict:
+    """The options a day sets (D69), checked: the times, the study window they
+    leave, lunch."""
+    up = _hours_of(wake, _("Get up"))
+    down = _hours_of(bed, _("Go to bed"))
+    if down <= up:
+        down += 24  # to bed after midnight
+    first = math.ceil((up + DAY_MARGIN) * 4) / 4
+    last = math.floor(min(down - DAY_MARGIN, 24.0) * 4) / 4
+    if down - up < SHORTEST_DAY or last - first < SHORTEST_DAY - 2 * DAY_MARGIN:
+        raise InvalidInput(
+            _("leave at least three hours between getting up and going to bed, before midnight")
+        )
+    out: dict[str, Any] = {"wake": _clock_of(up), "bed": _clock_of(down), "study_window": [first, last]}
+    if lunch not in dict(LUNCH_CHOICES):
+        raise InvalidInput(_("say whether lunch is kept free"))
+    begin = _hours_of(lunch_start, _("Lunch"))
+    end = _hours_of(lunch_end, _("Lunch"))
+    if end <= begin:
+        raise InvalidInput(_("lunch must end after it starts"))
+    out["lunch"] = {"start": _clock_of(begin), "end": _clock_of(end), "free": lunch == "free"}
+    return out
+
+
+def set_day(
+    subscription: Subscription,
+    *,
+    wake: object,
+    bed: object,
+    lunch: str = "free",
+    lunch_start: object = LUNCH_DEFAULT[0],
+    lunch_end: object = LUNCH_DEFAULT[1],
+    now: datetime | None = None,
+    strict: bool = True,
+) -> Subscription:
+    """The student's day (D69), planned around at once."""
+    day = {"wake": wake, "bed": bed, "lunch": lunch, "lunch_start": lunch_start, "lunch_end": lunch_end}
+    return revise_subscription(subscription, day=day, now=now, strict=strict)
+
+
 def routine_view(subscription: Subscription) -> dict:
     """What the questions about the week show: the trip's choices with the current
     one, the questions, the days, and how many busy times of each kind are there."""
@@ -2665,13 +2794,15 @@ def answer_routine(
     now: datetime | None = None,
     study_time: str | None = None,
     study_on_the_way: bool | None = None,
+    day: Mapping | None = None,
 ) -> Subscription:
     """The answers to the questions about the week (D42), planned around at once:
     the trip to university (`commute_events`), and each other answer as weekly busy
     times, one per day chosen, added to those already there. An answer left empty
     is no answer; one half given says what is missing.
 
-    `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`."""
+    `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`; `day`,
+    if given, `{"wake", "bed", "lunch", "lunch_start", "lunch_end"}` (D69)."""
     kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
     rows = [dict(r) for r in subscription.busy_rows]
     for answer in answers:
@@ -2697,6 +2828,7 @@ def answer_routine(
         commute_minutes=commute_minutes,
         study_time=study_time,
         study_on_the_way=study_on_the_way,
+        day=day,
         now=now,
         strict=False,
     )
@@ -3686,6 +3818,7 @@ def calendar_view(
             busy_rows=subscription.busy_rows,
             commute_minutes=int(options.get("commute_minutes", 0)),
             lecture_changes=tuple(options.get("lecture_changes", ())),
+            lunch=lunch_hours(options),
         )
     week = calendar_week(source, 0, typed=False, first=first, count=count, history=True)
     moment = (now or datetime.now(UTC)).astimezone(zone)
@@ -3823,6 +3956,7 @@ def setup_view(subscription: Subscription) -> dict:
         "warm_up": bool(options.get("warm_up", False)),
         "commute_choices": sorted({*COMMUTE_CHOICES, int(options.get("commute_minutes", 0))}),
         "study_window": list(options["study_window"]),
+        "day": day_view(subscription),
         "blocks_per_day": options["blocks_per_day"],
         "block_minutes": options["block_minutes"],
         "tz": options["tz"],
@@ -7086,9 +7220,9 @@ def agenda(subscription: Subscription, week: int, now: datetime | None = None) -
     for e in plan.events:
         kind = (
             "exam"
-            if e.start in exams and e.source not in ("commute", "skipped")
+            if e.start in exams and e.source not in ("commute", "lunch", "skipped")
             else e.source
-            if e.source in ("typed", "commute", "skipped", *TEST_KINDS)
+            if e.source in ("typed", "commute", "lunch", "skipped", *TEST_KINDS)
             else "calendar"
         )
         label = (

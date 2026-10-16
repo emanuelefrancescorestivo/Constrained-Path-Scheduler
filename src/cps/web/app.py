@@ -2073,6 +2073,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "routine.html",
             token=token,
             view=service.routine_view(subscription),
+            day=service.day_view(subscription),
             new=bool(new),
             typed=[],
             tab="settings",
@@ -2088,6 +2089,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         form = await request.form(max_files=0, max_fields=200)
         new = form.get("new") == "1"
         answers: list[dict] = []
+        day = (
+            {k: str(form.get(k) or "") for k in ("wake", "bed", "lunch", "lunch_start", "lunch_end")}
+            if form.get("wake") is not None
+            else None
+        )
         try:
             commute, answers = forms.routine_answers(form)
             service.update_subscription(
@@ -2100,6 +2106,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     now=config.clock(),
                     study_time=str(form.get("study_time") or "") or None,
                     study_on_the_way=bool(form.get("study_on_the_way")) if form.get("way_shown") else None,
+                    day=day,
                 ),
             )
         except service.ServiceError as error:
@@ -2116,6 +2123,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 400,
                 token=token,
                 view=view,
+                day={**service.day_view(subscription), **(day or {})},
                 new=new,
                 typed=answers,
                 error=str(error),

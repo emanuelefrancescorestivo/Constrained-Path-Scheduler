@@ -793,6 +793,8 @@ export class Calendar {
         ? t("An exam from your timetable. Practice sessions are planned in the two weeks before it.")
         : box.kind === "commute"
           ? t("Your trip to university, before the day's first class and after its last. Change its length in Settings.")
+          : box.kind === "lunch"
+            ? t("Lunch, kept free every day. Change its time in Settings.")
           : box.kind === "skipped"
             ? (box.weekly ? t("You skip this class every week: its time is free for the plan.") : t("You skip this class: its time is free for the plan."))
             : box.kind === "quiz"

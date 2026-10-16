@@ -162,12 +162,7 @@
     <label class="pill"><input type="checkbox" name="rest" value="{{ d }}"{% if d in values.rest_days %} checked{% endif %}><span>{{ _(d) }}</span></label>
   {% endfor %}
   </div>
-  <div class="row">
-    <div><label for="from_hour">{{ _("Study from") }}</label>
-    <select id="from_hour" name="from_hour">{% for h in range(0, 24) %}<option value="{{ h }}"{% if h == values.study_window[0] | float | int %} selected{% endif %}>{{ '%02d:00' % h }}</option>{% endfor %}</select></div>
-    <div><label for="to_hour">{{ _("until") }}</label>
-    <select id="to_hour" name="to_hour">{% for h in range(1, 25) %}<option value="{{ h }}"{% if h == values.study_window[1] | float | int %} selected{% endif %}>{{ '%02d:00' % h }}</option>{% endfor %}</select></div>
-  </div>
+  {% with day = values.day %}{% include "_day.html" %}{% endwith %}
   <div class="row">
     <div><label for="blocks_per_day">{{ _("Sessions a day at most") }}</label>
     <select id="blocks_per_day" name="blocks_per_day">{% for k in range(1, 7) %}<option{% if k == values.blocks_per_day | int %} selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>

@@ -1507,4 +1507,18 @@ MESSAGES: dict[str, str] = {
     "Stay with the timer for 1 h 45 in one session.": "Reste 1 h 45 avec le minuteur en une séance.",
     "2 h 30 of focus": "2 h 30 de concentration",
     "Stay with the timer for 2 h 30 in one session.": "Reste 2 h 30 avec le minuteur en une séance.",
+    # The student's day: getting up, going to bed, lunch (D69)
+    "Lunch": "Déjeuner",
+    "Your day": "Ta journée",
+    "I get up at": "Je me lève à",
+    "I go to bed at": "Je me couche à",
+    "Nothing is planned in the half hour after you get up or before you go to bed.": "Rien n'est prévu dans la demi-heure après ton lever ni avant ton coucher.",
+    "Keep it free": "Le garder libre",
+    "I can study then": "Je peux réviser à ce moment-là",
+    "Get up": "Lever",
+    "Go to bed": "Coucher",
+    "{what}: give a time like 07:30": "{what} : donne une heure comme 07:30",
+    "leave at least three hours between getting up and going to bed, before midnight": "laisse au moins trois heures entre le lever et le coucher, avant minuit",
+    "say whether lunch is kept free": "dis si le déjeuner reste libre",
+    "lunch must end after it starts": "le déjeuner doit finir après avoir commencé",
 }

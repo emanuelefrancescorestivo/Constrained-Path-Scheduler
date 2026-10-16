@@ -77,6 +77,11 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "rest_days": rest_days,
         "practice_hours": form.get("practice_hours", "").strip(),
         "study_window": [form.get("from_hour", "8"), form.get("to_hour", "22")],
+        # When the student gets up and goes to bed, and lunch (D69): the study
+        # window is made from them, when the form asked.
+        "day": {k: form.get(k, "") for k in ("wake", "bed", "lunch", "lunch_start", "lunch_end")}
+        if form.get("wake") is not None
+        else None,
         "blocks_per_day": form.get("blocks_per_day", "2"),
         "block_minutes": form.get("block_minutes", "90"),
         # Absent while setting up: the next step asks about the trip (D42) and when
@@ -136,9 +141,15 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
                 if _number(str(s.get("weight") or "1"), s["name"]) != 1.0
             },
         },
-        "study_window": (
-            _number(str(values["study_window"][0]), service.translate("Study from")),
-            _number(str(values["study_window"][1]), service.translate("until")),
+        **(
+            {"day": values["day"]}
+            if values.get("day") is not None
+            else {
+                "study_window": (
+                    _number(str(values["study_window"][0]), service.translate("Study from")),
+                    _number(str(values["study_window"][1]), service.translate("until")),
+                )
+            }
         ),
         "blocks_per_day": int(
             _number(str(values["blocks_per_day"]), service.translate("Sessions a day at most"))

@@ -2122,3 +2122,33 @@ snapping).
 emulated; not on a real phone. Where a browser does not know the `scrollend` event
 (which ones was not checked), the strip's resting place is taken after a pause of
 160 ms.
+
+## D69. The student's day: getting up, going to bed, lunch
+
+*The owner, 2026-10-16: "the user can choose when they go to bed and when they wake
+up, when they have lunch if they want to work or not".*
+
+**Chosen.** "Your day" is the first card of the questions about the week (D42) and
+replaces "Study from … until …" in Settings: when the student gets up and goes to
+bed (times to the quarter hour), and lunch, from and to, with "Keep it free" (the
+default) or "I can study then". Sessions are planned from half an hour after getting
+up to half an hour before bed: the study window is made from them, rounded
+inward to the quarter hour. A bedtime after midnight ends the
+window at midnight, the planner's day. Lunch kept free is busy every day, weekends
+too, and shows on the calendar hatched like the trip to university (D42), with a
+line saying where to change it; studied through, it is kept but blocks nothing.
+
+A plan made before these questions keeps its study window and shows it widened by
+the half hours (8 to 22 reads "07:30" and "22:30"); nothing is kept free at lunch
+until the student says so. The questions refuse a day shorter than three hours, a
+time that is not one, and a lunch that ends before it starts.
+
+**Rejected.** Sleep as busy events on the calendar (the night is already shaded
+outside the window, D59); a lunch per weekday (one answer covers most students; a
+day that differs can be drawn on the calendar as busy time); asking for dinner too
+(not asked for; an evening class or a dinner is busy time like any other).
+
+**Disclosed.** The half hours at each end are a stated choice, not measured. A
+student who works nights, getting up in the evening, cannot say so here: the
+window is one stretch within a day. Checked in Chromium at 1280 and 390 px, light
+and dark.

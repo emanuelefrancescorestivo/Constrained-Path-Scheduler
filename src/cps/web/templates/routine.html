@@ -13,6 +13,11 @@
 {% if new %}<input type="hidden" name="new" value="1">{% endif %}
 
 <section class="card question">
+  <h2 id="q-day">{{ _("Your day") }}</h2>
+  {% include "_day.html" %}
+</section>
+
+<section class="card question">
   <h2 id="q-commute">{{ _("How long is your trip to university?") }}</h2>
   <p class="hint">{{ _("One way. It is kept free before your first class and after your last, on each day you have classes.") }}</p>
   <div class="pills" role="radiogroup" aria-labelledby="q-commute">

@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Your day (D69): when you get up and go to bed (nothing is planned in the half hour
+  after or before), and lunch, kept free every day or not; on the questions about the
+  week and in Settings, in place of "Study from … until".
 - The calendar scrolls sideways, a day at a time (D68), with a swipe or a trackpad,
   as Notion Calendar and Google Calendar do; the day names stay on top and the hours
   on the left.

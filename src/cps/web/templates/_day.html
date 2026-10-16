@@ -1,0 +1,20 @@
+{# The student's day (D69): when they get up and go to bed, and lunch, kept free
+   or not. On Settings and on the questions about the week; `day` is
+   service.day_view, or what was sent back with an error. #}
+<div class="row">
+  <div><label for="wake">{{ _("I get up at") }}</label>
+  <input id="wake" name="wake" type="time" step="900" value="{{ day.wake }}" required></div>
+  <div><label for="bed">{{ _("I go to bed at") }}</label>
+  <input id="bed" name="bed" type="time" step="900" value="{{ day.bed }}" required></div>
+</div>
+<p class="hint">{{ _("Nothing is planned in the half hour after you get up or before you go to bed.") }}</p>
+<p class="label" id="lunch-label">{{ _("Lunch") }}</p>
+<div class="row">
+  <div><label for="lunch_start">{{ _("From") }}</label>
+  <input id="lunch_start" name="lunch_start" type="time" step="900" value="{{ day.lunch_start }}" required></div>
+  <div><label for="lunch_end">{{ _("to") }}</label>
+  <input id="lunch_end" name="lunch_end" type="time" step="900" value="{{ day.lunch_end }}" required></div>
+</div>
+<div class="pills" role="radiogroup" aria-labelledby="lunch-label">
+  {% for value, words in (("free", "Keep it free"), ("study", "I can study then")) %}<label class="pill"><input type="radio" name="lunch" value="{{ value }}"{% if day.lunch == value %} checked{% endif %}><span>{{ _(words) }}</span></label>{% endfor %}
+</div>

@@ -684,12 +684,13 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .ev-own::before { background: var(--busy); }
 /* The trip to campus, made from the answer about it (D42): busy like the student's
    own time, but not theirs to drag; Settings changes its length */
-.ev-commute {
+/* The trip, and lunch kept free (D69): time the plan keeps clear, hatched. */
+.ev-commute, .ev-lunch {
   background: repeating-linear-gradient(135deg, var(--fill-4) 0 4px, transparent 4px 8px), var(--surface);
   color: var(--text);
 }
-.ev-commute .l { color: var(--muted); }
-.ev-commute::before { background: var(--busy); opacity: 0.6; width: 2px; }
+.ev-commute .l, .ev-lunch .l { color: var(--muted); }
+.ev-commute::before, .ev-lunch::before { background: var(--busy); opacity: 0.6; width: 2px; }
 .ev .grip { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
 .ev.dragging { z-index: 20; opacity: 0.95; box-shadow: var(--shadow); cursor: grabbing; transform: scale(1.02); }
 .ev.ghost { z-index: 15; opacity: 0.8; background: var(--accent-soft); color: var(--accent); pointer-events: none; border-radius: 6px; }
