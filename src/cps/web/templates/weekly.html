@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ _("The weekly note") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/tips">{{ _("Study tips") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("The weekly note") }}</h1>
+  <p>{{ _("One study a week on how we learn, in plain words, with its source.") }}</p>
+</div>
+{% if view.notes %}
+<div class="card">
+  <ul class="list weekly-list">
+  {% for n in view.notes %}
+    <li><a class="weekly-row" href="/p/{{ token }}/weekly/{{ n.key }}">
+      <span class="grow"><span class="meta">{{ _("Week {n}", n=n.week) }}</span><b>{{ n.title }}</b></span>
+      {% if n.unread and loop.first %}<span class="badge badge-accent">{{ _("New") }}</span>{% endif %}
+      <span class="chev" aria-hidden="true">›</span>
+    </a></li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% if view.next %}<p class="hint section">{{ _("The next note comes on {day}.", day=view.next) }}</p>{% endif %}
+{% endblock %}

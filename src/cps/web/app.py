@@ -30,6 +30,7 @@ and fills templates (invariant 11).
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -557,6 +558,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             ),
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
+            "tip": service.tip_of_the_day(subscription, now),
+            "weekly_note": service.note_of_the_week(subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
@@ -656,8 +659,83 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             focus=service.focus_view(subscription, config.clock()),
             cards_due=service.cards_due(store, subscription, config.clock()),
+            tip=service.focus_tip(subscription),
             tab="focus",
         )
+
+    @app.get("/p/{token}/tips", response_class=HTMLResponse)
+    def tips(request: Request, token: str) -> HTMLResponse:
+        """What research says about studying well, each tip with its evidence (D62)."""
+        if load(token) is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        service.log_tips(store, token)
+        return page(request, "tips.html", token=token, view=service.tips_view(), tab="focus")
+
+    def coach_page(
+        request: Request, token: str, subscription: service.Subscription, **context: Any
+    ) -> HTMLResponse:
+        return page(
+            request,
+            "coach.html",
+            token=token,
+            limit=service.COACH_MAX,
+            by_ai=service.ai_available() and service.ai_on(subscription),
+            ai_available=service.ai_available(),
+            tab="focus",
+            **context,
+        )
+
+    @app.get("/p/{token}/coach", response_class=HTMLResponse)
+    def coach(request: Request, token: str) -> HTMLResponse:
+        """Ask the coach (D65): a question about studying, answered from the tips."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        return coach_page(request, token, subscription)
+
+    @app.post("/p/{token}/coach", response_class=HTMLResponse)
+    async def ask_coach(request: Request, token: str) -> HTMLResponse:
+        """The answer, on the same page; neither the question nor the answer is kept."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        asked = str(form.get("question") or "")[: service.COACH_MAX + 100]
+        try:
+            answer = service.coach(store, subscription, asked, now=config.clock())
+        except service.ServiceError as error:
+            return coach_page(request, token, subscription, asked=asked, error=str(error))
+        return coach_page(request, token, subscription, asked=asked, answer=answer)
+
+    @app.get("/p/{token}/weekly", response_class=HTMLResponse)
+    def weekly(request: Request, token: str) -> HTMLResponse:
+        """The weekly notes so far, this week's first (D64)."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        view = service.weekly_view(subscription, config.clock())
+        return page(request, "weekly.html", token=token, view=view, tab="focus")
+
+    @app.get("/p/{token}/weekly/{key}", response_class=HTMLResponse)
+    def weekly_note(request: Request, token: str, key: str) -> HTMLResponse:
+        """One weekly note; opening it marks it read (D64)."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        note = service.weekly_note(subscription, key, config.clock())
+        if note is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        if note["unread"]:
+            with contextlib.suppress(service.ServiceError):
+                service.update_subscription(store, token, lambda now: service.mark_note_read(now, key))
+        service.log_event(store, token, "weekly", key)
+        return page(request, "weekly_note.html", token=token, note=note, tab="focus")
 
     async def focus_change(
         request: Request,
@@ -1717,6 +1795,20 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "motion", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
 
+    @app.post("/p/{token}/tip-setting")
+    async def tip_setting(request: Request, token: str) -> Response:
+        """Tips on Today and Focus, on or off (D63)."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        chosen = str(form.get("tips") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.set_tips(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "tips setting", chosen)
+        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
         """The week as a list of days: the calendar for a browser without scripts."""
@@ -1912,6 +2004,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             account=service.account_view(store, subscription, config.clock()),
             reminders=service.reminders_view(store, subscription),
+            tips_on=service.tips_on(subscription),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)

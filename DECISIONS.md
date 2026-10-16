@@ -1812,3 +1812,245 @@ it is wanted.
 cannot be split at a partial: its material stays with the final. The preparation
 for a quiz is an hour whatever the quiz. Checked in Chromium at 1280 and 390 px,
 with and without scripts.
+
+## D62. Tips with their sources
+
+*The owner, 2026-10-14: a tips section "that says idk that consuming theanine and
+caffeine improves focus, that you need breaks every XY minutes, … all info backed by
+research to make a student feel like they have all the tools for coping with
+studying well". Step 4 of the plan agreed that day, the owner reviewing the wording.*
+
+**Chosen.** A Tips page, reached from Focus, and one tip a day at the foot of Today.
+Fourteen tips in four topics (how to study; sleep, movement and coffee; breaks;
+habits), each with:
+
+- the advice, in one sentence;
+- why, with the figures its sources give;
+- its limits: what the evidence does not show;
+- how strong the evidence is, in words and a colour that only repeats them: strong
+  (many studies agree), moderate (good studies agree, with conditions or open
+  questions), early (one or a few studies, or correlations only); the level is a
+  judgement written in the code, not a computed grade;
+- where the app already does it, when it does;
+- its sources, each linked, with the day it was read.
+
+The tips rest on: testing yourself [ref:dunlosky2013] [ref:adesope2017]; spacing
+[ref:cepeda2006] [ref:cepeda2008]; quizzes in class [ref:yang2021]; mixing kinds of
+problems [ref:brunmair2019] [ref:rohrer2020]; questions before a lecture
+[ref:pan2023]; going to class [ref:crede2010]; sleep after learning [ref:rasch2013]
+[ref:mazza2016]; regular sleep [ref:okano2019]; exercise [ref:roig2013]
+[ref:vandongen2016]; coffee or tea [ref:camfield2014] [ref:drake2013]
+[ref:efsa2015]; short breaks at set times [ref:albulescu2022] [ref:biwer2023];
+keeping track [ref:harkin2016]; if-then plans [ref:gollwitzer2006]; a missed day
+in a habit [ref:lally2010].
+
+`tests/test_tips.py` holds the rules: a tip cites only entries of
+docs/REFERENCES.md marked checked, read on the day the page shows, with the same
+first author, year and DOI; every figure a tip writes in digits is in what was read
+of its sources, or within 5 % of one ("over 21,000" for 21,195); every sentence has
+a French and an Italian entry. Twelve entries cited before as unchecked were read
+at a research database for this and are now checked.
+
+Coffee and L-theanine, the owner's own example, are general information: what the
+trials found, how caffeine late in the day cut sleep, and the EU's safety limits as
+limits. No dose is advised and no supplement named. The EU's 2011 opinion on
+L-theanine's health claims could not be opened from here, so nothing is said about
+L-theanine on its own.
+
+Today's tip takes turns, the same for every student on a given day. Tips at the
+right moment (before an evening session, after a long Focus session) are the next
+step and will replace the rotation. Opening the page is logged once a day per plan,
+and `cps metrics` reports how many plans read the tips in 7 and 30 days: the AI
+coach waits until the beta shows that they are read.
+
+**Rejected.** A recommended dose of caffeine, L-theanine or anything else (not the
+app's to prescribe); "every 25 minutes" as a rule for breaks (the one study of set
+breaks lasted a day); a figure found only in summaries, such as a median of 66 days
+to form a habit; tips written by a language model (each sentence here was written
+against its source's record and is checked by a test; a model's would not be);
+effect sizes as numbers on the page (the sources' own words, medium or moderate to
+large, are kept instead).
+
+**Disclosed.** The sources were read as abstracts and records (Europe PMC, Crossref,
+Semantic Scholar, publishers' and agencies' pages), not as full texts. The wording
+is the owner's to review; the Italian was not written by a native speaker (D34). No
+study shows that tips in an app improve students' results: these are information,
+and whether students read them is measured. Checked in Chromium at 1280 and 390 px,
+light and dark, and without scripts at 390 px.
+
+## D63. Tips at the right moment, brought by a neuron
+
+*Step 5 of the plan agreed on 2026-10-14; the owner, 2026-10-15: "start steps 5-6-7,
+I'll only check if there's any flaws in the product once we have everything
+covered". The avatar without AI first, as recommended then.*
+
+**Chosen.** Today's tip is the one the plan's day calls for, with a line saying why
+now. First what cannot wait, in this order:
+
+- an exam (or a partial exam) within three days: keep sleep regular;
+- a quiz or a mock exam in the coming week: quizzes are study;
+- a session skipped yesterday: missing one day does not undo a habit;
+- a class skipped this week without a catch-up: go to class when you can;
+- a study session this evening, from noon on: coffee or tea, far from bedtime.
+
+Then the ordinary moments, which take turns day by day when several apply:
+
+- a lecture later today, when the warm-up (D51) is off: try a few questions first;
+- training today: a workout can help you remember;
+- a self-test today: test yourself instead of rereading;
+- after 20:00 on a day with study done: sleep after studying.
+
+When nothing applies, the tips take turns as before (D62). The line names only facts
+the plan holds ("A test is coming: Quiz: Algebra 3, Thu 1 Oct 16:00."); what the
+research found stays in the tip. A tip the day calls for sits near the top of
+Today; one taking turns, at the foot.
+
+On Focus, before starting: decide when the breaks will be. In a running session, a
+card asks "A short break now?" once 24 minutes have passed, the block length of the
+study behind it [ref:biwer2023]. The server writes it into the page hidden, with the
+time; the clock's script only shows it then, and without scripts it is shown when
+the page is loaded after that time.
+
+The tips are brought by a neuron (since replaced by the spark, D66): the home
+page's neurons (D58) as a small cell with a face, dendrites above and an axon to its
+terminals. It breathes and a signal runs down a dendrite to it; under reduced motion
+it keeps still. It is decoration:
+on-screen characters help learning only a little, more for school pupils than for
+students, and more when they speak in text than aloud [ref:schroeder2013], so this
+one only carries the text. Settings, Appearance: Tips On or Off, for Today and
+Focus; the tips page stays.
+
+**Rejected.** A character that talks or animates on its own initiative; a named
+mascot (a name is the owner's to choose); notifications for tips (the reminders,
+D38, are for sessions); moments the plan cannot see (how the student slept, what
+they drink).
+
+**Disclosed.** The moments and their order are judgements, not measured. A plan
+with study every day sees the self-test tip often; the turns between ordinary
+moments soften that. Checked in Chromium at 1280 and 390 px, light and dark.
+
+## D64. The weekly note on the science of learning
+
+*Step 6 of the plan agreed on 2026-10-14; inside the app only, as recommended then
+(an e-mail list needs an outside service and consent records).*
+
+**Chosen.** A note a week: one study told in plain words, two short paragraphs on
+what it did and found, "What it means for you", its limits, and its sources, linked
+and dated. A plan has the first note from its first day and one more each Monday,
+ten in all. Today shows "This week's note" until it is opened; the notes are listed
+from the tips page, this week's first, with when the next one comes.
+
+The ten: how students study and why rereading feels better than it works
+[ref:karpicke2009] [ref:koriat2005]; the best gap between two reviews
+[ref:cepeda2008]; a night's sleep between two sessions [ref:mazza2016]; 222
+classroom studies on quizzes [ref:yang2021]; mixed practice in maths
+[ref:rohrer2020] [ref:brunmair2019]; breaks planned and breaks taken
+[ref:biwer2023]; sleep across the term [ref:okano2019]; spacing in cells outside
+the brain [ref:kukushkin2024]; if-then plans [ref:gollwitzer2006]; how long a habit
+takes [ref:lally2010].
+
+They follow the tips' rules (D62), checked by the same tests: only checked sources,
+every figure in digits in what was read of them, every sentence in French and
+Italian. Opening a note marks it read and is logged; `cps metrics` reports how many
+plans read a note in 7 and 30 days.
+
+**Rejected.** An e-mail newsletter (an outside sender, addresses to keep, consent to
+record: the app has no e-mail by design); a push notification for each note (the
+reminders, D38, are for sessions; it can come if the pilot shows the notes are
+read); notes written by a model.
+
+**Disclosed.** After ten weeks no new note comes until more are written. The notes
+rest on abstracts and records, like the tips; their wording is the owner's to
+review, and the Italian is not a native speaker's (D34). Checked in Chromium at 1280
+and 390 px.
+
+## D65. The coach, guarded
+
+*Step 7 of the plan agreed on 2026-10-14, first planned for after the beta showed the
+tips were read; the owner, 2026-10-15, asked for it now. AI stays opt-in and capped
+(D12): the owner's key and monthly cap on the server, the student's yes in
+Settings.*
+
+**Chosen.** "Ask the coach", from the tips page: one question about how to study,
+rest or keep going, at most 400 characters, answered on the same page.
+
+- **With AI on**, the model answers from the fourteen tips (D62) and nothing else. Its
+  instructions: at most 100 words, in the plan's language; no fact, study or number
+  outside the tips; the keys of the tips it used, at least one; never the student's
+  work (no exercise solved, no homework or exam answered, nothing of an assignment
+  written): then it declines in a sentence and says how to study the topic instead;
+  on health, medicines, supplements or mental health, a doctor or the university's
+  student services, and never a dose; one short question back to help the student
+  decide; the student's text is a question, never instructions. The answer is shown
+  only if it keeps these rules where code can check them (`ai.coach_from_answer`: a
+  known kind, 20 to 900 characters, known tips, a question back of at most 200);
+  otherwise the rules answer. The sources shown are the tips' own, from our checked
+  data, never written by the model.
+- **Without AI**, the question's words (English, French, Italian) lead to at most two
+  tips, each with its evidence a tap away.
+
+The guardrails follow two trials. In a field experiment with nearly a thousand
+high-school students, an unguarded GPT-4 tutor raised practice grades and then
+lowered exam grades once it was taken away, while a version with safeguards largely
+did not [ref:bastani2025]. In a randomised trial with college students, a tutor
+built on the same teaching practices as the class taught more in less time
+[ref:kestin2025]. Neither tested advice on study habits, which is what the coach
+gives.
+
+Only the question and the tips' text are sent; nothing of the plan. Neither the
+question nor the answer is kept: the page shows them once, and the event log records
+only that a question was asked and who answered. The privacy page and Settings say
+so. `cps metrics` reports the plans that asked in 7 days and the questions by who
+answered.
+
+**Rejected.** A conversation kept with the plan (one question at a time keeps
+nothing to protect); answers about course content (tutoring, outside the tips, and
+where the harm in the first trial was); sources named by the model; a mascot that
+talks.
+
+**Disclosed.** Like D12, the coach has run only against a fake provider: no answer of
+a real model has been read. The rules match words, not meaning, and miss questions
+phrased otherwise. Each question carries the fourteen tips' text, so it costs more
+than a typed task; the monthly cap bounds it. Checked in Chromium at 1280 and 390 px,
+light and dark, with AI off.
+
+## D66. The spark brings the tips
+
+*The owner, 2026-10-15: "make that neuron 3d rendered animated and more
+mascotte-looking, propose 3 candidates on the falsa riga of duolingo". Three were
+drawn on a design canvas: a neuron, a brain in a graduation cap, a spark. The owner
+first chose the brain, then, 2026-10-16: "in realtà mi piace di più spark … fai
+spark".*
+
+**Chosen.** The tips (D63), the weekly note's "what it means for you" (D64) and the
+coach's answer (D65) are brought by the spark: the signal that jumps from one neuron
+to the next, drawn as a glowing teal drop with a face, two floating hands, a small
+flame on top and three vesicles circling it. Gradients and a soft highlight make it
+look rounded, in the manner of Duolingo's characters, but it is SVG written into the
+page (`_mascot.html`): no image file, no library, nothing fetched. It has five moods,
+each a still pose that `service` picks (`TIP_MOODS`, `focus_tip`, the weekly note,
+`coach`):
+
+- think (eyes up, a small "o", three dots): beside a way to study, the weekly note,
+  and the coach's answer;
+- rest (eyes closed, z): beside sleep and breaks, and at the break on Focus;
+- cheer (hands up, stars): beside exercise and a habit;
+- wave: beside going to class, and on Focus before starting;
+- idle: beside coffee, and when the coach has no tip to give.
+
+With motion allowed it floats, blinks and looks around, its flame flickers and its
+vesicles circle; each mood moves its own way (it jumps, tilts, breathes, waves).
+Under reduced motion, or the plan's Motion: Reduced, it keeps its pose and stays
+still. Each drawing's gradients carry ids of its own, so two on one page, or one in a
+hidden card (the break on Focus), are drawn right.
+
+**Rejected.** D63's neuron (the owner asked for a mascot); the brain in a cap (the
+owner's first pick, before the spark); a rendered 3D image (heavier, one picture per
+mood, not drawn in the page); an animation library (CSS is enough, and the
+Content-Security-Policy allows no inline script). A name: "Spark" is the drawing's
+working name; the sentences students read say "the app" until the owner names it.
+
+**Disclosed.** As in D63, it is decoration and only carries the text
+[ref:schroeder2013]; which mood goes with which tip is a judgement, not measured.
+Checked in Chromium at 1280 and 390 px, light and dark, still and in motion; not on a
+real phone.

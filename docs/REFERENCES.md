@@ -86,22 +86,24 @@ against the publisher's page before anything is published, and they say so.
 - year: 2013
 - venue: Psychological Science in the Public Interest 14(1), pages 4–58
 - doi: 10.1177/1529100612453266
-- status: unchecked
-- checked against: a search engine's index of journals.sagepub.com, pubmed.ncbi.nlm.nih.gov and psychologicalscience.org, and ScienceDaily's report of the publisher's press release (2013-01-10), 2026-09-29: ten techniques reviewed; practice testing and distributed practice rated high utility; summarization, highlighting, the keyword mnemonic, imagery for text and rereading rated low. The publisher's page, PubMed and ERIC were blocked from the build environment, so the full text was not read.
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 26173288 (authors, title, journal, volume, pages, DOI), 2026-10-15: ten techniques reviewed; practice testing and distributed practice rated high utility; elaborative interrogation, self-explanation and interleaved practice moderate; summarization, highlighting, the keyword mnemonic, imagery for text and rereading low ("practice testing instead of rereading"). On 2026-09-29 only a search engine's index could be read; the monograph itself was not read.
 
 The entries below are the evidence behind the product's engagement design
 (docs/MARKET.md §3, DECISIONS.md D9 and D12). All were found by web search on
-2026-10-08 from an environment that could search but not open pages, so all are
-**unchecked**. Where a source gave surnames only, the entry gives surnames only.
+2026-10-08 from an environment that could search but not open pages, so all were
+**unchecked**; those a tip cites (DECISIONS.md D62) were read at a research
+database on 2026-10-15 and are marked checked. Where a source gave surnames only,
+the entry gives surnames only.
 
 ### lally2010
-- authors: P. Lally; C. van Jaarsveld; H. Potts; J. Wardle
+- authors: Phillippa Lally; Cornelia H. M. van Jaarsveld; Henry W. W. Potts; Jane Wardle
 - title: How are habits formed: Modelling habit formation in the real world
 - year: 2010
-- venue: European Journal of Social Psychology 40, pages 998–1009
+- venue: European Journal of Social Psychology 40(6), pages 998–1009
 - doi: 10.1002/ejsp.674
-- status: unchecked
-- checked against: a search engine's index of UCL's news release (August 2009), the British Psychological Society's Research Digest and secondary summaries, 2026-10-08: 96 participants, a daily behaviour for 84 days, time to automaticity 18 to 254 days (median 66 among good model fits), missing one opportunity did not materially affect habit formation. The publisher's page was not reachable.
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: 96 volunteers chose an eating, drinking or activity behaviour to carry out daily for 12 weeks; 82 gave enough data; the time to reach 95 % of their asymptote of automaticity ranged from 18 to 254 days; missing one opportunity did not materially affect habit formation. Crossref dates the online publication 16 July 2009; the volume is 2010's. The median of 66 days comes from secondary summaries (2026-10-08), not from the abstract.
 
 ### silverman2023
 - authors: Jackie Silverman; Alixandra Barasch
@@ -113,13 +115,13 @@ The entries below are the evidence behind the product's engagement design
 - checked against: a search engine's index of the University of Delaware repository (udspace.udel.edu), the University of Colorado's faculty pages and news release, 2026-10-08: seven studies; intact streaks shown in logs increase later engagement relative to broken ones; the effect is larger when people blame themselves and smaller when the streak can be repaired. The full text was not read.
 
 ### gollwitzer2006
-- authors: Gollwitzer; Sheeran
+- authors: Peter M. Gollwitzer; Paschal Sheeran
 - title: Implementation intentions and goal achievement: A meta-analysis of effects and processes
 - year: 2006
 - venue: Advances in Experimental Social Psychology 38, pages 69–119
 - doi: 10.1016/S0065-2601(06)38002-1
-- status: unchecked
-- checked against: a search engine's index of the University of Konstanz repository (kops.uni-konstanz.de) and secondary summaries, 2026-10-08: 94 tests, d = 0.65 for goal attainment. The chapter itself was not read.
+- status: checked
+- checked against: the abstract in Semantic Scholar's record of the DOI and Crossref's record (authors, title, volume, pages), 2026-10-15: 94 independent tests; implementation intentions ("If situation Y is encountered, then I will initiate goal-directed behavior X!") had a positive effect of medium-to-large magnitude (d = .65) on goal attainment; they helped to initiate goal striving, shield it from unwanted influences, and disengage from failing courses of action. The chapter itself was not read.
 
 ### hamari2014
 - authors: Hamari; Koivisto; Sarsa
@@ -156,17 +158,19 @@ The entries below are the evidence behind the product's engagement design
 The entries below are the evidence behind the analytics (docs/ANALYTICS.md,
 DECISIONS.md D22 to D24). All were found by web search on 2026-10-08 and read as
 abstracts or secondary summaries, from an environment that could search but not
-open pages, so all are **unchecked**. Where the sources gave an incomplete author
-list, the entry says so instead of completing it from memory.
+open pages, so all were **unchecked**; those a tip cites (DECISIONS.md D62) were
+read at a research database on 2026-10-15 and are marked checked. Where the
+sources gave an incomplete author list, the entry says so instead of completing it
+from memory.
 
 ### harkin2016
-- authors: Harkin; Webb; Chang; further authors, not listed by the sources read
+- authors: B. Harkin; T. L. Webb; B. P. Chang; A. Prestwich; M. Conner; I. Kellar; Y. Benn; P. Sheeran
 - title: Does monitoring goal progress promote goal attainment? A meta-analysis of the experimental evidence
 - year: 2016
 - venue: Psychological Bulletin 142(2), pages 198–229
 - doi: 10.1037/bul0000025
-- status: unchecked
-- checked against: a search engine's index of the White Rose eprints record (eprints.whiterose.ac.uk/91437) and secondary summaries, 2026-10-08: 138 randomised studies, N = 19,951; monitoring interventions increased monitoring (d+ = 1.98) and goal attainment (d+ = 0.40, 95 % CI 0.32 to 0.48); larger effects when progress was reported or physically recorded; mostly health behaviours. The full text was not read.
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 26479070, 2026-10-15: 138 studies (N = 19,951) randomly allocating an intervention to promote progress monitoring against a control; monitoring rose (d+ = 1.98) and goal attainment rose (d+ = 0.40, 95 % CI 0.32 to 0.48); larger effects when outcomes were reported or made public and when the information was physically recorded. That most studies were about health behaviours comes from secondary summaries (2026-10-08), not from the abstract.
 
 ### kivetz2006
 - authors: Kivetz; Urminsky; Zheng
@@ -214,34 +218,36 @@ list, the entry says so instead of completing it from memory.
 - title: Illusions of competence in monitoring one's knowledge during study
 - year: 2005
 - venue: Journal of Experimental Psychology: Learning, Memory, and Cognition 31(2), pages 187–194
-- status: unchecked
-- checked against: a search engine's index of the University of Haifa's research portal (cris.haifa.ac.il) and an author-hosted PDF, 2026-10-08: judgments of learning made while the answer is present overestimate later recall. The PDF was not opened.
+- doi: 10.1037/0278-7393.31.2.187
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 15755238, 2026-10-15: judgments of learning are made in the presence of information that is absent but solicited at test; failing to discount it can instil a sense of competence during learning that proves unwarranted during testing; studied with a paired-associates task.
 
 ### adesope2017
-- authors: Adesope; Trevisan; Sundararajan
+- authors: Olusola O. Adesope; Dominic A. Trevisan; Narayankripa Sundararajan
 - title: Rethinking the Use of Tests: A Meta-Analysis of Practice Testing
 - year: 2017
 - venue: Review of Educational Research 87(3), pages 659–701
 - doi: 10.3102/0034654316689306
-- status: unchecked
-- checked against: a search engine's index of journals.sagepub.com, WSU's repository and summaries (Learning Scientists, Klingenstein Center), 2026-10-08: practice tests beat rereading and every other comparison condition; summaries disagree on the number of studies (118 or 188 articles, 272 effect sizes). The article was not read.
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (api.crossref.org, the DOI's record), 2026-10-15: practice tests were more beneficial for learning than restudying and all other comparison conditions; mean effects were moderated by the tests' features, the participants and studies, the outcomes and the methods. The article was not read, so its count of studies is not given (summaries say 118 or 188 articles, 272 effect sizes).
 
 ### cepeda2006
-- authors: Cepeda; Pashler; Vul; Wixted; Rohrer
+- authors: N. J. Cepeda; H. Pashler; E. Vul; J. T. Wixted; D. Rohrer
 - title: Distributed practice in verbal recall tasks: A review and quantitative synthesis
 - year: 2006
 - venue: Psychological Bulletin 132(3), pages 354–380
 - doi: 10.1037/0033-2909.132.3.354
-- status: unchecked
-- checked against: a search engine's index of PubMed (16719566) and the authors' copies, 2026-10-08: 839 assessments from 317 experiments in 184 articles; the inter-study interval giving the best retention grows with the retention interval. The article was not read.
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 16719566, 2026-10-15: 839 assessments of distributed practice in 317 experiments located in 184 articles; the inter-study interval producing maximal retention increased as the retention interval increased. The article was not read.
 
 ### roig2013
 - authors: Marc Roig; Sasja Nordbrandt; Svend Sparre Geertsen; Jens Bo Nielsen
 - title: The effects of cardiovascular exercise on human memory: A review with meta-analysis
 - year: 2013
 - venue: Neuroscience & Biobehavioral Reviews 37(8), pages 1645–1666
-- status: unchecked
-- checked against: a search engine's index of the University of Copenhagen's research portal and later papers citing it, 2026-10-08: acute exercise, SMD 0.26 on short-term memory and 0.52 on long-term memory; long-term training, SMD 0.15 on short-term memory; results vary with the memory tested, intensity and timing. The article was not read.
+- doi: 10.1016/j.neubiorev.2013.06.012
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 23806438, 2026-10-15: 29 and 21 studies of acute and long-term interventions; acute exercise SMD 0.26 on short-term memory and 0.52 (moderate to large) on long-term memory; long-term training SMD 0.15 on short-term memory and 0.07 (not significant) on long-term memory. The article was not read.
 
 ### prokopidis2023
 - authors: Prokopidis; further authors, not listed by the sources read
@@ -274,12 +280,13 @@ detail came from when the publisher's page could not be opened.
 - checked against: the IDEAS/RePEc record (title, authors, journal, volume, year, DOI, abstract), 2026-10-13: two immortalised non-neural cell lines with a CREB-dependent luciferase reporter; four spaced pulses gave stronger, more sustained expression and ERK and CREB activation than one massed pulse; blocking ERK or CREB removed the effect. nature.com redirected to a login and was not read.
 
 ### cepeda2008
-- authors: Cepeda; Vul; Rohrer; Wixted; Pashler
+- authors: N. J. Cepeda; E. Vul; D. Rohrer; J. T. Wixted; H. Pashler
 - title: Spacing Effects in Learning: A Temporal Ridgeline of Optimal Retention
 - year: 2008
 - venue: Psychological Science 19(11), pages 1095–1102
-- status: unchecked
-- checked against: the abstract on the University of South Florida's Scholar Commons record (digitalcommons.usf.edu/psy_facpub/1766), 2026-10-13: more than 1,350 people, a review after gaps of up to 3.5 months, a final test up to a year later; the best gap was about 20 to 40 % of a one-week delay and 5 to 10 % of a one-year delay. Authors' surnames, volume and pages come from a search engine's index; PubMed and the PDF could not be read.
+- doi: 10.1111/j.1467-9280.2008.02209.x
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 19076480 (authors, journal, volume, pages, DOI), 2026-10-15, as on the University of South Florida's Scholar Commons record (digitalcommons.usf.edu/psy_facpub/1766), 2026-10-13: more than 1,350 people, a review after gaps of up to 3.5 months, a final test up to a year later; the optimal gap was about 20 to 40 % of a 1-week test delay and 5 to 10 % of a 1-year delay.
 
 ### karpicke2009
 - authors: Jeffrey D. Karpicke; Andrew C. Butler; Henry L. Roediger III
@@ -299,21 +306,22 @@ detail came from when the publisher's page could not be opened.
 - checked against: PMC3768102 (abstract and opening sections), 2026-10-13: sleep actively consolidates memory; reactivation during slow-wave sleep, coordinated by slow oscillations, spindles and ripples, moves memories to long-term cortical storage.
 
 ### mazza2016
-- authors: Stéphanie Mazza; further authors, not listed by the sources read
-- title: Relearn Faster and Retain Longer: Along With Practice, Sleep Makes Perfect
+- authors: Stéphanie Mazza; Emilie Gerbier; Marie-Paule Gustin; Zumrut Kasikci; Olivier Koenig; Thomas C. Toppino; Michel Magnin
+- title: Relearn Faster and Retain Longer
 - year: 2016
-- venue: Psychological Science
+- venue: Psychological Science 27(10), pages 1321–1330
 - doi: 10.1177/0956797616659930
-- status: unchecked
-- checked against: the Association for Psychological Science's press release (design and results), 2026-10-13: 40 adults, 16 French–Swahili pairs; relearning 12 hours later took about 3 trials after sleep against about 6 without; a week later about 15 pairs against 11. Title and DOI come from a search engine's index; the article was not read.
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 27530500 and Crossref's record of the DOI (authors, title, journal, volume, pages), 2026-10-15: 40 participants practised foreign vocabulary to a perfect level in two sessions 12 hours apart, half with a night's sleep between them; sleeping between the sessions halved the practice needed and gave much better retention a week and six months later. The Association for Psychological Science's press release (2026-10-13) adds the subtitle "Along With Practice, Sleep Makes Perfect", which the records do not carry.
 
 ### vandongen2016
-- authors: van Dongen; further authors, not listed by the sources read
+- authors: E. V. van Dongen; I. H. P. Kersten; I. C. Wagner; R. G. M. Morris; G. Fernández
 - title: Physical Exercise Performed Four Hours after Learning Improves Memory Retention and Increases Hippocampal Pattern Similarity during Retrieval
 - year: 2016
-- venue: Current Biology
-- status: unchecked
-- checked against: Harvard Health Publishing's summary, 2026-10-13: 72 people learned 90 picture-location pairs; 35 minutes of interval training four hours later improved recall 48 hours later, immediately after did not. Title and authors come from a search engine's index; the article was not read.
+- venue: Current Biology 26(13), pages 1722–1727
+- doi: 10.1016/j.cub.2016.04.071
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 27321998, 2026-10-15: three randomly assigned groups learned picture-location associations; exercise 4 hours later, but not immediately after, improved retention at a cued-recall test 48 hours later. The number of participants (72) and the exercise (35 minutes of interval training) come from Harvard Health Publishing's summary, 2026-10-13, not from the abstract.
 
 ### smarr2018
 - authors: Benjamin L. Smarr; Aaron E. Schirmer
@@ -332,21 +340,22 @@ detail came from when the publisher's page could not be opened.
 - checked against: PMC11047315 (its review of the literature), 2026-10-13: synchrony and asynchrony effects are both reported, the evidence is mixed, most of it in adults; a meta-analysis of students found eveningness related to cognitive ability with r = 0.08.
 
 ### pan2023
-- authors: S. C. Pan; S. K. Carpenter
+- authors: Steven C. Pan; Shana K. Carpenter
 - title: Prequestioning and pretesting effects: A review of empirical research, theoretical perspectives, and implications for educational practice
 - year: 2023
-- venue: Educational Psychology Review 35(4)
+- venue: Educational Psychology Review 35(4), article 97
 - doi: 10.1007/s10648-023-09814-5
-- status: unchecked
-- checked against: a reference list in a search engine's index, 2026-10-13; the publisher's page redirected to a login. Its findings are taken from the Psychonomic Society's summary [ref:sana2023].
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: prequestioning or pretesting can benefit learning if there is an opportunity to study the correct answers afterwards; shown with texts, videos and lectures despite many wrong first answers; the enhancement may vary with the procedure and how learning is assessed; the mechanisms need further research. The publisher's page redirected to a login on 2026-10-13; the review itself was not read.
 
 ### yang2021
 - authors: Chunliang Yang; Liang Luo; Miguel A. Vadillo; Rongjun Yu; David R. Shanks
 - title: Testing (quizzing) boosts classroom learning: A systematic and meta-analytic review
 - year: 2021
-- venue: Psychological Bulletin 147(4), 399-435
-- status: unchecked
-- checked against: the abstract as listed by Hong Kong Baptist University's research portal and secondary summaries in a search engine's index, 2026-10-15 (222 studies, 48,478 students; overall g = 0.499); the full text was not read.
+- venue: Psychological Bulletin 147(4), pages 399–435
+- doi: 10.1037/bul0000309
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 33683913 (authors, journal, volume, pages, DOI), 2026-10-15: 48,478 students' data from 222 independent studies; testing raised achievement to a medium extent (g = 0.499), modulated by, among others, the learning strategy in the control condition, test format consistency, corrective feedback, the number of test repetitions and the design. The full text was not read.
 
 ### sana2023
 - authors: Faria Sana
@@ -361,8 +370,9 @@ detail came from when the publisher's page could not be opened.
 - title: A Randomized Controlled Trial of Interleaved Mathematics Practice
 - year: 2020
 - venue: Journal of Educational Psychology 112(1), pages 40–52
+- doi: 10.1037/edu0000367
 - status: checked
-- checked against: the What Works Clearinghouse's review (ies.ed.gov/ncee/wwc/Study/88770), 2026-10-13: 787 grade-7 students, cluster-randomised; interleaved 62.17 against blocked 37.60 on a test 43 days later; meets standards without reservations.
+- checked against: the What Works Clearinghouse's review (ies.ed.gov/ncee/wwc/Study/88770), 2026-10-13 and again 2026-10-15: 787 grade-7 students, cluster-randomised; interleaved 62.17 against 37.60 for the comparison group (labelled "business as usual") on a test the authors wrote, 43 days later; an improvement index of 31; meets standards without reservations. The DOI, journal, volume and pages from Crossref's record, 2026-10-15; Crossref carries no abstract.
 
 ### srs-benchmark
 - authors: open-spaced-repetition contributors
@@ -411,3 +421,107 @@ detail came from when the publisher's page could not be opened.
 - venue: github.com/google/or-tools and developers.google.com/optimization
 - status: checked
 - checked against: the repository's README (Apache License 2.0; CP-SAT included) and the CP-SAT page (Python, C++, Java, C#), 2026-10-13; the PyPI JSON record of ortools 9.15.6755 (Apache 2.0, uploaded 2026-01-14), the version `benchmarks/cpsat_trial.py` ran with, 2026-10-14.
+
+The entries below are the evidence behind the tips (DECISIONS.md D62), looked up on
+2026-10-15. Each was read at the record named in "checked against": Europe PMC's
+copy of a PubMed record, the publisher's abstract as deposited with Crossref, or the
+publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`).
+
+### okano2019
+- authors: Kana Okano; Jakub R. Kaczmarzyk; Neha Dave; John D. E. Gabrieli; Jeffrey C. Grossman
+- title: Sleep quality, duration, and consistency are associated with better academic performance in college students
+- year: 2019
+- venue: npj Science of Learning 4, article 16
+- doi: 10.1038/s41539-019-0055-z
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 31583118 (PMC6773696) and Crossref's record, 2026-10-15: wearable trackers given to 100 students of an introductory college chemistry class, 88 completing; better quality, longer and more consistent sleep correlated with better grades; no relation for the single night before a test, while the week and the month before did correlate; sleep measures accounted for nearly 25 % of the variance in academic performance. nature.com redirected to a login.
+
+### albulescu2022
+- authors: Patricia Albulescu; Irina Macsinga; Andrei Rusu; Coralia Sulea; Alexandra Bodnaru; Bogdan Tudor Tulbure
+- title: "Give me a break!" A systematic review and meta-analysis on the efficacy of micro-breaks for increasing well-being and performance
+- year: 2022
+- venue: PLOS ONE 17(8), e0272460
+- doi: 10.1371/journal.pone.0272460
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 36044424 (PMC9432722) and Crossref's record, 2026-10-15: 19 records, 22 independent samples (N = 2,335); micro-breaks (10 minutes or less) raised vigor (d = .36) and reduced fatigue (d = .35); no significant effect on overall performance (d = .16), significant only for less demanding tasks; longer breaks, larger boosts; recovering from highly depleting tasks may need more than 10 minutes.
+
+### biwer2023
+- authors: Felicitas Biwer; Wisnu Wiradhany; Mirjam G. A. oude Egbrink; Anique B. H. de Bruin
+- title: Understanding effort regulation: Comparing 'Pomodoro' breaks and self-regulated breaks
+- year: 2023
+- venue: British Journal of Educational Psychology 93(S2), pages 353–367
+- doi: 10.1111/bjep.12593
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 36859717 and Crossref's record, 2026-10-15: 87 bachelor's and master's students of a Dutch university, one day of self-study; self-regulated breaks (n = 35) against 6 minutes after every 24 ("Pomodoro", n = 25) or 3 after every 12 (n = 27); self-regulating gave longer sessions and breaks, with more fatigue and distractedness and less concentration and motivation; no difference in mental effort or task completion; systematic breaks "appeared to have efficiency benefits (i.e., similar task completion in shorter time)".
+
+### brunmair2019
+- authors: Matthias Brunmair; Tobias Richter
+- title: Similarity matters: A meta-analysis of interleaved learning and its moderators
+- year: 2019
+- venue: Psychological Bulletin 145(11), pages 1029–1052
+- doi: 10.1037/bul0000209
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 31556629 and Crossref's record, 2026-10-15: 59 studies, 238 effect sizes in 158 samples; a moderate interleaving effect overall (g = 0.42), paintings 0.67, mathematical tasks 0.34; expository texts and tastes ambiguous; blocking better for words (g = −0.39); stronger effects for material more similar between categories.
+
+### crede2010
+- authors: Marcus Credé; Sylvia G. Roch; Urszula M. Kieszczynka
+- title: Class Attendance in College
+- year: 2010
+- venue: Review of Educational Research 80(2), pages 272–295
+- doi: 10.3102/0034654310362998
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: attendance correlated with class grades (k = 69, N = 21,195, ρ = .44) and GPA (k = 33, N = 9,243, ρ = .41), better than any other known predictor, including admission test scores, high school GPA, study habits and study skills; mandatory attendance had a small positive effect (k = 3, d = .21). The title is Crossref's; the publisher's page was not opened.
+
+### camfield2014
+- authors: David A. Camfield; Con Stough; Jonathon Farrimond; Andrew B. Scholey
+- title: Acute effects of tea constituents L-theanine, caffeine, and epigallocatechin gallate on cognitive function and mood: a systematic review and meta-analysis
+- year: 2014
+- venue: Nutrition Reviews 72(8), pages 507–522
+- doi: 10.1111/nure.12120
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 24946991 and Crossref's record, 2026-10-15: 11 randomised placebo-controlled studies; moderate effects in favour of caffeine with L-theanine in the first 2 hours after a dose on alertness and attentional switching accuracy, and to a lesser extent some attention measures; trends toward a greater change in effect size with the caffeine dose than with the L-theanine dose. PubMed's own page asked for cookies.
+
+### drake2013
+- authors: Christopher Drake; Timothy Roehrs; John Shambroom; Thomas Roth
+- title: Caffeine Effects on Sleep Taken 0, 3, or 6 Hours before Going to Bed
+- year: 2013
+- venue: Journal of Clinical Sleep Medicine 9(11), pages 1195–1200
+- doi: 10.5664/jcsm.3170
+- status: checked
+- checked against: the article in PubMed Central (PMC3805807) and the abstract in Europe PMC's record of PubMed 24235903, 2026-10-15: 400 mg of caffeine at bedtime, 3 or 6 hours before it, against a placebo, at home; each disrupted sleep significantly; objectively measured total sleep time fell by 1.1 to 1.2 hours in each caffeine condition; the diary's 41 minutes at 6 hours only approached significance (p = 0.08); 12 subjects completed the protocol.
+
+### efsa2015
+- authors: EFSA Panel on Dietetic Products, Nutrition and Allergies (NDA)
+- title: Scientific Opinion on the safety of caffeine
+- year: 2015
+- venue: EFSA Journal 13(5), 4102
+- doi: 10.2903/j.efsa.2015.4102
+- status: checked
+- checked against: the abstract in Semantic Scholar's record of the DOI, Crossref's record, and EFSA's topic page (efsa.europa.eu/en/topics/topic/caffeine), 2026-10-15: single doses up to 200 mg and habitual intakes up to 400 mg a day give no safety concerns for healthy non-pregnant adults; up to 200 mg a day in pregnancy; a single 100 mg dose may affect sleep duration and patterns in some adults, particularly close to bedtime (the topic page). The publisher's page (onlinelibrary.wiley.com) answered 403. EFSA's 2011 opinion on L-theanine's health claims (EFSA Journal 9(6), 2238) could not be read and is not cited.
+
+### schroeder2013
+- authors: Noah L. Schroeder; Olusola O. Adesope; Rachel Barouch Gilbert
+- title: How Effective are Pedagogical Agents for Learning? A Meta-Analytic Review
+- year: 2013
+- venue: Journal of Educational Computing Research 49(1), pages 1–39
+- doi: 10.2190/EC.49.1.a
+- status: checked
+- checked against: the publisher's abstract as deposited with Crossref (the DOI's record), 2026-10-15: 43 studies, 3,088 participants; pedagogical agents (on-screen characters that facilitate instruction) had a small but significant effect on learning; more beneficial for K-12 than post-secondary students; agents communicating with on-screen text helped more than narrating ones.
+
+### bastani2025
+- authors: Hamsa Bastani; Osbert Bastani; Alp Sungu; Haosen Ge; Özge Kabakcı; Rei Mariman
+- title: Generative AI without guardrails can harm learning: Evidence from high school mathematics
+- year: 2025
+- venue: Proceedings of the National Academy of Sciences 122(26), e2422633122
+- doi: 10.1073/pnas.2422633122
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 40560616 and Crossref's record, 2026-10-15: a field experiment giving nearly a thousand high-school maths students a GPT-4 tutor; with access, grades on practice problems rose 48 % ("GPT Base", a standard chat interface) and 127 % ("GPT Tutor", prompts designed to safeguard learning); once access was taken away, GPT Base students did 17 % worse than those who never had it, an effect largely mitigated by GPT Tutor's safeguards. A later correction (PNAS 122(34), e2518204122; PMC12403119) fixes one author's affiliation only.
+
+### kestin2025
+- authors: Greg Kestin; Kelly Miller; Anna Klales; Timothy Milbourne; Gregorio Ponti
+- title: AI tutoring outperforms in-class active learning: an RCT introducing a novel research-based design in an authentic educational setting
+- year: 2025
+- venue: Scientific Reports 15, 17458
+- doi: 10.1038/s41598-025-97652-6
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 40537565 (PMC12179260) and Crossref's record, 2026-10-15: a randomised controlled trial with college students; content through an AI tutor designed with the same pedagogical practices as the in-class active-learning lessons; students learned significantly more in less time with the tutor, and felt more engaged and motivated.

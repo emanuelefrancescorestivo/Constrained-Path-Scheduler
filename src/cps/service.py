@@ -65,8 +65,10 @@ from . import inbox as _inbox
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
+from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
+from . import weekly as _weekly
 from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
 from .calendar_io import (
@@ -3836,7 +3838,12 @@ def warm_ups(subscription: Subscription, now: datetime | None = None) -> list[di
         return []
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
-    local = (now or datetime.now(UTC)).astimezone(zone)
+    return _lectures_ahead_today(plan, (now or datetime.now(UTC)).astimezone(zone))
+
+
+def _lectures_ahead_today(plan: PlanReport, local: datetime) -> list[dict]:
+    """The lectures of planned courses still ahead today (exams aside), by time."""
+    zone = local.tzinfo
     courses = {s.name.casefold(): s.name for s in plan.subjects}
     exams = {datetime.fromisoformat(s.exam) for s in plan.subjects}
     colours = {name.casefold(): index for name, index in course_colours(plan)}
@@ -5825,6 +5832,504 @@ def post_explanation(
 
 
 # --------------------------------------------------------------------------- #
+# Tips with their sources (DECISIONS.md D62)
+
+
+def _tip(tip: _tips.Tip) -> dict:
+    label, meaning = _tips.STRENGTHS[tip.strength]
+    return {
+        "key": tip.key,
+        "strength": tip.strength,
+        "strength_label": _(label),
+        "strength_meaning": _(meaning),
+        "advice": _(tip.advice),
+        "why": _(tip.why),
+        "limits": _(tip.limits),
+        "in_app": _(tip.in_app) if tip.in_app else "",
+        "sources": [
+            {
+                "cite": source.cite,
+                "venue": source.venue,
+                "url": source.url,
+                "checked": f"{format_date(source.checked, 'day_short')} {source.checked.year}",
+            }
+            for source in (_tips.SOURCES[key] for key in tip.sources)
+        ],
+    }
+
+
+def tips_view() -> dict:
+    """Every tip, by topic, in the plan's language, with what its evidence is worth
+    and where it comes from (D62)."""
+    return {
+        "strengths": [
+            {"key": key, "label": _(label), "meaning": _(meaning)}
+            for key, (label, meaning) in _tips.STRENGTHS.items()
+        ],
+        "topics": [
+            {"key": key, "name": _(name), "tips": [_tip(t) for t in _tips.TIPS if t.topic == key]}
+            for key, name in _tips.TOPICS.items()
+        ],
+    }
+
+
+# How the spark looks beside each tip (D66): thinking beside a way to study, eyes
+# closed beside sleep and breaks, cheering beside exercise and a habit, waving
+# beside going to class, as it is beside coffee.
+MOODS = ("idle", "think", "rest", "cheer", "wave")
+TIP_MOODS = {
+    "self-test": "think",
+    "spacing": "think",
+    "class-quizzes": "think",
+    "interleave": "think",
+    "pretest": "think",
+    "attend": "wave",
+    "sleep-after": "rest",
+    "sleep-regular": "rest",
+    "exercise": "cheer",
+    "caffeine": "idle",
+    "breaks": "rest",
+    "track": "think",
+    "if-then": "think",
+    "habit": "cheer",
+}
+
+TIP_SETTINGS = ("on", "off")
+
+
+def tips_on(subscription: Subscription) -> bool:
+    """Whether Today and Focus show tips (D63); the tips page is always there."""
+    return subscription.options.get("tips", "on") != "off"
+
+
+def set_tips(subscription: Subscription, value: str) -> Subscription:
+    if value not in TIP_SETTINGS:
+        raise InvalidInput(_("choose On or Off"))
+    return replace(subscription, options={**subscription.options, "tips": value})
+
+
+def _tip_moments(subscription: Subscription, local: datetime) -> tuple[list, list]:
+    """What in the plan today a tip speaks to (D63), as (tip key, why now) pairs:
+    first what cannot wait (an exam or a test close, a session or a class skipped,
+    caffeine before an evening session), then what is ordinary (a lecture, training,
+    a self-test, the evening after studying). Only facts the plan holds; the tip
+    itself says what the research found."""
+    urgent: list[tuple[str, str]] = []
+    usual: list[tuple[str, str]] = []
+    if subscription.plan is None:
+        return urgent, usual
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = local.tzinfo
+    today = local.date()
+
+    def at(stamp: str) -> datetime:
+        return datetime.fromisoformat(stamp).astimezone(zone)
+
+    exams = [(at(s.exam), s.name) for s in plan.subjects]
+    exams += [(at(e.start), test_label("partial", e.summary)) for e in plan.events if e.source == "partial"]
+    soon = sorted(x for x in exams if local < x[0] < local + timedelta(days=4))
+    if soon:
+        urgent.append(
+            ("sleep-regular", _("Exam soon: {name}, {when}.", name=soon[0][1], when=_when(soon[0][0], local)))
+        )
+    tests = sorted(
+        (at(e.start), test_label(e.source, e.summary))
+        for e in plan.events
+        if e.source in ("quiz", "mock") and local < at(e.start) < local + timedelta(days=7)
+    )
+    if tests:
+        urgent.append(
+            (
+                "class-quizzes",
+                _("A test is coming: {name}, {when}.", name=tests[0][1], when=_when(tests[0][0], local)),
+            )
+        )
+    if any(s.outcome == "skipped" and at(s.start).date() == today - timedelta(days=1) for s in plan.history):
+        urgent.append(("habit", _("A session was skipped yesterday.")))
+    for change in subscription.options.get("lecture_changes", ()):
+        if change.get("action") != "skip":
+            continue  # a catch-up is planned, or the class is a test
+        course = course_of(change["summary"]) or short_title(change["summary"])
+        if "at" in change and abs((at(change["at"]).date() - today).days) < 7:
+            day = format_date(at(change["at"]).date(), "short")
+            urgent.append(
+                ("attend", _("A class skipped this week: {course}, {day}.", course=course, day=day))
+            )
+            break
+        if "weekday" in change and date.fromisoformat(change["from"]) < today + timedelta(days=7):
+            urgent.append(("attend", _("A class you skip every week: {course}.", course=course)))
+            break
+    sessions = [s for s in plan.history + plan.sessions if at(s.start).date() == today]
+    evening = [at(s.start) for s in sessions if at(s.start) > local and at(s.start).hour >= 18]
+    if evening and local.hour >= 12:
+        urgent.append(("caffeine", _("You study this evening at {time}.", time=f"{min(evening):%H:%M}")))
+
+    if not subscription.options.get("warm_up"):
+        lectures = _lectures_ahead_today(plan, local)
+        if lectures:
+            first = lectures[0]
+            usual.append(
+                (
+                    "pretest",
+                    _(
+                        "A lecture later today: {course} at {time}.",
+                        course=first["course"],
+                        time=first["when"],
+                    ),
+                )
+            )
+    for row in subscription.busy_rows:
+        weekly = row.get("weekday") is not None and int(row["weekday"]) == today.weekday()
+        if row.get("kind") == "training" and (weekly or row.get("date") == today.isoformat()):
+            usual.append(
+                (
+                    "exercise",
+                    _(
+                        "Training today: {name} at {time}.",
+                        name=row.get("label", ""),
+                        time=str(row.get("start", ""))[:5],
+                    ),
+                )
+            )
+            break
+    tests_today = [s for s in sessions if s.kind in ("review", "first review") and at(s.end) > local]
+    if tests_today:
+        usual.append(("self-test", _("A self-test today: {subject}.", subject=tests_today[0].subject)))
+    studied = [s for s in sessions if at(s.end) <= local and s.outcome != "skipped"]
+    if studied and local.hour >= 20:
+        usual.append(("sleep-after", _("You studied today.")))
+    return urgent, usual
+
+
+def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's tip (D63): the one the plan's day calls for, with why now; when
+    several ordinary moments apply, they take turns day by day; when none does, the
+    tips take turns (D62). None when the student turned tips off."""
+    if not tips_on(subscription):
+        return None
+    now = now or datetime.now(UTC)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    urgent, usual = _tip_moments(subscription, local)
+    day = local.date().toordinal()
+    if urgent or usual:
+        key, reason = urgent[0] if urgent else usual[day % len(usual)]
+        tip = next(t for t in _tips.TIPS if t.key == key)
+    else:
+        tip, reason = _tips.of_the_day(local.date()), ""
+    return {"key": tip.key, "advice": _(tip.advice), "reason": reason, "mood": TIP_MOODS[tip.key]}
+
+
+def focus_tip(subscription: Subscription) -> dict | None:
+    """The tip the focus page shows (D63): plan breaks before starting, and take one
+    after `BREAK_AFTER` of a running session, the study's 24-minute blocks
+    [ref:biwer2023]. The spark waves before, and rests at the break (D66). None
+    when tips are off."""
+    if not tips_on(subscription):
+        return None
+    tip = next(t for t in _tips.TIPS if t.key == "breaks")
+    return {
+        "key": tip.key,
+        "advice": _(tip.advice),
+        "break_after": int(BREAK_AFTER.total_seconds()),
+        "mood": "wave",
+        "break_mood": "rest",
+    }
+
+
+BREAK_AFTER = timedelta(minutes=24)
+
+
+def _plan_start(subscription: Subscription) -> date:
+    return date.fromisoformat(str(subscription.options["start"])[:10])
+
+
+def _note(note: _weekly.Note, week: int, read: Iterable[str]) -> dict:
+    return {
+        "key": note.key,
+        "week": week,
+        "title": _(note.title),
+        "paragraphs": [_(p) for p in note.paragraphs],
+        "for_you": _(note.for_you),
+        "limits": _(note.limits),
+        "unread": note.key not in set(read),
+        "mood": "think",
+        "sources": [
+            {
+                "cite": s.cite,
+                "venue": s.venue,
+                "url": s.url,
+                "checked": f"{format_date(s.checked, 'day_short')} {s.checked.year}",
+            }
+            for s in (_tips.SOURCES[k] for k in note.sources)
+        ],
+    }
+
+
+def weekly_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The weekly notes a plan has so far (D64), this week's first, and when the
+    next one comes."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    start = _plan_start(subscription)
+    count = _weekly.unlocked(start, today)
+    read = subscription.options.get("weekly_read", ())
+    notes = [_note(n, i + 1, read) for i, n in enumerate(_weekly.NOTES[:count])]
+    following = _weekly.monday(today) + timedelta(days=7)
+    return {
+        "notes": list(reversed(notes)),
+        "next": format_date(following, "long") if count < len(_weekly.NOTES) else "",
+    }
+
+
+def weekly_note(subscription: Subscription, key: str, now: datetime | None = None) -> dict | None:
+    """One note, if this plan has it yet (D64)."""
+    return next((n for n in weekly_view(subscription, now)["notes"] if n["key"] == key), None)
+
+
+def mark_note_read(subscription: Subscription, key: str) -> Subscription:
+    read = list(subscription.options.get("weekly_read", ()))
+    if key in read:
+        return subscription
+    return replace(subscription, options={**subscription.options, "weekly_read": [*read, key]})
+
+
+def note_of_the_week(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """This week's note, for Today, until it is read (D64)."""
+    notes = weekly_view(subscription, now)["notes"]
+    return {"key": notes[0]["key"], "title": notes[0]["title"]} if notes and notes[0]["unread"] else None
+
+
+def log_tips(store: str | os.PathLike, token: str) -> None:
+    """The tips page was opened (once a day per plan), for the pilot's measures:
+    whether students read the tips decides the AI coach (D62)."""
+    _store(store).log_daily(token, "tips")
+
+
+# --------------------------------------------------------------------------- #
+# The coach (DECISIONS.md D65)
+
+COACH_MAX = 400  # characters in a question
+# The rules' coach: words of a question (English, French, Italian) and the tips
+# they lead to. A pattern starts at a word's start; short words are whole words.
+_SLEEP = (
+    r"\bsleep",
+    r"\bnap\b",
+    r"\ball[- ]nighter",
+    r"\bdormir",
+    r"\bsommeil",
+    r"\bnuit blanche",
+    r"\bsieste",
+    r"\bdormire",
+    r"\bsonno",
+    r"\bnotte in bianco",
+)
+_COACH_WORDS = {
+    "self-test": (
+        r"\bre-?read",
+        r"\bhighlight",
+        r"\btest(ing)? myself",
+        r"\bmemori",
+        r"\bremember",
+        r"\bretain",
+        r"\bforget",
+        r"\brelir",
+        r"\brelis",
+        r"\brelecture",
+        r"\bsurlign",
+        r"\bmémoris",
+        r"\bretenir",
+        r"\boubli",
+        r"\brilegg",
+        r"\brilettur",
+        r"\bsottolin",
+        r"\bmemorizz",
+        r"\bricord",
+        r"\bdimentic",
+    ),
+    "spacing": (
+        r"\bcram",
+        r"\blast[- ]minute",
+        r"\bnight before",
+        r"\bspread",
+        r"\bspac(e|ing)\b",
+        r"\bbachot",
+        r"\bdernière minute",
+        r"\bla veille",
+        r"\bétaler",
+        r"\bultimo momento",
+        r"\bnotte prima",
+        r"\bdistribuir",
+    ),
+    "class-quizzes": (
+        r"\bquiz",
+        r"\bmidterm",
+        r"\binterro",
+        r"\bpartiel",
+        r"\bcompitin",
+        r"\bprov[ae] intermedi",
+    ),
+    "interleave": (
+        r"\bmix",
+        r"\binterleav",
+        r"\bexercises\b",
+        r"\bproblem",
+        r"\bmaths?\b",
+        r"\bmélang",
+        r"\bexercices\b",
+        r"\bproblème",
+        r"\bmescol",
+        r"\balternar",
+        r"\besercizi",
+        r"\bproblemi",
+        r"\bmatematic",
+    ),
+    "pretest": (r"before (the )?(lecture|class)", r"avant (le|la) cours", r"prima della lezione"),
+    "attend": (
+        r"\bskip(ping)? (a |the )?(class|lecture)",
+        r"\battend",
+        r"\bgo(ing)? to (class|lectures?)",
+        r"\bsécher",
+        r"\baller en cours",
+        r"\bassiduité",
+        r"\bsaltare (la |le )?lezion",
+        r"\bfrequenz",
+        r"\bandare a lezione",
+    ),
+    "sleep-after": _SLEEP,
+    "sleep-regular": _SLEEP,
+    "exercise": (
+        r"\bsport",
+        r"\bgym\b",
+        r"\brunning\b",
+        r"\bexercise\b",
+        r"\bworkout",
+        r"\bcourir",
+        r"\bpalestra",
+        r"\bcorrere",
+        r"\ballenament",
+    ),
+    "caffeine": (
+        r"\bcoffee",
+        r"\bcaffein",
+        r"\btea\b",
+        r"\benergy drink",
+        r"\btheanin",
+        r"\bcafé",
+        r"\bthé\b",
+        r"\bthéanin",
+        r"\bcaffè",
+        r"\btè\b",
+        r"\bteanin",
+    ),
+    "breaks": (
+        r"\bbreaks?\b",
+        r"\bpomodoro",
+        r"\btired",
+        r"\bfocus",
+        r"\bconcentr",
+        r"\bdistract",
+        r"\bpauses?\b",
+        r"\bfatigu",
+        r"\bpausa\b",
+        r"\bstanc",
+        r"\bdistra",
+    ),
+    "track": (r"\btrack", r"\bprogress", r"\bmonitor", r"\bprogrès", r"\bprogressi", r"\btraccia"),
+    "if-then": (
+        r"\bprocrastin",
+        r"\bget started",
+        r"\bstart studying",
+        r"\bmotiv",
+        r"\bcommencer",
+        r"\biniziare",
+        r"\bcominciare",
+    ),
+    "habit": (
+        r"\bhabit",
+        r"\broutine",
+        r"\bstreak",
+        r"\bevery day",
+        r"\bconsistent",
+        r"\bhabitude",
+        r"\btous les jours",
+        r"\babitudin",
+        r"\bogni giorno",
+        r"\bcostan",
+    ),
+}
+COACH_WORDS = {key: re.compile("|".join(words)) for key, words in _COACH_WORDS.items()}
+
+
+def _coach_rules(question: str) -> list[str]:
+    """The tips a question's words lead to, the most matched first, at most two."""
+    text = question.casefold()
+    scores = {key: len(pattern.findall(text)) for key, pattern in COACH_WORDS.items()}
+    order = [t.key for t in _tips.TIPS]
+    ranked = sorted((k for k, n in scores.items() if n), key=lambda k: (-scores[k], order.index(k)))
+    return ranked[:2]
+
+
+def coach(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    question: str,
+    *,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict:
+    """A question about studying, answered from the tips (D65): by the model when AI
+    is on and allowed, and its answer keeps the rules (`ai.coach_from_answer`);
+    otherwise by matching the question's words to the tips. The question is not
+    kept; that one was asked, and how, is logged for the pilot's measures."""
+    now = now or datetime.now(UTC)
+    question = " ".join(str(question).split())
+    if len(question) < 3:
+        raise InvalidInput(_("ask a question in a few words"))
+    if len(question) > COACH_MAX:
+        raise InvalidInput(_("at most {n} characters, please", n=COACH_MAX))
+    by_key = {t.key: t for t in _tips.TIPS}
+    model = (provider or _ai.from_env()) if ai_on(subscription) else None
+    if model is not None:
+        language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
+        library = [{"key": t.key, "advice": t.advice, "why": t.why, "limits": t.limits} for t in _tips.TIPS]
+        system, prompt = _ai.coach_prompt(question, language, library)
+        data = _ai.ask(
+            _store(store),
+            subscription.token,
+            model,
+            "coach",
+            system=system,
+            prompt=prompt,
+            schema=_ai.COACH_SCHEMA,
+            max_tokens=1500,
+            now=now,
+        )
+        answer = _ai.coach_from_answer(data, list(by_key)) if data else None
+        if answer is not None:
+            log_event(store, subscription.token, "coach", "ai")
+            return {
+                "by": "ai",
+                "answer": answer["answer"],
+                "ask": answer["question"],
+                "declined": answer["kind"] == "declined",
+                "tips": [_tip(by_key[k]) for k in answer["tips"]],
+                "mood": "idle" if answer["kind"] == "declined" else "think",
+            }
+    matched = _coach_rules(question)
+    log_event(store, subscription.token, "coach", "rules")
+    return {
+        "by": "rules",
+        "answer": _("Here is what the research in the tips says about that.")
+        if matched
+        else _("No tip matches your question yet. All the tips are on the tips page."),
+        "ask": "",
+        "declined": False,
+        "tips": [_tip(by_key[k]) for k in matched],
+        "mood": "think" if matched else "idle",
+    }
+
+
+# --------------------------------------------------------------------------- #
 # AI, opt-in and capped (DECISIONS.md D12)
 
 
@@ -6038,6 +6543,9 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
 
     - plans: set up in all, and those set up in the last 30 days;
     - active: plans opened (a `visit`) in the last 7 and 30 days;
+    - tips: plans that opened the tips page in the last 7 and 30 days (D62);
+    - weekly: plans that opened a weekly note in the last 7 and 30 days (D64);
+    - coach: plans that asked the coach in the last 7 days, and the questions by who answered (D65);
     - north star: plans with a session confirmed (done or hard, or a focus session
       logged) in the last 7 days, as a share of plans set up;
     - confirmed: planned sessions of the last 7 days reported done or hard, of
@@ -6054,13 +6562,20 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
     events = where.all_events((now - timedelta(days=400)).isoformat(timespec="seconds"))
     started = {t: datetime.fromisoformat(at) for t, at, kind, _detail in events if kind == "start"}
     visits: dict[str, set[date]] = {}
-    for t, at, kind, _detail in events:
-        if kind == "visit":
-            visits.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+    tips: dict[str, set[date]] = {}  # the tips page opened (D62)
+    notes: dict[str, set[date]] = {}  # a weekly note opened (D64)
+    asked: dict[str, set[date]] = {}  # a question to the coach (D65)
+    questions = {"ai": 0, "rules": 0}  # in the last 7 days, by who answered
+    for t, at, kind, detail in events:
+        days = {"visit": visits, "tips": tips, "weekly": notes, "coach": asked}.get(kind)
+        if days is not None:
+            days.setdefault(t, set()).add(datetime.fromisoformat(at).date())
+        if kind == "coach" and detail in questions and datetime.fromisoformat(at) >= week_ago:
+            questions[detail] += 1
     tokens = where.tokens()
 
-    def active(since: datetime) -> int:
-        return sum(1 for t in tokens if any(d >= since.date() for d in visits.get(t, ())))
+    def active(since: datetime, days: dict[str, set[date]] = visits) -> int:
+        return sum(1 for t in tokens if any(d >= since.date() for d in days.get(t, ())))
 
     def returned(days: int) -> tuple[int, int]:
         eligible = [t for t in tokens if t in started and started[t] <= now - timedelta(days=days)]
@@ -6146,6 +6661,12 @@ def engagement(store: str | os.PathLike, now: datetime | None = None) -> dict:
         "new_30": sum(1 for t in tokens if t in started and started[t] >= month_ago),
         "active_7": active(week_ago),
         "active_30": active(month_ago),
+        "tips_7": active(week_ago, tips),
+        "tips_30": active(month_ago, tips),
+        "weekly_7": active(week_ago, notes),
+        "weekly_30": active(month_ago, notes),
+        "coach_7": active(week_ago, asked),
+        "coach_questions_7": questions,
         "north_star": north,
         "planned_7": planned,
         "confirmed_7": confirmed,
