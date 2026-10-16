@@ -114,6 +114,14 @@ def test_one_tip_a_day_and_every_tip_in_turn():
     assert tips.of_the_day(start) == tips.of_the_day(start + timedelta(days=len(tips.TIPS)))
 
 
+def test_the_spark_has_a_mood_for_every_tip_and_a_pose_for_every_mood():
+    # D66: the server picks the mood; each one but idle is a pose in the style sheet.
+    assert set(service.TIP_MOODS) == {t.key for t in tips.TIPS}
+    assert set(service.TIP_MOODS.values()) <= set(service.MOODS)
+    css = (Path(__file__).parent.parent / "src/cps/web/static/style.css").read_text(encoding="utf-8")
+    assert all(f".mascot.is-{mood} " in css for mood in service.MOODS if mood != "idle")
+
+
 # Tips at the right moment (D63): the plan's day picks the tip, and says why.
 
 STATS = ("2026-09-29T09:00+02:00", "Advanced Statistics, Grp: CM ., Salle: Salle 3")  # Tue 09:00
@@ -253,7 +261,7 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
     assert measures["tips_7"] == measures["tips_30"] == 1 and measures["plans"] == 1
 
 
-def test_the_neuron_on_today_and_focus_and_the_switch(tmp_path):
+def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
     clock = {"now": MORNING}
     config = Config(store=tmp_path, clock=lambda: clock["now"], background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
@@ -261,20 +269,24 @@ def test_the_neuron_on_today_and_focus_and_the_switch(tmp_path):
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
         today = unescape(web.get(f"/p/{token}").text)
-        assert 'class="neuron"' in today and "A lecture later today: Advanced Statistics at 09:00." in today
+        assert "A lecture later today: Advanced Statistics at 09:00." in today
         assert f"/p/{token}/tips#tip-pretest" in today
+        assert today.count('class="mascot is-think"') == 1  # questions before a lecture: it ponders
+        assert today.count('id="mascot-pretest-body"') == 1  # its gradients' ids are its own
 
         focus = unescape(web.get(f"/p/{token}/focus").text)
         assert "Before you start" in focus and f"/p/{token}/tips#tip-breaks" in focus
+        assert 'class="mascot is-wave"' in focus
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
         running = web.get(f"/p/{token}/focus").text
         assert 'data-break-at="1440" hidden' in running  # shown by the clock at 24 minutes
+        assert 'class="mascot is-rest"' in running
         clock["now"] = MORNING + timedelta(minutes=30)
         assert 'data-break-at="1440">' in web.get(f"/p/{token}/focus").text  # past it: shown
 
         switched = web.post(f"/p/{token}/tip-setting", data={"tips": "off"}, follow_redirects=False)
         assert switched.status_code == 303
-        assert 'class="neuron"' not in web.get(f"/p/{token}").text
+        assert 'class="mascot' not in web.get(f"/p/{token}").text
         assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text
 
 
@@ -293,6 +305,7 @@ def test_the_weekly_note_pages(tmp_path):
 
         note = unescape(web.get(f"/p/{token}/weekly/{first.key}").text)
         assert all(p in note for p in first.paragraphs) and first.for_you in note and first.limits in note
+        assert 'class="mascot is-think"' in note
         for key in first.sources:
             assert f'href="{tips.SOURCES[key].url}"' in note
         assert "This week's note" not in unescape(web.get(f"/p/{token}").text)  # read

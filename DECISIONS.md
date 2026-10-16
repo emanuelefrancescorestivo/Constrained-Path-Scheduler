@@ -1911,9 +1911,10 @@ study behind it [ref:biwer2023]. The server writes it into the page hidden, with
 time; the clock's script only shows it then, and without scripts it is shown when
 the page is loaded after that time.
 
-The tips are brought by a neuron: the home page's neurons (D58) as a small cell
-with a face, dendrites above and an axon to its terminals. It breathes and a signal
-runs down a dendrite to it; under reduced motion it keeps still. It is decoration:
+The tips are brought by a neuron (since replaced by the spark, D66): the home
+page's neurons (D58) as a small cell with a face, dendrites above and an axon to its
+terminals. It breathes and a signal runs down a dendrite to it; under reduced motion
+it keeps still. It is decoration:
 on-screen characters help learning only a little, more for school pupils than for
 students, and more when they speak in text than aloud [ref:schroeder2013], so this
 one only carries the text. Settings, Appearance: Tips On or Off, for Today and
@@ -2012,3 +2013,44 @@ a real model has been read. The rules match words, not meaning, and miss questio
 phrased otherwise. Each question carries the fourteen tips' text, so it costs more
 than a typed task; the monthly cap bounds it. Checked in Chromium at 1280 and 390 px,
 light and dark, with AI off.
+
+## D66. The spark brings the tips
+
+*The owner, 2026-10-15: "make that neuron 3d rendered animated and more
+mascotte-looking, propose 3 candidates on the falsa riga of duolingo". Three were
+drawn on a design canvas: a neuron, a brain in a graduation cap, a spark. The owner
+first chose the brain, then, 2026-10-16: "in realtà mi piace di più spark … fai
+spark".*
+
+**Chosen.** The tips (D63), the weekly note's "what it means for you" (D64) and the
+coach's answer (D65) are brought by the spark: the signal that jumps from one neuron
+to the next, drawn as a glowing teal drop with a face, two floating hands, a small
+flame on top and three vesicles circling it. Gradients and a soft highlight make it
+look rounded, in the manner of Duolingo's characters, but it is SVG written into the
+page (`_mascot.html`): no image file, no library, nothing fetched. It has five moods,
+each a still pose that `service` picks (`TIP_MOODS`, `focus_tip`, the weekly note,
+`coach`):
+
+- think (eyes up, a small "o", three dots): beside a way to study, the weekly note,
+  and the coach's answer;
+- rest (eyes closed, z): beside sleep and breaks, and at the break on Focus;
+- cheer (hands up, stars): beside exercise and a habit;
+- wave: beside going to class, and on Focus before starting;
+- idle: beside coffee, and when the coach has no tip to give.
+
+With motion allowed it floats, blinks and looks around, its flame flickers and its
+vesicles circle; each mood moves its own way (it jumps, tilts, breathes, waves).
+Under reduced motion, or the plan's Motion: Reduced, it keeps its pose and stays
+still. Each drawing's gradients carry ids of its own, so two on one page, or one in a
+hidden card (the break on Focus), are drawn right.
+
+**Rejected.** D63's neuron (the owner asked for a mascot); the brain in a cap (the
+owner's first pick, before the spark); a rendered 3D image (heavier, one picture per
+mood, not drawn in the page); an animation library (CSS is enough, and the
+Content-Security-Policy allows no inline script). A name: "Spark" is the drawing's
+working name; the sentences students read say "the app" until the owner names it.
+
+**Disclosed.** As in D63, it is decoration and only carries the text
+[ref:schroeder2013]; which mood goes with which tip is a judgement, not measured.
+Checked in Chromium at 1280 and 390 px, light and dark, still and in motion; not on a
+real phone.

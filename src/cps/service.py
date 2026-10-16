@@ -5873,6 +5873,27 @@ def tips_view() -> dict:
     }
 
 
+# How the spark looks beside each tip (D66): thinking beside a way to study, eyes
+# closed beside sleep and breaks, cheering beside exercise and a habit, waving
+# beside going to class, as it is beside coffee.
+MOODS = ("idle", "think", "rest", "cheer", "wave")
+TIP_MOODS = {
+    "self-test": "think",
+    "spacing": "think",
+    "class-quizzes": "think",
+    "interleave": "think",
+    "pretest": "think",
+    "attend": "wave",
+    "sleep-after": "rest",
+    "sleep-regular": "rest",
+    "exercise": "cheer",
+    "caffeine": "idle",
+    "breaks": "rest",
+    "track": "think",
+    "if-then": "think",
+    "habit": "cheer",
+}
+
 TIP_SETTINGS = ("on", "off")
 
 
@@ -5995,17 +6016,24 @@ def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> d
         tip = next(t for t in _tips.TIPS if t.key == key)
     else:
         tip, reason = _tips.of_the_day(local.date()), ""
-    return {"key": tip.key, "advice": _(tip.advice), "reason": reason}
+    return {"key": tip.key, "advice": _(tip.advice), "reason": reason, "mood": TIP_MOODS[tip.key]}
 
 
 def focus_tip(subscription: Subscription) -> dict | None:
     """The tip the focus page shows (D63): plan breaks before starting, and take one
     after `BREAK_AFTER` of a running session, the study's 24-minute blocks
-    [ref:biwer2023]. None when tips are off."""
+    [ref:biwer2023]. The spark waves before, and rests at the break (D66). None
+    when tips are off."""
     if not tips_on(subscription):
         return None
     tip = next(t for t in _tips.TIPS if t.key == "breaks")
-    return {"key": tip.key, "advice": _(tip.advice), "break_after": int(BREAK_AFTER.total_seconds())}
+    return {
+        "key": tip.key,
+        "advice": _(tip.advice),
+        "break_after": int(BREAK_AFTER.total_seconds()),
+        "mood": "wave",
+        "break_mood": "rest",
+    }
 
 
 BREAK_AFTER = timedelta(minutes=24)
@@ -6024,6 +6052,7 @@ def _note(note: _weekly.Note, week: int, read: Iterable[str]) -> dict:
         "for_you": _(note.for_you),
         "limits": _(note.limits),
         "unread": note.key not in set(read),
+        "mood": "think",
         "sources": [
             {
                 "cite": s.cite,
@@ -6284,6 +6313,7 @@ def coach(
                 "ask": answer["question"],
                 "declined": answer["kind"] == "declined",
                 "tips": [_tip(by_key[k]) for k in answer["tips"]],
+                "mood": "idle" if answer["kind"] == "declined" else "think",
             }
     matched = _coach_rules(question)
     log_event(store, subscription.token, "coach", "rules")
@@ -6295,6 +6325,7 @@ def coach(
         "ask": "",
         "declined": False,
         "tips": [_tip(by_key[k]) for k in matched],
+        "mood": "think" if matched else "idle",
     }
 
 

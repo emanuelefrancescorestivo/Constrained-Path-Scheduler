@@ -1908,26 +1908,77 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 }
 .tip-sources .muted { white-space: nowrap; }
 
-/* -- the neuron that brings a tip (D63) -------------------------------------------- */
-/* The home page's neurons (D58) as a small friend beside a tip. It breathes and a
-   signal runs down a dendrite to it; under reduced motion it keeps still. */
-.neuron-tip { display: flex; gap: 14px; align-items: center; }
-.neuron-tip .neuron { flex: none; width: 52px; height: 52px; overflow: visible; }
-.neuron-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.neuron-words > span { color: var(--muted); font-size: 0.92rem; }
-.neuron-words > .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
-.neuron-dendrites { fill: none; stroke: color-mix(in srgb, var(--nf-2) 75%, transparent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.neuron-signal { fill: none; stroke: var(--nf-3); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 18 200; stroke-dashoffset: -100; }
-.neuron-glow { fill: var(--nf-1); opacity: 0.16; transform-box: fill-box; transform-origin: center; }
-.neuron-soma { fill: color-mix(in srgb, var(--nf-1) 65%, var(--nf-2)); }
-.neuron-eye { fill: #fff; }
-.neuron-smile { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+/* -- the spark that brings a tip (D63, D66) ---------------------------------------- */
+/* A small friend beside a tip, the owner's pick of three drawings. Its moods are
+   still poses (the server picks one); with motion allowed it floats, blinks, looks
+   around, its flame flickers and its vesicles circle. Under reduced motion, or the
+   plan's Motion: Reduced, it keeps its pose and stays still. */
+.mascot-tip { display: flex; gap: 14px; align-items: center; }
+.mascot { display: block; flex: none; width: 64px; height: 64px; overflow: visible; }
+.mascot-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mascot-words > span { color: var(--muted); font-size: 0.92rem; }
+.mascot-words > .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+.mascot .rig { transform-box: view-box; transform-origin: 120px 216px; }
+.mascot .shadow { transform-box: view-box; transform-origin: 120px 226px; }
+.mascot .orbit { transform-box: view-box; transform-origin: 120px 140px; }
+.mascot .eyes, .mascot .aura, .mascot .x-cheer { transform-box: fill-box; transform-origin: center; }
+.mascot .flame { transform-box: fill-box; transform-origin: 50% 100%; }
+.mascot .eyes-closed, .mascot .mouth-open, .mascot .mouth-o,
+.mascot .x-cheer, .mascot .x-think, .mascot .x-rest { opacity: 0; }
+.mascot.is-cheer .mouth-idle, .mascot.is-think .mouth-idle, .mascot.is-wave .mouth-idle,
+.mascot.is-rest .eyes { opacity: 0; }
+.mascot.is-cheer .mouth-open, .mascot.is-cheer .x-cheer, .mascot.is-think .mouth-o,
+.mascot.is-think .x-think, .mascot.is-rest .eyes-closed, .mascot.is-rest .x-rest,
+.mascot.is-wave .mouth-open { opacity: 1; }
+.mascot.is-cheer .arm-l { transform: translate(-6px, -46px); }
+.mascot.is-cheer .arm-r { transform: translate(6px, -46px); }
+.mascot.is-think .pupils { transform: translate(4px, -6px); }
+.mascot.is-think .arm-r { transform: translate(-30px, 14px); }
+.mascot.is-rest .flame { transform: rotate(-14deg) scaleY(0.8); }
+.mascot.is-wave .arm-r { transform: translate(4px, -40px); }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) .neuron-glow { animation: neuron-breathe 4s ease-in-out infinite; }
-  :root:not([data-motion="reduce"]) .neuron-signal { animation: neuron-signal 3.6s ease-in infinite; }
+  :root:not([data-motion="reduce"]) .mascot .rig { animation: mascot-float 2.8s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .shadow { animation: mascot-shadow 2.8s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .eyes { animation: mascot-blink 5.2s infinite; }
+  :root:not([data-motion="reduce"]) .mascot .pupils { animation: mascot-glance 8s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .flame { animation: mascot-flicker 1.4s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .aura { animation: mascot-aura 3s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .orbit { animation: mascot-orbit 14s linear infinite; }
+  :root:not([data-motion="reduce"]) .mascot .arm-l { animation: mascot-hand 2.8s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot .arm-r { animation: mascot-hand 2.8s ease-in-out 0.4s infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-cheer .rig { animation: mascot-jump 0.95s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-cheer .arm-l,
+  :root:not([data-motion="reduce"]) .mascot.is-cheer .arm-r,
+  :root:not([data-motion="reduce"]) .mascot.is-think .arm-r,
+  :root:not([data-motion="reduce"]) .mascot.is-think .pupils,
+  :root:not([data-motion="reduce"]) .mascot.is-rest .flame { animation: none; }
+  :root:not([data-motion="reduce"]) .mascot.is-cheer .x-cheer { animation: mascot-twinkle 0.95s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-cheer .orbit { animation-duration: 3s; }
+  :root:not([data-motion="reduce"]) .mascot.is-think .rig { animation: mascot-tilt 3s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-think .x-think circle { animation: mascot-dot 1.5s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-rest .rig { animation-duration: 5s; }
+  :root:not([data-motion="reduce"]) .mascot.is-rest .orbit { animation-duration: 40s; }
+  :root:not([data-motion="reduce"]) .mascot.is-rest .x-rest text { animation: mascot-z 3s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-wave .arm-r { animation: mascot-wave 0.6s ease-in-out infinite; }
+  :root:not([data-motion="reduce"]) .mascot.is-think .x-think .d2,
+  :root:not([data-motion="reduce"]) .mascot.is-rest .x-rest .z2 { animation-delay: 0.3s; }
+  :root:not([data-motion="reduce"]) .mascot.is-think .x-think .d3,
+  :root:not([data-motion="reduce"]) .mascot.is-rest .x-rest .z3 { animation-delay: 0.6s; }
 }
-@keyframes neuron-breathe { 0%, 100% { transform: scale(0.9); opacity: 0.12; } 50% { transform: scale(1.1); opacity: 0.26; } }
-@keyframes neuron-signal { 0% { stroke-dashoffset: -100; opacity: 0; } 15% { opacity: 1; } 60%, 100% { stroke-dashoffset: 18; opacity: 0; } }
+@keyframes mascot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes mascot-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.88); opacity: 0.75; } }
+@keyframes mascot-blink { 0%, 91%, 100% { transform: scaleY(1); } 93% { transform: scaleY(0.08); } 95% { transform: scaleY(1); } }
+@keyframes mascot-glance { 0%, 38%, 100% { transform: translate(0, 0); } 44%, 58% { transform: translate(3px, -1px); } 64%, 80% { transform: translate(-3px, 1px); } }
+@keyframes mascot-flicker { 0%, 100% { transform: rotate(-6deg) scaleY(1); } 50% { transform: rotate(6deg) scaleY(1.12); } }
+@keyframes mascot-aura { 0%, 100% { transform: scale(0.92); opacity: 0.7; } 50% { transform: scale(1.04); opacity: 1; } }
+@keyframes mascot-orbit { to { transform: rotate(360deg); } }
+@keyframes mascot-hand { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes mascot-jump { 0%, 100% { transform: translateY(0) scale(1.05, 0.95); } 18% { transform: translateY(0) scale(0.96, 1.05); } 48% { transform: translateY(-30px) scale(0.98, 1.03); } 76% { transform: translateY(0) scale(1.05, 0.95); } }
+@keyframes mascot-twinkle { 0%, 100% { transform: scale(0.7); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 1; } }
+@keyframes mascot-tilt { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(-7deg); } }
+@keyframes mascot-dot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes mascot-z { 0% { opacity: 0; transform: translate(0, 6px); } 30%, 70% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -10px); } }
+@keyframes mascot-wave { 0%, 100% { transform: translate(4px, -40px); } 50% { transform: translate(-10px, -46px); } }
 .tip-today { margin-bottom: 14px; }
 .focus-break { width: 100%; max-width: 420px; margin-top: 8px; text-align: left; }
 
@@ -1940,13 +1991,12 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-note h1 { margin: 2px 0 14px; font-size: 1.9rem; letter-spacing: -0.02em; line-height: 1.15; }
 .weekly-note > p { font-size: 1.04rem; line-height: 1.55; }
 .weekly-for-you { display: flex; gap: 14px; align-items: center; margin: 18px 0; }
-.weekly-for-you .neuron { flex: none; width: 52px; height: 52px; overflow: visible; }
 .weekly-for-you p { margin: 0; }
 .weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
 
 /* -- the coach (D65) ------------------------------------------------------------------ */
 .coach-form textarea { width: 100%; resize: vertical; }
-.coach-answer .neuron-words p { margin: 0; }
+.coach-answer .mascot-words p { margin: 0; }
 .coach-answer .strength { align-self: flex-start; font-size: 0.74rem; }
 .coach-answer .strength-strong { color: var(--ok); }
 .coach-answer .strength-moderate { color: var(--accent); }

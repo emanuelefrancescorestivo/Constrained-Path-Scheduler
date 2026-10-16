@@ -1365,7 +1365,7 @@ MESSAGES: dict[str, str] = {
     "What research says about studying well, with its sources.": "Cosa dice la ricerca su come studiare bene, con le sue fonti.",
     "Tip of the day": "Consiglio del giorno",
     "Why, and the evidence": "Perché, e le prove",
-    # Tips at the right moment, and the neuron (D63)
+    # Tips at the right moment (D63)
     "choose On or Off": "scegli Attivi o Disattivati",
     "Exam soon: {name}, {when}.": "Esame a breve: {name}, {when}.",
     "A test is coming: {name}, {when}.": "Una prova in arrivo: {name}, {when}.",
@@ -1412,7 +1412,7 @@ MESSAGES: dict[str, str] = {
     "Breaks you plan, and breaks you take": "Le pause che si pianificano, e quelle che si prendono",
     "For one day of self-study, 87 students of a Dutch university either took breaks when they liked, or stopped for 6 minutes every 24, or for 3 minutes every 12.": "Per una giornata di studio individuale, 87 studenti di un'università olandese hanno fatto pause quando volevano, oppure si sono fermati 6 minuti ogni 24, oppure 3 minuti ogni 12.",
     "Those who chose their own breaks studied and rested for longer stretches, and felt more tired and distracted and less focused and motivated. All groups got about as much done; the set breaks seemed to do it in less time.": "Chi sceglieva le proprie pause studiava e riposava per periodi più lunghi, e si sentiva più stanco e distratto, meno concentrato e meno motivato. Tutti i gruppi hanno fatto più o meno lo stesso lavoro; le pause fisse sembravano farlo in meno tempo.",
-    "Before a session, decide when you will stop. On Focus, the neuron asks after 24 minutes.": "Prima di una sessione, decidi quando ti fermerai. In Focus, il neurone te lo chiede dopo 24 minuti.",
+    "Before a session, decide when you will stop. On Focus, the app asks after 24 minutes.": "Prima di una sessione, decidi quando ti fermerai. In Focus, l'app te lo chiede dopo 24 minuti.",
     "One day of study, at one university.": "Una giornata di studio, in una sola università.",
     "Sleep across the term, not the night before": "Il sonno di tutto il semestre, non della notte prima",
     "In a college chemistry class, 88 students wore sleep trackers through the term. Sleep on the night before a test showed no link to its result.": "In un corso universitario di chimica, 88 studenti hanno indossato un sensore del sonno per tutto il semestre. Il sonno della notte prima di un test non era legato al risultato.",

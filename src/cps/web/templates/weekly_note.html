@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_mascot.html" import mascot %}
 {% block title %}{{ note.title }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 <p class="back"><a href="/p/{{ token }}/weekly">{{ _("The weekly note") }}</a></p>
@@ -7,7 +8,7 @@
   <h1>{{ note.title }}</h1>
   {% for p in note.paragraphs %}<p>{{ p }}</p>{% endfor %}
   <div class="card weekly-for-you">
-    {% include "_neuron.html" %}
+    {{ mascot(note.mood, "mascot-note") }}
     <p><b>{{ _("What it means for you") }}</b> {{ note.for_you }}</p>
   </div>
   <p class="tip-note"><b>{{ _("Limits") }}</b> {{ note.limits }}</p>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_mascot.html" import mascot %}
 {% block title %}{{ _("Focus") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}{% if focus.running %}<script type="module" src="/static/focus.js"></script>{% endif %}{% endblock %}
 {% block main %}
@@ -15,9 +16,9 @@
     <button type="button" class="btn btn-sm" id="focus-full">{{ _("Full screen") }}</button>
   </p>
   <p class="hint focus-hint">{{ _("Stay on this page: leaving it is counted and shown on your session. Turn on your phone's Focus or Do Not Disturb mode to silence the rest.") }}</p>
-  {% if tip %}<a class="card link-card neuron-tip focus-break" href="/p/{{ token }}/tips#tip-{{ tip.key }}" data-break-at="{{ tip.break_after }}"{% if focus.elapsed < tip.break_after %} hidden{% endif %}>
-    {% include "_neuron.html" %}
-    <span class="neuron-words"><b>{{ _("A short break now?") }}</b><span>{{ _("In one study, students who stopped for 6 minutes every 24 felt less tired and more focused.") }}</span></span>
+  {% if tip %}<a class="card link-card mascot-tip focus-break" href="/p/{{ token }}/tips#tip-{{ tip.key }}" data-break-at="{{ tip.break_after }}"{% if focus.elapsed < tip.break_after %} hidden{% endif %}>
+    {{ mascot(tip.break_mood, "mascot-break") }}
+    <span class="mascot-words"><b>{{ _("A short break now?") }}</b><span>{{ _("In one study, students who stopped for 6 minutes every 24 felt less tired and more focused.") }}</span></span>
   </a>{% endif %}
   <form method="post" action="/p/{{ token }}/focus/cancel" class="focus-cancel"><button class="btn btn-sm btn-plain">{{ _("Stop without saving") }}</button></form>
 </section>
@@ -26,9 +27,9 @@
   <h1>{{ _("Focus") }}</h1>
   <p>{{ _("Start the timer, study, then log what you did.") }}</p>
 </div>
-{% if tip %}<a class="card link-card neuron-tip section" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
-  {% include "_neuron.html" %}
-  <span class="neuron-words"><span class="tip-reason">{{ _("Before you start") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></span>
+{% if tip %}<a class="card link-card mascot-tip section" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
+  {{ mascot(tip.mood, "mascot-start") }}
+  <span class="mascot-words"><span class="tip-reason">{{ _("Before you start") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></span>
 </a>{% endif %}
 {% if focus.suggested %}
 <form method="post" action="/p/{{ token }}/focus/start" class="card start-planned">

@@ -15,7 +15,7 @@ let beatTimer = null;
 let lock = null;
 
 const sweep = document.getElementById("focus-sweep");
-// The neuron's break nudge (D63): the server says after how long; it is in the page,
+// The break nudge (D63): the server says after how long; it is in the page,
 // hidden, and shown when the clock gets there.
 const nudge = document.querySelector(".focus-break[data-break-at]");
 const pad = (n) => String(n).padStart(2, "0");

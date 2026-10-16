@@ -111,7 +111,7 @@ NOTES = (
             "and distracted and less focused and motivated. All groups got about as much done; the set "
             "breaks seemed to do it in less time.",
         ),
-        "Before a session, decide when you will stop. On Focus, the neuron asks after 24 minutes.",
+        "Before a session, decide when you will stop. On Focus, the app asks after 24 minutes.",
         "One day of study, at one university.",
         ("biwer2023",),
     ),

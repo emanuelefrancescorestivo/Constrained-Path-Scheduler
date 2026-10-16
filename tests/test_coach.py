@@ -62,7 +62,7 @@ def sub(tmp_path) -> service.Subscription:
 def test_without_ai_the_words_lead_to_tips(tmp_path, sub, question, first):
     answer = service.coach(tmp_path, sub, question, now=NOW)
     keys = [t["key"] for t in answer["tips"]]
-    assert answer["by"] == "rules" and keys[0] == first and len(keys) <= 2
+    assert answer["by"] == "rules" and keys[0] == first and len(keys) <= 2 and answer["mood"] == "think"
     assert "caffeine" not in keys or first == "caffeine"
     assert answer["tips"][0]["sources"]  # each tip shown with its sources
 
@@ -70,6 +70,7 @@ def test_without_ai_the_words_lead_to_tips(tmp_path, sub, question, first):
 def test_a_question_the_tips_do_not_cover(tmp_path, sub):
     answer = service.coach(tmp_path, sub, "What is the capital of Australia?", now=NOW)
     assert answer["tips"] == [] and answer["answer"].startswith("No tip matches your question yet.")
+    assert answer["mood"] == "idle"
     with pytest.raises(service.InvalidInput):
         service.coach(tmp_path, sub, "?", now=NOW)
     with pytest.raises(service.InvalidInput):
@@ -142,6 +143,7 @@ def test_the_coach_page_without_its_scripts(tmp_path):
 
         asked = unescape(web.post(f"/p/{token}/coach", data={"question": "Le café avant de réviser ?"}).text)
         assert f"/p/{token}/tips#tip-caffeine" in asked and "Le coach, d'après les conseils" in asked
+        assert 'class="mascot is-think"' in asked
         assert "Le café avant de réviser ?" in asked  # in the box again, nowhere stored
         empty = unescape(web.post(f"/p/{token}/coach", data={"question": "?"}).text)
         assert "pose une question en quelques mots" in empty

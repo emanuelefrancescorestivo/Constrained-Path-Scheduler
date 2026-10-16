@@ -1,0 +1,46 @@
+{# The spark that brings a tip (D66): the signal that jumps from one neuron to the
+   next, as a glowing drop with a face, two floating hands and three vesicles
+   circling it. Chosen by the owner from three drawings (a neuron, a brain, this).
+   Decoration only, hidden from screen readers. Its mood is a class the server
+   picks: idle, think (a question, dots above), rest (eyes closed, z), cheer (hands
+   up, stars), wave. The poses are still drawings; the motion is CSS and stops
+   under reduced motion. `uid` keeps the gradients' ids apart when a page shows
+   more than one: a gradient whose id is repeated may be drawn from a hidden copy. #}
+{% macro mascot(mood="idle", uid="mascot") -%}
+<svg class="mascot is-{{ mood }}" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="{{ uid }}-body" cx=".38" cy=".55" r=".75"><stop offset="0" stop-color="#d8fff8"/><stop offset=".38" stop-color="#46dcc4"/><stop offset=".85" stop-color="#12a693"/><stop offset="1" stop-color="#0b7d6f"/></radialGradient>
+    <radialGradient id="{{ uid }}-aura"><stop offset="0" stop-color="#46dcc4" stop-opacity=".45"/><stop offset="1" stop-color="#46dcc4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="{{ uid }}-ves" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#ffe08a"/><stop offset="1" stop-color="#f2a516"/></radialGradient>
+    <radialGradient id="{{ uid }}-eye" cx=".45" cy=".35" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".8" stop-color="#f0fffc"/><stop offset="1" stop-color="#cdf2ea"/></radialGradient>
+    <radialGradient id="{{ uid }}-shadow"><stop offset="0" stop-color="#063d36" stop-opacity=".3"/><stop offset="1" stop-color="#063d36" stop-opacity="0"/></radialGradient>
+    <filter id="{{ uid }}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6"/></filter>
+  </defs>
+  <ellipse class="shadow" cx="120" cy="226" rx="46" ry="8" fill="url(#{{ uid }}-shadow)"/>
+  <circle class="aura" cx="120" cy="138" r="104" fill="url(#{{ uid }}-aura)"/>
+  <g class="rig">
+    <g class="orbit"><circle cx="214" cy="112" r="8" fill="url(#{{ uid }}-ves)"/><circle cx="30" cy="96" r="6" fill="url(#{{ uid }}-ves)"/><circle cx="176" cy="222" r="7" fill="url(#{{ uid }}-ves)"/></g>
+    <path class="flame" d="M120 14C130 30 134 44 120 60 106 44 110 30 120 14Z" fill="#9ef3e3"/>
+    <path d="M120 34C138 64 188 96 188 146A68 68 0 1 1 52 146C52 96 102 64 120 34Z" fill="url(#{{ uid }}-body)"/>
+    <ellipse cx="94" cy="108" rx="17" ry="10" transform="rotate(-38 94 108)" fill="#fff" opacity=".6" filter="url(#{{ uid }}-soft)"/>
+    <path d="M168 192A68 68 0 0 0 186 150" fill="none" stroke="#d8fff8" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+    <g class="arm-l"><circle cx="40" cy="160" r="12" fill="url(#{{ uid }}-body)"/></g>
+    <g class="arm-r"><circle cx="200" cy="160" r="12" fill="url(#{{ uid }}-body)"/></g>
+    <ellipse cx="79" cy="172" rx="11" ry="7" fill="#ffc2dc" opacity=".85"/><ellipse cx="161" cy="172" rx="11" ry="7" fill="#ffc2dc" opacity=".85"/>
+    <g class="eyes">
+      <ellipse cx="100" cy="146" rx="19" ry="22" fill="url(#{{ uid }}-eye)"/><ellipse cx="140" cy="146" rx="19" ry="22" fill="url(#{{ uid }}-eye)"/>
+      <g class="pupils" fill="#06372f">
+        <circle cx="103" cy="150" r="11"/><circle cx="143" cy="150" r="11"/>
+        <circle cx="107" cy="145" r="4.2" fill="#fff"/><circle cx="147" cy="145" r="4.2" fill="#fff"/>
+      </g>
+    </g>
+    <g class="eyes-closed" fill="none" stroke="#06372f" stroke-width="4.5" stroke-linecap="round"><path d="M84 148Q100 158 116 148"/><path d="M124 148Q140 158 156 148"/></g>
+    <path class="mouth-idle" d="M110 178Q120 188 130 178" fill="none" stroke="#06372f" stroke-width="4.5" stroke-linecap="round"/>
+    <g class="mouth-open"><path d="M105 175Q120 199 135 175Z" fill="#06372f"/><ellipse cx="120" cy="188" rx="7" ry="4.5" fill="#ff7fb5"/></g>
+    <ellipse class="mouth-o" cx="122" cy="181" rx="5" ry="6" fill="#06372f"/>
+    <g class="x-cheer" fill="#ffc93c"><path d="M36 70l4 9 9 4-9 4-4 9-4-9-9-4 9-4z"/><path d="M202 58l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M188 18l2.5 5.5 5.5 2.5-5.5 2.5-2.5 5.5-2.5-5.5-5.5-2.5 5.5-2.5z"/></g>
+    <g class="x-think" fill="#2bbfa8"><circle cx="180" cy="62" r="5"/><circle class="d2" cx="196" cy="46" r="7"/><circle class="d3" cx="215" cy="28" r="9"/></g>
+    <g class="x-rest" fill="#2bbfa8" font-family="-apple-system, system-ui, sans-serif" font-weight="800"><text x="178" y="70" font-size="18">z</text><text class="z2" x="194" y="48" font-size="24">z</text><text class="z3" x="212" y="24" font-size="30">Z</text></g>
+  </g>
+</svg>
+{%- endmacro %}
