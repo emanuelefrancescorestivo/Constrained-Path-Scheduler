@@ -2064,6 +2064,33 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-for-you p { margin: 0; }
 .weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
 
+/* -- Spark, floating (D71) ------------------------------------------------------------ */
+/* A speech bubble with the spark in it, low on the right, above the tab bar on a
+   phone; hidden over a form whose save button sticks to the bottom. */
+.spark-fab {
+  position: fixed; z-index: 35; right: max(18px, env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
+  width: 62px; height: 62px; display: grid; place-items: center;
+  border-radius: 50% 50% 12px 50%; background: var(--surface); border: 0.5px solid var(--line);
+  box-shadow: var(--shadow); text-decoration: none !important;
+  transition: transform 0.2s var(--ease-out);
+}
+.spark-fab:hover { transform: translateY(-2px); }
+.spark-fab:active { transform: scale(0.94); }
+.spark-fab .mascot { width: 48px; height: 48px; }
+body:has(.sticky-actions) .spark-fab, body:has(.focus) .spark-fab { display: none; }
+/* Room at the end of a page, so its last lines can be scrolled above the bubble. */
+body:has(.spark-fab) .footer { padding-bottom: 84px; }
+@media (max-width: 900px) {
+  body.has-tabs .spark-fab { bottom: calc(var(--tabbar) + 14px + env(safe-area-inset-bottom)); width: 56px; height: 56px; }
+  body.has-tabs .spark-fab .mascot { width: 42px; height: 42px; }
+}
+.spark-hello { margin-bottom: 14px; }
+.spark-ask { display: grid; gap: 10px; }
+.spark-ask textarea { width: 100%; resize: vertical; }
+.spark-links { margin-top: 16px; }
+.spark-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: inherit; text-decoration: none !important; }
+.spark-links .chev { color: var(--muted); font-size: 1.2rem; }
+
 /* -- the coach (D65) ------------------------------------------------------------------ */
 .coach-form textarea { width: 100%; resize: vertical; }
 .coach-answer .mascot-words p { margin: 0; }

@@ -2188,3 +2188,30 @@ until the end in the browser (the cards are one form, sent once).
 **Disclosed.** Drawing was checked in Chromium at 1280 and 390 px, with a mouse and
 with touch emulated, not on a real phone. What Spark says was written for this page;
 its French and Italian were not written by a native speaker (D34).
+
+## D71. Spark floats on the plan's pages
+
+*The owner, 2026-10-16: "make the assistant a floating cloud on the screen that you
+can click to help you".*
+
+**Chosen.** On every page of a plan, low on the right (above the tab bar on a
+phone), Spark (D66) floats in a speech bubble. Tapped, it opens a sheet: "Hi! How
+can I help?", a question for the coach (D65), and the ways Spark helps: setting up
+the day and the week (D69, D70), a focus session, the study tips, the weekly note.
+Where the browser knows popovers it is the same kind of sheet as the new task's;
+without a script, or without popovers, the bubble is a link to the coach's page,
+which links to the rest.
+
+It stays out of the way: not while setting up, not on the coach's own page, not over
+a running focus session's clock, and not over a form whose save button sticks to
+the bottom of a phone's screen (Settings, the session log). Pages end with room for
+it, so their last lines scroll above it.
+
+**Rejected.** A chat window that opens on its own, or a bubble that speaks first
+(D63: the character only carries the text, and a student came to do something
+else); the tip of the day in the sheet (it is on Today and Focus already, and every
+page would have to work it out).
+
+**Disclosed.** Checked in Chromium at 1280 and 390 px, light and dark, not on a real
+phone. Over the calendar it covers the corner of the last column's late evening; the
+calendar scrolls.

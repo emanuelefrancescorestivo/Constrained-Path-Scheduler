@@ -130,3 +130,23 @@ def test_spark_asks_the_questions_and_the_bars_draw_into_the_fields(tmp_path):
         assert 'data-night="wake,bed" data-range="lunch_start,lunch_end"' in page
         assert 'data-range="x0_start,x0_end" data-label="Football" data-label-from="x0_label" hidden' in page
         assert all(say in page for say in service.ROUTINE_SAYS.values())
+
+
+def test_spark_floats_on_the_plans_pages_but_not_while_setting_up_or_focusing(tmp_path):
+    # D71: a link to the coach without scripts, Spark's sheet with them.
+    config = Config(store=tmp_path, clock=lambda: MORNING, background=False, sweep_every=None)
+    with TestClient(create_app(config)) as web:
+        files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+        start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+        token = start.headers["location"].split("/")[2]
+        today = unescape(web.get(f"/p/{token}").text)
+        assert f'<a class="spark-fab" href="/p/{token}/coach" data-spark' in today
+        assert 'id="spark-help" class="sheet spark-sheet" popover' in today
+        assert (
+            f'action="/p/{token}/coach" class="spark-ask"' in today and f'href="/p/{token}/routine"' in today
+        )
+        for quiet in (f"/p/{token}/routine?new=1", f"/p/{token}/coach"):
+            assert "spark-fab" not in web.get(quiet).text, quiet
+        assert "spark-fab" in web.get(f"/p/{token}/focus").text
+        web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
+        assert "spark-fab" not in web.get(f"/p/{token}/focus").text  # nothing over the clock

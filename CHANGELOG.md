@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Spark floats on the plan's pages (D71): a speech bubble that opens a sheet with a
+  question for the coach and the ways Spark helps; without a script, a link to the
+  coach.
 - Spark asks about the week (D70): while setting up, one card at a time, and every
   time can be drawn on a bar of the day (the sun and the moon for getting up and
   going to bed, a block for lunch, sport or a job) as well as typed.

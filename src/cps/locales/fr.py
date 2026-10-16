@@ -1528,4 +1528,10 @@ MESSAGES: dict[str, str] = {
     "Do you train or play a sport? Drag on the bar to draw when, then pick the days.": "Tu t'entraînes ou tu fais du sport ? Fais glisser sur la barre pour dessiner quand, puis choisis les jours.",
     "A job? Draw its hours the same way, or type them.": "Un job ? Dessine ses heures de la même façon, ou tape-les.",
     "Anything else every week, like music lessons? Draw it too, or skip it. Then save, and I will plan around all of it.": "Autre chose chaque semaine, comme des cours de musique ? Dessine-le aussi, ou passe. Puis enregistre, et je planifierai autour de tout ça.",
+    # Spark, floating on the plan's pages (D71)
+    "Close": "Fermer",
+    "Ask Spark": "Demander à Spark",
+    "Hi! How can I help?": "Salut ! Je peux t'aider ?",
+    "Ask me about studying, or pick one of these.": "Pose-moi une question sur tes études, ou choisis l'un de ces liens.",
+    "Set up your day and your week": "Régler ta journée et ta semaine",
 }

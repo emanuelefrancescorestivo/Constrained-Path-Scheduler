@@ -286,7 +286,9 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
 
         switched = web.post(f"/p/{token}/tip-setting", data={"tips": "off"}, follow_redirects=False)
         assert switched.status_code == 303
-        assert 'class="mascot' not in web.get(f"/p/{token}").text
+        off = web.get(f"/p/{token}").text
+        # The tip is gone; Spark still floats, as the assistant, not a tip (D71).
+        assert "tip-today" not in off and 'class="mascot is-think"' not in off and "mascot-fab" in off
         assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text
 
 
