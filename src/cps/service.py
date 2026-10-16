@@ -1673,8 +1673,8 @@ def calendar_week(
         if not 0 <= week < weeks:
             raise InvalidInput(f"week must be 0 to {weeks - 1}")
         first = start + timedelta(days=7 * week)
-    if not 1 <= count <= 14:
-        raise InvalidInput("show 1 to 14 days")
+    if not 1 <= count <= CALENDAR_MOST_DAYS:
+        raise InvalidInput(f"show 1 to {CALENDAR_MOST_DAYS} days")
     zone = _zone(tz)
     dates = [first + timedelta(days=d) for d in range(count)]
     items: list[dict] = []
@@ -1801,6 +1801,11 @@ def short_title(summary: str) -> str:
         if text:
             shown.append(text)
     return " · ".join(shown)
+
+
+# The most days the calendar draws at once: a week shown and a week each side,
+# for the strip that scrolls sideways (D68).
+CALENDAR_MOST_DAYS = 21
 
 
 def calendar_week_count(source: CalendarReport | PlanReport) -> int:

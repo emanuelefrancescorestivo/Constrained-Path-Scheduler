@@ -596,6 +596,11 @@ def test_the_calendar_data_has_the_timetable_the_sessions_and_the_busy_times(web
     assert [k["id"] for k in data["kinds"]] == ["class", "training", "commute", "work", "timeoff", "other"]
     assert web.get(f"/p/{planned}/calendar.json?start=nonsense").status_code == 400
     assert web.get("/p/" + "x" * 32 + "/calendar.json").status_code == 404
+    # The strip that scrolls sideways (D68) draws a week each side of the week
+    # shown: 21 days at most, anything more is cut to that.
+    strip = web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=21").json()
+    assert len(strip["days"]) == 21 and strip["days"][-1]["date"] == "2026-10-19"
+    assert len(web.get(f"/p/{planned}/calendar.json?start=2026-09-29&days=60").json()["days"]) == 21
 
 
 def test_a_busy_time_drawn_on_the_calendar_moves_the_plan(web, planned):

@@ -100,6 +100,12 @@ export class Calendar {
     this.first = first;
     // Drawing a week by hand (D32): what is drawn is a class unless said otherwise.
     this.setup = setup;
+    // A strip of days that scrolls sideways, a day at a time, as Google Calendar and
+    // Notion Calendar do (D68): the days shown, and a few more on each side drawn
+    // ahead; near either end it is drawn again around the day shown first. Drawing
+    // a week by hand shows its week alone.
+    this.strip = !setup;
+    this.settling = null;
     this.today = first;
     this.onChanged = onChanged || (() => {});
     this.toast = toast || (() => {});
@@ -113,7 +119,12 @@ export class Calendar {
       this.view = this.savedView();
       this.load();
     });
-    window.addEventListener("resize", () => this.fitLabels());
+    let resized = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resized);
+      // A column is a share of the width: drawn again when the width changes.
+      resized = setTimeout(() => (this.strip && this.data ? this.draw(this.data) : this.fitLabels()), 120);
+    });
     setInterval(() => this.placeNow(), 60 * 1000);
   }
 
@@ -144,8 +155,13 @@ export class Calendar {
     return this.view;
   }
 
+  // Days drawn on each side of those shown: a week, room for a long swipe.
+  get buffer() {
+    return this.strip ? 7 : 0;
+  }
+
   query() {
-    return `start=${this.first}&days=${this.count}`;
+    return `start=${shiftDate(this.first, -this.buffer)}&days=${this.count + 2 * this.buffer}`;
   }
 
   async request(path, body) {
@@ -175,10 +191,41 @@ export class Calendar {
   }
 
   go(where) {
-    if (where === "today") this.first = this.today;
-    else this.first = shiftDate(this.first, where === "back" ? -this.count : this.count);
-    this.scrolled = null;
+    const target = where === "today" ? this.today : shiftDate(this.first, where === "back" ? -this.count : this.count);
+    const index = this.data && this.strip ? this.data.days.findIndex((day) => day.date === target) : -1;
+    const scroller = this.root.querySelector(".cal-scroll");
+    // Within the days drawn, the strip slides there; further, it is drawn there.
+    if (index >= 0 && scroller && index + this.count <= this.data.days.length) {
+      this.first = target;
+      scroller.scrollTo({ left: index * this.column, behavior: still() ? "auto" : "smooth" });
+      return;
+    }
+    this.first = target;
     this.load();
+  }
+
+  // Where the strip came to rest: its first whole day is the first shown. Near
+  // either end of what is drawn, the strip is drawn again around it.
+  settle(scroller) {
+    if (!this.data || !this.column) return;
+    const days = this.data.days;
+    const index = Math.min(Math.max(Math.round(scroller.scrollLeft / this.column), 0), days.length - this.count);
+    if (index === this.shown) return; // where it was drawn: the page set it there
+    this.shown = index;
+    this.first = days[index].date;
+    this.announce(index);
+    if (index < 2 || index > days.length - this.count - 2) {
+      this.scrolled = scroller.scrollTop;
+      this.load();
+    }
+  }
+
+  // The range in the bar: the days shown, not all those drawn.
+  announce(index) {
+    const days = this.data.days;
+    const first = days[index].label;
+    const last = days[Math.min(index + this.count, days.length) - 1].label;
+    this.onRange(this.count === 1 ? first : `${first.slice(4)} – ${last.slice(4)}`, this.view);
   }
 
   // A change sent to the server; the calendar it answers with is drawn.
@@ -217,7 +264,13 @@ export class Calendar {
     this.top = 0;
     this.bottom = 24 * 60;
     const height = (this.bottom - this.top) * PX;
-    const columns = `${GUTTER}px repeat(${days.length}, minmax(0, 1fr))`;
+    // In the strip a column is a share of the width (the days shown share it);
+    // the days drawn ahead lie beyond the edges. The width is the calendar's box,
+    // which its days cannot widen (CSS: min-width 0, overflow hidden).
+    const width = (this.root.getBoundingClientRect().width || window.innerWidth) - GUTTER;
+    this.column = this.strip ? Math.max(width / this.count, 40) : 0;
+    const track = this.strip ? `${this.column}px` : "minmax(0, 1fr)";
+    const columns = `${GUTTER}px repeat(${days.length}, ${track})`;
 
     const head = h("div", { class: "cal-head" }, h("div"));
     head.style.gridTemplateColumns = columns;
@@ -287,7 +340,9 @@ export class Calendar {
       for (const box of lanes(list)) this.columns[d].append(this.box(box, d));
     });
 
-    const scroll = h("div", { class: "cal-scroll" }, body);
+    // The day names ride along with the columns, held at the top; the hours, at the
+    // left (CSS: sticky).
+    const scroll = h("div", { class: `cal-scroll${this.strip ? " days-strip" : ""}` }, head, body);
     const used = new Set(data.items.concat(data.activities).map((i) => i.color).filter((c) => c !== null && c !== undefined));
     const legend = h("div", { class: "legend", "aria-label": t("Courses") },
       data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
@@ -298,7 +353,7 @@ export class Calendar {
           h("b", {}, t("Drag on the calendar to add your first class")),
           h("span", {}, narrow() ? t("Tap the hour it starts; you can change it after.") : t("From its start to its end, on its day; you can change it after."))))
       : null;
-    this.root.replaceChildren(h("div", { class: "cal" }, head, scroll, empty, legend.childElementCount ? legend : null));
+    this.root.replaceChildren(h("div", { class: "cal" }, scroll, empty, legend.childElementCount ? legend : null));
     this.placeNow();
     this.fitLabels();
 
@@ -308,9 +363,20 @@ export class Calendar {
       const focus = !this.setup && days.some((d) => d.date === data.now.date) ? Math.max(data.now.minute - 90, earliest) : earliest;
       scroll.scrollTop = Math.max((focus - this.top) * PX, 0);
     }
-    const first = days[0].label;
-    const last = days[days.length - 1].label;
-    this.onRange(days.length === 1 ? first : `${first.slice(4)} – ${last.slice(4)}`, this.view);
+    let shown = 0;
+    if (this.strip) {
+      shown = Math.max(days.findIndex((day) => day.date === this.first), 0);
+      this.shown = shown;
+      scroll.scrollLeft = shown * this.column;
+      const rest = () => this.settle(scroll);
+      // Where `scrollend` is known it says when the strip rests; elsewhere, a pause.
+      if ("onscrollend" in window) scroll.addEventListener("scrollend", rest);
+      else scroll.addEventListener("scroll", () => {
+        clearTimeout(this.settling);
+        this.settling = setTimeout(rest, 160);
+      });
+    }
+    this.announce(shown);
     if (before) this.slide(before);
   }
 
@@ -499,11 +565,22 @@ export class Calendar {
     return null;
   }
 
-  autoscroll(clientY) {
+  autoscroll(clientY, clientX = null) {
     const scroller = this.root.querySelector(".cal-scroll");
     const rect = scroller.getBoundingClientRect();
     if (clientY < rect.top + 36) scroller.scrollTop -= 12;
     else if (clientY > rect.bottom - 36) scroller.scrollTop += 12;
+    // A block dragged to the strip's edge carries it along, a few pixels at a time
+    // (snapping is off meanwhile, or the strip would spring back).
+    if (!this.strip || clientX === null) return;
+    scroller.classList.add("dragging");
+    if (clientX < rect.left + GUTTER + 28) scroller.scrollLeft -= 10;
+    else if (clientX > rect.right - 28) scroller.scrollLeft += 10;
+  }
+
+  endDrag() {
+    const scroller = this.root.querySelector(".cal-scroll");
+    if (scroller) scroller.classList.remove("dragging");
   }
 
   drag(event, node, box, d0, open) {
@@ -527,7 +604,7 @@ export class Calendar {
       moved = true;
       this.closePop();
       node.classList.add("dragging");
-      this.autoscroll(e.clientY);
+      this.autoscroll(e.clientY, resizing ? null : e.clientX);
       if (resizing) {
         end = Math.min(Math.max(snap(this.minuteAt(this.columns[d], e.clientY)), start + SNAP), 1440);
       } else {
@@ -547,6 +624,7 @@ export class Calendar {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
+      this.endDrag();
     };
     const up = (e) => {
       if (e.pointerId !== pointer) return;
@@ -587,12 +665,14 @@ export class Calendar {
       if (event.button !== 0 || event.target !== column) return;
       const origin = snap(this.minuteAt(column, event.clientY));
       if (event.pointerType === "touch") {
-        // A tap adds; a swipe scrolls, and the browser then cancels the pointer.
+        // A tap adds; a swipe scrolls, up and down or across the days, and the
+        // browser then cancels the pointer.
+        const x0 = event.clientX;
         const y0 = event.clientY;
         const up = (e) => {
           column.removeEventListener("pointerup", up);
           column.removeEventListener("pointercancel", off);
-          if (Math.abs(e.clientY - y0) < 10) this.openCreate(d, origin, Math.min(origin + 60, 1440));
+          if (Math.abs(e.clientY - y0) < 10 && Math.abs(e.clientX - x0) < 10) this.openCreate(d, origin, Math.min(origin + 60, 1440));
         };
         const off = () => {
           column.removeEventListener("pointerup", up);

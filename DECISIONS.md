@@ -2090,3 +2090,35 @@ behind a ring (the chips can be read without colour).
 sessions are not advice: the break card still comes after 24 minutes (D63), and a
 break on the page counts as focus, a break away from it does not. Checked in
 Chromium at 1280 and 390 px, light and dark.
+
+## D68. The calendar scrolls sideways, a day at a time
+
+*The owner, 2026-10-16: "make the calendar scrollable left and right like notion
+calendar or google calendar".*
+
+**Chosen.** The calendar is a strip of days: the days shown (one, three or seven,
+D59) and a week drawn ahead on each side. A swipe, a trackpad or Shift and the
+wheel moves it sideways, and it comes to rest on a whole day (CSS scroll snapping),
+as Notion Calendar does; the arrows, the arrow keys and Today slide it by the days
+shown, or to today. The day names ride along with the columns, held at the top,
+and the hours stay at the left. When the strip comes to rest within two days of
+either end, it is drawn again around the first day shown, so it never runs out;
+the bar names the days shown, not all those drawn. A study session or a busy time
+dragged to the strip's edge carries it along. A swipe at either end stays in the
+calendar instead of going back a page (`overscroll-behavior-x`).
+
+The server draws up to 21 days at once (a week shown, a week each side), up from
+14; 21 days take about 12 ms to make (measured on the sample semester, this
+machine). Drawing a week by hand (D32) stays a single week: it is weekdays, not
+dates.
+
+**Rejected.** Pages that turn by the days shown, as Google Calendar's web page does
+(the owner named both, and the continuous strip is the one that feels like a
+phone); drawing days one by one as they come into view (more requests, and a block
+dragged across days needs both drawn); a library for it (the CSS does the
+snapping).
+
+**Disclosed.** Checked in Chromium at 1280 and 390 px, with a mouse and with touch
+emulated; not on a real phone. Where a browser does not know the `scrollend` event
+(which ones was not checked), the strip's resting place is taken after a pause of
+160 ms.

@@ -83,7 +83,7 @@ The hosted app's front end is `web/static/`, in the manner of Apple's interface
 guidelines (system font, grouped lists, translucent bars, sheets, switches, the "+"
 in the bar, continuous corners where the browser draws them, D37): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
-red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), draw,
+red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), a strip that scrolls sideways a day at a time (D68), draw,
 drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn by
 hand, classes first, D32), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
@@ -204,7 +204,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Moodle deadlines are read from English event names only; their hours are a guess
   (2 h) until the student changes them. Tasks typed in one line are read by rules in
   English and French only. The Italian (D34) was not written by a native speaker.
-- Offline and install (D33) were checked in Chromium only, not on an iPhone.
+- Offline and install (D33) were checked in Chromium only, not on an iPhone. So was the
+  calendar's sideways strip (D68), with touch emulated.
 - The interface polish (D37) was checked in Chromium only; continuous corners and
   the scroll-linked top bar fall back to circular corners and a solid bar elsewhere.
 - Passkeys (D35) were checked with a simulated device and Chromium's virtual

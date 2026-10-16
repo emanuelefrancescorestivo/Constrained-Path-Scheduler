@@ -471,7 +471,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 }
 .board-bar .range { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; margin: 0 6px; }
 .board-bar .spacer { flex: 1; }
-#calendar { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#calendar { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .board-fallback { padding: 16px; overflow: auto; }
 
 /* A segmented control: Day / 3 Days / Week */
@@ -579,7 +579,7 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .other-hours { width: 92px !important; min-height: 34px !important; padding: 4px 10px !important; }
 
 /* -- the calendar, in the manner of Apple Calendar --------------------------------- */
-.cal { display: flex; flex-direction: column; min-height: 0; flex: 1; user-select: none; -webkit-user-select: none; }
+.cal { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; user-select: none; -webkit-user-select: none; }
 .cal-head { display: grid; border-bottom: 0.5px solid var(--line-strong); background: var(--surface); }
 .cal-day { padding: 8px 4px 8px; text-align: center; min-width: 0; }
 .cal-day .wd { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -590,8 +590,24 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .cal-day.today.weekend .dn { color: #fff; }
 .cal-day.out { opacity: 0.4; }
 .cal-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; overscroll-behavior: contain; }
+.cal-scroll > .cal-head { position: sticky; top: 0; z-index: 6; }
 .cal-body { display: grid; position: relative; }
 .cal-gutter { position: relative; }
+/* The strip (D68): sideways a day at a time, the day names held at the top and the
+   hours at the left while the columns pass beneath; a swipe at either end stays in
+   the calendar instead of going back a page. */
+.cal-scroll.days-strip {
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 52px;
+  overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.cal-scroll.days-strip::-webkit-scrollbar { display: none; }
+.cal-scroll.days-strip.dragging { scroll-snap-type: none; }
+.cal-scroll.days-strip .cal-head, .cal-scroll.days-strip .cal-body { width: max-content; min-width: 100%; }
+.cal-scroll.days-strip .cal-col { scroll-snap-align: start; touch-action: pan-x pan-y; }
+.cal-scroll.days-strip .cal-gutter, .cal-scroll.days-strip .cal-head > :first-child {
+  position: sticky; left: 0; z-index: 5; background: var(--surface);
+}
+.cal-scroll.days-strip .cal-head > :first-child { z-index: 7; }
 .cal-hour { position: absolute; right: 8px; font-size: 0.7rem; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; font-weight: 500; }
 .cal-hour.first { transform: translateY(2px); }
 .cal-col { position: relative; border-left: 0.5px solid var(--line); touch-action: pan-y; }

@@ -1834,7 +1834,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             first = date.fromisoformat(start) if start else None
         except ValueError:
             raise service.InvalidInput(f"{start!r} is not a date like 2026-10-05") from None
-        return first, max(1, min(days, 14))
+        return first, max(1, min(days, service.CALENDAR_MOST_DAYS))
 
     @app.get("/p/{token}/calendar.json")
     def calendar(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:

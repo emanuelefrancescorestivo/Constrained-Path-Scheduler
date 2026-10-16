@@ -6,6 +6,9 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The calendar scrolls sideways, a day at a time (D68), with a swipe or a trackpad,
+  as Notion Calendar and Google Calendar do; the day names stay on top and the hours
+  on the left.
 - A focus session's length and its rewards (D67): choose how long before starting
   (25 minutes to 3 hours, or no limit); rewards at 30 minutes, an hour, then every 45
   minutes, and at the length chosen, on time spent on the page; the diary card shows
