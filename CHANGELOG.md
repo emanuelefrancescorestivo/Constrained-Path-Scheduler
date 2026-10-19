@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The app's icon is the week as a ring of seven days (D74): the days done filled,
+  today in gold, the days to come faint. On a plan's pages the top bar and the tab
+  show today's, in the colours of the sky of the hour, and change as the day goes
+  on; installed on a phone it is white, or graphite in dark mode.
 - Calm glass (D73): Today shows the next step large and folds the rest under "More";
   a sky that follows the hour and drifts slowly; clear glass on cards and bars, a
   floating tab bar with Spark beside it; a garden in the margins that grows with the

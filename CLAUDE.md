@@ -27,8 +27,8 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 810 passed, 17 deselected, 1 xfailed, about 200 s
-    pytest -m "slow or not slow" --cov=cps   # all 827 + 1 xfailed, 93% coverage, about 8 min; CI runs this
+    pytest                                   # 881 passed, 17 deselected, 1 xfailed, about 200 s
+    pytest -m "slow or not slow" --cov=cps   # all 898 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -75,7 +75,7 @@ more than an impressive number.
 | `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone) |
 | `reminders.py` | D38: Web Push before each session: the server's VAPID key (made once, kept in the store), devices at known push services only, a session reminded once, sending with `pywebpush` |
 | `passkeys.py`, `accounts.py` | D35: WebAuthn checked on the server (a small CBOR reader; ES256, Ed25519, RS256 with `cryptography`, imported lazily), a plan's passkeys, single-use challenges, the recovery code (a digest, used once) |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), the app's icon (the week's ring for a day and a sky, `web/icon.py`, D74), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
 | `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
@@ -90,12 +90,12 @@ drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn 
 hand, classes first, D32), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
-sheet, Undo, the N key), `motion.js` (D30: numbers that count up, swaps carried over
+sheet, Undo, the N key, the sky and the live icon as the day turns), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
 transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
 (D33: the installable app, the service worker that keeps a plan's pages for offline use, the
 install card; with D38, the reminder shown as a notification; it also remembers the plan
-last opened, for invitation links, D40), `invite.js` (D40: "Join with my plan" on an
+last opened, for invitation links, D40; the graphite icon to install on a dark device, D74), `invite.js` (D40: "Join with my plan" on an
 invitation link), `routine.js` (D70: the questions about the week one card at a time with Spark, each time drawn on a bar of the day), `push.js` (D38: turning
 reminders on or off on a device), `passkeys.js` (D35: adding a passkey, signing in with one; the server
 decides, the script hands the browser's answer back), `errors.js` (D43: loaded first on every page, it sends the scripts' errors to the owner's
@@ -210,6 +210,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   calendar's sideways strip (D68), with touch emulated.
 - Calm glass (D73) was checked in Chromium only, with phone sizes emulated; browsers
   without backdrop blur show the glass as a translucent fill.
+- The live icon (D74) was checked in Chromium only. An installed icon stays as it was
+  installed (white, or graphite if the plan or the device was dark then); Safari's
+  tab shows the white PNG.
 - The interface polish (D37) was checked in Chromium only; continuous corners and
   the scroll-linked top bar fall back to circular corners and a solid bar elsewhere.
 - Passkeys (D35) were checked with a simulated device and Chromium's virtual

@@ -3,7 +3,8 @@
 // site. It decides nothing about a plan: it only keeps copies.
 //
 // - The app's own files (styles, scripts, icons) and the offline page are kept at
-//   install, and refreshed in the background each time they are used.
+//   install, and refreshed in the background each time they are used; so is the
+//   live icon of each day and sky (/icon/..., D74) once it has been shown.
 // - A plan's pages (/p/...) and the calendar's data are always asked of the server
 //   first; a copy of the last answer is kept, on this device only, and shown when
 //   there is no network. The page then says it is offline (pwa.js).
@@ -13,7 +14,7 @@
 // - A reminder pushed by the server (D38) is shown as a notification; tapping it
 //   opens the plan, in a window already open if there is one.
 
-const VERSION = "v4";
+const VERSION = "v5";
 // The offline page in the language of the page that registered this worker
 // (pwa.js passes it); a new language registers the worker again.
 const LANG = new URL(self.location).searchParams.get("lang") || "en";
@@ -104,7 +105,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/static/")) {
+  if (url.pathname.startsWith("/static/") || url.pathname.startsWith("/icon/")) {
     event.respondWith(staleWhileRevalidate(request));
   } else if (url.pathname.startsWith("/p/")) {
     event.respondWith(networkFirst(request, request.mode === "navigate"));

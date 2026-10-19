@@ -58,7 +58,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms
+from . import charts, forms, icon
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -429,9 +429,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # -- the app on a home screen (D33) ----------------------------------------
 
-    def manifest(start: str) -> Response:
+    def manifest(start: str, look: str) -> Response:
         """The web app manifest: what a phone needs to install the site as an app.
-        A plan's own (`start` its address) opens that plan from the home screen."""
+        A plan's own (`start` its address) opens that plan from the home screen. Its
+        icons are the white ones, or the graphite ones for `look` "dark" (D74): the
+        page asks for those when the plan, or the device, is in dark mode."""
+        dark = "-dark" if look == "dark" else ""
+        background = "#0e1015" if look == "dark" else "#f2f2f7"
         body = {
             "id": start,
             "name": service.translate("Study plan"),
@@ -441,31 +445,43 @@ def create_app(config: Config | None = None) -> FastAPI:
             "start_url": start,
             "scope": "/",
             "display": "standalone",
-            "background_color": "#f2f2f7",
-            "theme_color": "#f2f2f7",
+            "background_color": background,
+            "theme_color": background,
             "icons": [
-                {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-                {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                {"src": f"/static/icons/icon-192{dark}.png", "sizes": "192x192", "type": "image/png"},
+                {"src": f"/static/icons/icon-512{dark}.png", "sizes": "512x512", "type": "image/png"},
                 {
-                    "src": "/static/icons/maskable-512.png",
+                    "src": f"/static/icons/maskable-512{dark}.png",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "maskable",
                 },
+                # White or graphite by the device's own mode, whichever manifest asked.
                 {"src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml"},
             ],
         }
         return Response(json.dumps(body, ensure_ascii=False), media_type="application/manifest+json")
 
     @app.get("/manifest.webmanifest")
-    def site_manifest() -> Response:
-        return manifest("/")
+    def site_manifest(look: str = "light") -> Response:
+        return manifest("/", look)
 
     @app.get("/p/{token}/manifest.webmanifest")
-    def plan_manifest(request: Request, token: str) -> Response:
+    def plan_manifest(request: Request, token: str, look: str = "light") -> Response:
         if load(token) is None:
             return missing(request)
-        return manifest(f"/p/{token}")
+        return manifest(f"/p/{token}", look)
+
+    @app.get("/icon/week-{day:int}-{look}.svg")
+    def week_icon(day: int, look: str) -> Response:
+        """The app's icon for a day of the week in a sky's colours, or light or dark
+        (D74): the same for everyone, so it may be kept a day."""
+        try:
+            drawing = icon.week(day, look)
+        except ValueError:
+            return Response(status_code=404)
+        day_long = {"Cache-Control": "public, max-age=86400"}
+        return Response(drawing, media_type="image/svg+xml", headers=day_long)
 
     @app.get("/sw.js")
     def service_worker() -> Response:

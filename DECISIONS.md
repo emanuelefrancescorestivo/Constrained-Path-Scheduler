@@ -729,7 +729,8 @@ a phone with no app store in between:
    neuroscience of learning"): a brain, and inside it recall over time. Memory
    falls; each review, at the right moment, brings it back; after each it falls
    less and the next can wait longer, which is what the planner's FSRS model does.
-   Two other drafts were shown (the curve alone; a filled brain).
+   Two other drafts were shown (the curve alone; a filled brain). *Replaced by the
+   week's ring, D74.*
 3. **A service worker** (`/sw.js`, from the root so it may answer for the whole
    site). A plan's pages and the calendar's data are asked of the server first, and
    the last answer is kept on the device; without a network that copy is shown,
@@ -2294,3 +2295,55 @@ plan at 1280 and 1920), light and dark, still and in motion, not on a real phone
 plain translucent fill; a device that asks for less transparency gets solid
 surfaces. The drift, the sway and the panel's motion stop under reduced motion.
 The service worker keeps the fonts and the drawings for offline use.
+
+## D74. The app's icon: the week as a ring of seven days
+
+*The owner, 2026-10-19, after four rounds of drafts on a design canvas (a spark and a
+sprout; a brain and a spark; one shape with light and depth; the ring branched six
+ways and drawn in six colours): "can we pick T and make it update each day of the
+week and its colours throughout the day? but choose the white/black one according
+to the user dark/light mode as a static icon". The brain with its recall curve (D33)
+read as overlapping shapes, not as one mark.*
+
+**Chosen.**
+
+- *The drawing.* Seven arcs in a ring, one per day, Monday just right of the top and
+  the days going clockwise. The days before today are filled, today's ends in a gold
+  light, the days to come are faint. At first sight a ring filling up; once the app
+  is used, the student's week with today in gold. Each day keeps its colour whatever
+  day it is (Monday is always Monday's colour). Drawn on the server
+  (`cps.web.icon`), as the charts are, with SVG attributes only.
+- *Live where it can be.* On a plan's pages the top bar and the browser's tab show
+  today's icon: the weekday in the plan's time zone (`service.look_of`), in the
+  colours of the sky of the hour (D73: blue and mint in the morning, indigo and
+  white in the afternoon, violet to orange in the evening, deep blue at night). A
+  page left open swaps it as the hour and the day turn (`ui.js`, by the device's
+  clock, as the sky). It is served at `/icon/week-<day>-<look>.svg`, the same for
+  everyone and kept a day; the service worker keeps each one shown, for offline.
+- *Still where it must be.* What a phone puts on its home screen cannot change once
+  installed, so it is the drawing made once, on a Friday: white for light mode,
+  graphite for dark. A plan set to Light or Dark (D21) installs its own; one that
+  follows the device asks for the graphite one while the device is dark (`pwa.js`
+  sets the manifest's `?look=dark` and the dark Apple touch icon). The SVG icon a tab
+  shows outside a plan (the home page, the setup) carries both drawings and picks by
+  the device's mode. `icon.main()` writes the SVGs; the PNGs are those drawings
+  rendered by Chromium at 32, 180, 192 and 512 px, and a test fails if the SVGs and
+  the module disagree.
+
+**Rejected.** A home-screen icon that changes by itself (a web app cannot; native
+apps cannot either, Apple's own Calendar aside); counting only the days actually
+studied (a missed day would show as a gap on the icon, against the forgiving streak,
+D9); the brain, the head, the neuron and the other drafts (each read as a picture of
+a thing, not as the week the app plans); the spiral and the comet (prettier, but
+they say "time" without saying "your week").
+
+**Disclosed.** Checked in Chromium only: the top bar at 1280 px in light mode and at
+390 px in dark mode, the tab's icon address, the swap of both after the clock moves
+on, the graphite icon asked for on a dark device, every day in every look at 64 and
+28 px, and icon.svg switching by mode under the app's Content-Security-Policy.
+Not checked on a real phone. Safari shows the white PNG in its tab; whether iOS
+keeps the dark Apple touch icon when the device is dark at the moment of "Add to Home
+Screen" was not tried. An installed icon stays as it was installed, even when the
+mode changes later. The server counts the day in the plan's time zone and the page in
+the device's, as the sky does, so a student abroad may see the icon change a few
+minutes after the page loads.

@@ -7,7 +7,8 @@
 //   the settings page says in words how to install from the browser's menu.
 // - after "Delete my plan", asks the worker to forget that plan's copies;
 // - remembers, on this device only, the plan last opened, so that an invitation
-//   link can offer to join with it (D40); forgets it with the plan.
+//   link can offer to join with it (D40); forgets it with the plan;
+// - asks for the graphite icon to install when the device is in dark mode (D74).
 import { t } from "./i18n.js";
 
 const root = document.documentElement;
@@ -102,3 +103,24 @@ document.addEventListener("click", async (event) => {
 
 if (standalone) root.classList.add("standalone");
 reveal();
+
+// -- the icon a phone installs (D74) -----------------------------------------------
+// White, or graphite in dark mode. A plan set to Light or Dark has its own in the
+// page already; a page that follows the device asks for the graphite one here while
+// the device is dark, so that it is the one installed. Once installed it stays.
+if (!root.dataset.theme) {
+  const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
+  const follow = () => {
+    const manifest = document.querySelector('link[rel="manifest"]');
+    if (manifest) {
+      const url = new URL(manifest.href);
+      if (darkMode.matches) url.searchParams.set("look", "dark");
+      else url.searchParams.delete("look");
+      manifest.href = url.pathname + url.search;
+    }
+    const touch = document.querySelector('link[rel="apple-touch-icon"]');
+    if (touch) touch.href = `/static/icons/apple-touch-icon${darkMode.matches ? "-dark" : ""}.png`;
+  };
+  follow();
+  darkMode.addEventListener("change", follow);
+}

@@ -4802,18 +4802,19 @@ def garden_stage(streak: int) -> int:
 
 
 def look_of(store: str | os.PathLike, subscription: Subscription | None, now: datetime | None = None) -> dict:
-    """The sky and the garden behind a plan's pages (D73): decoration only, worked
-    out each time from the hour in the plan's time zone and the streak as Today
-    counts it (D8, logged focus sessions included)."""
+    """The sky and the garden behind a plan's pages (D73), and the day of the week
+    the app's icon shows (1 Monday ... 7 Sunday, D74): decoration only, worked out
+    each time from the hour in the plan's time zone and the streak as Today counts
+    it (D8, logged focus sessions included)."""
     now = now or datetime.now(UTC)
     if subscription is None or subscription.plan is None:
-        return {"sky": sky_at(now.hour), "garden": 1}
+        return {"sky": sky_at(now.hour), "garden": 1, "weekday": now.isoweekday()}
     plan = PlanReport.from_dict(subscription.plan)
     local = now.astimezone(_zone(plan.settings.tz))
     sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
     run = _progress.streak(sessions, first, local.date())
-    return {"sky": sky_at(local.hour), "garden": garden_stage(run.current)}
+    return {"sky": sky_at(local.hour), "garden": garden_stage(run.current), "weekday": local.isoweekday()}
 
 
 def set_motion(subscription: Subscription, motion: str) -> Subscription:
