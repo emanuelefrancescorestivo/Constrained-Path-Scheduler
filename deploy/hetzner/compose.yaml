@@ -1,0 +1,55 @@
+# The pilot on a server of its own (DECISIONS.md D75; the steps are in docs/HETZNER.md).
+# Two containers: the app, and Caddy in front of it. Caddy is the only one the
+# internet reaches (ports 80 and 443); it gets and renews the HTTPS certificate for
+# CPS_DOMAIN by itself and passes requests on to the app over Docker's private
+# network. The app's data lives in the `data` volume, which survives every rebuild.
+#
+# Run from the repository's root on the server:
+#   docker compose -f deploy/hetzner/compose.yaml up -d --build
+# The settings are in deploy/hetzner/.env (copied from env.example; never committed).
+name: study-plan
+
+services:
+  app:
+    build: ../..
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CPS_BASE_URL: https://${CPS_DOMAIN:?set CPS_DOMAIN in deploy/hetzner/.env}
+      CPS_BACKUP_DIR: /data/backups
+    volumes:
+      - data:/data
+    # No `ports`: the app is reachable from Caddy only, never from the internet.
+    expose:
+      - "8000"
+    logging:
+      driver: local # rotated by Docker, so the logs cannot fill the disk
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      CPS_DOMAIN: ${CPS_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # the certificates: kept, so a restart does not ask for new ones
+      - caddy_config:/config
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "5"
+
+volumes:
+  data:
+  caddy_data:
+  caddy_config:

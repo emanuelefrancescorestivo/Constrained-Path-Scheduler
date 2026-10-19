@@ -2347,3 +2347,61 @@ Screen" was not tried. An installed icon stays as it was installed, even when th
 mode changes later. The server counts the day in the plan's time zone and the page in
 the device's, as the sky does, so a student abroad may see the icon change a few
 minutes after the page loads.
+
+## D75. The pilot on a server of its own, at Hetzner
+
+*The owner, 2026-10-19, after comparing hosts (Hetzner, Fly.io, Scaleway, Render,
+Railway): "ok let's find a better best hosting website even if it costs more, i am
+willing to pay more for a few months to get knowledge on how to develop an app",
+then "i dont have a domain but lets use the german one then".*
+
+**Chosen.** The pilot runs on a Hetzner Cloud server in Germany that the owner runs
+(steps in `docs/HETZNER.md`):
+
+- *One image* (`Dockerfile`): the app as its own user, the database in `/data`, a
+  health check. Built on the server, so an Intel or an Arm machine both work.
+- *Caddy in front* (`deploy/hetzner/compose.yaml`, `Caddyfile`): the only container
+  the internet reaches; it gets and renews the Let's Encrypt certificate, sends
+  HTTP on to HTTPS, compresses, sets HSTS, and keeps no access log (a plan's address
+  is its key). The app is reachable from Caddy only, which is why trusting the
+  forwarded headers (`--behind-proxy`) is safe there.
+- *The server set up at its first start* (`deploy/hetzner/cloud-init.yaml`): a user
+  `deploy` with the owner's key, no passwords, no root, a firewall open to SSH, HTTP
+  and HTTPS only, fail2ban, security updates every night with a restart at 04:30
+  when one needs it. A key line left unfilled keeps root's sign-in rather than
+  locking the owner out.
+- *Deploys from GitHub* (`.github/workflows/deploy.yml`, `deploy/hetzner/deploy.sh`):
+  after CI passes on a push to `main`, or by hand. GitHub's key may run the deploy
+  script and nothing else; the script builds, starts, and waits for /health, and
+  fails the run if the app does not answer. The workflow skips itself until the
+  repository has its settings.
+- *Backups*: the app's own daily copies in the data volume (seven days, as before)
+  and Hetzner's daily backups of the whole server (seven, stored apart).
+- *Checks in CI*: the image builds and answers /health; the compose file and the
+  Caddyfile are valid; `tests/test_deploy.py` keeps the settings, the port, the
+  volume and the safeguards in step with the app.
+
+**Why.** The owner wants to learn how an app runs, and a server of one's own is what
+every platform hides; the data stays with a European company; the cost is about the
+same as Render's. The files are ordinary Docker, so the pilot can move to Fly.io,
+Scaleway or another server without rewriting anything.
+
+**Rejected.** Render for the pilot (kept for the demo, and `render.yaml` kept as a
+second way); Fly.io and Scaleway (close seconds: Fly hides the server, Scaleway
+costs more for the same); images built by GitHub and pulled from a registry (one
+more account and a published image, for a build that takes minutes on the server);
+an updater that pulls new images by itself (a deploy should follow CI, not a timer);
+a managed database (SQLite on the volume is what the app is built for, D2).
+
+**Disclosed.** Checked here with Docker: the image (built in a copy of the Dockerfile
+that trusts this sandbox's network certificate; the committed one is unchanged),
+Caddy on `localhost` with its own certificate, HTTP sent on to HTTPS, the security
+headers, a plan made over HTTPS and still there after the containers were removed
+and started again, the app's copies made at start, no plan address in either log,
+`--wait` waiting for health. The cloud config was validated by Ubuntu 24.04's own
+cloud-init, and its user, key and clone steps were run in an Ubuntu container. The
+workflows pass actionlint. Not checked: a real Hetzner server, a Let's Encrypt
+certificate (it needs a real domain), the firewall, SSH rules and automatic updates
+(they need a running system), and the Deploy workflow (it needs the owner's
+settings). Prices and the console's wording come from third-party pages and are
+marked to be checked.

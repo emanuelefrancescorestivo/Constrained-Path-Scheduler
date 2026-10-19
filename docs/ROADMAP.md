@@ -32,9 +32,10 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
       environment, daily backup, click-by-click steps.
 - [x] **W8 Moodle deadlines.** A learning platform's calendar export becomes tasks.
 - [x] **W9 Tests, browser run, documents.**
-- [ ] **C1 (owner)** Create the Render account, connect the repository, set the
-      settings it asks for (the contact address, the owner's name, the review
-      page's key; D72), go through setup on a phone with one's own timetable.
+- [ ] **C1 (owner)** Create the Hetzner account, a server and a domain, and set
+      the settings (the contact address, the owner's name, the review page's key;
+      D72, D75), following `docs/HETZNER.md`; go through setup on a phone with
+      one's own timetable. (Render, `docs/DEPLOY.md`, stays a second way.)
 - [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.
 
 ## Phase 1b: a reason to come back every day

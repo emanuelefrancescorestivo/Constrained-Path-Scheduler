@@ -27,8 +27,9 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 881 passed, 17 deselected, 1 xfailed, about 200 s
-    pytest -m "slow or not slow" --cov=cps   # all 898 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
+    pytest                                   # 892 passed, 17 deselected, 1 xfailed, about 200 s
+    pytest -m "slow or not slow" --cov=cps   # all 909 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -190,7 +191,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Sessions not reported count as done as planned, except a self-test a day after it
   ended, which counts as unknown and gains no memory (D44). In `cps web` a report reaches the
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
-  owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
+  owner's step (docs/HETZNER.md, checkpoint C1 of docs/ROADMAP.md; the server's files
+  were run here in Docker, not on a real server). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.
 - The exam forecast and each self-test's gain (D24) come from FSRS with population
   weights and a guessed starting state; they are estimates, rounded to 5 %, and say

@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The pilot can run on a server of its own at Hetzner (D75): a Docker image, Caddy
+  for HTTPS, a cloud config that secures the server at its first start, deploys
+  from GitHub after CI passes, and a step-by-step guide (`docs/HETZNER.md`). CI
+  builds the image and checks it answers.
 - The app's icon is the week as a ring of seven days (D74): the days done filled,
   today in gold, the days to come faint. On a plan's pages the top bar and the tab
   show today's, in the colours of the sky of the hour, and change as the day goes

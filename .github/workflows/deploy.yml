@@ -1,0 +1,48 @@
+name: Deploy
+
+# Puts `main` live on the pilot's server (DECISIONS.md D75; docs/HETZNER.md, step 8):
+# by itself once CI has passed on a push to main, or by hand from the Actions tab
+# ("Run workflow"). It signs in to the server with a key that may run
+# deploy/hetzner/deploy.sh and nothing else.
+#
+# It does nothing until the repository has, under Settings > Secrets and variables >
+# Actions: the variable DEPLOY_HOST (the server's address) and the secrets
+# DEPLOY_SSH_KEY (that key's private half) and DEPLOY_KNOWN_HOSTS (the server's own
+# key, so that GitHub talks to your server and no other).
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false # a deploy under way finishes; the next one waits
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_HOST != '' && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push'
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Deploy over SSH
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$HOST"
