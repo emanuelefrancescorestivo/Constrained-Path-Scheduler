@@ -6,6 +6,11 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The sky follows the sun where the plan lives (D76): sunrise and sunset move with
+  the seasons and the place (the plan's time zone), through twelve moments from deep
+  night to golden hour and dusk, in light and dark. The live icon takes the sky's
+  colours, pale in light mode and deep in dark mode, and follows the plan's
+  appearance.
 - The pilot can run on a server of its own at Hetzner (D75): a Docker image, Caddy
   for HTTPS, a cloud config that secures the server at its first start, deploys
   from GitHub after CI passes, and a step-by-step guide (`docs/HETZNER.md`). CI
@@ -437,6 +442,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The top bar, the fields and the save bar are glass on every page of a plan,
+  instead of a black bar over glass pages in dark mode (AUDIT item 68).
+- On a phone in French, the tab bar's labels no longer run into each other beside
+  Spark (AUDIT item 69).
 - After an update, a returning visitor sees the new look on the next visit instead
   of the old style sheet: the app's files are asked about again each time, and the
   offline cache takes the server's copy first (AUDIT item 67).

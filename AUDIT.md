@@ -841,3 +841,23 @@ worker v6). The same reload then shows the change, and offline still shows the l
 copy. A test checks the headers, the 304 and the worker. Status: fixed; a browser
 that already holds the old worker gets the new one on its next visit, and the look
 on the visit after.
+
+**68. On a phone in dark mode, the top bar was black over glass pages.** Reported by
+the owner, 2026-10-19, with screenshots of the demo: the top bar solid black, the
+cards glass, the fields and the save bar of Settings solid too. Cause: D37's
+scroll-linked top bar (`bar-solid`, driven by the page's scroll) gives the bar a
+solid fill, and an animation's value wins over the calm-glass rule (D73) whatever
+the selectors; the fields and the save bar had never been given glass. The tests
+read the templates, not what the browser paints. Fixed: on a plan's pages the bar's
+animation is off and the fields and the save bar are glass
+(`body[data-sky] .topbar`, `--glass-field`, `.sticky-actions`). Checked in Chromium:
+the top bar's computed background is the glass fill at nine moments of the day, in
+light and dark, at 1280 and 390 px. Status: fixed.
+
+**69. On a phone in French, two tab labels ran into each other.** Found while
+checking item 68 at 390 px: in the floating tab bar beside Spark (D73), a column is
+about 57 px and "Communauté" is 65 px at that size, so it touched "Progression". The
+check of D73 was in English, where every label fits. Fixed: in the floating bar the
+labels are a little smaller with a 2 px gap between columns, and below 340 px Spark
+waits above the bar instead of beside it. Measured in Chromium at 320, 344, 360, 390
+and 430 px: no label overlaps another and none leaves the bar. Status: fixed.

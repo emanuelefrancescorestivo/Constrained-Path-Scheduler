@@ -2405,3 +2405,66 @@ certificate (it needs a real domain), the firewall, SSH rules and automatic upda
 (they need a running system), and the Deploy workflow (it needs the owner's
 settings). Prices and the console's wording come from third-party pages and are
 marked to be checked.
+
+## D76. The sky follows the sun where the plan lives; the icon takes its colours
+
+*The owner, 2026-10-19, with five screenshots of the demo: "ok the liquid glass is
+not everywhere, the header is black and the rest is liquid glass, the icon does not
+follow the theme, make sure the shades respect the day time (rn it's 16h30 so what
+colour should it be?)". The sky of D73 changed at fixed hours (evening from 18 all
+year), so at 16:30 it was still "afternoon", and in summer it turned to evening two
+hours before the sun set. The icon's colours (D74) were the sky's named moments,
+and one look served light and dark alike.*
+
+**Chosen.**
+
+- *The sun where the plan lives* (`cps.daylight`). The place is the plan's time
+  zone: the tz database gives each zone the coordinates of its main city
+  (`zone1970.tab` in the `tzdata` package, already a dependency); a zone without
+  one falls back to its UTC offset at latitude 45. The sun's height comes from
+  NOAA's general solar position equations. Folded into one number from 0 to 4: deep
+  night 0, sunrise 1, the day's highest sun 2, sunset 3, then dusk back to night;
+  daytime is measured against that day's highest sun, so a low winter noon is noon
+  too. Checked against a published table: for Paris on 19 October 2026,
+  generalblue.com gives sunrise 08:16 and sunset 18:54; the model gives 08:15 and
+  18:55 (`tests/test_daylight.py`).
+- *The sky's colours* (`cps.web.sky`). Twelve moments along those positions (deep
+  night, blue hour, dawn glow, sunrise, morning, day, the same day with the sun
+  lower, late afternoon, golden hour, sunset, dusk, late dusk), each a base and four
+  soft lights, in light and in dark, blended in 400 steps; no step moves a colour
+  channel by more than 12 of 255. A page links `/sky/<step>.css`, the same for
+  everyone and kept a day, and the calm-glass rules paint its variables. An open page
+  asks `/look/<token>` every five minutes and swaps the sheet and the icon; without a
+  script, the page keeps the sky of when it loaded; without the sheet, D73's four
+  skies of the hour are still in `style.css`.
+- *What 16:30 looks like*: in Paris on 19 October the sun is 20 degrees up
+  (step 236): the clear blue of the day with mint below. The light warms from 16:52,
+  the golden hour starts at 17:49, the sunset's rose and coral are at 18:54, violet
+  dusk at 19:30, indigo from 20:08, and night is complete at 20:41
+  (`tests/test_daylight.py` checks each time). The greeting still follows the clock
+  ("Good afternoon" until 18), as people say it.
+- *The icon in the sky's colours, light or dark.* The live icon's tile is the sky
+  at that step, pale in light mode and deep in dark mode; the days take the hues of
+  its four lights, made strong enough to read at the size of a tab; today keeps its
+  gold. It is served at `/icon/week-<day>-<step>-<mode>.svg`, where the mode is the
+  plan's appearance (D21): Light or Dark draws that one, Automatic carries both and
+  shows the one the device is in, as `icon.svg` does. The icons a phone installs
+  stay white and graphite (D74).
+- *Glass everywhere* (AUDIT 68): the top bar, the fields and the save bar are glass
+  on every page of a plan, in both modes.
+
+**Rejected.** The device's clock for the sky (D73's way: it knows the hour, not the
+sun, and a device abroad shows its own hour); the browser's location (a permission
+prompt, and the student's whereabouts sent to the server, for a colour); fixed hours
+for sunrise and sunset (wrong by hours in June and in December); the sun worked out
+by the page's script (logic in the front end, and a page without its script would
+have no sky); an hourly palette (steps a student would see jump).
+
+**Disclosed.** The sun is the zone's main city's: under Europe/Paris, a student in
+Brest sees Paris's sunset, about half an hour before their own (a test measures it);
+a zone without coordinates is placed at latitude 45. Checked in Chromium only: the
+plan page at 1280 px at nine moments of 19 October and at 390 px at four, in light
+and dark, the top bar's glass and the icon at each; not on a real phone. An open
+page follows the sun within five minutes. Since this decision, D73's "four soft
+colours of the part of the day" and D74's "colours of the sky of the hour" are the
+sun's, as above.

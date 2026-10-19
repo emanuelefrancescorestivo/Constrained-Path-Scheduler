@@ -58,7 +58,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon
+from . import charts, forms, icon, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -324,6 +324,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             try:
                 subscription = subscription or service.load_subscription(store, token)
                 context.update(service.look_of(store, subscription, config.clock()))
+                context["sun"] = sky.step_of(context["daylight"])  # the sky's colours (D76)
             except Exception:
                 LOG.exception("could not work out the page's sky")
         return templates.TemplateResponse(request, name, context, status_code=status)
@@ -477,16 +478,39 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return manifest(f"/p/{token}", look)
 
-    @app.get("/icon/week-{day:int}-{look}.svg")
-    def week_icon(day: int, look: str) -> Response:
-        """The app's icon for a day of the week in a sky's colours, or light or dark
-        (D74): the same for everyone, so it may be kept a day."""
+    day_long = {"Cache-Control": "public, max-age=86400"}
+
+    @app.get("/icon/week-{day:int}-{step:int}-{mode}.svg")
+    def week_icon(day: int, step: int, mode: str) -> Response:
+        """The app's live icon (D74): a day of the week at a moment of the sky (D76),
+        for light or dark mode or both ("auto"). The same for everyone, so it may be
+        kept a day."""
         try:
-            drawing = icon.week(day, look)
+            drawing = icon.live(day, step, mode)
         except ValueError:
             return Response(status_code=404)
-        day_long = {"Cache-Control": "public, max-age=86400"}
         return Response(drawing, media_type="image/svg+xml", headers=day_long)
+
+    @app.get("/sky/{step:int}.css")
+    def sky_sheet(step: int) -> Response:
+        """The sky's colours at a moment of the day, light and dark (D76)."""
+        if not 0 <= step < sky.STEPS:
+            return Response(status_code=404)
+        return Response(sky.stylesheet(step), media_type="text/css", headers=day_long)
+
+    @app.get("/look/{token}")
+    def look(token: str) -> Response:
+        """Where a plan's day is now (D73, D74, D76), for a page left open: the part of
+        the day, the weekday and the sky's step. Outside /p/ so that the service
+        worker does not keep it as a page."""
+        subscription = load(token)
+        if subscription is None:
+            return Response(status_code=404)
+        now = service.look_of(store, subscription, config.clock())
+        return Response(
+            json.dumps({"sky": now["sky"], "weekday": now["weekday"], "sun": sky.step_of(now["daylight"])}),
+            media_type="application/json",
+        )
 
     @app.get("/sw.js")
     def service_worker() -> Response:

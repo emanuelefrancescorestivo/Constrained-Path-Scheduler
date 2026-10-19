@@ -2152,6 +2152,7 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
   --glass-drop: 0 12px 32px rgb(38 52 99 / 11%);
   --glass-bar: rgb(255 255 255 / 40%);
   --glass-solid: rgb(255 255 255 / 80%);
+  --glass-field: rgb(255 255 255 / 55%);
   --doodle: rgb(44 56 108 / 34%);
   --bloom: rgb(232 92 150 / 50%);
 }
@@ -2166,6 +2167,7 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
     --glass-drop: 0 14px 34px rgb(0 0 0 / 34%);
     --glass-bar: rgb(20 24 38 / 48%);
     --glass-solid: rgb(22 25 38 / 84%);
+    --glass-field: rgb(255 255 255 / 8%);
     --doodle: rgb(222 230 255 / 28%);
     --bloom: rgb(255 140 190 / 45%);
   }
@@ -2180,6 +2182,7 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
   --glass-drop: 0 14px 34px rgb(0 0 0 / 34%);
   --glass-bar: rgb(20 24 38 / 48%);
   --glass-solid: rgb(22 25 38 / 84%);
+  --glass-field: rgb(255 255 255 / 8%);
   --doodle: rgb(222 230 255 / 28%);
   --bloom: rgb(255 140 190 / 45%);
 }
@@ -2254,6 +2257,22 @@ body[data-sky] .sheet[popover], body[data-sky] .pop[popover] {
   -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
 }
 body[data-sky] .sheet-head { background: transparent; }
+/* The top bar is glass from the very top of the page (AUDIT 68): the scroll-linked
+   fade (D37) painted it the page's own solid colour until the page moved, and an
+   animation outranks the glass rule above. */
+body[data-sky] .topbar { animation: none; }
+/* Fields on glass: a tint of the glass, not a grey slab (the colour only, so a
+   select keeps its chevron, D57). */
+body[data-sky] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  background-color: var(--glass-field);
+}
+/* The strip under a long form's save button: glass fading in from above, not a
+   band of the page's colour. */
+body[data-sky] .sticky-actions {
+  background: var(--glass-bar);
+  -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+  -webkit-mask-image: linear-gradient(transparent, #000 14px); mask-image: linear-gradient(transparent, #000 14px);
+}
 
 /* Spark, in a round drop of glass. */
 body[data-sky] .spark-fab {
@@ -2287,6 +2306,15 @@ body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
     width: 62px; height: 62px;
   }
   body[data-sky].has-tabs .spark-fab .mascot { width: 46px; height: 46px; }
+  /* AUDIT 69: in the pill, beside Spark, a column is about 57px on a 390px phone and
+     "Communauté" is wider; labels a little smaller, with a gap, keep the words apart. */
+  body[data-sky] .tabbar { column-gap: 2px; }
+  body[data-sky] .tabbar a { font-size: 0.6rem; letter-spacing: -0.01em; }
+}
+/* Narrower than that, the five labels no longer fit beside Spark: it waits above the pill. */
+@media (max-width: 340px) {
+  body[data-sky] .tabbar { right: max(12px, env(safe-area-inset-right)); }
+  body[data-sky].has-tabs .spark-fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 /* -- the garden: drawn in the margins, grown with the streak ------------------------ */

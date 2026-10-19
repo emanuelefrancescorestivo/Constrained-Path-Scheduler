@@ -4,23 +4,28 @@ top and the days going clockwise. The days before today are filled, today ends i
 a gold light, the days to come are faint.
 
 A plan's pages show it live, in the top bar and in the browser's tab: today's
-weekday, in the colours of the sky of the hour (D73), and `ui.js` swaps it as the
-day goes on. What a phone keeps on its home screen cannot change once installed, so
+weekday, in the colours of the sky at that moment (`sky.py`, D76), a pale tile in
+light mode and a deep one in dark mode, and `ui.js` swaps it as the day goes on.
+What a phone keeps on its home screen cannot change once installed, so
 the files in static/icons/ are this drawing made once, on a Friday: white for light
 mode, graphite for dark. `python -c "from cps.web import icon; icon.main()"` writes
 the SVGs there; the PNGs are those drawings rendered by a browser at their sizes.
 
 Drawn with SVG attributes only: an SVG shown as an image runs no script and loads
-nothing. The one style element is icon.svg's, which picks the light or the dark
-drawing by the device's mode.
+nothing. The one style element is in the drawings that hold both modes (icon.svg,
+and a live icon for a plan that follows the device), which picks the light or the
+dark drawing by the device's mode.
 """
 
 from __future__ import annotations
 
+import colorsys
 import math
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
+
+from . import sky
 
 DAYS = range(1, 8)  # Monday 1 ... Sunday 7, as `date.isoweekday()`
 STATIC_DAY = 5  # the installed icon is a Friday: four days done, today, two to come
@@ -42,18 +47,8 @@ class Look:
 
 NIGHT_RING = ((0.0, "#4f7bff"), (0.45, "#8e6bff"), (0.78, "#ff7fa8"), (1.0, "#ffc451"))
 
-# A look per sky of the hour (service.SKIES, D73), and the installed icon's two.
+# The installed icon's two looks; the live ones are made from the sky (`sky_look`).
 LOOKS = {
-    "morning": Look("#2b86d9", "#0b3c74", "#a6e4ff", 0.35,
-                    ((0.0, "#6fd6ff"), (0.5, "#4fe3c4"), (0.85, "#c2f27a"), (1.0, "#ffd25c")),
-                    "#ffffff", 0.12, "#000000", 0.45),
-    "afternoon": Look("#5566ff", "#2a1d9e", "#c0caff", 0.4,
-                      ((0.0, "#e2e8ff"), (0.6, "#ffffff"), (1.0, "#ffe39a")),
-                      "#ffffff", 0.13, "#000000", 0.45),
-    "evening": Look("#4a1a7e", "#16062a", "#ff7ab8", 0.3,
-                    ((0.0, "#8a6bff"), (0.4, "#d65cff"), (0.75, "#ff6f8e"), (1.0, "#ffb23f")),
-                    "#ffffff", 0.15, "#000000", 0.45),
-    "night": Look("#1b2457", "#070a1e", "#6f8cff", 0.3, NIGHT_RING, "#ffffff", 0.15, "#000000", 0.45),
     "light": Look("#ffffff", "#eceef6", "#ffffff", 0.0, NIGHT_RING, "#1d2550", 0.12, "#2a2a60", 0.22),
     "dark": Look("#2c2c30", "#0b0b0d", "#ffffff", 0.12,
                  ((0.0, "#b4b4bc"), (0.6, "#f2f2f5"), (1.0, "#ffe39a")),
@@ -123,6 +118,44 @@ def _drawing(day: int, look: Look, rounded: bool, ids: str) -> tuple[str, str]:
     return defs, body
 
 
+def _hex(rgb: tuple[float, ...]) -> str:
+    return "#" + "".join(f"{max(0, min(255, round(c))):02x}" for c in rgb)
+
+
+def _toned(rgb: tuple[int, int, int], lightness: float, saturation: float) -> str:
+    """A sky light's hue, at the lightness and saturation a ring needs to stand out."""
+    hue, _, _ = colorsys.rgb_to_hls(*(c / 255 for c in rgb))
+    return _hex(tuple(c * 255 for c in colorsys.hls_to_rgb(hue, lightness, saturation)))
+
+
+def _mixed(a: tuple[int, int, int], b: tuple[int, int, int], u: float) -> str:
+    return _hex(tuple(x + (y - x) * u for x, y in zip(a, b, strict=True)))
+
+
+def sky_look(step: int, mode: str) -> Look:
+    """The live icon's look at a moment of the sky (`sky.STEPS`), in "light" or
+    "dark" mode: the tile is the sky itself, pale or deep; the days take the sky's
+    four lights, made strong enough to read at the size of a tab."""
+    base, first, second, third, fourth = sky.colours(step, mode)
+    if mode == "light":
+        lightness, saturation = 0.56, 0.78
+        top, bottom = _toned(first, 0.88, 0.8), _toned(third, 0.76, 0.72)
+        glow, glow_strength = "#ffffff", 0.35
+        faint, faint_strength, shadow, shadow_strength = "#1d2550", 0.13, "#2a2a60", 0.22
+    else:
+        lightness, saturation = 0.68, 0.85
+        top, bottom = _toned(first, 0.34, 0.62), _mixed(base, (0, 0, 0), 0.2)
+        glow, glow_strength = _hex(second), 0.35
+        faint, faint_strength, shadow, shadow_strength = "#ffffff", 0.15, "#000000", 0.45
+    ring = (
+        (0.0, _toned(first, lightness, saturation)),
+        (0.45, _toned(second, lightness, saturation)),
+        (0.8, _toned(fourth, lightness, saturation)),
+        (1.0, "#ffc451"),
+    )
+    return Look(top, bottom, glow, glow_strength, ring, faint, faint_strength, shadow, shadow_strength)
+
+
 def _check(day: int, look: str) -> Look:
     if day not in DAYS:
         raise ValueError(f"a day of the week is 1 to 7, not {day!r}")
@@ -146,14 +179,33 @@ def _label(day: int) -> str:
     return f"The week as a ring of seven days, day {day} lit"
 
 
+def live(day: int, step: int, mode: str) -> str:
+    """The icon a plan's pages show: today (1 Monday ... 7 Sunday) at a moment of the
+    sky, for "light" or "dark" mode, or "auto": both, the device's mode choosing."""
+    if day not in DAYS:
+        raise ValueError(f"a day of the week is 1 to 7, not {day!r}")
+    if mode == "auto":
+        return _both(day, sky_look(step, "light"), sky_look(step, "dark"))
+    defs, body = _drawing(day, sky_look(step, mode), True, "k")
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" '
+        f'aria-label="{_label(day)}"><defs>{defs}</defs>{body}</svg>\n'
+    )
+
+
 def switching() -> str:
     """icon.svg: the installed icon's drawing, white in light mode and graphite in
     dark mode (where an SVG icon is used: a tab, the home page's top bar)."""
-    light_defs, light = _drawing(STATIC_DAY, LOOKS["light"], True, "l")
-    dark_defs, dark = _drawing(STATIC_DAY, LOOKS["dark"], True, "d")
+    return _both(STATIC_DAY, LOOKS["light"], LOOKS["dark"])
+
+
+def _both(day: int, light_look: Look, dark_look: Look) -> str:
+    """One file with a light and a dark drawing, the device's mode showing one."""
+    light_defs, light = _drawing(day, light_look, True, "l")
+    dark_defs, dark = _drawing(day, dark_look, True, "d")
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" '
-        f'aria-label="{_label(STATIC_DAY)}">'
+        f'aria-label="{_label(day)}">'
         "<style>.dark{display:none}"
         "@media (prefers-color-scheme: dark){.light{display:none}.dark{display:inline}}</style>"
         f'<defs>{light_defs}{dark_defs}</defs><g class="light">{light}</g><g class="dark">{dark}</g></svg>\n'

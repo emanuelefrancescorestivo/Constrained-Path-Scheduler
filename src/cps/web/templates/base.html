@@ -17,10 +17,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="{{ _('Study plan') }}">
-{# The app's icon (D74): live on a plan's pages (today's weekday in the sky's colours,
-   swapped by ui.js as the day goes on); what a phone installs is white, or graphite
-   in dark mode (pwa.js asks for those when the plan follows a device in dark mode). #}
-{% set live_icon = "/icon/week-%s-%s.svg" % (weekday, sky) if sky and weekday else "" %}
+{# The app's icon (D74): live on a plan's pages (today's weekday in the colours of the
+   sky at this moment, D76, drawn for the plan's mode or, when it follows the device,
+   for both; swapped by ui.js as the day goes on); what a phone installs is white, or
+   graphite in dark mode (pwa.js asks for those when the plan follows a device in dark
+   mode). #}
+{% set icon_mode = theme if theme in ("light", "dark") else "auto" %}
+{% set live_icon = "/icon/week-%s-%s-%s.svg" % (weekday, sun, icon_mode) if sky and weekday and sun is number else "" %}
 <link rel="manifest" href="{% if token %}/p/{{ token }}{% endif %}/manifest.webmanifest{% if theme == 'dark' %}?look=dark{% endif %}">
 <link rel="icon" href="{{ live_icon or '/static/icons/icon.svg' }}" type="image/svg+xml"{% if live_icon %} data-live-icon{% endif %}>
 <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -29,13 +32,14 @@
 <link rel="preload" href="/static/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css">
+{% if sky and sun is number %}<link rel="stylesheet" href="/sky/{{ sun }}.css" data-sky-sheet>{% endif %}
 <script type="module" src="/static/errors.js"></script>
 <script type="module" src="/static/motion.js"></script>
 <script type="module" src="/static/pwa.js"></script>
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% if weekday %} data-day="{{ weekday }}"{% endif %}{% endif %}>
+<body class="{% if token %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% if weekday %} data-day="{{ weekday }}"{% endif %}{% if sun is number %} data-sun="{{ sun }}" data-icon-mode="{{ icon_mode }}"{% endif %}{% endif %}>
 {# The garden in the margins, grown as far as the streak (D73): drawn by the style sheet. #}
 {% if sky %}<div class="garden" aria-hidden="true"><i class="g-sprout"></i><i class="g-vine"></i><i class="g-flower"></i></div>{% endif %}
 <header class="topbar">

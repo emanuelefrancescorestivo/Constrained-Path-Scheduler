@@ -6,8 +6,8 @@
 //   install, from the server itself rather than the browser's own copies. When a page
 //   uses one, the server's answer comes first if it arrives within a few seconds, so
 //   that an update shows on the first visit after it (AUDIT 67); the kept copy
-//   otherwise, and without a network. So is the live icon of each day and sky
-//   (/icon/..., D74) once it has been shown.
+//   otherwise, and without a network. So are the live icon (/icon/..., D74) and the
+//   sky's colours (/sky/..., D76) of each moment once they have been shown.
 // - A plan's pages (/p/...) and the calendar's data are always asked of the server
 //   first; a copy of the last answer is kept, on this device only, and shown when
 //   there is no network. The page then says it is offline (pwa.js).
@@ -113,7 +113,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/static/") || url.pathname.startsWith("/icon/")) {
+  if (["/static/", "/icon/", "/sky/"].some((part) => url.pathname.startsWith(part))) {
     event.respondWith(freshFirst(request));
   } else if (url.pathname.startsWith("/p/")) {
     event.respondWith(networkFirst(request, request.mode === "navigate"));

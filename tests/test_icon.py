@@ -1,8 +1,10 @@
 """D74, the app's icon: the week as a ring of seven days, live on a plan's pages
-(today's weekday in the sky's colours), white or graphite where it is installed."""
+(today's weekday in the colours of the sky at that moment, D76, light or dark),
+white or graphite where it is installed."""
 
 from __future__ import annotations
 
+import colorsys
 import re
 import struct
 from datetime import UTC, datetime
@@ -12,8 +14,8 @@ from xml.etree import ElementTree
 import pytest
 from fastapi.testclient import TestClient
 
-from cps import service
-from cps.web import Config, create_app, icon
+from cps import daylight, service
+from cps.web import Config, create_app, icon, sky
 
 SEMESTER = Path(__file__).resolve().parent.parent / "examples" / "sample-semester.ics"
 ICONS = Path(service.__file__).parent / "web" / "static" / "icons"
@@ -28,18 +30,24 @@ def _days(drawing: str) -> list[ElementTree.Element]:
     return list(ring.iter(f"{SVG}path"))
 
 
-@pytest.mark.parametrize("look", sorted(icon.LOOKS))
+def _drawings(day: int) -> list[str]:
+    """The installed icon's two looks, and the live one at four moments of the sky."""
+    live = [icon.live(day, step, mode) for step in (0, 104, 236, 300) for mode in ("light", "dark")]
+    return [icon.week(day, "light"), icon.week(day, "dark"), *live]
+
+
 @pytest.mark.parametrize("day", list(icon.DAYS))
-def test_the_days_before_today_are_filled_and_the_days_to_come_are_faint(day, look):
-    days = _days(icon.week(day, look))
-    assert len(days) == 7
-    faint = [d.get("stroke-opacity") is not None for d in days]
-    assert faint == [False] * day + [True] * (7 - day)
+def test_the_days_before_today_are_filled_and_the_days_to_come_are_faint(day):
+    for drawing in _drawings(day):
+        days = _days(drawing)
+        assert len(days) == 7
+        faint = [d.get("stroke-opacity") is not None for d in days]
+        assert faint == [False] * day + [True] * (7 - day)
 
 
 @pytest.mark.parametrize("day", list(icon.DAYS))
 def test_todays_gold_light_sits_at_the_end_of_today(day):
-    drawing = icon.week(day, "night")
+    drawing = icon.live(day, 236, "dark")
     end = _days(drawing)[day - 1].get("d").split(" ")[-2:]  # the arc's last point
     gold = re.search(r'<circle cx="([\d.]+)" cy="([\d.]+)" r="27"', drawing)
     assert gold is not None
@@ -48,18 +56,50 @@ def test_todays_gold_light_sits_at_the_end_of_today(day):
 
 def test_a_day_keeps_its_colour_whatever_the_day_is():
     # Colour follows the day, never how many days are filled: Monday is Monday's colour.
-    mondays = {_days(icon.week(day, "evening"))[0].get("stroke") for day in icon.DAYS}
+    mondays = {_days(icon.live(day, 300, "light"))[0].get("stroke") for day in icon.DAYS}
     assert len(mondays) == 1
 
 
-def test_every_sky_of_the_hour_has_a_look_and_so_do_light_and_dark():
-    assert set(service.SKIES) | {"light", "dark"} == set(icon.LOOKS)
+def _hue(rgb: tuple[float, float, float]) -> float:
+    return colorsys.rgb_to_hls(*(c / 255 for c in rgb))[0]
 
 
-@pytest.mark.parametrize(("day", "look"), [(0, "night"), (8, "night"), (3, "noon"), (3, "")])
+@pytest.mark.parametrize("mode", ["light", "dark"])
+@pytest.mark.parametrize("step", [0, 104, 236, 300, 340])
+def test_the_live_icon_takes_the_skys_colours_in_each_mode(step, mode):
+    # The days take the hue of the sky's first light at that moment (D76), so the icon
+    # and the page agree; the tile is pale in light mode and deep in dark mode.
+    drawing = icon.live(7, step, mode)
+    monday = _days(drawing)[0].get("stroke")
+    first = sky.colours(step, mode)[1]
+    assert _hue(tuple(int(monday[i : i + 2], 16) for i in (1, 3, 5))) == pytest.approx(_hue(first), abs=0.01)
+    top = re.search(r'id="kbg".*?stop-color="(#[0-9a-f]{6})"', drawing)
+    assert top
+    lightness = colorsys.rgb_to_hls(*(int(top[1][i : i + 2], 16) / 255 for i in (1, 3, 5)))[1]
+    assert lightness > 0.7 if mode == "light" else lightness < 0.4
+
+
+def test_a_plan_that_follows_the_device_gets_both_drawings():
+    drawing = icon.live(3, 236, "auto")
+    root = ElementTree.fromstring(drawing)
+    assert {g.get("class") for g in root.findall(f"{SVG}g")} == {"light", "dark"}
+    assert "@media (prefers-color-scheme: dark)" in drawing
+    ids = [e.get("id") for e in root.iter() if e.get("id")]
+    assert len(ids) == len(set(ids))
+
+
+@pytest.mark.parametrize(("day", "look"), [(0, "light"), (8, "dark"), (3, "noon"), (3, "")])
 def test_an_icon_that_does_not_exist_is_refused(day, look):
     with pytest.raises(ValueError):
         icon.week(day, look)
+
+
+@pytest.mark.parametrize(
+    ("day", "step", "mode"), [(8, 10, "light"), (3, 400, "dark"), (3, -1, "auto"), (3, 10, "sepia")]
+)
+def test_a_live_icon_that_does_not_exist_is_refused(day, step, mode):
+    with pytest.raises(ValueError):
+        icon.live(day, step, mode)
 
 
 def test_the_installed_icons_drawings_are_the_modules(tmp_path):
@@ -121,24 +161,35 @@ def _start(web) -> str:
 
 
 def test_the_live_icon_is_served_and_may_be_kept_a_day(web):
-    answer = web.get("/icon/week-3-evening.svg")
+    answer = web.get("/icon/week-3-120-dark.svg")
     assert answer.status_code == 200
     assert answer.headers["content-type"] == "image/svg+xml"
     assert answer.headers["cache-control"] == "public, max-age=86400"
-    assert answer.text == icon.week(3, "evening")
-    for missing in ("/icon/week-8-evening.svg", "/icon/week-3-noon.svg", "/icon/week-x-night.svg"):
-        assert web.get(missing).status_code == 404
+    assert answer.text == icon.live(3, 120, "dark")
+    for missing in (
+        "/icon/week-8-120-dark.svg",
+        "/icon/week-3-400-dark.svg",
+        "/icon/week-3-120-sepia.svg",
+        "/icon/week-3-evening.svg",
+    ):
+        assert web.get(missing).status_code == 404, missing
 
 
 def test_a_plans_pages_show_todays_icon_in_the_tab_and_the_top_bar(web):
     token = _start(web)
     page = web.get(f"/p/{token}").text
-    # 08:00 in Paris on a Tuesday: day 2, the morning's colours.
-    assert 'data-day="2"' in page
-    assert '<link rel="icon" href="/icon/week-2-morning.svg" type="image/svg+xml" data-live-icon>' in page
-    assert re.search(r'<img class="brand-mark" src="/icon/week-2-morning.svg"[^>]*data-live-icon>', page)
+    # 08:00 in Paris on a Tuesday, 29 September: day 2, just after sunrise.
+    position = daylight.day_position(*daylight.place("Europe/Paris"), MORNING)
+    assert 1.0 < position < 1.1  # the sun has just risen
+    step = sky.step_of(position)
+    assert 'data-day="2"' in page and f'data-sun="{step}"' in page
+    live = f"/icon/week-2-{step}-auto.svg"  # the plan follows the device: both drawings
+    assert f'<link rel="icon" href="{live}" type="image/svg+xml" data-live-icon>' in page
+    assert re.search(rf'<img class="brand-mark" src="{live}"[^>]*data-live-icon>', page)
     home = web.get("/").text
     assert "/static/icons/icon.svg" in home and "data-live-icon" not in home
+    web.post(f"/p/{token}/appearance", data={"theme": "dark"})
+    assert f"/icon/week-2-{step}-dark.svg" in web.get(f"/p/{token}").text
 
 
 def test_a_plan_in_dark_mode_installs_the_graphite_icon(web):
