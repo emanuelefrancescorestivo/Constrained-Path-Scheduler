@@ -2269,7 +2269,7 @@ follows the day and drifts slowly.*
 - *Clear glass.* Cards, the bars, the sheets and Spark's button are glass: a light
   fill, a blur of what is behind, a bright edge on top. On a phone the tab bar floats
   as a pill, with Spark in a round drop beside it. The calendar is glass too, but
-  nearly solid, as it is read closely.
+  nearly solid, as it is read closely. (Since D78: moderate glass, half as opaque.)
 - *The garden.* Line drawings in the margins grow with the streak
   (`service.garden_stage`): a seedling, then two leaves and a bud from 3 days, a
   vine from 7, a flower from 14. They sway a little. Decoration only: the streak's
@@ -2468,3 +2468,93 @@ and dark, the top bar's glass and the icon at each; not on a real phone. An open
 page follows the sun within five minutes. Since this decision, D73's "four soft
 colours of the part of the day" and D74's "colours of the sky of the hour" are the
 sun's, as above.
+
+## D77. Spark's tour: each section shown once, the first time it is opened
+
+*The owner, 2026-10-19, after setting up a plan on the demo: "i would like the user to
+receive a first tutorial by Spark when they first enter, or else it feels too
+overwhelming, a tutorial that guides u in each section and highlight where to click
+and to do what... like standard app tutorials".*
+
+**Chosen.**
+
+- *One short tour a section, on its first visit.* The calendar while setting up
+  ("week": the week itself, moving a session, blocking time, what comes next, the
+  last step), Today once set up (the next step, the week and the streak, reports,
+  the calendar, a new task, the other sections, Spark), then Tasks, Focus, Community
+  and Progress, two or three steps each. Seven steps at most: a long tour is skipped,
+  and each section explains itself when the student gets there.
+- *What a tour looks like.* The page dims, the part a step is about stays lit with a
+  bright edge, and Spark's bubble sits beside it: a title, one or two sentences on
+  what it is for and what to do, "2 of 5", Skip the tour, Back and Next (Got it at the
+  end). The light glides from one step to the next and follows the page as it
+  scrolls; the calendar scrolls to the session a step is about.
+- *Who decides what.* The server says which tour a page shows (`service.tour_for`:
+  its section's, not yet seen) and remembers the ones finished or skipped (the
+  plan's `tours_seen`, `POST /p/<token>/tour`). The page carries the steps, each
+  naming what it lights (`data-tour` marks in the templates), in the plan's
+  language. `tour.js` only lays them out: it passes over a step whose part is not on
+  screen (a phone has no top bar's links, a new plan nothing to report yet), and a
+  tour with nothing on screen stays unseen for a later visit (Focus while a timer
+  runs).
+- *Settings, Appearance: "Spark's tour, Show it again"*: every tour comes back,
+  Today's at once.
+- *Keyboard and assistive technology.* The bubble is a modal dialog; the rest of the
+  page is inert while it shows; Next has the focus, Tab stays on the bubble's
+  buttons, the arrows go back and forth, Escape skips. The step's words are
+  announced as they change. Under reduced motion nothing glides.
+
+**Rejected.** One long tour of every section at the first visit (the owner asked for
+less at once, not more); a video or a carousel of screenshots before the app opens
+(it shows a made-up plan, not the student's own, and is forgotten by the time it is
+needed); a tour library (a dependency for 200 lines of layout); tours that cannot be
+skipped; tips that come back by themselves after being skipped (Settings brings them
+back on request).
+
+**Disclosed.** Checked in Chromium only: every tour walked to its end at 1280 px
+(Today in light and dark, Tasks, Progress, the setup calendar) and at 390 px
+(Community in dark), each remembered after it ended and absent on the next visit,
+no script errors. Not checked with a screen reader or on a real phone. Without a
+script there is no tour; the pages are complete without it. The French and Italian
+were written here, not by native speakers.
+
+## D78. Moderate glass on the calendar, and an accent that follows the sky
+
+*The owner, 2026-10-19, with screenshots of the demo in Italian at 18:16: "if i put
+full screen the adapting background does not work; in the main page id like to try
+a moderate version of liquid glass for the calendar, and need to make those electric
+blue buttons that are like a shard in the eye, adapt together with the theme, in
+this image maybe they could be purple, or a stronger colour than their immediate
+background".*
+
+**Chosen.**
+
+- *The calendar, moderate glass.* D73 made it "glass, but nearly solid" (80% white,
+  84% graphite). Now half (50% white, 52% graphite) with a stronger blur, so the
+  sky's colour shows through the grid; the events keep their solid tints and read as
+  before. The strip of day names and the hours stay frosted at 86%, as sessions
+  scroll under them.
+- *An accent of the moment.* Buttons, links, what is chosen and the tab bar's
+  current tab took Apple's blue all day. Now each moment of the sky (D76) has a hue:
+  indigo at night, violet at dawn, a deeper blue by day, indigo in the late
+  afternoon, violet in the golden hour, purple at sunset, violet at dusk, never red
+  or orange (red is for exams and today). Its lightness is solved, not picked, and a
+  test checks all 400 steps in both modes. In light mode white text on a button
+  keeps 4.8:1 (WCAG asks 4.5, which Apple's #007aff does not reach, at 4.0), and so
+  does accent text on the sky. In dark mode a button keeps 3.3:1 with white text
+  (Apple's own dark blue has 3.65), and accent text is a lighter "ink" of the same
+  hue at 7.5:1 against the sky, so a blue link does not sink into a blue sky. It is
+  served in `/sky/<step>.css` with the sky.
+- *Full-screen focus keeps the sky* (AUDIT 71).
+
+**Rejected.** A fixed purple (the owner's example is one moment; at noon purple on a
+blue sky is as loud as blue was); the accent picked from the sky's own lights (at
+dusk they are pale, and the button would sink into its background, the opposite of
+the ask); dark text on light buttons in dark mode (no other button in the app works
+that way); the calendar as clear glass like the cards (its small text over a busy
+sky did not read).
+
+**Disclosed.** Checked in Chromium only, at 1600 px, light and dark, at 18:16 on 19
+October (Paris), and full screen in both modes. The hues are a choice of taste, the
+owner's to review; only the contrast is measured. The pages without a sky (the home
+page, the setup's first step) keep Apple's blue.

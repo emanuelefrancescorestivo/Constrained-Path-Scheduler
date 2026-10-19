@@ -6,6 +6,13 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Spark's tour (D77): the first time a section is opened, Spark dims the page, lights
+  each part in turn and says what it is for and what to do there: the calendar while
+  setting up, Today, then Tasks, Focus, Community and Progress. Skip it at any step;
+  Settings shows it again.
+- Buttons and links take a colour of the moment (D78): indigo at night, blue by day,
+  violet and purple around sunset, always readable against white text and the sky.
+  The calendar is moderate glass, with the sky showing through.
 - The sky follows the sun where the plan lives (D76): sunrise and sunset move with
   the seasons and the place (the plan's time zone), through twelve moments from deep
   night to golden hour and dusk, in light and dark. The live icon takes the sky's
@@ -442,6 +449,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Full-screen focus keeps the sky behind the timer (AUDIT item 71).
+- No band behind a form's save button over the sky, and thin scrollbars instead of
+  Windows' thick grey ones (AUDIT item 70).
 - The top bar, the fields and the save bar are glass on every page of a plan,
   instead of a black bar over glass pages in dark mode (AUDIT item 68).
 - On a phone in French, the tab bar's labels no longer run into each other beside

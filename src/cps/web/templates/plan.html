@@ -23,7 +23,7 @@
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
   {% endif %}
-  <section class="board" aria-label="{{ _('Calendar') }}">
+  <section class="board" aria-label="{{ _('Calendar') }}" data-tour="calendar">
     {% if setup %}
     {# Drawing a week by hand, when there is no timetable file (D32) #}
     <div class="setup-head">
@@ -41,7 +41,7 @@
     <div class="notice" role="note">
       {% set step = 3 %}{% include "_steps.html" %}
       <p>{{ _h("<strong>Your week.</strong> Your timetable is already here, and the plan with it. Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening off. Drag a study session to move it. The plan rearranges itself as you go.") }}</p>
-      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1">{{ _("Next: put it in your calendar") }}</a></p>
+      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1" data-tour="setup-next">{{ _("Next: put it in your calendar") }}</a></p>
     </div>
     {% endif %}
     <div class="board-bar" id="calendar-bar" hidden>
@@ -58,7 +58,7 @@
       <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="{{ _('Later days') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       {% if setup %}<button type="button" class="btn btn-sm btn-tinted" data-go="busy">+ {{ _("Add a class") }}</button>
-      {% else %}<button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy">{{ _("Block time") }}</button>{% endif %}
+      {% else %}<button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy" data-tour="block">{{ _("Block time") }}</button>{% endif %}
     </div>
     <div id="calendar">
       <div class="board-fallback">

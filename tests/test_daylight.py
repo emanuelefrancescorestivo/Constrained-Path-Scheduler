@@ -213,3 +213,52 @@ def test_a_student_far_from_the_zones_main_city_sees_its_sun():
 
     late = sunset(48.39, -4.49) - sunset(*daylight.place("Europe/Paris"))
     assert timedelta(minutes=25) <= late <= timedelta(minutes=32)
+
+
+def _hue_of(colour: tuple[int, int, int]) -> float:
+    import colorsys
+
+    return colorsys.rgb_to_hls(*(c / 255 for c in colour))[0] * 360
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+def test_the_accent_follows_the_sky_and_stays_readable_at_every_step(mode):
+    # Buttons and links take a hue of the moment (D76), never red or orange (red is
+    # for exams and today); their lightness keeps white text and accent text legible.
+    for step in range(sky.STEPS):
+        button, hover, ink = sky.accent(step, mode)
+        base = sky.colours(step, mode)[0]
+        assert 200 <= _hue_of(button) <= 290, (step, button)
+        if mode == "light":
+            assert sky.contrast(button, sky.WHITE) >= 4.5, step  # white text on a button
+            assert sky.contrast(ink, base) >= 4.5, step  # accent text on the sky
+            assert sky.contrast(hover, sky.WHITE) > sky.contrast(button, sky.WHITE)  # pressed: darker
+        else:
+            assert sky.contrast(button, sky.WHITE) >= 3.0, step  # as Apple's dark blue, 3.65
+            assert sky.contrast(ink, base) >= 7.0, step
+
+
+def test_the_accent_is_blue_by_day_and_purple_at_sunset():
+    noon, sunset = sky.step_of(2.0), sky.step_of(3.03)
+    assert 205 <= _hue_of(sky.accent(noon, "light")[0]) <= 220
+    assert 265 <= _hue_of(sky.accent(sunset, "light")[0]) <= 280
+
+
+def test_the_skys_sheet_carries_the_accent_and_text_uses_its_ink():
+    sheet = sky.stylesheet(300)
+    for name in ("--accent:", "--accent-hover:", "--accent-soft:", "--accent-ink:"):
+        assert sheet.count(name) == 3, name  # light, the device's dark, the plan's dark
+    css = (
+        Path(__file__).resolve().parent.parent / "src" / "cps" / "web" / "static" / "style.css"
+    ).read_text()
+    # Text in the accent's hue reads the ink, so a sky can lighten it in dark mode.
+    assert not re.search(r"(?<![-\w])color: var\(--accent\)", css)
+    # Full screen shows the focus timer alone: it carries the sky with it (AUDIT 71).
+    assert re.search(r"body\[data-sky\] \.focus:fullscreen \{[^}]*var\(--sky-base\)", css)
+
+
+def test_apples_blues_as_decisions_d78_quotes_them():
+    # The fixed accent before D78: #007aff misses WCAG's 4.5 for white text; the dark
+    # #0a84ff is the bar set for dark mode's buttons.
+    assert round(sky.contrast((0, 122, 255), sky.WHITE), 1) == 4.0
+    assert round(sky.contrast((10, 132, 255), sky.WHITE), 2) == 3.65

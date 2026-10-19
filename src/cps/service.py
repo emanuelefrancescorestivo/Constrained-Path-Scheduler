@@ -4777,6 +4777,55 @@ def motion_of(subscription: Subscription | None) -> str:
     return motion if motion in MOTIONS else "auto"
 
 
+# -- Spark's tour (D77) -------------------------------------------------------------------
+
+# One short tour a section, shown the first time the student opens it: "week" on the
+# calendar while setting up, "today" on the plan once set up, then each tab's own.
+TOURS = ("week", "today", "tasks", "focus", "community", "progress")
+_TOUR_OF_TAB = {
+    "today": "today",
+    "calendar": "today",
+    "tasks": "tasks",
+    "focus": "focus",
+    "community": "community",
+    "progress": "progress",
+}
+
+
+def tours_seen(subscription: Subscription) -> list[str]:
+    seen = subscription.options.get("tours_seen") or []
+    return [name for name in seen if name in TOURS]
+
+
+def tour_for(
+    subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
+) -> str | None:
+    """The tour a page shows, if any: its section's, the first time (D77). Drawing a
+    week by hand (`setup`) has its own instructions on the page and no tour; the
+    other pages of setting up have none either, except the calendar ("week")."""
+    if subscription is None or setup:
+        return None
+    calendar = tab in ("today", "calendar")
+    name = ("week" if calendar else None) if new else _TOUR_OF_TAB.get(tab or "")
+    return name if name and name not in tours_seen(subscription) else None
+
+
+def see_tour(subscription: Subscription, name: str) -> Subscription:
+    """A tour finished or skipped: it is not shown again (D77)."""
+    if name not in TOURS:
+        raise InvalidInput(_("There is no such tour."))
+    seen = tours_seen(subscription)
+    if name in seen:
+        return subscription
+    return replace(subscription, options={**subscription.options, "tours_seen": [*seen, name]})
+
+
+def reset_tours(subscription: Subscription) -> Subscription:
+    """Every tour shown again, each on its section's next visit (Settings, D77)."""
+    options = {k: v for k, v in subscription.options.items() if k != "tours_seen"}
+    return replace(subscription, options=options)
+
+
 # -- the sky and the garden behind a plan's pages (D73) ---------------------------------
 
 SKIES = ("morning", "afternoon", "evening", "night")

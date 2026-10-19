@@ -8,10 +8,20 @@ A page asks for its sky as a small style sheet, `/sky/<step>.css`, one of `STEPS
 along the day (a step is a few minutes), the same for everyone and kept a day; its
 variables are what the calm-glass rules in style.css paint (D73). The live icon
 (`icon.py`) takes its colours from the same moment, so the two always agree.
+
+The accent (buttons, links, what is chosen) follows the sky too (D76): a hue for each
+moment, blue by day, indigo at night, violet and purple around sunrise and sunset,
+never red or orange (red is for exams and today). Its lightness is solved, not
+picked. In light mode white text on a button keeps a contrast of 4.8 (WCAG asks
+4.5), and so does text in the accent against the sky's base. In dark mode a button
+keeps 3.3 with white text (Apple's own dark blue has 3.65), and text in the accent's
+hue is made light enough for 7.5 against the sky's base, so a blue link does not
+sink into a blue sky.
 """
 
 from __future__ import annotations
 
+import colorsys
 from dataclasses import dataclass
 from itertools import pairwise
 
@@ -61,6 +71,25 @@ MOMENTS = (
 )  # fmt: skip
 
 
+# The accent's hue (degrees) along the day's position; blended between these.
+ACCENT_HUES = (
+    (0.00, 238.0),  # night: indigo
+    (0.55, 228.0),  # blue hour
+    (0.92, 258.0),  # dawn: violet
+    (1.05, 266.0),  # sunrise
+    (1.25, 218.0),  # morning: blue
+    (1.55, 212.0),  # day
+    (2.45, 212.0),
+    (2.70, 226.0),  # late afternoon
+    (2.90, 256.0),  # golden hour: violet against the warm light
+    (3.03, 272.0),  # sunset: purple
+    (3.35, 262.0),  # dusk
+    (3.70, 246.0),  # late dusk
+    (4.00, 238.0),
+)
+WHITE = (255, 255, 255)
+
+
 def step_of(position: float) -> int:
     """The step of the day a position falls in (0 .. STEPS - 1)."""
     return round(position / 4 * STEPS) % STEPS
@@ -96,10 +125,79 @@ def colours(step: int, mode: str) -> Sky:
     raise AssertionError("the moments cover the whole day")
 
 
+def luminance(colour: Colour) -> float:
+    """Relative luminance, as WCAG 2 defines it."""
+
+    def channel(c: int) -> float:
+        c1 = c / 255
+        return c1 / 12.92 if c1 <= 0.03928 else ((c1 + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(c) for c in colour)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a: Colour, b: Colour) -> float:
+    """WCAG 2's contrast ratio, from 1 to 21."""
+    high, low = sorted((luminance(a), luminance(b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+def _hue(step: int) -> float:
+    position = step / STEPS * 4
+    for (a, ha), (b, hb) in pairwise(ACCENT_HUES):
+        if a <= position <= b:
+            return ha + (hb - ha) * (position - a) / (b - a)
+    raise AssertionError("the hues cover the whole day")
+
+
+def _solve(hue: float, saturation: float, against: Colour, ratio: float, lighter: bool) -> Colour:
+    """The colour of this hue and saturation, as light (or as dark) as it can be while
+    keeping at least `ratio` against `against` (bisection on HLS lightness)."""
+
+    def at(lightness: float) -> Colour:
+        r, g, b = colorsys.hls_to_rgb(hue / 360, lightness, saturation)
+        return round(r * 255), round(g * 255), round(b * 255)
+
+    ok, bad = (0.0, 1.0) if not lighter else (1.0, 0.0)  # the end that keeps the ratio
+    for _ in range(40):
+        middle = (ok + bad) / 2
+        if contrast(at(middle), against) >= ratio:
+            ok = middle
+        else:
+            bad = middle
+    return at(ok)
+
+
+def accent(step: int, mode: str) -> tuple[Colour, Colour, Colour]:
+    """The accent at a step: a button's colour, the same pressed or hovered, and the
+    colour of text in the accent's hue."""
+    base = colours(step, mode)[0]
+    hue = _hue(step)
+    if mode == "light":
+        button = _solve(hue, 0.85, WHITE, 4.8, lighter=False)
+        # Text sits on the sky, a little darker than white: solved against its base.
+        return (
+            button,
+            _solve(hue, 0.85, WHITE, 6.2, lighter=False),
+            _solve(hue, 0.85, base, 4.8, lighter=False),
+        )
+    button = _solve(hue, 0.95, WHITE, 3.3, lighter=False)
+    hover = _solve(hue, 0.95, WHITE, 2.8, lighter=False)
+    return button, hover, _solve(hue, 0.95, base, 7.5, lighter=True)
+
+
 def _rules(step: int, mode: str) -> str:
     base, *lights = colours(step, mode)
     values = [f"--sky-base: rgb({base[0]} {base[1]} {base[2]});"]
     values += [f"--sky-{i}: {c[0]} {c[1]} {c[2]};" for i, c in enumerate(lights, 1)]
+    button, hover, ink = accent(step, mode)
+    soft = 12 if mode == "light" else 22
+    values += [
+        f"--accent: rgb({button[0]} {button[1]} {button[2]});",
+        f"--accent-hover: rgb({hover[0]} {hover[1]} {hover[2]});",
+        f"--accent-soft: rgb({button[0]} {button[1]} {button[2]} / {soft}%);",
+        f"--accent-ink: rgb({ink[0]} {ink[1]} {ink[2]});",
+    ]
     return " ".join(values)
 
 

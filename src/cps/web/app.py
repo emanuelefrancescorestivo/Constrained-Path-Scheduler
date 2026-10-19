@@ -327,6 +327,15 @@ def create_app(config: Config | None = None) -> FastAPI:
                 context["sun"] = sky.step_of(context["daylight"])  # the sky's colours (D76)
             except Exception:
                 LOG.exception("could not work out the page's sky")
+        if token and "tour" not in context:
+            # Spark's tour of this section, the first time it is opened (D77).
+            subscription = subscription or service.load_subscription(store, token)
+            context["tour"] = service.tour_for(
+                subscription,
+                context.get("tab"),
+                setup=bool(context.get("setup")),
+                new=bool(context.get("new")),
+            )
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -1861,6 +1870,30 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         service.log_event(store, token, "motion", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
+    @app.post("/p/{token}/tour")
+    async def tour_seen(request: Request, token: str) -> Response:
+        """Spark's tour of a section, finished or skipped (D77): tour.js says so, and
+        the section shows it no more."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        name = str(form.get("name") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.see_tour(current, name))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "tour", name)
+        return Response(status_code=204)
+
+    @app.post("/p/{token}/tour/again")
+    async def tour_again(request: Request, token: str) -> Response:
+        """Every tour shown again, from Settings (D77): Today's first."""
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(store, token, service.reset_tours)
+        service.log_event(store, token, "tour", "again")
+        return RedirectResponse(f"/p/{token}", 303)
 
     @app.post("/p/{token}/tip-setting")
     async def tip_setting(request: Request, token: str) -> Response:

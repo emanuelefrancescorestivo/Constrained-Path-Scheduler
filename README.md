@@ -418,7 +418,7 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 896 passed, 17 deselected (slow), 1 xfailed, ~250 s
+pytest                                    # 924 passed, 17 deselected (slow), 1 xfailed, ~250 s
 pytest -m "slow or not slow" --cov=cps    # everything: 910 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents

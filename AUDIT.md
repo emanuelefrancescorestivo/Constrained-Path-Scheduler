@@ -861,3 +861,22 @@ check of D73 was in English, where every label fits. Fixed: in the floating bar 
 labels are a little smaller with a 2 px gap between columns, and below 340 px Spark
 waits above the bar instead of beside it. Measured in Chromium at 320, 344, 360, 390
 and 430 px: no label overlaps another and none leaves the bar. Status: fixed.
+
+**70. A band behind the save button, and thick grey scrollbars on Windows.** Reported
+by the owner, 2026-10-19, with a screenshot of the questions about the week in dark
+mode on the demo: a black band behind "Next: see your week". On main the band was the
+page's own colour, opaque; this branch's glass band (AUDIT 68) still showed as a box
+with hard edges where the form is short and the bar is not stuck. The same
+screenshots showed Windows' default scrollbar, grey with arrows, between Today's panel
+and the calendar. Fixed: on a plan's pages the save button floats on its own shadow
+with no band, and scrollbars are thin, in the app's grey (`scrollbar-width`,
+`scrollbar-color`, with zero specificity so the strips that hide theirs still do).
+Checked in Chromium at 970 and 390 px on the questions about the week and on Settings
+scrolled; Windows' own scrollbar not seen here. Status: fixed.
+
+**71. Full-screen focus lost the sky.** Reported by the owner, 2026-10-19, with a
+screenshot: in full screen the timer sat on flat grey. Full screen shows the focus
+section alone, and the sky is painted behind the page (`body::before`), which is not
+in it. Fixed: the section carries the same sky while it is full screen
+(`body[data-sky] .focus:fullscreen`). Checked in Chromium in light and dark; a test
+keeps the rule. Status: fixed.

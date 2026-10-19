@@ -2,7 +2,7 @@
    Without a script it is a link to the coach; ui.js opens the sheet below instead,
    with a question for the coach and the ways Spark helps. #}
 {% from "_mascot.html" import mascot %}
-<a class="spark-fab" href="/p/{{ token }}/coach" data-spark aria-haspopup="dialog" aria-label="{{ _('Ask Spark') }}" title="{{ _('Ask Spark') }}">{{ mascot("idle", "mascot-fab") }}</a>
+<a class="spark-fab" href="/p/{{ token }}/coach" data-spark data-tour="spark" aria-haspopup="dialog" aria-label="{{ _('Ask Spark') }}" title="{{ _('Ask Spark') }}">{{ mascot("idle", "mascot-fab") }}</a>
 <div id="spark-help" class="sheet spark-sheet" popover aria-label="{{ _('Ask Spark') }}">
   <div class="sheet-head">
     <button type="button" class="btn btn-plain" popovertarget="spark-help" popovertargetaction="hide">{{ _("Close") }}</button>
