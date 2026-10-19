@@ -2284,8 +2284,13 @@ the point of the card); the garden growing as a reward that can be lost (the str
 is forgiving, D9: a missed day does not wither anything, the stage follows the
 streak as it is counted).
 
-**Disclosed.** Checked in Chromium at 390 and 1280 px, light and dark, still and in
-motion, not on a real phone. Browsers without backdrop blur show the glass as a
+On a wide screen the garden sits in the corner of Today's panel, above the greeting,
+where its text does not scroll over it; the vine stays off the plan screen, where the
+calendar would hide it. Settings' sections, the statistics' tiles and the badges are
+glass too.
+
+**Disclosed.** Checked in Chromium at 390, 1280, 1440 and 1920 px (every page of a
+plan at 1280 and 1920), light and dark, still and in motion, not on a real phone. Browsers without backdrop blur show the glass as a
 plain translucent fill; a device that asks for less transparency gets solid
 surfaces. The drift, the sway and the panel's motion stop under reduced motion.
 The service worker keeps the fonts and the drawings for offline use.

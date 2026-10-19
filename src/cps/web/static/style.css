@@ -2227,15 +2227,18 @@ body[data-sky]::before {
 }
 
 /* -- the glass ------------------------------------------------------------------- */
-body[data-sky] :is(.card, .cards-due, .more > summary) {
+body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .cards-due, .more > summary) {
   background: linear-gradient(150deg, var(--glass-top), var(--glass-bottom));
   -webkit-backdrop-filter: blur(14px) saturate(180%);
   backdrop-filter: blur(14px) saturate(180%);
   border: 1px solid var(--glass-rim);
   box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo), inset 0 0 20px var(--glass-glow), var(--glass-drop);
 }
-body[data-sky] :is(.card, .strip) { border-radius: 22px; }
-body[data-sky] .card .card { box-shadow: inset 0 1px 0 var(--glass-hi); -webkit-backdrop-filter: none; backdrop-filter: none; }
+body[data-sky] :is(.card, fieldset, .strip) { border-radius: 22px; }
+/* Glass inside glass: no second blur, no second shadow. */
+body[data-sky] :is(.card, fieldset, .sheet[popover]) :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group) {
+  box-shadow: inset 0 1px 0 var(--glass-hi); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
 body[data-sky] .panel { background: transparent; }
 body[data-sky] .topbar {
   background: var(--glass-bar); border-bottom: 1px solid var(--glass-rim);
@@ -2311,9 +2314,13 @@ body:is([data-garden="2"], [data-garden="3"], [data-garden="4"]) .garden .g-flow
 body:is([data-garden="3"], [data-garden="4"]) .garden .g-vine { display: block; }
 body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg"); width: 48px; height: 58px; color: var(--bloom); }
 @media (min-width: 901px) {
-  /* Beside Today's panel on a wide screen, and at the window's edges elsewhere. */
-  body:has(.plan) .garden .g-sprout { right: auto; left: 300px; }
+  /* At the window's edges; beside Today's panel, both in its corner above the
+     greeting, where the panel's text does not scroll over them and the calendar
+     does not hide the vine. */
   .garden .g-flower { bottom: 26px; }
+  body:has(.plan) .garden .g-sprout { right: auto; left: 286px; top: calc(var(--topbar) + 12px); }
+  body:has(.plan) .garden .g-flower { left: 328px; bottom: auto; top: calc(var(--topbar) + 22px); width: 34px; height: 42px; }
+  body:has(.plan) .garden .g-vine { display: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .garden i { animation: garden-sway 7s ease-in-out infinite alternate; }
@@ -2324,7 +2331,8 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
 
 /* Less transparency, when the device asks for it: solid surfaces, no blur. */
 @media (prefers-reduced-transparency: reduce) {
-  body[data-sky] :is(.card, .strip, .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
+  body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .strip-item, .cards-due, .more > summary,
+    .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
     background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
   }
 }
