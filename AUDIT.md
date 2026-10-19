@@ -809,3 +809,16 @@ never had. The tests started every session on a whole minute, where nothing is c
 Fixed: a focus session keeps its times to the second (`service._instant`); a test
 starts one 50 seconds into a minute. Status: fixed; sessions logged before the fix
 keep what was measured then.
+
+**66. A fresh store could fail to open at the server's first start.** Found while
+preparing the pilot's host, 2026-10-19, by running the pilot's start command on an
+empty disk: the log showed "sweep failed ... database is locked". At start, the
+expiry sweep, the first backup, the reminders and the first request all open the
+store at once; `service._store` cached one `Store` per file, but a cache does not stop
+threads that miss it together, so each built its own, and one setting WAL while
+another made the schema failed (another time, two added the same column: "duplicate
+column name"). Harmless on that start (the sweep runs again six hours later), but a
+student's first request could have met it. The tests open the store once, on one
+thread. Fixed: one lock around opening, so one thread opens the file while the
+others wait; a test opens a fresh store from eight threads at once, five times.
+Status: fixed.

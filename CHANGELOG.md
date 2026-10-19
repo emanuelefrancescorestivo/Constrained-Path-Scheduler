@@ -6,6 +6,8 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The privacy page names who runs the service and who hosts it, from two settings
+  of the deployment (D72); the pilot's blueprint asks for both.
 - Spark floats on the plan's pages (D71): a speech bubble that opens a sheet with a
   question for the coach and the ways Spark helps; without a script, a link to the
   coach.
@@ -423,6 +425,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A fresh store opens once when the server's threads all ask for it at its first
+  start, instead of failing with "database is locked" (AUDIT item 66).
 - The focus clock starts at 0:00:00, and a page kept open no longer counts as time
   away from it (AUDIT item 65).
 - A long button on the invitation page wraps on a phone (AUDIT item 56).

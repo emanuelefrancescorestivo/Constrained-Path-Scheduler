@@ -152,6 +152,8 @@ class Config:
     store: Path = field(default_factory=lambda: Path(service.FEED_STORE))
     base_url: str | None = None  # the public address, e.g. https://example.onrender.com
     contact: str | None = None  # who to write to, shown on the privacy page
+    controller: str | None = None  # who runs the service and answers for its data (GDPR), named there too
+    host: str | None = None  # who hosts the server, and where, named there too
     sweep_every: timedelta | None = SWEEP_EVERY
     remind_every: timedelta | None = REMIND_EVERY  # None: no reminders sent (tests send by hand)
     push_send: Callable[..., int] | None = None  # replaces the push sender (tests)
@@ -175,6 +177,8 @@ class Config:
             # Render sets RENDER_EXTERNAL_URL to the service's public address.
             base_url=os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or None,
             contact=os.environ.get("CPS_CONTACT") or None,
+            controller=os.environ.get("CPS_CONTROLLER") or None,
+            host=os.environ.get("CPS_HOST") or None,
             backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
             admin_token=os.environ.get("CPS_ADMIN_TOKEN") or None,
         )
@@ -469,6 +473,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "privacy.html",
             contact=config.contact,
+            controller=config.controller,
+            host=config.host,
             retention=round(service.RETENTION.days * 12 / 365),
         )
 

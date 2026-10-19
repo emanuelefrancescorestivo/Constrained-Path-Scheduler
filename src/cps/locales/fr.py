@@ -273,6 +273,8 @@ MESSAGES: dict[str, str] = {
     "For how long": "Combien de temps",
     "Your rights": "Tes droits",
     "For any question, or to exercise another right under the GDPR, write to {contact}.": "Pour toute question, ou pour exercer un autre droit prévu par le RGPD, écris à {contact}.",
+    "This service is run by {controller}, who answers for the data it keeps (the controller, under the GDPR).": "Ce service est géré par {controller}, qui répond des données qu'il conserve (le responsable du traitement, au sens du RGPD).",
+    "The server is hosted by {host}.": "Le serveur est hébergé par {host}.",
     # -- progress, the streak and the weekly review -------------------------------------------
     "Nothing to count yet": "Rien à compter pour l'instant",
     "Your progress appears here once there is a plan: add an exam or a deadline.": "Ta progression apparaît ici dès qu'il y a un plan : ajoute un examen ou une échéance.",

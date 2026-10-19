@@ -2216,3 +2216,26 @@ page would have to work it out).
 **Disclosed.** Checked in Chromium at 1280 and 390 px, light and dark, not on a real
 phone. Over the calendar it covers the corner of the last column's late evening; the
 calendar scrolls.
+
+## D72. The privacy page names who runs the service and who hosts it
+
+*The owner, 2026-10-19: "let's do the pilot, guide me through hosting it".*
+
+**Chosen.** Before the first student, the privacy page names the person who runs the
+service and answers for its data (the controller, under the GDPR, D6) and the
+company that hosts the server, with where. Both are settings of a deployment, not of
+the code: `CPS_CONTROLLER`, typed in Render's dashboard as the contact address is,
+and `CPS_HOST`, set in `render.yaml` beside the region it names ("Render (Frankfurt,
+EU)"). Left empty, as on a computer or in the demo, the page says neither.
+
+The blueprint asks for Render's plan by its new name, `0.5c-512mb` ("starter"
+before Render renamed its plans on 2026-08-26; the old name still works, and the
+price did not change).
+
+**Rejected.** The owner's name in `render.yaml` (a setting typed once in the
+dashboard keeps it out of the repository); one sentence with the host and the
+region in English, which the French and Italian pages would have shown untranslated
+around it.
+
+**Disclosed.** This is what a privacy notice needs to say who and where; it is not
+legal advice, and the page as a whole is still the owner's to read and approve (C2).

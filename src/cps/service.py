@@ -2951,9 +2951,15 @@ def _open(path: str) -> Store:
     return Store(path)
 
 
+_OPENING = threading.Lock()
+
+
 def _store(store: str | os.PathLike) -> Store:
-    """One `Store` per file, opened once (its schema is checked on opening)."""
-    return _open(os.fspath(store))
+    """One `Store` per file, opened once (its schema is checked on opening). At the
+    first start on a fresh disk the server's threads all ask at once, and the cache
+    alone let each build its own (AUDIT 66): one thread opens it, the others wait."""
+    with _OPENING:
+        return _open(os.fspath(store))
 
 
 def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "") -> None:

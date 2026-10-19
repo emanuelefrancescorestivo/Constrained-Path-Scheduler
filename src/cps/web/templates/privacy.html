@@ -3,6 +3,7 @@
 {% block main %}
 <h1>{{ _("Privacy") }}</h1>
 <p>{{ _("This page says what this service keeps about you, why, where and for how long.") }}</p>
+{% if controller %}<p>{{ _("This service is run by {controller}, who answers for the data it keeps (the controller, under the GDPR).", controller=controller) }}</p>{% endif %}
 
 <h2>{{ _("What is kept") }}</h2>
 <ul>
@@ -35,6 +36,7 @@
 
 <h2>{{ _("Where, and who can see it") }}</h2>
 <p>{{ _("On the server that runs this service. Your plan's two addresses (the page and the calendar feed) are the only keys to it, with your passkeys and your recovery code, which lead to the page's address: anyone who has them can see your plan, and the page's address lets them change it. Keep them private, as you would a calendar's secret address. Your calendar app reads the feed; Google Calendar, for one, reads it from Google's servers.") }}</p>
+{% if host %}<p>{{ _("The server is hosted by {host}.", host=host) }}</p>{% endif %}
 <p>{{ _("In a study group, its members see the group's total hours each week and whether you studied that week; never your plan, your courses or your sessions.") }}</p>
 <p>{{ _("In the network, others see your handle, university, programme and the line about you, and each post only by the people you chose for it. A photo's address works only for them. Reports are read by the owner of this service alone; nobody is told who reported them, and nobody is told they were blocked.") }}</p>
 

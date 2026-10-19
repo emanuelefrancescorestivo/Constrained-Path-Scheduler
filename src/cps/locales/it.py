@@ -262,6 +262,8 @@ MESSAGES: dict[str, str] = {
     "For how long": "Per quanto tempo",
     "Your rights": "I tuoi diritti",
     "For any question, or to exercise another right under the GDPR, write to {contact}.": "Per qualsiasi domanda, o per esercitare un altro diritto previsto dal GDPR, scrivi a {contact}.",
+    "This service is run by {controller}, who answers for the data it keeps (the controller, under the GDPR).": "Questo servizio è gestito da {controller}, che risponde dei dati che conserva (il titolare del trattamento, ai sensi del GDPR).",
+    "The server is hosted by {host}.": "Il server è ospitato da {host}.",
     "Nothing to count yet": "Ancora niente da contare",
     "Your progress appears here once there is a plan: add an exam or a deadline.": "I tuoi progressi compaiono qui quando c'è un piano: aggiungi un esame o una scadenza.",
     "{done} of {planned} sessions this week": "{done} di {planned} sessioni questa settimana",

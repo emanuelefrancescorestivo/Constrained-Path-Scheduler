@@ -408,6 +408,27 @@ def test_a_configured_address_is_used_for_links(tmp_path, clock):
 def test_the_privacy_page_names_the_contact_and_the_retention(web):
     page = web.get("/privacy").text
     assert "owner@example.org" in page and "12 months after you last open your plan" in page
+    assert "run by" not in page and "hosted by" not in page  # neither was given
+
+
+def test_the_privacy_page_names_the_controller_and_the_host(tmp_path, clock):
+    """The GDPR asks a privacy notice to say who answers for the data; DEPLOY.md's
+    blueprint names the host and the region (D72)."""
+    config = Config(
+        store=tmp_path,
+        clock=clock,
+        background=False,
+        sweep_every=None,
+        contact="owner@example.org",
+        controller="Ada Lovelace",
+        host="Render (Frankfurt, EU)",
+    )
+    with TestClient(create_app(config)) as client:
+        page = unescape(client.get("/privacy").text)
+        assert "This service is run by Ada Lovelace, who answers for the data it keeps" in page
+        assert "The server is hosted by Render (Frankfurt, EU)." in page
+        french = unescape(client.get("/privacy?lang=fr").text)
+        assert "géré par Ada Lovelace" in french and "hébergé par Render (Frankfurt, EU)" in french
 
 
 def test_unknown_addresses_are_not_found(web):
