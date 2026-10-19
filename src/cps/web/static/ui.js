@@ -306,3 +306,24 @@ document.addEventListener("click", async (event) => {
     }
   }
 });
+
+// The sky follows the day (D73): the server paints the hour's sky; a page left
+// open (a long focus session above all) moves on with the clock, by the same hours
+// as service.sky_at. The app's icon in the top bar and the tab (D74) follows it,
+// and the day of the week. Decoration: nothing waits on it.
+const skyAt = (hour) => (hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : hour >= 18 && hour < 22 ? "evening" : "night");
+if (document.body.dataset.sky) {
+  setInterval(() => {
+    const now = new Date();
+    const sky = skyAt(now.getHours());
+    const day = String(((now.getDay() + 6) % 7) + 1); // Monday 1 ... Sunday 7, as the server counts
+    if (sky === document.body.dataset.sky && day === document.body.dataset.day) return;
+    document.body.dataset.sky = sky;
+    document.body.dataset.day = day;
+    const icon = `/icon/week-${day}-${sky}.svg`;
+    for (const element of document.querySelectorAll("[data-live-icon]")) {
+      if (element instanceof HTMLLinkElement) element.href = icon;
+      else element.src = icon;
+    }
+  }, 5 * 60 * 1000);
+}

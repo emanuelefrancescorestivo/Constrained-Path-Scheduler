@@ -151,3 +151,33 @@ def test_rotating_backups_keep_a_week(tmp_path):
     recent = store.backup_rotating(copies, keep_days=7)
     assert sorted(p.name for p in copies.iterdir()) == [recent.name]
     assert Store(recent).get(TOKEN) == {"x": 1}
+
+
+def test_threads_opening_a_new_store_at_once_all_get_it(tmp_path):
+    """AUDIT 66: at the first start on a fresh disk, the server's threads (the sweep,
+    the backup, reminders, the first request) all opened the store at once; each
+    built its own `Store`, and one setting WAL while another made the schema failed
+    with "database is locked". `service._store` now opens a file once, whatever
+    the threads."""
+    from cps import service
+
+    for attempt in range(5):
+        path = tmp_path / f"fresh-{attempt}"
+        start = threading.Barrier(8)
+        failures: list[BaseException] = []
+        opened: list[Store] = []
+
+        def open_it(path=path, start=start, failures=failures, opened=opened) -> None:
+            start.wait()
+            try:
+                opened.append(service._store(path))
+            except BaseException as error:  # what the thread met is the result
+                failures.append(error)
+
+        threads = [threading.Thread(target=open_it) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert failures == []
+        assert len({id(store) for store in opened}) == 1

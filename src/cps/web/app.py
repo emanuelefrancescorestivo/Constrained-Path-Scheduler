@@ -33,6 +33,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import mimetypes
 import os
 import re
 import secrets
@@ -57,10 +58,13 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms
+from . import charts, forms, icon
 from .limits import Limiter
 
 HERE = Path(__file__).parent
+# The app's type faces (D73) go out as fonts whatever the host's own table says
+# (Windows reads it from the registry, which may not know .woff2).
+mimetypes.add_type("font/woff2", ".woff2")
 # A plan's pages and its sessions' pages: the language is the plan's.
 PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
@@ -73,7 +77,7 @@ REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; "
-        "img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; "
+        "img-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; "
         "manifest-src 'self'; worker-src 'self'"
     ),
     "Referrer-Policy": "no-referrer",
@@ -152,6 +156,8 @@ class Config:
     store: Path = field(default_factory=lambda: Path(service.FEED_STORE))
     base_url: str | None = None  # the public address, e.g. https://example.onrender.com
     contact: str | None = None  # who to write to, shown on the privacy page
+    controller: str | None = None  # who runs the service and answers for its data (GDPR), named there too
+    host: str | None = None  # who hosts the server, and where, named there too
     sweep_every: timedelta | None = SWEEP_EVERY
     remind_every: timedelta | None = REMIND_EVERY  # None: no reminders sent (tests send by hand)
     push_send: Callable[..., int] | None = None  # replaces the push sender (tests)
@@ -175,6 +181,8 @@ class Config:
             # Render sets RENDER_EXTERNAL_URL to the service's public address.
             base_url=os.environ.get("CPS_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or None,
             contact=os.environ.get("CPS_CONTACT") or None,
+            controller=os.environ.get("CPS_CONTROLLER") or None,
+            host=os.environ.get("CPS_HOST") or None,
             backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
             admin_token=os.environ.get("CPS_ADMIN_TOKEN") or None,
         )
@@ -297,6 +305,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
+        subscription = None
         if token and ("courses" not in context or "theme" not in context or "motion" not in context):
             # Every page of a plan carries the new-task sheet, which suggests courses,
             # and the plan's appearance (D21) and motion (D30).
@@ -304,6 +313,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             context.setdefault("courses", service.course_names(subscription) if subscription else [])
             context.setdefault("theme", service.theme_of(subscription))
             context.setdefault("motion", service.motion_of(subscription))
+        if token and "sky" not in context:
+            # The sky of the hour and the garden of the streak behind the page (D73).
+            # Decoration: if working it out fails, the page shows without it.
+            try:
+                subscription = subscription or service.load_subscription(store, token)
+                context.update(service.look_of(store, subscription, config.clock()))
+            except Exception:
+                LOG.exception("could not work out the page's sky")
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -412,9 +429,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # -- the app on a home screen (D33) ----------------------------------------
 
-    def manifest(start: str) -> Response:
+    def manifest(start: str, look: str) -> Response:
         """The web app manifest: what a phone needs to install the site as an app.
-        A plan's own (`start` its address) opens that plan from the home screen."""
+        A plan's own (`start` its address) opens that plan from the home screen. Its
+        icons are the white ones, or the graphite ones for `look` "dark" (D74): the
+        page asks for those when the plan, or the device, is in dark mode."""
+        dark = "-dark" if look == "dark" else ""
+        background = "#0e1015" if look == "dark" else "#f2f2f7"
         body = {
             "id": start,
             "name": service.translate("Study plan"),
@@ -424,31 +445,43 @@ def create_app(config: Config | None = None) -> FastAPI:
             "start_url": start,
             "scope": "/",
             "display": "standalone",
-            "background_color": "#f2f2f7",
-            "theme_color": "#f2f2f7",
+            "background_color": background,
+            "theme_color": background,
             "icons": [
-                {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-                {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                {"src": f"/static/icons/icon-192{dark}.png", "sizes": "192x192", "type": "image/png"},
+                {"src": f"/static/icons/icon-512{dark}.png", "sizes": "512x512", "type": "image/png"},
                 {
-                    "src": "/static/icons/maskable-512.png",
+                    "src": f"/static/icons/maskable-512{dark}.png",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "maskable",
                 },
+                # White or graphite by the device's own mode, whichever manifest asked.
                 {"src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml"},
             ],
         }
         return Response(json.dumps(body, ensure_ascii=False), media_type="application/manifest+json")
 
     @app.get("/manifest.webmanifest")
-    def site_manifest() -> Response:
-        return manifest("/")
+    def site_manifest(look: str = "light") -> Response:
+        return manifest("/", look)
 
     @app.get("/p/{token}/manifest.webmanifest")
-    def plan_manifest(request: Request, token: str) -> Response:
+    def plan_manifest(request: Request, token: str, look: str = "light") -> Response:
         if load(token) is None:
             return missing(request)
-        return manifest(f"/p/{token}")
+        return manifest(f"/p/{token}", look)
+
+    @app.get("/icon/week-{day:int}-{look}.svg")
+    def week_icon(day: int, look: str) -> Response:
+        """The app's icon for a day of the week in a sky's colours, or light or dark
+        (D74): the same for everyone, so it may be kept a day."""
+        try:
+            drawing = icon.week(day, look)
+        except ValueError:
+            return Response(status_code=404)
+        day_long = {"Cache-Control": "public, max-age=86400"}
+        return Response(drawing, media_type="image/svg+xml", headers=day_long)
 
     @app.get("/sw.js")
     def service_worker() -> Response:
@@ -469,6 +502,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "privacy.html",
             contact=config.contact,
+            controller=config.controller,
+            host=config.host,
             retention=round(service.RETENTION.days * 12 / 365),
         )
 

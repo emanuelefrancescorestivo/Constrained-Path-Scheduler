@@ -4,8 +4,11 @@
   <h3>{{ card.title }}</h3>{% if card.topic %}<p class="meta">{{ card.topic }}</p>{% endif %}
   {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
+  {# On Today (calm, D73) the reasons fold under "Why now"; on the session's own page they show. #}
+  {% if calm and show_why and (card.why or card.gain) %}<details class="why-now"><summary>{{ _("Why now") }}</summary>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}
   {% if show_why and card.gain and card.reported != "skipped" %}{% if card.reported in recall_words %}<p class="gain">{{ _h("After your answer, this topic is at <b>{with_it}</b> on exam day if no other review followed; the plan takes it from there (a model's estimate).", with_it=card.gain["with"] ~ " %") }}</p>{% else %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}{% endif %}
+  {% if calm and show_why and (card.why or card.gain) %}</details>{% endif %}
   {% if show_why and not card.reported and token %}
   <form method="post" action="/p/{{ token }}/focus/start" class="start-focus">
     <input type="hidden" name="sid" value="{{ card.id }}">

@@ -7,7 +7,9 @@ services:
     name: study-plan
     runtime: python
     region: frankfurt # data stays in the EU (D6)
-    plan: starter # a disk needs a paid instance
+    # The smallest paid plan, 0.5 CPU and 512 MB ('starter' before Render renamed its
+    # plans in August 2026; the old name still works). A disk needs a paid instance.
+    plan: 0.5c-512mb
     buildCommand: pip install ".[web,ai]"
     startCommand: cps web --host 0.0.0.0 --behind-proxy --db /var/data/cps.sqlite
     healthCheckPath: /health
@@ -23,6 +25,10 @@ services:
         value: /var/data/backups
       - key: CPS_CONTACT # the e-mail address the privacy page names
         sync: false
+      - key: CPS_CONTROLLER # who answers for the data (GDPR): the owner's name, on the privacy page
+        sync: false
+      - key: CPS_HOST # the host and the region above, on the privacy page
+        value: Render (Frankfurt, EU)
       - key: CPS_BASE_URL # only with a custom domain; else Render's own address is used
         sync: false
       - key: CPS_ADMIN_TOKEN # the owner's review page, /admin/<token>; 24 characters or more

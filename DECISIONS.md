@@ -729,7 +729,8 @@ a phone with no app store in between:
    neuroscience of learning"): a brain, and inside it recall over time. Memory
    falls; each review, at the right moment, brings it back; after each it falls
    less and the next can wait longer, which is what the planner's FSRS model does.
-   Two other drafts were shown (the curve alone; a filled brain).
+   Two other drafts were shown (the curve alone; a filled brain). *Replaced by the
+   week's ring, D74.*
 3. **A service worker** (`/sw.js`, from the root so it may answer for the whole
    site). A plan's pages and the calendar's data are asked of the server first, and
    the last answer is kept on the device; without a network that copy is shown,
@@ -2216,3 +2217,133 @@ page would have to work it out).
 **Disclosed.** Checked in Chromium at 1280 and 390 px, light and dark, not on a real
 phone. Over the calendar it covers the corner of the last column's late evening; the
 calendar scrolls.
+
+## D72. The privacy page names who runs the service and who hosts it
+
+*The owner, 2026-10-19: "let's do the pilot, guide me through hosting it".*
+
+**Chosen.** Before the first student, the privacy page names the person who runs the
+service and answers for its data (the controller, under the GDPR, D6) and the
+company that hosts the server, with where. Both are settings of a deployment, not of
+the code: `CPS_CONTROLLER`, typed in Render's dashboard as the contact address is,
+and `CPS_HOST`, set in `render.yaml` beside the region it names ("Render (Frankfurt,
+EU)"). Left empty, as on a computer or in the demo, the page says neither.
+
+The blueprint asks for Render's plan by its new name, `0.5c-512mb` ("starter"
+before Render renamed its plans on 2026-08-26; the old name still works, and the
+price did not change).
+
+**Rejected.** The owner's name in `render.yaml` (a setting typed once in the
+dashboard keeps it out of the repository); one sentence with the host and the
+region in English, which the French and Italian pages would have shown untranslated
+around it.
+
+**Disclosed.** This is what a privacy notice needs to say who and where; it is not
+legal advice, and the page as a whole is still the owner's to read and approve (C2).
+
+## D73. Calm glass: a sky of the hour, clear glass, a garden, two type faces
+
+*The owner, 2026-10-19: "let's make it even better with some liquid glass design, ask
+me for font choices, doodles, and other decorations that streamline the UX and make
+it more soothing to the eye, more addictive to watch, less information overloading".
+The options were drawn on a design canvas, each on the same Today screen; the owner
+chose clear glass, Bricolage Grotesque with Figtree, the garden, and a sky that
+follows the day and drifts slowly.*
+
+**Chosen.**
+
+- *Less on Today.* On a phone, the next session sat below the weekly review, a tip,
+  the cards and the account card, under the fold.
+  Now: a greeting of the hour, the week and the streak as two chips, the next
+  session large with Start focus (its reasons folded under "Why now"), two sessions
+  to report with the rest folded, Spark's tip of the moment, three sessions coming
+  up. The weekly review, the cards, the account and budget offers, the warm-up,
+  Tasks, Exams and the weekly note are under one "More" row that names what it
+  holds. The exam question (D56), the semester's end and warnings stay in sight.
+  Everything is still in the page, without a script; "More" stays open when the
+  panel is redrawn.
+- *The sky.* Behind a plan's pages, four soft colours of the part of the day in the
+  plan's time zone (morning from 5, afternoon from 12, evening from 18, night from
+  22; `service.sky_at`), in light and in dark, drifting over 90 seconds. A page left
+  open moves on with the clock.
+- *Clear glass.* Cards, the bars, the sheets and Spark's button are glass: a light
+  fill, a blur of what is behind, a bright edge on top. On a phone the tab bar floats
+  as a pill, with Spark in a round drop beside it. The calendar is glass too, but
+  nearly solid, as it is read closely.
+- *The garden.* Line drawings in the margins grow with the streak
+  (`service.garden_stage`): a seedling, then two leaves and a bud from 3 days, a
+  vine from 7, a flower from 14. They sway a little. Decoration only: the streak's
+  number is on Today and Progress.
+- *Type.* Bricolage Grotesque for what is large, Figtree for text. Both are files of
+  the app with their licences (SIL Open Font License), so a page asks nothing of
+  any other server; the policy now allows fonts from the app itself.
+
+**Rejected.** Fonts loaded from Google (every page would give Google the student's
+address, against the privacy page); a refraction filter on the glass (Chromium only,
+heavy on a phone); hiding the session's instructions behind "More" (what to do is
+the point of the card); the garden growing as a reward that can be lost (the streak
+is forgiving, D9: a missed day does not wither anything, the stage follows the
+streak as it is counted).
+
+On a wide screen the garden sits in the corner of Today's panel, above the greeting,
+where its text does not scroll over it; the vine stays off the plan screen, where the
+calendar would hide it. Settings' sections, the statistics' tiles and the badges are
+glass too.
+
+**Disclosed.** Checked in Chromium at 390, 1280, 1440 and 1920 px (every page of a
+plan at 1280 and 1920), light and dark, still and in motion, not on a real phone. Browsers without backdrop blur show the glass as a
+plain translucent fill; a device that asks for less transparency gets solid
+surfaces. The drift, the sway and the panel's motion stop under reduced motion.
+The service worker keeps the fonts and the drawings for offline use.
+
+## D74. The app's icon: the week as a ring of seven days
+
+*The owner, 2026-10-19, after four rounds of drafts on a design canvas (a spark and a
+sprout; a brain and a spark; one shape with light and depth; the ring branched six
+ways and drawn in six colours): "can we pick T and make it update each day of the
+week and its colours throughout the day? but choose the white/black one according
+to the user dark/light mode as a static icon". The brain with its recall curve (D33)
+read as overlapping shapes, not as one mark.*
+
+**Chosen.**
+
+- *The drawing.* Seven arcs in a ring, one per day, Monday just right of the top and
+  the days going clockwise. The days before today are filled, today's ends in a gold
+  light, the days to come are faint. At first sight a ring filling up; once the app
+  is used, the student's week with today in gold. Each day keeps its colour whatever
+  day it is (Monday is always Monday's colour). Drawn on the server
+  (`cps.web.icon`), as the charts are, with SVG attributes only.
+- *Live where it can be.* On a plan's pages the top bar and the browser's tab show
+  today's icon: the weekday in the plan's time zone (`service.look_of`), in the
+  colours of the sky of the hour (D73: blue and mint in the morning, indigo and
+  white in the afternoon, violet to orange in the evening, deep blue at night). A
+  page left open swaps it as the hour and the day turn (`ui.js`, by the device's
+  clock, as the sky). It is served at `/icon/week-<day>-<look>.svg`, the same for
+  everyone and kept a day; the service worker keeps each one shown, for offline.
+- *Still where it must be.* What a phone puts on its home screen cannot change once
+  installed, so it is the drawing made once, on a Friday: white for light mode,
+  graphite for dark. A plan set to Light or Dark (D21) installs its own; one that
+  follows the device asks for the graphite one while the device is dark (`pwa.js`
+  sets the manifest's `?look=dark` and the dark Apple touch icon). The SVG icon a tab
+  shows outside a plan (the home page, the setup) carries both drawings and picks by
+  the device's mode. `icon.main()` writes the SVGs; the PNGs are those drawings
+  rendered by Chromium at 32, 180, 192 and 512 px, and a test fails if the SVGs and
+  the module disagree.
+
+**Rejected.** A home-screen icon that changes by itself (a web app cannot; native
+apps cannot either, Apple's own Calendar aside); counting only the days actually
+studied (a missed day would show as a gap on the icon, against the forgiving streak,
+D9); the brain, the head, the neuron and the other drafts (each read as a picture of
+a thing, not as the week the app plans); the spiral and the comet (prettier, but
+they say "time" without saying "your week").
+
+**Disclosed.** Checked in Chromium only: the top bar at 1280 px in light mode and at
+390 px in dark mode, the tab's icon address, the swap of both after the clock moves
+on, the graphite icon asked for on a dark device, every day in every look at 64 and
+28 px, and icon.svg switching by mode under the app's Content-Security-Policy.
+Not checked on a real phone. Safari shows the white PNG in its tab; whether iOS
+keeps the dark Apple touch icon when the device is dark at the moment of "Add to Home
+Screen" was not tried. An installed icon stays as it was installed, even when the
+mode changes later. The server counts the day in the plan's time zone and the page in
+the device's, as the sky does, so a student abroad may see the icon change a few
+minutes after the page loads.

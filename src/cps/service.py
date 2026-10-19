@@ -2951,9 +2951,15 @@ def _open(path: str) -> Store:
     return Store(path)
 
 
+_OPENING = threading.Lock()
+
+
 def _store(store: str | os.PathLike) -> Store:
-    """One `Store` per file, opened once (its schema is checked on opening)."""
-    return _open(os.fspath(store))
+    """One `Store` per file, opened once (its schema is checked on opening). At the
+    first start on a fresh disk the server's threads all ask at once, and the cache
+    alone let each build its own (AUDIT 66): one thread opens it, the others wait."""
+    with _OPENING:
+        return _open(os.fspath(store))
 
 
 def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "") -> None:
@@ -4768,6 +4774,47 @@ def motion_of(subscription: Subscription | None) -> str:
     for reduced motion; "reduce" never animates."""
     motion = (subscription.options.get("motion") if subscription else None) or "auto"
     return motion if motion in MOTIONS else "auto"
+
+
+# -- the sky and the garden behind a plan's pages (D73) ---------------------------------
+
+SKIES = ("morning", "afternoon", "evening", "night")
+# The garden in the margins grows with the streak: a seedling, two leaves, a vine,
+# a flower. Days of streak from which each stage shows.
+GARDEN = ((14, 4), (7, 3), (3, 2), (0, 1))
+
+
+def sky_at(hour: int) -> str:
+    """The part of the day the background shows (D73): morning from 5, afternoon
+    from 12, evening from 18, night from 22."""
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 18:
+        return "afternoon"
+    if 18 <= hour < 22:
+        return "evening"
+    return "night"
+
+
+def garden_stage(streak: int) -> int:
+    """How far the garden in the margins has grown (D73): 1 to 4, with the streak."""
+    return next(stage for days, stage in GARDEN if streak >= days)
+
+
+def look_of(store: str | os.PathLike, subscription: Subscription | None, now: datetime | None = None) -> dict:
+    """The sky and the garden behind a plan's pages (D73), and the day of the week
+    the app's icon shows (1 Monday ... 7 Sunday, D74): decoration only, worked out
+    each time from the hour in the plan's time zone and the streak as Today counts
+    it (D8, logged focus sessions included)."""
+    now = now or datetime.now(UTC)
+    if subscription is None or subscription.plan is None:
+        return {"sky": sky_at(now.hour), "garden": 1, "weekday": now.isoweekday()}
+    plan = PlanReport.from_dict(subscription.plan)
+    local = now.astimezone(_zone(plan.settings.tz))
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    first = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    run = _progress.streak(sessions, first, local.date())
+    return {"sky": sky_at(local.hour), "garden": garden_stage(run.current), "weekday": local.isoweekday()}
 
 
 def set_motion(subscription: Subscription, motion: str) -> Subscription:

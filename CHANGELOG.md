@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The app's icon is the week as a ring of seven days (D74): the days done filled,
+  today in gold, the days to come faint. On a plan's pages the top bar and the tab
+  show today's, in the colours of the sky of the hour, and change as the day goes
+  on; installed on a phone it is white, or graphite in dark mode.
+- Calm glass (D73): Today shows the next step large and folds the rest under "More";
+  a sky that follows the hour and drifts slowly; clear glass on cards and bars, a
+  floating tab bar with Spark beside it; a garden in the margins that grows with the
+  streak; Bricolage Grotesque and Figtree, shipped with the app.
+- The privacy page names who runs the service and who hosts it, from two settings
+  of the deployment (D72); the pilot's blueprint asks for both.
 - Spark floats on the plan's pages (D71): a speech bubble that opens a sheet with a
   question for the coach and the ways Spark helps; without a script, a link to the
   coach.
@@ -423,6 +433,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A fresh store opens once when the server's threads all ask for it at its first
+  start, instead of failing with "database is locked" (AUDIT item 66).
 - The focus clock starts at 0:00:00, and a page kept open no longer counts as time
   away from it (AUDIT item 65).
 - A long button on the invitation page wraps on a phone (AUDIT item 56).
