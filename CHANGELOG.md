@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Calm glass (D73): Today shows the next step large and folds the rest under "More";
+  a sky that follows the hour and drifts slowly; clear glass on cards and bars, a
+  floating tab bar with Spark beside it; a garden in the margins that grows with the
+  streak; Bricolage Grotesque and Figtree, shipped with the app.
 - The privacy page names who runs the service and who hosts it, from two settings
   of the deployment (D72); the pilot's blueprint asks for both.
 - Spark floats on the plan's pages (D71): a speech bubble that opens a sheet with a

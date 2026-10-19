@@ -2239,3 +2239,53 @@ around it.
 
 **Disclosed.** This is what a privacy notice needs to say who and where; it is not
 legal advice, and the page as a whole is still the owner's to read and approve (C2).
+
+## D73. Calm glass: a sky of the hour, clear glass, a garden, two type faces
+
+*The owner, 2026-10-19: "let's make it even better with some liquid glass design, ask
+me for font choices, doodles, and other decorations that streamline the UX and make
+it more soothing to the eye, more addictive to watch, less information overloading".
+The options were drawn on a design canvas, each on the same Today screen; the owner
+chose clear glass, Bricolage Grotesque with Figtree, the garden, and a sky that
+follows the day and drifts slowly.*
+
+**Chosen.**
+
+- *Less on Today.* On a phone, the next session sat below the weekly review, a tip,
+  the cards and the account card, under the fold.
+  Now: a greeting of the hour, the week and the streak as two chips, the next
+  session large with Start focus (its reasons folded under "Why now"), two sessions
+  to report with the rest folded, Spark's tip of the moment, three sessions coming
+  up. The weekly review, the cards, the account and budget offers, the warm-up,
+  Tasks, Exams and the weekly note are under one "More" row that names what it
+  holds. The exam question (D56), the semester's end and warnings stay in sight.
+  Everything is still in the page, without a script; "More" stays open when the
+  panel is redrawn.
+- *The sky.* Behind a plan's pages, four soft colours of the part of the day in the
+  plan's time zone (morning from 5, afternoon from 12, evening from 18, night from
+  22; `service.sky_at`), in light and in dark, drifting over 90 seconds. A page left
+  open moves on with the clock.
+- *Clear glass.* Cards, the bars, the sheets and Spark's button are glass: a light
+  fill, a blur of what is behind, a bright edge on top. On a phone the tab bar floats
+  as a pill, with Spark in a round drop beside it. The calendar is glass too, but
+  nearly solid, as it is read closely.
+- *The garden.* Line drawings in the margins grow with the streak
+  (`service.garden_stage`): a seedling, then two leaves and a bud from 3 days, a
+  vine from 7, a flower from 14. They sway a little. Decoration only: the streak's
+  number is on Today and Progress.
+- *Type.* Bricolage Grotesque for what is large, Figtree for text. Both are files of
+  the app with their licences (SIL Open Font License), so a page asks nothing of
+  any other server; the policy now allows fonts from the app itself.
+
+**Rejected.** Fonts loaded from Google (every page would give Google the student's
+address, against the privacy page); a refraction filter on the glass (Chromium only,
+heavy on a phone); hiding the session's instructions behind "More" (what to do is
+the point of the card); the garden growing as a reward that can be lost (the streak
+is forgiving, D9: a missed day does not wither anything, the stage follows the
+streak as it is counted).
+
+**Disclosed.** Checked in Chromium at 390 and 1280 px, light and dark, still and in
+motion, not on a real phone. Browsers without backdrop blur show the glass as a
+plain translucent fill; a device that asks for less transparency gets solid
+surfaces. The drift, the sway and the panel's motion stop under reduced motion.
+The service worker keeps the fonts and the drawings for offline use.

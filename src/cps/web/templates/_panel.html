@@ -1,19 +1,143 @@
-{# The panel beside the calendar: redrawn by the page after every change. #}
+{# The panel beside the calendar: redrawn by the page after every change.
+   Calm (D73): a greeting, the week and the streak in a line, the next step large,
+   what needs an answer, the rest of the day; everything else folded under "More",
+   one tap away and still in the page without a script. #}
+{# A session that ended, with its report buttons (D44). #}
+{% macro asked_row(card) %}
+      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="a{{ card.id }}">
+        <span class="dot"></span>
+        <div class="grow">
+          <div class="title">{{ card.label }}</div>
+          <div class="meta">{{ card.when }}–{{ card.until }}</div>
+          {% if card.self_test %}<div class="meta">{{ _("How much could you recall?") }}</div>{% endif %}
+          <form method="post" action="/s/{{ token }}/{{ card.id }}" class="mini-outcomes" data-report{% if card.self_test %} data-recall{% endif %}>
+            {% for value, word in (recall_words if card.self_test else outcome_words).items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ _(word) }}</button>{% endfor %}
+          </form>
+        </div>
+      </li>
+{% endmacro %}
+{% set greetings = {"morning": _("Good morning"), "afternoon": _("Good afternoon"), "evening": _("Good evening"), "night": _("Good evening")} %}
 <div class="hello">
-  <h1>{{ _("Today") }}</h1>
+  <h1>{{ greetings[sky] if sky in greetings else _("Today") }}</h1>
   {% if view.today %}<p>{{ view.today }}</p>{% endif %}
 </div>
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
 {% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
-{% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
-{# A tip the day calls for, near the top (D63) #}
+
+{% if not view.planned %}
+<div class="card">
+  <h2>{{ _("Nothing to plan yet") }}</h2>
+  <p class="muted">{{ _("Add an exam or a deadline, and the plan appears here and on the calendar.") }}</p>
+  <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">{{ _("New task") }}</button></p>
+</div>
+{% else %}
+
+{# The next step, large: the session going on, or the next one. #}
+<div class="section next-step">
+{% if view.now %}
+<div class="section-title"><h2>{{ _("Now") }}</h2></div>
+{% with card=view.now, show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
+{% elif view.next %}
+<div class="section-title"><h2>{{ _("Up next") }}</h2></div>
+{% with card=view.next[0], show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
+{% else %}
+<div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
+{% endif %}
+</div>
+
+{% set asked = view.unreported | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
+{% if asked %}
+<div class="section">
+  <div class="section-title" id="reports"><h2>{{ _("How did these go?") }}</h2><small>{{ asked | length }}</small></div>
+  <div class="card">
+    <ul class="list">
+    {% for card in asked[:2] %}{{ asked_row(card) }}
+    {% endfor %}
+    </ul>
+    {% if asked | length > 2 %}
+    <details class="more-asked">
+      <summary>{{ _n("{n} more", "{n} more", (asked[2:5] | length)) }}</summary>
+      <ul class="list">
+      {% for card in asked[2:5] %}{{ asked_row(card) }}
+      {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </div>
+  <p class="hint">{{ _("Sessions you do not answer count as done in your plan; your streak counts only what you report.") }}</p>
+</div>
+{% endif %}
+{% endif %}
+
+{# A tip the day calls for (D63), in one line with the spark #}
 {% if tip and tip.reason %}{% include "_tip_card.html" %}{% endif %}
-{% if cards_due %}<a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Flashcards") }} ›</span></a>{% endif %}
+
+{% if view.planned %}
+{% set later = (view.next if view.now else view.next[1:])[:3] %}
+{% if later %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Coming up") }}</h2></div>
+  <div class="card">
+    <ul class="list">
+    {% for card in later %}
+      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="l{{ card.id }}">
+        <span class="dot"></span>
+        <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">{{ _("placed") }}</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
+
 {% if semester_over %}
-<a class="card nudge-card" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
-{% elif account and account.nudge %}
+<a class="card nudge-card section" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
+{% endif %}
+
+{% for q in exam_questions %}
+{# How an exam went (D56): asked for three weeks after it; the consent is separate and unticked. #}
+<form method="post" action="/p/{{ token }}/exam" class="card nudge-card exam-question section">
+  <input type="hidden" name="course" value="{{ q.course }}">
+  <b id="exam-q{{ loop.index }}">{{ _("How did the {course} exam go?", course=q.course) }}</b>
+  <span class="muted">{{ _("It was on {date}; your answer helps check whether the plan's predictions hold.", date=q.when) }}</span>
+  <div class="pills" role="radiogroup" aria-labelledby="exam-q{{ loop.index }}">
+    {% for value, words in exam_results %}<label class="pill"><input type="radio" name="result" value="{{ value }}" required><span>{{ _(words) }}</span></label>{% endfor %}
+  </div>
+  <p class="label" id="exam-h{{ loop.index }}">{{ _("Did the plan help? (if you like)") }}</p>
+  <div class="pills" role="radiogroup" aria-labelledby="exam-h{{ loop.index }}">
+    {% for value, words in exam_helped %}<label class="pill"><input type="radio" name="helped" value="{{ value }}"><span>{{ _(words) }}</span></label>{% endfor %}
+  </div>
+  <label for="exam-mark{{ loop.index }}">{{ _("Your mark, if you like (27/30, 14/20, B+)") }}</label>
+  <input id="exam-mark{{ loop.index }}" name="mark" maxlength="20" autocomplete="off">
+  <label class="check check-long"><input type="checkbox" name="consent" value="1"><span>{{ _("The owner of this app may read this answer and the plan's prediction for this exam, without your name or your plan, to check whether the predictions hold.") }}</span></label>
+  <div class="row-end">
+    <button type="submit" name="skip" value="1" formnovalidate class="btn btn-plain btn-sm">{{ _("Rather not say") }}</button>
+    <button type="submit" class="btn btn-primary btn-sm">{{ _("Send") }}</button>
+  </div>
+</form>
+{% endfor %}
+
+{# Everything else, one tap away (D73). Its summary names what is inside. #}
+{% set more = [] %}
+{% if review %}{% set more = more + [_("Last week")] %}{% endif %}
+{% if cards_due %}{% set more = more + [_n("{n} card to review", "{n} cards to review", cards_due)] %}{% endif %}
+{% if account and account.nudge and not semester_over %}{% set more = more + [_("Keep your plan")] %}{% endif %}
+{% if budget %}{% set more = more + [_("Plan the hours you keep")] %}{% endif %}
+{% set more = more + [_("Tasks")] %}
+{% if view.exams %}{% set more = more + [_("Exams")] %}{% endif %}
+{% if weekly_note %}{% set more = more + [_("This week's note")] %}{% endif %}
+<details class="more section" data-more>
+  <summary><span class="more-title">{{ _("More") }}</span><span class="more-what">{{ more | join(" · ") }}</span></summary>
+  <div class="more-body">
+
+{% if review %}{% with dismiss=true, compact=true %}{% include "_review.html" %}{% endwith %}{% endif %}
+{% if cards_due %}<a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Flashcards") }} ›</span></a>{% endif %}
+{% if account and account.nudge and not semester_over %}
 <div class="card nudge-card">
   <b>{{ _("Keep your plan") }}</b>
   <span class="muted">{{ _("It has no password. If you lose this address, a passkey or a recovery code brings you back to it.") }}</span>
@@ -37,29 +161,6 @@
 </div>
 {% endif %}
 
-{% for q in exam_questions %}
-{# How an exam went (D56): asked for three weeks after it; the consent is separate and unticked. #}
-<form method="post" action="/p/{{ token }}/exam" class="card nudge-card exam-question">
-  <input type="hidden" name="course" value="{{ q.course }}">
-  <b id="exam-q{{ loop.index }}">{{ _("How did the {course} exam go?", course=q.course) }}</b>
-  <span class="muted">{{ _("It was on {date}; your answer helps check whether the plan's predictions hold.", date=q.when) }}</span>
-  <div class="pills" role="radiogroup" aria-labelledby="exam-q{{ loop.index }}">
-    {% for value, words in exam_results %}<label class="pill"><input type="radio" name="result" value="{{ value }}" required><span>{{ _(words) }}</span></label>{% endfor %}
-  </div>
-  <p class="label" id="exam-h{{ loop.index }}">{{ _("Did the plan help? (if you like)") }}</p>
-  <div class="pills" role="radiogroup" aria-labelledby="exam-h{{ loop.index }}">
-    {% for value, words in exam_helped %}<label class="pill"><input type="radio" name="helped" value="{{ value }}"><span>{{ _(words) }}</span></label>{% endfor %}
-  </div>
-  <label for="exam-mark{{ loop.index }}">{{ _("Your mark, if you like (27/30, 14/20, B+)") }}</label>
-  <input id="exam-mark{{ loop.index }}" name="mark" maxlength="20" autocomplete="off">
-  <label class="check check-long"><input type="checkbox" name="consent" value="1"><span>{{ _("The owner of this app may read this answer and the plan's prediction for this exam, without your name or your plan, to check whether the predictions hold.") }}</span></label>
-  <div class="row-end">
-    <button type="submit" name="skip" value="1" formnovalidate class="btn btn-plain btn-sm">{{ _("Rather not say") }}</button>
-    <button type="submit" class="btn btn-primary btn-sm">{{ _("Send") }}</button>
-  </div>
-</form>
-{% endfor %}
-
 {% if view.warm_up %}
 {# A warm-up before today's lectures (D51): a prompt, nothing scheduled. #}
 <div class="card warm-up">
@@ -67,69 +168,6 @@
   <p class="muted">{{ _("Two minutes before each: write two questions you think it will answer, and guess the answers. Wrong guesses help too: you notice the right answer when it comes.") }}</p>
   <ul class="warm-up-list">{% for w in view.warm_up %}<li class="{% if w.color is not none %}c{{ w.color }}{% else %}cn{% endif %}"><b>{{ w.when }}</b> {{ w.course }}</li>{% endfor %}</ul>
 </div>
-{% endif %}
-
-{% if not view.planned %}
-<div class="card">
-  <h2>{{ _("Nothing to plan yet") }}</h2>
-  <p class="muted">{{ _("Add an exam or a deadline, and the plan appears here and on the calendar.") }}</p>
-  <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">{{ _("New task") }}</button></p>
-</div>
-{% else %}
-
-<div class="section">
-{% if view.now %}
-<div class="section-title"><h2>{{ _("Now") }}</h2></div>
-{% with card=view.now, show_why=true %}{% include "_session.html" %}{% endwith %}
-{% elif view.next %}
-<div class="section-title"><h2>{{ _("Up next") }}</h2></div>
-{% with card=view.next[0], show_why=true %}{% include "_session.html" %}{% endwith %}
-{% else %}
-<div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
-{% endif %}
-</div>
-
-{% set asked = view.unreported | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
-{% if asked %}
-<div class="section">
-  <div class="section-title" id="reports"><h2>{{ _("How did these go?") }}</h2><small>{{ asked | length }}</small></div>
-  <div class="card">
-    <ul class="list">
-    {% for card in asked[:5] %}
-      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="a{{ card.id }}">
-        <span class="dot"></span>
-        <div class="grow">
-          <div class="title">{{ card.label }}</div>
-          <div class="meta">{{ card.when }}–{{ card.until }}</div>
-          {% if card.self_test %}<div class="meta">{{ _("How much could you recall?") }}</div>{% endif %}
-          <form method="post" action="/s/{{ token }}/{{ card.id }}" class="mini-outcomes" data-report{% if card.self_test %} data-recall{% endif %}>
-            {% for value, word in (recall_words if card.self_test else outcome_words).items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}">{{ _(word) }}</button>{% endfor %}
-          </form>
-        </div>
-      </li>
-    {% endfor %}
-    </ul>
-  </div>
-  <p class="hint">{{ _("Sessions you do not answer count as done in your plan; your streak counts only what you report.") }}</p>
-</div>
-{% endif %}
-
-{% set later = (view.next if view.now else view.next[1:])[:4] %}
-{% if later %}
-<div class="section">
-  <div class="section-title"><h2>{{ _("Coming up") }}</h2></div>
-  <div class="card">
-    <ul class="list">
-    {% for card in later %}
-      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="l{{ card.id }}">
-        <span class="dot"></span>
-        <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">{{ _("placed") }}</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
-      </li>
-    {% endfor %}
-    </ul>
-  </div>
-</div>
-{% endif %}
 {% endif %}
 
 <div class="section">
@@ -167,13 +205,13 @@
 </div>
 {% endif %}
 
-{% for w in view.warnings %}<p class="notice section">{{ w }}</p>{% endfor %}
-
 {# This week's note on the science of learning, until it is read (D64) #}
 {% if weekly_note %}<a class="card link-card cards-link weekly-today section" href="/p/{{ token }}/weekly/{{ weekly_note.key }}"><span class="tip-reason">{{ _("This week's note") }}</span><b>{{ weekly_note.title }}</b></a>{% endif %}
 
 {# A tip that takes turns, when nothing in the day calls for one (D62) #}
 {% if tip and not tip.reason %}{% include "_tip_card.html" %}{% endif %}
+  </div>
+</details>
 
 {# A word to the owner from where students spend their time (D43) #}
 <p class="panel-foot"><a href="/p/{{ token }}/feedback?from=/p/{{ token }}">{{ _("Something not right? Send feedback") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>

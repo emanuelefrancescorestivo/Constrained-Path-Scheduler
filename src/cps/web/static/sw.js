@@ -13,7 +13,7 @@
 // - A reminder pushed by the server (D38) is shown as a notification; tapping it
 //   opens the plan, in a window already open if there is one.
 
-const VERSION = "v3";
+const VERSION = "v4";
 // The offline page in the language of the page that registered this worker
 // (pwa.js passes it); a new language registers the worker again.
 const LANG = new URL(self.location).searchParams.get("lang") || "en";
@@ -33,6 +33,13 @@ const SHELL_FILES = [
   "/static/pwa.js",
   "/static/icons/icon.svg",
   "/static/icons/icon-192.png",
+  "/static/fonts/figtree-latin.woff2",
+  "/static/fonts/bricolage-grotesque-latin.woff2",
+  "/static/garden/seedling.svg",
+  "/static/garden/sprout.svg",
+  "/static/garden/vine.svg",
+  "/static/garden/bud.svg",
+  "/static/garden/flower.svg",
 ];
 
 self.addEventListener("install", (event) => {

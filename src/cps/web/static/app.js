@@ -18,10 +18,13 @@ async function refreshPanel() {
     if (response.ok) {
       const html = await response.text();
       const before = panel().cloneNode(true);
+      // "More" stays open if it was (D73): a task ticked inside it redraws the panel.
+      const wasOpen = panel().querySelector("details[data-more]")?.open;
       // The answered session leaves its list and the others close up; the week's
       // ring and numbers move from what they were (D30).
       await transition(() => {
         panel().innerHTML = html;
+        if (wasOpen) panel().querySelector("details[data-more]")?.setAttribute("open", "");
       });
       carryOver(before, panel());
       wirePanel();

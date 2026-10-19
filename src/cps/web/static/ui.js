@@ -306,3 +306,13 @@ document.addEventListener("click", async (event) => {
     }
   }
 });
+
+// The sky follows the day (D73): the server paints the hour's sky; a page left
+// open (a long focus session above all) moves on with the clock, by the same hours
+// as service.sky_at. Decoration: nothing waits on it.
+const skyAt = (hour) => (hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : hour >= 18 && hour < 22 ? "evening" : "night");
+if (document.body.dataset.sky) {
+  setInterval(() => {
+    document.body.dataset.sky = skyAt(new Date().getHours());
+  }, 5 * 60 * 1000);
+}

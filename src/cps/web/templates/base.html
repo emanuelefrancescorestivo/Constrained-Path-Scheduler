@@ -22,6 +22,8 @@
 <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
+<link rel="preload" href="/static/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css">
 <script type="module" src="/static/errors.js"></script>
 <script type="module" src="/static/motion.js"></script>
@@ -29,7 +31,9 @@
 {% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}>
+<body class="{% if token %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% endif %}>
+{# The garden in the margins, grown as far as the streak (D73): drawn by the style sheet. #}
+{% if sky %}<div class="garden" aria-hidden="true"><i class="g-sprout"></i><i class="g-vine"></i><i class="g-flower"></i></div>{% endif %}
 <header class="topbar">
   <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><img class="brand-mark" src="/static/icons/icon.svg" alt="" width="28" height="28">{{ _("Study plan") }}</a>
   {% if token %}

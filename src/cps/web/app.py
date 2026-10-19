@@ -33,6 +33,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import mimetypes
 import os
 import re
 import secrets
@@ -61,6 +62,9 @@ from . import charts, forms
 from .limits import Limiter
 
 HERE = Path(__file__).parent
+# The app's type faces (D73) go out as fonts whatever the host's own table says
+# (Windows reads it from the registry, which may not know .woff2).
+mimetypes.add_type("font/woff2", ".woff2")
 # A plan's pages and its sessions' pages: the language is the plan's.
 PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
 LOG = logging.getLogger("cps.web")
@@ -73,7 +77,7 @@ REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; "
-        "img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; "
+        "img-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; "
         "manifest-src 'self'; worker-src 'self'"
     ),
     "Referrer-Policy": "no-referrer",
@@ -301,6 +305,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
+        subscription = None
         if token and ("courses" not in context or "theme" not in context or "motion" not in context):
             # Every page of a plan carries the new-task sheet, which suggests courses,
             # and the plan's appearance (D21) and motion (D30).
@@ -308,6 +313,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             context.setdefault("courses", service.course_names(subscription) if subscription else [])
             context.setdefault("theme", service.theme_of(subscription))
             context.setdefault("motion", service.motion_of(subscription))
+        if token and "sky" not in context:
+            # The sky of the hour and the garden of the streak behind the page (D73).
+            # Decoration: if working it out fails, the page shows without it.
+            try:
+                subscription = subscription or service.load_subscription(store, token)
+                context.update(service.look_of(store, subscription, config.clock()))
+            except Exception:
+                LOG.exception("could not work out the page's sky")
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
