@@ -288,7 +288,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.deactivate_language(chosen)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
-        if not request.url.path.startswith("/static/"):
+        if request.url.path.startswith("/static/"):
+            # The app's own files may be kept, but asked about again on every use (a
+            # 304 when nothing changed): without this, a browser guessed how long its
+            # copy was good, and an update showed only once that guess ran out (AUDIT 67).
+            response.headers.setdefault("Cache-Control", "no-cache")
+        else:
             response.headers.setdefault("Cache-Control", "no-store")
             response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
         route = request.scope.get("route")

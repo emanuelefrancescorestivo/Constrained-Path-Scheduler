@@ -822,3 +822,22 @@ student's first request could have met it. The tests open the store once, on one
 thread. Fixed: one lock around opening, so one thread opens the file while the
 others wait; a test opens a fresh store from eight threads at once, five times.
 Status: fixed.
+
+**67. After an update, a returning visitor kept the old look.** Reported by the owner,
+2026-10-19: once calm glass (D73) was live on the demo, their laptop and phone still
+showed the old design, with the new page around it (the greeting of the hour was
+there, the glass was not). A fresh browser showed the new design. Two causes, each
+enough. The app's files went out with no caching rule, so a browser guessed how long
+its copy was good (a share of the time since the file last changed) and used it
+without asking; the service worker filled its new cache from those same copies at
+install, then showed its kept copy first and refreshed it only in the background. Reproduced in
+Chromium: a page kept by the worker, then the style sheet changed on the server, then
+one reload: the old one. The tests checked that the worker's files exist, not how
+they are refreshed. Fixed: the app's files go out with `Cache-Control: no-cache`
+(kept, but asked about each time; a 304 when unchanged), the worker fills its cache
+from the server (`cache: "reload"`), and answers with the server's copy when it
+arrives within three seconds, the kept copy otherwise and offline (`freshFirst`,
+worker v6). The same reload then shows the change, and offline still shows the last
+copy. A test checks the headers, the 304 and the worker. Status: fixed; a browser
+that already holds the old worker gets the new one on its next visit, and the look
+on the visit after.

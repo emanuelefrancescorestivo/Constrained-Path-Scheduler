@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 892 passed, 17 deselected, 1 xfailed, about 200 s
-    pytest -m "slow or not slow" --cov=cps   # all 909 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 893 passed, 17 deselected, 1 xfailed, about 200 s
+    pytest -m "slow or not slow" --cov=cps   # all 910 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -94,7 +94,7 @@ forms sent in the background with the page's own HTML as the answer, the new-tas
 sheet, Undo, the N key, the sky and the live icon as the day turns), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
 transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
-(D33: the installable app, the service worker that keeps a plan's pages for offline use, the
+(D33: the installable app, the service worker that keeps a plan's pages for offline use and takes the server's copy of the app's files first, AUDIT 67, the
 install card; with D38, the reminder shown as a notification; it also remembers the plan
 last opened, for invitation links, D40; the graphite icon to install on a dark device, D74), `invite.js` (D40: "Join with my plan" on an
 invitation link), `routine.js` (D70: the questions about the week one card at a time with Spark, each time drawn on a bar of the day), `push.js` (D38: turning

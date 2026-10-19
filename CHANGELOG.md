@@ -437,6 +437,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- After an update, a returning visitor sees the new look on the next visit instead
+  of the old style sheet: the app's files are asked about again each time, and the
+  offline cache takes the server's copy first (AUDIT item 67).
 - A fresh store opens once when the server's threads all ask for it at its first
   start, instead of failing with "database is locked" (AUDIT item 66).
 - The focus clock starts at 0:00:00, and a page kept open no longer counts as time
