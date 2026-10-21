@@ -2999,3 +2999,41 @@ course pages now (CURRICULUM.md §5: per university).
 **Disclosed.** A week is "reviewed" once one of its study sessions was done, which
 says nothing of how well; recall today is the model's estimate (D82). Checked in
 Chromium only, at 1280 px light and 390 px dark, on the demo's student.
+
+## D89. The science behind it: one page, for students and their teachers
+
+*The owner, 2026-10-21: "for the demo that i want to send to my teacher to review, and
+for a user potentially interested, put somewhere maybe if you touch on the logo, how
+the engine works explained with the same webpage design with analytics colours even
+the maths behind it and science behind it but in a user friendly way".*
+
+**Chosen.** A page, "The science behind it", at `/science` for anyone (a teacher needs
+no plan) and at `/p/{token}/science` inside a plan. Inside a plan, the logo opens a
+small menu: Today, or this page; the footer of every page and the home page link to it
+too. It says, in order: what the app does in three steps (predict, plan, learn); how
+memory fades (the forgetting curves of three topics, in the memory colours of D82, and
+FSRS-6's curve as a formula); why the wait matters (the stability a successful recall
+adds after 0, 5, 15 and 30 days, as a chart and a table, and the update as a formula
+whose last term is the spacing effect); testing beats rereading (five checked studies,
+each in one sentence); how the week is planned (the assistant's five rules, and the
+research planner, AO* with an SSP-MMC-style cost, as the reference that checks them);
+what is fitted to the student and when; what is not known yet; and the sources.
+
+**Every number is computed or cited.** The curves, the table and the settings quoted
+(the 90 % target, 20 new cards a day, 10 minutes for a forgotten card, 400 answers
+before a student's own weights, 25 to 30 hours an ECTS credit) are computed by
+`service.science_view` from FSRS-6 and the app's constants as the page is drawn, so the
+page cannot disagree with the app. Each number from research is one its checked entry
+in docs/REFERENCES.md states (`tests/test_science.py` checks both, and that every source
+is a checked entry with its own DOI). The planner's "about one session in twenty",
+"half a minute" and "a hundredth of a second" are `benchmarks/rule_vs_planner.py`'s,
+as quoted in the assistant's own documentation.
+
+**Rejected.** A page of maths for specialists (the owner asked for it user friendly:
+each formula comes with one sentence saying what each letter means); MathJax or another
+script for the formulas (an external script, and the CSP; HTML's `var` and `sup` are
+enough); a claim that the app raises grades (not measured; the page says so).
+
+**Disclosed.** The page describes FSRS-6 with its default weights; the research planner
+runs FSRS-4.5 (D52), which the page does not detail. Checked in Chromium only, at
+1280 px light and 390 px dark, in English and in Italian.

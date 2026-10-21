@@ -545,6 +545,18 @@ def create_app(config: Config | None = None) -> FastAPI:
             retention=round(service.RETENTION.days * 12 / 365),
         )
 
+    # -- the science behind the engine (D89): for anyone, and inside a plan ----------
+
+    @app.get("/science", response_class=HTMLResponse)
+    def science(request: Request) -> HTMLResponse:
+        return page(request, "science.html", science=service.science_view())
+
+    @app.get("/p/{token}/science", response_class=HTMLResponse)
+    def plan_science(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(request, "science.html", token=token, science=service.science_view())
+
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
         return page(request, "guidelines.html", contact=config.contact)

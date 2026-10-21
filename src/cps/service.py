@@ -94,6 +94,7 @@ from .i18n import current as current_language
 from .i18n import number as format_number
 from .memory import (
     FSRS_4_5,
+    FSRS_6,
     MODELS,
     Grade,
     MemoryState,
@@ -9115,4 +9116,119 @@ def course_view(
         "all_links": len(_links(subscription, course)),
         "links_most": LINKS_MOST,
         "week_options": _week_choice(subscription, course, now)["weeks"],
+    }
+
+
+# --------------------------------------------------------------------------- #
+# The science behind the engine: a page for students and their teachers (D89)
+# --------------------------------------------------------------------------- #
+
+SCIENCE_DAYS = 60  # the forgetting curves' span
+SCIENCE_STABILITIES = (2.0, 7.0, 30.0)  # three topics: shaky, a week, a month
+SCIENCE_SPACING = 5.0  # the topic whose next review the spacing chart follows (days)
+
+
+def _curve(points: Sequence[tuple[float, float]], days: float, top: float, height: float = 100.0) -> str:
+    """An SVG polyline's points in a 300-wide box: days across, values up to `top`."""
+    return " ".join(f"{300 * x / days:.1f},{height - height * y / top:.1f}" for x, y in points)
+
+
+# The research the page cites, each a checked entry of docs/REFERENCES.md: the tips'
+# own sources (D62), and four more the engine rests on.
+SCIENCE_KEYS = (
+    "dunlosky2013",
+    "adesope2017",
+    "yang2021",
+    "karpicke2009",
+    "cepeda2006",
+    "cepeda2008",
+    "rohrer2020",
+    "ye2022",
+    "fsrs-wiki",
+    "srs-benchmark",
+    "ects2015",
+)
+SCIENCE_SOURCES = {
+    **_tips.SOURCES,
+    "ye2022": _tips.Source(
+        "ye2022",
+        "Ye, Su and Cao, 2022",
+        "ACM SIGKDD Conference on Knowledge Discovery and Data Mining",
+        "https://doi.org/10.1145/3534678.3539081",
+        date(2026, 9, 28),
+    ),
+    "fsrs-wiki": _tips.Source(
+        "fsrs-wiki",
+        "open-spaced-repetition, The Algorithm, 2026",
+        "awesome-fsrs wiki",
+        "https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm",
+        date(2026, 9, 28),
+    ),
+    "srs-benchmark": _tips.Source(
+        "srs-benchmark",
+        "open-spaced-repetition, SRS Benchmark, 2026",
+        "GitHub",
+        "https://github.com/open-spaced-repetition/srs-benchmark",
+        date(2026, 10, 13),
+    ),
+    "ects2015": _tips.Source(
+        "ects2015",
+        "European Commission, ECTS Users' Guide, 2015",
+        "Publications Office of the European Union",
+        "https://doi.org/10.2766/87192",
+        date(2026, 10, 21),
+    ),
+}
+
+
+def science_view() -> dict:
+    """The science page (D89): every number on it computed here from the model the
+    product runs (FSRS-6, D52) and the app's own settings, so the page and the app
+    cannot disagree. The research it cites is in docs/REFERENCES.md, checked."""
+    model = FSRS_6
+    weights = model.weights
+    decay = getattr(weights, "decay", 0.5)
+    curves = []
+    for stability, level in zip(SCIENCE_STABILITIES, ("review", "good", "strong"), strict=True):
+        points = [(t, model.retrievability(float(t), stability)) for t in range(SCIENCE_DAYS + 1)]
+        curves.append(
+            {
+                "stability": format_number(stability, 0),
+                "level": level,
+                "points": _curve(points, SCIENCE_DAYS, 1.0),
+                "at_30": round(100 * model.retrievability(30.0, stability)),
+                "end_x": 300.0,
+                "end_y": round(100 - 100 * points[-1][1], 1),
+            }
+        )
+    week = 7.0
+    recall_week = {d: round(100 * model.retrievability(float(d), week)) for d in (7, 14, 30)}
+    state = MemoryState(stability=SCIENCE_SPACING, difficulty=5.0)
+    gaps = range(0, 31)
+    grown = [(g, model.review(state, float(g), Grade.GOOD).stability) for g in gaps]
+    top = max(s for _, s in grown) * 1.1
+    spacing = {g: round(model.review(state, float(g), Grade.GOOD).stability, 1) for g in (0, 5, 15, 30)}
+    return {
+        "curves": curves,
+        "days": SCIENCE_DAYS,
+        "week": {k: v for k, v in recall_week.items()},
+        "decay": format_number(decay, 4),
+        "spacing_from": format_number(SCIENCE_SPACING, 0),
+        "spacing": {k: format_number(v, 1) for k, v in spacing.items()},
+        "spacing_recall": {
+            g: round(100 * model.retrievability(float(g), SCIENCE_SPACING)) for g in (0, 5, 15, 30)
+        },
+        "spacing_points": _curve(grown, 30, top),
+        "spacing_top": format_number(top, 0),
+        "spacing_marks": [
+            {"x": round(300 * g / 30, 1), "y": round(100 - 100 * s / top, 1), "gap": g}
+            for g, s in grown
+            if g in (0, 5, 15, 30)
+        ],
+        "target": round(100 * flashcards.RETENTION),
+        "new_per_day": flashcards.NEW_PER_DAY,
+        "again_minutes": round(flashcards.RELEARN / timedelta(minutes=1)),
+        "own_after": fitting.MIN_REVIEWS,
+        "credit_hours": f"{_syllabus.CREDIT_HOURS[0]}–{_syllabus.CREDIT_HOURS[1]}",
+        "sources": [SCIENCE_SOURCES[k] for k in SCIENCE_KEYS],
     }

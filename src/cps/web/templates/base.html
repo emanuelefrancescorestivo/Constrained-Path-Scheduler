@@ -43,7 +43,13 @@
 {# The garden in the margins, grown as far as the streak (D73): drawn by the style sheet. #}
 {% if sky %}<div class="garden" aria-hidden="true"><i class="g-sprout"></i><i class="g-vine"></i><i class="g-flower"></i></div>{% endif %}
 <header class="topbar">
-  <a class="brand" href="{% if token %}/p/{{ token }}{% else %}/{% endif %}"><img class="brand-mark" src="{{ live_icon or '/static/icons/icon.svg' }}" alt="" width="28" height="28"{% if live_icon %} data-live-icon{% endif %}>{{ _("Study plan") }}</a>
+  {# The logo opens a small menu inside a plan: back to Today, or how the engine works (D89). #}
+  {% if token %}<button type="button" class="brand brand-button" popovertarget="brand-menu" aria-label="{{ _('Study plan: menu') }}"><img class="brand-mark" src="{{ live_icon or '/static/icons/icon.svg' }}" alt="" width="28" height="28"{% if live_icon %} data-live-icon{% endif %}>{{ _("Study plan") }}</button>
+  <div id="brand-menu" class="pop brand-menu" popover>
+    <a class="brand-menu-item" href="/p/{{ token }}"><b>{{ _("Today") }}</b><small>{{ _("Your next session and your week") }}</small></a>
+    <a class="brand-menu-item" href="/p/{{ token }}/science"><b>{{ _("The science behind it") }}</b><small>{{ _("How the engine plans, the memory model and its maths, the research") }}</small></a>
+  </div>
+  {% else %}<a class="brand" href="/"><img class="brand-mark" src="{{ live_icon or '/static/icons/icon.svg' }}" alt="" width="28" height="28"{% if live_icon %} data-live-icon{% endif %}>{{ _("Study plan") }}</a>{% endif %}
   {% if token %}
   <nav class="nav" aria-label="{{ _('Your plan') }}" data-tour="sections">
     <a href="/p/{{ token }}" {% if tab in ('today', 'calendar') %}aria-current="page"{% endif %}>{{ _("Plan") }}</a>
@@ -70,7 +76,7 @@
 <main class="site{% block site_class %}{% endblock %}">
 {% block main %}{% endblock %}
 </main>
-<footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · <a href="/terms{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Terms") }}</a>{% if token %} · <a href="/p/{{ token }}/feedback?from={{ request.url.path | urlencode }}">{{ _("Send feedback") }}</a>{% endif %} · {{ _("no e-mail, no password, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</footer>
+<footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="{% if token %}/p/{{ token }}/science{% else %}/science?lang={{ lang() }}{% endif %}">{{ _("The science behind it") }}</a> · <a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · <a href="/terms{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Terms") }}</a>{% if token %} · <a href="/p/{{ token }}/feedback?from={{ request.url.path | urlencode }}">{{ _("Send feedback") }}</a>{% endif %} · {{ _("no e-mail, no password, no cookies, no trackers") }}{% if not token %} · {% for code, name in languages.items() if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</footer>
 {% endblock %}
 {% if token %}
 {% include "_quick_add.html" %}
