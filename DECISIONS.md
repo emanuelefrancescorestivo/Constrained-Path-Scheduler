@@ -2807,7 +2807,7 @@ and once saved; saving the topics' own lines again keeps what the page said.
 the model stays the route for what they cannot read (PDFs, prose, tables), behind
 the AI switch, CURRICULUM.md §3a, at most $0.40 a ten-page PDF with the default model
 and $0.01 with the smallest (`benchmarks/syllabus_cost.py`). Using the assessment's
-weights or the credits in the plan: exam weights exist (D46, set by the student), and
+weights or the credits in the plan: exam weights exist (D49, set by the student), and
 the credits' hours are a typical workload, not the student's; both are shown, and the
 student decides. Sharing the assessment and credits with classmates: the shared list
 is topics only (D81); the next step if students ask for it.
@@ -2902,3 +2902,100 @@ other visibilities; post again for a second group).
 
 **Disclosed.** Group notes have the library's moderation (report, block, hidden after
 three reports) and the same "own work" checkbox. Checked in Chromium only.
+
+## D86. The workload check: what a course's credits stand for, against the plan
+
+*The owner, 2026-10-21: "build the workload check".*
+
+**Chosen.** On each course's page (D88), the hours its ECTS credits stand for, 25 to 30
+a credit, lectures included ([ref:ects2015], page 10), against the hours the student
+has for it: the course's lectures in the timetable from the plan's first day, and
+the plan's study sessions for it, done (not skipped) and to come. One sentence says
+where the total falls ("97 h in all, 53 h under what the credits suggest"; "within";
+"more than"), a bar shows lectures and study against the credits' band, and "How it
+is counted" says what is in and out. The credits come from the course page the
+student pasted (D83), or are typed on the course's page (1 to 30, halves allowed;
+typed credits win, empty takes them off). The Courses list notes a course with fewer
+hours than its credits suggest.
+
+**Rejected.** Raising the plan's hours for a course below its credits: the credits
+describe a typical student's workload, not this student's, and the app never asks for
+more (D80's pace). The plan's hours follow the weekly hours the student sets and the
+exams' dates; an exam's weight (D49) only reorders self-tests between topics fading
+together, so it is not offered as a way to more hours. Counting hours logged outside
+the plan: they are not tied to a course reliably.
+A red warning: being under the credits is common, as is being over.
+
+**Disclosed.** Lectures before the plan began are not counted, so a plan made in the
+semester's fifth week shows fewer lecture hours than the course has. The plan's
+future sessions change as it replans. Outside the EHEA credits are not ECTS.
+
+## D87. Cards filed under a week, practised with that week
+
+*The owner, 2026-10-21: "build ... cards tied to the week".*
+
+**Chosen.** A flashcard can belong to one week of lectures of its course (a column
+`week` on `cards`, the Monday, empty for the whole course). The card maker (D84), the
+new-card form and a card's page offer the course's weeks ("Week 3 · 12 Oct"), the
+week in course by default; a link from a week opens the maker for that week. A week's
+cards are practised from three places: its row on the course's page ("Practise its 4
+cards"), the self-test of that week on Today and on the session's page ("Your cards
+for this week"), and the address `cards/review?course=…&week=…`. Practice shows each of
+the week's cards once a day, the due and most overdue first, then the others, then
+the new; an answer is an ordinary review, so FSRS counts the days since the last one
+and a card practised before it is due gains less. Cards without a week stay in the
+course's deck as before, and every card keeps its own schedule.
+
+**Rejected.** Counting a week's card answers as a self-test of the plan's topic: the
+student reports the session already, and both would count the same recall twice.
+Showing cards outside their schedule more than once a day: FSRS gains little from it.
+
+**Disclosed.** Weeks are the timetable's weeks of lectures from the plan's first day;
+a card filed under a week keeps it if the timetable changes.
+
+## D88. Courses: a section of its own
+
+*The owner, 2026-10-21, with a screenshot of the topics page in French: "there's
+problems with formatting too, and i think it should be a section per se the one for
+syllabus and content so a student can check what's been done and what's to do, see
+the progression and access material simply, maybe later on we can make a connection
+to a student's education platform".*
+
+**Chosen.** A Courses section in both bars, between Tasks and Focus on a computer and
+after Calendar on a phone.
+
+- *The list*: each course with its colour, its next exam, a bar of the weeks taught,
+  how many were reviewed, its topics and cards, and a note when its hours fall under
+  its credits.
+- *A course's page*: progress (weeks taught out of all, weeks reviewed at least once,
+  this week); then week by week, each marked done (✓), in course (●) or to come (○),
+  with its syllabus topics (D81), "reviewed n times" or "taught, not reviewed yet",
+  today's predicted recall in the colours of Your memory (D82), the reviews planned,
+  its cards (D87) and its links; the topics taught before the plan and those without a
+  week; the assessment and the workload check (D86); and its material: the deck, the
+  student's notes and their groups' notes for the course (D85), the classmates' notes
+  in the library, and links.
+- *Links to material*: the course on the learning platform, slides, a shared folder:
+  an address (http or https only, at most 500 characters) and a name, for the whole
+  course or one week, at most 30 a course, kept in the plan and seen by the student
+  only. They open in a new tab. This is the simple way to "access material" now; the
+  connection to the platform itself is CURRICULUM.md §5's, which needs a university's
+  agreement and a token policy, and is not built.
+- The topics' list (D81) moved here: the old address leads to Courses, and each
+  course's page leads to its topics.
+- Spark shows it around the first time, as every section (D77): the list, the weeks,
+  the workload, the material; Today's tour names Courses among the sections.
+
+The phone's bar has six tabs since: it takes the whole width and Spark waits just
+above its right end, as it did below 340 px (AUDIT item 69). Measured in Chromium at
+320, 344, 360, 375, 390 and 430 px in English, French and Italian: no label touches
+another or leaves the bar; the tightest gap is 2.1 px, French at 320 px.
+
+**Rejected.** Folding Courses into Focus or Settings: a student looks for a course
+first, and the owner asked for a section. Apple's five-tab advice for phones: six fit,
+measured, and Spark moved rather than a section hiding. Reading the platform's
+course pages now (CURRICULUM.md §5: per university).
+
+**Disclosed.** A week is "reviewed" once one of its study sessions was done, which
+says nothing of how well; recall today is the model's estimate (D82). Checked in
+Chromium only, at 1280 px light and 390 px dark, on the demo's student.

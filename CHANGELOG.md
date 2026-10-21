@@ -6,6 +6,17 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Courses, a section of its own (D88): each course week by week, marked done, this
+  week or to come, with its syllabus topics, how often each week was reviewed, today's
+  recall, its cards and its links; its assessment and workload; its deck, your notes
+  and your groups' notes for it; and links to its material (the course on your
+  learning platform, slides, a folder), for the whole course or one week.
+- The workload check (D86): a course's ECTS credits stand for 25 to 30 hours each; the
+  course's page sets them against its lectures in your timetable and the study in your
+  plan, done and to come.
+- Cards for a week (D87): file a card under a week of the course; practise that week's
+  cards from its row on the course's page or from its self-test on Today.
+
 - Cards from your notes (D84): paste notes, or open a note written as text, and the
   app reads the cards in it (questions and answers, terms and definitions, lists,
   words in bold, definition sentences, in seven languages); tick the ones you want
@@ -480,6 +491,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Lists drawn as cards ran to the card's edge, with their rows underlined like links
+  (AUDIT item 73): the topics of your courses, cards found in notes, a group's notes.
 - The focus ring closes as the minute turns, in step with the digits (AUDIT item 72);
   the calendar shows the ordinary arrow over empty time (D79).
 - Full-screen focus keeps the sky behind the timer (AUDIT item 71).

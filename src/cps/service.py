@@ -3770,7 +3770,27 @@ def _session_card(
             (i for i, c in enumerate(courses) if s.kind != "task" and course_key(c) == course_key(s.subject)),
             None,
         ),
+        # The week of lectures it reviews, for that week's own cards (D87).
+        "week": _topic_monday(s.topic.removeprefix(f"{s.subject} · "), start.date())
+        if s.kind in ("review", "first review") and s.topic
+        else None,
     }
+
+
+def _topic_monday(topic: str, before: date) -> str | None:
+    """The Monday of the week a topic names ("week of 05 Oct", `_week_label`), the
+    last such Monday on or before `before`, ISO; None for another topic."""
+    week = _WEEK_TOPIC.match(topic)
+    if week is None:
+        return None
+    for year in (before.year, before.year - 1):
+        try:
+            monday = datetime.strptime(f"{week.group(1)} {year}", "%d %b %Y").date()
+        except ValueError:
+            return None
+        if monday <= before and monday.weekday() == 0:
+            return monday.isoformat()
+    return None
 
 
 def session_card(subscription: Subscription, sid: str, now: datetime | None = None) -> dict | None:
@@ -4811,11 +4831,12 @@ def motion_of(subscription: Subscription | None) -> str:
 
 # One short tour a section, shown the first time the student opens it: "week" on the
 # calendar while setting up, "today" on the plan once set up, then each tab's own.
-TOURS = ("week", "today", "tasks", "focus", "community", "progress")
+TOURS = ("week", "today", "tasks", "courses", "focus", "community", "progress")
 _TOUR_OF_TAB = {
     "today": "today",
     "calendar": "today",
     "tasks": "tasks",
+    "courses": "courses",
     "focus": "focus",
     "community": "community",
     "progress": "progress",
@@ -5872,6 +5893,10 @@ def _card_dict(card: flashcards.Card, now: datetime) -> dict:
         "reps": card.reps,
         "lapses": card.lapses,
         "due": None if due is None else (_("now") if due <= now else wait_words(due - now)),
+        "week": card.week,
+        "week_label": _("week of {day}", day=format_date(date.fromisoformat(card.week), "day_short"))
+        if card.week
+        else "",
     }
 
 
@@ -5911,19 +5936,42 @@ def cards_view(
         "today": flashcards.reviewed_today(where, token, now, zone),
         "courses": course_names(subscription),
         "new_per_day": flashcards.NEW_PER_DAY,
+        # A course's weeks, for its new cards (D87): the week in course by default.
+        **_week_choice(subscription, chosen[0].course if chosen else course, now),
     }
 
 
 def card_review_view(
-    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, course: str = ""
+    store: str | os.PathLike,
+    subscription: Subscription,
+    now: datetime | None = None,
+    course: str = "",
+    week: str = "",
 ) -> dict:
-    """The next card to review, with when it would come back after each answer."""
+    """The next card to review, with when it would come back after each answer; with
+    a course and a week, the next of that week's cards to practise (D87)."""
     now = now or datetime.now(UTC)
     where = _store(store)
     zone = _zone(subscription.options["tz"])
-    waiting = flashcards.queue(where, subscription.token, now, zone, course)
+    try:
+        week = date.fromisoformat(week).isoformat() if week and course else ""
+    except ValueError:
+        week = ""
+    if week:
+        waiting = flashcards.week_practice(where, subscription.token, now, zone, course, week)
+    else:
+        waiting = flashcards.queue(where, subscription.token, now, zone, course)
     view: dict = {
         "course": course,
+        "week": week,
+        "week_label": _("week of {day}", day=format_date(date.fromisoformat(week), "day_short"))
+        if week
+        else "",
+        "week_cards": len(flashcards.of_week(where, subscription.token, course, week)) if week else 0,
+        "course_index": next(
+            (i for i, c in enumerate(topic_courses(subscription)) if course_key(c) == course_key(course)),
+            None,
+        ),
         "date": now.astimezone(zone).date().isoformat(),
         "left": len(waiting),
         "today": flashcards.reviewed_today(where, subscription.token, now, zone),
@@ -5962,7 +6010,8 @@ def add_cards(
             pairs = flashcards.parse_paste(form["paste"])
         else:
             pairs = [(form.get("front", ""), form.get("back", ""))]
-        return len(flashcards.add(where, subscription.token, form.get("course", ""), pairs, now))
+        week = form.get("week") or None
+        return len(flashcards.add(where, subscription.token, form.get("course", ""), pairs, now, week))
 
     return int(_flash(make))
 
@@ -5988,7 +6037,14 @@ def refit_cards(store: str | os.PathLike, subscription: Subscription, now: datet
 
 def card_view(store: str | os.PathLike, subscription: Subscription, card_id: str) -> dict | None:
     card = flashcards.get(_store(store), subscription.token, card_id)
-    return _card_dict(card, datetime.now(UTC)) if card else None
+    if card is None:
+        return None
+    now = datetime.now(UTC)
+    # The course's weeks, to move the card to another (D87).
+    return {
+        **_card_dict(card, now),
+        "weeks": _week_choice(subscription, card.course, now, card.week or "")["weeks"],
+    }
 
 
 def edit_card(
@@ -6003,6 +6059,8 @@ def edit_card(
             form.get("course", ""),
             form.get("front", ""),
             form.get("back", ""),
+            # Its week (D87) changes only when the form has the field.
+            *([form.get("week") or None] if "week" in form else []),
         )
     )
 
@@ -6046,6 +6104,7 @@ def card_maker_view(
     use_ai: bool = False,
     now: datetime | None = None,
     provider: _ai.Provider | None = None,
+    week: str | None = None,
 ) -> dict:
     """The page that makes flashcards from notes (D84): the text (pasted, or a note's),
     and the cards read from it for the student to pick. By rules; by the model too
@@ -6099,6 +6158,8 @@ def card_maker_view(
         "ai_ready": ai_available() and ai_on(subscription),
         "ai_used": used_ai,
         "most": _cardmaker.MAX_CARDS,
+        # The course's weeks, to file the cards under one (D87): this week by default.
+        **_week_choice(subscription, course, now, week),
     }
 
 
@@ -6110,14 +6171,18 @@ def add_made_cards(
     backs: Sequence[str],
     picked: Sequence[str],
     now: datetime | None = None,
+    week: str | None = None,
 ) -> int:
-    """The cards the student ticked in the preview, added to the course's deck."""
+    """The cards the student ticked in the preview, added to the course's deck, and
+    to one of its weeks when chosen (D87)."""
     now = now or datetime.now(UTC)
     chosen = {int(i) for i in picked if str(i).isdigit()}
     pairs = [(f, b) for i, (f, b) in enumerate(zip(fronts, backs, strict=False)) if i in chosen]
     if not pairs:
         raise InvalidInput(_("tick the cards to add"))
-    return len(_flash(lambda: flashcards.add(_store(store), subscription.token, course, pairs, now)))
+    return len(
+        _flash(lambda: flashcards.add(_store(store), subscription.token, course, pairs, now, week or None))
+    )
 
 
 REPORT_REASONS = social.REPORT_REASONS
@@ -8674,3 +8739,380 @@ def _syllabus_of_name(name: str, course: str, index: Mapping[tuple[str, str], li
     week = _WEEK_TOPIC.match(rest)
     label = week.group(1) if week else ("before" if rest.startswith("taught before") else "")
     return index.get((course_key(course), label), []) if label else []
+
+
+# --------------------------------------------------------------------------- #
+# Courses: each course's weeks, done and to come, its workload, its cards by
+# week and its materials (DECISIONS.md D86, D87, D88)
+# --------------------------------------------------------------------------- #
+
+LINKS_MOST = 30  # material links one course keeps
+LINK_LIMITS = {"title": 80, "url": 500}
+
+
+def _course_index(subscription: Subscription, course: str) -> int | None:
+    return next(
+        (i for i, c in enumerate(topic_courses(subscription)) if course_key(c) == course_key(course)), None
+    )
+
+
+def _week_name(monday: date, n: int) -> str:
+    return _("Week {n} · {day}", n=n, day=format_date(monday, "day_short"))
+
+
+def _this_week(mondays: Sequence[date], today: date) -> date | None:
+    """The latest teaching week begun by `today`, or None before the first."""
+    begun = [m for m in mondays if m <= today]
+    return begun[-1] if begun else None
+
+
+def _week_choice(
+    subscription: Subscription, course: str, now: datetime, chosen: str | None = None
+) -> dict[str, Any]:
+    """The course's teaching weeks as a form offers them, and the one chosen: the
+    one asked for, else the week in course today (D87)."""
+    if _course_index(subscription, course) is None:
+        return {"weeks": [], "week": ""}
+    mondays = _teaching(subscription, course)[0]
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    options = [{"value": m.isoformat(), "label": _week_name(m, n)} for n, m in enumerate(mondays, start=1)]
+    known = {o["value"] for o in options}
+    if chosen is not None:
+        week = chosen if chosen in known else ""
+    else:
+        current = _this_week(mondays, today)
+        week = current.isoformat() if current else ""
+    return {"weeks": options, "week": week}
+
+
+def _credits(subscription: Subscription, course: str) -> float | None:
+    """The course's ECTS credits: as the student typed them, else as its pasted
+    course page said (D83)."""
+    key = course_key(course)
+    typed = (subscription.options.get("credits") or {}).get(key)
+    if typed:
+        return float(typed)
+    facts = ((subscription.options.get("topics") or {}).get(key) or {}).get("facts") or {}
+    return float(facts["credits"]) if facts.get("credits") else None
+
+
+def set_course_credits(subscription: Subscription, index: int, value: str) -> Subscription:
+    """The course's ECTS credits as the student knows them (D86); empty takes them
+    off (the course page's, if any, count again)."""
+    key = course_key(_topic_course(subscription, index))
+    credits = dict(subscription.options.get("credits") or {})
+    text = str(value or "").strip().replace(",", ".")
+    if not text:
+        credits.pop(key, None)
+    else:
+        try:
+            number = float(text)
+        except ValueError:
+            raise InvalidInput(_("credits are a number, from 1 to 30")) from None
+        if not 1 <= number <= 30:
+            raise InvalidInput(_("credits are a number, from 1 to 30"))
+        credits[key] = round(number * 2) / 2
+    return replace(subscription, options={**subscription.options, "credits": credits})
+
+
+def _study_minutes(plan: PlanReport, course: str) -> tuple[int, int]:
+    """Minutes of the plan's study for a course: done (sessions past, not skipped)
+    and to come."""
+    done = sum(
+        round((datetime.fromisoformat(x.end) - datetime.fromisoformat(x.start)) / timedelta(minutes=1))
+        for x in plan.history
+        if course_key(x.subject) == course_key(course) and x.outcome != "skipped"
+    )
+    ahead = sum(
+        round((datetime.fromisoformat(x.end) - datetime.fromisoformat(x.start)) / timedelta(minutes=1))
+        for x in plan.sessions
+        if course_key(x.subject) == course_key(course)
+    )
+    return done, ahead
+
+
+def course_workload(subscription: Subscription, course: str) -> dict | None:
+    """The workload check (D86): the hours a course's ECTS credits stand for (25 to
+    30 each, the ECTS Users' Guide), against its lectures in the timetable from the
+    plan's first day and the plan's study for it, done and to come. Information,
+    never a demand: the credits are a typical student's workload, not this one's.
+    None without credits or a plan."""
+    credit = _credits(subscription, course)
+    if credit is None or subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    low, high = _syllabus.workload(credit)
+    lectures = round(sum(_teaching(subscription, course)[1]))
+    done, ahead = _study_minutes(plan, course)
+    study = round((done + ahead) / 60)
+    total = lectures + study
+    verdict = "below" if total < low else "above" if total > high else "within"
+    words = {
+        "below": _("{total} h in all, {gap} h under what the credits suggest.", total=total, gap=low - total),
+        "within": _("{total} h in all: within what the credits suggest.", total=total),
+        "above": _("{total} h in all: more than the credits suggest.", total=total),
+    }[verdict]
+    top = max(high, total) * 1.1
+    return {
+        "credits": format_number(credit if credit % 1 else int(credit)),
+        "low": low,
+        "high": high,
+        "lectures": lectures,
+        "study": study,
+        "done": round(done / 60),
+        "total": total,
+        "verdict": verdict,
+        "says": words,
+        # The bar, drawn as SVG on the server: widths in percent of the scale.
+        "bar": {
+            "lectures": round(100 * lectures / top, 1),
+            "study": round(100 * study / top, 1),
+            "low": round(100 * low / top, 1),
+            "high": round(100 * high / top, 1),
+        },
+    }
+
+
+def _week_states(
+    subscription: Subscription, course: str, mondays: Sequence[date], today: date, now: datetime
+) -> list[dict]:
+    """Each teaching week of a course: taught or to come, its syllabus topics, the
+    plan's reviews of it done and to come, and today's predicted recall."""
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    syllabus = _syllabus_index(subscription)
+    recall: dict[str, float] = {}
+    if plan is not None:
+        model = model_of(plan.settings)
+        local = now.astimezone(_zone(plan.settings.tz))
+        day = _days_after(plan.settings.start, local)
+        _snap, _gains, state = _memory_timeline(plan, model, [day])
+        for spec in plan.specs:
+            if spec.get("available_day", 0.0) <= day:
+                memory_state, last = state[spec["name"]]
+                recall[spec["name"]] = model.retrievability(max(day - last, 0.0), memory_state.stability)
+    out = []
+    for n, monday in enumerate(mondays, start=1):
+        base = f"{course} · week of {_week_label(monday)}"
+        names = [name for name in recall if name == base or name.startswith(base + " (")]
+        done = (
+            sum(
+                1
+                for x in plan.history
+                if x.topic.startswith(base) and x.outcome != "skipped" and x.kind != "task"
+            )
+            if plan
+            else 0
+        )
+        ahead = sum(1 for x in plan.sessions if x.topic.startswith(base)) if plan else 0
+        when = (
+            "now" if monday <= today < monday + timedelta(days=7) else "taught" if monday < today else "ahead"
+        )
+        level = None
+        if names:
+            value = min(recall[name] for name in names)
+            level = {"recall": round(100 * value), "level": _learning.level(value)}
+        out.append(
+            {
+                "n": n,
+                "monday": monday.isoformat(),
+                "label": _week_name(monday, n),
+                "state": when,
+                "topics": syllabus.get((course_key(course), _week_label(monday)), []),
+                "done": done,
+                "ahead": ahead,
+                "memory": level,
+            }
+        )
+    return out
+
+
+def _exam_of(plan: PlanReport, course: str, now: datetime) -> dict | None:
+    """The course's next exam, else its last one."""
+    exams = sorted(
+        {
+            datetime.fromisoformat(s["exam"])
+            for s in plan.specs
+            if course_key(s.get("subject", "")) == course_key(course)
+        }
+    )
+    if not exams:
+        return None
+    exam = next((e for e in exams if e >= now), exams[-1])
+    local = exam.astimezone(_zone(plan.settings.tz))
+    days = (local.date() - now.astimezone(local.tzinfo).date()).days
+    return {
+        "date": format_date(local.date(), "long"),
+        "days": days,
+        "says": _n("in {n} day", "in {n} days", days)
+        if days > 0
+        else (_("today") if days == 0 else _("done")),
+    }
+
+
+def _links(subscription: Subscription, course: str) -> list[dict]:
+    return list(((subscription.options.get("materials") or {}).get(course_key(course))) or [])
+
+
+def add_course_link(subscription: Subscription, index: int, form: Mapping[str, str]) -> Subscription:
+    """A link to a course's material (D88): slides, the course on the learning
+    platform, a shared folder. Kept with the plan, shown to the student only; an
+    address must be http or https."""
+    course = _topic_course(subscription, index)
+    title = " ".join(str(form.get("title") or "").split())
+    url = str(form.get("url") or "").strip()
+    if not re.match(r"^https?://[^\s/$.?#][^\s]*$", url, re.IGNORECASE):
+        raise InvalidInput(_("an address starting with https://"))
+    if len(url) > LINK_LIMITS["url"] or len(title) > LINK_LIMITS["title"]:
+        raise InvalidInput(
+            _("at most {n} characters here", n=LINK_LIMITS["title"] if len(title) > 80 else 500)
+        )
+    links = _links(subscription, course)
+    if len(links) >= LINKS_MOST:
+        raise InvalidInput(_("at most {n} links for a course", n=LINKS_MOST))
+    week = str(form.get("week") or "")
+    known = {m.isoformat() for m in _teaching(subscription, course)[0]}
+    links.append(
+        {
+            "id": secrets.token_urlsafe(6),
+            "title": title or url.split("//", 1)[1].split("/", 1)[0],
+            "url": url,
+            "week": week if week in known else "",
+        }
+    )
+    materials = {**(subscription.options.get("materials") or {}), course_key(course): links}
+    return replace(subscription, options={**subscription.options, "materials": materials})
+
+
+def remove_course_link(subscription: Subscription, index: int, link_id: str) -> Subscription:
+    course = _topic_course(subscription, index)
+    links = [x for x in _links(subscription, course) if x.get("id") != link_id]
+    materials = {**(subscription.options.get("materials") or {}), course_key(course): links}
+    return replace(subscription, options={**subscription.options, "materials": materials})
+
+
+def _course_notes(store: str | os.PathLike, subscription: Subscription, course: str) -> list[dict]:
+    """The notes of a course a student can open: their own, and their groups'."""
+    where = _store(store)
+    token = subscription.token
+    found: dict[str, social.Post] = {}
+    for post in social.posts_of(where, token, "notes", limit=200):
+        found[post.id] = post
+    for group in social.groups_of(where, token):
+        for post in social.group_notes(where, token, group.id):
+            found.setdefault(post.id, post)
+    mine = [p for p in found.values() if course_key(p.data.get("course", "")) == course_key(course)]
+    mine.sort(key=lambda p: p.created, reverse=True)
+    names = {g.id: g.name for g in social.groups_of(where, token)}
+    out = []
+    for post in mine[:12]:
+        author = social.get_profile(where, post.token)
+        out.append(
+            {
+                "id": post.id,
+                "title": post.data.get("title", ""),
+                "mine": post.token == token,
+                "by": author.handle if author else "",
+                "group": names.get(post.data.get("group", "")) if post.visibility == social.GROUP else "",
+                "text": bool(post.data.get("body")),
+                "pages": len(post.data.get("photos", [])),
+            }
+        )
+    return out
+
+
+def courses_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> list[dict]:
+    """The Courses section (D88): each course of the plan with how far its teaching
+    has gone, how much of it was reviewed, its next exam and its cards."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    kept = subscription.options.get("topics") or {}
+    cards = flashcards.of(_store(store), subscription.token)
+    due_stamp = now.astimezone(UTC).isoformat(timespec="seconds")
+    out = []
+    for index, course in enumerate(topic_courses(subscription)):
+        mondays = _teaching(subscription, course)[0]
+        weeks = _week_states(subscription, course, mondays, today, now) if plan else []
+        taught = [w for w in weeks if w["state"] != "ahead"]
+        reviewed = [w for w in taught if w["done"]]
+        mine = [c for c in cards if course_key(c.course) == course_key(course)]
+        workload = course_workload(subscription, course)
+        out.append(
+            {
+                "index": index,
+                "course": course,
+                "color": colours.get(course.casefold()),
+                "exam": _exam_of(plan, course, now) if plan else None,
+                "weeks": len(weeks),
+                "taught": len(taught),
+                "reviewed": len(reviewed),
+                "percent": round(100 * len(taught) / len(weeks)) if weeks else 0,
+                "topics": len((kept.get(course_key(course)) or {}).get("items") or []),
+                "cards": len(mine),
+                "due": sum(1 for c in mine if c.new or (c.due is not None and c.due <= due_stamp)),
+                "workload": workload["verdict"] if workload else None,
+            }
+        )
+    return out
+
+
+def course_view(
+    store: str | os.PathLike, subscription: Subscription, index: int, now: datetime | None = None
+) -> dict:
+    """One course's page (D88): its weeks, taught or to come, each with its syllabus
+    topics, the reviews done and planned, today's recall and its own cards (D87);
+    the topics without a week; the assessment and the workload check (D86); its
+    notes, its deck and the links to its material."""
+    now = now or datetime.now(UTC)
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    mondays = _teaching(subscription, course)[0]
+    weeks = _week_states(subscription, course, mondays, today, now) if subscription.plan else []
+    cards = [c for c in flashcards.of(_store(store), subscription.token) if course_key(c.course) == key]
+    due_stamp = now.astimezone(UTC).isoformat(timespec="seconds")
+    for w in weeks:
+        own = [c for c in cards if c.week == w["monday"]]
+        w["cards"] = len(own)
+        w["links"] = [x for x in _links(subscription, course) if x.get("week") == w["monday"]]
+    kept = (subscription.options.get("topics") or {}).get(key) or {}
+    items = kept.get("items") or []
+    unplaced = [i["title"] for i in items if not i.get("monday")]
+    before = [i["title"] for i in items if i.get("monday") and date.fromisoformat(i["monday"]) not in mondays]
+    taught = [w for w in weeks if w["state"] != "ahead"]
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    colours = {name.casefold(): i for name, i in course_colours(plan)} if plan else {}
+    current = next((w for w in weeks if w["state"] == "now"), None)
+    return {
+        "index": index,
+        "course": course,
+        "color": colours.get(course.casefold()),
+        "exam": _exam_of(plan, course, now) if plan else None,
+        "weeks": weeks,
+        "now": current,
+        "taught": len(taught),
+        "reviewed": sum(1 for w in taught if w["done"]),
+        "percent": round(100 * len(taught) / len(weeks)) if weeks else 0,
+        "topics": len(items),
+        "unplaced": unplaced,
+        "before": before,
+        "facts": _facts_view(kept.get("facts") or {}),
+        "credits": format_number(_credits(subscription, course) or 0)
+        if _credits(subscription, course)
+        else "",
+        "typed_credits": bool((subscription.options.get("credits") or {}).get(key)),
+        "workload": course_workload(subscription, course),
+        "cards": len(cards),
+        "due": sum(1 for c in cards if c.new or (c.due is not None and c.due <= due_stamp)),
+        "unfiled": sum(1 for c in cards if not c.week),
+        "notes": _course_notes(store, subscription, course),
+        "links": [x for x in _links(subscription, course) if not x.get("week")],
+        "all_links": len(_links(subscription, course)),
+        "links_most": LINKS_MOST,
+        "week_options": _week_choice(subscription, course, now)["weeks"],
+    }

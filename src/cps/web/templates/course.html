@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}{{ view.course }} · {{ _("Courses") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set d = draft or {} %}
+{% set v = view %}
+<p class="back"><a href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
+<div class="page-title course-head {% if v.color is not none %}c{{ v.color }}{% else %}cn{% endif %}">
+  <h1><span class="dot"></span>{{ v.course }}</h1>
+  <p>{% if v.exam %}{{ _("Exam: {date}, {when}", date=v.exam.date, when=v.exam.says) }}{% endif %}{% if v.credits %}{% if v.exam %} · {% endif %}{{ _("{n} ECTS", n=v.credits) }}{% endif %}</p>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+{# Where the course stands: weeks taught, reviewed, and this week #}
+{% if v.weeks %}
+<section class="card course-progress">
+  <p class="tile-label">{{ _("Progress") }}</p>
+  <p class="course-big"><b>{{ v.taught }}</b> <span>{{ _("of {n} weeks taught", n=v.weeks | length) }}</span></p>
+  <div class="meter meter-lg"><span class="fill w{{ (v.percent // 10) * 10 }}"></span></div>
+  <p class="hint">{% if v.taught %}{{ _n("{n} week reviewed at least once.", "{n} weeks reviewed at least once.", v.reviewed) }} {% endif %}{% if v.now %}{{ _("This week: {week}.", week=v.now.label) }}{% endif %}</p>
+</section>
+
+<div class="section" id="weeks" data-tour="course-weeks">
+  <div class="section-title"><h2>{{ _("Week by week") }}</h2><a href="/p/{{ token }}/topics/{{ v.index }}">{% if v.topics %}{{ _("Change the topics") }}{% else %}{{ _("Add the topics") }}{% endif %}</a></div>
+  <ol class="card list course-weeks">
+    {% for w in v.weeks %}
+    <li class="week-{{ w.state }}" id="w{{ w.n }}">
+      <span class="week-mark" aria-hidden="true">{% if w.state == "ahead" %}○{% elif w.done %}✓{% else %}●{% endif %}</span>
+      <div class="grow">
+        <p class="week-name"><b>{{ w.label }}</b> <small class="week-state">{% if w.state == "now" %}{{ _("this week") }}{% elif w.state == "ahead" %}{{ _("to come") }}{% elif w.done %}{{ _n("reviewed {n} time", "reviewed {n} times", w.done) }}{% else %}{{ _("taught, not reviewed yet") }}{% endif %}</small></p>
+        {% if w.topics %}<ul class="week-topics">{% for t in w.topics %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+        <p class="week-meta">
+          {% if w.memory %}<span class="mtag lvl-{{ w.memory.level }}">{{ _("{n} % recall today", n=w.memory.recall) }}</span>{% endif %}
+          {% if w.ahead %}<span>{{ _n("{n} review planned", "{n} reviews planned", w.ahead) }}</span>{% endif %}
+          {% if w.cards %}<a href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _n("Practise its {n} card", "Practise its {n} cards", w.cards) }}</a>{% elif w.state != "ahead" %}<a href="/p/{{ token }}/cards/make?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _("Make cards for this week") }}</a>{% endif %}
+          {% for l in w.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.title }} ↗</a>{% endfor %}
+        </p>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if v.before or v.unplaced %}
+  <div class="card section">
+    {% if v.before %}<p class="tile-label">{{ _("Taught before your plan began") }}</p><ul class="week-topics">{% for t in v.before %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+    {% if v.unplaced %}<p class="tile-label">{{ _("Topics without a week") }}</p><ul class="week-topics">{% for t in v.unplaced %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+  <p class="hint">{{ _("A week is reviewed once one of its study sessions is done. Recall today is the memory model's estimate.") }}</p>
+</div>
+{% else %}
+<section class="card section">
+  <p>{{ _("Your timetable has no lectures of this course, so it has no weeks to follow. Its topics can still be kept as a list.") }}</p>
+  <p><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/topics/{{ v.index }}">{% if v.topics %}{{ _("Change the topics") }}{% else %}{{ _("Add the topics") }}{% endif %}</a></p>
+</section>
+{% endif %}
+
+{# Assessment and workload (D83, D86) #}
+<div class="section" id="credits" data-tour="course-workload">
+  <div class="section-title"><h2>{{ _("Workload") }}</h2></div>
+  <div class="card">
+    {% if v.facts.assessment %}<p class="course-assessment"><span class="muted">{{ _("Assessment") }}:</span> {{ v.facts.assessment }}</p>{% endif %}
+    {% set w = v.workload %}
+    {% if w %}
+    <p class="workload-says workload-{{ w.verdict }}">{{ w.says }}</p>
+    <svg class="workload-bar" viewBox="0 0 100 14" preserveAspectRatio="none" role="img" aria-label="{{ _('Lectures {lectures} h, study {study} h; the credits suggest {low} to {high} h', lectures=w.lectures, study=w.study, low=w.low, high=w.high) }}">
+      <rect class="wl-track" x="0" y="3" width="100" height="8" rx="4"></rect>
+      <rect class="wl-band" x="{{ w.bar.low }}" y="0" width="{{ w.bar.high - w.bar.low }}" height="14" rx="2"></rect>
+      <rect class="wl-lectures" x="0" y="3" width="{{ w.bar.lectures }}" height="8"></rect>
+      <rect class="wl-study" x="{{ w.bar.lectures }}" y="3" width="{{ w.bar.study }}" height="8"></rect>
+    </svg>
+    <p class="workload-key"><span><i class="wl-key wl-lectures"></i>{{ _("Lectures: {n} h", n=w.lectures) }}</span> <span><i class="wl-key wl-study"></i>{{ _("Study in your plan: {n} h ({done} h done)", n=w.study, done=w.done) }}</span> <span><i class="wl-key wl-band"></i>{{ _("{n} ECTS: {low} to {high} h", n=w.credits, low=w.low, high=w.high) }}</span></p>
+    <details class="insight-how"><summary>{{ _("How it is counted") }}</summary><p>{{ _("One ECTS credit stands for 25 to 30 hours of work for a typical student, lectures included (the ECTS Users' Guide). The lectures are those of your timetable from your plan's first day; the study is your plan's sessions for this course, done and to come, without those you skipped. Hours you logged on your own are not counted. A course that needs more than the credits say is common; so is one that needs less.") }}</p></details>
+    {% else %}
+    <p class="hint">{{ _("Give the course's ECTS credits to compare them with the hours of your timetable and your plan.") }}</p>
+    {% endif %}
+    <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/credits" class="inline-form credits-form">
+      <label for="c-credits">{{ _("ECTS credits") }}</label>
+      <div class="row-input"><input id="c-credits" name="credits" inputmode="decimal" maxlength="4" value="{{ d.credits or (v.credits if v.typed_credits else '') }}" placeholder="{{ v.credits or '6' }}"><button type="submit" class="btn btn-sm">{{ _("Save") }}</button></div>
+      {% if v.credits and not v.typed_credits %}<p class="hint">{{ _("Read from the course page you pasted.") }}</p>{% endif %}
+    </form>
+  </div>
+</div>
+
+{# What to study it with: cards, notes, links (D87, D88) #}
+<div class="section" id="material" data-tour="course-material">
+  <div class="section-title"><h2>{{ _("Material") }}</h2></div>
+  <ul class="card list material-list">
+    <li>
+      <a class="grow" href="/p/{{ token }}/cards?course={{ v.course | urlencode }}"><b>{{ _("Flashcards") }}</b><br><small>{% if v.cards %}{{ _n("{n} card", "{n} cards", v.cards) }}{% if v.due %} · {{ _n("{n} to review", "{n} to review", v.due) }}{% endif %}{% if v.unfiled %} · {{ _n("{n} without a week", "{n} without a week", v.unfiled) }}{% endif %}{% else %}{{ _("No cards yet") }}{% endif %}</small></a>
+      {% if v.due %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}">{{ _("Review") }}</a>{% else %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?course={{ v.course | urlencode }}">{{ _("Make cards") }}</a>{% endif %}
+    </li>
+    {% for n in v.notes %}
+    <li>
+      <a class="grow" href="/p/{{ token }}/post/{{ n.id }}"><b>{{ n.title }}</b><br><small>{% if n.mine %}{{ _("your notes") }}{% else %}@{{ n.by }}{% endif %}{% if n.group %} · {{ n.group }}{% endif %}{% if n.pages %} · {{ _n("{n} page", "{n} pages", n.pages) }}{% endif %}</small></a>
+      {% if n.text %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?note={{ n.id }}">{{ _("Flashcards") }}</a>{% endif %}
+    </li>
+    {% endfor %}
+    {% for l in v.links %}
+    <li>
+      <a class="grow" href="{{ l.url }}" rel="noopener noreferrer" target="_blank"><b>{{ l.title }} ↗</b><br><small class="link-url">{{ l.url }}</small></a>
+      <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links/{{ l.id }}/delete"><button type="submit" class="btn btn-sm btn-plain" aria-label="{{ _('Remove {title}', title=l.title) }}">{{ _("Remove") }}</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="hint"><a href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a> · <a href="/p/{{ token }}/notes?course={{ v.course | urlencode }}">{{ _("Classmates' notes for this course") }}</a></p>
+  {% if v.all_links < v.links_most %}
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links" class="card section link-form" id="link">
+    <h3>{{ _("Add a link") }}</h3>
+    <p class="hint">{{ _("The course on your learning platform, its slides, a shared folder: one tap away from here. Only you see them.") }}</p>
+    <label for="l-url">{{ _("Address") }}</label>
+    <input id="l-url" name="url" type="url" required maxlength="500" placeholder="https://" value="{{ d.url or '' }}">
+    <label for="l-title">{{ _("Name (optional)") }}</label>
+    <input id="l-title" name="title" maxlength="80" value="{{ d.title or '' }}" placeholder="{{ _('Slides on Moodle') }}">
+    {% if v.week_options %}
+    <label for="l-week">{{ _("Week") }}</label>
+    <select id="l-week" name="week"><option value="">{{ _("The whole course") }}</option>{% for o in v.week_options %}<option value="{{ o.value }}"{% if d.week == o.value %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select>
+    {% endif %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary btn-sm">{{ _("Add") }}</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

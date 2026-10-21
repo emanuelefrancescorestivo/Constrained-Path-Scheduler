@@ -410,6 +410,13 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .list .title { font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .list .meta { font-size: 0.85rem; color: var(--muted); }
 .list .dot { margin-top: 6px; }
+/* A grouped list that is itself the card (`ul.card.list`): its rows sit inside the
+   card's margins, and a row that leads somewhere reads as text, not as a link
+   (AUDIT item 73: the lists added with D81, D84 and D85 had neither). */
+.card.list { padding: 4px 16px; }
+.card.list a.grow { color: inherit; text-decoration: none !important; }
+.card.list a.grow small { color: var(--muted); }
+@media (hover: hover) { .card.list a.grow:hover b { color: var(--accent-ink); } }
 .card > .list { margin: -4px 0; }
 .mini-outcomes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 6px; }
@@ -1213,7 +1220,7 @@ label.check.check-long input { margin-top: 3px; flex: none; }
   .topbar { padding: 0 14px; }
   .topbar .nav, .topbar .link { display: none; }
   .tabbar {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
     height: calc(var(--tabbar) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
@@ -2327,23 +2334,22 @@ body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
   }
   body[data-sky] .tabbar a { margin: 5px 0; border-radius: 26px; color: var(--text); }
   body[data-sky] .tabbar a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
-  body[data-sky]:is(:not(:has(.spark-fab)), :has(.sticky-actions), :has(.focus)) .tabbar {
-    right: max(12px, env(safe-area-inset-right));
-  }
+  /* Six sections since Courses (D88): the pill takes the whole width and Spark waits
+     just above its right end, so each label keeps the room five had beside Spark. */
+  body[data-sky] .tabbar { right: max(12px, env(safe-area-inset-right)); }
   body[data-sky].has-tabs .spark-fab {
-    right: max(12px, env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom));
-    width: 62px; height: 62px;
+    right: max(12px, env(safe-area-inset-right)); bottom: calc(84px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px;
   }
-  body[data-sky].has-tabs .spark-fab .mascot { width: 46px; height: 46px; }
-  /* AUDIT 69: in the pill, beside Spark, a column is about 57px on a 390px phone and
-     "Communauté" is wider; labels a little smaller, with a gap, keep the words apart. */
+  body[data-sky].has-tabs .spark-fab .mascot { width: 42px; height: 42px; }
+  /* AUDIT 69: a column is about 59px on a 390px phone and "Communauté" is wide;
+     labels a little smaller, with a gap, keep the words apart. */
   body[data-sky] .tabbar { column-gap: 2px; }
   body[data-sky] .tabbar a { font-size: 0.6rem; letter-spacing: -0.01em; }
 }
-/* Narrower than that, the five labels no longer fit beside Spark: it waits above the pill. */
-@media (max-width: 340px) {
-  body[data-sky] .tabbar { right: max(12px, env(safe-area-inset-right)); }
-  body[data-sky].has-tabs .spark-fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
+@media (max-width: 375px) {
+  body[data-sky] .tabbar a { font-size: 0.56rem; letter-spacing: -0.02em; }
+  body[data-sky] .tabbar svg { width: 23px; height: 23px; }
 }
 
 /* -- the garden: drawn in the margins, grown with the streak ------------------------ */
@@ -2589,6 +2595,55 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .syllabus { margin: 6px 0 0; font-size: 0.9rem; }
 .syllabus ul { margin: 2px 0 0; padding-left: 1.2em; }
 .syllabus-add { margin: 6px 0 0; font-size: 0.85rem; }
+/* Courses (D86-D88) */
+.course-rows > li { align-items: center; padding: 12px 0; }
+.course-row { display: grid; gap: 5px; }
+.course-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.course-name .dot, .course-head .dot { margin: 0; flex: none; }
+.course-exam { margin-left: auto; color: var(--muted); font-size: 0.82rem; }
+.course-row .meter { margin: 2px 0; }
+.course-facts-line { font-size: 0.8rem; }
+.chev { color: var(--muted); font-size: 1.2rem; flex: none; }
+.course-head h1 { display: flex; align-items: center; gap: 10px; }
+.course-head h1 .dot { width: 14px; height: 14px; }
+.course-big { margin: 2px 0 8px; display: flex; align-items: baseline; gap: 8px; }
+.course-big b { font-family: var(--display, inherit); font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.course-big span { color: var(--muted); }
+.course-weeks > li { gap: 12px; padding: 12px 0; }
+.course-weeks > li + li::before { left: 34px; }
+.week-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; margin-top: 1px; background: var(--fill-3); color: var(--muted); }
+.week-taught .week-mark { background: var(--fill); color: var(--text); }
+.week-now .week-mark { background: var(--accent); color: var(--accent-on, #fff); }
+.week-ahead { opacity: 0.72; }
+.week-name { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.week-state { color: var(--muted); font-size: 0.8rem; }
+.week-now .week-state { color: var(--accent-ink); font-weight: 600; }
+.week-topics { margin: 4px 0 0; padding-left: 1.1em; font-size: 0.9rem; }
+.week-topics li { margin: 1px 0; }
+.week-meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 0.82rem; color: var(--muted); align-items: center; }
+.mtag { display: inline-block; padding: 1px 8px; border-radius: 980px; font-size: 0.76rem; font-weight: 600; }
+.mtag.lvl-strong { background: var(--mem-strong); color: var(--mem-ink-strong); }
+.mtag.lvl-good { background: var(--mem-good); color: var(--mem-ink-good); }
+.mtag.lvl-fading { background: var(--mem-fading); color: var(--mem-ink-fading); }
+.mtag.lvl-review { background: var(--mem-review); color: var(--mem-ink-review); }
+.course-assessment { margin: 0 0 10px; font-size: 0.92rem; }
+.workload-says { margin: 0 0 8px; font-weight: 600; }
+.workload-bar { display: block; width: 100%; height: 14px; }
+.wl-track { fill: var(--fill-3); }
+.wl-band { fill: var(--mem-review); opacity: 0.45; }
+.wl-lectures { fill: var(--muted); }
+.wl-study { fill: var(--accent); }
+.workload-key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; font-size: 0.8rem; color: var(--muted); }
+.wl-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+i.wl-lectures { background: var(--muted); }
+i.wl-study { background: var(--accent); }
+i.wl-band { background: var(--mem-review); opacity: 0.6; }
+.credits-form { margin-top: 14px; }
+.credits-form .row-input input { max-width: 7em; }
+.material-list > li { align-items: center; }
+.link-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.material-list a.grow { min-width: 0; }
+.link-form h3 { margin: 0 0 4px; }
 /* Cards from notes (D84) */
 .card-make { display: block; color: inherit; text-decoration: none; }
 .card-make small { color: var(--muted); }

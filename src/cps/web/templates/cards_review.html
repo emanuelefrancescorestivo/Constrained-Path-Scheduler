@@ -2,10 +2,10 @@
 {% block title %}{{ _("Review") }} · {{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="/static/cards.js"></script>{% endblock %}
 {% block main %}
-<p class="back"><a href="/p/{{ token }}/cards{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Flashcards") }}</a></p>
+<p class="back">{% if view.week and view.course_index is not none %}<a href="/p/{{ token }}/courses/{{ view.course_index }}#weeks">{{ view.course }}</a>{% else %}<a href="/p/{{ token }}/cards{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Flashcards") }}</a>{% endif %}</p>
 {% if view.card %}
 {% set c = view.card %}
-<p class="review-count">{{ c.course }} · {{ _n("{n} card left", "{n} cards left", view.left) }}{% if c.new %} · <span class="badge badge-accent">{{ _("new") }}</span>{% endif %}</p>
+<p class="review-count">{{ c.course }}{% if view.week %} · {{ view.week_label }}{% endif %} · {{ _n("{n} card left", "{n} cards left", view.left) }}{% if c.new %} · <span class="badge badge-accent">{{ _("new") }}</span>{% endif %}</p>
 <section class="card flashcard" aria-label="{{ _('Card') }}">
   <p class="flash-front">{{ c.front }}</p>
   <details class="flash-answer" id="flash-answer">
@@ -13,6 +13,7 @@
     <p class="flash-back">{{ c.back }}</p>
     <form method="post" action="/p/{{ token }}/cards/{{ c.id }}/answer" class="flash-grades">
       <input type="hidden" name="course" value="{{ view.course }}">
+      {% if view.week %}<input type="hidden" name="week" value="{{ view.week }}">{% endif %}
       <p class="hint">{{ _("How well did you recall it?") }}</p>
       <div class="grades">
         {% for o in view.options %}
@@ -24,10 +25,24 @@
 </section>
 <p class="hint wide-only">{{ _("Keys: space shows the answer, 1 to 4 answer.") }}</p>
 {% else %}
+{% if view.week and not view.week_cards %}
+<section class="card empty">
+  <b>{{ _("No cards for this week yet") }}</b>
+  {{ _("Make them from your notes of the week: they come back here, and in the week's self-tests.") }}
+  <p><a class="btn btn-tinted" href="/p/{{ token }}/cards/make?course={{ view.course | urlencode }}&amp;week={{ view.week }}">{{ _("Make cards for this week") }}</a></p>
+</section>
+{% elif view.week %}
+<section class="card empty"{% if view.today %} data-celebrate="cards-{{ view.date }}"{% endif %}>
+  <b>{{ _("This week's cards are done for today") }}</b>
+  {{ _("Each comes back when the memory model says it is time.") }}
+  <p><a class="btn btn-tinted" href="/p/{{ token }}/cards/make?course={{ view.course | urlencode }}&amp;week={{ view.week }}">{{ _("Make cards for this week") }}</a></p>
+</section>
+{% else %}
 <section class="card empty"{% if view.today %} data-celebrate="cards-{{ view.date }}"{% endif %}>
   <b>{{ _("All done for now") }}</b>
   {% if view.today %}{{ _n("{n} answer today.", "{n} answers today.", view.today) }} {% endif %}{% if view.next %}{{ _("The next card comes back {when}.", when=view.next) }}{% else %}{{ _("Add cards to start.") }}{% endif %}
   <p><a class="btn btn-tinted" href="/p/{{ token }}/cards">{{ _("Flashcards") }}</a></p>
 </section>
+{% endif %}
 {% endif %}
 {% endblock %}

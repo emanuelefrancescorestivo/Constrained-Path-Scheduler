@@ -34,11 +34,16 @@
     <li data-target="[data-tour=reports]" data-mood="think"><b>{{ _("Tell me how it went") }}</b><span>{{ _("One tap after each session, and the plan adapts to what you really did.") }}</span></li>
     <li data-target="[data-tour=calendar]" data-mood="think"><b>{{ _("Your calendar") }}</b><span>{{ _("Drag a session to move it, or drag across empty time to block it. On a phone, tap the time.") }}</span></li>
     <li data-target="[data-tour=new-task]" data-mood="idle"><b>{{ _("Add a task") }}</b><span>{{ _("Homework, a report, a reading: give it a due date and I find time for it.") }}</span></li>
-    <li data-target="[data-tour=sections]" data-mood="idle"><b>{{ _("Everything else") }}</b><span>{{ _("Tasks, Focus, Community and Progress are here. Each one shows you around the first time you open it.") }}</span></li>
+    <li data-target="[data-tour=sections]" data-mood="idle"><b>{{ _("Everything else") }}</b><span>{{ _("Tasks, Courses, Focus, Community and Progress are here. Each one shows you around the first time you open it.") }}</span></li>
     <li data-target="[data-tour=spark]" data-mood="cheer"><b>{{ _("Ask me anything") }}</b><span>{{ _("Tap me to ask a question about studying, read a tip, or set up your week again.") }}</span></li>
   {% elif tour == "tasks" %}
     <li data-target="[data-tour=task-list]" data-mood="wave"><b>{{ _("Your tasks") }}</b><span>{{ _("Everything that is due, soonest first. Tick a task when it is finished: its remaining sessions become free time.") }}</span></li>
     <li data-target="[data-tour=task-add]" data-mood="idle"><b>{{ _("Add one") }}</b><span>{{ _("Give it a name and a due date, and I plan the work before it.") }}</span></li>
+  {% elif tour == "courses" %}
+    <li data-target="[data-tour=course-list]" data-mood="wave"><b>{{ _("Your courses") }}</b><span>{{ _("How far each course's teaching has gone and how much of it you have reviewed. Open one to see its weeks.") }}</span></li>
+    <li data-target="[data-tour=course-weeks]" data-mood="wave"><b>{{ _("Week by week") }}</b><span>{{ _("Done, this week, to come: each week's topics, its reviews, how well you remember it, and its own cards.") }}</span></li>
+    <li data-target="[data-tour=course-workload]" data-mood="think"><b>{{ _("Workload") }}</b><span>{{ _("Give the course's credits to see the hours they stand for, against your timetable and your plan.") }}</span></li>
+    <li data-target="[data-tour=course-material]" data-mood="idle"><b>{{ _("Material") }}</b><span>{{ _("Your cards, your notes and your group's, and links to the course's pages, in one place.") }}</span></li>
   {% elif tour == "focus" %}
     <li data-target="[data-tour=focus-start]" data-mood="wave"><b>{{ _("Start a session") }}</b><span>{{ _("Choose how long, then start. Stay on the page: time away is counted and shown.") }}</span></li>
     <li data-target="[data-tour=focus-log]" data-mood="think"><b>{{ _("Studied without the timer?") }}</b><span>{{ _("Log it here: it goes in your diary and counts for your streak.") }}</span></li>

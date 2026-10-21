@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import secrets
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from . import fitting, memory
@@ -70,6 +70,9 @@ class Card:
     due: str | None
     reps: int
     lapses: int
+    # The Monday of the week of lectures the card belongs to (D87), ISO; None for a
+    # card of the whole course.
+    week: str | None = None
 
     @property
     def new(self) -> bool:
@@ -81,7 +84,7 @@ class Card:
         return memory.MemoryState(self.stability, self.difficulty)
 
 
-_COLUMNS = "id, token, course, front, back, created, stability, difficulty, last, due, reps, lapses"
+_COLUMNS = "id, token, course, front, back, created, stability, difficulty, last, due, reps, lapses, week"
 
 
 def _stamp(at: datetime) -> str:
@@ -110,10 +113,35 @@ def _count(store: Store, token: str) -> int:
         return int(db.execute("SELECT COUNT(*) FROM cards WHERE token = ?", (token,)).fetchone()[0])
 
 
-def add(store: Store, token: str, course: str, pairs: list[tuple[str, str]], now: datetime) -> list[Card]:
-    """New cards for `course`, from (question, answer) pairs; all checked before
-    any is kept."""
+_KEEP = object()  # `edit`: leave the card's week as it is
+
+
+def _week(value: object) -> str | None:
+    """A week's Monday as the cards keep it, or None: anything else is refused."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        monday = date.fromisoformat(text)
+    except ValueError:
+        raise CardError(_("choose a week of the course, or none")) from None
+    if monday.weekday() != 0:
+        raise CardError(_("choose a week of the course, or none"))
+    return monday.isoformat()
+
+
+def add(
+    store: Store,
+    token: str,
+    course: str,
+    pairs: list[tuple[str, str]],
+    now: datetime,
+    week: str | None = None,
+) -> list[Card]:
+    """New cards for `course` (and one of its weeks, D87), from (question, answer)
+    pairs; all checked before any is kept."""
     course = _text(course, "course")
+    week = _week(week)
     if not pairs:
         raise CardError(_("write the question"))
     if len(pairs) > MAX_PASTE:
@@ -134,14 +162,15 @@ def add(store: Store, token: str, course: str, pairs: list[tuple[str, str]], now
             None,
             0,
             0,
+            week,
         )
         for f, b in pairs
     ]
     with store.connection() as db:
         db.executemany(
-            f"INSERT INTO cards ({_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            f"INSERT INTO cards ({_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (c.id, c.token, c.course, c.front, c.back, c.created, None, None, None, None, 0, 0)
+                (c.id, c.token, c.course, c.front, c.back, c.created, None, None, None, None, 0, 0, c.week)
                 for c in made
             ],
         )
@@ -186,17 +215,27 @@ def of(store: Store, token: str, course: str = "") -> list[Card]:
     return [Card(*r) for r in rows]
 
 
-def edit(store: Store, token: str, card_id: str, course: str, front: str, back: str) -> Card:
+def edit(
+    store: Store,
+    token: str,
+    card_id: str,
+    course: str,
+    front: str,
+    back: str,
+    week: object = _KEEP,
+) -> Card:
+    """Change a card; its week only when one is given (None takes it off)."""
     card = get(store, token, card_id)
     if card is None:
         raise CardError(_("this card is not, or no longer, there"))
     course, front, back = _text(course, "course"), _text(front, "front"), _text(back, "back")
+    kept = card.week if week is _KEEP else _week(week)
     with store.connection() as db:
         db.execute(
-            "UPDATE cards SET course = ?, front = ?, back = ? WHERE id = ? AND token = ?",
-            (course, front, back, card_id, token),
+            "UPDATE cards SET course = ?, front = ?, back = ?, week = ? WHERE id = ? AND token = ?",
+            (course, front, back, kept, card_id, token),
         )
-    return replace(card, course=course, front=front, back=back)
+    return replace(card, course=course, front=front, back=back, week=kept)
 
 
 def delete(store: Store, token: str, card_id: str) -> bool:
@@ -232,6 +271,24 @@ def queue(store: Store, token: str, now: datetime, zone: ZoneInfo, course: str =
     room = max(0, NEW_PER_DAY - new_today(store, token, now, zone))
     fresh = [c for c in cards if c.new][:room]
     return due + fresh
+
+
+def of_week(store: Store, token: str, course: str, week: str) -> list[Card]:
+    """A course's cards of one week (D87), in the order they were written."""
+    return [c for c in of(store, token, course) if c.week == week]
+
+
+def week_practice(
+    store: Store, token: str, now: datetime, zone: ZoneInfo, course: str, week: str
+) -> list[Card]:
+    """A week's cards to practise now (D87): each not yet answered today, the due
+    and the longest overdue first, then the rest by when they come back, then the
+    new ones. Answering them early is a review like any other: FSRS counts the days
+    since the last one, so a card practised before it is due gains less."""
+    today = _stamp(_day_start(now, zone))
+    left = [c for c in of_week(store, token, course, week) if c.last is None or c.last < today]
+    seen = sorted((c for c in left if not c.new), key=lambda c: c.due or "")
+    return seen + [c for c in left if c.new]
 
 
 def schedule(
