@@ -33,6 +33,8 @@
   </div>
 </div>
 
+{% if memory %}{% include "_memory.html" %}{% endif %}
+
 {% if insights %}
 {% from "_insights.html" import insight %}
 <div class="section" id="insights" data-tour="progress-insights">

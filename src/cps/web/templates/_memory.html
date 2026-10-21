@@ -1,0 +1,58 @@
+{# Your memory on Progress (D82): `memory` from service.learning_view. Every number
+   rises with spaced recall and nothing else; each card says it is a model's estimate. #}
+{% from "_charts.html" import columns, line %}
+{% set m = memory %}
+<div class="section memory" id="memory" data-tour="progress-memory">
+  <div class="section-title"><h2>{{ _("Your memory") }}</h2><small>{{ _("a model's estimate") }}</small></div>
+  <div class="memory-grid">
+
+    <article class="card memory-card memory-hero"{% if m.milestone %} data-celebrate="memory-{{ m.milestone }}"{% endif %}>
+      <span class="tile-label">{{ _("Memory strength") }}</span>
+      <p class="memory-value"><b class="memory-big" data-count>{{ m.strength }}</b><span>{{ _n("day", "days", m.strength) }}</span>{% if m.milestone %}<span class="badge memory-badge">{{ _("{n}+ days", n=m.milestone) }}</span>{% endif %}</p>
+      <p class="memory-says">{{ _n("Your topics keep 90 % recall for {n} day, at the median, without a review.", "Your topics keep 90 % recall for {n} days, at the median, without a review.", m.strength) }}{% if m.first is not none %} {{ _("Up from {first} days in the week of {day}.", first=m.first, day=m.labels[0]) }}{% endif %}</p>
+      {% set top = charts.nice_top([m.series | reject("none") | max, 1] | max * 1.1) %}
+      {% set c = charts.line(m.series, m.labels, top=top) %}
+      {% set texts = [] %}{% for v in m.series %}{% set _x = texts.append(_("Week of {day}: {n} days", day=m.labels[loop.index0], n=v if v is not none else "–")) %}{% endfor %}
+      {{ line(c, texts, _("Memory strength, week by week, in days"), None, ticks=[_("{n} d", n=top | round | int), _("{n} d", n=(top / 2) | round | int)]) }}
+      <details class="insight-how"><summary>{{ _("How it is measured") }}</summary><p>{{ _("The memory model's stability: the days until a topic's predicted recall falls to 90 % without a review, at the median of the topics taught so far. It grows when you recall a topic after a gap, and the later the review that still succeeds, the more it adds. A model with average weights: an estimate, not a measurement of you.") }}</p></details>
+    </article>
+
+    <article class="card memory-card memory-map">
+      <span class="tile-label">{{ _("Today's map") }}</span>
+      {% set n = m.map.counts %}
+      <p class="memory-counts"><span><span class="lvl-key lvl-strong" aria-hidden="true"></span>{{ _("Strong: {n}", n=n.strong) }}</span> <span><span class="lvl-key lvl-good" aria-hidden="true"></span>{{ _("Good: {n}", n=n.good) }}</span> <span><span class="lvl-key lvl-fading" aria-hidden="true"></span>{{ _("Fading: {n}", n=n.fading) }}</span> <span><span class="lvl-key lvl-review" aria-hidden="true"></span>{{ _("To review: {n}", n=n.review) }}</span></p>
+      {% for course in m.map.courses %}
+      <div class="map-row">
+        <p class="map-course {% if course.color is not none %}c{{ course.color }}{% else %}cn{% endif %}"><span class="dot"></span>{{ course.course }}</p>
+        <ul class="map-tiles" aria-label="{{ _('Predicted recall today of each topic of {course}', course=course.course) }}">
+          {% for t in course.topics %}<li class="mtile lvl-{{ t.level }}" title="{{ _('{topic}: {recall} % today; holds 90 % for {days} days', topic=t.label, recall=t.recall, days=t.days) }}{% if t.syllabus %} · {{ t.syllabus | join('; ') }}{% endif %}"><span class="mtile-label">{{ t.label }}</span><b>{{ t.recall }} %</b></li>{% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+      <p class="memory-hint">{{ _("Each tile is a topic, coloured by how well it is held today. A self-test moves it up; time without one lets it fade.") }}</p>
+      <p class="memory-legend"><span class="lvl-key lvl-strong" aria-hidden="true"></span>{{ _("90 % or more") }} <span class="lvl-key lvl-good" aria-hidden="true"></span>{{ _("80 to 89 %") }} <span class="lvl-key lvl-fading" aria-hidden="true"></span>{{ _("70 to 79 %") }} <span class="lvl-key lvl-review" aria-hidden="true"></span>{{ _("below 70 %") }}</p>
+    </article>
+
+    <article class="card memory-card memory-added">
+      <span class="tile-label">{{ _("Memory days added") }}</span>
+      <p class="memory-value"><b class="memory-big">{% if m.added_week > 0 %}+{% endif %}<span data-count>{{ m.added_week }}</span></b><span>{{ _("this week") }}</span></p>
+      {% set c = charts.columns(m.added, m.labels, current=m.current) %}
+      {% set texts = [] %}{% for v in m.added %}{% set _x = texts.append(_("Week of {day}: {n} days added", day=m.labels[loop.index0], n=v)) %}{% endfor %}
+      {{ columns(c, texts, _("Memory days added, week by week"), [_("{n} d", n=c.top | round | int), _("{n} d", n=(c.top / 2) | round | int)], None) }}
+      <p class="memory-says">{{ _("What your reviews added to how long your topics hold, summed over topics. A review after a gap adds the most; one crammed right after the last adds little.") }}</p>
+    </article>
+
+    <article class="card memory-card memory-reps">
+      <span class="tile-label">{{ _("Recall reps") }}</span>
+      {% set r = m.reps_week %}
+      <p class="memory-value"><b class="memory-big" data-count>{{ r.total }}</b><span>{{ _("this week") }}</span></p>
+      {% set totals = m.reps | map(attribute="total") | list %}
+      {% set c = charts.columns(totals, m.labels, current=m.current) %}
+      {% set texts = [] %}{% for v in totals %}{% set _x = texts.append(_n("Week of {day}: {n} rep", "Week of {day}: {n} reps", v, day=m.labels[loop.index0])) %}{% endfor %}
+      {{ columns(c, texts, _("Recall reps, week by week"), [c.top | round | int, (c.top / 2) | round | int], None) }}
+      <p class="memory-kinds">{{ _n("{n} self-test", "{n} self-tests", r["self-test"]) }} · {{ _n("{n} exam practice", "{n} exam practices", r.exercise) }} · {{ _n("{n} flashcard answered", "{n} flashcards answered", r.card) }}</p>
+      <p class="memory-says">{{ _("Recalling without your notes, then checking, is the habit the studies found works best: practice testing and spaced practice were the two techniques rated of high utility in a review of ten (Dunlosky and colleagues, 2013).") }}</p>
+    </article>
+
+  </div>
+</div>

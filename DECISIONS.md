@@ -2700,3 +2700,66 @@ the university and course names as written; two spellings of one course do not
 match. Checked in Chromium only, at 1280 px in light and dark and at 390 px: the
 course list, a pasted program read, saved and shared, the session's syllabus line, a
 second student seeing the list on Today and taking it.
+
+## D82. Your memory: progress that only spaced recall can grow
+
+*The owner, 2026-10-21, with a screenshot of the insights: "i need more graphs,
+numbers, colours, stuff that makes u addicted to progress but also that addiction
+MUST DIRECTLY TRANSLATE TO QUALITY OF STUDYING, find the match from empirical
+research and everything must converge to the ultimate goal of making study
+efficient, fun, addictive (how do we retain memories? by intensity or repetition,
+hence study something and make it intense=interesting, or repeat solving exercises
+even with solutions aside several times and spacing such practice!)".*
+
+**The match, from the checked references (docs/REFERENCES.md).** Practice testing and
+spaced practice are the two techniques rated of high utility in a review of ten
+([ref:dunlosky2013]); practice tests beat restudying ([ref:adesope2017]) and quizzing
+raised classroom achievement ([ref:yang2021]); the best gap between reviews grows
+with how long the memory must last ([ref:cepeda2006], [ref:cepeda2008]); left alone,
+most students reread rather than practise retrieval ([ref:karpicke2009]); monitoring
+progress, physically recorded, helps reach goals ([ref:harkin2016]). So the numbers to
+watch grow must be ones that only spaced retrieval moves. Hours, pages and minutes on
+the app are not among them. On "intensity": no checked reference here says that
+interest or emotion strengthens memory, so the app does not claim it. What it can
+show is effort at the right moment: in the memory model, a recall made when
+recall had fallen adds more than one made at once (FSRS's spacing term, `memory.py`;
+`tests/test_learning.py` holds it for FSRS-6).
+
+**Chosen.** A "Your memory" section at the top of Progress (`cps/learning.py`, pure;
+`service.learning_view`, from the plan's FSRS replay):
+
+- *Memory strength*: the median stability of the topics taught so far, in days
+  (the days until a topic's predicted recall falls to 90 % without a review), as a
+  big number and a line over eight weeks, "up from" the first. Milestones (a week,
+  two, a month, two, three, six) get the confetti once (D30) and a badge.
+- *Today's map*: every taught topic as a tile, grouped by course, coloured in four
+  levels of today's predicted recall (90 % or more, 80, 70, below), with the count of
+  each and, in its tooltip, the course's syllabus topics (D81). A self-test moves a
+  tile up; time without one lets it fade.
+- *Memory days added*: the stability the week's reviews added, summed over topics, in
+  columns over eight weeks. A review after a gap adds the most; one crammed right
+  after the last adds little; a forgotten topic's loss counts against it.
+- *Recall reps*: self-tests answered, exam practice done, flashcards answered, per
+  week, with this week's split: repeated retrieval, the user's "repeat solving
+  exercises several times".
+
+The colours: one teal ramp of four steps, an ordered scale checked against the light
+and the dark surfaces (the light end clears 2:1, the steps are monotone and apart),
+with its own steps in dark mode (the strongest brightest), and the text on each
+tile in ink or white at 4.5:1 or more; levels are also written as numbers, and a
+topic to review has a dashed outline, so colour never says it alone. Teal is not
+used elsewhere in the app; red stays for exams and today.
+
+**Rejected.** Points for minutes or sessions (they reward presence, not memory); a
+ranking against classmates (D16); counting unreported sessions as reps (a rep is an
+answer or a tap; the plan's own convention, D44, still decides the model's state);
+claiming that intensity or interest builds memory (no checked reference); a single
+"learning score" (ANALYTICS.md §2).
+
+**Disclosed.** All of it is the memory model's estimate with average weights, said on
+the section and in "How it is measured", not a measurement of the student; a topic
+starts "seen once and shaky" (D50), so the first weeks' strength is low by
+construction and its growth looks steep. Recall reps count what was reported, not
+what was learned. Checked in Chromium only, at 1280 px in light and dark and at 390
+px, on the demo's student: strength 11 days, up from 0.4, 7 topics strong, 8 good,
+3 fading.

@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 960 passed, 17 deselected, 1 xfailed, about 250 s
-    pytest -m "slow or not slow" --cov=cps   # all 977 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 972 passed, 17 deselected, 1 xfailed, about 250 s
+    pytest -m "slow or not slow" --cov=cps   # all 989 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -65,6 +65,7 @@ more than an impressive number.
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `insights.py` | D80: what a student's own data says, each shown once there is enough of it: starting on time, focus, when they remember best, memory against the forecast; the pace against their own limit and usual weeks, which never asks for more: pure functions |
+| `learning.py` | D82: Your memory, progress only spaced recall can grow: the median stability of the taught topics over the weeks, today's map in four levels of predicted recall, the memory days the week's reviews added, recall reps: pure functions over the plan's FSRS replay |
 | `syllabus.py` | D81: a course's program pasted as text, read by rules into topics (a week or a lecture named in English, French, Italian, Spanish, Portuguese, German, Dutch; bullets, numbering, headings and links dropped), and placed on the course's weeks of lectures, a list without weeks spread by lecture hours: pure functions |
 | `tips.py` | D62: the study tips, each with how strong its evidence is, its limits and its sources (only entries of docs/REFERENCES.md marked checked, with the day they were read); `service` picks the one the day calls for (an exam close, a skipped class, an evening session…, D63) or one in turn |
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
@@ -72,7 +73,7 @@ more than an impressive number.
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39); a course's topics shared with classmates (D81) |
-| `service.py` | the API every front end uses; the sky and the garden of the streak behind a plan's pages (D73), where the sun is in the plan's day (D76); which section's tour a page shows, and the ones seen (D77); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the insights on Progress and the one on Today (D80); the student's day: getting up, going to bed, lunch (D69); a course's topics from its pasted program, on the sessions of their week, shared with classmates (D81); typed errors; no UI imports |
+| `service.py` | the API every front end uses; the sky and the garden of the streak behind a plan's pages (D73), where the sun is in the plan's day (D76); which section's tour a page shows, and the ones seen (D77); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the insights on Progress and the one on Today (D80); Your memory on Progress (D82); the student's day: getting up, going to bed, lunch (D69); a course's topics from its pasted program, on the sessions of their week, shared with classmates (D81); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep (12 months after the last visit, D36), backups; a plan's rows of every table for its copy (`_EXPORT`, D43) |
@@ -208,6 +209,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   tried, dates are not read, and weeks count the timetable's weeks with lectures (a
   program that counts a break is one week off after it; the preview shows it).
   Classmates' lists match by university and course names as written.
+- Your memory (D82) is the memory model's estimate with average weights, not a
+  measurement; recall reps count what was reported. Checked in Chromium only.
 - The insights (D80) rest on small numbers, said on each card; their thresholds are
   choices, not results. Starting on time counts only sessions started with the timer,
   from logs written since 2026-10-21. Checked in Chromium only.

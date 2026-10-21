@@ -17,10 +17,10 @@
 </figure>
 {% endmacro %}
 
-{% macro line(c, values_text, label, legend) %}
+{% macro line(c, values_text, label, legend, ticks=None) %}
 <figure class="chart">
   <div class="chart-plot">
-    <div class="yaxis" aria-hidden="true"><span>100 %</span><span>50 %</span><span>0</span></div>
+    <div class="yaxis" aria-hidden="true">{% if ticks %}<span>{{ ticks[0] }}</span><span>{{ ticks[1] }}</span>{% else %}<span>100 %</span><span>50 %</span>{% endif %}<span>0</span></div>
     <svg viewBox="0 0 {{ c.w }} {{ c.h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}" focusable="false">
       {% for y in c.grid %}<line class="grid" x1="0" x2="{{ c.w }}" y1="{{ y }}" y2="{{ y }}"/>{% endfor %}
       {% if c.area %}<path class="wash" d="{{ c.area }}"/>{% endif %}

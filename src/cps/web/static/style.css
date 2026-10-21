@@ -2589,3 +2589,59 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .syllabus { margin: 6px 0 0; font-size: 0.9rem; }
 .syllabus ul { margin: 2px 0 0; padding-left: 1.2em; }
 .syllabus-add { margin: 6px 0 0; font-size: 0.85rem; }
+
+/* Your memory (D82): one teal ramp of four steps for how well a topic is held,
+   checked as an ordered scale against the light and the dark surface; the text on a
+   tile is ink or white, whichever reads at 4.5:1 or more on that step. */
+:root {
+  --mem-review: #62b8a6; --mem-fading: #2f9682; --mem-good: #18735f; --mem-strong: #0a4d42;
+  --mem-ink-review: #0b1f1b; --mem-ink-fading: #0b1f1b; --mem-ink-good: #ffffff; --mem-ink-strong: #ffffff;
+  --mem-line: #18735f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mem-review: #1f5c54; --mem-fading: #287a6d; --mem-good: #4fbfaa; --mem-strong: #a3e8d9;
+    --mem-ink-review: #ffffff; --mem-ink-fading: #ffffff; --mem-ink-good: #0b1f1b; --mem-ink-strong: #0b1f1b;
+    --mem-line: #4fbfaa;
+  }
+}
+:root[data-theme="dark"] {
+  --mem-review: #1f5c54; --mem-fading: #287a6d; --mem-good: #4fbfaa; --mem-strong: #a3e8d9;
+  --mem-ink-review: #ffffff; --mem-ink-fading: #ffffff; --mem-ink-good: #0b1f1b; --mem-ink-strong: #0b1f1b;
+  --mem-line: #4fbfaa;
+}
+.memory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+.memory-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.memory-hero { background-image: linear-gradient(155deg, color-mix(in srgb, var(--mem-good) 16%, transparent), transparent 62%); }
+.memory-hero, .memory-map { grid-column: 1 / -1; }
+.memory-value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 0; }
+.memory-value > span { color: var(--muted); font-weight: 600; }
+.memory-big { font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 3.2rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.memory-value > .memory-badge { align-self: center; background: var(--mem-strong); color: var(--mem-ink-strong); }
+.memory-says, .memory-kinds, .memory-hint, .memory-legend { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+.memory-kinds { font-weight: 600; }
+.memory-hint, .memory-legend { color: var(--muted); font-size: 0.82rem; }
+.memory-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0; font-weight: 600; font-size: 0.92rem; }
+.lvl-key { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+.memory-legend .lvl-key { margin-left: 10px; }
+.memory-legend .lvl-key:first-child { margin-left: 0; }
+.lvl-strong { background: var(--mem-strong); color: var(--mem-ink-strong); }
+.lvl-good { background: var(--mem-good); color: var(--mem-ink-good); }
+.lvl-fading { background: var(--mem-fading); color: var(--mem-ink-fading); }
+.lvl-review { background: var(--mem-review); color: var(--mem-ink-review); }
+.map-row { display: grid; grid-template-columns: minmax(100px, 170px) 1fr; gap: 10px; align-items: start; padding: 10px 0 0; border-top: 0.5px solid var(--line); }
+.map-course { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-weight: 600; font-size: 0.88rem; min-width: 0; }
+.map-course .dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--cc); }
+.map-tiles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.mtile { display: flex; flex-direction: column; min-width: 76px; padding: 6px 9px; border-radius: 11px; font-size: 0.72rem; line-height: 1.25; }
+.mtile b { font-size: 0.98rem; font-variant-numeric: tabular-nums; }
+.mtile.lvl-review { outline: 2px dashed var(--mem-ink-review); outline-offset: -4px; }
+.memory .chart .bar { fill: color-mix(in srgb, var(--mem-good) 34%, var(--surface)); }
+.memory .chart .now .bar { fill: var(--mem-good); }
+.memory .chart .col:hover .bar { fill: color-mix(in srgb, var(--mem-good) 60%, var(--surface)); }
+.memory .chart .trend { stroke: var(--mem-line); stroke-width: 2.5; }
+.memory .chart .wash { fill: var(--mem-line); fill-opacity: 0.16; }
+@media (max-width: 560px) {
+  .map-row { grid-template-columns: 1fr; gap: 6px; }
+  .mtile { min-width: 68px; }
+}
