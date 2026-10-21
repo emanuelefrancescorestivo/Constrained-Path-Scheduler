@@ -705,6 +705,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             groups=service.groups_view(store, subscription, now)["groups"],
             badges=service.badges_view(store, subscription, now, logged=logged),
             insights=service.insights_view(store, subscription, now) if subscription.plan else None,
+            memory=service.learning_view(store, subscription, now),
             saved=_notice(saved),
             tab="progress",
         )

@@ -64,6 +64,7 @@ from . import fitting
 from . import i18n as _i18n
 from . import inbox as _inbox
 from . import insights as _insights
+from . import learning as _learning
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
@@ -8339,10 +8340,7 @@ def _syllabus_of(s: SessionView, index: Mapping[tuple[str, str], list[str]]) -> 
     """The syllabus topics a session reviews, from the week of lectures it is about."""
     if not index or s.kind == "task" or not s.topic:
         return []
-    rest = s.topic.removeprefix(f"{s.subject} · ")
-    week = _WEEK_TOPIC.match(rest)
-    label = week.group(1) if week else ("before" if rest.startswith("taught before") else "")
-    return index.get((course_key(s.subject), label), []) if label else []
+    return _syllabus_of_name(s.topic, s.subject, index)
 
 
 def topics_nudge(store: str | os.PathLike, subscription: Subscription) -> dict | None:
@@ -8352,3 +8350,142 @@ def topics_nudge(store: str | os.PathLike, subscription: Subscription) -> dict |
         if not course["count"] and course["offers"]:
             return {"index": course["index"], "course": course["course"]}
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Your memory: strength, the map of topics, memory days added, recall reps (D82)
+# --------------------------------------------------------------------------- #
+
+
+def _memory_timeline(
+    plan: PlanReport, model: Model, ends: Sequence[float]
+) -> tuple[list[list[float]], list[tuple[float, float]], dict[str, tuple[MemoryState, float]]]:
+    """One pass over the plan's history, as `_replay` makes it: the stabilities of
+    the topics taught by each day of `ends`, each review's day and the stability it
+    added, and every topic's state after the last review before the last of `ends`."""
+    state = {
+        s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
+    }
+    taught = {s["name"]: s.get("available_day", 0.0) for s in plan.specs}
+    snapshots: list[list[float]] = []
+    gains: list[tuple[float, float]] = []
+    reviews = sorted(
+        (x for x in plan.history if x.outcome not in _NO_MEMORY and x.title in state),
+        key=lambda x: x.start_day,
+    )
+    i = 0
+    for end in ends:
+        while i < len(reviews) and reviews[i].start_day <= end:
+            session = reviews[i]
+            memory, last = state[session.title]
+            after = model.review(memory, session.start_day - last, _grade(session))
+            gains.append((session.start_day, after.stability - memory.stability))
+            state[session.title] = (after, session.start_day)
+            i += 1
+        snapshots.append([m.stability for name, (m, _) in state.items() if taught[name] <= end])
+    return snapshots, gains, state
+
+
+def learning_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """Your memory on Progress (D82): the median strength of the taught topics and
+    its weeks, today's map of every topic in four levels, the memory days the
+    weeks' reviews added and the weeks' recall reps. None before there is a plan
+    with a taught topic."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    model = model_of(plan.settings)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    start = plan.settings.start
+    today = _days_after(start, local)
+    mondays = _trends.mondays(start, local.date(), _learning.WEEKS)
+    ends = [
+        min(_days_after(start, datetime.combine(m + timedelta(days=7), time(0, 0), tzinfo=zone)), today)
+        for m in mondays
+    ]
+    snapshots, gains, state = _memory_timeline(plan, model, ends)
+    taught = [s for s in plan.specs if s.get("available_day", 0.0) <= today]
+    if not taught:
+        return None
+    syllabus = _syllabus_index(subscription)
+    topics = []
+    for spec in taught:
+        memory, last = state[spec["name"]]
+        topics.append(
+            _learning.Topic(
+                course=spec.get("subject", spec["name"]),
+                name=spec["name"],
+                recall=model.retrievability(max(today - last, 0.0), memory.stability),
+                stability=memory.stability,
+            )
+        )
+    series = [_learning.strength(s) for s in snapshots]
+    added = _learning.by_week([(start + timedelta(days=day), gain) for day, gain in gains], mondays)
+    reps = [
+        _learning.Rep(s.start.date(), "self-test" if s.kind in _learning.SELF_TESTS else "exercise")
+        for s in progress_sessions(subscription)
+        if s.confirmed and s.kind in (*_learning.SELF_TESTS, *_learning.PRACTICE) and s.start <= local
+    ]
+    reps += _card_reps(store, subscription, mondays, zone)
+    weekly_reps = _learning.reps_by_week(reps, mondays)
+    labels = [format_date(m, "day_short") for m in mondays]
+    current = [i == len(mondays) - 1 for i in range(len(mondays))]
+    tiles = _learning.topic_map(topics)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    for course in tiles["courses"]:
+        course["color"] = colours.get(course["course"].casefold())
+        for t in course["topics"]:
+            t["label"] = _topic_label(t["name"], course["course"])
+            t["syllabus"] = _syllabus_of_name(t["name"], course["course"], syllabus)
+    now_strength = _learning.strength([t.stability for t in topics]) or 0.0
+    first = next((v for v in series if v is not None), None)
+    return {
+        "strength": round(now_strength),
+        "milestone": _learning.milestone(now_strength),
+        # The first week's strength, when the weeks shown have grown it.
+        "first": format_number(round(first, 1)) if first is not None and now_strength > first else None,
+        "growth": _learning.growth(series),
+        "series": [round(v, 1) if v is not None else None for v in series],
+        "added": [round(v) for v in added],
+        "added_week": round(added[-1]) if added else 0,
+        "reps": weekly_reps,
+        "reps_week": weekly_reps[-1],
+        "labels": labels,
+        "current": current,
+        "mondays": [m.isoformat() for m in mondays],
+        "map": tiles,
+        "topics": len(topics),
+    }
+
+
+def _card_reps(
+    store: str | os.PathLike, subscription: Subscription, mondays: Sequence[date], zone: ZoneInfo
+) -> list[_learning.Rep]:
+    """A rep for each flashcard answered in the weeks shown, on its week's Monday."""
+    out = []
+    where = _store(store)
+    for first in mondays:
+        begin = datetime.combine(first, time(0, 0), tzinfo=zone)
+        count = flashcards.reviews_since(where, subscription.token, begin) - flashcards.reviews_since(
+            where, subscription.token, begin + timedelta(days=7)
+        )
+        out += [_learning.Rep(first, "card")] * count
+    return out
+
+
+def _topic_label(name: str, course: str) -> str:
+    """A topic as a tile names it: "week of 05 Oct", or the course itself."""
+    rest = name.removeprefix(f"{course} · ")
+    return rest if rest != name else course
+
+
+def _syllabus_of_name(name: str, course: str, index: Mapping[tuple[str, str], list[str]]) -> list[str]:
+    """The syllabus topics of a plan topic, from the week of lectures it is about."""
+    rest = name.removeprefix(f"{course} · ")
+    week = _WEEK_TOPIC.match(rest)
+    label = week.group(1) if week else ("before" if rest.startswith("taught before") else "")
+    return index.get((course_key(course), label), []) if label else []

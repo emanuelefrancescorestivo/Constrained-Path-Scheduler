@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Your memory, at the top of Progress (D82): how long your topics hold (the median
+  days at 90 % recall) and its line over eight weeks, today's map of every topic in
+  four colours, the memory days your reviews added each week, and your recall reps.
+  They grow with spaced recall and nothing else; milestones are celebrated once.
 - A course's topics (D81): paste the program once ("Week 3: Eigenvalues", in seven
   languages' words), check it, save it; each session then says what that week's
   lectures were about. Share the list with classmates at your university, without
