@@ -2589,3 +2589,58 @@ a pointer hand over empty time (it says "link", not "place").
 the month drawn, the next month, Today, a day opened in the Day view, no script
 errors; the ring sampled once a second for 40 seconds, within the second of the
 digits.
+
+## D80. Insights: what a student's own data says, unlocked with use, and a pace that never asks for more
+
+*The owner, 2026-10-21: "let's build the analytics first, and again the key here is
+to get the user hooked, nearly addicted, because we do it for the right cause:
+encouraging students and motivating them to study efficiently and avoid burnout".*
+
+**Chosen.** The first four measures of ANALYTICS.md §6, which need no new data,
+and a pace check, as cards on Progress ("Your insights") and one line on Today
+(`cps/insights.py`, pure functions; `service.insights_view` gathers and words them).
+
+- *Starting on time*: of the planned sessions started with the focus timer, the share
+  begun at most 10 minutes after their planned start (early counts), and by how much
+  the late ones were late (the median). The timer's start is now kept with the
+  session's log (`started`), so it counts from logs written from 2026-10-21 on.
+- *Focus*: of the time the timer ran, the share on the page (D17), week by week; the
+  longest session without leaving the page.
+- *When you remember best*: self-tests' answers by part of the day; a best part is
+  named only when two parts have at least 3 answers each and differ by 15 points of
+  100 or more.
+- *Your memory against the forecast*: how often the self-tests found something
+  remembered (any answer but "nothing", as FSRS and the pilot's calibration count it,
+  D55) against how often the plan predicted, rounded to 5 points (D24). Comparing
+  the answers' own scale (nothing to all) with the forecast was tried first and
+  rejected: it is not a probability, and it put the demo's student far further
+  below the forecast than their answers were.
+- *Your pace*: hours this week against the student's own limit and the mean of their
+  last four weeks, and days of study in a row. Ten days in a row suggest a day off,
+  with a link to the week's settings; over the limit, or 1.3 times the usual weeks and
+  at least 2 hours more, says so and suggests a free evening. It never asks for more:
+  below the usual weeks, it only states the hours.
+
+What keeps a student coming back, in that spirit: each card *unlocks with use* and
+says how many more sessions or self-tests it needs ("Answer 6 more self-tests to see
+this"), with a bar filling; a card just unlocked shows "New" for two days, and becomes
+Today's line; a longest session is celebrated once (the confetti of D30) when it is
+set this week, beats an earlier best and lasts at least 20 minutes; a small line shows
+each measure over eight weeks, with its direction. On Today, the pace comes first
+when it warns, then a record, then a card just unlocked; otherwise nothing, so the
+line stays worth reading. Every threshold here (3, 6, 5 answers; 10 minutes; 15
+points; 1.3 times; 10 days; 20 minutes) is a stated choice, not a result.
+
+**Rejected.** Rankings or comparisons with other students (D16); one combined score
+(ANALYTICS.md §2); a pace that asks for more hours when a week is light (the plan
+already holds the work; a light week may be a rest the student needs); a best time of
+day from fewer than 3 answers a part; insights about sleep, screen time or place
+(not recorded, and asking is surveillance).
+
+**Disclosed.** Small numbers: a share of 3 sessions moves in thirds, and the cards say
+how many they rest on. Time away is time off the page, not proof of distraction. The
+forecast uses population weights, so a gap is a hint about the model as much as about
+the student. Starting on time sees only sessions started with the timer. Checked in
+Chromium only, at 1280 px in light and dark and at 390 px, on the demo's student
+(`cps demo`): the pace, two locked cards, no clear best time (52 % against 46 %), and
+the forecast 10 points below.

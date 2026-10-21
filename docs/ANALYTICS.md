@@ -184,7 +184,8 @@ with a shared weekly goal (D28) and flashcards (D29).
 
 *The owner: "what other measurable analytics can we add for a student?"* Only what the
 app can measure from what it already records, or with one small addition, and only
-what a student can act on (§1, §2). Nothing below is built; the owner picks.
+what a student can act on (§1, §2). The first four are built (2026-10-21, D80: "Your
+insights" on Progress, with a pace check against burnout); the rest are proposals.
 
 | Measure | What it tells the student | From | Limits, said on the page |
 |---|---|---|---|

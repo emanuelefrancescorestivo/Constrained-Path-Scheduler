@@ -33,6 +33,14 @@
   </div>
 </div>
 
+{% if insights %}
+{% from "_insights.html" import insight %}
+<div class="section" id="insights" data-tour="progress-insights">
+  <div class="section-title"><h2>{{ _("Your insights") }}</h2></div>
+  <div class="insights">{% for c in insights.cards %}{{ insight(c) }}{% endfor %}</div>
+</div>
+{% endif %}
+
 {% if trend %}
 {% from "_charts.html" import columns %}
 <div class="section" data-tour="progress-trend">

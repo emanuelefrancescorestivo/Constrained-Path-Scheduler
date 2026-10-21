@@ -2544,3 +2544,31 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
   .m-ev.m-exam { background: var(--danger); }
   .m-more { display: none; }
 }
+
+/* The insights (D80): cards in a grid, the pace first; a locked one quieter, with how
+   far it is from showing; the pace's card warm when a day off is due or the week is
+   above the limit. */
+.insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.insight { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.insight header { display: flex; align-items: center; gap: 8px; }
+.insight h3 { margin: 0; font-size: 0.95rem; font-weight: 650; }
+.insight-value { margin: 2px 0 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.insight-value b { font-family: var(--font-display); font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
+.insight-value span { color: var(--muted); font-size: 0.85rem; }
+.insight-says { margin: 0; font-size: 0.92rem; line-height: 1.4; }
+.insight-record { margin: 0; font-weight: 650; color: var(--accent-ink); }
+.insight-rows-caption { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); }
+.insight-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 0.86rem; }
+.insight-rows li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; }
+.insight-rows small { color: var(--muted); }
+.insight-line { display: flex; align-items: center; gap: 10px; }
+.insight-line .spark { flex: 1; height: 28px; min-width: 0; }
+.insight-line small { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.insight-how { margin-top: auto; }
+.insight-how summary { margin: 4px 0 0; font-size: 0.8rem; font-weight: 550; }
+.insight-how p { margin: 4px 0 0; font-size: 0.82rem; color: var(--muted); }
+.insight.locked h3 { color: var(--muted); }
+.insight.locked .insight-says { color: var(--muted); }
+.insight.pace-rest, .insight.pace-above, .insight-today.pace-rest, .insight-today.pace-above {
+  box-shadow: inset 3px 0 0 #ff9f0a;
+}

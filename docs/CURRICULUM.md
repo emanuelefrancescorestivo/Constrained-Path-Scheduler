@@ -69,16 +69,103 @@ contents. It is read into **topics, each with its week, its weight and its kind*
 with "week 5: eigenvalues and diagonalisation", so the session card, the calendar and
 the focus page say *what* to study.
 
-- **Reading it.** With AI on (D12), the model extracts the topics and the student
-  checks the list before it is used; with AI off, the student edits the list by
-  hand (one line a topic). A PDF needs a text extractor, a new dependency
-  (`pypdf` or similar), which is the owner's to approve.
+- **Reading it.** The cheapest ways first, the model last, and a course's topics
+  read once for the whole class: see §3a.
 - **What to focus on.** The plan already weighs a topic by the exam's weight, the
   time left and the predicted recall (D24, D46). A topic's own weight in the
   syllabus (hours, or "important for the exam") joins those.
 - **What is kept.** The topics, not the file: the PDF is read and dropped. A syllabus
   may be under the university's copyright, so it never enters the notes library
   (D26) unless the student says they may share it.
+
+### 3a. Reading a syllabus: the lighter ways first, the model last
+
+*The owner, 2026-10-21: "explore how to implement AI features such as syllabus
+reading, or if there could be more smart and less consuming ways to achieve the same
+result without burdening the user too much".*
+
+**The idea that saves the most is not technical: a course's topics belong to the
+course, not to the student.** The students of "Linear Algebra" at one university
+usually follow one syllabus (where groups have different teachers and programs, the
+student picks the group's list, or adds their own). So the topics are read once, by the first student who
+adds them, and offered to every classmate with one tap ("Topics for Linear Algebra,
+added by a classmate: use them?"), matched the way classmates already are (the same
+university and the same course name, D39). Each student can still change their own
+copy. The work, and any model's cost, is paid once per course and semester, not once
+per student. Who added the topics is not shown unless they choose to be.
+
+Then, for that first student, the ways to get the topics, from the least effort and
+cost to the most:
+
+| Way | What the student does | Model cost | Works when | Fails when |
+|---|---|---|---|---|
+| A. A classmate's topics | one tap | none | someone in the course already added them | the first student of a course |
+| B. Already in the calendar | nothing | none | the timetable or the platform's calendar names the topic ("Algebra – L5: eigenvalues") | the title names only the course |
+| C. Paste the course's contents | copy the course page's program, paste, check | none | numbered lines, "Week 3:", "Lecture 5 –", "Settimana", "Semaine", dates | a table pasted as one line, prose |
+| D. A few words after class | after each lecture, two or three words, or a tap on a suggestion | none | always; the list grows as the course goes | it asks something every week |
+| E. Read it for me | upload the PDF, check the list | cents (below) | PDFs, tables, prose, any language | AI off, the cap reached: back to C |
+
+- **B is free but unknown.** The timetable reader keeps the first field of each
+  event's title, the course (`calendar_io.course_of`), and drops the rest and the
+  event's description. Whether real exports carry topics there has not been
+  checked: the only real timetable here is the owner's and is not in the
+  repository. The pilot's students can say in a minute; keeping the rest of the
+  title costs a few lines and a case in `tests/test_generality.py`.
+- **C needs no new dependency.** Rules split a pasted text into topics (one a line,
+  numbering and bullets removed, a week taken from "Week n", "Semaine n",
+  "Settimana n", "Lecture n" or a date). A list without weeks is spread over the
+  course's teaching weeks in the timetable, in order, longer weeks taking more
+  (D50). Reading a PDF without the model would need a text extractor, a new
+  dependency for the owner to approve; pasting avoids it.
+- **D doubles as a habit, not as proof of learning.** A question right after the
+  lecture ("Algebra: what was today about?") fits the moment the app already knows
+  (the warm-up before lectures, D51). Recalling soon after studying is retrieval
+  practice, rated of high utility in [ref:dunlosky2013]; whether naming a lecture in
+  three words is enough to help memory is not known, so the app would not say so.
+  One classmate's answer could fill the lecture for the others, as in A.
+- **E: the model reads the PDF itself.** The Claude API takes a PDF as it is,
+  reading each page as text and as an image, up to 600 pages and 32 MB a request
+  (Anthropic's PDF support page, read 2026-10-21), so no PDF library is needed on
+  the server for this route. The app already has the rest (D12): one small
+  interface, an answer held to a JSON schema, a monthly cap counted before each
+  call, and rules when the model is off or wrong. The answer would be checked like
+  the coach's (D65): weeks inside the course's weeks, titles of a sensible length, at
+  most about forty topics; and the student sees the list before the plan uses it.
+
+**What E would cost**, from Anthropic's documented token counts and the prices the
+app keeps (`python benchmarks/syllabus_cost.py`; nothing was called, and the answer's
+cap is billed in full, as the app counts it against the monthly cap):
+
+| Model | 10 pages, pasted text | 10 pages, PDF (at most) | 6 courses of a class, PDF, at most |
+|---|---|---|---|
+| `claude-opus-5-5` (the app's default) | $0.15 to $0.21 | $0.40 | $2.40 |
+| `claude-sonnet-5-5` | $0.07 to $0.10 | $0.20 | $1.20 |
+| `claude-haiku-5-5` | under $0.01 | $0.01 | $0.06 |
+
+At the default monthly cap of $10, that is at least 25 ten-page PDFs a month with
+the default model, more than a pilot class's syllabi when each is read once for the
+class. The model is the owner's setting (`CPS_AI_MODEL`); which one reads syllabi
+well enough has not been measured. That needs a handful of real syllabi (with their
+authors' permission) and the topic lists students corrected: the corrections are
+the measure.
+
+**Considered and not proposed:**
+
+- *Halving the cost with the Batch API.* Half price, but the answer comes back later
+  while the student waits for their topics; at a few cents a course it is not worth
+  the wait or the code.
+- *Prompt caching.* The only large part of the request, the syllabus, is read once;
+  the instructions are small. Nothing to reuse.
+- *A photo of a printed page.* The same model route (an image instead of a PDF), but
+  with blur and cut lines; worth adding only if students ask for it.
+- *Reading the course's web page from its address.* Every university's site is
+  different (§2), and the app would fetch pages on the student's behalf; pasting
+  the text is one step for the student and none for the server.
+
+**Recommended order:** A and C first (no model, no dependency, a few days), with B if
+the pilot's timetables carry topics; E next, behind the AI switch, for what the rules
+cannot read; D only if students find the paste too much. The owner decides whether E
+is on, its model, and the opt-in wording for sharing topics with classmates.
 
 ### 4. How to study each topic (small to medium: about a week, after part 3)
 
@@ -154,7 +241,7 @@ the deadlines without any token.
 | Phase | Builds | Size | The owner's decision |
 |---|---|---|---|
 | 1 | lecture blocks in one tap; courses from classmates' timetables (k ≥ 3, opt-in); topics typed per course, shown on the session | about two weeks | the threshold *k*; the opt-in wording |
-| 2 | syllabus upload and reading; topic weights in the plan; a method per session | two to three weeks | a PDF reader dependency; AI on for this, and its monthly cap |
+| 2 | a course's topics shared with classmates; pasted contents read by rules; PDFs read by the model (§3a); topic weights in the plan; a method per session | two to three weeks | the opt-in wording for sharing topics; AI on for PDFs, its model and its monthly cap (no PDF library needed) |
 | 3 | one university's Moodle course pages, read with its agreement | depends on the university | which university; who writes to its Moodle team; a data protection review |
 
 ## Not promised
@@ -162,7 +249,8 @@ the deadlines without any token.
 - That every degree's courses can be found: catalogues differ, and the students' own
   timetables are the only source that grows everywhere.
 - That a syllabus is always read right: the student checks the topics before the plan
-  uses them.
+  uses them. No model has read a real syllabus here; the costs in §3a are computed
+  from documented token counts, not measured.
 - That the platform can be read without the university: on Canvas it cannot, and on
   Moodle a student's token is a key to their whole account.
 

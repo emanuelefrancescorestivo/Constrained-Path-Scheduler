@@ -241,6 +241,10 @@ def create_post(
             clean["goal"] = _scale(data["goal"], 1, 16 * 60, _("Minutes"))
         if data.get("sid"):
             clean["sid"] = str(data["sid"])[:32]
+        if data.get("started"):
+            # When the timer started (D80), for "starting on time": an instant, or nothing.
+            with contextlib.suppress(ValueError):
+                clean["started"] = datetime.fromisoformat(str(data["started"])).isoformat(timespec="seconds")
     elif kind == "notes":
         # A student's own notes, for the library (D26): a course and a title, a few
         # words about them, the pages as photos, and the student's word that they

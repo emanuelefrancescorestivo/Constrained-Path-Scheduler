@@ -1,0 +1,26 @@
+{# The insights (D80): the pace first, then four measures from the student's own data.
+   An insight with too little data yet says how many more it needs, with a bar; one
+   just unlocked says "New", and a record just set is celebrated once (motion.js,
+   data-celebrate). Each says how it is measured, folded. Works without scripts. #}
+{% from "_charts.html" import spark %}
+{% set trend_words = {"up": _("better than your weeks before"), "down": _("below your weeks before"), "steady": _("as in your weeks before")} %}
+{% macro insight(c) %}
+<article class="card insight insight-{{ c.key }}{% if not c.unlocked %} locked{% endif %}{% if c.state %} pace-{{ c.state }}{% endif %}"{% if c.celebrate %} data-celebrate="{{ c.celebrate }}"{% elif c.new %} data-celebrate="insight-{{ c.key }}"{% endif %}>
+  <header>
+    <h3>{{ c.title }}</h3>
+    {% if c.new %}<span class="badge badge-accent">{{ _("New") }}</span>{% endif %}
+  </header>
+  {% if c.unlocked %}
+  {% if c.value %}<p class="insight-value"><b>{{ c.value }}</b>{% if c.caption %} <span>{{ c.caption }}</span>{% endif %}</p>{% endif %}
+  {% if c.record %}<p class="insight-record">{{ c.record }}</p>{% endif %}
+  {% if c.says %}<p class="insight-says">{{ c.says }}</p>{% endif %}
+  {% if c.rows %}<p class="insight-rows-caption">{{ c.rows_caption }}</p><ul class="insight-rows">{% for r in c.rows %}<li><span>{{ r.part }}</span><b>{{ r.percent }} %</b><small>{{ _n("{n} self-test", "{n} self-tests", r.n) }}</small></li>{% endfor %}</ul>{% endif %}
+  {% if c.series %}<div class="insight-line">{{ spark(c.series, c.title) }}{% if c.trend %}<small>{{ trend_words[c.trend] }}</small>{% endif %}</div>{% endif %}
+  {% if c.link %}<p><a class="btn btn-tinted btn-sm" href="{{ c.link.href }}">{{ c.link.words }}</a></p>{% endif %}
+  {% else %}
+  <p class="insight-says">{{ c.says }}</p>
+  <div class="progress" role="progressbar" aria-valuenow="{{ c.percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ c.title }}"><span class="w{{ (c.percent // 10) * 10 }}"></span></div>
+  {% endif %}
+  <details class="insight-how"><summary>{{ _("How it is measured") }}</summary><p>{{ c.how }}</p></details>
+</article>
+{% endmacro %}

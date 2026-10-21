@@ -71,6 +71,12 @@
 {% endif %}
 {% endif %}
 
+{# One insight, when it matters today (D80): a day off due or a pace above the limit,
+   else an insight just unlocked or a record just set. #}
+{% if insight %}<a class="card link-card insight-today{% if insight.state %} pace-{{ insight.state }}{% endif %}" href="{{ insight.link.href if insight.link else '/p/' ~ token ~ '/progress#insights' }}">
+  <span class="tip-reason">{% if insight.record %}{{ _("New record") }}{% elif insight.new %}{{ _("New insight") }}{% else %}{{ insight.title }}{% endif %}</span>
+  <b>{% if insight.record %}{{ insight.record }}{% elif insight.new %}{{ insight.title }}: {{ insight.value }}{% else %}{{ insight.says }}{% endif %}</b>
+</a>{% endif %}
 {# A tip the day calls for (D63), in one line with the spark #}
 {% if tip and tip.reason %}{% include "_tip_card.html" %}{% endif %}
 

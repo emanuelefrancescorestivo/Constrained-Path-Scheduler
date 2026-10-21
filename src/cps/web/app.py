@@ -632,6 +632,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
             "tip": service.tip_of_the_day(subscription, now),
+            "insight": service.insights_view(store, subscription, now)["today"]
+            if subscription.plan
+            else None,
             "weekly_note": service.note_of_the_week(subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
@@ -700,6 +703,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
             groups=service.groups_view(store, subscription, now)["groups"],
             badges=service.badges_view(store, subscription, now, logged=logged),
+            insights=service.insights_view(store, subscription, now) if subscription.plan else None,
             saved=_notice(saved),
             tab="progress",
         )

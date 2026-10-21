@@ -6,6 +6,15 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Your insights, on Progress (D80): starting on time, focus, when you remember best,
+  and your memory against the forecast, each from your own sessions and self-tests,
+  unlocked as you use the app ("Answer 6 more self-tests to see this"), new ones
+  marked and brought to Today, a longest session celebrated once. Your pace, against
+  your own limit and usual weeks, suggests a day off after ten days in a row and
+  never asks for more.
+- Reading a syllabus, explored (docs/CURRICULUM.md §3a): a course's topics read once
+  and shared with classmates, pasted text read by rules, the model only for what
+  rules cannot read; its cost computed by `benchmarks/syllabus_cost.py`.
 - A Month view in the calendar (D79): six weeks, exams and tests first, then study
   sessions and classes; dots on a phone; a day opens in the Day view.
 - Spark's tour (D77): the first time a section is opened, Spark dims the page, lights
