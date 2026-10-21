@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{# The science behind the engine (D89): how a plan is made, the memory model under
+   it with its maths, and the research it rests on. Every number is computed by
+   service.science_view from the model the app runs; every study cited is a checked
+   entry of docs/REFERENCES.md. Charts are SVG drawn here, in the memory colours. #}
+{% block title %}{{ _("The science behind it") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set s = science %}
+{% if token %}<p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>{% else %}<p class="back"><a href="/">{{ _("Study plan") }}</a></p>{% endif %}
+<div class="page-title science-head">
+  <p class="kicker">{{ _("How it works") }}</p>
+  <h1>{{ _("The science behind it") }}</h1>
+  <p class="lede">{{ _("How the app decides when you study, the memory model under it, and the research it rests on. Every number on this page is computed by the app's own model as the page is drawn.") }}</p>
+</div>
+
+<div class="science-three">
+  <article class="card"><span class="sci-step">1</span><h3>{{ _("It predicts") }}</h3><p>{{ _("For every topic of every course, how likely you are to remember it today, and on exam day.") }}</p></article>
+  <article class="card"><span class="sci-step">2</span><h3>{{ _("It plans") }}</h3><p>{{ _("It fills your free time around your classes with short self-tests, at the moment each topic starts to fade.") }}</p></article>
+  <article class="card"><span class="sci-step">3</span><h3>{{ _("It learns") }}</h3><p>{{ _("One tap after each session, and the next plan starts from what really happened.") }}</p></article>
+</div>
+
+<section class="section science-block" id="forgetting">
+  <h2>{{ _("Memory fades, at its own pace") }}</h2>
+  <p>{{ _("Each topic has a stability: the number of days until your chance of recalling it falls to 90 %. A shaky topic fades in days, a solid one holds for weeks.") }}</p>
+  <figure class="card sci-figure">
+    <svg class="sci-chart" viewBox="-34 -8 350 134" role="img" aria-label="{{ _('Chance of recall over {days} days for topics with a stability of 2, 7 and 30 days', days=s.days) }}">
+      <line class="sci-grid" x1="0" y1="10" x2="300" y2="10"></line>
+      <line class="sci-grid" x1="0" y1="50" x2="300" y2="50"></line>
+      <line class="sci-axis" x1="0" y1="100" x2="300" y2="100"></line>
+      <text class="sci-tick" x="-6" y="13" text-anchor="end">90 %</text>
+      <text class="sci-tick" x="-6" y="53" text-anchor="end">50 %</text>
+      <text class="sci-tick" x="-6" y="103" text-anchor="end">0 %</text>
+      <text class="sci-tick" x="0" y="116">{{ _("today") }}</text>
+      <text class="sci-tick" x="150" y="116" text-anchor="middle">{{ _n("{n} day", "{n} days", 30) }}</text>
+      <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _n("{n} day", "{n} days", s.days) }}</text>
+      {% for c in s.curves %}<polyline class="sci-line lvl-{{ c.level }}" points="{{ c.points }}"></polyline>{% endfor %}
+    </svg>
+    <figcaption class="sci-key">{% for c in s.curves %}<span><i class="lvl-key lvl-{{ c.level }}"></i>{{ _("stability {n} days: {r} % after a month", n=c.stability, r=c.at_30) }}</span>{% endfor %}</figcaption>
+  </figure>
+  <p>{{ _("A topic with a stability of 7 days is at {a} % after a week, {b} % after two weeks and {c} % after a month.", a=s.week[7], b=s.week[14], c=s.week[30]) }}</p>
+  <div class="card sci-maths">
+    <p class="tile-label">{{ _("The maths") }}</p>
+    <p class="formula"><var>R</var>(<var>t</var>) = (1 + <var>f</var> · <var>t</var> ⁄ <var>S</var>)<sup>−<var>d</var></sup></p>
+    <p>{{ _h("<var>R</var> is the chance of recall, <var>t</var> the days since you last recalled the topic, <var>S</var> its stability. The decay <var>d</var> is {d}, and <var>f</var> is set so that <var>R</var> is exactly 90 % when <var>t</var> = <var>S</var>.", d=s.decay) }}</p>
+    <p class="hint">{{ _("This is FSRS-6, an open memory model, with its 21 weights at their published defaults. On a public benchmark of about 350 million reviews it predicts recall better than FSRS-4.5, the version this project began with (log loss 0.3460 against 0.3625; lower is better).") }}</p>
+  </div>
+</section>
+
+<section class="section science-block" id="spacing">
+  <h2>{{ _("Why the wait matters") }}</h2>
+  <p>{{ _("A successful recall makes a memory last longer, and how much depends on when it happens. Take a topic that holds {n} days:", n=s.spacing_from) }}</p>
+  <figure class="card sci-figure">
+    <svg class="sci-chart" viewBox="-34 -8 350 134" role="img" aria-label="{{ _('Stability after a successful recall, against the days waited since the last one') }}">
+      <line class="sci-axis" x1="0" y1="100" x2="300" y2="100"></line>
+      <text class="sci-tick" x="-6" y="13" text-anchor="end">{{ _("{n} d", n=s.spacing_top) }}</text>
+      <text class="sci-tick" x="-6" y="103" text-anchor="end">0</text>
+      <text class="sci-tick" x="0" y="116">{{ _("at once") }}</text>
+      <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _("after {n} days", n=30) }}</text>
+      <polyline class="sci-line sci-accent" points="{{ s.spacing_points }}"></polyline>
+      {% for m in s.spacing_marks %}<circle class="sci-dot" cx="{{ m.x }}" cy="{{ m.y }}" r="3.5"></circle>{% endfor %}
+    </svg>
+    <figcaption class="sci-key"><span>{{ _("Stability after the recall, in days, against the days waited") }}</span></figcaption>
+  </figure>
+  <ul class="card list sci-rows">
+    <li><span class="grow">{{ _("Recalled again at once") }}</span><b>{{ _("{n} days", n=s.spacing[0]) }}</b></li>
+    <li><span class="grow">{{ _("After {d} days, at {r} % recall", d=5, r=s.spacing_recall[5]) }}</span><b>{{ _("{n} days", n=s.spacing[5]) }}</b></li>
+    <li><span class="grow">{{ _("After {d} days, at {r} % recall", d=15, r=s.spacing_recall[15]) }}</span><b>{{ _("{n} days", n=s.spacing[15]) }}</b></li>
+    <li><span class="grow">{{ _("After {d} days, at {r} % recall", d=30, r=s.spacing_recall[30]) }}</span><b>{{ _("{n} days", n=s.spacing[30]) }}</b></li>
+  </ul>
+  <p>{{ _("Cramming a topic right after studying it adds almost nothing. The harder a recall that still succeeds, the more it adds; wait too long, though, and you may not recall it at all. So the app asks for a self-test when a topic's recall falls to {n} %.", n=s.target) }}</p>
+  <div class="card sci-maths">
+    <p class="tile-label">{{ _("The maths") }}</p>
+    <p class="formula"><var>S</var>′ = <var>S</var> · (1 + <var>a</var> · (11 − <var>D</var>) · <var>S</var><sup>−<var>b</var></sup> · (<var>e</var><sup><var>c</var>(1 − <var>R</var>)</sup> − 1))</p>
+    <p>{{ _h("After a successful recall the stability <var>S</var> grows. The gain is larger for an easier topic (lower difficulty <var>D</var>), smaller for one already solid (the <var>S</var><sup>−<var>b</var></sup>), and larger the lower your recall <var>R</var> was when you made it (the last term, which is zero at <var>R</var> = 100 %): that is the spacing effect, written as a formula.") }}</p>
+  </div>
+  <p class="sci-research">{{ _("The research: in 317 experiments, the gap between reviews that gave the best memory grew with how long the memory had to last (Cepeda and colleagues, 2006). In a study of more than 1,350 people, the best gap was about 20 to 40 % of the time to a test a week away, and 5 to 10 % of a year away (Cepeda and colleagues, 2008).") }}</p>
+</section>
+
+<section class="section science-block" id="testing">
+  <h2>{{ _("Testing beats rereading") }}</h2>
+  <p>{{ _("Every study session the app plans is a self-test: recall first, without your notes, then check what you missed. Flashcards work the same way.") }}</p>
+  <ul class="card list sci-rows sci-evidence">
+    <li><span class="sci-tag">{{ _("Review of studies") }}</span><span class="grow">{{ _("Of ten common study techniques, practice testing and spacing were the two rated of high utility; rereading and highlighting were rated low.") }} <small>Dunlosky {{ _("and colleagues") }}, 2013</small></span></li>
+    <li><span class="sci-tag">{{ _("Meta-analysis") }}</span><span class="grow">{{ _("Practice tests helped learning more than restudying did.") }} <small>Adesope {{ _("and colleagues") }}, 2017</small></span></li>
+    <li><span class="sci-tag">{{ _("Classrooms") }}</span><span class="grow">{{ _("Across 222 studies and 48,478 students, quizzing raised classroom achievement by a medium amount (g = 0.499).") }} <small>Yang {{ _("and colleagues") }}, 2021</small></span></li>
+    <li><span class="sci-tag">{{ _("Students") }}</span><span class="grow">{{ _("Left to themselves, most of 177 students surveyed reread their notes; relatively few practised recall.") }} <small>Karpicke {{ _("and colleagues") }}, 2009</small></span></li>
+    <li><span class="sci-tag">{{ _("Trial") }}</span><span class="grow">{{ _("Mixing kinds of problems instead of practising one kind at a time: 62 against 38 on a test 43 days later, in a trial with 787 pupils. Exam practice in the app takes turns between courses.") }} <small>Rohrer {{ _("and colleagues") }}, 2020</small></span></li>
+  </ul>
+</section>
+
+<section class="section science-block" id="engine">
+  <h2>{{ _("How your week is planned") }}</h2>
+  <p>{{ _("Your limits come first: your classes, your weekly hours, your days off, your sleep, sport and work. Then each free block goes to the first of these that needs it:") }}</p>
+  <ol class="card list sci-rules">
+    <li><span class="sci-step">1</span><span class="grow"><b>{{ _("A deadline getting close.") }}</b> {{ _("Earliest deadline first, which meets every deadline the calendar allows.") }}</span></li>
+    <li><span class="sci-step">2</span><span class="grow"><b>{{ _("Exam practice.") }}</b> {{ _("Past papers in the last days before each exam; exams in the same week take turns.") }}</span></li>
+    <li><span class="sci-step">3</span><span class="grow"><b>{{ _("The topic you are forgetting most.") }}</b> {{ _("A self-test once its recall falls to {n} %. Each week of lectures is its own topic, from the day it is taught.", n=s.target) }}</span></li>
+    <li><span class="sci-step">4</span><span class="grow"><b>{{ _("Working ahead") }}</b> {{ _("on the next task.") }}</span></li>
+    <li><span class="sci-step">5</span><span class="grow"><b>{{ _("Free time.") }}</b> {{ _("A plan that fills every hour is a plan nobody follows.") }}</span></li>
+  </ol>
+  <p>{{ _("A session you move stays where you put it, and the rest of the plan works around it. Each one-tap report replays the topic's memory with what really happened.") }}</p>
+  <div class="card sci-maths">
+    <p class="tile-label">{{ _("Checked against a search") }}</p>
+    <p>{{ _("Behind the rules sits a research planner: a search over every way of filling your free blocks (AO*, on an AND/OR graph), guided by a cost-to-reach-the-target computed by value iteration (as in SSP-MMC, Ye and colleagues, 2022), replanning after each session. On a simulated semester it saves about one session in twenty on its own measure, but it takes about half a minute where the rules take a hundredth of a second, and its reasons cannot be said in a sentence. So the app runs the rules, and the search stays as the reference that checks them.") }}</p>
+  </div>
+</section>
+
+<section class="section science-block" id="you">
+  <h2>{{ _("Fitted to you, slowly") }}</h2>
+  <ul class="card list sci-rows">
+    <li><span class="grow">{{ _("Your flashcards follow the average memory until you have given {n} answers on later days; then the model's weights are fitted to your own answers.", n=s.own_after) }}</span></li>
+    <li><span class="grow">{{ _("At most {n} new cards a day, and a card you forget comes back {m} minutes later.", n=s.new_per_day, m=s.again_minutes) }}</span></li>
+    <li><span class="grow">{{ _("A course's ECTS credits stand for {h} hours of work each, lectures included; the app compares them with your timetable and your plan.", h=s.credit_hours) }}</span></li>
+  </ul>
+</section>
+
+<section class="section science-block" id="limits">
+  <h2>{{ _("What we do not know yet") }}</h2>
+  <div class="card">
+    <p>{{ _("Every recall on this page is a model's estimate, with weights fitted on other people's reviews: it describes an average learner, not you. Whether the app raises grades has not been measured; that is what a pilot with students is for. The studies above measured study techniques, not this app.") }}</p>
+  </div>
+</section>
+
+<section class="section science-block" id="sources">
+  <h2>{{ _("Sources") }}</h2>
+  <ol class="card list sci-sources">
+    {% for src in s.sources %}<li><span class="grow"><a href="{{ src.url }}" rel="noopener noreferrer" target="_blank">{{ src.cite }}</a><br><small>{{ src.venue }} · {{ _("read at the source on {day}", day=src.checked.isoformat()) }}</small></span></li>{% endfor %}
+  </ol>
+  <p class="hint">{{ _("Each source was read at the source, not from a summary; what was checked in each is listed in the project's references.") }}</p>
+</section>
+{% endblock %}

@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- The science behind it (D89): a page on how the engine plans, the memory model with its
+  formulas and charts (computed by the app's own model), and the research it rests on,
+  each source checked. Tap the logo inside a plan, or follow the link at the bottom of
+  any page; it opens without a plan, for a teacher.
 - Courses, a section of its own (D88): each course week by week, marked done, this
   week or to come, with its syllabus topics, how often each week was reviewed, today's
   recall, its cards and its links; its assessment and workload; its deck, your notes
