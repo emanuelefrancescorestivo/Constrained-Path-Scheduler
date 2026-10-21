@@ -6,6 +6,8 @@
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
   {% if card.syllabus %}<div class="syllabus"><span class="muted">{{ _("In the syllabus:") }}</span><ul>{% for t in card.syllabus %}<li>{{ t }}</li>{% endfor %}</ul></div>
   {% elif show_why and not calm and token and card.course_index is not none %}<p class="syllabus-add"><a href="/p/{{ token }}/topics/{{ card.course_index }}">{{ _("Add this course's topics") }}</a></p>{% endif %}
+  {# A self-test of a week asks that week's own cards (D87). #}
+  {% if show_why and token and card.week and not card.reported %}<p class="syllabus-add"><a href="/p/{{ token }}/cards/review?course={{ card.title | urlencode }}&amp;week={{ card.week }}">{{ _("Your cards for this week") }}</a></p>{% endif %}
   {# On Today (calm, D73) the reasons fold under "Why now"; on the session's own page they show. #}
   {% if calm and show_why and (card.why or card.gain) %}<details class="why-now"><summary>{{ _("Why now") }}</summary>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}

@@ -1613,13 +1613,90 @@ def create_app(config: Config | None = None) -> FastAPI:
         "taken": "Your classmate's topics are now yours. Change them as you like.",
     }
 
-    @app.get("/p/{token}/topics", response_class=HTMLResponse)
-    def topics_list(request: Request, token: str) -> HTMLResponse:
+    @app.get("/p/{token}/topics")
+    def topics_list(request: Request, token: str) -> Response:
+        # The courses' topics live in the Courses section now (D88).
+        if load(token) is None:
+            return missing(request)
+        return RedirectResponse(f"/p/{token}/courses", 302)
+
+    # -- Courses: each course's weeks, workload, cards and materials (D86-D88) -------
+
+    COURSE_NOTICES = {
+        "credits": "Credits saved.",
+        "link": "Link added.",
+        "unlinked": "Link removed.",
+    }
+
+    @app.get("/p/{token}/courses", response_class=HTMLResponse)
+    def courses_list(request: Request, token: str) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        courses = service.topics_overview(store, subscription)
-        return page(request, "topics.html", token=token, courses=courses, tab="settings")
+        service.log_visit(store, token, config.clock())
+        courses = service.courses_view(store, subscription, config.clock())
+        return page(request, "courses.html", token=token, courses=courses, tab="courses")
+
+    def course_page(
+        request: Request, subscription: service.Subscription, index: int, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        try:
+            view = service.course_view(store, subscription, index, config.clock())
+        except service.ServiceError:
+            return missing(request)
+        return page(
+            request, "course.html", status, token=subscription.token, view=view, tab="courses", **extra
+        )
+
+    @app.get("/p/{token}/courses/{index}", response_class=HTMLResponse)
+    def course(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        notice = service.translate(COURSE_NOTICES[saved]) if saved in COURSE_NOTICES else None
+        return course_page(request, subscription, index, saved=notice)
+
+    async def course_change(
+        request: Request, token: str, index: int, change: Callable[..., service.Subscription], done: str
+    ) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        try:
+            service.update_subscription(store, token, lambda current: change(current, fields))
+        except service.ServiceError as error:
+            return course_page(request, subscription, index, 400, error=str(error), draft=fields)
+        return RedirectResponse(f"/p/{token}/courses/{index}?saved={done}#{done}", 303)
+
+    @app.post("/p/{token}/courses/{index}/credits")
+    async def course_credits(request: Request, token: str, index: int) -> Response:
+        return await course_change(
+            request,
+            token,
+            index,
+            lambda current, f: service.set_course_credits(current, index, f.get("credits", "")),
+            "credits",
+        )
+
+    @app.post("/p/{token}/courses/{index}/links")
+    async def course_link(request: Request, token: str, index: int) -> Response:
+        return await course_change(
+            request, token, index, lambda current, f: service.add_course_link(current, index, f), "link"
+        )
+
+    @app.post("/p/{token}/courses/{index}/links/{link_id}/delete")
+    async def course_unlink(request: Request, token: str, index: int, link_id: str) -> Response:
+        return await course_change(
+            request,
+            token,
+            index,
+            lambda current, f: service.remove_course_link(current, index, link_id[:20]),
+            "unlinked",
+        )
 
     def course_topics_page(
         request: Request,
@@ -1634,7 +1711,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError:
             return missing(request)
         token = subscription.token
-        return page(request, "course_topics.html", status, token=token, view=view, tab="settings", **extra)
+        return page(request, "course_topics.html", status, token=token, view=view, tab="courses", **extra)
 
     @app.get("/p/{token}/topics/{index}", response_class=HTMLResponse)
     def course_topics(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:
@@ -1730,11 +1807,19 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/cards/make", response_class=HTMLResponse)
-    def cards_make(request: Request, token: str, note: str = "") -> HTMLResponse:
+    def cards_make(
+        request: Request, token: str, note: str = "", course: str = "", week: str | None = None
+    ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return cards_make_page(request, subscription, note_id=note[:40])
+        return cards_make_page(
+            request,
+            subscription,
+            note_id=note[:40],
+            course=course[:80],
+            week=None if week is None else week[:10],
+        )
 
     @app.post("/p/{token}/cards/make", response_class=HTMLResponse)
     async def cards_make_post(request: Request, token: str) -> Response:
@@ -1758,6 +1843,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     [str(v) for v in form.getlist("back")],
                     [str(v) for v in form.getlist("pick")],
                     now=config.clock(),
+                    week=str(form.get("week") or "")[:10] or None,
                 )
             except service.ServiceError as error:
                 return cards_make_page(request, subscription, 400, text=text, course=course, error=str(error))
@@ -1770,14 +1856,17 @@ def create_app(config: Config | None = None) -> FastAPI:
             course=course,
             both=bool(form.get("both")),
             use_ai=action == "ai",
+            week=str(form.get("week") or "")[:10] if "week" in form else None,
         )
 
     @app.get("/p/{token}/cards/review", response_class=HTMLResponse)
-    def cards_review(request: Request, token: str, course: str = "") -> HTMLResponse:
+    def cards_review(request: Request, token: str, course: str = "", week: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        view = service.card_review_view(store, subscription, config.clock(), course=course[:80])
+        view = service.card_review_view(
+            store, subscription, config.clock(), course=course[:80], week=week[:10]
+        )
         return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="focus")
 
     @app.post("/p/{token}/cards/{card_id}/answer")
@@ -1789,8 +1878,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=3)
+        form = await request.form(max_files=0, max_fields=4)
         course = str(form.get("course") or "")[:80]
+        week = str(form.get("week") or "")[:10]
         try:
             service.answer_card(
                 store, subscription, card_id, str(form.get("grade") or ""), now=config.clock()
@@ -1799,7 +1889,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         # The student's own parameters, when a fit is due (D53): after the answer.
         background.add_task(service.refit_cards, store, subscription, config.clock())
-        return RedirectResponse(f"/p/{token}/cards/review?course={quote(course)}", 303)
+        practice = f"&week={quote(week)}" if week else ""  # a week's own cards (D87)
+        return RedirectResponse(f"/p/{token}/cards/review?course={quote(course)}{practice}", 303)
 
     @app.get("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
     def card_page(request: Request, token: str, card_id: str) -> HTMLResponse:

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Courses") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("Courses") }}</h1>
+  <p>{{ _("Each course week by week: what has been taught and reviewed, what is to come, and everything to study it with.") }}</p>
+</div>
+{% if courses %}
+<ul class="card list course-rows" data-tour="course-list">
+  {% for c in courses %}
+  <li>
+    <a class="grow course-row {% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}" href="/p/{{ token }}/courses/{{ c.index }}">
+      <span class="course-name"><span class="dot"></span><b>{{ c.course }}</b>{% if c.exam %}<small class="course-exam">{{ _("Exam {when}", when=c.exam.says) }}</small>{% endif %}</span>
+      {% if c.weeks %}
+      <span class="meter" role="img" aria-label="{{ _('{taught} of {weeks} weeks taught', taught=c.taught, weeks=c.weeks) }}"><span class="fill w{{ (c.percent // 10) * 10 }}"></span></span>
+      <small>{{ _("{taught} of {weeks} weeks taught", taught=c.taught, weeks=c.weeks) }}{% if c.taught %} · {{ _n("{n} reviewed", "{n} reviewed", c.reviewed) }}{% endif %}</small>
+      {% else %}
+      <small>{{ _("No lectures of this course in your timetable") }}</small>
+      {% endif %}
+      <small class="course-facts-line">{% if c.topics %}{{ _n("{n} topic", "{n} topics", c.topics) }}{% else %}{{ _("No topics yet") }}{% endif %}{% if c.cards %} · {{ _n("{n} card", "{n} cards", c.cards) }}{% if c.due %} · {{ _n("{n} to review", "{n} to review", c.due) }}{% endif %}{% endif %}{% if c.workload == "below" %} · {{ _("fewer hours than the credits suggest") }}{% endif %}</small>
+    </a>
+    <span class="chev" aria-hidden="true">›</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="card">{{ _("Your plan has no courses with an exam yet. Add them in Settings, then come back.") }}</p>
+{% endif %}
+{% endblock %}

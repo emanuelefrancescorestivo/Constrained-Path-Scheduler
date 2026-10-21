@@ -29,6 +29,11 @@
   <div class="card section">
     <label for="m-course">{{ _("Course") }}</label>
     <input id="m-course" name="course" required maxlength="80" list="m-courses" autocomplete="off" value="{{ view.course }}">
+    {% if view.weeks %}
+    <label for="m-week">{{ _("Week") }}</label>
+    <select id="m-week" name="week"><option value="">{{ _("The whole course") }}</option>{% for o in view.weeks %}<option value="{{ o.value }}"{% if view.week == o.value %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select>
+    <p class="hint">{{ _("Cards of a week come back in that week's self-tests too.") }}</p>
+    {% endif %}
     <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Add the cards ticked") }}</button></div>
   </div>
   {% else %}
@@ -42,6 +47,7 @@
   <label for="m-text" class="visually-hidden">{{ _("Your notes") }}</label>
   <textarea id="m-text" name="text" rows="12" maxlength="20000" placeholder="{{ _('Eigenvalue: a number λ such that Av = λv') }}&#10;{{ _('Q: What does the rank-nullity theorem say?') }}&#10;{{ _('A: rank + nullity = number of columns') }}">{{ view.text }}</textarea>
   <input type="hidden" name="course" value="{{ view.course }}">
+  {% if view.weeks %}<input type="hidden" name="week" value="{{ view.week }}">{% endif %}
   <label class="check check-long"><input type="checkbox" name="both" value="1"{% if view.both %} checked{% endif %}> {{ _("Also the other way round: the definition asks for the term") }}</label>
   <div class="form-actions">
     <button class="btn btn-primary" name="action" value="read">{{ _("Read my notes") }}</button>

@@ -893,3 +893,16 @@ beat that corrects the clock moves both together. Checked in Chromium: sampled o
 a second for 40 seconds across a beat, the ring stayed within the second shown by the
 digits. Under reduced motion the ring stays a still, full circle, as before. Status:
 fixed.
+
+**73. The lists of a course's topics, of cards found and of a group's notes ran to
+the card's edge.** Reported by the owner, 2026-10-21, with a screenshot of "Les
+thèmes de tes cours": the course names touched the card's left edge, the separators
+started in the wrong place, and the row under the pointer was underlined like a link.
+A grouped list that is itself the card (`ul.card list`) gets its margins and its
+link style from a rule per list (`.decks`, `.group-members`…); the lists added with
+D81, D84 and D85 had no such rule, so `.list`'s `padding: 0` won over `.card`'s.
+Found from the screenshot, then every `card list` in the templates was checked: five
+had no rule. Fixed with one rule for every list that is a card (its rows inside the
+card's margins, a row that leads somewhere drawn as text, its title tinted under the
+pointer), which the older per-list rules agree with. Checked in Chromium at 1280 px
+and 390 px, light and dark. Status: fixed.

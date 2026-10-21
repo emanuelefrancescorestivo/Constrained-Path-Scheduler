@@ -15,7 +15,7 @@
   {% for r in rows %}<li><span class="grow">{{ r.title }}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% else %}<small class="topic-when muted">{{ _("no week") }}</small>{% endif %}</li>{% endfor %}
 </ol>
 {% endmacro %}
-<p class="back"><a href="/p/{{ token }}/topics">{{ _("Your courses' topics") }}</a></p>
+<p class="back"><a href="/p/{{ token }}/courses/{{ view.index }}">{{ view.course }}</a></p>
 <h1>{{ view.course }}</h1>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}

@@ -277,6 +277,7 @@ _ADDED_COLUMNS = (
     ("profiles", "year", "TEXT NOT NULL DEFAULT ''"),
     ("profiles", "country", "TEXT NOT NULL DEFAULT ''"),
     ("study_groups", "invite", "TEXT"),
+    ("cards", "week", "TEXT"),  # the Monday of the week of lectures a card belongs to (D87)
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 

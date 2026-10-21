@@ -11,6 +11,10 @@
   <textarea id="e-front" name="front" rows="2" maxlength="300" required>{{ draft.front }}</textarea>
   <label for="e-back">{{ _("Answer") }}</label>
   <textarea id="e-back" name="back" rows="4" maxlength="600" required>{{ draft.back }}</textarea>
+  {% if card.weeks %}
+  <label for="e-week">{{ _("Week") }}</label>
+  <select id="e-week" name="week"><option value="">{{ _("The whole course") }}</option>{% for o in card.weeks %}<option value="{{ o.value }}"{% if (draft.week or '') == o.value %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select>
+  {% endif %}
   <p class="hint">{{ _("Changing the words keeps when the card comes back.") }}</p>
   <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
 </form>

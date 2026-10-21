@@ -275,9 +275,14 @@ def test_the_pages_read_save_and_show_topics(tmp_path):
         files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        assert f'href="/p/{token}/topics"' in web.get(f"/p/{token}/settings").text
-        overview = web.get(f"/p/{token}/topics").text
-        assert "Your courses&#39; topics" in overview and f"/p/{token}/topics/0" in overview
+        # The courses' topics are reached from the Courses section (D88): Settings
+        # leads there, the old address too, and each course's page to its topics.
+        assert f'href="/p/{token}/courses"' in web.get(f"/p/{token}/settings").text
+        moved = web.get(f"/p/{token}/topics", follow_redirects=False)
+        assert moved.status_code == 302 and moved.headers["location"] == f"/p/{token}/courses"
+        overview = web.get(f"/p/{token}/courses").text
+        assert f"/p/{token}/courses/0" in overview
+        assert f"/p/{token}/topics/0" in web.get(f"/p/{token}/courses/0").text
         page = web.get(f"/p/{token}/topics/0").text
         assert "Paste the program" in page and "add your university to your profile" in page
         text = "Week 1: Sets\nWeek 2: Maps"
