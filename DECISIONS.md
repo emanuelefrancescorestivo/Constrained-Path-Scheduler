@@ -2269,7 +2269,7 @@ follows the day and drifts slowly.*
 - *Clear glass.* Cards, the bars, the sheets and Spark's button are glass: a light
   fill, a blur of what is behind, a bright edge on top. On a phone the tab bar floats
   as a pill, with Spark in a round drop beside it. The calendar is glass too, but
-  nearly solid, as it is read closely.
+  nearly solid, as it is read closely. (Since D78: moderate glass, half as opaque.)
 - *The garden.* Line drawings in the margins grow with the streak
   (`service.garden_stage`): a seedling, then two leaves and a bud from 3 days, a
   vine from 7, a flower from 14. They sway a little. Decoration only: the streak's
@@ -2347,3 +2347,300 @@ Screen" was not tried. An installed icon stays as it was installed, even when th
 mode changes later. The server counts the day in the plan's time zone and the page in
 the device's, as the sky does, so a student abroad may see the icon change a few
 minutes after the page loads.
+
+## D75. The pilot on a server of its own, at Hetzner
+
+*The owner, 2026-10-19, after comparing hosts (Hetzner, Fly.io, Scaleway, Render,
+Railway): "ok let's find a better best hosting website even if it costs more, i am
+willing to pay more for a few months to get knowledge on how to develop an app",
+then "i dont have a domain but lets use the german one then".*
+
+**Chosen.** The pilot runs on a Hetzner Cloud server in Germany that the owner runs
+(steps in `docs/HETZNER.md`):
+
+- *One image* (`Dockerfile`): the app as its own user, the database in `/data`, a
+  health check. Built on the server, so an Intel or an Arm machine both work.
+- *Caddy in front* (`deploy/hetzner/compose.yaml`, `Caddyfile`): the only container
+  the internet reaches; it gets and renews the Let's Encrypt certificate, sends
+  HTTP on to HTTPS, compresses, sets HSTS, and keeps no access log (a plan's address
+  is its key). The app is reachable from Caddy only, which is why trusting the
+  forwarded headers (`--behind-proxy`) is safe there.
+- *The server set up at its first start* (`deploy/hetzner/cloud-init.yaml`): a user
+  `deploy` with the owner's key, no passwords, no root, a firewall open to SSH, HTTP
+  and HTTPS only, fail2ban, security updates every night with a restart at 04:30
+  when one needs it. A key line left unfilled keeps root's sign-in rather than
+  locking the owner out.
+- *Deploys from GitHub* (`.github/workflows/deploy.yml`, `deploy/hetzner/deploy.sh`):
+  after CI passes on a push to `main`, or by hand. GitHub's key may run the deploy
+  script and nothing else; the script builds, starts, and waits for /health, and
+  fails the run if the app does not answer. The workflow skips itself until the
+  repository has its settings.
+- *Backups*: the app's own daily copies in the data volume (seven days, as before)
+  and Hetzner's daily backups of the whole server (seven, stored apart).
+- *Checks in CI*: the image builds and answers /health; the compose file and the
+  Caddyfile are valid; `tests/test_deploy.py` keeps the settings, the port, the
+  volume and the safeguards in step with the app.
+
+**Why.** The owner wants to learn how an app runs, and a server of one's own is what
+every platform hides; the data stays with a European company; the cost is about the
+same as Render's. The files are ordinary Docker, so the pilot can move to Fly.io,
+Scaleway or another server without rewriting anything.
+
+**Rejected.** Render for the pilot (kept for the demo, and `render.yaml` kept as a
+second way); Fly.io and Scaleway (close seconds: Fly hides the server, Scaleway
+costs more for the same); images built by GitHub and pulled from a registry (one
+more account and a published image, for a build that takes minutes on the server);
+an updater that pulls new images by itself (a deploy should follow CI, not a timer);
+a managed database (SQLite on the volume is what the app is built for, D2).
+
+**Disclosed.** Checked here with Docker: the image (built in a copy of the Dockerfile
+that trusts this sandbox's network certificate; the committed one is unchanged),
+Caddy on `localhost` with its own certificate, HTTP sent on to HTTPS, the security
+headers, a plan made over HTTPS and still there after the containers were removed
+and started again, the app's copies made at start, no plan address in either log,
+`--wait` waiting for health. The cloud config was validated by Ubuntu 24.04's own
+cloud-init, and its user, key and clone steps were run in an Ubuntu container. The
+workflows pass actionlint. Not checked: a real Hetzner server, a Let's Encrypt
+certificate (it needs a real domain), the firewall, SSH rules and automatic updates
+(they need a running system), and the Deploy workflow (it needs the owner's
+settings). Prices and the console's wording come from third-party pages and are
+marked to be checked.
+
+## D76. The sky follows the sun where the plan lives; the icon takes its colours
+
+*The owner, 2026-10-19, with five screenshots of the demo: "ok the liquid glass is
+not everywhere, the header is black and the rest is liquid glass, the icon does not
+follow the theme, make sure the shades respect the day time (rn it's 16h30 so what
+colour should it be?)". The sky of D73 changed at fixed hours (evening from 18 all
+year), so at 16:30 it was still "afternoon", and in summer it turned to evening two
+hours before the sun set. The icon's colours (D74) were the sky's named moments,
+and one look served light and dark alike.*
+
+**Chosen.**
+
+- *The sun where the plan lives* (`cps.daylight`). The place is the plan's time
+  zone: the tz database gives each zone the coordinates of its main city
+  (`zone1970.tab` in the `tzdata` package, already a dependency); a zone without
+  one falls back to its UTC offset at latitude 45. The sun's height comes from
+  NOAA's general solar position equations. Folded into one number from 0 to 4: deep
+  night 0, sunrise 1, the day's highest sun 2, sunset 3, then dusk back to night;
+  daytime is measured against that day's highest sun, so a low winter noon is noon
+  too. Checked against a published table: for Paris on 19 October 2026,
+  generalblue.com gives sunrise 08:16 and sunset 18:54; the model gives 08:15 and
+  18:55 (`tests/test_daylight.py`).
+- *The sky's colours* (`cps.web.sky`). Twelve moments along those positions (deep
+  night, blue hour, dawn glow, sunrise, morning, day, the same day with the sun
+  lower, late afternoon, golden hour, sunset, dusk, late dusk), each a base and four
+  soft lights, in light and in dark, blended in 400 steps; no step moves a colour
+  channel by more than 12 of 255. A page links `/sky/<step>.css`, the same for
+  everyone and kept a day, and the calm-glass rules paint its variables. An open page
+  asks `/look/<token>` every five minutes and swaps the sheet and the icon; without a
+  script, the page keeps the sky of when it loaded; without the sheet, D73's four
+  skies of the hour are still in `style.css`.
+- *What 16:30 looks like*: in Paris on 19 October the sun is 20 degrees up
+  (step 236): the clear blue of the day with mint below. The light warms from 16:52,
+  the golden hour starts at 17:49, the sunset's rose and coral are at 18:54, violet
+  dusk at 19:30, indigo from 20:08, and night is complete at 20:41
+  (`tests/test_daylight.py` checks each time). The greeting still follows the clock
+  ("Good afternoon" until 18), as people say it.
+- *The icon in the sky's colours, light or dark.* The live icon's tile is the sky
+  at that step, pale in light mode and deep in dark mode; the days take the hues of
+  its four lights, made strong enough to read at the size of a tab; today keeps its
+  gold. It is served at `/icon/week-<day>-<step>-<mode>.svg`, where the mode is the
+  plan's appearance (D21): Light or Dark draws that one, Automatic carries both and
+  shows the one the device is in, as `icon.svg` does. The icons a phone installs
+  stay white and graphite (D74).
+- *Glass everywhere* (AUDIT 68): the top bar, the fields and the save bar are glass
+  on every page of a plan, in both modes.
+
+**Rejected.** The device's clock for the sky (D73's way: it knows the hour, not the
+sun, and a device abroad shows its own hour); the browser's location (a permission
+prompt, and the student's whereabouts sent to the server, for a colour); fixed hours
+for sunrise and sunset (wrong by hours in June and in December); the sun worked out
+by the page's script (logic in the front end, and a page without its script would
+have no sky); an hourly palette (steps a student would see jump).
+
+**Disclosed.** The sun is the zone's main city's: under Europe/Paris, a student in
+Brest sees Paris's sunset, about half an hour before their own (a test measures it);
+a zone without coordinates is placed at latitude 45. Checked in Chromium only: the
+plan page at 1280 px at nine moments of 19 October and at 390 px at four, in light
+and dark, the top bar's glass and the icon at each; not on a real phone. An open
+page follows the sun within five minutes. Since this decision, D73's "four soft
+colours of the part of the day" and D74's "colours of the sky of the hour" are the
+sun's, as above.
+
+## D77. Spark's tour: each section shown once, the first time it is opened
+
+*The owner, 2026-10-19, after setting up a plan on the demo: "i would like the user to
+receive a first tutorial by Spark when they first enter, or else it feels too
+overwhelming, a tutorial that guides u in each section and highlight where to click
+and to do what... like standard app tutorials".*
+
+**Chosen.**
+
+- *One short tour a section, on its first visit.* The calendar while setting up
+  ("week": the week itself, moving a session, blocking time, what comes next, the
+  last step), Today once set up (the next step, the week and the streak, reports,
+  the calendar, a new task, the other sections, Spark), then Tasks, Focus, Community
+  and Progress, two or three steps each. Seven steps at most: a long tour is skipped,
+  and each section explains itself when the student gets there.
+- *What a tour looks like.* The page dims, the part a step is about stays lit with a
+  bright edge, and Spark's bubble sits beside it: a title, one or two sentences on
+  what it is for and what to do, "2 of 5", Skip the tour, Back and Next (Got it at the
+  end). The light glides from one step to the next and follows the page as it
+  scrolls; the calendar scrolls to the session a step is about.
+- *Who decides what.* The server says which tour a page shows (`service.tour_for`:
+  its section's, not yet seen) and remembers the ones finished or skipped (the
+  plan's `tours_seen`, `POST /p/<token>/tour`). The page carries the steps, each
+  naming what it lights (`data-tour` marks in the templates), in the plan's
+  language. `tour.js` only lays them out: it passes over a step whose part is not on
+  screen (a phone has no top bar's links, a new plan nothing to report yet), and a
+  tour with nothing on screen stays unseen for a later visit (Focus while a timer
+  runs).
+- *Settings, Appearance: "Spark's tour, Show it again"*: every tour comes back,
+  Today's at once.
+- *Keyboard and assistive technology.* The bubble is a modal dialog; the rest of the
+  page is inert while it shows; Next has the focus, Tab stays on the bubble's
+  buttons, the arrows go back and forth, Escape skips. The step's words are
+  announced as they change. Under reduced motion nothing glides.
+
+**Rejected.** One long tour of every section at the first visit (the owner asked for
+less at once, not more); a video or a carousel of screenshots before the app opens
+(it shows a made-up plan, not the student's own, and is forgotten by the time it is
+needed); a tour library (a dependency for 200 lines of layout); tours that cannot be
+skipped; tips that come back by themselves after being skipped (Settings brings them
+back on request).
+
+**Disclosed.** Checked in Chromium only: every tour walked to its end at 1280 px
+(Today in light and dark, Tasks, Progress, the setup calendar) and at 390 px
+(Community in dark), each remembered after it ended and absent on the next visit,
+no script errors. Not checked with a screen reader or on a real phone. Without a
+script there is no tour; the pages are complete without it. The French and Italian
+were written here, not by native speakers.
+
+## D78. Moderate glass on the calendar, and an accent that follows the sky
+
+*The owner, 2026-10-19, with screenshots of the demo in Italian at 18:16: "if i put
+full screen the adapting background does not work; in the main page id like to try
+a moderate version of liquid glass for the calendar, and need to make those electric
+blue buttons that are like a shard in the eye, adapt together with the theme, in
+this image maybe they could be purple, or a stronger colour than their immediate
+background".*
+
+**Chosen.**
+
+- *The calendar, moderate glass.* D73 made it "glass, but nearly solid" (80% white,
+  84% graphite). Now half (50% white, 52% graphite) with a stronger blur, so the
+  sky's colour shows through the grid; the events keep their solid tints and read as
+  before. The strip of day names and the hours stay frosted at 86%, as sessions
+  scroll under them.
+- *An accent of the moment.* Buttons, links, what is chosen and the tab bar's
+  current tab took Apple's blue all day. Now each moment of the sky (D76) has a hue:
+  indigo at night, violet at dawn, a deeper blue by day, indigo in the late
+  afternoon, violet in the golden hour, purple at sunset, violet at dusk, never red
+  or orange (red is for exams and today). Its lightness is solved, not picked, and a
+  test checks all 400 steps in both modes. In light mode white text on a button
+  keeps 4.8:1 (WCAG asks 4.5, which Apple's #007aff does not reach, at 4.0), and so
+  does accent text on the sky. In dark mode a button keeps 3.3:1 with white text
+  (Apple's own dark blue has 3.65), and accent text is a lighter "ink" of the same
+  hue at 7.5:1 against the sky, so a blue link does not sink into a blue sky. It is
+  served in `/sky/<step>.css` with the sky.
+- *Full-screen focus keeps the sky* (AUDIT 71).
+
+**Rejected.** A fixed purple (the owner's example is one moment; at noon purple on a
+blue sky is as loud as blue was); the accent picked from the sky's own lights (at
+dusk they are pale, and the button would sink into its background, the opposite of
+the ask); dark text on light buttons in dark mode (no other button in the app works
+that way); the calendar as clear glass like the cards (its small text over a busy
+sky did not read).
+
+**Disclosed.** Checked in Chromium only, at 1600 px, light and dark, at 18:16 on 19
+October (Paris), and full screen in both modes. The hues are a choice of taste, the
+owner's to review; only the contrast is measured. The pages without a sky (the home
+page, the setup's first step) keep Apple's blue.
+
+## D79. A month in the calendar; the focus ring and the cursor
+
+*The owner, 2026-10-20: "we could allow a monthly calendar view"; "i also dont like
+the cursor when hovering on the calendar"; and, with a screenshot of the focus timer
+at 0:29:45 with its ring nearly closed, "maybe you can make it end the full circle
+when the minute ends?"*
+
+**Chosen.**
+
+- *Month*, beside Day, 3 Days and Week (not while drawing a week by hand, which is
+  about hours). Six weeks from the Monday on or before the month's first day, as
+  Apple's and Google's calendars show it. Each day lists what tells most first, exams
+  and tests, then study sessions, then classes, as many as fit (three on a computer)
+  and how many more; the student's own busy times, the same every week, stay in the
+  views with hours. On a phone the rows become coloured dots, as Apple's Calendar
+  does. Tapping a day opens it in the Day view, where sessions are moved; the arrows
+  go a month at a time. The calendar's data route now gives up to 42 days.
+- *The ordinary arrow* over empty time on the calendar, in place of the spreadsheet's
+  thick cross; sessions keep the grab hand.
+- *The focus ring closes as the minute turns* (AUDIT 72): drawn from the same clock as
+  the digits, every frame; the digits turn on the second.
+
+**Rejected.** A month with every class in it (a weekly timetable fills every cell the
+same way and hides the exams); dragging sessions in the month (no hours to drop on);
+a pointer hand over empty time (it says "link", not "place").
+
+**Disclosed.** Checked in Chromium only, at 1440 px in light and dark and at 390 px:
+the month drawn, the next month, Today, a day opened in the Day view, no script
+errors; the ring sampled once a second for 40 seconds, within the second of the
+digits.
+
+## D80. Insights: what a student's own data says, unlocked with use, and a pace that never asks for more
+
+*The owner, 2026-10-21: "let's build the analytics first, and again the key here is
+to get the user hooked, nearly addicted, because we do it for the right cause:
+encouraging students and motivating them to study efficiently and avoid burnout".*
+
+**Chosen.** The first four measures of ANALYTICS.md §6, which need no new data,
+and a pace check, as cards on Progress ("Your insights") and one line on Today
+(`cps/insights.py`, pure functions; `service.insights_view` gathers and words them).
+
+- *Starting on time*: of the planned sessions started with the focus timer, the share
+  begun at most 10 minutes after their planned start (early counts), and by how much
+  the late ones were late (the median). The timer's start is now kept with the
+  session's log (`started`), so it counts from logs written from 2026-10-21 on.
+- *Focus*: of the time the timer ran, the share on the page (D17), week by week; the
+  longest session without leaving the page.
+- *When you remember best*: self-tests' answers by part of the day; a best part is
+  named only when two parts have at least 3 answers each and differ by 15 points of
+  100 or more.
+- *Your memory against the forecast*: how often the self-tests found something
+  remembered (any answer but "nothing", as FSRS and the pilot's calibration count it,
+  D55) against how often the plan predicted, rounded to 5 points (D24). Comparing
+  the answers' own scale (nothing to all) with the forecast was tried first and
+  rejected: it is not a probability, and it put the demo's student far further
+  below the forecast than their answers were.
+- *Your pace*: hours this week against the student's own limit and the mean of their
+  last four weeks, and days of study in a row. Ten days in a row suggest a day off,
+  with a link to the week's settings; over the limit, or 1.3 times the usual weeks and
+  at least 2 hours more, says so and suggests a free evening. It never asks for more:
+  below the usual weeks, it only states the hours.
+
+What keeps a student coming back, in that spirit: each card *unlocks with use* and
+says how many more sessions or self-tests it needs ("Answer 6 more self-tests to see
+this"), with a bar filling; a card just unlocked shows "New" for two days, and becomes
+Today's line; a longest session is celebrated once (the confetti of D30) when it is
+set this week, beats an earlier best and lasts at least 20 minutes; a small line shows
+each measure over eight weeks, with its direction. On Today, the pace comes first
+when it warns, then a record, then a card just unlocked; otherwise nothing, so the
+line stays worth reading. Every threshold here (3, 6, 5 answers; 10 minutes; 15
+points; 1.3 times; 10 days; 20 minutes) is a stated choice, not a result.
+
+**Rejected.** Rankings or comparisons with other students (D16); one combined score
+(ANALYTICS.md §2); a pace that asks for more hours when a week is light (the plan
+already holds the work; a light week may be a rest the student needs); a best time of
+day from fewer than 3 answers a part; insights about sleep, screen time or place
+(not recorded, and asking is surveillance).
+
+**Disclosed.** Small numbers: a share of 3 sessions moves in thirds, and the cards say
+how many they rest on. Time away is time off the page, not proof of distraction. The
+forecast uses population weights, so a gap is a hint about the model as much as about
+the student. Starting on time sees only sessions started with the timer. Checked in
+Chromium only, at 1280 px in light and dark and at 390 px, on the demo's student
+(`cps demo`): the pace, two locked cards, no clear best time (52 % against 46 %), and
+the forecast 10 points below.

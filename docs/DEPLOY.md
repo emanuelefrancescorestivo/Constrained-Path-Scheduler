@@ -1,4 +1,8 @@
-# Deploying the pilot
+# Deploying the pilot on Render
+
+*The pilot now runs on a server of its own at Hetzner (DECISIONS.md D75; steps in
+`docs/HETZNER.md`). This page stays as a second way, and for the demo, which runs on
+Render's free plan.*
 
 *Checkpoint C1 of `docs/ROADMAP.md`. The owner does these steps: they create an
 account, accept terms and start paying, which this repository never does on anyone's

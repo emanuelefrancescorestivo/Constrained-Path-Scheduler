@@ -822,3 +822,74 @@ student's first request could have met it. The tests open the store once, on one
 thread. Fixed: one lock around opening, so one thread opens the file while the
 others wait; a test opens a fresh store from eight threads at once, five times.
 Status: fixed.
+
+**67. After an update, a returning visitor kept the old look.** Reported by the owner,
+2026-10-19: once calm glass (D73) was live on the demo, their laptop and phone still
+showed the old design, with the new page around it (the greeting of the hour was
+there, the glass was not). A fresh browser showed the new design. Two causes, each
+enough. The app's files went out with no caching rule, so a browser guessed how long
+its copy was good (a share of the time since the file last changed) and used it
+without asking; the service worker filled its new cache from those same copies at
+install, then showed its kept copy first and refreshed it only in the background. Reproduced in
+Chromium: a page kept by the worker, then the style sheet changed on the server, then
+one reload: the old one. The tests checked that the worker's files exist, not how
+they are refreshed. Fixed: the app's files go out with `Cache-Control: no-cache`
+(kept, but asked about each time; a 304 when unchanged), the worker fills its cache
+from the server (`cache: "reload"`), and answers with the server's copy when it
+arrives within three seconds, the kept copy otherwise and offline (`freshFirst`,
+worker v6). The same reload then shows the change, and offline still shows the last
+copy. A test checks the headers, the 304 and the worker. Status: fixed; a browser
+that already holds the old worker gets the new one on its next visit, and the look
+on the visit after.
+
+**68. On a phone in dark mode, the top bar was black over glass pages.** Reported by
+the owner, 2026-10-19, with screenshots of the demo: the top bar solid black, the
+cards glass, the fields and the save bar of Settings solid too. Cause: D37's
+scroll-linked top bar (`bar-solid`, driven by the page's scroll) gives the bar a
+solid fill, and an animation's value wins over the calm-glass rule (D73) whatever
+the selectors; the fields and the save bar had never been given glass. The tests
+read the templates, not what the browser paints. Fixed: on a plan's pages the bar's
+animation is off and the fields and the save bar are glass
+(`body[data-sky] .topbar`, `--glass-field`, `.sticky-actions`). Checked in Chromium:
+the top bar's computed background is the glass fill at nine moments of the day, in
+light and dark, at 1280 and 390 px. Status: fixed.
+
+**69. On a phone in French, two tab labels ran into each other.** Found while
+checking item 68 at 390 px: in the floating tab bar beside Spark (D73), a column is
+about 57 px and "Communauté" is 65 px at that size, so it touched "Progression". The
+check of D73 was in English, where every label fits. Fixed: in the floating bar the
+labels are a little smaller with a 2 px gap between columns, and below 340 px Spark
+waits above the bar instead of beside it. Measured in Chromium at 320, 344, 360, 390
+and 430 px: no label overlaps another and none leaves the bar. Status: fixed.
+
+**70. A band behind the save button, and thick grey scrollbars on Windows.** Reported
+by the owner, 2026-10-19, with a screenshot of the questions about the week in dark
+mode on the demo: a black band behind "Next: see your week". On main the band was the
+page's own colour, opaque; this branch's glass band (AUDIT 68) still showed as a box
+with hard edges where the form is short and the bar is not stuck. The same
+screenshots showed Windows' default scrollbar, grey with arrows, between Today's panel
+and the calendar. Fixed: on a plan's pages the save button floats on its own shadow
+with no band, and scrollbars are thin, in the app's grey (`scrollbar-width`,
+`scrollbar-color`, with zero specificity so the strips that hide theirs still do).
+Checked in Chromium at 970 and 390 px on the questions about the week and on Settings
+scrolled; Windows' own scrollbar not seen here. Status: fixed.
+
+**71. Full-screen focus lost the sky.** Reported by the owner, 2026-10-19, with a
+screenshot: in full screen the timer sat on flat grey. Full screen shows the focus
+section alone, and the sky is painted behind the page (`body::before`), which is not
+in it. Fixed: the section carries the same sky while it is full screen
+(`body[data-sky] .focus:fullscreen`). Checked in Chromium in light and dark; a test
+keeps the rule. Status: fixed.
+
+**72. The focus ring fell out of step with the clock.** Reported by the owner,
+2026-10-20, with a screenshot: at 0:29:45 the ring that goes round once a minute was
+nearly closed, where it should have been three quarters round. The ring was a CSS
+animation started when the page loaded; every heartbeat (every 30 seconds) set its
+delay again to the session's seconds, as if it had just started, so each beat pushed
+it further from the digits. Found by reading `focus.js` against the screenshot; no
+test runs the script. Fixed: the ring is drawn from the same clock as the digits on
+every frame, and the digits turn on the second rather than up to a second late; a
+beat that corrects the clock moves both together. Checked in Chromium: sampled once
+a second for 40 seconds across a beat, the ring stayed within the second shown by the
+digits. Under reduced motion the ring stays a still, full circle, as before. Status:
+fixed.

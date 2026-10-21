@@ -5,7 +5,7 @@
 {% set here = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") %}
 <div class="page-title title-row">
   <h1>{{ _("Community") }}</h1>
-  <div class="title-actions">
+  <div class="title-actions" data-tour="community-share">
     {% if view.profile %}
     <a class="btn btn-sm" href="/p/{{ token }}/people">{{ _("People") }}{% if view.requests %} <span class="count" aria-label="{{ _n('{n} request', '{n} requests', view.requests) }}">{{ view.requests }}</span>{% endif %}</a>
     <a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ _("Explain something") }}</a>
@@ -16,7 +16,7 @@
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 
 {% if not view.profile %}
-<section class="card join">
+<section class="card join" data-tour="community-join">
   <span class="join-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16.5" cy="8" r="2.6"/><path d="M2.5 19c.6-3.2 3-5 5.5-5s4.9 1.8 5.5 5M13.5 14.2c.9-.8 1.9-1.2 3-1.2 2.2 0 4.2 1.5 4.8 4.5"/></svg></span>
   <h2>{{ _("Study alongside students everywhere") }}</h2>
   <p>{{ _("See what students at other universities and in other programmes are working on, cheer them on, and explain what you study in words anyone can follow.") }}</p>

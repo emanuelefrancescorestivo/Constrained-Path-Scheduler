@@ -12,7 +12,7 @@
 
 {% set open_rows = view.rows | rejectattr("finished") | list %}
 {% set done_rows = view.rows | selectattr("finished") | list %}
-<div class="card">
+<div class="card" data-tour="task-list">
   {% if open_rows %}
   <ul class="tasks">
     {% for t in open_rows %}{% with back='tasks' %}{% include "_task.html" %}{% endwith %}{% endfor %}
@@ -20,7 +20,7 @@
   {% else %}
   <div class="empty"><b>{{ _("Nothing due") }}</b>{{ _("Add homework, a report or a project, and the plan finds time for it.") }}</div>
   {% endif %}
-  <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
+  <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add" data-tour="task-add">{{ _("New task") }}</button></p>
 </div>
 <p class="hint">{{ _h("Tick a task when it is finished: its remaining sessions become free time. Press <span class=\"kbd\">N</span> anywhere for a new task.") }}</p>
 

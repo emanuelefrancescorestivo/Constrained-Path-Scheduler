@@ -13,7 +13,7 @@
 <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a></p></div>
 {% else %}
 {% set w = view.week %}{% set st = view.streak %}
-<div class="pair">
+<div class="pair" data-tour="progress-week">
   <div class="card hero-ring"{% if w.planned and w.percent >= 100 %} data-celebrate="week-{{ w.first }}"{% endif %}>
     {{ ring(w.percent, "lg", _("{done} of {planned} sessions this week", done=w.done, planned=w.planned)) }}
     <div>
@@ -33,9 +33,17 @@
   </div>
 </div>
 
+{% if insights %}
+{% from "_insights.html" import insight %}
+<div class="section" id="insights" data-tour="progress-insights">
+  <div class="section-title"><h2>{{ _("Your insights") }}</h2></div>
+  <div class="insights">{% for c in insights.cards %}{{ insight(c) }}{% endfor %}</div>
+</div>
+{% endif %}
+
 {% if trend %}
 {% from "_charts.html" import columns %}
-<div class="section">
+<div class="section" data-tour="progress-trend">
   <div class="section-title"><h2>{{ _("Your trajectory") }}</h2><a href="/p/{{ token }}/trends">{{ _("See trends") }}</a></div>
   <a class="card trajectory link-card" href="/p/{{ token }}/trends">
     <div class="tile-stack"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value" data-count>{{ trend.tiles.hours.value | hours }} h</b></div>
@@ -99,7 +107,7 @@
 </div>
 {% endif %}
 
-<div class="section" id="badges">
+<div class="section" id="badges" data-tour="progress-badges">
   <div class="section-title"><h2>{{ _("Badges") }}</h2><small>{{ _("{n} of {total}", n=badges.earned, total=badges.total) }}</small></div>
   {% from "_badges.html" import shelf %}{{ shelf(badges) }}
   <p class="hint badges-note">{{ _("For habits that make study stick, never for hours or rankings.") }} {{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h {{ _("so far") }}.</p>

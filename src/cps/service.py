@@ -59,9 +59,11 @@ import numpy as np
 from . import accounts as _accounts
 from . import ai as _ai
 from . import cards as flashcards
+from . import daylight as _daylight
 from . import fitting
 from . import i18n as _i18n
 from . import inbox as _inbox
+from . import insights as _insights
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
@@ -1833,9 +1835,9 @@ def short_title(summary: str) -> str:
     return " · ".join(shown)
 
 
-# The most days the calendar draws at once: a week shown and a week each side,
-# for the strip that scrolls sideways (D68).
-CALENDAR_MOST_DAYS = 21
+# The most days the calendar draws at once: a month's six weeks (D79); the strip
+# that scrolls sideways asks for a week shown and a week each side (D68).
+CALENDAR_MOST_DAYS = 42
 
 
 def calendar_week_count(source: CalendarReport | PlanReport) -> int:
@@ -4776,6 +4778,55 @@ def motion_of(subscription: Subscription | None) -> str:
     return motion if motion in MOTIONS else "auto"
 
 
+# -- Spark's tour (D77) -------------------------------------------------------------------
+
+# One short tour a section, shown the first time the student opens it: "week" on the
+# calendar while setting up, "today" on the plan once set up, then each tab's own.
+TOURS = ("week", "today", "tasks", "focus", "community", "progress")
+_TOUR_OF_TAB = {
+    "today": "today",
+    "calendar": "today",
+    "tasks": "tasks",
+    "focus": "focus",
+    "community": "community",
+    "progress": "progress",
+}
+
+
+def tours_seen(subscription: Subscription) -> list[str]:
+    seen = subscription.options.get("tours_seen") or []
+    return [name for name in seen if name in TOURS]
+
+
+def tour_for(
+    subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
+) -> str | None:
+    """The tour a page shows, if any: its section's, the first time (D77). Drawing a
+    week by hand (`setup`) has its own instructions on the page and no tour; the
+    other pages of setting up have none either, except the calendar ("week")."""
+    if subscription is None or setup:
+        return None
+    calendar = tab in ("today", "calendar")
+    name = ("week" if calendar else None) if new else _TOUR_OF_TAB.get(tab or "")
+    return name if name and name not in tours_seen(subscription) else None
+
+
+def see_tour(subscription: Subscription, name: str) -> Subscription:
+    """A tour finished or skipped: it is not shown again (D77)."""
+    if name not in TOURS:
+        raise InvalidInput(_("There is no such tour."))
+    seen = tours_seen(subscription)
+    if name in seen:
+        return subscription
+    return replace(subscription, options={**subscription.options, "tours_seen": [*seen, name]})
+
+
+def reset_tours(subscription: Subscription) -> Subscription:
+    """Every tour shown again, each on its section's next visit (Settings, D77)."""
+    options = {k: v for k, v in subscription.options.items() if k != "tours_seen"}
+    return replace(subscription, options=options)
+
+
 # -- the sky and the garden behind a plan's pages (D73) ---------------------------------
 
 SKIES = ("morning", "afternoon", "evening", "night")
@@ -4802,19 +4853,28 @@ def garden_stage(streak: int) -> int:
 
 
 def look_of(store: str | os.PathLike, subscription: Subscription | None, now: datetime | None = None) -> dict:
-    """The sky and the garden behind a plan's pages (D73), and the day of the week
-    the app's icon shows (1 Monday ... 7 Sunday, D74): decoration only, worked out
-    each time from the hour in the plan's time zone and the streak as Today counts
-    it (D8, logged focus sessions included)."""
+    """The sky and the garden behind a plan's pages (D73), the day of the week the
+    app's icon shows (1 Monday ... 7 Sunday, D74), and where the sun is in the plan's
+    day (`daylight`, 0 to 4, D76): decoration only, worked out each time from the
+    plan's time zone and the streak as Today counts it (D8, logged focus sessions
+    included). `sky` names the part of the day by the clock (the greeting's);
+    `daylight` follows the real sun, which the colours are drawn from."""
     now = now or datetime.now(UTC)
     if subscription is None or subscription.plan is None:
-        return {"sky": sky_at(now.hour), "garden": 1, "weekday": now.isoweekday()}
+        sun = _daylight.day_position(*_daylight.place("UTC", now), now)
+        return {"sky": sky_at(now.hour), "garden": 1, "weekday": now.isoweekday(), "daylight": round(sun, 2)}
     plan = PlanReport.from_dict(subscription.plan)
     local = now.astimezone(_zone(plan.settings.tz))
+    sun = _daylight.day_position(*_daylight.place(plan.settings.tz, now), now)
     sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
     run = _progress.streak(sessions, first, local.date())
-    return {"sky": sky_at(local.hour), "garden": garden_stage(run.current), "weekday": local.isoweekday()}
+    return {
+        "sky": sky_at(local.hour),
+        "garden": garden_stage(run.current),
+        "weekday": local.isoweekday(),
+        "daylight": round(sun, 2),
+    }
 
 
 def set_motion(subscription: Subscription, motion: str) -> Subscription:
@@ -5140,6 +5200,8 @@ def log_session(
         "interruptions": draft["interruptions"] if timed else 0,
         "goal": draft.get("goal", 0) if timed else 0,
         "sid": draft.get("sid") or "",
+        # When the timer started, for "starting on time" (D80); kept from 2026-10-21.
+        "started": draft.get("started", "") if timed else "",
     }
     visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
     day = (
@@ -7250,6 +7312,251 @@ def trends_view(
         },
         "forecast": forecast(plan, now, shown) if plan else [],
     }
+
+
+# -- insights (DECISIONS.md D80) ----------------------------------------------------
+
+
+def _insight_inputs(
+    store: str | os.PathLike, subscription: Subscription, local: datetime
+) -> tuple[list[_insights.Start], list[_insights.Timed], list[_insights.SelfTest]]:
+    """What the insights are computed from: the diary's timed sessions (and, for those
+    started from the plan, the planned start), and the self-tests answered."""
+    zone = local.tzinfo
+    planned = {s.sid: s.start for s in progress_sessions(subscription) if s.sid}
+    starts, timed = [], []
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        d = post.data
+        if not d.get("timed") or not d.get("checked"):
+            continue
+        timed.append(
+            _insights.Timed(
+                day=date.fromisoformat(post.day),
+                minutes=int(d.get("minutes", 0)),
+                away=int(d.get("away_minutes", 0)),
+                interruptions=int(d.get("interruptions", 0)),
+            )
+        )
+        sid, started = str(d.get("sid") or ""), d.get("started")
+        if sid in planned and started:
+            starts.append(_insights.Start(planned[sid], datetime.fromisoformat(started).astimezone(zone)))
+    tests = []
+    if subscription.plan is not None:
+        for s in PlanReport.from_dict(subscription.plan).history:
+            if s.kind in _REVIEW_KINDS and s.grade in _insights.GRADE_SCORE:
+                tests.append(
+                    _insights.SelfTest(datetime.fromisoformat(s.start).astimezone(zone), s.recall, s.grade)
+                )
+    return starts, timed, tests
+
+
+def insights_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The Insights on Progress (D80): the pace first, then four measures, each in
+    plain words, its line over the weeks, and how it is measured; a measure without
+    enough data yet says how many more it needs. `today` is the one worth a line on
+    Today, if any: a day off due or a pace above the limit, else an insight just
+    unlocked or a record just set."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    local = now.astimezone(zone)
+    today = local.date()
+    starts, timed, tests = _insight_inputs(store, subscription, local)
+    mondays = [
+        _progress.monday(today) - timedelta(weeks=k) for k in range(_insights.SERIES_WEEKS - 1, -1, -1)
+    ]
+    sessions = progress_sessions(subscription)
+    work = _diary_work(store, subscription)
+    weeks = _trends.weekly(sessions, work, mondays, local)
+    logged = [_progress.Session(x.start, x.minutes, "logged", x.course, "done", x.sid) for x in work]
+    studied = {s.start.date() for s in _progress.merge_logged(sessions, logged) if s.confirmed}
+    prefs = {**DEFAULT_PREFERENCES, **subscription.options.get("preferences", {})}
+    pace = _insights.pace(weeks, prefs.get("weekly_hours"), _insights.days_in_a_row(studied, today))
+    measures = [
+        _insights.on_time(starts, mondays),
+        _insights.focus(timed, mondays, today),
+        _insights.recall_by_part(tests),
+        _insights.against_forecast(tests),
+    ]
+    # When each measure's data came: an insight unlocked in the last two days is new.
+    recent = today - timedelta(days=1)
+    came = {
+        "on_time": [x.started.date() for x in starts],
+        "focus": [x.day for x in timed],
+        "recall_time": [x.start.date() for x in tests],
+        "forecast": [x.start.date() for x in tests],
+    }
+    cards = [_pace_card(pace, subscription.token)]
+    for m in measures:
+        card = _insight_card(m)
+        if m["unlocked"]:
+            fresh = sum(d >= recent for d in came[m["key"]])
+            card["new"] = m["have"] - fresh < _insights.NEED[m["key"]]
+        cards.append(card)
+    first = None
+    if pace["state"] in ("rest", "above"):
+        first = cards[0]
+    else:
+        first = next((c for c in cards[1:] if c.get("record")), None) or next(
+            (c for c in cards[1:] if c.get("new")), None
+        )
+    return {"cards": cards, "today": first}
+
+
+def _pace_card(pace: dict, token: str) -> dict:
+    hours = format_number(round(pace["hours"], 1))
+    usual = format_number(round(pace["usual"], 1)) if pace["usual"] is not None else ""
+    card = {
+        "key": "pace",
+        "title": _("Your pace"),
+        "unlocked": True,
+        "value": _("{n} h", n=hours),
+        "caption": _("this week"),
+        "state": pace["state"],
+        "how": _(
+            "Hours done this week (sessions reported done and sessions logged) against your weekly limit and "
+            "the mean of your last four weeks, and days of study in a row. It never asks for more."
+        ),
+    }
+    if pace["state"] == "rest":
+        card["says"] = _n(
+            "{n} day of study in a row. Plan a day off: a day with nothing planned keeps your streak.",
+            "{n} days of study in a row. Plan a day off: a day with nothing planned keeps your streak.",
+            pace["in_a_row"],
+        )
+        card["link"] = {"href": f"/p/{token}/settings#your-week", "words": _("Plan a day off")}
+    elif pace["state"] == "above" and pace["limit"] and pace["hours"] > pace["limit"]:
+        card["says"] = _(
+            "Above your limit of {limit} h. Your plan keeps to it: the extra hours are yours to rest.",
+            limit=format_number(pace["limit"]),
+        )
+    elif pace["state"] == "above":
+        card["says"] = _("Well above your usual {usual} h. Keep an evening free this week.", usual=usual)
+    elif pace["state"] == "start":
+        card["says"] = _("Your usual pace shows after your first full week.")
+    elif pace["hours"] < (pace["usual"] or 0):
+        card["says"] = _("So far this week, against your usual {usual} h.", usual=usual)
+    else:
+        card["says"] = _("Close to your usual {usual} h: a pace you can keep.", usual=usual)
+    return card
+
+
+_INSIGHT_TITLES = {
+    "on_time": "Starting on time",
+    "focus": "Focus",
+    "recall_time": "When you remember best",
+    "forecast": "Your memory against the forecast",
+}
+_INSIGHT_HOW = {
+    "on_time": (
+        "Planned sessions started with the focus timer: on time is at most 10 minutes after the planned "
+        "start; early counts too."
+    ),
+    "focus": (
+        "Timed sessions: the time on the page against the time the timer ran. Time away is time off the "
+        "page, not proof of distraction."
+    ),
+    "recall_time": (
+        "Self-tests answered with how much you recalled, by the time they started. A part of the day is "
+        "compared once it has 3 answers."
+    ),
+    "forecast": (
+        "How often your self-tests found something remembered (any answer but nothing), against how often "
+        "the plan expected. The plan predicts with an average memory, so a gap is a hint, not a grade."
+    ),
+}
+_PARTS = {"morning": "Morning", "afternoon": "Afternoon", "evening": "Evening"}
+_BEST_PART = {
+    "morning": "Your self-tests go best in the morning.",
+    "afternoon": "Your self-tests go best in the afternoon.",
+    "evening": "Your self-tests go best in the evening.",
+}
+
+
+def _insight_card(m: dict) -> dict:
+    key = m["key"]
+    card: dict[str, Any] = {
+        "key": key,
+        "title": _(_INSIGHT_TITLES[key]),
+        "unlocked": m["unlocked"],
+        "how": _(_INSIGHT_HOW[key]),
+    }
+    if not m["unlocked"]:
+        more = m["need"] - m["have"]
+        card["percent"] = round(100 * m["have"] / m["need"])
+        card["says"] = {
+            "on_time": _n(
+                "Start {n} more planned session with the timer to see this.",
+                "Start {n} more planned sessions with the timer to see this.",
+                more,
+            ),
+            "focus": _n("Time {n} more session to see this.", "Time {n} more sessions to see this.", more),
+            "recall_time": _n(
+                "Answer {n} more self-test to see this.", "Answer {n} more self-tests to see this.", more
+            ),
+            "forecast": _n(
+                "Answer {n} more self-test to see this.", "Answer {n} more self-tests to see this.", more
+            ),
+        }[key]
+        return card
+    if key == "on_time":
+        card["value"] = f"{m['share']} %"
+        card["caption"] = _("started on time")
+        card["says"] = (
+            _("Most of your sessions start when you planned them.")
+            if m["share"] >= 80 or not m["late_by"]
+            else _(
+                "When you start late, it is by about {n} min. Try opening Focus as the session begins.",
+                n=m["late_by"],
+            )
+        )
+    elif key == "focus":
+        card["value"] = f"{m['share']} %"
+        card["caption"] = _("of your timed study on the page")
+        card["says"] = (
+            _("Longest without leaving the page: {time}.", time=duration_words(m["longest"]))
+            if m["longest"]
+            else ""
+        )
+        if m["record"]:
+            card["record"] = _(
+                "New record: {time} without leaving the page.", time=duration_words(m["longest"])
+            )
+            card["celebrate"] = f"record-focus-{m['longest']}"
+    elif key == "recall_time":
+        parts = m["parts"]
+        if m["best"]:
+            card["value"] = _(_PARTS[m["best"]])
+            card["caption"] = _("your self-tests' best time")
+        card["rows_caption"] = _("Recalled on average, by part of the day")
+        card["says"] = (
+            _(_BEST_PART[m["best"]])
+            + " "
+            + _("The plan already puts sessions at the time you chose; you can change it in Settings.")
+            if m["best"]
+            else _("No clear difference yet between the parts of the day.")
+        )
+        card["rows"] = [
+            {"part": _(_PARTS[p]), "percent": v["percent"], "n": v["n"]} for p, v in parts.items()
+        ]
+    elif key == "forecast":
+        gap = m["gap"]
+        card["value"] = f"+{gap}" if gap > 0 else ("≈" if gap == 0 else f"−{-gap}")
+        card["caption"] = _("points against the forecast")
+        said = _(
+            "You remembered something in {r} % of your self-tests; the plan expected {e} %.",
+            r=m["remembered"],
+            e=m["expected"],
+        )
+        if gap > 0:
+            said += " " + _("Your memory holds better than the plan assumes.")
+        elif gap < 0:
+            said += " " + _("Lower answers bring your next self-test sooner.")
+        card["says"] = said
+    series = [v for v in m.get("series", []) if v is not None]
+    if len(series) >= 2:
+        card["series"] = series
+        card["trend"] = m.get("trend")
+    return card
 
 
 def agenda(subscription: Subscription, week: int, now: datetime | None = None) -> dict:

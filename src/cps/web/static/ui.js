@@ -307,20 +307,38 @@ document.addEventListener("click", async (event) => {
   }
 });
 
-// The sky follows the day (D73): the server paints the hour's sky; a page left
-// open (a long focus session above all) moves on with the clock, by the same hours
-// as service.sky_at. The app's icon in the top bar and the tab (D74) follows it,
-// and the day of the week. Decoration: nothing waits on it.
-const skyAt = (hour) => (hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : hour >= 18 && hour < 22 ? "evening" : "night");
-if (document.body.dataset.sky) {
-  setInterval(() => {
-    const now = new Date();
-    const sky = skyAt(now.getHours());
-    const day = String(((now.getDay() + 6) % 7) + 1); // Monday 1 ... Sunday 7, as the server counts
-    if (sky === document.body.dataset.sky && day === document.body.dataset.day) return;
-    document.body.dataset.sky = sky;
-    document.body.dataset.day = day;
-    const icon = `/icon/week-${day}-${sky}.svg`;
+// The sky follows the sun (D73, D76): the server paints the sky of this moment in
+// the plan's day; a page left open (a long focus session above all) asks the server
+// every five minutes where the day is now, and moves the sky, the app's icon in the
+// top bar and the tab (D74) and the day of the week on. Decoration: nothing waits on
+// it, and without a network the page keeps the sky it has.
+const plan = document.body.dataset.plan;
+if (plan && document.body.dataset.sun) {
+  setInterval(async () => {
+    let now;
+    try {
+      const answer = await fetch(`/look/${plan}`, { cache: "no-store" });
+      if (!answer.ok) return;
+      now = await answer.json();
+    } catch {
+      return;
+    }
+    const body = document.body.dataset;
+    if (String(now.sun) === body.sun && String(now.weekday) === body.day && now.sky === body.sky) return;
+    body.sky = now.sky;
+    body.day = String(now.weekday);
+    body.sun = String(now.sun);
+    // The new sky's sheet goes in beside the old one, which leaves once it has loaded:
+    // changing the old one's address would show style.css's own sky for a moment.
+    const sheet = document.querySelector("link[data-sky-sheet]");
+    if (sheet instanceof HTMLLinkElement) {
+      const next = /** @type {HTMLLinkElement} */ (sheet.cloneNode());
+      next.href = `/sky/${now.sun}.css`;
+      next.addEventListener("load", () => sheet.remove(), { once: true });
+      next.addEventListener("error", () => next.remove(), { once: true });
+      sheet.after(next);
+    }
+    const icon = `/icon/week-${now.weekday}-${now.sun}-${body.iconMode}.svg`;
     for (const element of document.querySelectorAll("[data-live-icon]")) {
       if (element instanceof HTMLLinkElement) element.href = icon;
       else element.src = icon;

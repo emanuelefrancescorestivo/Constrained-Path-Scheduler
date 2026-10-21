@@ -23,3 +23,6 @@ Thumbs.db
 
 # local outputs of the commands in CLAUDE.md
 demo.txt
+
+# The pilot server's settings (deploy/hetzner/env.example): never committed.
+deploy/hetzner/.env

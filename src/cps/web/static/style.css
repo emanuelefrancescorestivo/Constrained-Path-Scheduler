@@ -30,6 +30,7 @@
   --accent: #007aff;
   --accent-hover: #0066d6;
   --accent-soft: rgb(0 122 255 / 12%);
+  --accent-ink: #007aff; /* text in the accent; a sky's own sheet sets it (D76) */
   --on-accent: #ffffff;
   --danger: #ff3b30;
   --danger-text: #d70015;
@@ -105,6 +106,7 @@
     --accent: #0a84ff;
     --accent-hover: #409cff;
     --accent-soft: rgb(10 132 255 / 22%);
+    --accent-ink: #0a84ff;
     --danger: #ff453a;
     --danger-text: #ff6961;
     --danger-soft: rgb(255 69 58 / 20%);
@@ -157,6 +159,7 @@
   --accent: #0a84ff;
   --accent-hover: #409cff;
   --accent-soft: rgb(10 132 255 / 22%);
+  --accent-ink: #0a84ff;
   --danger: #ff453a;
   --danger-text: #ff6961;
   --danger-soft: rgb(255 69 58 / 20%);
@@ -201,7 +204,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--accent-ink); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
 h1, h2, h3 { line-height: 1.2; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
 h1 { font-size: 2rem; font-weight: 700; }
@@ -277,7 +280,7 @@ small, .muted { color: var(--muted); }
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 36px; padding: 7px 16px;
   font: inherit; font-weight: 600; font-size: 0.94rem; letter-spacing: -0.01em;
-  color: var(--accent); background: var(--fill-3);
+  color: var(--accent-ink); background: var(--fill-3);
   border: 0; border-radius: 980px;
   cursor: pointer; text-decoration: none !important; white-space: nowrap;
   transition: background-color 0.2s var(--ease-out), color 0.2s var(--ease-out), opacity 0.2s var(--ease-out),
@@ -287,8 +290,8 @@ small, .muted { color: var(--muted); }
 .btn:active { transform: scale(0.96); opacity: 0.8; transition-duration: 0.08s; }
 .btn-primary { background: var(--accent); color: var(--on-accent); }
 .btn-primary:hover { background: var(--accent-hover); }
-.btn-tinted { background: var(--accent-soft); color: var(--accent); }
-.btn-ghost, .btn-plain { background: transparent; color: var(--accent); }
+.btn-tinted { background: var(--accent-soft); color: var(--accent-ink); }
+.btn-ghost, .btn-plain { background: transparent; color: var(--accent-ink); }
 .btn-ghost:hover, .btn-plain:hover { background: var(--fill-4); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-destructive { background: transparent; color: var(--danger-text); }
@@ -309,7 +312,7 @@ small, .muted { color: var(--muted); }
 .badge-risk { background: var(--danger-soft); color: var(--danger-text); }
 .badge-warn { background: var(--warn-soft); color: var(--warn); }
 .badge-ok { background: var(--ok-soft); color: var(--ok); }
-.badge-accent { background: var(--accent-soft); color: var(--accent); }
+.badge-accent { background: var(--accent-soft); color: var(--accent-ink); }
 
 .progress { height: 4px; border-radius: 980px; background: var(--fill-3); overflow: hidden; margin-top: 8px; }
 .progress > span { display: block; height: 100%; border-radius: inherit; background: var(--cc, var(--accent)); }
@@ -346,7 +349,7 @@ input::placeholder { color: var(--faint); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 18px; height: 18px; }
 input[type="file"] { font-size: 0.9rem; max-width: 100%; color: var(--muted); }
 input[type="file"]::file-selector-button {
-  font: inherit; font-weight: 600; color: var(--accent); background: var(--fill-3);
+  font: inherit; font-weight: 600; color: var(--accent-ink); background: var(--fill-3);
   border: 0; border-radius: 980px; padding: 7px 14px; margin-right: 10px; cursor: pointer;
 }
 .hint { color: var(--muted); font-size: 0.84rem; margin: 6px 0 0; line-height: 1.4; }
@@ -363,7 +366,7 @@ legend {
 legend + * { clear: both; }
 .item { border-top: 0.5px solid var(--line); padding: 8px 0 12px; }
 .item:first-of-type, legend + .hint + .item { border-top: 0; }
-details > summary { cursor: pointer; font-weight: 600; margin: 12px 0; color: var(--accent); list-style: none; }
+details > summary { cursor: pointer; font-weight: 600; margin: 12px 0; color: var(--accent-ink); list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: "›"; display: inline-block; width: 1em; transition: transform 0.15s; }
 details[open] > summary::before { transform: rotate(90deg); }
@@ -612,7 +615,9 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .cal-hour { position: absolute; right: 8px; font-size: 0.7rem; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; font-weight: 500; }
 .cal-hour.first { transform: translateY(2px); }
 .cal-col { position: relative; border-left: 0.5px solid var(--line); touch-action: pan-y; }
-.cal-col.can-add { cursor: cell; }
+/* The ordinary arrow over empty time, as Google's and Apple's calendars have it: the
+   spreadsheet's thick cross felt like a tool, not a calendar (the owner, 2026-10-20). */
+.cal-col.can-add { cursor: default; }
 .cal-line { position: absolute; left: 0; right: 0; border-top: 0.5px solid var(--line); pointer-events: none; }
 .cal-line.half { display: none; }
 .cal-closed { position: absolute; left: 0; right: 0; pointer-events: none; background: var(--fill-4); }
@@ -694,9 +699,9 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .ev-commute::before, .ev-lunch::before { background: var(--busy); opacity: 0.6; width: 2px; }
 .ev .grip { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
 .ev.dragging { z-index: 20; opacity: 0.95; box-shadow: var(--shadow); cursor: grabbing; transform: scale(1.02); }
-.ev.ghost { z-index: 15; opacity: 0.8; background: var(--accent-soft); color: var(--accent); pointer-events: none; border-radius: 6px; }
+.ev.ghost { z-index: 15; opacity: 0.8; background: var(--accent-soft); color: var(--accent-ink); pointer-events: none; border-radius: 6px; }
 .ev.ghost::before { background: var(--accent); }
-.ev.ghost .t { color: var(--accent); font-weight: 600; }
+.ev.ghost .t { color: var(--accent-ink); font-weight: 600; }
 .ev.saving { opacity: 0.6; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 9px 16px; border-top: 0.5px solid var(--line); font-size: 0.8rem; color: var(--muted); }
@@ -856,7 +861,7 @@ td.d { display: table-cell; padding: 0; }
 .post-focus { font-size: 0.82rem; color: var(--muted); margin: 6px 0 0; }
 .post-note { margin: 10px 0 0; white-space: pre-line; }
 .post-simple { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
-.post-simple .kicker { margin: 0 0 2px; font-size: 0.75rem; font-weight: 650; color: var(--accent); text-transform: uppercase; letter-spacing: 0.02em; }
+.post-simple .kicker { margin: 0 0 2px; font-size: 0.75rem; font-weight: 650; color: var(--accent-ink); text-transform: uppercase; letter-spacing: 0.02em; }
 .post-simple p:last-child { margin: 0; white-space: pre-line; }
 .post-head .menu { flex: none; }
 .photos { display: grid; gap: 4px; margin: 12px -4px 0; border-radius: var(--radius-sm); overflow: hidden; }
@@ -865,9 +870,9 @@ td.d { display: table-cell; padding: 0; }
 .photos img { display: block; width: 100%; height: 100%; max-height: 420px; object-fit: cover; background: var(--fill-4); }
 .photos.n1 img { max-height: 520px; object-fit: contain; }
 .vis-me { background: var(--fill-3); }
-.vis-everyone { background: var(--accent-soft); color: var(--accent); }
+.vis-everyone { background: var(--accent-soft); color: var(--accent-ink); }
 
-.icon-link { display: none; color: var(--accent); border: 0; background: transparent; padding: 0; cursor: pointer; border-radius: 50%; }
+.icon-link { display: none; color: var(--accent-ink); border: 0; background: transparent; padding: 0; cursor: pointer; border-radius: 50%; }
 .icon-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
 /* -- the network: avatars, feeds, people, comments --------------------------- */
@@ -897,7 +902,7 @@ td.d { display: table-cell; padding: 0; }
 .join { text-align: center; padding: 26px 22px; margin-bottom: 18px; }
 .join h2 { font-size: 1.35rem; margin: 10px 0 6px; }
 .join > p { color: var(--muted); max-width: 30rem; margin: 0 auto; }
-.join-mark { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); }
+.join-mark { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); color: var(--accent-ink); }
 .join-mark svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .join-points { list-style: none; padding: 0; margin: 16px auto 20px; max-width: 26rem; text-align: left; }
 .join-points li { position: relative; padding: 5px 0 5px 26px; font-size: 0.93rem; }
@@ -926,7 +931,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 }
 .act:hover { background: var(--fill-4); }
 .act svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.act.given { color: var(--accent); }
+.act.given { color: var(--accent-ink); }
 .act.given svg { fill: currentColor; }
 .act-count { font-variant-numeric: tabular-nums; }
 .act-static { cursor: default; }
@@ -940,7 +945,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .card-front { font-weight: 550; }
 .card-new h2 { margin-top: 0; }
 .card-new .paste { margin: 12px 0 4px; }
-.card-new .paste summary { color: var(--accent); cursor: pointer; font-weight: 550; }
+.card-new .paste summary { color: var(--accent-ink); cursor: pointer; font-weight: 550; }
 .review-count { color: var(--muted); font-size: 0.9rem; margin: 0 0 8px; }
 .flashcard { padding: 22px 18px; }
 .flash-front { font-size: 1.3rem; font-weight: 600; line-height: 1.35; margin: 0 0 18px; white-space: pre-line; overflow-wrap: anywhere; }
@@ -957,7 +962,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .grade b { font-size: 0.95rem; }
 .grade small { font-size: 0.75rem; color: var(--muted); }
 /* Red is for exams and today (CLAUDE.md): "Again" stays neutral. */
-.grade-good { background: var(--accent-soft); color: var(--accent); }
+.grade-good { background: var(--accent-soft); color: var(--accent-ink); }
 .grade-easy { background: var(--ok-soft); color: var(--ok); }
 .cards-link { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none !important; }
 .cards-link span { color: var(--muted); font-size: 0.9rem; }
@@ -965,7 +970,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 14px; padding: 12px 16px;
   border-radius: var(--radius, 14px); background: var(--surface); color: var(--text); text-decoration: none !important;
 }
-.cards-due span { color: var(--accent); font-weight: 550; font-size: 0.9rem; }
+.cards-due span { color: var(--accent-ink); font-weight: 550; font-size: 0.9rem; }
 
 /* -- the public demo (D31) ------------------------------------------------------ */
 
@@ -977,7 +982,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .way > .hint:first-of-type { margin-top: 0; }
 .way-icon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent);
+  width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent-ink);
 }
 .way-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ways-note { text-align: center; margin: 12px 8px 0; }
@@ -988,7 +993,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   border: 1.5px dashed var(--line-strong); background: var(--fill-4); color: var(--muted); font-size: 0.9rem;
   transition: background 0.15s, border-color 0.15s;
 }
-.drop b { color: var(--accent); font-weight: 600; }
+.drop b { color: var(--accent-ink); font-weight: 600; }
 .drop-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drop.over { border-color: var(--accent); background: var(--accent-soft); }
@@ -1186,7 +1191,7 @@ label.check.check-long input { margin-top: 3px; flex: none; }
 .ca { --cc: var(--accent); }
 .cn { --cc: var(--c-none); }
 .table-view { margin-top: 12px; }
-.table-view summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.table-view summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); }
 .table-scroll { overflow-x: auto; margin-top: 10px; }
 .table-view table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .table-view th, .table-view td { padding: 6px 8px; text-align: right; border-bottom: 0.5px solid var(--line); white-space: nowrap; }
@@ -1221,7 +1226,7 @@ label.check.check-long input { margin-top: 3px; flex: none; }
     color: var(--muted); text-decoration: none !important; font-size: 0.66rem; font-weight: 500; letter-spacing: 0;
   }
   .tabbar svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-  .tabbar a[aria-current="page"] { color: var(--accent); }
+  .tabbar a[aria-current="page"] { color: var(--accent-ink); }
   .tabbar a[aria-current="page"] svg { stroke-width: 2.1; }
   body.has-tabs { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
   /* Above the tab bar, not under it (AUDIT.md item 42) */
@@ -1336,7 +1341,6 @@ html:active-view-transition-type(swap)::view-transition-new(root) { animation: n
 @keyframes pop { 0% { transform: scale(0.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 @keyframes burst { from { opacity: 0.55; transform: scale(0.4); } to { opacity: 0; transform: scale(1.9); } }
 @keyframes breathe { 0%, 100% { opacity: 0.35; transform: scale(0.97); } 50% { opacity: 0.8; transform: scale(1.03); } }
-@keyframes orbit { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 html:not(.settled) .ring-arc { animation: ring-draw 1s var(--ease-out) 0.12s both; }
 .chart .bar { transform-box: fill-box; transform-origin: 50% 100%; }
 html:not(.settled) .chart .bar { animation: grow-y 0.7s var(--ease-out) both; }
@@ -1416,7 +1420,7 @@ html:not(.settled) :is(.feed, .library, .group-list, .tiles) > :nth-child(n+5) {
 /* No non-scaling stroke here: it measures dashes in screen pixels, not in pathLength. */
 .focus-orbit circle { fill: none; stroke-width: 0.55; }
 .focus-orbit .track { stroke: var(--fill-3); }
-.focus-orbit .sweep { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100 100; animation: orbit 60s linear infinite; }
+.focus-orbit .sweep { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100 100; } /* turned by focus.js */
 
 /* Flashcards: the answer rises in, the four answers after it. */
 .flash-answer[open] .flash-back { animation: rise 0.35s var(--ease-out) both; }
@@ -1532,7 +1536,7 @@ html.offline form button[type="submit"] { opacity: 0.6; }
 .nudge-card .muted { font-size: 0.88rem; }
 .nudge-card .row-end { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
 .nudge-card form { margin: 0; }
-a.nudge-card b::after { content: " ›"; color: var(--accent); }
+a.nudge-card b::after { content: " ›"; color: var(--accent-ink); }
 .passkeys { margin: 4px 0 8px; }
 .passkeys > li { align-items: center; }
 .passkeys > li + li::before { left: 0; }
@@ -1703,7 +1707,7 @@ a, button, summary, label, .pill { touch-action: manipulation; }
 .tabbar a[aria-current="page"] svg { fill: color-mix(in srgb, var(--accent) 18%, transparent); }
 
 /* A card that leads somewhere says so, as the nudge cards do. */
-.cards-link b::after { content: " ›"; content: " ›" / ""; color: var(--accent); } /* silent to screen readers */
+.cards-link b::after { content: " ›"; content: " ›" / ""; color: var(--accent-ink); } /* silent to screen readers */
 
 /* Scrolling inside a panel, a sheet or a menu stops at its end instead of moving
    the page behind it. */
@@ -1957,7 +1961,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   font-size: 0.74rem; font-weight: 600; white-space: nowrap;
 }
 .strength-strong { background: var(--ok-soft); color: var(--ok); }
-.strength-moderate { background: var(--accent-soft); color: var(--accent); }
+.strength-moderate { background: var(--accent-soft); color: var(--accent-ink); }
 .strength-early { background: var(--warn-soft); color: var(--warn); }
 .strengths { display: grid; grid-template-columns: max-content 1fr; gap: 10px 12px; align-items: baseline; margin: 0 0 14px; }
 .strengths div { display: contents; }
@@ -1988,7 +1992,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .mascot { display: block; flex: none; width: 64px; height: 64px; overflow: visible; }
 .mascot-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mascot-words > span { color: var(--muted); font-size: 0.92rem; }
-.mascot-words > .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+.mascot-words > .tip-reason { color: var(--accent-ink); font-size: 0.86rem; font-weight: 600; }
 .mascot .rig { transform-box: view-box; transform-origin: 120px 216px; }
 .mascot .shadow { transform-box: view-box; transform-origin: 120px 226px; }
 .mascot .orbit { transform-box: view-box; transform-origin: 120px 140px; }
@@ -2058,12 +2062,12 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-row .grow { display: flex; flex-direction: column; gap: 1px; }
 .weekly-row .chev { color: var(--muted); font-size: 1.2rem; }
 .weekly-note { max-width: 40rem; }
-.weekly-note .kicker { margin: 0; color: var(--accent); font-size: 0.82rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.02em; }
+.weekly-note .kicker { margin: 0; color: var(--accent-ink); font-size: 0.82rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.02em; }
 .weekly-note h1 { margin: 2px 0 14px; font-size: 1.9rem; letter-spacing: -0.02em; line-height: 1.15; }
 .weekly-note > p { font-size: 1.04rem; line-height: 1.55; }
 .weekly-for-you { display: flex; gap: 14px; align-items: center; margin: 18px 0; }
 .weekly-for-you p { margin: 0; }
-.weekly-today .tip-reason { color: var(--accent); font-size: 0.86rem; font-weight: 600; }
+.weekly-today .tip-reason { color: var(--accent-ink); font-size: 0.86rem; font-weight: 600; }
 
 /* -- Spark, floating (D71) ------------------------------------------------------------ */
 /* A speech bubble with the spark in it, low on the right, above the tab bar on a
@@ -2097,7 +2101,7 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
 .coach-answer .mascot-words p { margin: 0; }
 .coach-answer .strength { align-self: flex-start; font-size: 0.74rem; }
 .coach-answer .strength-strong { color: var(--ok); }
-.coach-answer .strength-moderate { color: var(--accent); }
+.coach-answer .strength-moderate { color: var(--accent-ink); }
 .coach-answer .strength-early { color: var(--warn); }
 
 /* -- calm glass (D73): two type faces, a sky of the hour, clear glass, a garden ------
@@ -2152,6 +2156,9 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
   --glass-drop: 0 12px 32px rgb(38 52 99 / 11%);
   --glass-bar: rgb(255 255 255 / 40%);
   --glass-solid: rgb(255 255 255 / 80%);
+  --glass-board: rgb(255 255 255 / 50%);
+  --glass-board-head: rgb(255 255 255 / 86%);
+  --glass-field: rgb(255 255 255 / 55%);
   --doodle: rgb(44 56 108 / 34%);
   --bloom: rgb(232 92 150 / 50%);
 }
@@ -2166,6 +2173,9 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
     --glass-drop: 0 14px 34px rgb(0 0 0 / 34%);
     --glass-bar: rgb(20 24 38 / 48%);
     --glass-solid: rgb(22 25 38 / 84%);
+    --glass-board: rgb(20 23 36 / 52%);
+    --glass-board-head: rgb(20 23 36 / 86%);
+    --glass-field: rgb(255 255 255 / 8%);
     --doodle: rgb(222 230 255 / 28%);
     --bloom: rgb(255 140 190 / 45%);
   }
@@ -2180,6 +2190,9 @@ body:has(.spark-fab) .footer { padding-bottom: 84px; }
   --glass-drop: 0 14px 34px rgb(0 0 0 / 34%);
   --glass-bar: rgb(20 24 38 / 48%);
   --glass-solid: rgb(22 25 38 / 84%);
+  --glass-board: rgb(20 23 36 / 52%);
+  --glass-board-head: rgb(20 23 36 / 86%);
+  --glass-field: rgb(255 255 255 / 8%);
   --doodle: rgb(222 230 255 / 28%);
   --bloom: rgb(255 140 190 / 45%);
 }
@@ -2218,6 +2231,16 @@ body[data-sky]::before {
     radial-gradient(circle at 88% 90%, rgb(var(--sky-4) / 80%), rgb(var(--sky-4) / 0%) 38%),
     var(--sky-base);
 }
+/* Full screen shows only the focus timer, without the page behind it: it gets the
+   same sky of its own (AUDIT 71). */
+body[data-sky] .focus:fullscreen {
+  background:
+    radial-gradient(circle at 16% 12%, rgb(var(--sky-1) / 90%), rgb(var(--sky-1) / 0%) 48%),
+    radial-gradient(circle at 86% 30%, rgb(var(--sky-2) / 85%), rgb(var(--sky-2) / 0%) 46%),
+    radial-gradient(circle at 22% 80%, rgb(var(--sky-3) / 85%), rgb(var(--sky-3) / 0%) 50%),
+    radial-gradient(circle at 88% 90%, rgb(var(--sky-4) / 80%), rgb(var(--sky-4) / 0%) 48%),
+    var(--sky-base);
+}
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) body[data-sky]::before { animation: sky-drift 90s ease-in-out infinite alternate; }
 }
@@ -2244,16 +2267,41 @@ body[data-sky] .topbar {
   background: var(--glass-bar); border-bottom: 1px solid var(--glass-rim);
   -webkit-backdrop-filter: blur(22px) saturate(190%); backdrop-filter: blur(22px) saturate(190%);
 }
-/* The calendar is read closely: glass, but nearly solid. */
+/* The calendar: moderate glass (the owner, 2026-10-19). The sky shows through the
+   grid, frosted; the events keep their solid tints, so they read as before. The day
+   names and the hours stay frosted a little more, as content scrolls under them. */
 body[data-sky] .board {
-  background: var(--glass-solid); border-left: 1px solid var(--glass-rim);
-  -webkit-backdrop-filter: blur(26px) saturate(160%); backdrop-filter: blur(26px) saturate(160%);
+  background: var(--glass-board); border-left: 1px solid var(--glass-rim);
+  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+}
+body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.days-strip .cal-head > :first-child) {
+  background: var(--glass-board-head);
+  -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
 }
 body[data-sky] .sheet[popover], body[data-sky] .pop[popover] {
   background: var(--glass-solid); border: 1px solid var(--glass-rim);
   -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
 }
 body[data-sky] .sheet-head { background: transparent; }
+/* The top bar is glass from the very top of the page (AUDIT 68): the scroll-linked
+   fade (D37) painted it the page's own solid colour until the page moved, and an
+   animation outranks the glass rule above. */
+body[data-sky] .topbar { animation: none; }
+/* Fields on glass: a tint of the glass, not a grey slab (the colour only, so a
+   select keeps its chevron, D57). */
+body[data-sky] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  background-color: var(--glass-field);
+}
+/* A long form's save button floats on its own shadow, as in Apple's apps (AUDIT 70):
+   any band behind it, of the page's colour or of glass, showed as a box with hard
+   edges over the sky, most of all where the form is short and the bar is not stuck. */
+body[data-sky] .sticky-actions { background: none; }
+body[data-sky] .sticky-actions .btn { box-shadow: 0 8px 24px rgb(0 0 0 / 0.22), 0 1px 3px rgb(0 0 0 / 0.12); }
+
+/* Thin scrollbars in the app's grey (AUDIT 70): Windows draws a thick grey bar with
+   arrows by default, as between Today's panel and the calendar. Zero specificity,
+   so the strips that hide theirs (the days, the legend) keep doing so. */
+:where(html, html *) { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 
 /* Spark, in a round drop of glass. */
 body[data-sky] .spark-fab {
@@ -2278,7 +2326,7 @@ body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
     -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%);
   }
   body[data-sky] .tabbar a { margin: 5px 0; border-radius: 26px; color: var(--text); }
-  body[data-sky] .tabbar a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+  body[data-sky] .tabbar a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
   body[data-sky]:is(:not(:has(.spark-fab)), :has(.sticky-actions), :has(.focus)) .tabbar {
     right: max(12px, env(safe-area-inset-right));
   }
@@ -2287,6 +2335,15 @@ body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
     width: 62px; height: 62px;
   }
   body[data-sky].has-tabs .spark-fab .mascot { width: 46px; height: 46px; }
+  /* AUDIT 69: in the pill, beside Spark, a column is about 57px on a 390px phone and
+     "Communauté" is wider; labels a little smaller, with a gap, keep the words apart. */
+  body[data-sky] .tabbar { column-gap: 2px; }
+  body[data-sky] .tabbar a { font-size: 0.6rem; letter-spacing: -0.01em; }
+}
+/* Narrower than that, the five labels no longer fit beside Spark: it waits above the pill. */
+@media (max-width: 340px) {
+  body[data-sky] .tabbar { right: max(12px, env(safe-area-inset-right)); }
+  body[data-sky].has-tabs .spark-fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 /* -- the garden: drawn in the margins, grown with the streak ------------------------ */
@@ -2368,7 +2425,7 @@ body[data-sky] .strip-line { width: 100%; padding: 0 6px; }
 .next-step .start-focus .btn { min-height: 44px; padding: 0 22px; font-size: 1rem; background: var(--accent); color: var(--on-accent); }
 body[data-sky] .next-step .session-card { border-radius: 26px; }
 .why-now { margin-top: 8px; }
-.why-now > summary { cursor: pointer; color: var(--accent); font-size: 0.88rem; font-weight: 600; list-style: none; }
+.why-now > summary { cursor: pointer; color: var(--accent-ink); font-size: 0.88rem; font-weight: 600; list-style: none; }
 .why-now > summary::-webkit-details-marker { display: none; }
 
 /* Spark's tip of the moment, in one line. */
@@ -2389,3 +2446,129 @@ body[data-sky] .next-step .session-card { border-radius: 26px; }
 .more-what { font-size: 0.86rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more-body { padding-top: 6px; }
 .more-body > .section:first-child, .more-body > :first-child { margin-top: 14px; }
+
+/* Spark's tour (D77): the page dims, the part a step is about stays lit (a hole whose
+   shadow is the dimming), and Spark's bubble sits beside it. The overlay catches every
+   tap, so nothing behind it is pressed by mistake. */
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-hole {
+  position: fixed; left: 0; top: 0; width: 0; height: 0; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 200vmax rgb(6 8 22 / 52%), 0 0 0 2px rgb(255 255 255 / 70%);
+}
+/* The light glides from one step's part to the next; while the page scrolls under it,
+   it follows at once rather than trailing behind. */
+.tour.gliding .tour-hole {
+  transition: left 0.38s var(--ease-out), top 0.38s var(--ease-out), width 0.38s var(--ease-out),
+    height 0.38s var(--ease-out), border-radius 0.38s var(--ease-out);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tour-hole { box-shadow: 0 0 0 200vmax rgb(0 0 0 / 62%), 0 0 0 2px rgb(255 255 255 / 55%); }
+}
+:root[data-theme="dark"] .tour-hole { box-shadow: 0 0 0 200vmax rgb(0 0 0 / 62%), 0 0 0 2px rgb(255 255 255 / 55%); }
+.tour-bubble {
+  position: fixed; left: 0; top: 0; width: min(380px, calc(100vw - 24px));
+  display: grid; grid-template-columns: 56px 1fr; gap: 4px 12px; align-items: start;
+  padding: 16px 16px 12px; border-radius: 24px; color: var(--text);
+  background: var(--glass-solid, var(--surface)); border: 1px solid var(--glass-rim, var(--line));
+  box-shadow: 0 18px 50px rgb(0 0 0 / 28%), inset 0 1px 0 var(--glass-hi, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+}
+.tour.gliding .tour-bubble { transition: transform 0.38s var(--ease-out); }
+.tour-bubble .mascot { width: 56px; height: 56px; grid-row: span 2; }
+.tour-words b { display: block; font-family: var(--font-display); font-size: 1.12rem; letter-spacing: -0.015em; margin: 2px 0 4px; }
+.tour-words p { margin: 0; font-size: 0.94rem; line-height: 1.42; }
+.tour-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.tour-foot .spacer { flex: 1; }
+.tour-count { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 3.2em; }
+.tour.moved .tour-words, .tour.moved .mascot { animation: tour-in 0.32s var(--ease-out); }
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole, .tour-bubble { transition: none; }
+  .tour.moved .tour-words, .tour.moved .mascot { animation: none; }
+}
+:root[data-motion="reduce"] :is(.tour-hole, .tour-bubble) { transition: none; }
+:root[data-motion="reduce"] .tour.moved :is(.tour-words, .mascot) { animation: none; }
+@media (max-width: 520px) {
+  .tour-bubble { grid-template-columns: 44px 1fr; padding: 14px 14px 10px; }
+  .tour-bubble .mascot { width: 44px; height: 44px; }
+}
+
+/* The month (D79): six weeks, Monday first. Each day a cell: its number (today's in
+   red, as in the hours views), then what tells most as small tinted rows (exams in
+   red, study and classes in their course's colour, classes lighter), and how many
+   more. A phone shows dots instead, as Apple's Calendar does. */
+.cal-month { overflow-y: auto; }
+.month-head {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-bottom: 0.5px solid var(--line-strong); background: var(--surface);
+}
+body[data-sky] .month-head { background: var(--glass-board-head); }
+.month-head span {
+  padding: 8px 4px; text-align: center; font-size: 0.72rem; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(104px, 1fr); flex: 1; }
+.m-day {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0;
+  padding: 4px 4px 6px; border: 0; border-right: 0.5px solid var(--line); border-bottom: 0.5px solid var(--line);
+  background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.m-day:nth-child(7n) { border-right: 0; }
+.m-day:hover { background: var(--fill-4); }
+.m-day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.m-day.out { color: var(--muted); }
+.m-day.out .m-evs { opacity: 0.55; }
+.m-dn {
+  align-self: flex-start; display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px;
+  border-radius: 980px; font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.m-day.today .m-dn { background: var(--now); color: #fff; }
+.m-evs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-ev {
+  display: block; min-width: 0; padding: 1px 5px; border-radius: 5px; border-left: 2px solid var(--cc, var(--busy));
+  font-size: 0.7rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint), var(--surface));
+}
+.m-ev .m-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.m-ev.m-class { background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint-lecture), var(--surface)); }
+.m-ev.m-exam { --cc: var(--danger); background: color-mix(in srgb, var(--danger) 22%, var(--surface)); font-weight: 600; }
+.m-ev.m-test { font-weight: 600; }
+.m-more { padding-left: 5px; font-size: 0.68rem; color: var(--muted); }
+@media (max-width: 900px) {
+  .month-grid { grid-auto-rows: minmax(64px, 1fr); }
+  .m-day { align-items: center; padding: 4px 2px; }
+  .m-dn { align-self: center; }
+  .m-evs { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 3px; }
+  .m-ev { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; font-size: 0; background: var(--cc, var(--busy)); }
+  .m-ev.m-class { opacity: 0.45; background: var(--cc, var(--busy)); }
+  .m-ev.m-exam { background: var(--danger); }
+  .m-more { display: none; }
+}
+
+/* The insights (D80): cards in a grid, the pace first; a locked one quieter, with how
+   far it is from showing; the pace's card warm when a day off is due or the week is
+   above the limit. */
+.insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.insight { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.insight header { display: flex; align-items: center; gap: 8px; }
+.insight h3 { margin: 0; font-size: 0.95rem; font-weight: 650; }
+.insight-value { margin: 2px 0 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.insight-value b { font-family: var(--font-display); font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
+.insight-value span { color: var(--muted); font-size: 0.85rem; }
+.insight-says { margin: 0; font-size: 0.92rem; line-height: 1.4; }
+.insight-record { margin: 0; font-weight: 650; color: var(--accent-ink); }
+.insight-rows-caption { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); }
+.insight-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 0.86rem; }
+.insight-rows li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; }
+.insight-rows small { color: var(--muted); }
+.insight-line { display: flex; align-items: center; gap: 10px; }
+.insight-line .spark { flex: 1; height: 28px; min-width: 0; }
+.insight-line small { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.insight-how { margin-top: auto; }
+.insight-how summary { margin: 4px 0 0; font-size: 0.8rem; font-weight: 550; }
+.insight-how p { margin: 4px 0 0; font-size: 0.82rem; color: var(--muted); }
+.insight.locked h3 { color: var(--muted); }
+.insight.locked .insight-says { color: var(--muted); }
+.insight.pace-rest, .insight.pace-above, .insight-today.pace-rest, .insight-today.pace-above {
+  box-shadow: inset 3px 0 0 #ff9f0a;
+}

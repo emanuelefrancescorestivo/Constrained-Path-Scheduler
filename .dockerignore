@@ -1,0 +1,9 @@
+# The image needs pyproject.toml and src/ only (Dockerfile); the rest stays out, so
+# that a build is quick and nothing personal or local can end up inside it.
+*
+!pyproject.toml
+!src/
+**/__pycache__
+**/*.pyc
+**/*.sqlite
+**/*.ics

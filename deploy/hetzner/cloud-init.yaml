@@ -1,0 +1,82 @@
+#cloud-config
+# The pilot's server, set up by itself at its first start (DECISIONS.md D75;
+# docs/HETZNER.md, step 3). Paste this whole file into "Cloud config" when creating
+# the server in Hetzner's console, with Ubuntu 24.04 and your SSH key chosen on the
+# same page. Nothing in it is a secret. One line to change: your public key, below
+# (the one line of your id_ed25519.pub file); a public key is safe to share.
+#
+# What it does, in order:
+# - installs Docker, Git, a firewall, fail2ban and automatic security updates;
+# - makes a user `deploy` that signs in with your key and may use sudo and Docker;
+# - lets nobody sign in with a password, and root not at all (unless the key line
+#   below was left as it is: then root keeps the key chosen in the console, so that
+#   you are not locked out, and the last message says so);
+# - opens SSH, HTTP and HTTPS only;
+# - installs security updates every night and restarts at 04:30 when one needs it
+#   (the app comes back by itself);
+# - fetches the app's code into /srv/study-plan and leaves a settings file to fill.
+# It does not start the app: that waits for your settings (step 6 of the guide).
+
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+
+users:
+  - name: deploy
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 PASTE-YOUR-PUBLIC-KEY-HERE
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-study-plan.conf
+    permissions: "0644"
+    content: |
+      # Keys only, and never root (docs/HETZNER.md).
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  - path: /etc/apt/apt.conf.d/52study-plan
+    permissions: "0644"
+    content: |
+      // Restart at night when an update needs it (a new kernel, for one).
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:30";
+
+runcmd:
+  # Root is shut out only if deploy has a real key: a forgotten key line must not
+  # lock you out of your own server.
+  - |
+    if grep -q PASTE-YOUR-PUBLIC-KEY /home/deploy/.ssh/authorized_keys; then
+      rm /etc/ssh/sshd_config.d/10-study-plan.conf
+      echo "study-plan, no key for deploy: root still signs in (docs/HETZNER.md)" > /etc/motd
+    fi
+  - systemctl restart ssh
+  - usermod -aG docker deploy
+  # The firewall: SSH, HTTP and HTTPS (and HTTP/3) in, everything out.
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw allow 443/udp
+  - ufw --force enable
+  - systemctl enable --now docker fail2ban unattended-upgrades
+  # The app's code, and its settings file still to fill (never in Git).
+  - install -d -o deploy -g deploy /srv/study-plan
+  - sudo -u deploy git clone --quiet https://github.com/emanuelefrancescorestivo/Constrained-Path-Scheduler.git /srv/study-plan
+  - sudo -u deploy install -m 600 /srv/study-plan/deploy/hetzner/env.example /srv/study-plan/deploy/hetzner/.env
+
+final_message: "study-plan: the server is ready after $UPTIME seconds; fill /srv/study-plan/deploy/hetzner/.env next"

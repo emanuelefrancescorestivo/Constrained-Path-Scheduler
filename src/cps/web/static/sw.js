@@ -3,8 +3,11 @@
 // site. It decides nothing about a plan: it only keeps copies.
 //
 // - The app's own files (styles, scripts, icons) and the offline page are kept at
-//   install, and refreshed in the background each time they are used; so is the
-//   live icon of each day and sky (/icon/..., D74) once it has been shown.
+//   install, from the server itself rather than the browser's own copies. When a page
+//   uses one, the server's answer comes first if it arrives within a few seconds, so
+//   that an update shows on the first visit after it (AUDIT 67); the kept copy
+//   otherwise, and without a network. So are the live icon (/icon/..., D74) and the
+//   sky's colours (/sky/..., D76) of each moment once they have been shown.
 // - A plan's pages (/p/...) and the calendar's data are always asked of the server
 //   first; a copy of the last answer is kept, on this device only, and shown when
 //   there is no network. The page then says it is offline (pwa.js).
@@ -14,7 +17,7 @@
 // - A reminder pushed by the server (D38) is shown as a notification; tapping it
 //   opens the plan, in a window already open if there is one.
 
-const VERSION = "v5";
+const VERSION = "v6";
 // The offline page in the language of the page that registered this worker
 // (pwa.js passes it); a new language registers the worker again.
 const LANG = new URL(self.location).searchParams.get("lang") || "en";
@@ -22,6 +25,7 @@ const OFFLINE = `/offline?lang=${encodeURIComponent(LANG)}`;
 const SHELL = `shell-${VERSION}-${LANG}`;
 const PAGES = "pages";
 const KEEP_PAGES = 60; // a plan's pages kept for offline, the oldest dropped first
+const PATIENCE = 3000; // ms to wait for the server's copy of a file before the kept one
 const SHELL_FILES = [
   OFFLINE,
   "/static/style.css",
@@ -44,7 +48,9 @@ const SHELL_FILES = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL).then((cache) => cache.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+  // cache: "reload" skips the browser's own copies, which could be the previous version's.
+  const fresh = SHELL_FILES.map((url) => new Request(url, { cache: "reload" }));
+  event.waitUntil(caches.open(SHELL).then((cache) => cache.addAll(fresh)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -88,16 +94,18 @@ async function networkFirst(request, isPage) {
   }
 }
 
-async function staleWhileRevalidate(request) {
+// The server's copy if it answers within PATIENCE (and it is kept for next time),
+// else the kept copy; the kept copy at once without a network.
+async function freshFirst(request) {
   const cache = await caches.open(SHELL);
   const copy = await cache.match(request);
-  const fresh = fetch(request)
-    .then((response) => {
-      if (response.ok) cache.put(request, response.clone());
-      return response;
-    })
-    .catch(() => copy);
-  return copy || fresh;
+  const fresh = fetch(request).then((response) => {
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  });
+  if (!copy) return fresh;
+  const slow = new Promise((resolve) => setTimeout(() => resolve(copy), PATIENCE));
+  return Promise.race([fresh.catch(() => copy), slow]);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -105,8 +113,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/static/") || url.pathname.startsWith("/icon/")) {
-    event.respondWith(staleWhileRevalidate(request));
+  if (["/static/", "/icon/", "/sky/"].some((part) => url.pathname.startsWith(part))) {
+    event.respondWith(freshFirst(request));
   } else if (url.pathname.startsWith("/p/")) {
     event.respondWith(networkFirst(request, request.mode === "navigate"));
   } else if (request.mode === "navigate") {

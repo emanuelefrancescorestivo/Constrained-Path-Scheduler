@@ -114,6 +114,10 @@ const FR = {
   "Question {n} of {total}": "Question {n} sur {total}",
   "Back": "Retour",
   "Next": "Suivant",
+  // The month (D79)
+  "{n} more": "{n} de plus",
+  "{day}: {list}": "{day} : {list}",
+  "{day}: nothing on the calendar": "{day} : rien au calendrier",
 };
 
 
@@ -229,6 +233,10 @@ const IT = {
   "Question {n} of {total}": "Domanda {n} di {total}",
   "Back": "Indietro",
   "Next": "Avanti",
+  // The month (D79)
+  "{n} more": "altri {n}",
+  "{day}: {list}": "{day}: {list}",
+  "{day}: nothing on the calendar": "{day}: niente in calendario",
 };
 
 const CATALOGUES = { fr: FR, it: IT };

@@ -58,7 +58,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon
+from . import charts, forms, icon, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -288,7 +288,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.deactivate_language(chosen)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
-        if not request.url.path.startswith("/static/"):
+        if request.url.path.startswith("/static/"):
+            # The app's own files may be kept, but asked about again on every use (a
+            # 304 when nothing changed): without this, a browser guessed how long its
+            # copy was good, and an update showed only once that guess ran out (AUDIT 67).
+            response.headers.setdefault("Cache-Control", "no-cache")
+        else:
             response.headers.setdefault("Cache-Control", "no-store")
             response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
         route = request.scope.get("route")
@@ -319,8 +324,18 @@ def create_app(config: Config | None = None) -> FastAPI:
             try:
                 subscription = subscription or service.load_subscription(store, token)
                 context.update(service.look_of(store, subscription, config.clock()))
+                context["sun"] = sky.step_of(context["daylight"])  # the sky's colours (D76)
             except Exception:
                 LOG.exception("could not work out the page's sky")
+        if token and "tour" not in context:
+            # Spark's tour of this section, the first time it is opened (D77).
+            subscription = subscription or service.load_subscription(store, token)
+            context["tour"] = service.tour_for(
+                subscription,
+                context.get("tab"),
+                setup=bool(context.get("setup")),
+                new=bool(context.get("new")),
+            )
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -472,16 +487,39 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return manifest(f"/p/{token}", look)
 
-    @app.get("/icon/week-{day:int}-{look}.svg")
-    def week_icon(day: int, look: str) -> Response:
-        """The app's icon for a day of the week in a sky's colours, or light or dark
-        (D74): the same for everyone, so it may be kept a day."""
+    day_long = {"Cache-Control": "public, max-age=86400"}
+
+    @app.get("/icon/week-{day:int}-{step:int}-{mode}.svg")
+    def week_icon(day: int, step: int, mode: str) -> Response:
+        """The app's live icon (D74): a day of the week at a moment of the sky (D76),
+        for light or dark mode or both ("auto"). The same for everyone, so it may be
+        kept a day."""
         try:
-            drawing = icon.week(day, look)
+            drawing = icon.live(day, step, mode)
         except ValueError:
             return Response(status_code=404)
-        day_long = {"Cache-Control": "public, max-age=86400"}
         return Response(drawing, media_type="image/svg+xml", headers=day_long)
+
+    @app.get("/sky/{step:int}.css")
+    def sky_sheet(step: int) -> Response:
+        """The sky's colours at a moment of the day, light and dark (D76)."""
+        if not 0 <= step < sky.STEPS:
+            return Response(status_code=404)
+        return Response(sky.stylesheet(step), media_type="text/css", headers=day_long)
+
+    @app.get("/look/{token}")
+    def look(token: str) -> Response:
+        """Where a plan's day is now (D73, D74, D76), for a page left open: the part of
+        the day, the weekday and the sky's step. Outside /p/ so that the service
+        worker does not keep it as a page."""
+        subscription = load(token)
+        if subscription is None:
+            return Response(status_code=404)
+        now = service.look_of(store, subscription, config.clock())
+        return Response(
+            json.dumps({"sky": now["sky"], "weekday": now["weekday"], "sun": sky.step_of(now["daylight"])}),
+            media_type="application/json",
+        )
 
     @app.get("/sw.js")
     def service_worker() -> Response:
@@ -594,6 +632,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus": subscription.options.get("focus"),
             "cards_due": service.cards_due(store, subscription, now),
             "tip": service.tip_of_the_day(subscription, now),
+            "insight": service.insights_view(store, subscription, now)["today"]
+            if subscription.plan
+            else None,
             "weekly_note": service.note_of_the_week(subscription, now),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
@@ -662,6 +703,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
             groups=service.groups_view(store, subscription, now)["groups"],
             badges=service.badges_view(store, subscription, now, logged=logged),
+            insights=service.insights_view(store, subscription, now) if subscription.plan else None,
             saved=_notice(saved),
             tab="progress",
         )
@@ -1832,6 +1874,30 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         service.log_event(store, token, "motion", chosen)
         return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+
+    @app.post("/p/{token}/tour")
+    async def tour_seen(request: Request, token: str) -> Response:
+        """Spark's tour of a section, finished or skipped (D77): tour.js says so, and
+        the section shows it no more."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        name = str(form.get("name") or "")
+        try:
+            service.update_subscription(store, token, lambda current: service.see_tour(current, name))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "tour", name)
+        return Response(status_code=204)
+
+    @app.post("/p/{token}/tour/again")
+    async def tour_again(request: Request, token: str) -> Response:
+        """Every tour shown again, from Settings (D77): Today's first."""
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(store, token, service.reset_tours)
+        service.log_event(store, token, "tour", "again")
+        return RedirectResponse(f"/p/{token}", 303)
 
     @app.post("/p/{token}/tip-setting")
     async def tip_setting(request: Request, token: str) -> Response:

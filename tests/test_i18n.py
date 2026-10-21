@@ -86,6 +86,9 @@ def indirect_sentences() -> set[str]:
         *tips.sentences(),  # the tips' text, translated where it is shown (D62)
         *weekly.sentences(),  # the weekly notes (D64)
         *service.ROUTINE_SAYS.values(),  # what Spark says about the week (D70)
+        *service._INSIGHT_TITLES.values(),  # the insights (D80)
+        *service._INSIGHT_HOW.values(),
+        *service._BEST_PART.values(),
     }
 
 

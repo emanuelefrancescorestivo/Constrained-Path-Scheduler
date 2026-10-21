@@ -179,3 +179,33 @@ with a shared weekly goal (D28) and flashcards (D29).
 
 <p align="center"><img alt="The notes library on a phone: the Notes tab of Community, filters by course, university and programme, and notes from students in Milan and Lyon, each with a thumbnail of its first page, its course, title, author, pages and date, a helpful count, and a No. 1 this month badge" src="app-notes-phone.png" width="40%"></p>
 <p align="center"><sub>Synthetic students and handwritten-style pages made for the screenshot; not real data.</sub></p>
+
+## 6. More measures a student could see (proposed, 2026-10-20)
+
+*The owner: "what other measurable analytics can we add for a student?"* Only what the
+app can measure from what it already records, or with one small addition, and only
+what a student can act on (§1, §2). The first four are built (2026-10-21, D80: "Your
+insights" on Progress, with a pace check against burnout); the rest are proposals.
+
+| Measure | What it tells the student | From | Limits, said on the page |
+|---|---|---|---|
+| **Starting on time** | how long after a planned session's start the focus timer starts, week by week | focus sessions started from the plan (their session id and start), already kept | only sessions started with the timer; a late start is not a missed one |
+| **Focus quality** | the share of each session spent on the page, and its trend | the focus timer's time away, already kept (D17) | time away is time off the page, not time distracted |
+| **When you recall best** | self-test recall (nothing, some, most, all) by part of the day | self-test reports (D25) and their times, already kept | small numbers: shown only after enough self-tests, with how many |
+| **Knowing what you know** | whether the student's own sense of recall runs above or below the model's forecast | predicted against reported recall, already measured for the pilot (D55) | the forecast uses population weights; a gap is a hint, not a grade |
+| **Plan kept, per course** | the share of sessions done for each course, so a neglected course shows | session reports, already kept | unreported sessions count as done (D44); said so |
+| **Time against weight** | each course's share of study hours against its exams' weights | hours per course (D22) and exam weights (W5), already kept | an exam's weight is the student's own estimate |
+| **Spacing kept** | how far apart the reviews of a topic really fell, against the plan's | session reports and topics (D50), already kept | only for topics reviewed more than once |
+| **Margin before deadlines** | how many days before its due date each task was ticked | task finish times, already kept | tasks ticked late in the app may have been done earlier |
+| **Flashcard retention** | the share of due cards remembered, against the 90 % the scheduler aims for; cards learned per week | card reviews (D29), already kept | the student grades their own answers |
+| **Regular weeks** | study days per week and the longest gap, beside the streak | sessions and logs, already kept | rest days planned are not gaps |
+| **Exams against preparation** | for each exam, the hours and sessions before it beside how it went | the after-exam question, asked with consent (D56) | a handful of exams a semester: a story, not a statistic |
+
+**Not proposed, on purpose:** sleep, phone screen time or location (the app does not
+have them, and asking for them is surveillance, §2); any ranking against other
+students (D16); one combined "productivity score" (§2).
+
+The first four need no new data and each answers a plain question: "do I start when
+I planned?", "am I on the page when I study?", "when do I remember best?", "do I know
+this as well as I think?". Whether students want these answered is for the pilot to
+show; the market study (docs/MARKET.md §4) did not ask.

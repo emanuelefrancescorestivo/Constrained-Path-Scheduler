@@ -27,8 +27,9 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
-    pytest                                   # 881 passed, 17 deselected, 1 xfailed, about 200 s
-    pytest -m "slow or not slow" --cov=cps   # all 898 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
+    pytest                                   # 938 passed, 17 deselected, 1 xfailed, about 250 s
+    pytest -m "slow or not slow" --cov=cps   # all 955 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -39,6 +40,7 @@ more than an impressive number.
     python benchmarks/personal_fsrs.py       # a student's own parameters: how many answers before they help (D53)
     python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
+    python benchmarks/syllabus_cost.py       # what reading a syllabus with a model would cost, per model (docs/CURRICULUM.md §3a)
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
     cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read, questions to the coach (D62, D64, D65)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
@@ -52,6 +54,7 @@ more than an impressive number.
 | `fitting.py` | D53: a student's own FSRS-6 parameters, fitted with NumPy (a prior centred on the population's, Adam on finite differences, every parameter set replayed at once); made-up students for the benchmark and tests |
 | `legacy.py` | the January 2026 model, verbatim, so its defect stays a failing test |
 | `timegrid.py` | calendar as one immutable, hashable integer bitmask; local wall-clock slots |
+| `daylight.py` | D76: where the sun is for a plan (its time zone's main city from tzdata, NOAA's equations), folded into the day's position, 0 night to 4, behind the sky's colours |
 | `calendar_io.py` | `.ics` in (RRULE, EXDATE, DST, BOM, cancellations), exam detection, course of each event, `.ics` out |
 | `ssp.py` | SSP-MMC value iteration: reference optimum and admissible heuristic |
 | `clock.py` | `V(D, S, t)` and `W(D, S, e, t)`: cost to reach a subject's target before its exam |
@@ -61,13 +64,14 @@ more than an impressive number.
 | `assistant.py` | the product's scheduler: deadlines (EDF), weekly budget, days off, exam practice (taking turns, D46), self-testing, free time; sessions the student moved (pins) |
 | `progress.py` | the streak (studied, rest, forgiven, missed days), the week, the day grid, full weeks: pure functions of sessions and reports (DECISIONS.md D8, D9) |
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
+| `insights.py` | D80: what a student's own data says, each shown once there is enough of it: starting on time, focus, when they remember best, memory against the forecast; the pace against their own limit and usual weeks, which never asks for more: pure functions |
 | `tips.py` | D62: the study tips, each with how strong its evidence is, its limits and its sources (only entries of docs/REFERENCES.md marked checked, with the day they were read); `service` picks the one the day calls for (an exam close, a skipped class, an evening session…, D63) or one in turn |
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
 | `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39) |
-| `service.py` | the API every front end uses; the sky of the hour and the garden of the streak behind a plan's pages (D73); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the student's day: getting up, going to bed, lunch (D69); typed errors; no UI imports |
+| `service.py` | the API every front end uses; the sky and the garden of the streak behind a plan's pages (D73), where the sun is in the plan's day (D76); which section's tour a page shows, and the ones seen (D77); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the insights on Progress and the one on Today (D80); the student's day: getting up, going to bed, lunch (D69); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store: one JSON document per token, version compare-and-swap, event log, expiry sweep (12 months after the last visit, D36), backups; a plan's rows of every table for its copy (`_EXPORT`, D43) |
@@ -75,28 +79,28 @@ more than an impressive number.
 | `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone) |
 | `reminders.py` | D38: Web Push before each session: the server's VAPID key (made once, kept in the store), devices at known push services only, a session reminded once, sending with `pywebpush` |
 | `passkeys.py`, `accounts.py` | D35: WebAuthn checked on the server (a small CBOR reader; ES256, Ed25519, RS256 with `cryptography`, imported lazily), a plan's passkeys, single-use challenges, the recovery code (a digest, used once) |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), the app's icon (the week's ring for a day and a sky, `web/icon.py`, D74), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), the sky's colours along the sun's day and the accent of each moment (`web/sky.py`, `/sky/<step>.css`, D76, D78), Spark's tour of each section on its first visit (`_tour.html`, D77), the app's icon (the week's ring for a day, in the sky's colours, light or dark, `web/icon.py`, D74, D76), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
 | `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface
 guidelines, under calm glass (D73: Bricolage Grotesque and Figtree shipped in `fonts/`
-with their licences, a sky of the hour behind a plan's pages, clear glass, a garden in
+with their licences, a sky that follows the sun behind a plan's pages (D76), clear glass, a garden in
 `garden/` that grows with the streak), with grouped lists, translucent bars, sheets, switches, the "+"
 in the bar, continuous corners where the browser draws them, D37): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
-red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), a strip that scrolls sideways a day at a time (D68), draw,
+red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), and a Month of six weeks (D79), a strip that scrolls sideways a day at a time (D68), draw,
 drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn by
 hand, classes first, D32), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
-sheet, Undo, the N key, the sky and the live icon as the day turns), `motion.js` (D30: numbers that count up, swaps carried over
+sheet, Undo, the N key, the sky and the live icon as the sun moves, asked of the server every five minutes, D76), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
 transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
-(D33: the installable app, the service worker that keeps a plan's pages for offline use, the
+(D33: the installable app, the service worker that keeps a plan's pages for offline use and takes the server's copy of the app's files first, AUDIT 67, the
 install card; with D38, the reminder shown as a notification; it also remembers the plan
 last opened, for invitation links, D40; the graphite icon to install on a dark device, D74), `invite.js` (D40: "Join with my plan" on an
-invitation link), `routine.js` (D70: the questions about the week one card at a time with Spark, each time drawn on a bar of the day), `push.js` (D38: turning
+invitation link), `routine.js` (D70: the questions about the week one card at a time with Spark, each time drawn on a bar of the day), `tour.js` (D77: Spark's tour, the page dimmed and each step's part lit; the server says which tour and what it says), `push.js` (D38: turning
 reminders on or off on a device), `passkeys.js` (D35: adding a passkey, signing in with one; the server
 decides, the script hands the browser's answer back), `errors.js` (D43: loaded first on every page, it sends the scripts' errors to the owner's
 error log) and `i18n.js` (the scripts' words in French and Italian).
@@ -190,7 +194,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Sessions not reported count as done as planned, except a self-test a day after it
   ended, which counts as unknown and gains no memory (D44). In `cps web` a report reaches the
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
-  owner's step (docs/DEPLOY.md, checkpoint C1 of docs/ROADMAP.md). Google Calendar
+  owner's step (docs/HETZNER.md, checkpoint C1 of docs/ROADMAP.md; the server's files
+  were run here in Docker, not on a real server). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.
 - The exam forecast and each self-test's gain (D24) come from FSRS with population
   weights and a guessed starting state; they are estimates, rounded to 5 %, and say
@@ -198,6 +203,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Motion (D30): page transitions and the sliding tab pill need cross-document view
   transitions (Chrome, Edge, Safari 18.2+); elsewhere pages simply load. Checked in
   Chromium only.
+- The insights (D80) rest on small numbers, said on each card; their thresholds are
+  choices, not results. Starting on time counts only sessions started with the timer,
+  from logs written since 2026-10-21. Checked in Chromium only.
 - The tips (D62) rest on abstracts and database records, not full texts; their wording is the
   owner's to review, and a tip may cite only a checked reference (`tests/test_tips.py`).
 - AI (D12), the coach (D65) included, has run only against a fake provider: no model answer
@@ -210,6 +218,12 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   calendar's sideways strip (D68), with touch emulated.
 - Calm glass (D73) was checked in Chromium only, with phone sizes emulated; browsers
   without backdrop blur show the glass as a translucent fill.
+- The sky follows the sun of the time zone's main city (D76): a student far from it
+  (Brest under Europe/Paris) sees a sunset about half an hour early. Checked in
+  Chromium only.
+- Spark's tour (D77) and the accent of the moment (D78) were checked in Chromium only,
+  not with a screen reader nor on a real phone; without a script there is no tour.
+  The accent's hues are a choice of taste; only their contrast is measured.
 - The live icon (D74) was checked in Chromium only. An installed icon stays as it was
   installed (white, or graphite if the plan or the device was dark then); Safari's
   tab shows the white PNG.

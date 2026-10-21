@@ -136,7 +136,7 @@ mathematics and the admissibility arguments.
 
 `cps web` is the product as students would use it: one server for the pages, the
 calendar feeds and the reports, built for a phone and for a pilot on a small host
-(`docs/DEPLOY.md`, `render.yaml`), installable on a phone's home screen and readable
+(`docs/HETZNER.md` with `deploy/hetzner/`, or `docs/DEPLOY.md` with `render.yaml`), installable on a phone's home screen and readable
 offline (D33), in English, French and Italian (the language is the plan's;
 what is still English is AUDIT.md item 40).
 
@@ -418,8 +418,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 881 passed, 17 deselected (slow), 1 xfailed, ~200 s
-pytest -m "slow or not slow" --cov=cps    # everything: 898 passed, 1 xfailed, 94% coverage
+pytest                                    # 938 passed, 17 deselected (slow), 1 xfailed, ~250 s
+pytest -m "slow or not slow" --cov=cps    # everything: 955 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

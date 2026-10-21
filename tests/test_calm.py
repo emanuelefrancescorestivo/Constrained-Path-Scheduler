@@ -47,8 +47,10 @@ def test_the_garden_grows_with_the_streak(streak, stage):
 
 def test_the_sky_is_the_plans_hour_not_the_servers(tmp_path):
     plan = service.start_subscription(tz="Europe/Paris", ics=SEMESTER.read_bytes(), now=MORNING)
-    # 06:00 UTC is 08:00 in Paris: morning there, night by the server's clock.
-    assert service.look_of(tmp_path, plan, MORNING) == {"sky": "morning", "garden": 1, "weekday": 2}
+    # 06:00 UTC is 08:00 in Paris: morning there, night by the server's clock; the sun
+    # rose there a few minutes before (D76).
+    expected = {"sky": "morning", "garden": 1, "weekday": 2, "daylight": 1.04}
+    assert service.look_of(tmp_path, plan, MORNING) == expected
     assert (
         service.look_of(tmp_path, plan, MORNING + timedelta(hours=11))["sky"] == "evening"
     )  # 19:00 in Paris

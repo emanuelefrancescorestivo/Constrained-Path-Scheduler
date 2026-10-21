@@ -1,0 +1,10 @@
+# Caddy in front of the app (DECISIONS.md D75). For the domain in CPS_DOMAIN it gets
+# a certificate from Let's Encrypt, renews it, sends http:// on to https://, and
+# passes every request to the app. No access log: a plan's address is its key, and
+# it would be written in every line (the app keeps none either).
+{$CPS_DOMAIN} {
+	encode zstd gzip
+	# Browsers that have been here once use HTTPS only, for a year.
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy app:8000
+}

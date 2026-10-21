@@ -152,7 +152,7 @@
   {% endfor %}
 </fieldset>
 
-<fieldset>
+<fieldset id="your-week">
   <legend>{{ _("Your week") }}</legend>
   <label for="weekly_hours">{{ _("Study hours a week at most (empty: no limit)") }}</label>
   <input id="weekly_hours" name="weekly_hours" type="number" min="1" max="80" step="0.5" value="{{ values.weekly_hours or '' }}" inputmode="decimal">
@@ -319,6 +319,11 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("A study tip on Today and Focus, chosen for your day. The tips page stays in Focus either way.") }}</p>
+<form method="post" action="/p/{{ token }}/tour/again" class="pills motion-choice" id="tour-again">
+  <span class="pills-label">{{ _("Spark's tour") }}</span>
+  <button type="submit" class="btn btn-sm">{{ _("Show it again") }}</button>
+</form>
+<p class="hint">{{ _("Spark shows you around Today, then each section the next time you open it.") }}</p>
 <h2 class="section" id="ai">{{ _("AI") }}</h2>
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">

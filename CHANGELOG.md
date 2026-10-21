@@ -6,6 +6,33 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Your insights, on Progress (D80): starting on time, focus, when you remember best,
+  and your memory against the forecast, each from your own sessions and self-tests,
+  unlocked as you use the app ("Answer 6 more self-tests to see this"), new ones
+  marked and brought to Today, a longest session celebrated once. Your pace, against
+  your own limit and usual weeks, suggests a day off after ten days in a row and
+  never asks for more.
+- Reading a syllabus, explored (docs/CURRICULUM.md §3a): a course's topics read once
+  and shared with classmates, pasted text read by rules, the model only for what
+  rules cannot read; its cost computed by `benchmarks/syllabus_cost.py`.
+- A Month view in the calendar (D79): six weeks, exams and tests first, then study
+  sessions and classes; dots on a phone; a day opens in the Day view.
+- Spark's tour (D77): the first time a section is opened, Spark dims the page, lights
+  each part in turn and says what it is for and what to do there: the calendar while
+  setting up, Today, then Tasks, Focus, Community and Progress. Skip it at any step;
+  Settings shows it again.
+- Buttons and links take a colour of the moment (D78): indigo at night, blue by day,
+  violet and purple around sunset, always readable against white text and the sky.
+  The calendar is moderate glass, with the sky showing through.
+- The sky follows the sun where the plan lives (D76): sunrise and sunset move with
+  the seasons and the place (the plan's time zone), through twelve moments from deep
+  night to golden hour and dusk, in light and dark. The live icon takes the sky's
+  colours, pale in light mode and deep in dark mode, and follows the plan's
+  appearance.
+- The pilot can run on a server of its own at Hetzner (D75): a Docker image, Caddy
+  for HTTPS, a cloud config that secures the server at its first start, deploys
+  from GitHub after CI passes, and a step-by-step guide (`docs/HETZNER.md`). CI
+  builds the image and checks it answers.
 - The app's icon is the week as a ring of seven days (D74): the days done filled,
   today in gold, the days to come faint. On a plan's pages the top bar and the tab
   show today's, in the colours of the sky of the hour, and change as the day goes
@@ -433,6 +460,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The focus ring closes as the minute turns, in step with the digits (AUDIT item 72);
+  the calendar shows the ordinary arrow over empty time (D79).
+- Full-screen focus keeps the sky behind the timer (AUDIT item 71).
+- No band behind a form's save button over the sky, and thin scrollbars instead of
+  Windows' thick grey ones (AUDIT item 70).
+- The top bar, the fields and the save bar are glass on every page of a plan,
+  instead of a black bar over glass pages in dark mode (AUDIT item 68).
+- On a phone in French, the tab bar's labels no longer run into each other beside
+  Spark (AUDIT item 69).
+- After an update, a returning visitor sees the new look on the next visit instead
+  of the old style sheet: the app's files are asked about again each time, and the
+  offline cache takes the server's copy first (AUDIT item 67).
 - A fresh store opens once when the server's threads all ask for it at its first
   start, instead of failing with "database is locked" (AUDIT item 66).
 - The focus clock starts at 0:00:00, and a page kept open no longer counts as time

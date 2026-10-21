@@ -58,6 +58,20 @@ def test_the_manifest_opens_the_plan_it_was_installed_from(web):
     assert 'rel="apple-touch-icon"' in page and 'src="/static/pwa.js"' in page
 
 
+def test_an_update_reaches_a_browser_that_came_before_it(web):
+    # AUDIT 67: the app's files went out with no caching rule, so a browser guessed
+    # how long its copy was good, and the worker showed its kept copy first: after an
+    # update, a returning visitor saw the old style sheet.
+    for path in ("/static/style.css", "/static/ui.js", "/static/icons/icon.svg"):
+        answer = web.get(path)
+        assert answer.headers["cache-control"] == "no-cache", path  # kept, but asked about each time
+        etag = answer.headers["etag"]
+        assert web.get(path, headers={"If-None-Match": etag}).status_code == 304, path  # cheap when unchanged
+    worker = web.get("/sw.js").text
+    assert 'new Request(url, { cache: "reload" })' in worker  # the install skips the browser's copies
+    assert "respondWith(freshFirst(request))" in worker and "staleWhileRevalidate" not in worker
+
+
 def test_the_service_worker_keeps_only_files_that_exist(web):
     worker = web.get("/sw.js")
     assert worker.status_code == 200 and "javascript" in worker.headers["content-type"]

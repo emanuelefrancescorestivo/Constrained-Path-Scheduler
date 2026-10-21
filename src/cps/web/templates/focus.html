@@ -50,7 +50,7 @@
   <span class="mascot-words"><span class="tip-reason">{{ _("Before you start") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></span>
 </a>{% endif %}
 {% if focus.suggested %}
-<form method="post" action="/p/{{ token }}/focus/start" class="card start-planned">
+<form method="post" action="/p/{{ token }}/focus/start" class="card start-planned" data-tour="focus-start">
   <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
   <p class="kicker">{{ _("From your plan") }} · {{ focus.suggested.when }}</p>
   <h2>{{ focus.suggested.label }}</h2>
@@ -58,7 +58,7 @@
   <button class="btn btn-primary btn-lg btn-block">{{ _("Start this session") }}</button>
 </form>
 {% endif %}
-<form method="post" action="/p/{{ token }}/focus/start" class="card section">
+<form method="post" action="/p/{{ token }}/focus/start" class="card section" data-tour="focus-start">
   <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>
   <input id="focus-course" name="course" list="focus-courses" required autocomplete="off" placeholder="{{ _('Course') }}">
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
@@ -66,8 +66,8 @@
   <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
   <p class="hint">{{ _("Rewards come at 30 minutes, at an hour, then every 45 minutes, and when you reach your length; only for time on this page.") }}</p>
 </form>
-<p class="section hint"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
-<a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">
+<p class="section hint" data-tour="focus-log"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
+<a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}" data-tour="focus-cards">
   <b>{{ _("Flashcards") }}</b>
   <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span>
 </a>

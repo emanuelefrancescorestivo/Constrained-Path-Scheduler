@@ -32,9 +32,10 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
       environment, daily backup, click-by-click steps.
 - [x] **W8 Moodle deadlines.** A learning platform's calendar export becomes tasks.
 - [x] **W9 Tests, browser run, documents.**
-- [ ] **C1 (owner)** Create the Render account, connect the repository, set the
-      settings it asks for (the contact address, the owner's name, the review
-      page's key; D72), go through setup on a phone with one's own timetable.
+- [ ] **C1 (owner)** Create the Hetzner account, a server and a domain, and set
+      the settings (the contact address, the owner's name, the review page's key;
+      D72, D75), following `docs/HETZNER.md`; go through setup on a phone with
+      one's own timetable. (Render, `docs/DEPLOY.md`, stays a second way.)
 - [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.
 
 ## Phase 1b: a reason to come back every day
@@ -100,6 +101,14 @@ request per phase, the benchmarks before and after).
       question with consent (D56, done). Then reading the results with the owner.
 
 ## Phase 2: once the pilot runs
+
+- [ ] **From a degree to what to study today** (docs/CURRICULUM.md): lecture blocks in
+      one tap; courses offered from classmates' timetables; a syllabus read into
+      topics; a study method per session; one university's Moodle course pages, with
+      its agreement. (owner: the phases, a PDF reader dependency, AI for reading
+      syllabuses, which university.)
+- [ ] **More measures for a student** (docs/ANALYTICS.md §6): starting on time, focus
+      quality, when recall is best, knowing what you know, and the rest. (owner: which.)
 
 - [ ] **W10 Writing into Google Calendar directly.** (owner: a Google Cloud project and
       an OAuth client; later, Google's verification.)

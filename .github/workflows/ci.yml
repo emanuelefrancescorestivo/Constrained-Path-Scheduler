@@ -18,6 +18,34 @@ jobs:
       - run: ruff format --check .
       - run: mypy
 
+  image:
+    # The pilot's server runs this image behind Caddy (D75): it must build, answer
+    # /health, and the files that run it must be valid.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build --tag study-plan .
+      - name: Start and ask /health
+        run: |
+          docker run --detach --name app --publish 8000:8000 study-plan
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs app
+          exit 1
+      - name: Compose and Caddy files are valid
+        run: |
+          cp deploy/hetzner/env.example deploy/hetzner/.env
+          sed -i 's/^CPS_DOMAIN=$/CPS_DOMAIN=plan.example.com/' deploy/hetzner/.env
+          docker compose -f deploy/hetzner/compose.yaml config --quiet
+          docker run --rm -e CPS_DOMAIN=plan.example.com \
+            -v "$PWD/deploy/hetzner/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Scripts parse
+        run: bash -n deploy/hetzner/deploy.sh
+
   test:
     # Windows is in the matrix because the project was developed on Linux and is
     # used on Windows: AUDIT.md item 21 lists four defects only Windows exposes.
