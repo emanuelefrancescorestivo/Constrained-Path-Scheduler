@@ -101,7 +101,7 @@ cost to the most:
 |---|---|---|---|---|
 | A. A classmate's topics | one tap | none | someone in the course already added them | the first student of a course |
 | B. Already in the calendar | nothing | none | the timetable or the platform's calendar names the topic ("Algebra – L5: eigenvalues") | the title names only the course |
-| C. Paste the course's contents | copy the course page's program, paste, check | none | numbered lines, "Week 3:", "Lecture 5 –", "Settimana", "Semaine", dates | a table pasted as one line, prose |
+| C. Paste the course's contents | copy the course page's program, paste, check | none | numbered lines, "Week 3:", "Lecture 5 –", "Settimana", "Semaine" (not dates, D81) | a table pasted as one line, prose |
 | D. A few words after class | after each lecture, two or three words, or a tap on a suggestion | none | always; the list grows as the course goes | it asks something every week |
 | E. Read it for me | upload the PDF, check the list | cents (below) | PDFs, tables, prose, any language | AI off, the cap reached: back to C |
 
@@ -113,7 +113,8 @@ cost to the most:
   title costs a few lines and a case in `tests/test_generality.py`.
 - **C needs no new dependency.** Rules split a pasted text into topics (one a line,
   numbering and bullets removed, a week taken from "Week n", "Semaine n",
-  "Settimana n", "Lecture n" or a date). A list without weeks is spread over the
+  "Settimana n" or "Lecture n"; a date is left in the title, as day and month come in
+  different orders by country, D81). A list without weeks is spread over the
   course's teaching weeks in the timetable, in order, longer weeks taking more
   (D50). Reading a PDF without the model would need a text extractor, a new
   dependency for the owner to approve; pasting avoids it.
@@ -161,6 +162,9 @@ the measure.
 - *Reading the course's web page from its address.* Every university's site is
   different (§2), and the app would fetch pages on the student's behalf; pasting
   the text is one step for the student and none for the server.
+
+**Built (2026-10-21, D81):** A and C, as recommended: the paste reader, topics on the
+sessions of their week, and lists shared with classmates. B, D and E are not built.
 
 **Recommended order:** A and C first (no model, no dependency, a few days), with B if
 the pilot's timetables carry topics; E next, behind the AI switch, for what the rules

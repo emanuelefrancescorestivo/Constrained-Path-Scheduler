@@ -17,6 +17,7 @@ from icalendar import Calendar, Event
 
 from cps import service
 from cps.calendar_io import course_of
+from cps.syllabus import read as read_syllabus
 
 START = date(2026, 9, 28)  # a Monday
 
@@ -245,3 +246,29 @@ def test_a_course_with_many_hours_a_week_is_reviewed_in_parts():
     assert len(chem) == 2 * len(math) == 24
     assert chem[:2] == ["week of 28 Sep (1 of 2)", "week of 28 Sep (2 of 2)"]
     assert math[0] == "week of 28 Sep"
+
+
+# A course's program pasted in each language's words (D81): the week or the lecture
+# each topic names, and its title without the numbering.
+SYLLABI = {
+    "English": "Week 1: Sets\nWeek 2 - Relations\nLecture 5: Functions",
+    "French": "Semaine 1 : Ensembles\nSemaine 2 – Relations\nCours 5 : Fonctions",
+    "French, lessons": "Séance 1 : Ensembles\nLeçon 2 : Relations\nCours 5 : Fonctions",
+    "Italian": "Settimana 1: Insiemi\nSettimana 2 - Relazioni\nLezione 5: Funzioni",
+    "Spanish": "Semana 1: Conjuntos\nSemana 2 - Relaciones\nClase 5: Funciones",
+    "Portuguese": "Semana 1: Conjuntos\nSemana 2 - Relações\nAula 5: Funções",
+    "German": "Woche 1: Mengen\nWoche 2 - Relationen\nVorlesung 5: Funktionen",
+    "Dutch": "Week 1: Verzamelingen\nWeek 2 - Relaties\nHoorcollege 5: Functies",
+    "US, abbreviated": "Wk 1: Sets\nWk. 2 - Relations\nLec 5: Functions",
+}
+
+
+@pytest.mark.parametrize("shape", SYLLABI)
+def test_a_syllabus_is_read_in_each_language_s_words(shape):
+    topics = read_syllabus(SYLLABI[shape])
+    marks = [(t.week, t.lecture) for t in topics]
+    if shape == "French, lessons":
+        assert marks == [(None, 1), (None, 2), (None, 5)]
+    else:
+        assert marks == [(1, None), (2, None), (None, 5)]
+    assert all(t.title[0].isupper() and not t.title[0].isdigit() for t in topics)

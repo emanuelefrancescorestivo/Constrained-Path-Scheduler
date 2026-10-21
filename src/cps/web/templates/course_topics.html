@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ view.course }} · {{ _("Topics") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% macro topic_list(rows) %}
+<ol class="card list topic-list">
+  {% for r in rows %}<li><span class="grow">{{ r.title }}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% else %}<small class="topic-when muted">{{ _("no week") }}</small>{% endif %}</li>{% endfor %}
+</ol>
+{% endmacro %}
+<p class="back"><a href="/p/{{ token }}/topics">{{ _("Your courses' topics") }}</a></p>
+<h1>{{ view.course }}</h1>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+{% if view.offers and not view.rows %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("From your classmates") }}</h2></div>
+  {% for o in view.offers %}
+  <form method="post" action="/p/{{ token }}/topics/{{ view.index }}/take" class="card topic-offer">
+    <input type="hidden" name="list" value="{{ o.id }}">
+    <p><b>{{ _n("{n} topic", "{n} topics", o.count) }}</b>{% if o.uses %} · <small>{{ _n("taken by {n} classmate", "taken by {n} classmates", o.uses) }}</small>{% endif %}</p>
+    <ul class="topic-peek">{% for t in o.titles %}<li>{{ t }}</li>{% endfor %}{% if o.more %}<li class="muted">{{ _n("and {n} more", "and {n} more", o.more) }}</li>{% endif %}</ul>
+    <button class="btn btn-primary btn-sm">{{ _("Use these topics") }}</button>
+  </form>
+  {% endfor %}
+  <p class="hint">{{ _("Shared without a name by students of your university who take this course. Check them against your own program.") }}</p>
+</div>
+{% endif %}
+
+{% if view.preview %}
+<div class="section" id="preview">
+  <div class="section-title"><h2>{{ _("Read from your text") }}</h2><small>{{ _n("{n} topic", "{n} topics", view.preview.count) }}</small></div>
+  {% if view.preview.rows %}{{ topic_list(view.preview.rows) }}{% else %}<p class="card">{{ _("No topic found. Put one topic on each line, with its week if you know it.") }}</p>{% endif %}
+  {% if view.preview.full %}<p class="hint">{{ _("Only the first 60 topics are kept.") }}</p>{% endif %}
+  {% if view.preview.rows %}<p class="hint">{{ _("Not right? Change the text below and read it again.") }}</p>{% endif %}
+</div>
+{% elif view.rows %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Topics") }}</h2><small>{{ _n("{n} topic", "{n} topics", view.rows | length) }}</small></div>
+  {{ topic_list(view.rows) }}
+</div>
+{% endif %}
+
+<form method="post" action="/p/{{ token }}/topics/{{ view.index }}" class="card section topics-form">
+  <h2>{% if view.rows %}{{ _("Change the topics") }}{% else %}{{ _("Paste the program") }}{% endif %}</h2>
+  <p class="hint">{{ _("Copy the course's program from its page or its PDF and paste it here. Lines such as \"Week 3: Eigenvalues\" or \"Lecture 5 - Series\" keep their week; a list without weeks is spread over the course's weeks of lectures.") }}</p>
+  <label for="t-text" class="visually-hidden">{{ _("The course's program") }}</label>
+  <textarea id="t-text" name="text" rows="10" maxlength="20000" placeholder="{{ _('Week 1: Vectors and matrices') }}&#10;{{ _('Week 2: Linear maps') }}&#10;{{ _('Week 3: Eigenvalues') }}">{{ view.text }}</textarea>
+  {% if not view.timetable %}<p class="hint">{{ _("Your timetable has no lectures for this course, so the topics are kept as a list, not placed on weeks.") }}</p>{% endif %}
+  {% if view.university %}
+  <label class="check check-long"><input type="checkbox" name="share" value="1"{% if share or (share is not defined and view.shared) %} checked{% endif %}> {{ _("Share these topics with classmates at {university} who take this course (without your name)", university=view.university) }}</label>
+  {% else %}
+  <p class="hint">{{ _h("To share topics with classmates and see theirs, <a href=\"{url}\">add your university to your profile</a>.", url="/p/" ~ token ~ "/profile") }}</p>
+  {% endif %}
+  <div class="form-actions">
+    <button class="btn" name="action" value="preview">{{ _("Read it") }}</button>
+    <button class="btn btn-primary" name="action" value="save">{{ _("Save topics") }}</button>
+  </div>
+  {% if view.rows %}<p class="hint">{{ _("To remove the topics, empty the box and save.") }}</p>{% endif %}
+</form>
+{% endblock %}

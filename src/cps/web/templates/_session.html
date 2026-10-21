@@ -4,6 +4,8 @@
   <h3>{{ card.title }}</h3>{% if card.topic %}<p class="meta">{{ card.topic }}</p>{% endif %}
   {% if card.pinned %}<span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}
   {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
+  {% if card.syllabus %}<div class="syllabus"><span class="muted">{{ _("In the syllabus:") }}</span><ul>{% for t in card.syllabus %}<li>{{ t }}</li>{% endfor %}</ul></div>
+  {% elif show_why and not calm and token and card.course_index is not none %}<p class="syllabus-add"><a href="/p/{{ token }}/topics/{{ card.course_index }}">{{ _("Add this course's topics") }}</a></p>{% endif %}
   {# On Today (calm, D73) the reasons fold under "Why now"; on the session's own page they show. #}
   {% if calm and show_why and (card.why or card.gain) %}<details class="why-now"><summary>{{ _("Why now") }}</summary>{% endif %}
   {% if show_why and card.why %}<p class="why">{{ card.why }}</p>{% endif %}

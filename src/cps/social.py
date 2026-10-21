@@ -1361,3 +1361,95 @@ def set_group(store: Store, owner: str, group_id: str, name: str, goal_hours: ob
             "UPDATE study_groups SET name = ?, goal = ? WHERE id = ?", (changed.name, changed.goal, group.id)
         )
     return changed
+
+
+# --------------------------------------------------------------------------- #
+# A course's topics shared with classmates (D81)
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class SharedTopics:
+    """A course's topics as a classmate shared them: no name, only the list."""
+
+    id: str
+    name: str  # the course as their timetable writes it
+    topics: list[dict]  # `syllabus.Topic.to_dict()`s
+    updated: str
+    uses: int  # plans that took the list
+
+
+def share_topics(
+    store: Store,
+    token: str,
+    university: str,
+    course: str,
+    name: str,
+    topics: list[dict],
+    now: datetime | None = None,
+) -> str:
+    """Offer a plan's topics for a course to the others of its university who take
+    it (one list per plan and course, replaced when shared again); its id."""
+    stamp = _now(now)
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT id FROM course_topics WHERE token = ? AND university = ? AND course = ?",
+            (token, university, course),
+        ).fetchone()
+        if row is not None:
+            db.execute(
+                "UPDATE course_topics SET name = ?, topics = ?, updated = ? WHERE id = ?",
+                (name, json.dumps(topics), stamp, row[0]),
+            )
+            return str(row[0])
+        new = _new_id()
+        db.execute(
+            "INSERT INTO course_topics (id, token, university, course, name, topics, created, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (new, token, university, course, name, json.dumps(topics), stamp, stamp),
+        )
+    return new
+
+
+def unshare_topics(store: Store, token: str, course: str) -> None:
+    """Stop offering a plan's topics for a course, at any university."""
+    with store.connection() as db:
+        db.execute("DELETE FROM course_topics WHERE token = ? AND course = ?", (token, course))
+
+
+def shared_by(store: Store, token: str) -> set[str]:
+    """The courses (`course` keys) a plan offers topics for."""
+    with store.connection() as db:
+        return {c for (c,) in db.execute("SELECT course FROM course_topics WHERE token = ?", (token,))}
+
+
+def classmates_topics(
+    store: Store, token: str, university: str, course: str, limit: int = 3
+) -> list[SharedTopics]:
+    """Lists other plans shared for a course at a university, the most taken
+    first, then the latest. Universities are compared as written, ignoring case,
+    as classmates are (D39)."""
+    if not university:
+        return []
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT id, name, topics, updated, uses FROM course_topics "
+            "WHERE LOWER(university) = LOWER(?) AND course = ? AND token != ? "
+            "ORDER BY uses DESC, updated DESC LIMIT ?",
+            (university, course, token, limit),
+        ).fetchall()
+    return [SharedTopics(i, n, json.loads(t), u, uses) for i, n, t, u, uses in rows]
+
+
+def take_topics(store: Store, token: str, list_id: str, counted: bool) -> SharedTopics:
+    """A classmate's list, taken by a plan: counted as one more use unless
+    `counted` (the plan took it before)."""
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT id, name, topics, updated, uses, token FROM course_topics WHERE id = ?", (list_id,)
+        ).fetchone()
+        if row is None or row[5] == token:
+            raise SocialError(_("This list of topics is no longer shared."))
+        if not counted:
+            db.execute("UPDATE course_topics SET uses = uses + 1 WHERE id = ?", (list_id,))
+    return SharedTopics(row[0], row[1], json.loads(row[2]), row[3], row[4] + (0 if counted else 1))

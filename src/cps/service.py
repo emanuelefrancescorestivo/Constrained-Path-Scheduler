@@ -67,6 +67,7 @@ from . import insights as _insights
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
+from . import syllabus as _syllabus
 from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
@@ -970,6 +971,12 @@ def _week_target(days: float) -> float:
     return days if days < 7 else 7 * math.floor(days / 7 + 1e-9)
 
 
+def _week_label(monday: date) -> str:
+    """How a week of lectures is named in its topic, "05 Oct" in "Algebra 3 · week
+    of 05 Oct": part of a session's title, hence of its id, so it never changes."""
+    return f"{monday:%d %b}"
+
+
 def _topics(report: CalendarReport, specs: Sequence[dict], model: Model = FSRS_4_5) -> list[dict[str, Any]]:
     """Each subject whose lectures are in the calendar becomes a topic per week of
     lectures, plus one for what was taught before the plan starts; the others stay
@@ -1013,7 +1020,9 @@ def _topics(report: CalendarReport, specs: Sequence[dict], model: Model = FSRS_4
                 available = _days_after(report.start, max(end for _, end in part))
                 if available >= spec["exam_day"]:
                     continue
-                label = f"week of {monday:%d %b}" + (f" ({k} of {len(parts)})" if len(parts) > 1 else "")
+                label = f"week of {_week_label(monday)}" + (
+                    f" ({k} of {len(parts)})" if len(parts) > 1 else ""
+                )
                 day_short, day = format_date(monday, "day_short"), format_date(monday, "day")
                 out.append(
                     {
@@ -3538,7 +3547,7 @@ def start_subscription(
 # What a new semester puts away (D36). Everything else in the options stays: the
 # week's hours and days off, the study window, the language, the appearance, AI,
 # the Moodle link and what was imported from it.
-_SEMESTER_ONLY = ("start", "tasks", "pins", "deadlines_error", "focus", "focus_draft")
+_SEMESTER_ONLY = ("start", "tasks", "pins", "deadlines_error", "focus", "focus_draft", "topics")
 
 
 def _archive(subscription: Subscription, now: datetime) -> list[dict]:
@@ -3727,6 +3736,8 @@ def _session_card(
     outcomes: Mapping[str, str],
     colours: Mapping[str, int] | None = None,
     gains: Mapping[str, dict] | None = None,
+    syllabus: Mapping[tuple[str, str], list[str]] | None = None,
+    courses: Sequence[str] = (),
 ) -> dict:
     start = datetime.fromisoformat(s.start).astimezone(zone)
     end = datetime.fromisoformat(s.end).astimezone(zone)
@@ -3750,6 +3761,13 @@ def _session_card(
         "started": start <= now,
         "pinned": s.pinned,
         "color": (colours or {}).get(s.subject.casefold()),
+        # What the syllabus says the week's lectures were about (D81), and where the
+        # course's topics are kept.
+        "syllabus": _syllabus_of(s, syllabus or {}),
+        "course_index": next(
+            (i for i, c in enumerate(courses) if s.kind != "task" and course_key(c) == course_key(s.subject)),
+            None,
+        ),
     }
 
 
@@ -3761,7 +3779,15 @@ def session_card(subscription: Subscription, sid: str, now: datetime | None = No
     plan = PlanReport.from_dict(subscription.plan)
     zone = _zone(plan.settings.tz)
     local = (now or datetime.now(UTC)).astimezone(zone)
-    return _session_card(session, zone, local, subscription.outcomes, gains=session_gains(plan))
+    return _session_card(
+        session,
+        zone,
+        local,
+        subscription.outcomes,
+        gains=session_gains(plan),
+        syllabus=_syllabus_index(subscription),
+        courses=topic_courses(subscription),
+    )
 
 
 # How many course colours the pages have (CSS classes c0 to c6): enough to tell a
@@ -4135,8 +4161,9 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["today"] = format_date(local.date())
     colours = {name.casefold(): index for name, index in course_colours(plan)}
     gains = session_gains(plan)
+    syllabus, courses = _syllabus_index(subscription), topic_courses(subscription)
     cards = [
-        _session_card(s, zone, local, subscription.outcomes, colours, gains)
+        _session_card(s, zone, local, subscription.outcomes, colours, gains, syllabus, courses)
         for s in plan.history + plan.sessions
     ]
     moments = [
@@ -8068,3 +8095,260 @@ def _assist(
         warnings=tuple(warnings),
         tasks=tuple(task_views),
     )
+
+
+# --------------------------------------------------------------------------- #
+# A course's topics, from its syllabus, shared with classmates (D81)
+# --------------------------------------------------------------------------- #
+
+# Each course's topics are kept in the plan as `options["topics"][course_key]`:
+# {"course": name, "items": [{"title", "week", "lecture", "monday"}], "from": the
+# classmate's list taken, if any}. "monday" is the teaching week the topic falls in,
+# found in the timetable when the topics are saved.
+TOPICS_PREVIEW = 3  # topics a classmate's list shows before it is taken
+TOPICS_TEXT_MOST = 20_000  # characters of pasted text read: a long syllabus's program
+
+
+def course_key(name: str) -> str:
+    """A course's name as two timetables of one university write it alike: lower
+    case, single spaces."""
+    return " ".join(name.casefold().split())
+
+
+def topic_courses(subscription: Subscription) -> list[str]:
+    """The courses a plan keeps topics for: its subjects, in order."""
+    return [str(s["name"]) for s in subscription.subjects if s.get("name")]
+
+
+def _topic_course(subscription: Subscription, index: int) -> str:
+    courses = topic_courses(subscription)
+    if not 0 <= index < len(courses):
+        raise InvalidInput(_("There is no such course in your plan."))
+    return courses[index]
+
+
+def _teaching(subscription: Subscription, course: str) -> tuple[list[date], list[float], list[int]]:
+    """The course's teaching weeks in the timetable, in order: their Mondays and
+    their lecture hours, and the week (from 1) of each lecture. Lectures as
+    `_topics` counts them, by the day each ends; none without a timetable file."""
+    if subscription.plan is None or subscription.ics_text is None:
+        return [], [], []
+    settings = PlanReport.from_dict(subscription.plan).settings
+    zone = _zone(settings.tz)
+    changes = tuple(subscription.options.get("lecture_changes", ()))
+    taught = sorted(
+        {
+            (x.start, x.end)
+            for x in _lectures(subscription.ics_text, settings.start, settings.tz, changes)
+            if x.course.casefold() == course.casefold()
+        }
+    )
+    mondays: list[date] = []
+    hours: list[float] = []
+    weeks: list[int] = []
+    for begin, end in taught:
+        first, last = datetime.fromisoformat(begin), datetime.fromisoformat(end).astimezone(zone)
+        monday = last.date() - timedelta(days=last.weekday())
+        if not mondays or mondays[-1] != monday:
+            mondays.append(monday)
+            hours.append(0.0)
+        hours[-1] += (last - first) / timedelta(hours=1)
+        weeks.append(len(mondays))
+    return mondays, hours, weeks
+
+
+def _placed(subscription: Subscription, course: str, topics: Sequence[_syllabus.Topic]) -> list[dict]:
+    """The topics with the Monday of the teaching week each falls in (or None)."""
+    mondays, hours, weeks = _teaching(subscription, course)
+    places = _syllabus.place(topics, hours, weeks)
+    return [
+        {**t.to_dict(), "monday": mondays[w - 1].isoformat() if w is not None else None}
+        for t, w in zip(topics, places, strict=True)
+    ]
+
+
+def _topic_rows(items: Sequence[Mapping]) -> list[dict]:
+    """Topics as a page lists them: the title and when it is taught."""
+    rows = []
+    for item in items:
+        monday = date.fromisoformat(item["monday"]) if item.get("monday") else None
+        rows.append(
+            {
+                "title": item["title"],
+                "when": _("Week of {day}", day=format_date(monday, "day_short")) if monday else "",
+                "week": item.get("week"),
+                "lecture": item.get("lecture"),
+            }
+        )
+    return rows
+
+
+def _topics_text(items: Sequence[Mapping]) -> str:
+    """Saved topics as lines the reader gives back, in the student's language."""
+    return _syllabus.to_text(
+        [_syllabus.Topic.from_dict(dict(i)) for i in items], week_word=_("Week"), lecture_word=_("Lecture")
+    )
+
+
+def _university(store: str | os.PathLike, token: str) -> str:
+    profile = social.get_profile(_store(store), token)
+    return profile.university if profile is not None else ""
+
+
+def topics_overview(store: str | os.PathLike, subscription: Subscription) -> list[dict]:
+    """Each course of the plan, with how many topics it has, whether they are
+    shared, and how many classmates' lists wait for it."""
+    university = _university(store, subscription.token)
+    shared = social.shared_by(_store(store), subscription.token)
+    kept = subscription.options.get("topics") or {}
+    out = []
+    for index, course in enumerate(topic_courses(subscription)):
+        key = course_key(course)
+        items = (kept.get(key) or {}).get("items") or []
+        offers = (
+            social.classmates_topics(_store(store), subscription.token, university, key) if not items else []
+        )
+        out.append(
+            {
+                "index": index,
+                "course": course,
+                "count": len(items),
+                "shared": key in shared,
+                "offers": len(offers),
+            }
+        )
+    return out
+
+
+def course_topics_view(
+    store: str | os.PathLike, subscription: Subscription, index: int, text: str | None = None
+) -> dict:
+    """A course's topics page: what is saved, a preview of `text` read as the
+    student pasted it, and the lists classmates shared for the course."""
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    kept = (subscription.options.get("topics") or {}).get(key) or {}
+    items = kept.get("items") or []
+    university = _university(store, subscription.token)
+    preview = None
+    if text is not None:
+        read = _syllabus.read(text)
+        preview = {
+            "rows": _topic_rows(_placed(subscription, course, read)),
+            "count": len(read),
+            "full": len(read) == _syllabus.MAX_TOPICS,
+        }
+    offers = [
+        {
+            "id": o.id,
+            "titles": [t["title"] for t in o.topics[:TOPICS_PREVIEW]],
+            "more": max(0, len(o.topics) - TOPICS_PREVIEW),
+            "count": len(o.topics),
+            "uses": o.uses,
+            "taken": kept.get("from") == o.id,
+        }
+        for o in social.classmates_topics(_store(store), subscription.token, university, key)
+    ]
+    return {
+        "index": index,
+        "course": course,
+        "rows": _topic_rows(items),
+        "text": text if text is not None else _topics_text(items),
+        "preview": preview,
+        "shared": key in social.shared_by(_store(store), subscription.token),
+        "university": university,
+        "offers": offers,
+        "timetable": bool(_teaching(subscription, course)[0]),
+    }
+
+
+def save_course_topics(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    index: int,
+    text: str,
+    *,
+    share: bool,
+    now: datetime | None = None,
+) -> Subscription:
+    """Keep the topics read from `text` for a course (an empty text clears them),
+    and offer them to classmates at the student's university when `share`; not
+    sharing withdraws a list shared before."""
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    read = _syllabus.read(text)
+    topics = {k: v for k, v in (subscription.options.get("topics") or {}).items() if k != key}
+    if read:
+        topics[key] = {"course": course, "items": _placed(subscription, course, read), "from": None}
+    university = _university(store, subscription.token)
+    if share and read and university:
+        social.share_topics(
+            _store(store), subscription.token, university, key, course, [t.to_dict() for t in read], now
+        )
+    else:
+        social.unshare_topics(_store(store), subscription.token, key)
+    return replace(subscription, options={**subscription.options, "topics": topics})
+
+
+def take_classmates_topics(
+    store: str | os.PathLike, subscription: Subscription, index: int, list_id: str
+) -> dict:
+    """A classmate's list for the course, taken: counted once, and placed in the
+    student's own timetable, ready for `with_course_topics`."""
+    course = _topic_course(subscription, index)
+    kept = (subscription.options.get("topics") or {}).get(course_key(course)) or {}
+    try:
+        taken = social.take_topics(
+            _store(store), subscription.token, list_id, counted=kept.get("from") == list_id
+        )
+    except social.SocialError as exc:
+        raise InvalidInput(str(exc)) from exc
+    read = [_syllabus.Topic.from_dict(t) for t in taken.topics][: _syllabus.MAX_TOPICS]
+    social.unshare_topics(_store(store), subscription.token, course_key(course))
+    return {"course": course, "items": _placed(subscription, course, read), "from": taken.id}
+
+
+def with_course_topics(subscription: Subscription, entry: Mapping) -> Subscription:
+    """The plan with a course's topics (`take_classmates_topics`) in place of its own."""
+    topics = {**(subscription.options.get("topics") or {}), course_key(str(entry["course"])): dict(entry)}
+    return replace(subscription, options={**subscription.options, "topics": topics})
+
+
+def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[str]]:
+    """Topic titles by course and teaching week ("05 Oct", as in a session's
+    topic), and by course and "before" for the weeks begun before the plan began."""
+    kept = subscription.options.get("topics") or {}
+    if not kept or subscription.plan is None:
+        return {}
+    start = PlanReport.from_dict(subscription.plan).settings.start
+    index: dict[tuple[str, str], list[str]] = {}
+    for key, entry in kept.items():
+        for item in entry.get("items") or ():
+            if item.get("monday"):
+                monday = date.fromisoformat(item["monday"])
+                index.setdefault((key, _week_label(monday)), []).append(item["title"])
+                if monday < start:  # a week begun before the plan: some of it was taught before
+                    index.setdefault((key, "before"), []).append(item["title"])
+    return index
+
+
+_WEEK_TOPIC = re.compile(r"^week of (.+?)(?: \(\d+ of \d+\))?$")
+
+
+def _syllabus_of(s: SessionView, index: Mapping[tuple[str, str], list[str]]) -> list[str]:
+    """The syllabus topics a session reviews, from the week of lectures it is about."""
+    if not index or s.kind == "task" or not s.topic:
+        return []
+    rest = s.topic.removeprefix(f"{s.subject} · ")
+    week = _WEEK_TOPIC.match(rest)
+    label = week.group(1) if week else ("before" if rest.startswith("taught before") else "")
+    return index.get((course_key(s.subject), label), []) if label else []
+
+
+def topics_nudge(store: str | os.PathLike, subscription: Subscription) -> dict | None:
+    """A course without topics for which a classmate shared some: one line on
+    Today, until the student takes them or adds their own."""
+    for course in topics_overview(store, subscription):
+        if not course["count"] and course["offers"]:
+            return {"index": course["index"], "course": course["course"]}
+    return None

@@ -2572,3 +2572,20 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .insight.pace-rest, .insight.pace-above, .insight-today.pace-rest, .insight-today.pace-above {
   box-shadow: inset 3px 0 0 #ff9f0a;
 }
+
+/* A course's topics, from its syllabus (D81) */
+.topic-list { counter-reset: topic; }
+.topic-list > li { align-items: baseline; counter-increment: topic; }
+.topic-list > li::after { content: none; }
+.topic-list > li .grow::before { content: counter(topic) "."; display: inline-block; min-width: 1.8em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.topic-when { flex: none; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.topic-courses > li { align-items: center; }
+.topic-offer { display: grid; gap: 8px; }
+.topic-offer + .topic-offer { margin-top: 12px; }
+.topic-offer p { margin: 0; }
+.topic-peek { margin: 0; padding-left: 1.2em; font-size: 0.9rem; }
+.topics-form textarea { min-height: 12em; font-size: 0.92rem; line-height: 1.45; }
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.syllabus { margin: 6px 0 0; font-size: 0.9rem; }
+.syllabus ul { margin: 2px 0 0; padding-left: 1.2em; }
+.syllabus-add { margin: 6px 0 0; font-size: 0.85rem; }
