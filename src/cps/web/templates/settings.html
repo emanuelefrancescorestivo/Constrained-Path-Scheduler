@@ -235,6 +235,9 @@
 <h2>{{ _("Your timetable") }}</h2>
 <p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
 {{ _("Time zone: {zone}.", zone=values.tz) }}</p>
+<h2 class="section" id="topics">{{ _("Your courses' topics") }}</h2>
+<p>{{ _("Paste each course's program once, or take the one a classmate shared: your sessions then say what each week was about.") }}</p>
+<p><a class="btn btn-sm" href="/p/{{ token }}/topics">{{ _("Your courses' topics") }}</a></p>
 <h2 class="section" id="account">{{ _("Keep your plan") }}</h2>
 <p>{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}</p>
 {% if account.passkeys %}

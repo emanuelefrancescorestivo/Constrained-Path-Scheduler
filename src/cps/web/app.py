@@ -636,6 +636,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             if subscription.plan
             else None,
             "weekly_note": service.note_of_the_week(subscription, now),
+            "topics_nudge": service.topics_nudge(store, subscription),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
@@ -1600,6 +1601,87 @@ def create_app(config: Config | None = None) -> FastAPI:
     ) -> HTMLResponse:
         view = service.cards_view(store, subscription, config.clock(), course=course[:80])
         return page(request, "cards.html", status, token=subscription.token, view=view, tab="focus", **extra)
+
+    # -- a course's topics, from its syllabus, shared with classmates (D81) ----------
+
+    TOPIC_NOTICES = {
+        "saved": "Topics saved.",
+        "cleared": "Topics removed.",
+        "taken": "Your classmate's topics are now yours. Change them as you like.",
+    }
+
+    @app.get("/p/{token}/topics", response_class=HTMLResponse)
+    def topics_list(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        courses = service.topics_overview(store, subscription)
+        return page(request, "topics.html", token=token, courses=courses, tab="settings")
+
+    def course_topics_page(
+        request: Request,
+        subscription: service.Subscription,
+        index: int,
+        status: int = 200,
+        text: str | None = None,
+        **extra: Any,
+    ) -> HTMLResponse:
+        try:
+            view = service.course_topics_view(store, subscription, index, text)
+        except service.ServiceError:
+            return missing(request)
+        token = subscription.token
+        return page(request, "course_topics.html", status, token=token, view=view, tab="settings", **extra)
+
+    @app.get("/p/{token}/topics/{index}", response_class=HTMLResponse)
+    def course_topics(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        notice = service.translate(TOPIC_NOTICES[saved]) if saved in TOPIC_NOTICES else None
+        return course_topics_page(request, subscription, index, saved=notice)
+
+    @app.post("/p/{token}/topics/{index}", response_class=HTMLResponse)
+    async def course_topics_save(request: Request, token: str, index: int) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        text = str(form.get("text") or "")[: service.TOPICS_TEXT_MOST]
+        if form.get("action") == "preview":
+            return course_topics_page(request, subscription, index, text=text, share=bool(form.get("share")))
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.save_course_topics(
+                    store, current, index, text, share=bool(form.get("share")), now=config.clock()
+                ),
+            )
+        except service.ServiceError as error:
+            return course_topics_page(request, subscription, index, 400, text=text, error=str(error))
+        done = "saved" if text.strip() else "cleared"
+        service.log_event(store, token, "topics", done)
+        return RedirectResponse(f"/p/{token}/topics/{index}?saved={done}", 303)
+
+    @app.post("/p/{token}/topics/{index}/take")
+    async def course_topics_take(request: Request, token: str, index: int) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            chosen = str(form.get("list") or "")[:40]
+            entry = service.take_classmates_topics(store, subscription, index, chosen)
+            service.update_subscription(store, token, lambda now: service.with_course_topics(now, entry))
+        except service.ServiceError as error:
+            return course_topics_page(request, subscription, index, 400, error=str(error))
+        service.log_event(store, token, "topics", "taken")
+        return RedirectResponse(f"/p/{token}/topics/{index}?saved=taken", 303)
 
     @app.get("/p/{token}/cards", response_class=HTMLResponse)
     def cards_list(

@@ -235,6 +235,7 @@ TABLES = {
     "recovery_codes": "recovery_code",
     "push_devices": "reminder_devices",
     "feedback": "feedback",
+    "course_topics": "shared_topics",
     "challenges": None,  # a ceremony's random value, gone in minutes
     "push_sent": None,  # which sessions were reminded, for three days
     "server_keys": None,  # the server's own key

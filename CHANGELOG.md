@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A course's topics (D81): paste the program once ("Week 3: Eigenvalues", in seven
+  languages' words), check it, save it; each session then says what that week's
+  lectures were about. Share the list with classmates at your university, without
+  your name; they take it in one tap. Settings, Today and each session lead there.
 - Your insights, on Progress (D80): starting on time, focus, when you remember best,
   and your memory against the forecast, each from your own sessions and self-tests,
   unlocked as you use the app ("Answer 6 more self-tests to see this"), new ones

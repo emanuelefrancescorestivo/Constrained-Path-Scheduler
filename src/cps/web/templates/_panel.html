@@ -137,6 +137,7 @@
 {% set more = more + [_("Tasks")] %}
 {% if view.exams %}{% set more = more + [_("Exams")] %}{% endif %}
 {% if weekly_note %}{% set more = more + [_("This week's note")] %}{% endif %}
+{% if topics_nudge %}{% set more = more + [_("Topics from a classmate")] %}{% endif %}
 <details class="more section" data-more>
   <summary><span class="more-title">{{ _("More") }}</span><span class="more-what">{{ more | join(" · ") }}</span></summary>
   <div class="more-body">
@@ -211,6 +212,8 @@
 </div>
 {% endif %}
 
+{# A classmate shared topics for a course that has none (D81) #}
+{% if topics_nudge %}<a class="card link-card cards-link section topics-today" href="/p/{{ token }}/topics/{{ topics_nudge.index }}"><span class="tip-reason">{{ _("From a classmate") }}</span><b>{{ _("Topics for {course} are ready to use", course=topics_nudge.course) }}</b></a>{% endif %}
 {# This week's note on the science of learning, until it is read (D64) #}
 {% if weekly_note %}<a class="card link-card cards-link weekly-today section" href="/p/{{ token }}/weekly/{{ weekly_note.key }}"><span class="tip-reason">{{ _("This week's note") }}</span><b>{{ weekly_note.title }}</b></a>{% endif %}
 

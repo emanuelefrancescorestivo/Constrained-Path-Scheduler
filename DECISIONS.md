@@ -2644,3 +2644,59 @@ the student. Starting on time sees only sessions started with the timer. Checked
 Chromium only, at 1280 px in light and dark and at 390 px, on the demo's student
 (`cps demo`): the pace, two locked cards, no clear best time (52 % against 46 %), and
 the forecast 10 points below.
+
+## D81. A course's topics: pasted once, read by rules, shared with classmates
+
+*The owner, 2026-10-21, after reading docs/CURRICULUM.md §3a: "build the classmate
+sharing plus paste reader".*
+
+**Chosen.** Ways A and C of CURRICULUM.md §3a, without a model and without a new
+dependency.
+
+- *The paste reader* (`cps/syllabus.py`, pure). The student copies a course's program
+  and pastes it; rules cut it into topics. "Week 3: ...", "Semaine 3", "Settimana 3",
+  "Semana 3", "Woche 3" give a week; "Lecture 5", "Cours 5", "Leçon", "Séance",
+  "Lezione 5", "Clase", "Aula", "Vorlesung", "Hoorcollege" give a lecture; a line
+  under one belongs to it until the next. Bullets and numbering are dropped ("1.",
+  "2)", "1.3", "a)", "iv."), but a bare number stays ("3 laws of motion"); a
+  one-letter abbreviation counts only before a colon or a dash ("L1 norm" is a
+  topic, "L3: Banach spaces" a lecture). Headings, a pasted table's header row and
+  links are skipped; cells of a pasted table are joined; bullets run together on one
+  line are split. At most 60 topics of at most 120 characters.
+- *Placed on the weeks of lectures.* A topic's week is the course's n-th week with
+  lectures in the timetable (weeks without them, such as a break, are not counted);
+  its lecture, the n-th lecture's week. A list that names no week is spread over the
+  weeks in order, each taking a share of the topics as large as its share of the
+  lecture hours (D50). The student sees each topic with its week before saving
+  ("Read it"), and can change the text and read it again.
+- *Shown where it is studied.* A session reviewing "the week of 19 Oct" shows "In the
+  syllabus: Quadratic forms" on Today and on its own page; "what was taught before"
+  shows the weeks begun before the plan. The session's title, and so its id, does not
+  change (`_week_label` names a week in one place). A session of a course without
+  topics links to the course's page.
+- *Shared with classmates, opt-in.* Saving can offer the list to students of the same
+  university (as the profile writes it, D39) who take a course of the same name,
+  without a name. Their course page shows up to three lists, the most taken first,
+  with the first three topics; one tap takes a list, placed in their own timetable,
+  and counts one use (once per plan). Today names "Topics from a classmate" in its
+  fold while a course has none and a list waits. Not sharing again, or deleting the
+  plan, withdraws the list; copies already taken stay with those who took them. The
+  shared list is in the plan's copy of its data (D43). Settings links to the topics.
+
+**Rejected.** A model for this first step (CURRICULUM.md §3a: E comes after, behind the
+AI switch); reading a PDF on the server (a new dependency; pasting avoids it); dates
+in a program (a date stays in the title: day-month orders differ by country); sharing
+by default (the owner's opt-in; a list says nothing about who wrote it, but a student
+may not want to give their work away unasked); showing who shared a list; a rename
+of the plan's weekly topics after the syllabus (it would change sessions' ids, and
+their reports with them).
+
+**Disclosed.** No real syllabus was tried: the rules come from the shapes listed above,
+with a case per language in `tests/test_generality.py`. Week numbering follows the
+timetable's weeks with lectures; a program that counts a break week as a week is one
+week off after it, which the preview shows. A shared list has no report button yet:
+it is only titles, without links, read by the same rules. Classmates are matched by
+the university and course names as written; two spellings of one course do not
+match. Checked in Chromium only, at 1280 px in light and dark and at 390 px: the
+course list, a pasted program read, saved and shared, the session's syllabus line, a
+second student seeing the list on Today and taking it.

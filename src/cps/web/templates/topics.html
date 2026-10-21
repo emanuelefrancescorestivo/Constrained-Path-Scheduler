@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your courses' topics") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/settings">{{ _("Settings") }}</a></p>
+<h1>{{ _("Your courses' topics") }}</h1>
+<p class="lede">{{ _("Paste a course's program once: each study session then says what that week's lectures were about.") }}</p>
+{% if courses %}
+<ul class="card list topic-courses section">
+  {% for c in courses %}
+  <li>
+    <a class="grow" href="/p/{{ token }}/topics/{{ c.index }}"><b>{{ c.course }}</b><br>
+      <small>{% if c.count %}{{ _n("{n} topic", "{n} topics", c.count) }}{% if c.shared %} · {{ _("shared with classmates") }}{% endif %}{% elif c.offers %}{{ _n("A classmate shared topics for this course", "{n} classmates shared topics for this course", c.offers) }}{% else %}{{ _("No topics yet") }}{% endif %}</small></a>
+    {% if not c.count and c.offers %}<span class="badge badge-accent">{{ _("Ready") }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="card section">{{ _("Your plan has no courses with an exam yet. Add them in Settings, then come back.") }}</p>
+{% endif %}
+{% endblock %}

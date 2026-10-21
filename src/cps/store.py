@@ -242,6 +242,22 @@ CREATE TABLE IF NOT EXISTS feedback (
     seen    INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS feedback_by_time ON feedback (created);
+-- A course's topics a student shared with classmates (D81): one list per plan,
+-- university and course, offered to the others of that course; it goes with the
+-- plan (`_FORGET`). `course` is the name in lower case with single spaces.
+CREATE TABLE IF NOT EXISTS course_topics (
+    id         TEXT PRIMARY KEY,
+    token      TEXT NOT NULL,
+    university TEXT NOT NULL,
+    course     TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    topics     TEXT NOT NULL,
+    created    TEXT NOT NULL,
+    updated    TEXT NOT NULL,
+    uses       INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS course_topics_by_plan ON course_topics (token, university, course);
+CREATE INDEX IF NOT EXISTS course_topics_by_course ON course_topics (university, course);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -301,6 +317,7 @@ _FORGET = (
     "DELETE FROM push_devices WHERE token = :t",
     "DELETE FROM push_sent WHERE token = :t",
     "DELETE FROM feedback WHERE token = :t",
+    "DELETE FROM course_topics WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",
@@ -339,6 +356,8 @@ _EXPORT = {
     "ai_usage": "SELECT created, feature, model, input_tokens, output_tokens, cost, ok FROM ai_usage "
     "WHERE token = :t ORDER BY created",
     "feedback": "SELECT created, kind, page, body FROM feedback WHERE token = :t ORDER BY id",
+    "shared_topics": "SELECT university, name, topics, created, updated, uses FROM course_topics "
+    "WHERE token = :t ORDER BY created",
 }
 
 
