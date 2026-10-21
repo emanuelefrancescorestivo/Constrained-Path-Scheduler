@@ -615,7 +615,9 @@ dd { margin: 3px 0 0; color: var(--muted); font-size: 0.92rem; }
 .cal-hour { position: absolute; right: 8px; font-size: 0.7rem; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; font-weight: 500; }
 .cal-hour.first { transform: translateY(2px); }
 .cal-col { position: relative; border-left: 0.5px solid var(--line); touch-action: pan-y; }
-.cal-col.can-add { cursor: cell; }
+/* The ordinary arrow over empty time, as Google's and Apple's calendars have it: the
+   spreadsheet's thick cross felt like a tool, not a calendar (the owner, 2026-10-20). */
+.cal-col.can-add { cursor: default; }
 .cal-line { position: absolute; left: 0; right: 0; border-top: 0.5px solid var(--line); pointer-events: none; }
 .cal-line.half { display: none; }
 .cal-closed { position: absolute; left: 0; right: 0; pointer-events: none; background: var(--fill-4); }
@@ -1339,7 +1341,6 @@ html:active-view-transition-type(swap)::view-transition-new(root) { animation: n
 @keyframes pop { 0% { transform: scale(0.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 @keyframes burst { from { opacity: 0.55; transform: scale(0.4); } to { opacity: 0; transform: scale(1.9); } }
 @keyframes breathe { 0%, 100% { opacity: 0.35; transform: scale(0.97); } 50% { opacity: 0.8; transform: scale(1.03); } }
-@keyframes orbit { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 html:not(.settled) .ring-arc { animation: ring-draw 1s var(--ease-out) 0.12s both; }
 .chart .bar { transform-box: fill-box; transform-origin: 50% 100%; }
 html:not(.settled) .chart .bar { animation: grow-y 0.7s var(--ease-out) both; }
@@ -1419,7 +1420,7 @@ html:not(.settled) :is(.feed, .library, .group-list, .tiles) > :nth-child(n+5) {
 /* No non-scaling stroke here: it measures dashes in screen pixels, not in pathLength. */
 .focus-orbit circle { fill: none; stroke-width: 0.55; }
 .focus-orbit .track { stroke: var(--fill-3); }
-.focus-orbit .sweep { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100 100; animation: orbit 60s linear infinite; }
+.focus-orbit .sweep { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100 100; } /* turned by focus.js */
 
 /* Flashcards: the answer rises in, the four answers after it. */
 .flash-answer[open] .flash-back { animation: rise 0.35s var(--ease-out) both; }
@@ -2490,4 +2491,56 @@ body[data-sky] .next-step .session-card { border-radius: 26px; }
 @media (max-width: 520px) {
   .tour-bubble { grid-template-columns: 44px 1fr; padding: 14px 14px 10px; }
   .tour-bubble .mascot { width: 44px; height: 44px; }
+}
+
+/* The month (D79): six weeks, Monday first. Each day a cell: its number (today's in
+   red, as in the hours views), then what tells most as small tinted rows (exams in
+   red, study and classes in their course's colour, classes lighter), and how many
+   more. A phone shows dots instead, as Apple's Calendar does. */
+.cal-month { overflow-y: auto; }
+.month-head {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-bottom: 0.5px solid var(--line-strong); background: var(--surface);
+}
+body[data-sky] .month-head { background: var(--glass-board-head); }
+.month-head span {
+  padding: 8px 4px; text-align: center; font-size: 0.72rem; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(104px, 1fr); flex: 1; }
+.m-day {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0;
+  padding: 4px 4px 6px; border: 0; border-right: 0.5px solid var(--line); border-bottom: 0.5px solid var(--line);
+  background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.m-day:nth-child(7n) { border-right: 0; }
+.m-day:hover { background: var(--fill-4); }
+.m-day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.m-day.out { color: var(--muted); }
+.m-day.out .m-evs { opacity: 0.55; }
+.m-dn {
+  align-self: flex-start; display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px;
+  border-radius: 980px; font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.m-day.today .m-dn { background: var(--now); color: #fff; }
+.m-evs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-ev {
+  display: block; min-width: 0; padding: 1px 5px; border-radius: 5px; border-left: 2px solid var(--cc, var(--busy));
+  font-size: 0.7rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint), var(--surface));
+}
+.m-ev .m-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.m-ev.m-class { background: color-mix(in srgb, var(--cc, var(--busy)) var(--tint-lecture), var(--surface)); }
+.m-ev.m-exam { --cc: var(--danger); background: color-mix(in srgb, var(--danger) 22%, var(--surface)); font-weight: 600; }
+.m-ev.m-test { font-weight: 600; }
+.m-more { padding-left: 5px; font-size: 0.68rem; color: var(--muted); }
+@media (max-width: 900px) {
+  .month-grid { grid-auto-rows: minmax(64px, 1fr); }
+  .m-day { align-items: center; padding: 4px 2px; }
+  .m-dn { align-self: center; }
+  .m-evs { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 3px; }
+  .m-ev { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; font-size: 0; background: var(--cc, var(--busy)); }
+  .m-ev.m-class { opacity: 0.45; background: var(--cc, var(--busy)); }
+  .m-ev.m-exam { background: var(--danger); }
+  .m-more { display: none; }
 }

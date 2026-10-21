@@ -37,6 +37,21 @@ const shiftDate = (iso, days) => {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 };
+// A month (D79): its number among the views, and its six weeks, from the Monday on
+// or before its first day.
+const MONTH = 30;
+const monthGridStart = (iso) => {
+  const first = `${iso.slice(0, 7)}-01`;
+  return shiftDate(first, -((new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7));
+};
+const shiftMonth = (iso, months) => {
+  const d = new Date(`${iso.slice(0, 7)}-01T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d.toISOString().slice(0, 10);
+};
+// In a month's day, what tells most comes first: exams and tests, study, then classes.
+const MONTH_RANK = { exam: 0, partial: 0, quiz: 1, mock: 1, study: 2, calendar: 3 };
+const MONTH_LOOK = { exam: "exam", partial: "exam", quiz: "test", mock: "test", study: "study", calendar: "class" };
 
 function h(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -128,12 +143,12 @@ export class Calendar {
     setInterval(() => this.placeNow(), 60 * 1000);
   }
 
-  // Day, 3 days or a week: the viewer's last choice on this device, else what the
-  // screen suits. Kept in the browser only; an unavailable storage just forgets.
+  // Day, 3 days, a week or a month: the viewer's last choice on this device, else what
+  // the screen suits. Kept in the browser only; an unavailable storage just forgets.
   savedView() {
     try {
       const kept = Number(window.localStorage.getItem(`cps-view-${narrow() ? "narrow" : "wide"}`));
-      if ([1, 3, 7].includes(kept)) return kept;
+      if ([1, 3, 7, MONTH].includes(kept)) return kept;
     } catch {
       /* private browsing, blocked storage: use the default */
     }
@@ -151,16 +166,21 @@ export class Calendar {
     this.load();
   }
 
+  get month() {
+    return this.view === MONTH;
+  }
+
   get count() {
-    return this.view;
+    return this.month ? 42 : this.view;
   }
 
   // Days drawn on each side of those shown: a week, room for a long swipe.
   get buffer() {
-    return this.strip ? 7 : 0;
+    return this.strip && !this.month ? 7 : 0;
   }
 
   query() {
+    if (this.month) return `start=${monthGridStart(this.first)}&days=42`;
     return `start=${shiftDate(this.first, -this.buffer)}&days=${this.count + 2 * this.buffer}`;
   }
 
@@ -191,6 +211,11 @@ export class Calendar {
   }
 
   go(where) {
+    if (this.month) {
+      this.first = where === "today" ? this.today : shiftMonth(this.first, where === "back" ? -1 : 1);
+      this.load();
+      return;
+    }
     const target = where === "today" ? this.today : shiftDate(this.first, where === "back" ? -this.count : this.count);
     const index = this.data && this.strip ? this.data.days.findIndex((day) => day.date === target) : -1;
     const scroller = this.root.querySelector(".cal-scroll");
@@ -222,6 +247,13 @@ export class Calendar {
 
   // The range in the bar: the days shown, not all those drawn.
   announce(index) {
+    if (this.month) {
+      const title = new Intl.DateTimeFormat(document.documentElement.lang || undefined, {
+        month: "long", year: "numeric", timeZone: "UTC",
+      }).format(new Date(`${this.first.slice(0, 7)}-01T12:00:00Z`));
+      this.onRange(title.charAt(0).toUpperCase() + title.slice(1), this.view);
+      return;
+    }
     const days = this.data.days;
     const first = days[index].label;
     const last = days[Math.min(index + this.count, days.length) - 1].label;
@@ -251,6 +283,10 @@ export class Calendar {
   // -- drawing ---------------------------------------------------------------
 
   draw(data, moving = false) {
+    if (this.month) {
+      this.drawMonth(data);
+      return;
+    }
     const scroller = this.root.querySelector(".cal-scroll");
     if (scroller && this.data) this.scrolled = scroller.scrollTop;
     const before = moving ? this.positions() : null;
@@ -378,6 +414,51 @@ export class Calendar {
     }
     this.announce(shown);
     if (before) this.slide(before);
+  }
+
+  // -- a month (DECISIONS.md D79) ---------------------------------------------------
+  // Six weeks, Monday first, around the month shown. Each day lists what tells most
+  // first (exams and tests, then study sessions, then classes), as many as fit, and
+  // how many more; the student's own busy times, the same every week, are left to
+  // the views with hours. A day opens in the Day view, where things are moved.
+  drawMonth(data) {
+    this.data = data;
+    this.loadedAt = Date.now();
+    this.columns = null; // no hours here: nothing for the line of now or the labels
+    const days = data.days;
+    const month = this.first.slice(0, 7);
+    const room = narrow() ? 4 : 3;
+    const byDay = days.map(() => []);
+    for (const item of data.items) if (byDay[item.day] && item.kind in MONTH_RANK) byDay[item.day].push(item);
+    const name = (item) => item.course || item.title || item.label;
+    const head = h("div", { class: "month-head", "aria-hidden": "true" }, days.slice(0, 7).map((day) => h("span", {}, day.label.slice(0, 3))));
+    const grid = h("div", { class: "month-grid" });
+    days.forEach((day, d) => {
+      const list = byDay[d].sort((a, b) => MONTH_RANK[a.kind] - MONTH_RANK[b.kind] || a.start - b.start);
+      const words = list.map((item) => `${toClock(item.start)} ${item.label}`).join(", ");
+      const chips = list.slice(0, room).map((item) => {
+        const colour = item.color === null || item.color === undefined ? " cn" : ` c${item.color}`;
+        return h("span", { class: `m-ev m-${MONTH_LOOK[item.kind]}${colour}` },
+          h("span", { class: "m-time" }, toClock(item.start)), " ", name(item));
+      });
+      grid.append(h("button", {
+        type: "button",
+        class: `m-day${day.date.slice(0, 7) === month ? "" : " out"}${day.date === data.now.date ? " today" : ""}`,
+        "aria-label": list.length ? t("{day}: {list}", { day: day.label, list: words }) : t("{day}: nothing on the calendar", { day: day.label }),
+        onclick: () => {
+          this.first = day.date;
+          this.setView(1);
+        },
+      },
+      h("span", { class: "m-dn" }, day.date.slice(8, 10).replace(/^0/, "")),
+      h("span", { class: "m-evs", "aria-hidden": "true" }, chips),
+      list.length > room ? h("span", { class: "m-more", "aria-hidden": "true" }, t("{n} more", { n: list.length - room })) : null));
+    });
+    const used = new Set(data.items.map((i) => i.color).filter((c) => c !== null && c !== undefined));
+    const legend = h("div", { class: "legend", "aria-label": t("Courses") },
+      data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
+    this.root.replaceChildren(h("div", { class: "cal cal-month" }, head, grid, legend.childElementCount ? legend : null));
+    this.announce(0);
   }
 
   // -- motion (DECISIONS.md D30) -------------------------------------------------

@@ -6,6 +6,8 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- A Month view in the calendar (D79): six weeks, exams and tests first, then study
+  sessions and classes; dots on a phone; a day opens in the Day view.
 - Spark's tour (D77): the first time a section is opened, Spark dims the page, lights
   each part in turn and says what it is for and what to do there: the calendar while
   setting up, Today, then Tasks, Focus, Community and Progress. Skip it at any step;
@@ -449,6 +451,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The focus ring closes as the minute turns, in step with the digits (AUDIT item 72);
+  the calendar shows the ordinary arrow over empty time (D79).
 - Full-screen focus keeps the sky behind the timer (AUDIT item 71).
 - No band behind a form's save button over the sky, and thin scrollbars instead of
   Windows' thick grey ones (AUDIT item 70).

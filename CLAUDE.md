@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 924 passed, 17 deselected, 1 xfailed, about 250 s
-    pytest -m "slow or not slow" --cov=cps   # all 941 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 925 passed, 17 deselected, 1 xfailed, about 250 s
+    pytest -m "slow or not slow" --cov=cps   # all 942 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -87,7 +87,7 @@ with their licences, a sky that follows the sun behind a plan's pages (D76), cle
 `garden/` that grows with the streak), with grouped lists, translucent bars, sheets, switches, the "+"
 in the bar, continuous corners where the browser draws them, D37): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
-red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), a strip that scrolls sideways a day at a time (D68), draw,
+red is for exams and today), `calendar.js` (the calendar: Day / 3 Days / Week over the whole day (D59), and a Month of six weeks (D79), a strip that scrolls sideways a day at a time (D68), draw,
 drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn by
 hand, classes first, D32), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:

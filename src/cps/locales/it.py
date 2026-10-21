@@ -1563,4 +1563,6 @@ MESSAGES: dict[str, str] = {
     "Show it again": "Rivedilo",
     "Spark shows you around Today, then each section the next time you open it.": "Spark ti fa fare il giro di Oggi, poi di ogni sezione la prossima volta che la apri.",
     "There is no such tour.": "Questo tour non esiste.",
+    # The month (D79)
+    "Month": "Mese",
 }

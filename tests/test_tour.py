@@ -145,3 +145,11 @@ def test_no_tour_is_longer_than_seven_steps():
     tours = re.split(r"\{% (?:el)?if tour == ", template)[1:]
     assert len(tours) == len(service.TOURS)
     assert all(2 <= t.count("<li data-target=") <= 7 for t in tours)
+
+
+def test_the_calendar_offers_a_month_once_set_up(web):
+    # D79: Day, 3 Days, Week and Month on the plan; drawing a week by hand keeps the
+    # views with hours only (a month is no place to draw classes).
+    token = _start(web)
+    assert '<button type="button" data-view="30">Month</button>' in web.get(f"/p/{token}").text
+    assert 'data-view="30"' in web.get(f"/p/{token}/week").text

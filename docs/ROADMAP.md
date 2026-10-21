@@ -102,6 +102,14 @@ request per phase, the benchmarks before and after).
 
 ## Phase 2: once the pilot runs
 
+- [ ] **From a degree to what to study today** (docs/CURRICULUM.md): lecture blocks in
+      one tap; courses offered from classmates' timetables; a syllabus read into
+      topics; a study method per session; one university's Moodle course pages, with
+      its agreement. (owner: the phases, a PDF reader dependency, AI for reading
+      syllabuses, which university.)
+- [ ] **More measures for a student** (docs/ANALYTICS.md §6): starting on time, focus
+      quality, when recall is best, knowing what you know, and the rest. (owner: which.)
+
 - [ ] **W10 Writing into Google Calendar directly.** (owner: a Google Cloud project and
       an OAuth client; later, Google's verification.)
 - [ ] **W11 Deadlines typed in words.** (owner: a language-model provider, an API key,

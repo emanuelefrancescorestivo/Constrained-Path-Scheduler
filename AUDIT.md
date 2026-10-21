@@ -880,3 +880,16 @@ section alone, and the sky is painted behind the page (`body::before`), which is
 in it. Fixed: the section carries the same sky while it is full screen
 (`body[data-sky] .focus:fullscreen`). Checked in Chromium in light and dark; a test
 keeps the rule. Status: fixed.
+
+**72. The focus ring fell out of step with the clock.** Reported by the owner,
+2026-10-20, with a screenshot: at 0:29:45 the ring that goes round once a minute was
+nearly closed, where it should have been three quarters round. The ring was a CSS
+animation started when the page loaded; every heartbeat (every 30 seconds) set its
+delay again to the session's seconds, as if it had just started, so each beat pushed
+it further from the digits. Found by reading `focus.js` against the screenshot; no
+test runs the script. Fixed: the ring is drawn from the same clock as the digits on
+every frame, and the digits turn on the second rather than up to a second late; a
+beat that corrects the clock moves both together. Checked in Chromium: sampled once
+a second for 40 seconds across a beat, the ring stayed within the second shown by the
+digits. Under reduced motion the ring stays a still, full circle, as before. Status:
+fixed.

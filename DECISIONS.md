@@ -2558,3 +2558,34 @@ sky did not read).
 October (Paris), and full screen in both modes. The hues are a choice of taste, the
 owner's to review; only the contrast is measured. The pages without a sky (the home
 page, the setup's first step) keep Apple's blue.
+
+## D79. A month in the calendar; the focus ring and the cursor
+
+*The owner, 2026-10-20: "we could allow a monthly calendar view"; "i also dont like
+the cursor when hovering on the calendar"; and, with a screenshot of the focus timer
+at 0:29:45 with its ring nearly closed, "maybe you can make it end the full circle
+when the minute ends?"*
+
+**Chosen.**
+
+- *Month*, beside Day, 3 Days and Week (not while drawing a week by hand, which is
+  about hours). Six weeks from the Monday on or before the month's first day, as
+  Apple's and Google's calendars show it. Each day lists what tells most first, exams
+  and tests, then study sessions, then classes, as many as fit (three on a computer)
+  and how many more; the student's own busy times, the same every week, stay in the
+  views with hours. On a phone the rows become coloured dots, as Apple's Calendar
+  does. Tapping a day opens it in the Day view, where sessions are moved; the arrows
+  go a month at a time. The calendar's data route now gives up to 42 days.
+- *The ordinary arrow* over empty time on the calendar, in place of the spreadsheet's
+  thick cross; sessions keep the grab hand.
+- *The focus ring closes as the minute turns* (AUDIT 72): drawn from the same clock as
+  the digits, every frame; the digits turn on the second.
+
+**Rejected.** A month with every class in it (a weekly timetable fills every cell the
+same way and hides the exams); dragging sessions in the month (no hours to drop on);
+a pointer hand over empty time (it says "link", not "place").
+
+**Disclosed.** Checked in Chromium only, at 1440 px in light and dark and at 390 px:
+the month drawn, the next month, Today, a day opened in the Day view, no script
+errors; the ring sampled once a second for 40 seconds, within the second of the
+digits.

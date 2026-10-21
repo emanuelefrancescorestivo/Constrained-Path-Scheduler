@@ -26,16 +26,26 @@ const rewards = [...document.querySelectorAll(".focus-rewards [data-at]")];
 const rewardCard = document.querySelector(".focus-reward");
 let awaySeconds = Number(section.dataset.away || 0);
 const pad = (n) => String(n).padStart(2, "0");
+const now = () => elapsed + (performance.now() - since) / 1000;
+const still = () =>
+  document.documentElement.dataset.motion === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// The ring round the clock goes round once a minute (D30), in step with the seconds:
-// its animation starts as far into the minute as the session is.
-function syncSweep() {
-  if (!sweep) return;
-  const seconds = elapsed + (performance.now() - since) / 1000;
-  sweep.style.animationDelay = `-${(seconds % 60).toFixed(2)}s`;
+// The ring round the clock goes round once a minute (D30) and closes as the minute's
+// digits turn over: it is drawn from the same clock as the digits, on every frame, so
+// a beat that corrects the clock moves both together. (It was a CSS animation whose
+// start was shifted at every beat, which pushed it out of step, AUDIT 72.) Under
+// reduced motion it stays a still, full circle.
+function sweepFrame() {
+  if (sweep && !still()) sweep.style.strokeDashoffset = String(100 - ((now() % 60) / 60) * 100);
+  requestAnimationFrame(sweepFrame);
+}
+// The digits turn on the second itself, not up to a second late.
+function tick() {
+  draw();
+  setTimeout(tick, 1000 - (now() % 1) * 1000 + 5);
 }
 function draw() {
-  const seconds = Math.floor(elapsed + (performance.now() - since) / 1000);
+  const seconds = Math.floor(now());
   clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
   reward(seconds - awaySeconds);
@@ -63,7 +73,7 @@ async function beat() {
     elapsed = state.elapsed;
     awaySeconds = Number(state.away || 0);
     since = performance.now();
-    syncSweep();
+    draw();
     if (state.interruptions) {
       away.textContent = ` · ${t(state.interruptions === 1 ? "left the app {n} time ({minutes} min)" : "left the app {n} times ({minutes} min)", { n: state.interruptions, minutes: state.away_minutes })}`;
     }
@@ -95,9 +105,8 @@ async function keepAwake() {
 }
 
 document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
-setInterval(draw, 1000);
-draw();
-syncSweep();
+tick();
+requestAnimationFrame(sweepFrame);
 start();
 
 const tools = document.querySelector(".focus-tools");

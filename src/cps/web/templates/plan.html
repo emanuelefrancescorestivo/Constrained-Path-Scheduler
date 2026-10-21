@@ -51,6 +51,7 @@
         <button type="button" data-view="1">{{ _("Day") }}</button>
         <button type="button" data-view="3">{{ _("3 Days") }}</button>
         <button type="button" data-view="7">{{ _("Week") }}</button>
+        {% if not setup %}<button type="button" data-view="30">{{ _("Month") }}</button>{% endif %}
       </div>
       <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="{{ _('Earlier days') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>

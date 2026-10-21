@@ -1834,9 +1834,9 @@ def short_title(summary: str) -> str:
     return " · ".join(shown)
 
 
-# The most days the calendar draws at once: a week shown and a week each side,
-# for the strip that scrolls sideways (D68).
-CALENDAR_MOST_DAYS = 21
+# The most days the calendar draws at once: a month's six weeks (D79); the strip
+# that scrolls sideways asks for a week shown and a week each side (D68).
+CALENDAR_MOST_DAYS = 42
 
 
 def calendar_week_count(source: CalendarReport | PlanReport) -> int:
