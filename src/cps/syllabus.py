@@ -236,3 +236,243 @@ def to_text(topics: Sequence[Topic], week_word: str = "Week", lecture_word: str 
         else:
             lines.append(t.title)
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# A whole course page: its sections, its assessment, its credits (D83)
+# --------------------------------------------------------------------------- #
+
+# The ECTS Users' Guide (2015, §7.1) recommends the same items for every course
+# unit in a catalogue: among them its credits, learning outcomes, prerequisites,
+# content, reading, teaching methods and assessment methods; the format is the
+# institution's [ref:ects2015]. So a course page usually has these headings, in
+# its own words. Each section's headings, accents removed, lower case.
+SECTIONS = {
+    "content": (
+        "course content",
+        "course contents",
+        "content",
+        "contents",
+        "syllabus",
+        "programme",
+        "program",
+        "course outline",
+        "outline",
+        "topics",
+        "topics covered",
+        "schedule",
+        "course schedule",
+        "contenu",
+        "contenus",
+        "contenu du cours",
+        "programme du cours",
+        "plan du cours",
+        "contenuti",
+        "contenuti del corso",
+        "programma",
+        "programma del corso",
+        "argomenti",
+        "contenidos",
+        "temario",
+        "programa",
+        "conteudos",
+        "conteudo programatico",
+        "inhalt",
+        "inhalte",
+        "lehrinhalte",
+        "inhoud",
+        "leerinhoud",
+    ),
+    "outcomes": (
+        "learning outcomes",
+        "intended learning outcomes",
+        "objectives",
+        "aims",
+        "course objectives",
+        "goals",
+        "acquis d'apprentissage",
+        "resultats d'apprentissage",
+        "objectifs",
+        "competences visees",
+        "obiettivi",
+        "obiettivi formativi",
+        "risultati di apprendimento",
+        "risultati di apprendimento attesi",
+        "objetivos",
+        "resultados de aprendizaje",
+        "competencias",
+        "lernziele",
+        "lernergebnisse",
+        "qualifikationsziele",
+        "leerdoelen",
+        "leerresultaten",
+    ),
+    "assessment": (
+        "assessment",
+        "assessment methods",
+        "assessment methods and criteria",
+        "evaluation",
+        "examination",
+        "exam",
+        "grading",
+        "modalites d'evaluation",
+        "modalites de controle des connaissances",
+        "controle des connaissances",
+        "modalita d'esame",
+        "modalita di verifica",
+        "verifica dell'apprendimento",
+        "modalita di verifica dell'apprendimento",
+        "valutazione",
+        "esame",
+        "evaluacion",
+        "sistema de evaluacion",
+        "avaliacao",
+        "prufung",
+        "prufungsform",
+        "leistungsnachweis",
+        "toetsing",
+        "beoordeling",
+    ),
+    "prerequisites": (
+        "prerequisites",
+        "prerequisites and co-requisites",
+        "prerequis",
+        "prerequisiti",
+        "requisitos",
+        "prerrequisitos",
+        "voraussetzungen",
+        "vereiste voorkennis",
+        "ingangseisen",
+    ),
+    "reading": (
+        "reading",
+        "recommended reading",
+        "required reading",
+        "bibliography",
+        "textbooks",
+        "references",
+        "learning resources",
+        "bibliographie",
+        "ouvrages de reference",
+        "testi",
+        "testi di riferimento",
+        "bibliografia",
+        "testi adottati",
+        "bibliografia basica",
+        "literatur",
+        "literatuur",
+    ),
+    "methods": (
+        "teaching methods",
+        "planned learning activities and teaching methods",
+        "learning activities",
+        "methodes d'enseignement",
+        "metodi didattici",
+        "metodologia",
+        "metodologia docente",
+        "lehrmethoden",
+        "lehr- und lernformen",
+        "werkvormen",
+    ),
+}
+_SECTION_OF = {heading: name for name, headings in SECTIONS.items() for heading in headings}
+_LONGEST = max(len(h.split()) for h in _SECTION_OF)
+CREDIT_HOURS = (25, 30)  # one ECTS credit is 25 to 30 hours of work [ref:ects2015]
+_CREDITS = re.compile(
+    r"(?:(?<![\d.,])(?P<n>\d{1,2}(?:[.,]5)?)\s*"
+    r"(?:ects|cfu|crediti|credits?|credits ects|creditos|creditos ects|lp|leistungspunkte|ec|studiepunten)\b)"
+    r"|(?:\b(?:ects|cfu|credits?|crediti|creditos)\b\s*[:=]?\s*(?P<m>\d{1,2}(?:[.,]5)?)(?![\d.,]\d))",
+)
+_PART = re.compile(
+    r"(?P<a>[^\d%,;+()]{3,60}?)\s*\(?\s*(?P<p>\d{1,3})\s*%\s*\)?|\(?\s*(?P<q>\d{1,3})\s*%\s*\)?\s*(?P<b>[^\d%,;+()]{3,60})"
+)
+# "and" between two parts, in the languages read: dropped from the front of a label.
+# Matched only there, never split on: French "en ligne" is part of "examen en ligne".
+_AND = re.compile(r"^(?:and|et|e|y|und|en|plus|ed)\s+", re.IGNORECASE)
+_NOT_HEADING = re.compile(r"^\s*[-*•▪◦●■□➢►–—·+]")  # a bulleted line is an item, not a heading
+
+
+def _heading(line: str) -> tuple[str, str] | None:
+    """The section a line opens, and what follows the heading on the same line
+    ("Assessment: written exam 70 %"), or None for an ordinary line."""
+    if _NOT_HEADING.match(line):
+        return None
+    folded = _folded(_BULLET.sub("", line.strip(), count=1)).strip()
+    folded = re.sub(r"^\d{1,2}(?:\.\d{1,2})*\.?\s+", "", folded)  # "3. Course content"
+    head, colon, rest = folded.partition(":")
+    head = head.strip(" .-–—")
+    words = head.split()
+    if not words or len(words) > _LONGEST:
+        return None
+    name = _SECTION_OF.get(head)
+    if name is None:
+        return None
+    if not colon and rest:
+        return None
+    start = len(line) - len(rest.lstrip()) if colon and rest.strip() else len(line)
+    return name, line[start:].strip()
+
+
+def sections(text: str) -> dict[str, str]:
+    """A course page cut at its headings: each section's text, the longest of each
+    kind ("Exam: 15 January" above "Assessment methods" and their list keeps the
+    list); nothing when the text has none of the headings."""
+    found: list[tuple[str, list[str]]] = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        heading = _heading(line)
+        if heading is not None:
+            name, rest = heading
+            found.append((name, [rest] if rest else []))
+        elif found:
+            found[-1][1].append(line)
+    out: dict[str, str] = {}
+    for name, lines in found:
+        body = "\n".join(lines).strip()
+        if len(body) > len(out.get(name, "")):
+            out[name] = body
+    return out
+
+
+def course_text(text: str) -> str:
+    """The part of a pasted course page that lists its topics: its content section
+    when it has one with a topic in it, else all of it."""
+    content = sections(text).get("content", "")
+    return content if read(content) else text
+
+
+@dataclass(frozen=True)
+class Part:
+    """A part of the course's assessment: "Written exam", 70 (percent)."""
+
+    label: str
+    percent: int
+
+
+def assessment(text: str) -> list[Part]:
+    """The assessment's parts with their percentages, from the assessment section
+    (none without one): "Written exam 70 %, project 30 %", "(70 %) written exam".
+    Kept only when they add up to 100, within 1, the way a weighting must."""
+    found = sections(text).get("assessment", "")
+    parts = []
+    for line in found.split("\n"):
+        for m in _PART.finditer(line):
+            label = _title(_AND.sub("", _title(m["a"] or m["b"] or "")))
+            percent = int(m["p"] or m["q"])
+            if sum(c.isalpha() for c in label) >= 3 and 0 < percent <= 100:
+                parts.append(Part(label[0].upper() + label[1:], percent))
+    return parts if parts and abs(sum(p.percent for p in parts) - 100) <= 1 else []
+
+
+def credits(text: str) -> float | None:
+    """The course's ECTS credits (or the national equivalent written beside them:
+    CFU, LP, EC), from 1 to 30, or None."""
+    for m in _CREDITS.finditer(_folded(text)):
+        value = float((m["n"] or m["m"]).replace(",", "."))
+        if 1 <= value <= 30:
+            return value
+    return None
+
+
+def workload(credit: float) -> tuple[int, int]:
+    """The hours of work the credits stand for, lectures included [ref:ects2015]."""
+    return round(credit * CREDIT_HOURS[0]), round(credit * CREDIT_HOURS[1])

@@ -66,8 +66,13 @@ def test_notes_need_a_course_a_title_pages_and_the_authors_word(tmp_path, people
     ada, *_, dan = people
     with pytest.raises(service.InvalidInput, match="your own notes"):
         _notes(tmp_path, ada, own_work="")
-    with pytest.raises(service.InvalidInput, match="at least one photo"):
+    # Photos of the pages, or the notes as text (D85); neither is refused.
+    with pytest.raises(service.InvalidInput, match="photos of the pages, or the text"):
         _notes(tmp_path, ada, pages=0)
+    with pytest.raises(service.InvalidInput, match="photos of the pages, or the text"):
+        _notes(tmp_path, ada, pages=0, body="   ")
+    typed = _notes(tmp_path, ada, pages=0, body="Eigenvalue: a number λ such that Av = λv")
+    assert typed.data["photos"] == [] and typed.data["body"].startswith("Eigenvalue")
     with pytest.raises(service.InvalidInput, match="at most 8 photos"):
         _notes(tmp_path, ada, pages=9)
     for field in ("course", "title"):

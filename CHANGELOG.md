@@ -6,6 +6,18 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Cards from your notes (D84): paste notes, or open a note written as text, and the
+  app reads the cards in it (questions and answers, terms and definitions, lists,
+  words in bold, definition sentences, in seven languages); tick the ones you want
+  and they join your flashcards. With AI on, the model can write more from the same
+  notes, on request, marked as written by AI.
+- Notes for a study group (D85): share notes with one of your groups, seen by its
+  members only while you are one of them, listed on the group's page. Notes can be
+  written as text, with or instead of photos.
+- A whole course page (D83): paste the official course page and the app takes the
+  topics from its content section, and shows its assessment ("Written exam 70 %;
+  Coursework 30 %") and its workload ("6 ECTS credits: about 150 to 180 hours of
+  work"), read by the headings the ECTS guide lists, in seven languages.
 - Your memory, at the top of Progress (D82): how long your topics hold (the median
   days at 90 % recall) and its line over eight weeks, today's map of every topic in
   four colours, the memory days your reviews added each week, and your recall reps.

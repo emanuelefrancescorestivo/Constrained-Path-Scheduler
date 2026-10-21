@@ -1,5 +1,6 @@
 """
-What reading a syllabus with a model would cost (docs/CURRICULUM.md §3a).
+What reading a syllabus with a model would cost (docs/CURRICULUM.md §3a), and
+flashcards made from notes by the model at most (DECISIONS.md D84).
 
 Nothing is called: this multiplies documented token counts by the price list the
 app already keeps (`cps.ai.PRICES`, Anthropic's list as cached on 2026-10-06 and
@@ -34,7 +35,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from cps import ai  # noqa: E402
+from cps import ai, cardmaker  # noqa: E402
 from cps.console import ensure_utf8_output  # noqa: E402
 
 TEXT_PER_PAGE = (1_500, 3_000)  # documented range, text of one PDF page
@@ -84,6 +85,27 @@ def main() -> None:
         print(
             f"  {model:<20} {each:.4f} USD each: {int(ai.DEFAULT_MONTHLY_CAP // each)} syllabi a month;"
             f" a class's {COURSES_A_SEMESTER} courses, read once and shared, {semester:.2f} USD"
+        )
+    cards()
+
+
+def cards_worst(model: str) -> float:
+    """Flashcards from notes by the model (D84), as the app counts a call against the
+    monthly cap before making it: a full box of notes, every byte a token, and the
+    answer's whole cap."""
+    system, prompt = ai.cards_prompt("x" * cardmaker.MAX_TEXT, "English", "x" * 80)
+    return ai.cost(model, len((system + prompt).encode()), ai.CARDS_MAX_TOKENS)
+
+
+def cards() -> None:
+    print(
+        f"\nFlashcards from notes (D84), one call at most"
+        f" ({cardmaker.MAX_TEXT:,} characters, counted as the cap does):"
+    )
+    for model in ai.PRICES:
+        each = cards_worst(model)
+        print(
+            f"  {model:<20} {each:.4f} USD; {int(ai.DEFAULT_MONTHLY_CAP // each)} calls under the monthly cap"
         )
 
 

@@ -30,12 +30,15 @@ from .i18n import _
 from .store import LEAVE_GROUPS, Store
 
 VISIBILITIES = ("me", "followers", "everyone")
+# Notes may also go to one study group (D85): its members only, while the author is one.
+GROUP = "group"
 KINDS = ("session", "explain", "notes")
 MAX_PHOTOS = 4
 MAX_NOTE_PHOTOS = 8  # a page of notes per photo; a set of notes has more pages (D26)
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 MAX_PHOTO_SIDE = 8000
 LIMITS = {"course": 80, "title": 120, "note": 1000, "concept": 120, "text": 1200, "simple": 400}
+LIMITS["body"] = 20_000  # notes written as text (D85)
 
 
 class SocialError(ValueError):
@@ -212,7 +215,7 @@ def create_post(
     """Check a post's fields, keep its photos, and store it."""
     if kind not in KINDS:
         raise SocialError(f"unknown kind of post {kind!r}")
-    if visibility not in VISIBILITIES:
+    if visibility not in VISIBILITIES and not (kind == "notes" and visibility == GROUP):
         raise SocialError(_("choose who sees it: only you, your followers, or everyone"))
     photos = [p for p in photos if p]
     most = MAX_NOTE_PHOTOS if kind == "notes" else MAX_PHOTOS
@@ -252,11 +255,22 @@ def create_post(
         clean["course"] = _text(data.get("course", ""), "course", required=True)
         clean["title"] = _text(data.get("title", ""), "title", required=True)
         clean["note"] = _text(data.get("note", ""), "note")
+        # D85: the notes themselves as text, beside or instead of the photos; the
+        # text is what flashcards can be made from (D84).
+        clean["body"] = str(data.get("body") or "").replace("\r\n", "\n").strip()
+        if len(clean["body"]) > LIMITS["body"]:
+            raise SocialError(_("at most {n} characters", n=LIMITS["body"]))
         if not data.get("own_work"):
             raise SocialError(_("say that these are your own notes, in your own words"))
-        if not photos:
-            raise SocialError(_("add at least one photo of your notes"))
+        if not photos and not clean["body"]:
+            raise SocialError(_("add your notes: photos of the pages, or the text"))
         clean["own_work"] = True
+        if visibility == GROUP:
+            group = str(data.get("group") or "")
+            member = membership(store, token, group) if group else None
+            if member is None or member.joined is None:
+                raise SocialError(_("choose one of your study groups"))
+            clean["group"] = group
     else:
         clean["concept"] = _text(data.get("concept", ""), "concept", required=True)
         clean["course"] = _text(data.get("course", ""), "course")
@@ -310,7 +324,12 @@ def delete_post(store: Store, token: str, post_id: str) -> bool:
 
 
 def set_visibility(store: Store, token: str, post_id: str, visibility: str) -> bool:
-    if visibility not in VISIBILITIES:
+    if visibility == GROUP:
+        # Back to the group it was shared with, while its author is still a member.
+        post = get_post(store, post_id)
+        if post is None or post.token != token or not _joined(store, token, post.data.get("group", "")):
+            raise SocialError(_("choose one of your study groups"))
+    elif visibility not in VISIBILITIES:
         raise SocialError(_("choose who sees it: only you, your followers, or everyone"))
     with store.connection() as db:
         return bool(
@@ -341,7 +360,27 @@ def may_see(store: Store, viewer: str | None, post: Post) -> bool:
         return False
     if post.visibility == "everyone":
         return True
+    if post.visibility == GROUP:
+        group = post.data.get("group", "")
+        return viewer is not None and in_group(store, post) and _joined(store, viewer, group)
     return viewer is not None and follows(store, viewer, post.token)
+
+
+def _joined(store: Store, token: str, group_id: str) -> bool:
+    with store.connection() as db:
+        return (
+            db.execute(
+                "SELECT 1 FROM group_members WHERE grp = ? AND token = ? AND joined IS NOT NULL",
+                (group_id, token),
+            ).fetchone()
+            is not None
+        )
+
+
+def in_group(store: Store, post: Post) -> bool:
+    """Whether a note shared with a group still reaches it: its author is still a
+    member (D85). A note leaves the group with its author."""
+    return post.visibility == GROUP and _joined(store, post.token, post.data.get("group", ""))
 
 
 def follows(store: Store, follower: str, followed: str) -> bool:
@@ -1266,6 +1305,25 @@ def leave_group(store: Store, token: str, group_id: str) -> None:
             where,
         )
         db.execute("DELETE FROM study_groups WHERE id = :g AND owner IS NULL", where)
+
+
+def group_notes(store: Store, viewer: str, group_id: str, limit: int = 60) -> list[Post]:
+    """The notes shared with a group by its members (D85), the newest first, for a
+    member to read; nothing for anyone else. Never across a block."""
+    if not _joined(store, viewer, group_id):
+        return []
+    with store.connection() as db:
+        rows = db.execute(
+            f"""
+            SELECT {", ".join("p." + c.strip() for c in _COLUMNS.split(","))} FROM posts p
+            WHERE p.kind = 'notes' AND p.visibility = :group AND json_extract(p.data, '$.group') = :g
+              AND p.token IN (SELECT token FROM group_members WHERE grp = :g AND joined IS NOT NULL)
+              AND (p.token = :v OR ({_VISIBLE_TO_FOLLOWERS}))
+            ORDER BY p.created DESC LIMIT :n
+            """,
+            {"group": GROUP, "g": group_id, "v": viewer, "n": limit},
+        ).fetchall()
+    return [_row(r) for r in rows]
 
 
 def remove_member(store: Store, owner: str, group_id: str, handle: str) -> None:

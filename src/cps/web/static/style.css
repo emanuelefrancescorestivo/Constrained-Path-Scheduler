@@ -2589,6 +2589,30 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .syllabus { margin: 6px 0 0; font-size: 0.9rem; }
 .syllabus ul { margin: 2px 0 0; padding-left: 1.2em; }
 .syllabus-add { margin: 6px 0 0; font-size: 0.85rem; }
+/* Cards from notes (D84) */
+.card-make { display: block; color: inherit; text-decoration: none; }
+.card-make small { color: var(--muted); }
+.made-cards > li { padding: 0; }
+.made-card { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; cursor: pointer; }
+.made-card input { margin-top: 3px; flex: none; }
+.made-text { display: grid; gap: 2px; min-width: 0; }
+.made-front { font-weight: 600; overflow-wrap: anywhere; }
+.made-back { color: var(--muted); font-size: 0.92rem; overflow-wrap: anywhere; }
+.made-kind { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.cards-make-form textarea { min-height: 14em; font-size: 0.92rem; line-height: 1.45; }
+/* Notes as text, and shared with a group (D85) */
+.post-body { white-space: pre-line; overflow-wrap: anywhere; font-size: 0.94rem; line-height: 1.5; margin: 8px 0 0; }
+.post-body.clamp { max-height: 14em; overflow: hidden; }
+.post-more, .post-cards { margin: 6px 0 0; font-size: 0.88rem; }
+.group-notes > li { align-items: center; }
+#notes .section-title { align-items: center; }
+/* What a whole course page says beside its topics (D83) */
+.course-facts { margin: 0 0 12px; padding: 2px 16px; }
+.course-facts > div { display: grid; grid-template-columns: minmax(7em, auto) 1fr; gap: 12px; padding: 10px 0; position: relative; }
+.course-facts > div + div::before { content: ""; position: absolute; top: 0; left: 0; right: 0; border-top: 0.5px solid var(--line); }
+.course-facts dt { font-weight: 600; font-size: 0.9rem; }
+.course-facts dd { margin: 0; font-size: 0.9rem; color: var(--muted); }
+@media (max-width: 480px) { .course-facts > div { grid-template-columns: 1fr; gap: 2px; } }
 
 /* Your memory (D82): one teal ramp of four steps for how well a topic is held,
    checked as an ordered scale against the light and the dark surface; the text on a

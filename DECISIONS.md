@@ -2763,3 +2763,142 @@ construction and its growth looks steep. Recall reps count what was reported, no
 what was learned. Checked in Chromium only, at 1280 px in light and dark and at 390
 px, on the demo's student: strength 11 days, up from 0.4, 7 topics strong, 8 good,
 3 fading.
+
+## D83. A whole course page: its topics, its assessment and its credits, by rules
+
+*The owner, 2026-10-21: "create the study plan based on the official syllabus of unis
+(is there a common structure they share so that we can parse it without API calls?
+or use a very cheap model?)".*
+
+**The common structure.** In the European Higher Education Area, the ECTS Users' Guide
+recommends the same items for every course unit in a catalogue: its code and title,
+type, cycle, year and semester, number of ECTS credits, lecturers, learning outcomes,
+mode of delivery, prerequisites, course content, recommended reading, planned
+learning activities and teaching methods, assessment methods and criteria, and
+language of instruction ([ref:ects2015], page 57); one credit is 25 to 30 hours of
+work (page 10). It fixes neither their order nor their layout, so every university
+writes them its own way, in its own language. That is enough for rules: the headings
+recur ("Course content", "Contenu du cours", "Programma", "Contenidos", "Inhalt",
+"Inhoud"; "Assessment", "Modalités d'évaluation", "Modalità d'esame", "Sistema de
+evaluación", "Prüfungsform", "Toetsing"), and the weights of an assessment are
+written as percentages.
+
+**Chosen.** The paste reader (D81) takes a whole course page too (`cps/syllabus.py`):
+
+- *Sections*: a line that is one of about a hundred headings, in seven languages,
+  opens a section (content, learning outcomes, assessment, prerequisites, reading,
+  teaching methods), with what follows it on the line ("Assessment: written exam
+  70 %"); numbered headings count ("3. Course content"), bulleted lines do not (a
+  list item "- Evaluation: kernel and image" stays a topic). The longest section of
+  each kind is kept, so "Exam: 15 January" above the assessment's list does not hide
+  the list.
+- *Topics* come from the content section when it has one with a topic in it, else
+  from all the text, as before: learning outcomes and reading lists are not topics.
+- *Assessment*: its parts and their percentages ("Written exam 70 % and coursework
+  30 %", "(60 %) examen final"), kept only when they add up to 100, within 1.
+- *Credits*: "6 ECTS", "ECTS: 7,5", "9 CFU", "5 LP", "6 EC", from 1 to 30, and the
+  hours of work they stand for, 25 to 30 an ECTS credit, lectures included.
+
+The course's page shows the assessment and the workload above its topics ("6 ECTS
+credits: about 150 to 180 hours of work in all, lectures included"), in the preview
+and once saved; saving the topics' own lines again keeps what the page said.
+
+**Rejected.** A model for this step: the rules read the common structure at no cost;
+the model stays the route for what they cannot read (PDFs, prose, tables), behind
+the AI switch, CURRICULUM.md §3a, at most $0.40 a ten-page PDF with the default model
+and $0.01 with the smallest (`benchmarks/syllabus_cost.py`). Using the assessment's
+weights or the credits in the plan: exam weights exist (D46, set by the student), and
+the credits' hours are a typical workload, not the student's; both are shown, and the
+student decides. Sharing the assessment and credits with classmates: the shared list
+is topics only (D81); the next step if students ask for it.
+
+**Disclosed.** No real course page was tried: the headings are the ECTS guide's items
+in the words of seven languages, with a case per language in
+`tests/test_generality.py`. A page without headings is read whole, as before. A
+percentage that is not a weight (an attendance rule) makes the sum miss 100 and the
+assessment is not shown. Outside the EHEA (the United States, for one) credits are
+not ECTS and are not read.
+
+## D84. Flashcards from notes: read by rules, picked by the student, the model on request
+
+*The owner, 2026-10-21: "to create flashcards from content (people will pay for
+this)".*
+
+**Why.** Practice testing is one of the two techniques rated of high utility in a
+review of ten ([ref:dunlosky2013]); left alone, most students reread instead
+([ref:karpicke2009]). Writing cards is the step that stops them. Reading the cards out
+of notes the student already has removes most of it, and the flashcards (D29, FSRS-6)
+then space the retrieval.
+
+**Chosen.**
+
+- *The reader* (`cps/cardmaker.py`, pure, no model): five shapes, in seven languages'
+  words. A question and its answer ("Q:/A:", "Question/Réponse", "D:/R:",
+  "Pregunta/Respuesta", "Frage/Antwort", "Vraag/Antwoord", "Pergunta/Resposta"; a line
+  ending in "?" and the next); a term and its definition ("Term: definition", "–",
+  "=", "::", "→"); a list under a heading ending in ":" (two to eight items, the card
+  says how many); a word in bold, highlighted or an Anki cloze, as a gap; a definition
+  sentence ("An eigenvalue is a…", "Une valeur propre est un…", "Un autovalore è un…",
+  "Ein Eigenwert ist eine…"). Not cards: sentences about "it" or "this", "Note:",
+  "Date:", a week of the syllabus, a link. A definition sentence is tried before a
+  term's "=", so "Ein Eigenwert ist eine Zahl λ mit Av = λv" is a definition. Each
+  card once, at most 200 (the flashcards' own limit for one paste).
+- *The page* (Flashcards → "Make cards from your notes", or "Make flashcards from these
+  notes" on a text note): paste, read, see every card found with its kind, untick
+  what you would not ask yourself, choose the course, add. Nothing is added before
+  the student chooses. "Also the other way round" adds the reverse of each term and
+  definition.
+- *The model, on request*: with AI on (D12), "Read them with AI too" sends the notes
+  and the course's name to the model, which writes at most 40 cards from the text
+  alone (its instructions forbid adding facts); its cards come first, marked "Written
+  by AI", with a line asking the student to check them; the rules' cards stay below.
+  The answer is held to a schema and to the flashcards' limits; a wrong or empty
+  answer leaves the rules' cards. The privacy page names what is sent.
+
+**What it would cost, and the paid tier.** One call at most, as the app counts it
+against the monthly cap before making it (a full box of 20,000 characters, the
+answer's whole cap): $0.20 with the default model, $0.10 with the middle one, $0.005
+with the smallest (`benchmarks/syllabus_cost.py`). The rules' cards are free and stay
+free. The model's cards are the natural paid feature the owner named; payment,
+prices and accounts are the owner's to decide (CLAUDE.md), so nothing about paying is
+built: the switch is the existing AI setting and its caps.
+
+**Rejected.** Making cards without the student's choice (a card nobody would ask
+themselves is noise in their reviews); a model by default (cost, privacy, and the
+rules already read the usual shapes); cards from photos of notes (that needs the
+model's vision or an OCR dependency; the next step if students ask, behind the same
+switch).
+
+**Disclosed.** The shapes come from how notes are commonly written, not from students'
+real notes; no model answer has been tried on real notes (the tests use a fake
+provider). A card made by rules is only as good as the line it came from; the
+preview is there for that.
+
+## D85. Notes for a study group: text or photos, seen by its members only
+
+*The owner, 2026-10-21: "the note sharing system in groups".*
+
+**Chosen.** A set of notes (D26) can go to one of the student's study groups (D28),
+beside "Only me", "Followers" and "Everyone". Notes can now be written as text (up to
+20,000 characters) beside or instead of the photos; the text is what flashcards are
+made from (D84).
+
+- *Who sees a group's notes*: its members, and only while the author is one; a note
+  leaves the group with its author (it stays theirs, in their diary). Never across a
+  block. A group note is in no feed and not in the library, which are for followers
+  and everyone; its photos follow the same rule (the server checks who asks).
+- *Where*: the group's page lists its notes, newest first, with "Share notes with the
+  group" (the form opens with the group chosen) and, for text notes, a link to make
+  flashcards from them. The author can move a note to the group, or out of it, from
+  its menu.
+- *Stored* in the posts table, as before: `visibility = "group"` and the group's id in
+  the post's data; no new table, so the data copy (D43) and deleting a plan already
+  cover them.
+
+**Rejected.** A shared, editable document per group (a different product, with
+conflicts to resolve); notes visible to former members (a group's notes are for
+those who study together now); notes in several groups at once (one choice, like the
+other visibilities; post again for a second group).
+
+**Disclosed.** Group notes have the library's moderation (report, block, hidden after
+three reports) and the same "own work" checkbox. Checked in Chromium only.

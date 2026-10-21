@@ -5,7 +5,7 @@
 {% set here = request.url.path %}
 <p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
-{% set p = post %}{% include "_post.html" %}
+{% set p = post %}{% set full = true %}{% include "_post.html" %}
 
 <div class="section" id="comments">
   <div class="section-title"><h2>{{ _n("{n} comment", "{n} comments", comments | length) }}</h2></div>

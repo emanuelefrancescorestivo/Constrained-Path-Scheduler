@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from cps import service
+from cps import service, syllabus
 from cps.store import Store
 from cps.syllabus import MAX_TITLE, MAX_TOPICS, Topic, place, read, to_text
 from cps.web import Config, create_app
@@ -99,6 +99,56 @@ def test_topics_are_placed_on_the_teaching_weeks():
     assert place(plain, [], []) == [None] * 4  # no lectures in the timetable
 
 
+# -- a whole course page (D83) -----------------------------------------------------------
+
+PAGE = """MATH 2040 Linear Algebra
+Exam: 15 January
+Credits: 6 ECTS
+Course content
+Week 1: Vectors and matrices
+Week 2: Linear maps
+- Evaluation: kernel and image
+Assessment methods and criteria
+Written exam 70 % and coursework 30 %
+Attendance is recorded.
+Reading
+Strang, Introduction to Linear Algebra
+"""
+
+
+def test_a_course_page_is_cut_at_its_headings_and_the_longest_of_each_kind_kept():
+    found = syllabus.sections(PAGE)
+    assert list(found) == ["assessment", "content", "reading"]
+    assert found["assessment"].startswith("Written exam")  # not "15 January"
+    # A bulleted line is an item of the list, even when it starts with a heading's word.
+    assert [t.title for t in read(syllabus.course_text(PAGE))] == [
+        "Vectors and matrices",
+        "Linear maps",
+        "Evaluation: kernel and image",
+    ]
+    assert syllabus.sections("Week 1: Sets\nWeek 2: Maps") == {}
+    assert syllabus.course_text("Week 1: Sets") == "Week 1: Sets"
+
+
+def test_an_assessment_is_kept_only_when_its_weights_add_up_to_a_hundred():
+    parts = [(p.label, p.percent) for p in syllabus.assessment(PAGE)]
+    assert parts == [("Written exam", 70), ("Coursework", 30)]
+    assert syllabus.assessment("Assessment\nExam 70 %\nAttendance at least 75 %") == []
+    assert syllabus.assessment("Exam 60 %, project 40 %") == []  # no assessment heading
+
+
+@pytest.mark.parametrize(
+    ("text", "credit"),
+    [("6 ECTS", 6.0), ("ECTS: 7,5", 7.5), ("Crediti: 12 CFU", 12.0), ("120 ECTS in all", None), ("", None)],
+)
+def test_credits_are_read_between_one_and_thirty(text, credit):
+    assert syllabus.credits(text) == credit
+
+
+def test_a_credit_is_twenty_five_to_thirty_hours_of_work():
+    assert syllabus.workload(6) == (150, 180) and syllabus.workload(7.5) == (188, 225)
+
+
 # -- through the service ---------------------------------------------------------------
 
 
@@ -150,6 +200,19 @@ def test_topics_are_placed_and_shown_on_the_sessions_of_their_week(tmp_path):
     cleared = _save(tmp_path, ada, "", share=False)
     assert service.course_topics_view(tmp_path, cleared, 0)["rows"] == []
     assert service.session_card(cleared, service.session_id(plan.sessions[0]), NOW)["syllabus"] == []
+
+
+def test_a_course_page_keeps_its_assessment_and_credits_with_the_topics(tmp_path):
+    ada = _save(tmp_path, _plan(tmp_path, None, "ada"), PAGE, share=False)
+    view = service.course_topics_view(tmp_path, ada, 0)
+    assert [r["title"] for r in view["rows"]][:2] == ["Vectors and matrices", "Linear maps"]
+    assert view["facts"]["assessment"] == "Written exam 70 %; Coursework 30 %"
+    assert "150 to 180 hours" in view["facts"]["credits"]
+    # The box then holds the topics alone; saving them again keeps what the page said.
+    again = _save(tmp_path, ada, view["text"], share=False)
+    assert service.course_topics_view(tmp_path, again, 0)["facts"] == view["facts"]
+    preview = service.course_topics_view(tmp_path, again, 0, "Week 1: Sets")
+    assert preview["preview"]["facts"] == {}
 
 
 def test_classmates_take_a_shared_list_in_one_tap(tmp_path):
@@ -224,3 +287,6 @@ def test_the_pages_read_save_and_show_topics(tmp_path):
         assert saved.status_code == 200 and "Topics saved." in saved.text
         assert "Change the topics" in saved.text and "Week 2: Maps" in saved.text
         assert web.get(f"/p/{token}/topics/9").status_code == 404
+        page = web.post(f"/p/{token}/topics/0", data={"text": PAGE, "action": "preview"}).text
+        assert "Written exam 70 %; Coursework 30 %" in page
+        assert "6 ECTS credits: about 150 to 180 hours of work in all, lectures included." in page
