@@ -27,6 +27,8 @@
 </div>
 {% endif %}
 
+<a class="card section card-make" href="/p/{{ token }}/cards/make"><b>{{ _("Make cards from your notes") }}</b><br><small>{{ _("Paste your notes: definitions, questions and lists become cards you pick from.") }}</small></a>
+
 <form method="post" action="/p/{{ token }}/cards" class="card section card-new">
   <h2>{{ _("New card") }}</h2>
   <label for="c-course">{{ _("Course") }}</label>

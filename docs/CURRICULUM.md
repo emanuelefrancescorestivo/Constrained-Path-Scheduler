@@ -165,6 +165,11 @@ the measure.
 
 **Built (2026-10-21, D81):** A and C, as recommended: the paste reader, topics on the
 sessions of their week, and lists shared with classmates. B, D and E are not built.
+Then (D83) C reads a whole course page: its content section for the topics, its
+assessment's weights and its ECTS credits, by the headings the ECTS Users' Guide lists
+for every course unit ([ref:ects2015]), in seven languages; no model needed for the
+usual page. Flashcards from notes (D84) and notes for a study group (D85) build on it;
+the map of all three is docs/STUDY-CONTENT.md.
 
 **Recommended order:** A and C first (no model, no dependency, a few days), with B if
 the pilot's timetables carry topics; E next, behind the AI switch, for what the rules

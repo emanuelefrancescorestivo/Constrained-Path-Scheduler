@@ -525,3 +525,12 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - doi: 10.1038/s41598-025-97652-6
 - status: checked
 - checked against: the abstract in Europe PMC's record of PubMed 40537565 (PMC12179260) and Crossref's record, 2026-10-15: a randomised controlled trial with college students; content through an AI tutor designed with the same pedagogical practices as the in-class active-learning lessons; students learned significantly more in less time with the tutor, and felt more engaged and motivated.
+
+### ects2015
+- authors: European Commission
+- title: ECTS Users' Guide 2015
+- year: 2015
+- venue: Publications Office of the European Union, Luxembourg (ISBN 978-92-79-43559-1)
+- doi: 10.2766/87192
+- status: checked
+- checked against: the guide's PDF, its text read on 2026-10-21. Page 10 (the PDF's): a full-time academic year is 60 credits and in most cases 1,500 to 1,800 hours of work, "which means that one credit corresponds to 25 to 30 hours of work", a typical workload that varies by student. Page 57: the course catalogue's "information on individual educational components" lists code, title, type, cycle, year, semester, number of ECTS credits, lecturers, learning outcomes, mode of delivery, prerequisites and co-requisites, course content, recommended or required reading, planned learning activities and teaching methods, assessment methods and criteria, and language of instruction. The guide recommends these items; it fixes neither their order nor their layout.

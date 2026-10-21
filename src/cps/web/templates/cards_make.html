@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Cards from your notes") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/cards">{{ _("Flashcards") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Cards from your notes") }}</h1>
+  <p>{{ _("Paste your notes and read them: definitions, questions and their answers, lists and words in bold become cards. Tick the ones you want to be asked; nothing is added before you choose.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if view.note %}<p class="notice" role="status">{{ _("From the notes «{title}».", title=view.note.title) }}</p>{% endif %}
+
+{% if view.read %}
+<form method="post" action="/p/{{ token }}/cards/make" class="section" id="found">
+  <input type="hidden" name="action" value="add">
+  <input type="hidden" name="text" value="{{ view.text }}">
+  <div class="section-title"><h2>{{ _("Cards found") }}</h2><small>{{ _n("{n} card", "{n} cards", view.candidates | length) }}</small></div>
+  {% if view.candidates %}
+  <ul class="card list made-cards">
+    {% for c in view.candidates %}
+    <li>
+      <input type="hidden" name="front" value="{{ c.front }}"><input type="hidden" name="back" value="{{ c.back }}">
+      <label class="made-card grow"><input type="checkbox" name="pick" value="{{ loop.index0 }}" checked>
+        <span class="made-text"><span class="made-front">{{ c.front }}</span><span class="made-back">{{ c.back }}</span><small class="made-kind">{{ c.word }}</small></span>
+      </label>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if view.ai_used %}<p class="hint">{{ _("The cards marked «Written by AI» come from a model reading your notes: check each against them before you keep it.") }}</p>{% endif %}
+  <div class="card section">
+    <label for="m-course">{{ _("Course") }}</label>
+    <input id="m-course" name="course" required maxlength="80" list="m-courses" autocomplete="off" value="{{ view.course }}">
+    <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Add the cards ticked") }}</button></div>
+  </div>
+  {% else %}
+  <p class="card">{{ _("No card found. Write a term and its definition on one line (\"Eigenvalue: a number λ such that…\"), a question and its answer on two, or put a word in **bold**.") }}</p>
+  {% endif %}
+</form>
+{% endif %}
+
+<form method="post" action="/p/{{ token }}/cards/make" class="card section cards-make-form">
+  <h2>{% if view.read %}{{ _("Change the text") }}{% else %}{{ _("Your notes") }}{% endif %}</h2>
+  <label for="m-text" class="visually-hidden">{{ _("Your notes") }}</label>
+  <textarea id="m-text" name="text" rows="12" maxlength="20000" placeholder="{{ _('Eigenvalue: a number λ such that Av = λv') }}&#10;{{ _('Q: What does the rank-nullity theorem say?') }}&#10;{{ _('A: rank + nullity = number of columns') }}">{{ view.text }}</textarea>
+  <input type="hidden" name="course" value="{{ view.course }}">
+  <label class="check check-long"><input type="checkbox" name="both" value="1"{% if view.both %} checked{% endif %}> {{ _("Also the other way round: the definition asks for the term") }}</label>
+  <div class="form-actions">
+    <button class="btn btn-primary" name="action" value="read">{{ _("Read my notes") }}</button>
+    {% if view.ai_ready %}<button class="btn btn-tinted" name="action" value="ai">{{ _("Read them with AI too") }}</button>{% endif %}
+  </div>
+  <p class="hint">{% if view.ai_ready %}{{ _("Read by rules on this server. With AI, the text of your notes is sent to the model too, within your AI limits.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
+</form>
+{% if view.courses %}<datalist id="m-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+{% endblock %}

@@ -1317,15 +1317,16 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(request, "notes.html", token=token, view=view, saved=_notice(saved), tab="community")
 
     @app.get("/p/{token}/notes/new", response_class=HTMLResponse)
-    def notes_form(request: Request, token: str) -> HTMLResponse:
+    def notes_form(request: Request, token: str, group: str = "") -> HTMLResponse:
         if load(token) is None:
             return missing(request)
         return page(
             request,
             "notes_new.html",
             token=token,
-            draft={},
+            draft={"group": group[:40]} if group else {},
             profile=service.profile_of(store, token),
+            groups=service.note_groups(store, token),
             tab="community",
         )
 
@@ -1346,6 +1347,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 draft=draft,
                 profile=profile,
+                groups=service.note_groups(store, token),
                 error=error,
                 tab="community",
             )
@@ -1356,7 +1358,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 service.translate("These photos are too large together; send fewer or smaller ones."),
                 {},
             )
-        form = await request.form(max_files=service.social.MAX_NOTE_PHOTOS, max_fields=10)
+        form = await request.form(max_files=service.social.MAX_NOTE_PHOTOS, max_fields=12)
         fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
         photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
         try:
@@ -1715,6 +1717,60 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "cards", str(added))
         course = quote(fields.get("course", "").strip())
         return RedirectResponse(f"/p/{token}/cards?course={course}&added={added}", 303)
+
+    # -- flashcards from notes (D84) ---------------------------------------------------
+
+    def cards_make_page(
+        request: Request, subscription: service.Subscription, status: int = 200, **kwargs: Any
+    ) -> HTMLResponse:
+        error = kwargs.pop("error", None)
+        view = service.card_maker_view(store, subscription, now=config.clock(), **kwargs)
+        return page(
+            request, "cards_make.html", status, token=subscription.token, view=view, error=error, tab="focus"
+        )
+
+    @app.get("/p/{token}/cards/make", response_class=HTMLResponse)
+    def cards_make(request: Request, token: str, note: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return cards_make_page(request, subscription, note_id=note[:40])
+
+    @app.post("/p/{token}/cards/make", response_class=HTMLResponse)
+    async def cards_make_post(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        # The cards found travel back with the form: three fields each, at most 200 (D84).
+        form = await request.form(max_files=0, max_fields=3 * service.CARDS_MADE_MOST + 10)
+        text = str(form.get("text") or "")[: service.CARDS_TEXT_MOST]
+        course = str(form.get("course") or "")[:80]
+        action = form.get("action")
+        if action == "add":
+            try:
+                added = service.add_made_cards(
+                    store,
+                    subscription,
+                    course,
+                    [str(v) for v in form.getlist("front")],
+                    [str(v) for v in form.getlist("back")],
+                    [str(v) for v in form.getlist("pick")],
+                    now=config.clock(),
+                )
+            except service.ServiceError as error:
+                return cards_make_page(request, subscription, 400, text=text, course=course, error=str(error))
+            service.log_event(store, token, "cards", str(added))
+            return RedirectResponse(f"/p/{token}/cards?course={quote(course.strip())}&added={added}", 303)
+        return cards_make_page(
+            request,
+            subscription,
+            text=text,
+            course=course,
+            both=bool(form.get("both")),
+            use_ai=action == "ai",
+        )
 
     @app.get("/p/{token}/cards/review", response_class=HTMLResponse)
     def cards_review(request: Request, token: str, course: str = "") -> HTMLResponse:

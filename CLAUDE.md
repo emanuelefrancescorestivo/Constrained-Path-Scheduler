@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 972 passed, 17 deselected, 1 xfailed, about 250 s
-    pytest -m "slow or not slow" --cov=cps   # all 989 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1002 passed, 17 deselected, 1 xfailed, about 250 s
+    pytest -m "slow or not slow" --cov=cps   # all 1019 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -40,7 +40,7 @@ more than an impressive number.
     python benchmarks/personal_fsrs.py       # a student's own parameters: how many answers before they help (D53)
     python benchmarks/cpsat_trial.py         # CP-SAT placement against the rules (D54; the trial extra)
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
-    python benchmarks/syllabus_cost.py       # what reading a syllabus with a model would cost, per model (docs/CURRICULUM.md §3a)
+    python benchmarks/syllabus_cost.py       # what reading a syllabus with a model would cost, per model (docs/CURRICULUM.md §3a); cards from notes by the model, at most (D84)
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
     cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read, questions to the coach (D62, D64, D65)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
@@ -66,13 +66,14 @@ more than an impressive number.
 | `trends.py` | the trajectory: week-by-week hours, sessions kept, study load (minutes × effort), the 4-week average, courses, parts of the day: pure functions (D22, D23) |
 | `insights.py` | D80: what a student's own data says, each shown once there is enough of it: starting on time, focus, when they remember best, memory against the forecast; the pace against their own limit and usual weeks, which never asks for more: pure functions |
 | `learning.py` | D82: Your memory, progress only spaced recall can grow: the median stability of the taught topics over the weeks, today's map in four levels of predicted recall, the memory days the week's reviews added, recall reps: pure functions over the plan's FSRS replay |
-| `syllabus.py` | D81: a course's program pasted as text, read by rules into topics (a week or a lecture named in English, French, Italian, Spanish, Portuguese, German, Dutch; bullets, numbering, headings and links dropped), and placed on the course's weeks of lectures, a list without weeks spread by lecture hours: pure functions |
+| `syllabus.py` | D81: a course's program pasted as text, read by rules into topics (a week or a lecture named in English, French, Italian, Spanish, Portuguese, German, Dutch; bullets, numbering, headings and links dropped), and placed on the course's weeks of lectures, a list without weeks spread by lecture hours: pure functions; D83: a whole course page cut at its headings (content, outcomes, assessment, prerequisites, reading, methods, as the ECTS guide lists them), the topics from its content, the assessment's weights and the ECTS credits with their hours |
+| `cardmaker.py` | D84: flashcards read by rules from a student's notes: questions and answers, terms and definitions, lists, words in bold or a cloze, definition sentences, in seven languages; each card picked by the student before it is kept: pure functions |
 | `tips.py` | D62: the study tips, each with how strong its evidence is, its limits and its sources (only entries of docs/REFERENCES.md marked checked, with the day they were read); `service` picks the one the day calls for (an exam close, a skipped class, an evening session…, D63) or one in turn |
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
-| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
-| `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39); a course's topics shared with classmates (D81) |
+| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), flashcards written from notes on request (D84), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
+| `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39); a course's topics shared with classmates (D81); notes as text and for one study group, seen by its members while the author is one (D85) |
 | `service.py` | the API every front end uses; the sky and the garden of the streak behind a plan's pages (D73), where the sun is in the plan's day (D76); which section's tour a page shows, and the ones seen (D77); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the insights on Progress and the one on Today (D80); Your memory on Progress (D82); the student's day: getting up, going to bed, lunch (D69); a course's topics from its pasted program, on the sessions of their week, shared with classmates (D81); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
@@ -81,7 +82,7 @@ more than an impressive number.
 | `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone) |
 | `reminders.py` | D38: Web Push before each session: the server's VAPID key (made once, kept in the store), devices at known push services only, a session reminded once, sending with `pywebpush` |
 | `passkeys.py`, `accounts.py` | D35: WebAuthn checked on the server (a small CBOR reader; ES256, Ed25519, RS256 with `cryptography`, imported lazily), a plan's passkeys, single-use challenges, the recovery code (a digest, used once) |
-| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), the sky's colours along the sun's day and the accent of each moment (`web/sky.py`, `/sky/<step>.css`, D76, D78), Spark's tour of each section on its first visit (`_tour.html`, D77), a course's topics (`topics.html`, `course_topics.html`, D81), the app's icon (the week's ring for a day, in the sky's colours, light or dark, `web/icon.py`, D74, D76), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
+| `web/` | the hosted app (`cps web`, FastAPI + Jinja2): setup, Today, the drag-and-drop calendar, Tasks and the new-task sheet, one-tap reports, Focus and the diary, flashcards, the study tips (D62), the spark that brings them (`_mascot.html`, D63, D66) and floats on every page (`_spark.html`, D71), the weekly note (D64) and the coach (D65), Progress and Trends (charts drawn as SVG on the server, `web/charts.py`), the sky's colours along the sun's day and the accent of each moment (`web/sky.py`, `/sky/<step>.css`, D76, D78), Spark's tour of each section on its first visit (`_tour.html`, D77), a course's topics (`topics.html`, `course_topics.html`, D81), cards from notes (`cards_make.html`, D84), a group's notes (D85), the app's icon (the week's ring for a day, in the sky's colours, light or dark, `web/icon.py`, D74, D76), Community (feeds, posts, people, profiles, the notes library, study groups), appearance (Automatic, Light, Dark), privacy; the home page's field of neurons (`web/neural.py` draws `_neural.html`, D58); only calls `service`; every page works without its scripts |
 | `showcase.py` | `cps demo`'s store: five made-up classmates with posts, notes (pages drawn as PNGs without a library) and a group, and students added to them (@alex, or one per visitor with `--public`, D31) with weeks of history, a group and flashcards; the sample timetable moved by whole weeks so today is in its eighth week; the semester reported once and copied per student; made through `service`, never a test fixture for a number |
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
@@ -205,10 +206,13 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Motion (D30): page transitions and the sliding tab pill need cross-document view
   transitions (Chrome, Edge, Safari 18.2+); elsewhere pages simply load. Checked in
   Chromium only.
-- A course's topics (D81) are read by rules from pasted text only: no real syllabus was
-  tried, dates are not read, and weeks count the timetable's weeks with lectures (a
+- A course's topics (D81) and a whole course page (D83) are read by rules from pasted text
+  only: no real syllabus was tried, dates are not read, and weeks count the timetable's weeks with lectures (a
   program that counts a break is one week off after it; the preview shows it).
   Classmates' lists match by university and course names as written.
+- Cards from notes (D84) are read by rules from shapes notes commonly take, not from real
+  students' notes; the model's cards ran against a fake provider only. Photos of notes are
+  not read. A group's notes (D85) were checked in Chromium only.
 - Your memory (D82) is the memory model's estimate with average weights, not a
   measurement; recall reps count what was reported. Checked in Chromium only.
 - The insights (D80) rest on small numbers, said on each card; their thresholds are

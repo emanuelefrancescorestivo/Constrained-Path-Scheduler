@@ -58,6 +58,7 @@ import numpy as np
 
 from . import accounts as _accounts
 from . import ai as _ai
+from . import cardmaker as _cardmaker
 from . import cards as flashcards
 from . import daylight as _daylight
 from . import fitting
@@ -5304,6 +5305,9 @@ def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: Zon
         "when": format_date(when, "long"),
         "photos": [prefix + name for name in d.get("photos", [])],
     }
+    if post.kind == "notes":
+        card["body"] = d.get("body", "")
+        card["cards_from"] = bool(d.get("body")) and viewer is not None
     if post.kind == "session":
         effort = int(d.get("effort", 0))
         card["effort_word"] = _(EFFORT_WORDS[max(k for k in EFFORT_WORDS if k <= effort)]) if effort else ""
@@ -5461,6 +5465,9 @@ def _cards(
             found = social.get_profile(store, post.token)
             authors[post.token] = found.public() if found else None
         card = post_card(post, viewer=viewer, now=now, zone=zone)
+        if post.data.get("group"):  # a note shared with a study group (D85)
+            group = social.get_group(store, post.data["group"])
+            card["group"] = {"id": group.id, "name": group.name} if group else None
         count, given = kudos.get(post.id, (0, False))
         card.update(
             author=authors[post.token],
@@ -5738,10 +5745,20 @@ def group_view(
     mine = social.membership(where, subscription.token, group_id) if group else None
     if group is None or mine is None or mine.joined is None:
         return None
-    card = _group_card(store, subscription.token, group, now, _zone(subscription.options["tz"]))
+    zone = _zone(subscription.options["tz"])
+    card = _group_card(store, subscription.token, group, now, zone)
     card["room"] = social.GROUP_SIZE - len(social.members(where, group_id))
     card["invite"] = social.current_invite(where, group_id)
+    # D85: the notes its members shared with it, for the members only.
+    card["notes"] = _cards(
+        where, subscription.token, social.group_notes(where, subscription.token, group_id), now, zone
+    )
     return card
+
+
+def note_groups(store: str | os.PathLike, token: str) -> list[dict]:
+    """The study groups a student can share notes with (D85)."""
+    return [{"id": g.id, "name": g.name} for g in social.groups_of(_store(store), token)]
 
 
 def create_group(
@@ -5994,6 +6011,115 @@ def delete_card(store: str | os.PathLike, subscription: Subscription, card_id: s
     return flashcards.delete(_store(store), subscription.token, card_id)
 
 
+# -- flashcards from notes (D84) -------------------------------------------------------
+
+CARDS_TEXT_MOST = _cardmaker.MAX_TEXT
+CARDS_MADE_MOST = _cardmaker.MAX_CARDS
+CARD_KINDS = {
+    "qa": "Question and answer",
+    "term": "Term and definition",
+    "list": "List",
+    "cloze": "Fill in the blank",
+    "definition": "Definition",
+    "ai": "Written by AI",
+}
+
+
+def _note_source(store: str | os.PathLike, subscription: Subscription, note_id: str) -> social.Post | None:
+    """A note with text the student may read: theirs, their group's, or one shared
+    with them; None otherwise."""
+    where = _store(store)
+    post = social.get_post(where, note_id) if note_id else None
+    if post is None or post.kind != "notes" or not post.data.get("body"):
+        return None
+    return post if social.may_see(where, subscription.token, post) else None
+
+
+def card_maker_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    text: str | None = None,
+    course: str = "",
+    note_id: str = "",
+    both: bool = False,
+    use_ai: bool = False,
+    now: datetime | None = None,
+    provider: _ai.Provider | None = None,
+) -> dict:
+    """The page that makes flashcards from notes (D84): the text (pasted, or a note's),
+    and the cards read from it for the student to pick. By rules; by the model too
+    when the student asks and AI is on and allowed, its cards first."""
+    now = now or datetime.now(UTC)
+    note = _note_source(store, subscription, note_id)
+    if note is not None and text is None:
+        text, course = note.data["body"], course or note.data.get("course", "")
+    text = (text or "")[: _cardmaker.MAX_TEXT]
+    found = _cardmaker.read(text)
+    if both:
+        found = _cardmaker.both_ways(found)[: _cardmaker.MAX_CARDS]
+    candidates = [{"front": c.front, "back": c.back, "kind": c.kind} for c in found]
+    used_ai = False
+    model = (provider or _ai.from_env()) if use_ai and ai_on(subscription) and text.strip() else None
+    if model is not None:
+        language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
+        system, prompt = _ai.cards_prompt(text, language, course)
+        data = _ai.ask(
+            _store(store),
+            subscription.token,
+            model,
+            "cards",
+            system=system,
+            prompt=prompt,
+            schema=_ai.CARDS_SCHEMA,
+            max_tokens=_ai.CARDS_MAX_TOKENS,
+            now=now,
+        )
+        written = _ai.cards_from_answer(data) if data else []
+        if written:
+            used_ai = True
+            known = {(c["front"].casefold(), c["back"].casefold()) for c in candidates}
+            fresh = [
+                {"front": f, "back": b, "kind": "ai"}
+                for f, b in written
+                if (f.casefold(), b.casefold()) not in known
+            ]
+            candidates = (fresh + candidates)[: _cardmaker.MAX_CARDS]
+        log_event(store, subscription.token, "cardmaker", "ai" if used_ai else "rules")
+    for c in candidates:
+        c["word"] = _(CARD_KINDS[c["kind"]])
+    return {
+        "text": text,
+        "course": course,
+        "courses": course_names(subscription),
+        "note": {"id": note.id, "title": note.data.get("title", "")} if note else None,
+        "candidates": candidates,
+        "both": both,
+        "read": bool(text.strip()),
+        "ai_ready": ai_available() and ai_on(subscription),
+        "ai_used": used_ai,
+        "most": _cardmaker.MAX_CARDS,
+    }
+
+
+def add_made_cards(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    course: str,
+    fronts: Sequence[str],
+    backs: Sequence[str],
+    picked: Sequence[str],
+    now: datetime | None = None,
+) -> int:
+    """The cards the student ticked in the preview, added to the course's deck."""
+    now = now or datetime.now(UTC)
+    chosen = {int(i) for i in picked if str(i).isdigit()}
+    pairs = [(f, b) for i, (f, b) in enumerate(zip(fronts, backs, strict=False)) if i in chosen]
+    if not pairs:
+        raise InvalidInput(_("tick the cards to add"))
+    return len(_flash(lambda: flashcards.add(_store(store), subscription.token, course, pairs, now)))
+
+
 REPORT_REASONS = social.REPORT_REASONS
 
 
@@ -6160,7 +6286,8 @@ def post_notes(
     now: datetime | None = None,
 ) -> social.Post:
     """Notes for the library (D26): the student's own, by course, with the pages as
-    photos; shared with everyone by default, since the library is for others."""
+    photos or written as text (D85); shared with everyone by default, since the
+    library is for others, or with one of their study groups only (D85)."""
     now = now or datetime.now(UTC)
     where = _store(store)
     visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
@@ -6169,6 +6296,8 @@ def post_notes(
         "course": form.get("course", ""),
         "title": form.get("title", ""),
         "note": form.get("note", ""),
+        "body": form.get("body", ""),
+        "group": form.get("group", ""),
         "own_work": form.get("own_work") == "1",
     }
     post: social.Post = _social(
@@ -8168,6 +8297,51 @@ def _placed(subscription: Subscription, course: str, topics: Sequence[_syllabus.
     ]
 
 
+_SECTION_NAMES = {
+    "content": "course content",
+    "outcomes": "learning outcomes",
+    "assessment": "assessment",
+    "prerequisites": "prerequisites",
+    "reading": "reading",
+    "methods": "teaching methods",
+}
+
+
+def _course_facts(text: str) -> dict:
+    """What a whole course page says beside its topics (D83): which sections it has,
+    its assessment's parts and weights, its ECTS credits and their hours of work."""
+    facts: dict[str, Any] = {}
+    found = _syllabus.sections(text)
+    if found:
+        facts["sections"] = [name for name in _SECTION_NAMES if name in found]
+    parts = _syllabus.assessment(text)
+    if parts:
+        facts["assessment"] = [{"label": p.label, "percent": p.percent} for p in parts]
+    credit = _syllabus.credits(text)
+    if credit is not None:
+        facts["credits"] = credit
+    return facts
+
+
+def _facts_view(facts: Mapping) -> dict:
+    """A course page's facts in the student's words."""
+    out: dict[str, Any] = {}
+    if facts.get("sections"):
+        out["sections"] = [_(_SECTION_NAMES[n]) for n in facts["sections"] if n in _SECTION_NAMES]
+    if facts.get("assessment"):
+        out["assessment"] = "; ".join(f"{p['label']} {p['percent']} %" for p in facts["assessment"])
+    if facts.get("credits"):
+        credit = float(facts["credits"])
+        low, high = _syllabus.workload(credit)
+        out["credits"] = _(
+            "{n} ECTS credits: about {low} to {high} hours of work in all, lectures included.",
+            n=format_number(credit if credit % 1 else int(credit)),
+            low=low,
+            high=high,
+        )
+    return out
+
+
 def _topic_rows(items: Sequence[Mapping]) -> list[dict]:
     """Topics as a page lists them: the title and when it is taught."""
     rows = []
@@ -8233,11 +8407,12 @@ def course_topics_view(
     university = _university(store, subscription.token)
     preview = None
     if text is not None:
-        read = _syllabus.read(text)
+        read = _syllabus.read(_syllabus.course_text(text))
         preview = {
             "rows": _topic_rows(_placed(subscription, course, read)),
             "count": len(read),
             "full": len(read) == _syllabus.MAX_TOPICS,
+            "facts": _facts_view(_course_facts(text)),
         }
     offers = [
         {
@@ -8260,6 +8435,7 @@ def course_topics_view(
         "university": university,
         "offers": offers,
         "timetable": bool(_teaching(subscription, course)[0]),
+        "facts": _facts_view(kept.get("facts") or {}),
     }
 
 
@@ -8277,10 +8453,19 @@ def save_course_topics(
     sharing withdraws a list shared before."""
     course = _topic_course(subscription, index)
     key = course_key(course)
-    read = _syllabus.read(text)
+    read = _syllabus.read(_syllabus.course_text(text))
+    before = (subscription.options.get("topics") or {}).get(key) or {}
     topics = {k: v for k, v in (subscription.options.get("topics") or {}).items() if k != key}
     if read:
-        topics[key] = {"course": course, "items": _placed(subscription, course, read), "from": None}
+        # A whole course page gives its assessment and credits too (D83); the topics'
+        # own lines, saved again, keep the ones read before.
+        facts = _course_facts(text) or before.get("facts") or {}
+        topics[key] = {
+            "course": course,
+            "items": _placed(subscription, course, read),
+            "from": None,
+            "facts": facts,
+        }
     university = _university(store, subscription.token)
     if share and read and university:
         social.share_topics(

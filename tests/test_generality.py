@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from icalendar import Calendar, Event
 
-from cps import service
+from cps import cardmaker, service, syllabus
 from cps.calendar_io import course_of
 from cps.syllabus import read as read_syllabus
 
@@ -272,3 +272,111 @@ def test_a_syllabus_is_read_in_each_language_s_words(shape):
     else:
         assert marks == [(1, None), (2, None), (None, 5)]
     assert all(t.title[0].isupper() and not t.title[0].isdigit() for t in topics)
+
+
+# A whole course page in each language's words (D83): the items the ECTS Users' Guide
+# recommends for every course unit, under each university's own headings. Topics come
+# from the content section only; the assessment's weights and the credits beside it.
+COURSE_PAGES = {
+    "English": (
+        "MATH 2040 Linear Algebra\nCredits: 6 ECTS\nLearning outcomes\nDiagonalise a matrix.\n"
+        "Course content\nWeek 1: Vectors\nWeek 2: Linear maps\nAssessment\n"
+        "Written exam 70 % and coursework 30 %\nReading\nStrang, Linear Algebra\n",
+        [("Written exam", 70), ("Coursework", 30)],
+        6.0,
+    ),
+    "French": (
+        "Algèbre linéaire — 6 crédits ECTS\nObjectifs\nDiagonaliser.\nContenu du cours\n"
+        "Semaine 1 : Vecteurs\nSemaine 2 : Applications linéaires\n"
+        "Modalités d'évaluation : examen en ligne 40 % et examen terminal 60 %\n",
+        [("Examen en ligne", 40), ("Examen terminal", 60)],
+        6.0,
+    ),
+    "Italian": (
+        "Algebra lineare\nCFU: 9\nObiettivi formativi\nDiagonalizzare.\nProgramma\n"
+        "Settimana 1: Vettori\nSettimana 2: Applicazioni lineari\nModalità d'esame\n"
+        "esame scritto 60%, orale 40%\n",
+        [("Esame scritto", 60), ("Orale", 40)],
+        9.0,
+    ),
+    "Spanish": (
+        "Álgebra lineal (6 créditos ECTS)\nObjetivos\nDiagonalizar.\nContenidos\n"
+        "Semana 1: Vectores\nSemana 2: Aplicaciones lineales\nSistema de evaluación\n"
+        "Examen final (60 %) y prácticas (40 %)\n",
+        [("Examen final", 60), ("Prácticas", 40)],
+        6.0,
+    ),
+    "German": (
+        "Lineare Algebra, 5 LP\nLernziele\nDiagonalisieren.\nInhalt\nWoche 1: Vektoren\n"
+        "Woche 2: Lineare Abbildungen\nPrüfungsform\nKlausur 100 %\n",
+        [("Klausur", 100)],
+        5.0,
+    ),
+    "Dutch": (
+        "Lineaire algebra (6 EC)\nLeerdoelen\nDiagonaliseren.\nInhoud\nWeek 1: Vectoren\n"
+        "Week 2: Lineaire afbeeldingen\nToetsing\nTentamen 80 % en opdrachten 20 %\n",
+        [("Tentamen", 80), ("Opdrachten", 20)],
+        6.0,
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", COURSE_PAGES)
+def test_a_whole_course_page_is_read_in_each_language_s_words(shape):
+    text, parts, credit = COURSE_PAGES[shape]
+    assert {"outcomes", "content", "assessment"} <= set(syllabus.sections(text))
+    topics = read_syllabus(syllabus.course_text(text))
+    assert [t.week for t in topics] == [1, 2]  # the outcomes and the reading are not topics
+    assert [(p.label, p.percent) for p in syllabus.assessment(text)] == parts
+    assert syllabus.credits(text) == credit
+
+
+# Notes in each language's words (D84): a definition sentence gives its term and the
+# sentence, a question and its answer a card, and "It is a…" nothing.
+NOTES = {
+    "English": ("An eigenvalue is a number λ such that Av = λv.\nIt is a scalar.", "Eigenvalue", "Q", "A"),
+    "French": (
+        "Une valeur propre est un nombre λ tel que Av = λv.\nC'est un scalaire.",
+        "Valeur propre",
+        "Question",
+        "Réponse",
+    ),
+    "Italian": (
+        "Un autovalore è un numero λ tale che Av = λv.\nQuesto è uno scalare.",
+        "Autovalore",
+        "D",
+        "R",
+    ),
+    "Spanish": (
+        "Un autovalor es un número λ tal que Av = λv.\nEsto es un escalar.",
+        "Autovalor",
+        "Pregunta",
+        "Respuesta",
+    ),
+    "German": (
+        "Ein Eigenwert ist eine Zahl λ mit Av = λv.\nDies ist ein Skalar.",
+        "Eigenwert",
+        "Frage",
+        "Antwort",
+    ),
+    "Dutch": (
+        "Een eigenwaarde is een getal λ met Av = λv.\nDit is een scalair.",
+        "Eigenwaarde",
+        "Vraag",
+        "Antwoord",
+    ),
+    "Portuguese": (
+        "Um autovalor é um número λ tal que Av = λv.\nIsso é um escalar.",
+        "Autovalor",
+        "Pergunta",
+        "Resposta",
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", NOTES)
+def test_notes_become_cards_in_each_language_s_words(shape):
+    text, term, q, a = NOTES[shape]
+    found = cardmaker.read(f"{text}\n\n{q}: 2 + 2?\n{a}: 4")
+    assert [(c.kind, c.front) for c in found] == [("definition", term), ("qa", "2 + 2?")]
+    assert found[0].back.endswith("Av = λv") and found[1].back == "4"

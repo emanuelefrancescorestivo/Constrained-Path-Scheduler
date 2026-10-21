@@ -46,6 +46,22 @@
   <p class="hint">{{ _("Members see the group's total hours and who has studied this week; never your plan, your courses or your sessions.") }}</p>
 </div>
 
+<div class="section" id="notes">
+  <div class="section-title"><h2>{{ _("Notes") }}</h2><a class="btn btn-tinted btn-sm" href="/p/{{ token }}/notes/new?group={{ view.id }}">{{ _("Share notes with the group") }}</a></div>
+  {% if view.notes %}
+  <ul class="card list group-notes">
+    {% for n in view.notes %}
+    <li>
+      <a class="grow" href="/p/{{ token }}/post/{{ n.id }}"><b>{{ n.title }}</b><br><small>{{ n.course }}{% if n.author %} · @{{ n.author.handle }}{% endif %} · {{ n.when }}{% if n.photos %} · {{ _n("{n} page", "{n} pages", n.photos | length) }}{% endif %}</small></a>
+      {% if n.body %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?note={{ n.id }}">{{ _("Flashcards") }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="card empty">{{ _("No notes yet. Notes shared with the group are seen by its members only, while you are one of them.") }}</p>
+  {% endif %}
+</div>
+
 {% if view.room > 0 %}
 <section class="card section invite-link" id="invite">
   <h2>{{ _("Invite with a link") }}</h2>

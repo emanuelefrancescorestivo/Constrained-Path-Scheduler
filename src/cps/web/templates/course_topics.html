@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ view.course }} · {{ _("Topics") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
+{% macro course_facts(f) %}
+{% if f.assessment or f.credits or f.sections %}
+<dl class="card list course-facts">
+  {% if f.assessment %}<div><dt>{{ _("Assessment") }}</dt><dd>{{ f.assessment }}</dd></div>{% endif %}
+  {% if f.credits %}<div><dt>{{ _("Workload") }}</dt><dd>{{ f.credits }}</dd></div>{% endif %}
+  {% if f.sections %}<div><dt>{{ _("Sections found") }}</dt><dd>{{ f.sections | join(", ") }}</dd></div>{% endif %}
+</dl>
+{% endif %}
+{% endmacro %}
 {% macro topic_list(rows) %}
 <ol class="card list topic-list">
   {% for r in rows %}<li><span class="grow">{{ r.title }}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% else %}<small class="topic-when muted">{{ _("no week") }}</small>{% endif %}</li>{% endfor %}
@@ -29,6 +38,7 @@
 {% if view.preview %}
 <div class="section" id="preview">
   <div class="section-title"><h2>{{ _("Read from your text") }}</h2><small>{{ _n("{n} topic", "{n} topics", view.preview.count) }}</small></div>
+  {{ course_facts(view.preview.facts) }}
   {% if view.preview.rows %}{{ topic_list(view.preview.rows) }}{% else %}<p class="card">{{ _("No topic found. Put one topic on each line, with its week if you know it.") }}</p>{% endif %}
   {% if view.preview.full %}<p class="hint">{{ _("Only the first 60 topics are kept.") }}</p>{% endif %}
   {% if view.preview.rows %}<p class="hint">{{ _("Not right? Change the text below and read it again.") }}</p>{% endif %}
@@ -36,13 +46,14 @@
 {% elif view.rows %}
 <div class="section">
   <div class="section-title"><h2>{{ _("Topics") }}</h2><small>{{ _n("{n} topic", "{n} topics", view.rows | length) }}</small></div>
+  {{ course_facts(view.facts) }}
   {{ topic_list(view.rows) }}
 </div>
 {% endif %}
 
 <form method="post" action="/p/{{ token }}/topics/{{ view.index }}" class="card section topics-form">
   <h2>{% if view.rows %}{{ _("Change the topics") }}{% else %}{{ _("Paste the program") }}{% endif %}</h2>
-  <p class="hint">{{ _("Copy the course's program from its page or its PDF and paste it here. Lines such as \"Week 3: Eigenvalues\" or \"Lecture 5 - Series\" keep their week; a list without weeks is spread over the course's weeks of lectures.") }}</p>
+  <p class="hint">{{ _("Copy the course's program from its page or its PDF and paste it here. Lines such as \"Week 3: Eigenvalues\" or \"Lecture 5 - Series\" keep their week; a list without weeks is spread over the course's weeks of lectures. A whole course page works too: its topics are taken from its content section, with its assessment and credits.") }}</p>
   <label for="t-text" class="visually-hidden">{{ _("The course's program") }}</label>
   <textarea id="t-text" name="text" rows="10" maxlength="20000" placeholder="{{ _('Week 1: Vectors and matrices') }}&#10;{{ _('Week 2: Linear maps') }}&#10;{{ _('Week 3: Eigenvalues') }}">{{ view.text }}</textarea>
   {% if not view.timetable %}<p class="hint">{{ _("Your timetable has no lectures for this course, so the topics are kept as a list, not placed on weeks.") }}</p>{% endif %}

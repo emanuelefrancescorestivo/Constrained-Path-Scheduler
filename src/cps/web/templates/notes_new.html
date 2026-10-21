@@ -5,7 +5,7 @@
 <p class="back"><a href="/p/{{ token }}/notes">{{ _("Notes") }}</a></p>
 <div class="page-title">
   <h1>{{ _("Share notes") }}</h1>
-  <p>{{ _("Your own notes or summary of a course, as photos of the pages. Others mark them helpful; the most helpful of the month are marked for everyone to find.") }}</p>
+  <p>{{ _("Your own notes or summary of a course, as photos of the pages or as text. Others mark them helpful; the most helpful of the month are marked for everyone to find. Notes written as text can become flashcards.") }}</p>
 </div>
 {% if not profile %}<p class="card">{{ _h('To share notes, <a href="{href}">choose a handle</a> first. You can still keep them for yourself.', href="/p/" ~ token ~ "/profile") }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
@@ -17,9 +17,11 @@
     <input id="nt-title" name="title" value="{{ draft.title or '' }}" required maxlength="120" placeholder="{{ _('Chapter 3 in one page, the proofs to know…') }}">
     <label for="nt-note">{{ _("What they cover (optional)") }}</label>
     <textarea id="nt-note" name="note" rows="3" maxlength="1000">{{ draft.note or '' }}</textarea>
-    <label for="nt-photos">{{ _("The pages, one photo each (up to 8)") }}</label>
-    <input id="nt-photos" name="photos" type="file" accept="image/jpeg,image/png,image/*" multiple required>
-    <p class="hint">{{ _("Photos lose their location data before they are kept.") }}</p>
+    <label for="nt-body">{{ _("The notes as text") }}</label>
+    <textarea id="nt-body" name="body" rows="8" maxlength="20000" placeholder="{{ _('Eigenvalue: a number λ such that Av = λv') }}">{{ draft.body or '' }}</textarea>
+    <label for="nt-photos">{{ _("Or the pages, one photo each (up to 8)") }}</label>
+    <input id="nt-photos" name="photos" type="file" accept="image/jpeg,image/png,image/*" multiple>
+    <p class="hint">{{ _("Text, photos or both. Photos lose their location data before they are kept.") }}</p>
   </div>
   <div class="card section">
     <label class="check check-long"><input type="checkbox" name="own_work" value="1" required{% if draft.own_work %} checked{% endif %}><span>{{ _("These are my own notes, in my own words. No slides, handouts, textbook pages, exam papers or anyone else's work.") }}</span></label>
@@ -27,8 +29,15 @@
   <fieldset class="card section">
     <legend>{{ _("Who sees it") }}</legend>
     <div class="pills" role="radiogroup">
-      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or ('everyone' if profile else 'me')) == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+      {% set chosen = draft.visibility or ('group' if draft.group and groups else ('everyone' if profile else 'me')) %}
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if chosen == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+      {% if groups %}<label class="pill"><input type="radio" name="visibility" value="group"{% if chosen == 'group' %} checked{% endif %}><span>{{ _("A study group") }}</span></label>{% endif %}
     </div>
+    {% if groups %}
+    <label for="nt-group">{{ _("Which group") }}</label>
+    <select id="nt-group" name="group">{% for g in groups %}<option value="{{ g.id }}"{% if draft.group == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select>
+    <p class="hint">{{ _("A group's notes are seen by its members only, while you are one of them; the group is used only when you choose it above.") }}</p>
+    {% endif %}
     <p class="hint">{{ _("Only notes shared with everyone can be among the month's most helpful.") }}</p>
   </fieldset>
   <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Share") }}</button></div>
