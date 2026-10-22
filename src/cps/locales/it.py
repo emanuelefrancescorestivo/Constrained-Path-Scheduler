@@ -1990,4 +1990,11 @@ MESSAGES: dict[str, str] = {
     "{n} tip": "{n} consiglio",
     "{n} tips": "{n} consigli",
     "Your courses' topics, assessment, credits and hours, as read from a program you pasted or uploaded. A PDF you upload is read and not kept: the server keeps no copy of the file.": "Gli argomenti, la valutazione, i crediti e le ore dei tuoi corsi, come letti da un programma che hai incollato o caricato. Un PDF caricato viene letto e non conservato: il server non ne tiene alcuna copia.",
+    # D93: the glass, see-through or solid
+    "Glass": "Vetro",
+    "See-through": "Trasparente",
+    "Solid": "Opaco",
+    "Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.": "Automatico mantiene le schede trasparenti, a meno che il dispositivo chieda meno trasparenza o sia troppo lento per sfocarle: allora diventano opache. Opaco è il più leggero per un computer o un telefono meno recente.",
+    "choose Automatic, See-through or Solid": "scegli Automatico, Trasparente o Opaco",
+    "On Automatic glass, a device too slow to blur the cards remembers it, so its next pages start solid. Only that word is kept, on your device; clearing the site's data forgets it.": "Con il vetro automatico, un dispositivo troppo lento per sfocare le schede se lo ricorda, così le pagine successive si aprono opache. Si conserva solo questa parola, sul tuo dispositivo; cancellare i dati del sito la dimentica.",
 }

@@ -315,6 +315,13 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.") }}</p>
+<form method="post" action="/p/{{ token }}/glass" class="pills motion-choice" aria-label="{{ _('Glass') }}">
+  <span class="pills-label">{{ _("Glass") }}</span>
+  {% for value, word in (("auto", _("Automatic")), ("clear", _("See-through")), ("solid", _("Solid"))) %}
+  <button type="submit" name="glass" value="{{ value }}" class="btn btn-sm"{% if (glass or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.") }}</p>
 <form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" aria-label="{{ _('Tips') }}">
   <span class="pills-label">{{ _("Tips") }}</span>
   {% for value, word in (("on", _("On")), ("off", _("Off"))) %}

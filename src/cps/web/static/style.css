@@ -2254,13 +2254,9 @@ body[data-sky] .focus:fullscreen {
     radial-gradient(circle at 88% 90%, rgb(var(--sky-4) / 80%), rgb(var(--sky-4) / 0%) 48%),
     var(--sky-base);
 }
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) body[data-sky]::before { animation: sky-drift 90s ease-in-out infinite alternate; }
-}
-@keyframes sky-drift {
-  from { transform: translate3d(-2.5%, -2%, 0) rotate(-2deg) scale(1.02); }
-  to { transform: translate3d(2.5%, 2%, 0) rotate(2deg) scale(1.07); }
-}
+/* The sky holds still (D93): it follows the sun through the day (D76), but a drift
+   behind the glass made every pane blur again on every frame, forever; on a weak
+   graphics chip that kept a page busy doing nothing. */
 
 /* -- the glass ------------------------------------------------------------------- */
 body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .cards-due, .more > summary) {
@@ -2398,13 +2394,32 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
 }
 @keyframes garden-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
 
-/* Less transparency, when the device asks for it: solid surfaces, no blur. */
+/* Less transparency, when the device asks for it or the glass is solid (D93): solid
+   surfaces, no blur anywhere. Solid comes from the plan's setting, or from motion.js
+   when this device blurred too slowly while a page arrived; "See-through" keeps the
+   glass whatever the device says. */
 @media (prefers-reduced-transparency: reduce) {
-  body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .strip-item, .cards-due, .more > summary,
-    .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
-    background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+  :root:not([data-glass="clear"]) body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group,
+    .strip-item, .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
+    background: var(--surface);
+  }
+  :root:not([data-glass="clear"]) :is(*, *::before, *::after) {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 }
+:root[data-glass="solid"] body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .strip-item,
+  .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
+  background: var(--surface);
+}
+:root[data-glass="solid"] :is(*, *::before, *::after) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+
+/* Ambient motion rests (D93): Spark, the garden, the home page's lights, the focus
+   dial's breath and a running session's pulse pause six seconds after the page arrives
+   or after the last tap or key (motion.js sets data-rest), and go on at the next;
+   Spark wakes under the pointer. A page left open costs nothing while it is read. */
+:root[data-rest] :is(.mascot, .mascot *, .garden i, .neural, .neural *, .hero h1, .pulse),
+:root[data-rest] :is(.hero-field, .focus-dial)::before { animation-play-state: paused !important; }
+:root[data-rest] :is(.spark-fab, .mascot-tip):hover .mascot :is(*, *::before) { animation-play-state: running !important; }
 
 /* -- Today, calmer (D73): the next step large, the rest folded under "More" ---------- */
 .hello h1 { font-size: 2.15rem; }

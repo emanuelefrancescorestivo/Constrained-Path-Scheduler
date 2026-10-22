@@ -3,7 +3,7 @@
 // stop timers on a hidden page, so a gap between beats is time away from it
 // (DECISIONS.md D17). This script measures nothing itself; the server decides.
 import { t } from "./i18n.js";
-import { celebrate } from "./motion.js";
+import { celebrate, resting } from "./motion.js";
 
 const section = document.querySelector(".focus");
 const token = section.dataset.token;
@@ -35,16 +35,27 @@ const still = () =>
 // a beat that corrects the clock moves both together. (It was a CSS animation whose
 // start was shifted at every beat, which pushed it out of step, AUDIT 72.) Under
 // reduced motion it stays a still, full circle.
-function sweepFrame() {
+// While the page rests (D93) it moves with the digits, once a second, instead of on
+// every frame: a session left open for an hour costs a slow device little.
+function sweepTo() {
   if (sweep && !still()) sweep.style.strokeDashoffset = String(100 - ((now() % 60) / 60) * 100);
-  requestAnimationFrame(sweepFrame);
 }
+let sweeping = false;
+function sweepFrame() {
+  sweepTo();
+  sweeping = !resting();
+  if (sweeping) requestAnimationFrame(sweepFrame);
+}
+document.addEventListener("cps:wake", () => {
+  if (!sweeping) requestAnimationFrame(sweepFrame);
+});
 // The digits turn on the second itself, not up to a second late.
 function tick() {
   draw();
   setTimeout(tick, 1000 - (now() % 1) * 1000 + 5);
 }
 function draw() {
+  if (!sweeping) sweepTo();
   const seconds = Math.floor(now());
   clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;

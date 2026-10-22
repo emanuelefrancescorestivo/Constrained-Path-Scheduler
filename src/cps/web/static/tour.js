@@ -86,9 +86,19 @@ function start(root) {
   };
 
   // Every frame while open: the part may move (scrolling, the window resized, the
-  // calendar drawn late), so the light and the bubble follow it.
+  // calendar drawn late), so the light and the bubble follow it; placed again only
+  // when it moved, so a tour left open does not lay the page out sixty times a
+  // second (D93).
+  let placed = "";
   const follow = () => {
-    if (target && target.isConnected) place(target.getBoundingClientRect());
+    if (target && target.isConnected) {
+      const box = target.getBoundingClientRect();
+      const where = `${box.left},${box.top},${box.width},${box.height},${innerWidth},${innerHeight}`;
+      if (where !== placed) {
+        placed = where;
+        place(box);
+      }
+    }
     frame = requestAnimationFrame(follow);
   };
 

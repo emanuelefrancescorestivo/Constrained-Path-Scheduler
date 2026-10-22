@@ -923,3 +923,18 @@ row, more headings, prose and labels skipped, assessment parts read as written. 
 owner's document, all seven courses are now found, with their credits, hours and
 assessment (`tests/test_program.py` and `tests/test_generality.py` keep the same shapes
 with made-up text). Status: fixed for these shapes; other documents remain untried.
+
+**75. Pages kept a slow device busy while nobody touched them.** Reported by the owner,
+2026-10-22 ("i have a very powerful laptop we need to make sure it is not too heavy to
+run on simpler hardwares"); found by measuring (`benchmarks/page_cost.mjs`): in
+headless Chromium, whose software rendering stands in for a weak graphics chip, every
+plan page held 73 % to 110 % of a CPU core while it sat open. The sky drifting behind the
+glass, Spark's loops, the garden and the home page's lights never stopped, so the page
+drew 60 frames a second and every pane blurred again on each; Spark's tour also laid the
+page out on every frame. Nothing had measured a page's cost at rest; the design was
+checked on fast machines (D73, D76). Fixed with D93: ambient motion rests six seconds
+after the last tap or key, the sky holds still, the glass turns solid on a device that
+blurs too slowly (or by the new setting), and the tour and the focus ring stop drawing
+every frame. Read 15 to 25 s after opening, the same pages now take 0 % to 5 % of a core;
+the first seconds after opening still cost a weak device more (D93's table). Status:
+fixed for pages at rest; not measured on a real low-end device.
