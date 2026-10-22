@@ -275,6 +275,9 @@ def test_a_pdf_s_text_is_read_page_after_page():
         (b"%PDF-1.4\n1 0 obj << broken", "unreadable"),
         (pdf([[]]), "empty"),  # a page without text, as a scan has
     ],
+    # Short names: pytest puts a case's name in an environment variable, which Windows
+    # caps at 32,767 characters; the large case's bytes would be its name.
+    ids=["not-pdf", "large", "unreadable", "empty"],
 )
 def test_a_pdf_without_text_says_why(data, reason):
     with pytest.raises(pdftext.PdfError) as error:
