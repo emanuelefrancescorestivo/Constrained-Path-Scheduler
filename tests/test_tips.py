@@ -100,8 +100,8 @@ def test_every_tip_reads_in_french_and_italian():
     for catalogue in (FRENCH, ITALIAN):
         assert not tips.sentences() - catalogue.keys()
     with i18n.use("it"):
-        view = service.tips_view()
-    first = view["topics"][0]["tips"][0]
+        view = service.tips_view("studying")
+    first = view["tips"][0]
     assert first["advice"] == ITALIAN[tips.TIPS[0].advice]
     assert first["strength_label"] == "Prove solide"
     assert first["sources"][0]["checked"] == "15 ott 2026"
@@ -239,21 +239,30 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
         )
         token = start.headers["location"].split("/")[2]
 
+        # The page lists the topics (D91); each topic's page holds its tips, and no other.
         page = web.get(f"/p/{token}/tips")
-        assert page.status_code == 200
-        text = unescape(page.text)
+        assert page.status_code == 200 and 'id="tip-' not in page.text
+        listed = unescape(page.text)
+        text = ""
+        for key, name in tips.TOPICS.items():
+            assert f'href="/p/{token}/tips?topic={key}"' in listed
+            assert (catalogue or {}).get(name, name) in listed
+            shown = unescape(web.get(f"/p/{token}/tips?topic={key}").text)
+            assert 'aria-current="page">' + (catalogue or {}).get(name, name) in shown
+            for tip in tips.TIPS:
+                assert (f'id="tip-{tip.key}"' in shown) == (tip.topic == key)
+            text += shown
         for tip in tips.TIPS:
-            assert f'id="tip-{tip.key}"' in text
             assert (catalogue or {}).get(tip.advice, tip.advice) in text
             assert (catalogue or {}).get(tip.limits, tip.limits) in text
         for source in {tips.SOURCES[key] for tip in tips.TIPS for key in tip.sources}:
             assert f'href="{source.url}"' in text and source.cite in text
-        web.get(f"/p/{token}/tips")  # twice the same day: counted once
+        assert 'id="tip-' not in web.get(f"/p/{token}/tips?topic=nonsense").text  # the list again
 
         today = unescape(web.get(f"/p/{token}").text)
         with i18n.use(lang):  # the day's tip and why, in the plan's language
             tip = service.tip_of_the_day(service.load_subscription(tmp_path, token), MORNING)
-        assert f"/p/{token}/tips#tip-{tip['key']}" in today
+        assert f"/p/{token}/tips?topic={tip['topic']}#tip-{tip['key']}" in today
         assert tip["advice"] in today and tip["reason"] and tip["reason"] in today
         assert f'href="/p/{token}/tips"' in web.get(f"/p/{token}/focus").text
 
@@ -270,12 +279,12 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         token = start.headers["location"].split("/")[2]
         today = unescape(web.get(f"/p/{token}").text)
         assert "A lecture later today: Advanced Statistics at 09:00." in today
-        assert f"/p/{token}/tips#tip-pretest" in today
+        assert f"/p/{token}/tips?topic=studying#tip-pretest" in today
         assert today.count('class="mascot is-think"') == 1  # questions before a lecture: it ponders
         assert today.count('id="mascot-pretest-body"') == 1  # its gradients' ids are its own
 
         focus = unescape(web.get(f"/p/{token}/focus").text)
-        assert "Before you start" in focus and f"/p/{token}/tips#tip-breaks" in focus
+        assert "Before you start" in focus and f"/p/{token}/tips?topic=breaks#tip-breaks" in focus
         assert 'class="mascot is-wave"' in focus
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
         running = web.get(f"/p/{token}/focus").text

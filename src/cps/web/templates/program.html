@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Import your semester's program") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set v = view %}
+<p class="back"><a href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Import your semester's program") }}</h1>
+  <p>{{ _("Your school's program for the semester, as one document: each course is found by its name, with its topics on their weeks, its mock exams and midterms, its assessment, credits and hours.") }}</p>
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if v.note %}<p class="notice" role="status">{{ v.note }}</p>{% endif %}
+
+{% if v.found is not none %}
+<form method="post" action="/p/{{ token }}/courses/import" class="section program-found">
+  <input type="hidden" name="digest" value="{{ v.digest }}">
+  <div class="section-title"><h2>{{ _("Found in your document") }}</h2><small>{{ _n("{n} course", "{n} courses", v.found | length) }}</small></div>
+  {% for c in v.found %}
+  <section class="card program-course">
+    <h3>{{ c.name or _("Course {n}", n=c.n + 1) }}</h3>
+    <label for="s-{{ c.n }}">{{ _("Add to") }}</label>
+    <select id="s-{{ c.n }}" name="course-{{ c.n }}">
+      <option value="">{{ _("Do not add") }}</option>
+      {% for o in v.options %}<option value="{{ o.index }}"{% if c.choice == o.index %} selected{% endif %}>{{ o.course }}</option>{% endfor %}
+    </select>
+    {% if c.facts.assessment or c.facts.credits or c.facts.hours %}
+    <dl class="list course-facts">
+      {% if c.facts.assessment %}<div><dt>{{ _("Assessment") }}</dt><dd>{{ c.facts.assessment }}</dd></div>{% endif %}
+      {% if c.facts.credits %}<div><dt>{{ _("Workload") }}</dt><dd>{{ c.facts.credits }}</dd></div>{% endif %}
+      {% if c.facts.hours %}<div><dt>{{ _("Classes") }}</dt><dd>{{ c.facts.hours }}</dd></div>{% endif %}
+    </dl>
+    {% endif %}
+    {% if c.dated %}<p class="week-assessments">{% for a in c.dated %}<span class="mtag mtag-exam">{{ a.title }}{% if a.when %} · {{ a.when }}{% endif %}</span>{% endfor %}</p>{% endif %}
+    {% if c.rows %}
+    <p class="tile-label">{{ _n("{n} topic", "{n} topics", c.topics) }}</p>
+    <ol class="list topic-list">
+      {% for r in c.rows %}{% if not r.assessment %}<li><span class="grow">{{ r.title }}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% elif r.week %}<small class="topic-when">{{ _("Week {n}", n=r.week) }}</small>{% endif %}</li>{% endif %}{% endfor %}
+      {% if c.more %}<li class="muted">{{ _n("and {n} more", "and {n} more", c.more) }}</li>{% endif %}
+    </ol>
+    {% elif c.empty %}
+    <p class="hint">{{ _("Nothing to read for this one.") }}</p>
+    {% else %}
+    <p class="hint">{{ _("No topic list in its text: its assessment, credits and hours are kept, and its topics stay as they are.") }}</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+  {% if v.university %}
+  <label class="check check-long"><input type="checkbox" name="share" value="1"> {{ _("Share these topics with classmates at {university} who take these courses (without your name)", university=v.university) }}</label>
+  {% endif %}
+  <p class="hint">{{ _("Topics already saved for a course you add are replaced. The weeks follow your timetable: a schedule's dates first, else its week numbers, else the list spread over the weeks of lectures.") }}</p>
+  <details class="program-text">
+    <summary>{{ _("The text read") }}</summary>
+    <label for="s-text" class="visually-hidden">{{ _("Your semester's program") }}</label>
+    <textarea id="s-text" name="text" rows="12" maxlength="200000">{{ v.text }}</textarea>
+    <p class="hint">{{ _("Change it and read it again if something is off.") }}</p>
+  </details>
+  <div class="form-actions">
+    <button class="btn" name="action" value="read">{{ _("Read it again") }}</button>
+    <button class="btn btn-primary" name="action" value="save">{{ _("Save these courses") }}</button>
+  </div>
+</form>
+{% endif %}
+
+<form method="post" action="/p/{{ token }}/courses/import" enctype="multipart/form-data" class="card section program-form">
+  <h2>{% if v.found is none %}{{ _("Your program") }}{% else %}{{ _("Another document") }}{% endif %}</h2>
+  <label for="s-pdf">{{ _("Its PDF") }}</label>
+  <input id="s-pdf" name="pdf" type="file" accept="application/pdf,.pdf">
+  <p class="hint">{{ _("Read on the server and not kept: only what you save stays, with your plan. A scanned PDF has no text to read.") }}</p>
+  {% if v.found is none %}
+  <label for="s-paste">{{ _("Or paste its text") }}</label>
+  <textarea id="s-paste" name="text" rows="8" maxlength="200000" placeholder="{{ _('Algebra 3') }}&#10;{{ _('Week 1: Integers and divisibility') }}&#10;{{ _('Assessment: final exam 80 %, quizzes 20 %') }}"></textarea>
+  {% endif %}
+  <div class="form-actions"><button class="btn btn-primary" name="action" value="read">{{ _("Read it") }}</button></div>
+</form>
+{% endblock %}

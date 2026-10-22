@@ -906,3 +906,20 @@ had no rule. Fixed with one rule for every list that is a card (its rows inside 
 card's margins, a row that leads somewhere drawn as text, its title tinted under the
 pointer), which the older per-list rules agree with. Checked in Chromium at 1280 px
 and 390 px, light and dark. Status: fixed.
+
+**74. The syllabus reader, tried on a real semester's program, read its prose as
+topics and missed its weights.** Found on 2026-10-22, reading the 17-page program the
+owner sent (seven courses in one PDF) with the readers of D81 and D83. The whole text
+gave 60 "topics", starting with the cover page and the contents page; cut by hand, a
+course's description gave a line of prose per topic, "Language of instruction:
+English" was a topic, a dated schedule ("Tue, 15-09-26 1 Course intro…") kept its
+dates and its readings in each title, and "Learning Objectives" and "Course
+Description" were not headings. Of the seven assessments, none was read: "Partial
+exam 1 (20%)" stopped at the digit in its label, "(10% + 10%)" counted as parts, and a
+line that wrapped split a part from its weight. The tests had been written from the
+shapes the ECTS guide lists, one course at a time, never a whole document. Fixed with
+D90: a document cut into its courses, page furniture dropped, schedules read row by
+row, more headings, prose and labels skipped, assessment parts read as written. On the
+owner's document, all seven courses are now found, with their credits, hours and
+assessment (`tests/test_program.py` and `tests/test_generality.py` keep the same shapes
+with made-up text). Status: fixed for these shapes; other documents remain untried.

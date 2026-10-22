@@ -755,13 +755,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/tips", response_class=HTMLResponse)
-    def tips(request: Request, token: str) -> HTMLResponse:
-        """What research says about studying well, each tip with its evidence (D62)."""
+    def tips(request: Request, token: str, topic: str = "") -> HTMLResponse:
+        """What research says about studying well, each tip with its evidence (D62),
+        one topic at a time (D91)."""
         if load(token) is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
         service.log_tips(store, token)
-        return page(request, "tips.html", token=token, view=service.tips_view(), tab="focus")
+        view = service.tips_view(topic[:20] or None)
+        return page(request, "tips.html", token=token, view=view, tab="focus")
 
     def coach_page(
         request: Request, token: str, subscription: service.Subscription, **context: Any
@@ -1641,13 +1643,89 @@ def create_app(config: Config | None = None) -> FastAPI:
     }
 
     @app.get("/p/{token}/courses", response_class=HTMLResponse)
-    def courses_list(request: Request, token: str) -> HTMLResponse:
+    def courses_list(request: Request, token: str, imported: int = -1) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
         courses = service.courses_view(store, subscription, config.clock())
-        return page(request, "courses.html", token=token, courses=courses, tab="courses")
+        notice = (
+            service.translate_plural(
+                "Program saved for {n} course.", "Program saved for {n} courses.", imported
+            )
+            if imported >= 0
+            else None
+        )
+        return page(request, "courses.html", token=token, courses=courses, tab="courses", saved=notice)
+
+    # -- a semester's program in one document, pasted or as a PDF (D90) --------------
+
+    def program_page(
+        request: Request,
+        subscription: service.Subscription,
+        status: int = 200,
+        text: str | None = None,
+        note: str | None = None,
+        **extra: Any,
+    ) -> HTMLResponse:
+        view = service.program_view(store, subscription, text, note)
+        token = subscription.token
+        return page(request, "program.html", status, token=token, view=view, tab="courses", **extra)
+
+    @app.get("/p/{token}/courses/import", response_class=HTMLResponse)
+    def program(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return program_page(request, subscription)
+
+    @app.post("/p/{token}/courses/import", response_class=HTMLResponse)
+    async def program_read(request: Request, token: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=1, max_fields=80)
+        pasted = form.get("text")
+        # A browser sends a text box's line breaks as CRLF: the text is compared, for
+        # the save's fingerprint, with them made plain again.
+        text = service.program_text(pasted if isinstance(pasted, str) else "")
+        upload = form.get("pdf")
+        note = None
+        if isinstance(upload, UploadFile) and upload.filename:
+            data = await upload.read(service.PDF_MOST + 1)
+            await upload.close()
+            try:
+                text, note = service.pdf_text(data)
+            except service.ServiceError as error:
+                return program_page(request, subscription, 400, error=str(error))
+            text = service.program_text(text)
+            del data  # the file is not kept (D90)
+        elif form.get("action") == "save" and form.get("digest") == service.digest(text):
+            choices = {
+                int(key[7:]): int(str(value))
+                for key, value in form.items()
+                if key.startswith("course-") and key[7:].isdigit() and str(value).isdigit()
+            }
+            saved = [0]
+
+            def save(current: service.Subscription) -> service.Subscription:
+                changed, saved[0] = service.save_program(
+                    store, current, text, choices, share=bool(form.get("share")), now=config.clock()
+                )
+                return changed
+
+            try:
+                service.update_subscription(store, token, save)
+            except service.ServiceError as error:
+                return program_page(request, subscription, 400, text=text, error=str(error))
+            service.log_event(store, token, "topics", "semester")
+            return RedirectResponse(f"/p/{token}/courses?imported={saved[0]}", 303)
+        if not text.strip():
+            message = service.translate("Choose the program's PDF or paste its text.")
+            return program_page(request, subscription, 400, error=message)
+        return program_page(request, subscription, text=text, note=note)
 
     def course_page(
         request: Request, subscription: service.Subscription, index: int, status: int = 200, **extra: Any

@@ -218,6 +218,57 @@ university.**
 What is already there stays the first step: the platform's calendar export brings
 the deadlines without any token.
 
+### 5a. Moodle, step by step, once a university agrees (D92)
+
+The owner's choice, 2026-10-22: **not yet**. Until a university agrees, a student keeps
+links to a course's material on its Courses page (D88) and imports the semester's
+program, pasted or as a PDF (D90). No password, token or key is asked for, stored or
+sent anywhere. What follows is what to do the day a university says yes; nothing of it
+is built.
+
+The functions below were read in Moodle's own source on 2026-10-22
+([lib/db/services.php][mdlservices], [mod/assign][mdlassign] and [mod/resource][mdlresource]
+`db/services.php`, [login/token.php][mdltoken]): each is declared `'type' => 'read'` and
+belongs to the official mobile service (`MOODLE_OFFICIAL_MOBILE_SERVICE`), the one
+Moodle's own app uses.
+
+| What the app would read | Function | Where it goes in the app |
+|---|---|---|
+| who the student is, which functions the site allows | `core_webservice_get_site_info` | a check before anything else |
+| the courses the student is enrolled in | `core_enrol_get_users_courses` | matched to the plan's courses by name (`service._matches`, D90) |
+| each course's sections and what is in them | `core_course_get_contents` | a section per teaching week: its title as topics, its files and pages as the week's links (D88) |
+| assignments and their due dates | `mod_assign_get_assignments` | tasks with deadlines, as the calendar export brings them now |
+| what is due soon, across courses | `core_calendar_get_action_events_by_timesort` | the same, for activities other than assignments |
+| files of the "resource" kind | `mod_resource_get_resources_by_courses` | links on the course page, never downloaded or stored |
+
+1. **The agreement.** The university's Moodle team (and its data protection officer)
+   agrees in writing to a pilot: which site, which students (opt-in), which functions
+   (the six above, read-only), how long, and how a student or the university stops it.
+   The owner signs it; a data protection impact assessment is written before any code
+   runs against the site.
+2. **The way in, chosen by the university.** Either (a) a dedicated web service on
+   their site with only the six functions, for which each student makes a token from
+   their own Moodle profile ("Security keys"), or (b) the mobile service, if the team
+   prefers it, where `login/token.php` exchanges a sign-in for a token (it refuses when
+   web services are off, and needs a Moodle password, which single sign-on accounts may
+   not have: §5, to be checked). (a) is better: the
+   token can do nothing else, and the university can revoke it.
+3. **Storing the token.** Encrypted at rest with a key kept outside the database (an
+   environment secret on the server, D75), never logged, never shown again, never in
+   a plan's copy (D43) or its feed; deleted with the plan (D36) and on "Disconnect".
+   This is a new table, `connection` (plan, site, encrypted token, read last), and a
+   new dependency for the encryption (`cryptography` is already in the `web` extra).
+4. **Reading.** Once a day and when the student asks, read-only, with a time limit and
+   a size limit per call, from the university's own host only (`sources.py` already
+   refuses private addresses and other schemes). Nothing is written to Moodle.
+5. **Showing.** The student sees what was read before it changes the plan, as the
+   program import does now: course by course, with "Add to" and "Do not add".
+6. **Tests.** A fake Moodle answering the six functions with recorded shapes (no real
+   site in the tests); a generality case for a second site's section titles
+   (invariant 13); a test that the token never appears in logs, pages or the copy.
+7. **Disclosure.** The privacy page names the site, the functions and what is kept; the
+   limits say which university's Moodle was tried, and that no other was.
+
 ## How it fits together
 
 ```
@@ -250,7 +301,7 @@ the deadlines without any token.
 | Phase | Builds | Size | The owner's decision |
 |---|---|---|---|
 | 1 | lecture blocks in one tap; courses from classmates' timetables (k ≥ 3, opt-in); topics typed per course, shown on the session | about two weeks | the threshold *k*; the opt-in wording |
-| 2 | a course's topics shared with classmates; pasted contents read by rules; PDFs read by the model (§3a); topic weights in the plan; a method per session | two to three weeks | the opt-in wording for sharing topics; AI on for PDFs, its model and its monthly cap (no PDF library needed) |
+| 2 | a course's topics shared with classmates; pasted contents read by rules; a semester's program read by rules, pasted or as a PDF (D90, done); PDFs read by the model (§3a, not built); topic weights in the plan; a method per session | two to three weeks | the opt-in wording for sharing topics; AI on for PDFs, its model and its monthly cap |
 | 3 | one university's Moodle course pages, read with its agreement | depends on the university | which university; who writes to its Moodle team; a data protection review |
 
 ## Not promised
@@ -266,6 +317,10 @@ the deadlines without any token.
 [ects]: https://education.ec.europa.eu/sites/default/files/document-library-docs/ects-users-guide_en.pdf
 [ugrcat]: https://ugrcat.ugr.es/en/about-ugrcat
 [mdl68935]: https://tracker-old.moodle.org/browse/MDL-68935
+[mdlservices]: https://github.com/moodle/moodle/blob/main/public/lib/db/services.php
+[mdlassign]: https://github.com/moodle/moodle/blob/main/public/mod/assign/db/services.php
+[mdlresource]: https://github.com/moodle/moodle/blob/main/public/mod/resource/db/services.php
+[mdltoken]: https://github.com/moodle/moodle/blob/main/public/login/token.php
 [mdl45639]: https://tracker-old.moodle.org/browse/MDL-45639
 [canvas]: https://community.canvaslms.com/t5/Developers-Group/Canvas-API-Access-Question-Higher-Education/td-p/572723
 [osu]: https://it.osu.edu/news/2026/08/11/carmencanvas-personal-access-tokens

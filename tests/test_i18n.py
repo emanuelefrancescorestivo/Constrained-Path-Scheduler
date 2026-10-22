@@ -89,6 +89,7 @@ def indirect_sentences() -> set[str]:
         *service._INSIGHT_TITLES.values(),  # the insights (D80)
         *service._INSIGHT_HOW.values(),
         *service._BEST_PART.values(),
+        *service._PDF_ERRORS.values(),  # why a PDF gave no text (D90)
     }
 
 

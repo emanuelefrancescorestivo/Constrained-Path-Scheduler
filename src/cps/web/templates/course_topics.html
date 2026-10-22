@@ -12,7 +12,7 @@
 {% endmacro %}
 {% macro topic_list(rows) %}
 <ol class="card list topic-list">
-  {% for r in rows %}<li><span class="grow">{{ r.title }}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% else %}<small class="topic-when muted">{{ _("no week") }}</small>{% endif %}</li>{% endfor %}
+  {% for r in rows %}<li><span class="grow">{% if r.assessment %}<span class="mtag mtag-exam">{{ _("Assessment") }}</span> {% endif %}{{ r.title }}{% if r.material %}<br><small class="muted">{{ r.material }}</small>{% endif %}</span>{% if r.when %}<small class="topic-when">{{ r.when }}</small>{% else %}<small class="topic-when muted">{{ _("no week") }}</small>{% endif %}</li>{% endfor %}
 </ol>
 {% endmacro %}
 <p class="back"><a href="/p/{{ token }}/courses/{{ view.index }}">{{ view.course }}</a></p>
@@ -57,6 +57,7 @@
   <label for="t-text" class="visually-hidden">{{ _("The course's program") }}</label>
   <textarea id="t-text" name="text" rows="10" maxlength="20000" placeholder="{{ _('Week 1: Vectors and matrices') }}&#10;{{ _('Week 2: Linear maps') }}&#10;{{ _('Week 3: Eigenvalues') }}">{{ view.text }}</textarea>
   {% if not view.timetable %}<p class="hint">{{ _("Your timetable has no lectures for this course, so the topics are kept as a list, not placed on weeks.") }}</p>{% endif %}
+  <p class="hint">{{ _h("A PDF, or your whole semester's program in one document? <a href=\"{url}\">Import it</a>.", url="/p/" ~ token ~ "/courses/import") }}</p>
   {% if view.university %}
   <label class="check check-long"><input type="checkbox" name="share" value="1"{% if share or (share is not defined and view.shared) %} checked{% endif %}> {{ _("Share these topics with classmates at {university} who take this course (without your name)", university=view.university) }}</label>
   {% else %}

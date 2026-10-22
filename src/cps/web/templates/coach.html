@@ -28,7 +28,7 @@
     </div>
   </div>
   {% for tip in answer.tips %}
-  <a class="card link-card cards-link" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
+  <a class="card link-card cards-link" href="/p/{{ token }}/tips?topic={{ tip.topic }}#tip-{{ tip.key }}">
     <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
     <b>{{ tip.advice }}</b>
     <span>{% for s in tip.sources %}{{ s.cite }}{% if not loop.last %}; {% endif %}{% endfor %} ›</span>

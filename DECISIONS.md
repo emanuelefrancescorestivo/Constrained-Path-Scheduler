@@ -3037,3 +3037,129 @@ enough); a claim that the app raises grades (not measured; the page says so).
 **Disclosed.** The page describes FSRS-6 with its default weights; the research planner
 runs FSRS-4.5 (D52), which the page does not detail. Checked in Chromium only, at
 1280 px light and 390 px dark, in English and in Italian.
+
+## D90. A semester's program in one document, pasted or as a PDF
+
+*The owner, 2026-10-22, sending their school's semester syllabus (a 17-page PDF of
+seven courses): "parsing syllabus and ECTS, topics, evaluations?"; asked whether a PDF
+library could be added: "Yes, add pypdf".*
+
+**Chosen.** Courses → "Import your semester's program": the student chooses the PDF, or
+pastes its text. The server reads the PDF's text with pypdf, keeps nothing of the file,
+and `syllabus.courses` cuts the document into its courses: at the names its contents
+page lists, at the plan's own course names, else at the title above each repetition of
+the headings a course has (outcomes, content, assessment). Page headers, footers and
+page numbers (any short line repeated three times that is not a heading, a week, a row
+or a field) are dropped first. Each course found is offered to the plan's course with
+the most words in common ("Algebra 3" and "ALGEBRA 3 - CM"; "Algebra 2" is not one),
+and the student can change it or leave it out; nothing is saved before "Save these
+courses", and a text changed since it was read is read again rather than saved.
+
+Within a course, the reader now knows what such a booklet holds (AUDIT item 74):
+
+- **A dated schedule.** A row led by its date ("Tue, 15-09-26 1 Groups…", "lun. 5 oct.",
+  "9/15/2026", "Sept 14") is one topic; the weekday, when given, settles which number is
+  the day; a number alone ("12.3 Groups") is a section, not a date. A cell that wraps
+  goes on the row above; what the row says to read ("Gallian, Part 1, Chapter 3") is
+  kept apart as its reading; "Continuation" and a day without class are not topics.
+  Numbered rows are weeks only under a header that names a week column ("Week  Content");
+  a numbered list stays a list.
+- **Assessments in their week.** A row whose first sentence names a mock exam, a midterm,
+  a quiz, a partial or a presentation ("Midterm. Regular expressions") gives that
+  assessment in its week and the rest as the topic; an assessment part held "in weeks 3
+  and 10" keeps its weeks. Both appear on the course's week rows (D88), in red, the
+  colour of exams. A session reviews a week's topics, never its mock exam.
+- **Assessment weights as written.** "Partial exam 1 (20%)", "midterm 40% (written)",
+  "2 quizzes … in weeks 3 and 10: 20% (10% + 10%)" (the split in brackets is not a part),
+  lines that wrap; still kept only when the parts add up to 100.
+- **Hours of classes.** "84h / semester", "42h Lectures + 42h Tutorials", "21 hours CM /
+  21 hours TP", "Ore di lezione: 48": the course's contact hours. The workload check
+  (D86) then says what the credits leave for the student's own study, and that over the
+  course's weeks of lectures (for 6 credits and 72 h of classes: "the rest, 78 to 108 h,
+  is your own study", `tests/test_program.py`). Hours a week, and office hours, are not
+  read as the semester's.
+- **More headings.** "Learning objectives", "Course description" (the content, when it
+  holds the list), "Required/Recommended readings", and headings that only end a section
+  (language, format, level, semester, credits, the staff, the hours), so "Language of
+  instruction: English" is no longer a topic. Of several content sections, the one with
+  the most topics is read; prose (two sentences, or sixteen words) and the label over a
+  bulleted group are not topics; a line a PDF wrapped joins the one above.
+- **Days place topics.** A topic's day puts it in the teaching week that contains it
+  (`syllabus.place`); without a year ("lun. 5 oct.") it takes the year of that week; a
+  day outside the timetable's teaching weeks falls back on the week number. Topics saved
+  again from their lines keep the day and the reading they had.
+
+**Why rules, again.** The same reasons as D81 and D83: free, on the server, the same
+answer every time, and the student checks every course before it is saved. The real
+booklet the owner sent was read by these rules: all seven courses with their credits,
+hours and assessment, the topics of six (one has prose only), with weeks or dates for
+three. It is not in the repository, which tests the same shapes with made-up booklets in
+English, French,
+Italian and German, and a US one with the month first (`tests/test_program.py`,
+`tests/test_generality.py`).
+
+**Rejected.** A model for every PDF (D83's reasons; still the paid candidate for prose,
+CURRICULUM.md §3a); OCR for scans (a heavy dependency; a scan is told to paste its text
+instead); keeping the PDF to read it again later (nothing needs it); PyMuPDF (its AGPL
+licence); pypdf was chosen as pure Python, with no compiled part to ship.
+
+**Disclosed.** One real program document was tried, the owner's; the others are written
+for the tests. A PDF is read within 10 MB, 80 pages and 200,000 characters; a PDF crafted
+to make pypdf work long within those is not stopped. An upload above 1 MB passes through
+a temporary file the web framework deletes at the end of the request. Course names are
+matched by their words, not their meaning ("Analyse 3" and "Analysis 3" are not matched).
+Checked in Chromium only.
+
+## D91. Tips by topic, and what research says about the brain and motivation
+
+*The owner, 2026-10-22: "making the tips page not a whole scrollable but u click on a
+category and get results, neuroscience of learning, of effort and reward, of tips and
+tricks to make studying motivating and inherently rewarding".*
+
+**Chosen.** The tips page lists its topics, each with a line saying what it is about and
+how many tips it holds; a topic opens on its own page, with the other topics as a row of
+pills above it. A tip linked from Today, Focus or the coach opens on its topic's page at
+the tip. Two topics are new, ten tips in all, each from abstracts read at Europe PMC on
+2026-10-22:
+
+- *How the brain learns*: recalling strengthens a memory more than rereading
+  [ref:karpicke2008] [ref:adesope2017]; dopamine neurons signal prediction errors, and
+  guessing first helps students [ref:schultz1997] [ref:pan2023]; spacing works in single
+  cells [ref:kukushkin2024]; curiosity engages the dopamine circuit and the hippocampus
+  [ref:gruber2014]; a promised reward does too, before learning [ref:adcock2006].
+- *Motivation and reward*: expected rewards lower the wish to go back to a task, positive
+  feedback raises it [ref:deci1999] (until now cited from a search engine's summary,
+  now read at the source); choice raises motivation [ref:patall2008]; effortful learning
+  feels like learning less [ref:deslauriers2019] [ref:kornell2008]; effort can become
+  rewarding [ref:eisenberger1992] [ref:inzlicht2018]; and, honestly, growth-mindset
+  programmes have weak effects on grades [ref:sisk2018].
+
+Each says how strong its evidence is, what it does not show (animals, one laboratory
+study, money as the reward, reviews that propose rather than test), and, where true,
+what in the app already does it. The tips' rules (D62) hold: only checked sources, every
+number one they state, French and Italian for every sentence.
+
+**Rejected.** Claims the abstracts do not make ("dopamine makes you learn", sample sizes
+not given); popular sources (books, talks) without a checked study; a tip per study in
+the weekly note's place (D64 keeps its own pace).
+
+**Disclosed.** Abstracts, not full texts. The brain tips describe research; how far it
+carries to a student's semester is, for most of them, not known, and each says so.
+
+## D92. Moodle: links and the program now, an integration when a university agrees
+
+*The owner, 2026-10-22, asked about "moodle login and course retrieval"; chose "Not yet:
+links + plan".*
+
+**Chosen.** Nothing that signs in to Moodle is built. A student keeps links to a course's
+material (D88), imports the program (D90), and gets deadlines from Moodle's calendar
+export as before. CURRICULUM.md §5a writes down, step by step, what to do the day a
+university agrees: the agreement and its data protection review first; a dedicated,
+read-only web service on the university's site with six functions, each checked in
+Moodle's own source on 2026-10-22; the student's token encrypted, never logged, never in
+the plan's copy, deleted with the plan; the student shown what was read before it
+changes the plan; tests against a fake Moodle, and a generality case for a second site.
+
+**Why.** A Moodle token opens a student's whole account (CURRICULUM.md §5); asking for
+passwords or tokens without the university's agreement would put that key in a pilot's
+database for a benefit the program import already gives most of.

@@ -1978,6 +1978,12 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   padding: 6px 12px; border-radius: 980px; background: var(--fill-3); color: var(--text);
   font-size: 0.9rem; font-weight: 550; text-decoration: none;
 }
+/* One topic at a time (D91): the chosen one filled, the list of topics a grouped list. */
+.tip-topics a[aria-current="page"] { background: var(--accent); color: var(--accent-on, #fff); }
+.tip-topic-list > li { align-items: center; padding: 12px 0; }
+.tip-topic-list small { color: var(--muted); }
+.strengths-card summary { cursor: pointer; font-weight: 600; }
+.strengths-card .strengths { margin: 12px 0 0; }
 .tip, .tip-topic { scroll-margin-top: calc(var(--topbar) + 8px); }
 .tip:target { box-shadow: 0 0 0 2px var(--accent); }
 .tip h3 { margin: 8px 0 6px; font-size: 1.12rem; letter-spacing: -0.01em; }
@@ -2666,6 +2672,21 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .mtag.lvl-fading { background: var(--mem-fading); color: var(--mem-ink-fading); }
 .mtag.lvl-review { background: var(--mem-review); color: var(--mem-ink-review); }
 .course-assessment { margin: 0 0 10px; font-size: 0.92rem; }
+/* A semester's program (D90): assessments in their week (red is for exams), readings */
+.mtag-exam { background: var(--danger-soft); color: var(--danger-text); }
+.week-assessments { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.week-readings { margin: 4px 0 0; font-size: 0.84rem; color: var(--muted); overflow-wrap: anywhere; }
+.workload-own { margin: 8px 0; font-size: 0.92rem; }
+.import-card { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; color: inherit; text-decoration: none; }
+.import-card small { color: var(--muted); }
+.program-course { margin-bottom: 12px; }
+.program-course h3 { margin: 0 0 8px; }
+.program-course select { margin-bottom: 10px; }
+.program-course .topic-list { margin: 6px 0 0; padding: 0; }
+.program-course .course-facts { padding: 0; }
+.program-text { margin: 12px 0; }
+.program-text summary { cursor: pointer; color: var(--accent-ink); }
+.program-text textarea { margin-top: 8px; font-size: 0.85rem; }
 .workload-says { margin: 0 0 8px; font-weight: 600; }
 .workload-bar { display: block; width: 100%; height: 14px; }
 .wl-track { fill: var(--fill-3); }
