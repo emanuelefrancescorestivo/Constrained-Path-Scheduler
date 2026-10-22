@@ -4935,6 +4935,23 @@ def set_motion(subscription: Subscription, motion: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "motion": motion})
 
 
+# The glass (D93): "auto" keeps it clear unless the device asks for less transparency
+# or blurs too slowly (motion.js measures it as a page arrives); "clear" always; "solid"
+# never blurs, the lightest for a slow device.
+GLASSES = ("auto", "clear", "solid")
+
+
+def glass_of(subscription: Subscription | None) -> str:
+    glass = (subscription.options.get("glass") if subscription else None) or "auto"
+    return glass if glass in GLASSES else "auto"
+
+
+def set_glass(subscription: Subscription, glass: str) -> Subscription:
+    if glass not in GLASSES:
+        raise InvalidInput(_("choose Automatic, See-through or Solid"))
+    return replace(subscription, options={**subscription.options, "glass": glass})
+
+
 def language_of(subscription: Subscription) -> str:
     """The language a plan's pages and calendar events are written in (D10)."""
     return pick(subscription.options.get("lang"))

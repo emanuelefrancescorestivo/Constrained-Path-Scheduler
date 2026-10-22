@@ -3163,3 +3163,72 @@ changes the plan; tests against a fake Moodle, and a generality case for a secon
 **Why.** A Moodle token opens a student's whole account (CURRICULUM.md §5); asking for
 passwords or tokens without the university's agreement would put that key in a pilot's
 database for a benefit the program import already gives most of.
+
+## D93. Light on any device: nothing loops while a page is read, and solid glass where blur is slow
+
+*The owner, 2026-10-22: "i have a very powerful laptop we need to make sure it is not too
+heavy to run on simpler hardwares".*
+
+**Measured first** (`benchmarks/page_cost.mjs`, headless Chromium, which draws without a
+graphics chip, so blur and compositing run on the CPU: a stand-in for a weak one). On
+main (e61158a), every plan page kept the browser at 73 % to 110 % of a CPU core while it
+sat open and nobody touched it (Tips 73 %, Today 110 %, the home page 95 %). Paused
+animations brought it to 0 % to 4 %; removing the blur alone, to 19 % to 39 %. The cause
+was the combination: the sky drifting behind the glass (90 s, forever), Spark's loops, the
+garden's sway and the home page's lights kept the page drawing 60 frames a second, and
+each frame made every pane blur again. Any one of them moving cost about as much as all
+of them (Today: 108 % with both Spark and the garden, 106 % or 93 % with one of them,
+7 % with neither). Spark's tour also laid the page out on every frame while open.
+
+**Chosen.**
+
+- **Nothing loops while a page is read.** Ambient motion (Spark, the garden, the home
+  page's field and lights, the focus dial's breath, a running session's pulse) plays for
+  six seconds after a page arrives or after a tap or a key, then rests (`data-rest` on
+  `<html>`, set by `motion.js`; the CSS pauses every endless animation); the next tap or
+  key wakes it, and Spark wakes under the pointer. Scrolling and moving the pointer do
+  not wake it, or a page being read would never rest. The sky no longer drifts at all: it
+  still follows the sun through the day (D76). A test checks that every endless
+  animation in the stylesheet is one that rests, or a spinner.
+- **Solid glass where blur is slow.** A new setting, Glass: Automatic (the default),
+  See-through, Solid. Solid draws plain surfaces with no blur anywhere. Automatic is
+  see-through unless the device asks for less transparency (`prefers-reduced-transparency`)
+  or drew fewer than 30 frames a second while the page arrived (measured by `motion.js`
+  over 45 frames, half a second after load); such a device then starts solid on its next
+  pages too (one word kept in its browser, said on the privacy page).
+- **Scripts that drew every frame**: the tour places its light only when its target
+  moved; the focus ring moves on every frame while the page is in use and with the digits,
+  once a second, while it rests.
+
+**Result** (same script, same machine; whole browser, % of one core; "lively" is 1 to 9 s
+after the page arrives, "reading" 15 to 25 s):
+
+| Page | Reading, before → after | Lively, before → after | Lively, solid |
+|---|---|---|---|
+| Home | 95 % → 3 % | 103 % → 61 % | 46 % |
+| Today | 110 % → 4 % | 109 % → 65 % | 20 % |
+| Courses | 100 % → 3 % | 94 % → 54 % | 18 % |
+| A course | 107 % → 4 % | 108 % → 68 % | 18 % |
+| Tips | 73 % → 0 % | 73 % → 28 % | 8 % |
+| Focus | 100 % → 4 % | 102 % → 60 % | 20 % |
+
+Scrolling with the CPU slowed four times, frames slower than 60 Hz allows: before, up to
+16 % (Today); after, 0 % to 14 % see-through (the longest, a course's page) and 0 % to
+2 % solid. Page weight was not the problem: pages are 154 to 179 kB compressed, and both
+hosts compress (Render serves brotli, Caddy zstd and gzip).
+
+**Rejected.** Turning the glass and the motion off for everyone (the owner chose them,
+D73, D66; on a capable device they cost nothing once a page rests); detecting a weak
+device by its number of cores or its memory (no browser reports its graphics chip, and
+Safari hides both; measured frames say what matters); a separate "lite" version of the
+app (two sets of pages to keep).
+
+**Disclosed.** Measured in headless Chromium on one machine, its software rendering
+standing in for a weak graphics chip; not measured on a real low-end phone or laptop, nor
+in Safari or Firefox. In this measurement Automatic stayed see-through at phone size
+(frames held 30 a second) and turned solid at a 1280-pixel window. For the first six
+seconds after a page opens, or after a tap, see-through glass still costs a weak device
+about half a core to two thirds; Solid, about a fifth. A device judged slow once (a
+busy moment can do it) stays solid on Automatic until See-through is chosen or the site's
+data is cleared. Without scripts, nothing rests: the page works as before and costs as
+before.

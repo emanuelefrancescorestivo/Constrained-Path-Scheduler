@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1048 passed, 17 deselected, 1 xfailed, about 260 s
-    pytest -m "slow or not slow" --cov=cps   # all 1065 + 1 xfailed, 93% coverage, about 8 min; CI runs this
+    pytest                                   # 1050 passed, 17 deselected, 1 xfailed, about 260 s
+    pytest -m "slow or not slow" --cov=cps   # all 1067 + 1 xfailed, 93% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -42,6 +42,7 @@ more than an impressive number.
     python benchmarks/figures.py             # the README's figures (docs/figures/*.svg), from the runs above
     python benchmarks/syllabus_cost.py       # what reading a syllabus with a model would cost, per model (docs/CURRICULUM.md §3a); cards from notes by the model, at most (D84)
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
+    TOKEN=<a plan> node benchmarks/page_cost.mjs   # what pages cost a slow device: CPU while open, slow frames while scrolling (D93; Node + Playwright, not a dependency)
     cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read, questions to the coach (D62, D64, D65)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
@@ -100,7 +101,9 @@ server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
 sheet, Undo, the N key, the sky and the live icon as the sun moves, asked of the server every five minutes, D76), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
-transitions and draw-ins are CSS; the calendar slides moved sessions itself), `pwa.js` and `sw.js`
+transitions and draw-ins are CSS; the calendar slides moved sessions itself; D93:
+ambient motion rests six seconds after the last tap or key, and the glass turns solid on a
+device that blurs too slowly), `pwa.js` and `sw.js`
 (D33: the installable app, the service worker that keeps a plan's pages for offline use and takes the server's copy of the app's files first, AUDIT 67, the
 install card; with D38, the reminder shown as a notification; it also remembers the plan
 last opened, for invitation links, D40; the graphite icon to install on a dark device, D74), `invite.js` (D40: "Join with my plan" on an
@@ -109,7 +112,10 @@ reminders on or off on a device), `passkeys.js` (D35: adding a passkey, signing 
 decides, the script hands the browser's answer back), `errors.js` (D43: loaded first on every page, it sends the scripts' errors to the owner's
 error log) and `i18n.js` (the scripts' words in French and Italian).
 Motion is decoration over complete pages: nothing may depend on it, and everything
-stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Every sentence a
+stops under `prefers-reduced-motion` or the plan's Motion: Reduced. Nothing loops while a
+page is read (D93): an endless animation is paused by `data-rest` or is a spinner
+(`tests/test_web.py` checks), and nothing moves behind the glass, which would make every
+pane blur again on every frame. Every sentence a
 student reads goes through `_()` (Python, templates) or `t()` (scripts) and has a
 French and an Italian entry (`cps/locales/fr.py`, `it.py`, `static/i18n.js`; `tests/test_i18n.py` checks).
 Plain JavaScript modules, no build step, no framework, layout and
@@ -241,6 +247,11 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   calendar's sideways strip (D68), with touch emulated.
 - Calm glass (D73) was checked in Chromium only, with phone sizes emulated; browsers
   without backdrop blur show the glass as a translucent fill.
+- What a page costs a device (D93) was measured in headless Chromium on one machine, its
+  software rendering standing in for a weak graphics chip, not on a real low-end phone or
+  laptop, nor in Safari or Firefox. A page at rest takes 0 to 5 % of a core; the first six
+  seconds after it opens or after a tap still take about half a core with see-through
+  glass, a fifth with Solid.
 - The sky follows the sun of the time zone's main city (D76): a student far from it
   (Brest under Europe/Paris) sees a sunset about half an hour early. Checked in
   Chromium only.

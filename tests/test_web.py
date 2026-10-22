@@ -23,6 +23,7 @@ from cps.store import Store
 from cps.web import Config, create_app
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
+STATIC = Path(__file__).resolve().parent.parent / "src/cps/web/static"
 SEMESTER = EXAMPLES / "sample-semester.ics"
 MORNING = datetime(2026, 9, 29, 6, 0, tzinfo=UTC)  # 08:00 in Paris, the semester's first Tuesday
 
@@ -1488,6 +1489,49 @@ def test_motion_is_automatic_or_reduced_per_plan(web, planned):
     assert web.post(f"/p/{planned}/motion", data={"motion": "wild"}).status_code == 400
     web.post(f"/p/{planned}/motion", data={"motion": "auto"})
     assert "data-motion" not in web.get(f"/p/{planned}").text.split("<head>")[0]
+
+
+def test_the_glass_is_automatic_see_through_or_solid_per_plan(web, planned):
+    # D93: solid panes for a slow device; the stylesheet then blurs nothing at all.
+    page = unescape(web.get(f"/p/{planned}/settings").text)
+    assert 'name="glass" value="auto" class="btn btn-sm" aria-pressed="true"' in page
+    assert "data-glass" not in page.split("<head>")[0]
+    solid = web.post(f"/p/{planned}/glass", data={"glass": "solid"}, follow_redirects=False)
+    assert solid.headers["location"].endswith("#appearance")
+    for path in ("", "/courses", "/tips"):
+        assert 'data-glass="solid">' in web.get(f"/p/{planned}{path}").text.split("<head>")[0]
+    page = unescape(web.get(f"/p/{planned}/settings").text)
+    assert 'name="glass" value="solid" class="btn btn-sm" aria-pressed="true"' in page
+    assert web.post(f"/p/{planned}/glass", data={"glass": "frosted"}).status_code == 400
+    web.post(f"/p/{planned}/glass", data={"glass": "auto"})
+    assert "data-glass" not in web.get(f"/p/{planned}").text.split("<head>")[0]
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert (
+        ':root[data-glass="solid"] :is(*, *::before, *::after) { -webkit-backdrop-filter: none !important;'
+        in css
+    )
+
+
+def test_every_endless_animation_rests_while_the_page_is_read():
+    """D93: what loops forever is paused by data-rest (motion.js, six seconds after the
+    last tap or key), or is a spinner shown while something loads. The sky behind the
+    glass does not move at all: a drift there made every pane blur again on every
+    frame."""
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    resting = (".mascot", ".garden", ".neural", ".hero", ".pulse", ".focus-dial")
+    loading = (".busy", ".spinner", "spin ")
+    for rule in re.finditer(r"([^{}]+)\{([^{}]*\binfinite\b[^{}]*)\}", css):
+        selector, body = rule[1].strip().splitlines()[-1], rule[2]
+        if "@keyframes" in selector:
+            continue
+        assert any(part in selector for part in resting) or any(
+            part in selector + body for part in loading
+        ), selector
+    assert "sky-drift" not in css
+    pause = re.search(r":root\[data-rest\][^{]+\{ animation-play-state: paused !important; \}", css)
+    assert pause and all(part in pause[0] for part in resting)
+    script = (STATIC / "motion.js").read_text(encoding="utf-8")
+    assert "const REST_AFTER = 6_000;" in script and '"pointerdown", "keydown"' in script
 
 
 def test_pages_carry_what_moves_and_the_stylesheet_keeps_it_still_on_request(web, planned):

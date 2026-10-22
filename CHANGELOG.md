@@ -6,6 +6,10 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Glass: Automatic, See-through, Solid (D93), in Settings under Appearance. Solid draws
+  plain cards and bars with no blur, the lightest for an older computer or phone;
+  Automatic turns solid by itself on a device too slow to blur, or that asks for less
+  transparency.
 - Import your semester's program (D90): on Courses, choose the PDF of your school's
   program for the semester, or paste its text. Each course in it is found by its name
   and offered to the matching course of your plan, with its topics on their weeks (a
@@ -507,6 +511,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- Pages kept a slow device busy while nobody touched them (AUDIT item 75): Spark, the
+  garden and the home page's lights now rest six seconds after the last tap or key, the
+  sky holds still behind the glass, and Spark's tour and the focus ring stop redrawing
+  on every frame. Measured in Chromium, a page left open dropped from about a full CPU
+  core to 0 to 5 %.
 - A course's program read as one course at a time missed what real programs hold
   (AUDIT item 74): prose read as topics, "Learning objectives" and "Course
   description" not seen as headings, assessment weights such as "Partial exam 1 (20%)"

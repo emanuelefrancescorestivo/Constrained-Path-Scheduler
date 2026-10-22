@@ -15,6 +15,9 @@
 //   "settled" on <html> turns them off once the page has arrived.
 // - A button that sent its form the ordinary way shows a spinner until the next page
 //   arrives (D57); forms sent in the background mark their own button (ui.js).
+// - Light on any device (D93): ambient motion rests six seconds after the page
+//   arrives or after the last tap or key (data-rest on <html>, which the CSS pauses),
+//   and the glass turns solid on a device that blurs it too slowly.
 
 const root = document.documentElement;
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -250,3 +253,69 @@ document.addEventListener("submit", (event) => {
 addEventListener("pageshow", (event) => {
   if (event.persisted) document.querySelectorAll(".btn.busy").forEach((b) => b.classList.remove("busy"));
 });
+
+// ------------------------------------------------------------ light on any device (D93)
+
+// Ambient motion (Spark, the garden, the home page's lights) rests while the page is
+// read: behind the glass, anything that moves makes every pane blur again on every
+// frame, which kept a slow device busy while nothing happened. A tap or a key wakes
+// it; scrolling and the pointer passing do not, or it would never rest.
+const REST_AFTER = 6_000;
+let restTimer = 0;
+export const resting = () => "rest" in root.dataset;
+function rest() {
+  root.dataset.rest = "";
+  document.dispatchEvent(new Event("cps:rest"));
+}
+function wake() {
+  clearTimeout(restTimer);
+  if (resting()) {
+    delete root.dataset.rest;
+    document.dispatchEvent(new Event("cps:wake"));
+  }
+  restTimer = setTimeout(rest, REST_AFTER);
+}
+for (const kind of ["pointerdown", "keydown"]) addEventListener(kind, wake, { capture: true, passive: true });
+wake();
+
+// The glass: the plan's setting decides ("clear" or "solid" on <html>, from the server);
+// on "Automatic", a device that drew fewer than 30 frames a second while this page
+// arrived gets solid panes, now and on its next pages (remembered here, on this
+// device only). A device that asks for less transparency is the CSS's to answer.
+const GLASS = "cps-glass";
+function remembered() {
+  try {
+    return localStorage.getItem(GLASS);
+  } catch {
+    return null; // storage refused: measured again on each page
+  }
+}
+function solid() {
+  root.dataset.glass = "solid";
+  try {
+    localStorage.setItem(GLASS, "solid");
+  } catch {
+    /* kept for this page only */
+  }
+}
+if (!root.dataset.glass) {
+  if (remembered() === "solid") root.dataset.glass = "solid";
+  else {
+    const measure = () => {
+      if (document.hidden) return; // a page loaded in the background draws no frames
+      const gaps = [];
+      let last = performance.now();
+      const frame = (now) => {
+        gaps.push(now - last);
+        last = now;
+        if (gaps.length < 45) return requestAnimationFrame(frame);
+        gaps.sort((a, b) => a - b);
+        if (gaps[Math.floor(gaps.length / 2)] > 1000 / 30) solid();
+      };
+      requestAnimationFrame(frame);
+    };
+    // After the page's own arrival (its first frames are slow everywhere).
+    if (document.readyState === "complete") setTimeout(measure, 500);
+    else addEventListener("load", () => setTimeout(measure, 500), { once: true });
+  }
+}
