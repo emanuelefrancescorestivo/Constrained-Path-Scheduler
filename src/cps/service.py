@@ -66,6 +66,7 @@ from . import i18n as _i18n
 from . import inbox as _inbox
 from . import insights as _insights
 from . import learning as _learning
+from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
@@ -6462,6 +6463,7 @@ def _tip(tip: _tips.Tip) -> dict:
     label, meaning = _tips.STRENGTHS[tip.strength]
     return {
         "key": tip.key,
+        "topic": tip.topic,
         "strength": tip.strength,
         "strength_label": _(label),
         "strength_meaning": _(meaning),
@@ -6481,18 +6483,31 @@ def _tip(tip: _tips.Tip) -> dict:
     }
 
 
-def tips_view() -> dict:
-    """Every tip, by topic, in the plan's language, with what its evidence is worth
-    and where it comes from (D62)."""
+def tips_view(topic: str | None = None) -> dict:
+    """The tips page (D62) by topic (D91): every topic with what it is about and how
+    many tips it holds, and the chosen topic's tips, in the plan's language, with
+    what their evidence is worth and where it comes from. No topic chosen: the list
+    of topics alone."""
+    chosen = topic if topic in _tips.TOPICS else None
     return {
         "strengths": [
             {"key": key, "label": _(label), "meaning": _(meaning)}
             for key, (label, meaning) in _tips.STRENGTHS.items()
         ],
         "topics": [
-            {"key": key, "name": _(name), "tips": [_tip(t) for t in _tips.TIPS if t.topic == key]}
+            {
+                "key": key,
+                "name": _(name),
+                "note": _(_tips.TOPIC_NOTES[key]),
+                "count": sum(1 for t in _tips.TIPS if t.topic == key),
+                "current": key == chosen,
+            }
             for key, name in _tips.TOPICS.items()
         ],
+        "topic": chosen,
+        "name": _(_tips.TOPICS[chosen]) if chosen else "",
+        "note": _(_tips.TOPIC_NOTES[chosen]) if chosen else "",
+        "tips": [_tip(t) for t in _tips.TIPS if t.topic == chosen] if chosen else [],
     }
 
 
@@ -6515,6 +6530,17 @@ TIP_MOODS = {
     "track": "think",
     "if-then": "think",
     "habit": "cheer",
+    # How the brain learns, motivation and reward (D91)
+    "recall-strengthens": "think",
+    "surprise": "think",
+    "spacing-cells": "think",
+    "curiosity": "think",
+    "reward-memory": "cheer",
+    "rewards": "cheer",
+    "choice": "wave",
+    "effort-feels": "think",
+    "effort-reward": "cheer",
+    "mindset": "idle",
 }
 
 TIP_SETTINGS = ("on", "off")
@@ -6639,7 +6665,13 @@ def tip_of_the_day(subscription: Subscription, now: datetime | None = None) -> d
         tip = next(t for t in _tips.TIPS if t.key == key)
     else:
         tip, reason = _tips.of_the_day(local.date()), ""
-    return {"key": tip.key, "advice": _(tip.advice), "reason": reason, "mood": TIP_MOODS[tip.key]}
+    return {
+        "key": tip.key,
+        "topic": tip.topic,
+        "advice": _(tip.advice),
+        "reason": reason,
+        "mood": TIP_MOODS[tip.key],
+    }
 
 
 def focus_tip(subscription: Subscription) -> dict | None:
@@ -6652,6 +6684,7 @@ def focus_tip(subscription: Subscription) -> dict | None:
     tip = next(t for t in _tips.TIPS if t.key == "breaks")
     return {
         "key": tip.key,
+        "topic": tip.topic,
         "advice": _(tip.advice),
         "break_after": int(BREAK_AFTER.total_seconds()),
         "mood": "wave",
@@ -8356,7 +8389,7 @@ def _teaching(subscription: Subscription, course: str) -> tuple[list[date], list
 def _placed(subscription: Subscription, course: str, topics: Sequence[_syllabus.Topic]) -> list[dict]:
     """The topics with the Monday of the teaching week each falls in (or None)."""
     mondays, hours, weeks = _teaching(subscription, course)
-    places = _syllabus.place(topics, hours, weeks)
+    places = _syllabus.place(topics, hours, weeks, mondays)
     return [
         {**t.to_dict(), "monday": mondays[w - 1].isoformat() if w is not None else None}
         for t, w in zip(topics, places, strict=True)
@@ -8382,10 +8415,16 @@ def _course_facts(text: str) -> dict:
         facts["sections"] = [name for name in _SECTION_NAMES if name in found]
     parts = _syllabus.assessment(text)
     if parts:
-        facts["assessment"] = [{"label": p.label, "percent": p.percent} for p in parts]
+        facts["assessment"] = [
+            {"label": p.label, "percent": p.percent, **({"weeks": list(p.weeks)} if p.weeks else {})}
+            for p in parts
+        ]
     credit = _syllabus.credits(text)
     if credit is not None:
         facts["credits"] = credit
+    hours = _syllabus.hours(text)
+    if hours is not None:
+        facts["hours"] = hours  # hours of classes in the semester (D90)
     return facts
 
 
@@ -8405,6 +8444,14 @@ def _facts_view(facts: Mapping) -> dict:
             low=low,
             high=high,
         )
+    if facts.get("hours"):
+        hours = float(facts["hours"])
+        out["hours"] = _n(
+            "{hours} hour of classes in the semester.",
+            "{hours} hours of classes in the semester.",
+            round(hours),
+            hours=format_number(hours if hours % 1 else int(hours)),
+        )
     return out
 
 
@@ -8419,6 +8466,8 @@ def _topic_rows(items: Sequence[Mapping]) -> list[dict]:
                 "when": _("Week of {day}", day=format_date(monday, "day_short")) if monday else "",
                 "week": item.get("week"),
                 "lecture": item.get("lecture"),
+                "assessment": item.get("kind") == "assessment",
+                "material": item.get("material") or "",
             }
         )
     return rows
@@ -8524,8 +8573,11 @@ def save_course_topics(
     topics = {k: v for k, v in (subscription.options.get("topics") or {}).items() if k != key}
     if read:
         # A whole course page gives its assessment and credits too (D83); the topics'
-        # own lines, saved again, keep the ones read before.
+        # own lines, saved again, keep the ones read before, and a topic kept by its
+        # title keeps its schedule's day and reading (D90), which its line does not say.
         facts = _course_facts(text) or before.get("facts") or {}
+        earlier = {i["title"]: i for i in before.get("items") or ()}
+        read = [_kept_details(t, earlier.get(t.title)) for t in read]
         topics[key] = {
             "course": course,
             "items": _placed(subscription, course, read),
@@ -8540,6 +8592,16 @@ def save_course_topics(
     else:
         social.unshare_topics(_store(store), subscription.token, key)
     return replace(subscription, options={**subscription.options, "topics": topics})
+
+
+def _kept_details(topic: _syllabus.Topic, item: Mapping | None) -> _syllabus.Topic:
+    if item is None:
+        return topic
+    return replace(
+        topic,
+        day=topic.day or item.get("day") or None,
+        material=topic.material or item.get("material") or None,
+    )
 
 
 def take_classmates_topics(
@@ -8566,6 +8628,164 @@ def with_course_topics(subscription: Subscription, entry: Mapping) -> Subscripti
     return replace(subscription, options={**subscription.options, "topics": topics})
 
 
+# --------------------------------------------------------------------------- #
+# A semester's program in one document, pasted or uploaded as a PDF (D90)
+# --------------------------------------------------------------------------- #
+
+SEMESTER_TEXT_MOST = _pdftext.MAX_CHARS  # a booklet's text: about sixty pages
+PDF_MOST = _pdftext.MAX_BYTES
+SEMESTER_ROWS = 6  # topics a found course shows before it is saved
+_PDF_ERRORS = {
+    "large": "That PDF is larger than 10 MB.",
+    "not_pdf": "That file is not a PDF.",
+    "locked": "That PDF is locked with a password. Open it, copy its text and paste it instead.",
+    "unreadable": "That PDF could not be read. Open it, copy its text and paste it instead.",
+    "empty": "That PDF has no text to read: it may be a scan. Copy its text and paste it instead.",
+    "missing": "PDFs cannot be read on this server. Open it, copy its text and paste it instead.",
+}
+# Words a course's name shares with any other: left out when two names are compared.
+_NAME_WORDS = frozenset(
+    {
+        *("and", "of", "the", "a", "an", "to", "for", "in", "on", "introduction", "intro"),
+        *("de", "la", "le", "les", "des", "du", "et", "d", "l", "di", "del", "della", "dei", "e"),
+        *("y", "en", "el", "los", "las", "und", "der", "die", "das", "van", "het", "voor"),
+    }
+)
+
+
+def pdf_text(data: bytes) -> tuple[str, str | None]:
+    """The text of an uploaded PDF (D90), and a note when only its first pages were
+    read; the file itself is not kept."""
+    try:
+        found = _pdftext.text(data)
+    except _pdftext.PdfError as exc:
+        raise InvalidInput(_(_PDF_ERRORS[exc.reason])) from exc
+    note = _("Only its first {n} pages were read.", n=found.read) if found.read < found.pages else None
+    return found.text, note
+
+
+def _stems(name: str) -> set[str]:
+    words = re.findall(r"[^\W_]+", _syllabus.folded(name))
+    return {w[:5] for w in words if w not in _NAME_WORDS}
+
+
+def _matches(names: Sequence[str], courses: Sequence[str]) -> list[int | None]:
+    """The plan's course each name of a program document is most likely to be, by
+    the words they share ("Algebra 3" and "ALGEBRA 3 - CM"), each course given once,
+    to the closest name first; None below half the words in common."""
+    pairs = []
+    for i, name in enumerate(names):
+        a = _stems(name)
+        for j, course in enumerate(courses):
+            b = _stems(course)
+            if a and b:
+                score = len(a & b) / len(a | b)
+                if score >= 0.5:
+                    pairs.append((score, i, j))
+    out: list[int | None] = [None] * len(names)
+    taken: set[int] = set()
+    for _score, i, j in sorted(pairs, key=lambda x: -x[0]):
+        if out[i] is None and j not in taken:
+            out[i], taken = j, taken | {j}
+    return out
+
+
+def program_text(text: str) -> str:
+    """A program's text as the import keeps it between reading and saving: plain line
+    breaks, no blank space around it, at most `SEMESTER_TEXT_MOST` characters."""
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()[:SEMESTER_TEXT_MOST]
+
+
+def digest(text: str) -> str:
+    """A short fingerprint of a program's text: a save checks it is the text read."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def program_view(
+    store: str | os.PathLike, subscription: Subscription, text: str | None = None, note: str | None = None
+) -> dict:
+    """The semester import (D90): each course a program document holds, with its
+    topics on their weeks, its assessments and its facts, and the course of the
+    plan it is most likely to be."""
+    courses = topic_courses(subscription)
+    university = _university(store, subscription.token)
+    view: dict[str, Any] = {
+        "options": [{"index": i, "course": c} for i, c in enumerate(courses)],
+        "text": text or "",
+        "digest": digest(text) if text else "",
+        "note": note,
+        "university": university,
+        "found": None,
+    }
+    if not text or not text.strip():
+        return view
+    found = _syllabus.courses(text, courses)
+    chosen = _matches([c.name for c in found], courses)
+    rows = []
+    for n, (part, choice) in enumerate(zip(found, chosen, strict=True)):
+        topics = _syllabus.read(_syllabus.course_text(part.text))
+        placed = (
+            _placed(subscription, courses[choice], topics)
+            if choice is not None
+            else [{**t.to_dict(), "monday": None} for t in topics]
+        )
+        listed = _topic_rows(placed)
+        rows.append(
+            {
+                "n": n,
+                "name": part.name,
+                "choice": choice,
+                "topics": sum(1 for t in topics if t.kind != "assessment"),
+                "rows": listed[:SEMESTER_ROWS],
+                "more": max(0, len(listed) - SEMESTER_ROWS),
+                "dated": [r for r in listed if r["assessment"]],
+                "facts": _facts_view(_course_facts(part.text)),
+                "empty": not topics and not _course_facts(part.text),
+            }
+        )
+    view["found"] = rows
+    return view
+
+
+def save_program(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    text: str,
+    choices: Mapping[int, int],
+    *,
+    share: bool,
+    now: datetime | None = None,
+) -> tuple[Subscription, int]:
+    """Each course of a program document saved to the course of the plan the
+    student chose for it (`choices`, by its place in the document): its topics as
+    `save_course_topics` keeps them; a course with no topic list keeps its own
+    topics and takes the document's assessment, credits and hours. Returns the plan
+    and how many courses were saved."""
+    courses = topic_courses(subscription)
+    found = _syllabus.courses(text, courses)
+    saved = 0
+    for n, part in enumerate(found):
+        index = choices.get(n)
+        if index is None or not 0 <= index < len(courses):
+            continue
+        if _syllabus.read(_syllabus.course_text(part.text)):
+            subscription = save_course_topics(store, subscription, index, part.text, share=share, now=now)
+            saved += 1
+            continue
+        facts = _course_facts(part.text)
+        if facts:
+            key = course_key(courses[index])
+            entry = (subscription.options.get("topics") or {}).get(key) or {
+                "course": courses[index],
+                "items": [],
+                "from": None,
+            }
+            topics = {**(subscription.options.get("topics") or {}), key: {**entry, "facts": facts}}
+            subscription = replace(subscription, options={**subscription.options, "topics": topics})
+            saved += 1
+    return subscription, saved
+
+
 def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[str]]:
     """Topic titles by course and teaching week ("05 Oct", as in a session's
     topic), and by course and "before" for the weeks begun before the plan began."""
@@ -8576,7 +8796,7 @@ def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[st
     index: dict[tuple[str, str], list[str]] = {}
     for key, entry in kept.items():
         for item in entry.get("items") or ():
-            if item.get("monday"):
+            if item.get("monday") and item.get("kind") != "assessment":
                 monday = date.fromisoformat(item["monday"])
                 index.setdefault((key, _week_label(monday)), []).append(item["title"])
                 if monday < start:  # a week begun before the plan: some of it was taught before
@@ -8854,7 +9074,33 @@ def course_workload(subscription: Subscription, course: str) -> dict | None:
         "above": _("{total} h in all: more than the credits suggest.", total=total),
     }[verdict]
     top = max(high, total) * 1.1
+    # The syllabus's hours of classes (D90): what the credits leave for the student's
+    # own study, and that over the course's weeks of lectures.
+    facts = ((subscription.options.get("topics") or {}).get(course_key(course)) or {}).get("facts") or {}
+    own = None
+    if facts.get("hours"):
+        classes = round(float(facts["hours"]))
+        weeks = len(_teaching(subscription, course)[0])
+        own_low, own_high = max(0, low - classes), max(0, high - classes)
+        own = {
+            "classes": classes,
+            "says": _(
+                "The syllabus counts {classes} h of classes: the rest, {low} to {high} h, is your own study.",
+                classes=classes,
+                low=own_low,
+                high=own_high,
+            ),
+            "weekly": _(
+                "About {low} to {high} h of your own a week, over its {weeks} weeks of lectures.",
+                low=math.floor(own_low / weeks),
+                high=math.ceil(own_high / weeks),
+                weeks=weeks,
+            )
+            if weeks
+            else "",
+        }
     return {
+        "own": own,
         "credits": format_number(credit if credit % 1 else int(credit)),
         "low": low,
         "high": high,
@@ -8880,7 +9126,9 @@ def _week_states(
     """Each teaching week of a course: taught or to come, its syllabus topics, the
     plan's reviews of it done and to come, and today's predicted recall."""
     plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
-    syllabus = _syllabus_index(subscription)
+    kept = (subscription.options.get("topics") or {}).get(course_key(course)) or {}
+    items = kept.get("items") or []
+    parts = (kept.get("facts") or {}).get("assessment") or []
     recall: dict[str, float] = {}
     if plan is not None:
         model = model_of(plan.settings)
@@ -8912,13 +9160,19 @@ def _week_states(
         if names:
             value = min(recall[name] for name in names)
             level = {"recall": round(100 * value), "level": _learning.level(value)}
+        own = [i for i in items if i.get("monday") == monday.isoformat()]
         out.append(
             {
                 "n": n,
                 "monday": monday.isoformat(),
                 "label": _week_name(monday, n),
                 "state": when,
-                "topics": syllabus.get((course_key(course), _week_label(monday)), []),
+                "topics": [i["title"] for i in own if i.get("kind") != "assessment"],
+                # A schedule's mock exam or midterm in its week, and an assessment's
+                # part held "in weeks 3 and 10" (D90); what the schedule says to read.
+                "assessments": [i["title"] for i in own if i.get("kind") == "assessment"]
+                + [p["label"] for p in parts if n in (p.get("weeks") or ())],
+                "readings": list(dict.fromkeys(i["material"] for i in own if i.get("material"))),
                 "done": done,
                 "ahead": ahead,
                 "memory": level,

@@ -46,9 +46,11 @@ app = ["streamlit>=1.64"]
 # cryptography checks passkey signatures (D35); pywebpush encrypts and signs the
 # reminders (D38). The owner approved both on 2026-10-12. Tested with cryptography
 # 50 and pywebpush 2.5.0 (which brings requests, aiohttp, http-ece and py-vapid).
+# pypdf (BSD-3-Clause, pure Python) reads the text of a program's PDF (D90); the owner
+# approved it on 2026-10-22. Tested with pypdf 6.21.1.
 web = [
     "fastapi>=0.141", "uvicorn>=0.54", "jinja2>=3.1", "python-multipart>=0.0.20", "cryptography>=43",
-    "pywebpush>=2.5,<3",
+    "pywebpush>=2.5,<3", "pypdf>=6.0,<7",
 ]
 # AI in the hosted app (DECISIONS.md D12, the owner's answer of 2026-10-08: AI on a
 # small budget with the owner's key): Anthropic's official SDK, imported only when

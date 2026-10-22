@@ -1,7 +1,7 @@
 {# Today's tip, brought by the spark (D62, D63, D66): why now, the advice, and its
    evidence a tap away on the tips page. #}
 {% from "_mascot.html" import mascot %}
-<a class="card link-card mascot-tip tip-today section" href="/p/{{ token }}/tips#tip-{{ tip.key }}">
+<a class="card link-card mascot-tip tip-today section" href="/p/{{ token }}/tips?topic={{ tip.topic }}#tip-{{ tip.key }}">
   {{ mascot(tip.mood, "mascot-" ~ tip.key) }}
   <span class="mascot-words">
     <span class="tip-reason">{{ tip.reason or _("Tip of the day") }}</span>

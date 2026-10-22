@@ -28,7 +28,9 @@
       <span class="week-mark" aria-hidden="true">{% if w.state == "ahead" %}○{% elif w.done %}✓{% else %}●{% endif %}</span>
       <div class="grow">
         <p class="week-name"><b>{{ w.label }}</b> <small class="week-state">{% if w.state == "now" %}{{ _("this week") }}{% elif w.state == "ahead" %}{{ _("to come") }}{% elif w.done %}{{ _n("reviewed {n} time", "reviewed {n} times", w.done) }}{% else %}{{ _("taught, not reviewed yet") }}{% endif %}</small></p>
+        {% if w.assessments %}<p class="week-assessments">{% for a in w.assessments %}<span class="mtag mtag-exam">{{ a }}</span>{% endfor %}</p>{% endif %}
         {% if w.topics %}<ul class="week-topics">{% for t in w.topics %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+        {% if w.readings %}<p class="week-readings"><span class="muted">{{ _("To read") }}:</span> {{ w.readings | join("; ") }}</p>{% endif %}
         <p class="week-meta">
           {% if w.memory %}<span class="mtag lvl-{{ w.memory.level }}">{{ _("{n} % recall today", n=w.memory.recall) }}</span>{% endif %}
           {% if w.ahead %}<span>{{ _n("{n} review planned", "{n} reviews planned", w.ahead) }}</span>{% endif %}
@@ -59,6 +61,7 @@
   <div class="section-title"><h2>{{ _("Workload") }}</h2></div>
   <div class="card">
     {% if v.facts.assessment %}<p class="course-assessment"><span class="muted">{{ _("Assessment") }}:</span> {{ v.facts.assessment }}</p>{% endif %}
+    {% if v.facts.hours %}<p class="course-assessment"><span class="muted">{{ _("Classes") }}:</span> {{ v.facts.hours }}</p>{% endif %}
     {% set w = v.workload %}
     {% if w %}
     <p class="workload-says workload-{{ w.verdict }}">{{ w.says }}</p>
@@ -68,6 +71,7 @@
       <rect class="wl-lectures" x="0" y="3" width="{{ w.bar.lectures }}" height="8"></rect>
       <rect class="wl-study" x="{{ w.bar.lectures }}" y="3" width="{{ w.bar.study }}" height="8"></rect>
     </svg>
+    {% if w.own %}<p class="workload-own">{{ w.own.says }}{% if w.own.weekly %} {{ w.own.weekly }}{% endif %}</p>{% endif %}
     <p class="workload-key"><span><i class="wl-key wl-lectures"></i>{{ _("Lectures: {n} h", n=w.lectures) }}</span> <span><i class="wl-key wl-study"></i>{{ _("Study in your plan: {n} h ({done} h done)", n=w.study, done=w.done) }}</span> <span><i class="wl-key wl-band"></i>{{ _("{n} ECTS: {low} to {high} h", n=w.credits, low=w.low, high=w.high) }}</span></p>
     <details class="insight-how"><summary>{{ _("How it is counted") }}</summary><p>{{ _("One ECTS credit stands for 25 to 30 hours of work for a typical student, lectures included (the ECTS Users' Guide). The lectures are those of your timetable from your plan's first day; the study is your plan's sessions for this course, done and to come, without those you skipped. Hours you logged on your own are not counted. A course that needs more than the credits say is common; so is one that needs less.") }}</p></details>
     {% else %}

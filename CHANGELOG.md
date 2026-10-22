@@ -6,6 +6,18 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Import your semester's program (D90): on Courses, choose the PDF of your school's
+  program for the semester, or paste its text. Each course in it is found by its name
+  and offered to the matching course of your plan, with its topics on their weeks (a
+  schedule's dates first), its mock exams and midterms in their weeks, its readings,
+  its assessment, its ECTS credits and its hours of classes. The workload check then
+  says how many hours the credits leave for your own study, and how many a week. The
+  PDF is read and not kept.
+- Tips by topic (D91): the tips page lists its topics; tap one for its tips. Two new
+  topics, How the brain learns and Motivation and reward, ten tips from studies read
+  at the source: recall, surprise and dopamine, spacing in single cells, curiosity,
+  reward, choice, effort that feels like learning less, effort that becomes rewarding,
+  and what growth-mindset programmes do not do.
 - The science behind it (D89): a page on how the engine plans, the memory model with its
   formulas and charts (computed by the app's own model), and the research it rests on,
   each source checked. Tap the logo inside a plan, or follow the link at the bottom of
@@ -495,6 +507,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- A course's program read as one course at a time missed what real programs hold
+  (AUDIT item 74): prose read as topics, "Learning objectives" and "Course
+  description" not seen as headings, assessment weights such as "Partial exam 1 (20%)"
+  not read.
 - Lists drawn as cards ran to the card's edge, with their rows underlined like links
   (AUDIT item 73): the topics of your courses, cards found in notes, a group's notes.
 - The focus ring closes as the minute turns, in step with the digits (AUDIT item 72);

@@ -5,7 +5,12 @@
   <h1>{{ _("Courses") }}</h1>
   <p>{{ _("Each course week by week: what has been taught and reviewed, what is to come, and everything to study it with.") }}</p>
 </div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if courses %}
+<a class="card import-card" href="/p/{{ token }}/courses/import">
+  <span class="grow"><b>{{ _("Import your semester's program") }}</b><br><small>{{ _("Paste it or choose its PDF: every course's topics, weeks, assessment, credits and hours at once.") }}</small></span>
+  <span class="chev" aria-hidden="true">›</span>
+</a>
 <ul class="card list course-rows" data-tour="course-list">
   {% for c in courses %}
   <li>

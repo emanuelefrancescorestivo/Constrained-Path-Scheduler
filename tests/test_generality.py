@@ -331,6 +331,115 @@ def test_a_whole_course_page_is_read_in_each_language_s_words(shape):
     assert syllabus.credits(text) == credit
 
 
+# A whole semester's program in one document (D90), as other systems write it: the
+# courses found by their titles (no contents page in these), each one's schedule by
+# date or week, its assessment, its credits under the country's name for them, and its
+# hours of classes. A document's own title is not a course's.
+PROGRAMS = {
+    "French, a semester booklet": (
+        "Licence 2 Mathématiques — Livret du semestre 3\nAlgèbre linéaire 2\nResponsable : M. Exemple\n"
+        "Objectifs\n- Diagonaliser une matrice.\nContenu\n"
+        "lun. 5 oct. Espaces vectoriels, bases et dimension, "
+        "sous-espaces et sommes directes\nde sous-espaces. Chapitre 1\n"
+        "lun. 12 oct. Applications linéaires\n"
+        "lun. 19 oct. Partiel 1. Matrices et déterminants\nVolume horaire : 24 h CM + 24 h TD\n"
+        "Crédits ECTS : 6\nModalités d'évaluation : contrôle continu 40 % et examen terminal 60 %\n"
+        "Probabilités\nResponsable : Mme Exemple\nObjectifs\n- Calculer une espérance.\nContenu\n"
+        "Semaine 1 : Dénombrement\nSemaine 2 : Pas de cours (vacances)\nSemaine 3 : Variables aléatoires\n"
+        "Volume horaire : 36 h\nCrédits ECTS : 4\nModalités d'évaluation : partiel (30 %), examen (70 %)\n",
+        {
+            "Algèbre linéaire 2": (6.0, 48.0, [("Contrôle continu", 40), ("Examen terminal", 60)]),
+            "Probabilités": (4.0, 36.0, [("Partiel", 30), ("Examen", 70)]),
+        },
+        [
+            (
+                None,
+                "10-05",
+                "topic",
+                "Espaces vectoriels, bases et dimension, sous-espaces et sommes directes de sous-espaces",
+            ),
+            (None, "10-12", "topic", "Applications linéaires"),
+            (None, "10-19", "assessment", "Partiel 1"),
+            (None, "10-19", "topic", "Matrices et déterminants"),
+        ],
+    ),
+    "Italian, a degree course's guide": (
+        "Corso di laurea in Fisica — Guida al secondo semestre\nAnalisi matematica 2\n"
+        "Docente: Prof. Esempio\n"
+        "Obiettivi formativi\n- Studiare funzioni di più variabili.\nProgramma\n"
+        "lun 01/03/2027 Successioni e serie di funzioni\nlun 08/03/2027 Continuazione\n"
+        "mer 10/03/2027 Esonero 1\nlun 15/03/2027 Limiti in più variabili. Cap. 4\n"
+        "Ore di lezione: 48\nCFU: 6\n"
+        "Modalità d'esame: esame scritto 70%, orale 30%\nFisica generale 2\nDocente: Prof. Altro\n"
+        "Obiettivi formativi\n- Elettromagnetismo.\nProgramma\nSettimana 1: Campo elettrico\n"
+        "Settimana 2: Potenziale\nOre di lezione: 72\nCFU: 9\nModalità d'esame: scritto 50%, orale 50%\n",
+        {
+            "Analisi matematica 2": (6.0, 48.0, [("Esame scritto", 70), ("Orale", 30)]),
+            "Fisica generale 2": (9.0, 72.0, [("Scritto", 50), ("Orale", 50)]),
+        },
+        [
+            (None, "2027-03-01", "topic", "Successioni e serie di funzioni"),
+            (None, "2027-03-10", "assessment", "Esonero 1"),
+            (None, "2027-03-15", "topic", "Limiti in più variabili"),
+        ],
+    ),
+    "US, month first and month names": (
+        "Fall 2026 Course Booklet\nCalculus II\nInstructor: Dr. Example\nCourse objectives:\n- Integrate.\n"
+        "Course schedule:\nTue 9/15/2026 Techniques of integration Stewart, Ch. 7\n"
+        "Thu 9/17/2026 Integration by parts\nTue 9/22/2026 Quiz 1. Trigonometric integrals\n"
+        "Contact hours: 45\nCredits: 4\nGrading: Homework 30%, Midterm 30%, Final exam 40%\nPhysics I\n"
+        "Instructor: Dr. Other\nCourse objectives:\n- Model motion.\nCourse schedule:\nSept 14 Kinematics\n"
+        "Sept 21 Newton's laws\nSept 28 Midterm\nContact hours: 60\nCredits: 5\n"
+        "Grading: Labs 25%, Midterm 25%, Final 50%\n",
+        {
+            "Calculus II": (4.0, 45.0, [("Homework", 30), ("Midterm", 30), ("Final exam", 40)]),
+            "Physics I": (5.0, 60.0, [("Labs", 25), ("Midterm", 25), ("Final", 50)]),
+        },
+        [
+            (None, "2026-09-15", "topic", "Techniques of integration"),
+            (None, "2026-09-17", "topic", "Integration by parts"),
+            (None, "2026-09-22", "assessment", "Quiz 1"),
+            (None, "2026-09-22", "topic", "Trigonometric integrals"),
+        ],
+    ),
+    "German, a module handbook": (
+        "Modulhandbuch Informatik, 3. Semester\nDatenbanken\nDozent: Prof. Beispiel\nLernziele\n"
+        "- Datenbanken entwerfen.\nInhalt\nWoche 1: Relationales Modell\nWoche 2: SQL\n"
+        "Woche 3: Normalformen\n"
+        "Präsenzzeit: 60 Stunden\nLeistungspunkte: 5\nPrüfungsform: Klausur 100 %\nBetriebssysteme\n"
+        "Dozent: Prof. Muster\nLernziele\n- Prozesse verstehen.\nInhalt\nWoche 1: Prozesse und Threads\n"
+        "Woche 2: Speicherverwaltung\nPräsenzzeit: 45 Stunden\nLeistungspunkte: 5\n"
+        "Prüfungsform: Klausur 80 % und Übungen 20 %\n",
+        {
+            "Datenbanken": (5.0, 60.0, [("Klausur", 100)]),
+            "Betriebssysteme": (5.0, 45.0, [("Klausur", 80), ("Übungen", 20)]),
+        },
+        [
+            (1, None, "topic", "Relationales Modell"),
+            (2, None, "topic", "SQL"),
+            (3, None, "topic", "Normalformen"),
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", PROGRAMS)
+def test_a_semester_program_is_cut_into_its_courses_in_each_system(shape):
+    text, facts, first = PROGRAMS[shape]
+    found = syllabus.courses(text)
+    assert [c.name for c in found] == list(facts)
+    for course in found:
+        credit, hours, parts = facts[course.name]
+        assert syllabus.credits(course.text) == credit
+        assert syllabus.hours(course.text) == hours
+        assert [(p.label, p.percent) for p in syllabus.assessment(course.text)] == parts
+    topics = read_syllabus(syllabus.course_text(found[0].text))
+    assert [(t.week, t.day, t.kind, t.title) for t in topics] == first
+    if shape.startswith("French"):  # a week without class is not a topic
+        second = read_syllabus(syllabus.course_text(found[1].text))
+        assert [(t.week, t.title) for t in second] == [(1, "Dénombrement"), (3, "Variables aléatoires")]
+
+
 # Notes in each language's words (D84): a definition sentence gives its term and the
 # sentence, a question and its answer a card, and "It is a…" nothing.
 NOTES = {

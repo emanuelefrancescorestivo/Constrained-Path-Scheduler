@@ -1,33 +1,27 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Study tips") }} · {{ _("Study plan") }}{% endblock %}
+{% block title %}{% if view.topic %}{{ view.name }} · {% endif %}{{ _("Study tips") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
-<p class="back"><a href="/p/{{ token }}/focus">{{ _("Focus") }}</a></p>
+{% macro strengths() %}
+<details class="card strengths-card">
+  <summary>{{ _("What the labels mean") }}</summary>
+  <dl class="strengths">
+    {% for s in view.strengths %}<div><dt><span class="strength strength-{{ s.key }}">{{ s.label }}</span></dt><dd>{{ s.meaning }}</dd></div>{% endfor %}
+  </dl>
+</details>
+{% endmacro %}
+{% if view.topic %}
+<p class="back"><a href="/p/{{ token }}/tips">{{ _("Study tips") }}</a></p>
 <div class="page-title">
-  <h1>{{ _("Study tips") }}</h1>
-  <p>{{ _("What research says about studying well, how sure it is, and where it comes from.") }}</p>
+  <h1>{{ view.name }}</h1>
+  <p>{{ view.note }}</p>
 </div>
 
-<a class="card link-card cards-link" href="/p/{{ token }}/coach">
-  <b>{{ _("Ask the coach") }}</b>
-  <span>{{ _("A question about studying, answered from these tips.") }}</span>
-</a>
-<a class="card link-card cards-link" href="/p/{{ token }}/weekly">
-  <b>{{ _("The weekly note") }}</b>
-  <span>{{ _("One study a week on how we learn, in plain words, with its source.") }}</span>
-</a>
-
-<dl class="card strengths">
-  {% for s in view.strengths %}<div><dt><span class="strength strength-{{ s.key }}">{{ s.label }}</span></dt><dd>{{ s.meaning }}</dd></div>{% endfor %}
-</dl>
-
 <nav class="tip-topics" aria-label="{{ _('Topics') }}">
-  {% for topic in view.topics %}<a href="#topic-{{ topic.key }}">{{ topic.name }}</a>{% endfor %}
+  {% for t in view.topics %}<a href="/p/{{ token }}/tips?topic={{ t.key }}"{% if t.current %} aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}
 </nav>
 
-{% for topic in view.topics %}
-<section class="section tip-topic" id="topic-{{ topic.key }}" aria-labelledby="topic-{{ topic.key }}-name">
-  <div class="section-title"><h2 id="topic-{{ topic.key }}-name">{{ topic.name }}</h2></div>
-  {% for tip in topic.tips %}
+<section class="section tip-topic" id="topic-{{ view.topic }}" aria-label="{{ view.name }}">
+  {% for tip in view.tips %}
   <article class="card tip" id="tip-{{ tip.key }}">
     <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
     <h3>{{ tip.advice }}</h3>
@@ -40,7 +34,33 @@
   </article>
   {% endfor %}
 </section>
-{% endfor %}
+{{ strengths() }}
+{% else %}
+<p class="back"><a href="/p/{{ token }}/focus">{{ _("Focus") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Study tips") }}</h1>
+  <p>{{ _("What research says about studying well, how sure it is, and where it comes from. Choose a topic.") }}</p>
+</div>
+
+<ul class="card list tip-topic-list" aria-label="{{ _('Topics') }}">
+  {% for t in view.topics %}
+  <li>
+    <a class="grow" href="/p/{{ token }}/tips?topic={{ t.key }}"><b>{{ t.name }}</b><br><small>{{ t.note }} · {{ _n("{n} tip", "{n} tips", t.count) }}</small></a>
+    <span class="chev" aria-hidden="true">›</span>
+  </li>
+  {% endfor %}
+</ul>
+
+<a class="card link-card cards-link" href="/p/{{ token }}/coach">
+  <b>{{ _("Ask the coach") }}</b>
+  <span>{{ _("A question about studying, answered from these tips.") }}</span>
+</a>
+<a class="card link-card cards-link" href="/p/{{ token }}/weekly">
+  <b>{{ _("The weekly note") }}</b>
+  <span>{{ _("One study a week on how we learn, in plain words, with its source.") }}</span>
+</a>
+{{ strengths() }}
+{% endif %}
 
 <p class="section hint">{{ _("General information about studying, not medical advice. Each source was read at its publisher or in a public research database on the day shown.") }} <a href="/p/{{ token }}/feedback">{{ _("Spotted a mistake? Tell us.") }}</a></p>
 {% endblock %}

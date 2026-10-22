@@ -191,11 +191,12 @@ from memory.
 
 ### deci1999
 - authors: E. L. Deci; R. Koestner; R. M. Ryan
-- title: A Meta-Analytic Review of Experiments Examining the Effects of Extrinsic Rewards on Intrinsic Motivation
+- title: A meta-analytic review of experiments examining the effects of extrinsic rewards on intrinsic motivation
 - year: 1999
 - venue: Psychological Bulletin 125(6), pages 627–668
-- status: unchecked
-- checked against: a search engine's index of author-hosted copies (depts.washington.edu and others), 2026-10-08: 128 experiments; engagement-, completion- and performance-contingent rewards lowered free-choice motivation (d = −0.40, −0.36, −0.28); positive feedback enhanced it, as the abstract's excerpt began to say before it was cut; contested by Cameron and Pierce. The full text was not read.
+- doi: 10.1037/0033-2909.125.6.627
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 10589297 (authors, journal, volume, issue, pages, DOI), 2026-10-22: a meta-analysis of 128 studies; engagement-, completion- and performance-contingent rewards undermined free-choice intrinsic motivation (d = -0.40, -0.36, -0.28), as did all tangible and all expected rewards; positive feedback enhanced free-choice behaviour (d = 0.33) and self-reported interest (d = 0.31); tangible rewards tended to be more detrimental for children than college students; the authors review 4 previous meta-analyses and detail how their methods, analyses and results differed. The full text was not read.
 
 ### foster2001
 - authors: Foster; seven further authors, not listed by the sources read
@@ -534,3 +535,93 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - doi: 10.2766/87192
 - status: checked
 - checked against: the guide's PDF, its text read on 2026-10-21. Page 10 (the PDF's): a full-time academic year is 60 credits and in most cases 1,500 to 1,800 hours of work, "which means that one credit corresponds to 25 to 30 hours of work", a typical workload that varies by student. Page 57: the course catalogue's "information on individual educational components" lists code, title, type, cycle, year, semester, number of ECTS credits, lecturers, learning outcomes, mode of delivery, prerequisites and co-requisites, course content, recommended or required reading, planned learning activities and teaching methods, assessment methods and criteria, and language of instruction. The guide recommends these items; it fixes neither their order nor their layout.
+
+### karpicke2008
+- authors: J. D. Karpicke; H. L. Roediger
+- title: The critical importance of retrieval for learning
+- year: 2008
+- venue: Science 319(5865), pages 966–968
+- doi: 10.1126/science.1152408
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 18276894 (authors, journal, volume, issue, pages, DOI), 2026-10-22: students learned foreign language vocabulary; once a word was produced correctly it was repeatedly studied but dropped from testing, repeatedly tested but dropped from study, or dropped from both; repeated studying after learning had no effect on delayed recall, repeated testing produced a large positive effect; students' predictions of their performance were uncorrelated with actual performance. The full text was not read.
+
+### schultz1997
+- authors: W. Schultz; P. Dayan; P. R. Montague
+- title: A neural substrate of prediction and reward
+- year: 1997
+- venue: Science 275(5306), pages 1593–1599
+- doi: 10.1126/science.275.5306.1593
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 9054347 (authors, journal, volume, issue, pages, DOI), 2026-10-22: behavioural experiments suggest learning is driven by changes in the expectations about future salient events such as rewards; physiological work identified dopaminergic neurons in the primate whose fluctuating output apparently signals changes or errors in the predictions of future salient and rewarding events; the findings are understood through quantitative theories of adaptive optimizing control. The full text was not read.
+
+### gruber2014
+- authors: M. J. Gruber; B. D. Gelman; C. Ranganath
+- title: States of curiosity modulate hippocampus-dependent learning via the dopaminergic circuit
+- year: 2014
+- venue: Neuron 84(2), pages 486–496
+- doi: 10.1016/j.neuron.2014.08.060
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 25284006 (authors, journal, volume, issue, pages, DOI), 2026-10-22: in functional MRI, in immediate and one-day-delayed memory tests, participants remembered better the information they were curious about and incidental material learned during states of high curiosity; activity in the midbrain and the nucleus accumbens was enhanced during high curiosity; individual differences in the curiosity-driven benefit for incidental material went with anticipatory activity in the midbrain and hippocampus and their functional connectivity; a link with the mechanisms of extrinsic reward motivation is suggested. The number of participants is not in the abstract; the full text was not read.
+
+### adcock2006
+- authors: R. A. Adcock; A. Thangavel; S. Whitfield-Gabrieli; B. Knutson; J. D. E. Gabrieli
+- title: Reward-motivated learning: mesolimbic activation precedes memory formation
+- year: 2006
+- venue: Neuron 50(3), pages 507–517
+- doi: 10.1016/j.neuron.2006.03.036
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 16675403 (authors, journal, volume, issue, pages, DOI), 2026-10-22: in event-related fMRI, cues signalled a high- or low-value monetary reward for memorising an upcoming scene; tested 24 hr after the scan, subjects were significantly more likely to remember scenes that followed high-value cues; high-reward cues before remembered scenes activated the ventral tegmental area, nucleus accumbens and hippocampus; greater activation predicted better memory; consistent with reward motivation promoting memory formation through dopamine release in the hippocampus before learning. The full text was not read.
+
+### patall2008
+- authors: E. A. Patall; H. Cooper; J. C. Robinson
+- title: The effects of choice on intrinsic motivation and related outcomes: a meta-analysis of research findings
+- year: 2008
+- venue: Psychological Bulletin 134(2), pages 270–300
+- doi: 10.1037/0033-2909.134.2.270
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 18298272 (authors, journal, volume, issue, pages, DOI), 2026-10-22: a meta-analysis of 41 studies with children and adults; providing choice enhanced intrinsic motivation, effort, task performance and perceived competence, among other outcomes; the effect on intrinsic motivation was stronger for instructionally irrelevant choices than for choices between activities, versions of a task, rewards or instructionally relevant options, when 2 to 4 successive choices were given, when no rewards followed, and for children compared to adults. The full text was not read.
+
+### deslauriers2019
+- authors: L. Deslauriers; L. S. McCarty; K. Miller; K. Callaghan; G. Kestin
+- title: Measuring actual learning versus feeling of learning in response to being actively engaged in the classroom
+- year: 2019
+- venue: Proceedings of the National Academy of Sciences 116(39), pages 19251–19257
+- doi: 10.1073/pnas.1821936116
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 31484770 (authors, journal, volume, issue, pages, DOI), 2026-10-22: in large introductory college physics courses, students randomly assigned to active instruction learned more than those in passive lectures by experienced, highly rated instructors, with identical content and handouts, but their perception of learning was lower; students took the increased cognitive effort of active learning to signify poorer learning. The full text was not read.
+
+### kornell2008
+- authors: Nate Kornell; Robert A. Bjork
+- title: Learning concepts and categories: is spacing the "enemy of induction"?
+- year: 2008
+- venue: Psychological Science 19(6), pages 585–592
+- doi: 10.1111/j.1467-9280.2008.02127.x
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 18578849 (authors, journal, volume, issue, pages, DOI) and Crossref's record (the authors' first names), 2026-10-22: participants studied paintings by different artists, each artist's paintings shown consecutively (massed) or interleaved with other artists' (spaced), then judged new paintings; induction profited from spacing, even though massing created a sense of fluent learning: participants rated massing as more effective than spacing, even after their own test performance had shown the opposite. The full text was not read.
+
+### eisenberger1992
+- authors: Robert Eisenberger
+- title: Learned industriousness
+- year: 1992
+- venue: Psychological Review 99(2), pages 248–267
+- doi: 10.1037/0033-295X.99.2.248
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 1594725 (author, journal, volume, issue, pages, DOI) and Crossref's record (the author's first name), 2026-10-22: research with animals and humans indicates that rewarded effort contributes to durable individual differences in industriousness; it is proposed that reinforcement for increased performance conditions reward value to the sensation of high effort, reducing effort's aversiveness, and generalises across behaviours; applications to self-control, moral development and education are described. A review proposing a theory; the full text was not read.
+
+### inzlicht2018
+- authors: Michael Inzlicht; Amitai Shenhav; Christopher Y. Olivola
+- title: The Effort Paradox: Effort Is Both Costly and Valued
+- year: 2018
+- venue: Trends in Cognitive Sciences 22(4), pages 337–349
+- doi: 10.1016/j.tics.2018.01.007
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 29477776 (authors, journal, volume, issue, pages, DOI) and Crossref's record (the authors' first names), 2026-10-22: effort is costly and, when given a choice, humans and other animals tend to avoid it; the review argues that effort can also add value: the same outcomes can be more rewarding when more effort is applied, and options are sometimes chosen because they require effort. A review; the full text was not read.
+
+### sisk2018
+- authors: Victoria F. Sisk; Alexander P. Burgoyne; Jingze Sun; Jennifer L. Butler; Brooke N. Macnamara
+- title: To What Extent and Under Which Circumstances Are Growth Mind-Sets Important to Academic Achievement? Two Meta-Analyses
+- year: 2018
+- venue: Psychological Science 29(4), pages 549–571
+- doi: 10.1177/0956797617739704
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 29505339 (authors' surnames and initials, journal, volume, issue, pages, DOI), 2026-10-22: a first meta-analysis (k = 273, N = 365,915) of the relationship between mind-set and academic achievement, and a second (k = 43, N = 57,155) of mind-set interventions; overall effects were weak for both; some results suggested that students with low socioeconomic status or academically at risk might benefit from mind-set interventions. The authors' first names come from Crossref's record of the DOI; the full text was not read.

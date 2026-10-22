@@ -142,7 +142,9 @@ def test_the_coach_page_without_its_scripts(tmp_path):
         assert "Demander au coach" in page and "L'IA est désactivée" in page
 
         asked = unescape(web.post(f"/p/{token}/coach", data={"question": "Le café avant de réviser ?"}).text)
-        assert f"/p/{token}/tips#tip-caffeine" in asked and "Le coach, d'après les conseils" in asked
+        assert (
+            f"/p/{token}/tips?topic=body#tip-caffeine" in asked and "Le coach, d'après les conseils" in asked
+        )
         assert 'class="mascot is-think"' in asked
         assert "Le café avant de réviser ?" in asked  # in the box again, nowhere stored
         empty = unescape(web.post(f"/p/{token}/coach", data={"question": "?"}).text)

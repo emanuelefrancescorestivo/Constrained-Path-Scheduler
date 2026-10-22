@@ -31,9 +31,20 @@ STRENGTHS = {
 
 TOPICS = {
     "studying": "How to study",
-    "body": "Sleep, movement and coffee",
-    "breaks": "Breaks",
+    "brain": "How the brain learns",
+    "motivation": "Motivation and reward",
     "habits": "Habits",
+    "breaks": "Breaks",
+    "body": "Sleep, movement and coffee",
+}
+# What each topic is about, on the tips page's list of topics (D91).
+TOPIC_NOTES = {
+    "studying": "Ways to study that research shows work.",
+    "brain": "What happens in the brain and in its cells when you learn.",
+    "motivation": "Effort, reward and choice: what keeps you going.",
+    "habits": "Keeping it going week after week.",
+    "breaks": "When to stop, and for how long.",
+    "body": "What sleep, exercise and caffeine do for learning.",
 }
 
 
@@ -59,6 +70,7 @@ class Tip:
 
 
 CHECKED = date(2026, 10, 15)
+READ = date(2026, 10, 22)  # the brain and motivation sources (D91)
 
 SOURCES = {
     s.key: s
@@ -216,6 +228,84 @@ SOURCES = {
             "European Journal of Social Psychology",
             "https://doi.org/10.1002/ejsp.674",
             CHECKED,
+        ),
+        # How the brain learns, and motivation and reward (D91).
+        Source(
+            "karpicke2008",
+            "Karpicke & Roediger, 2008",
+            "Science",
+            "https://doi.org/10.1126/science.1152408",
+            READ,
+        ),
+        Source(
+            "schultz1997",
+            "Schultz, Dayan & Montague, 1997",
+            "Science",
+            "https://doi.org/10.1126/science.275.5306.1593",
+            READ,
+        ),
+        Source(
+            "gruber2014",
+            "Gruber et al., 2014",
+            "Neuron",
+            "https://doi.org/10.1016/j.neuron.2014.08.060",
+            READ,
+        ),
+        Source(
+            "adcock2006",
+            "Adcock et al., 2006",
+            "Neuron",
+            "https://doi.org/10.1016/j.neuron.2006.03.036",
+            READ,
+        ),
+        Source(
+            "deci1999",
+            "Deci, Koestner & Ryan, 1999",
+            "Psychological Bulletin",
+            "https://doi.org/10.1037/0033-2909.125.6.627",
+            READ,
+        ),
+        Source(
+            "patall2008",
+            "Patall, Cooper & Robinson, 2008",
+            "Psychological Bulletin",
+            "https://doi.org/10.1037/0033-2909.134.2.270",
+            READ,
+        ),
+        Source(
+            "deslauriers2019",
+            "Deslauriers et al., 2019",
+            "Proceedings of the National Academy of Sciences",
+            "https://doi.org/10.1073/pnas.1821936116",
+            READ,
+        ),
+        Source(
+            "kornell2008",
+            "Kornell & Bjork, 2008",
+            "Psychological Science",
+            "https://doi.org/10.1111/j.1467-9280.2008.02127.x",
+            READ,
+        ),
+        Source(
+            "eisenberger1992",
+            "Eisenberger, 1992",
+            "Psychological Review",
+            "https://doi.org/10.1037/0033-295X.99.2.248",
+            READ,
+        ),
+        Source(
+            "inzlicht2018",
+            "Inzlicht, Shenhav & Olivola, 2018",
+            "Trends in Cognitive Sciences",
+            "https://doi.org/10.1016/j.tics.2018.01.007",
+            READ,
+        ),
+        Source(
+            "sisk2018",
+            "Sisk et al., 2018",
+            "Psychological Science",
+            "https://doi.org/10.1177/0956797617739704",
+            READ,
         ),
         # Cited by the weekly notes (D64) only.
         Source(
@@ -378,6 +468,141 @@ TIPS = (
         "than 10 minutes may be needed. The study of set breaks lasted one day.",
         ("albulescu2022", "biwer2023"),
     ),
+    # How the brain learns (D91): what the research shows about memory itself.
+    Tip(
+        "recall-strengthens",
+        "brain",
+        "strong",
+        "Remembering something strengthens the memory; reading it again does little.",
+        "Students learning foreign words went on either studying or testing themselves on words they "
+        "already knew. Studying them again had no effect on recall later; testing them again had a large "
+        "one. A meta-analysis of practice tests found testing ahead of restudying across many kinds of "
+        "material.",
+        "The experiment taught vocabulary. Its students' predictions of how well they would do were "
+        "unrelated to how they did: what feels learned is a poor guide.",
+        ("karpicke2008", "adesope2017"),
+        "Your flashcards and self-tests make you recall, not reread.",
+    ),
+    Tip(
+        "surprise",
+        "brain",
+        "early",
+        "Guess before you check: a surprise is a signal to learn.",
+        "Dopamine neurons in the primate brain change their firing when a reward or an important event "
+        "is not what was predicted: their output seems to signal the error of the prediction, the "
+        "quantity theories of learning use to update what is expected. In students, answering questions "
+        "before learning the material helps them learn it, as long as they study the answers afterwards.",
+        "The recordings are from animals. That guessing before checking uses the same signal in students "
+        "is a reading of the evidence, not a finding.",
+        ("schultz1997", "pan2023"),
+        "Turn on a warm-up before each lecture in Settings.",
+    ),
+    Tip(
+        "spacing-cells",
+        "brain",
+        "early",
+        "Spacing is built into how cells remember.",
+        "In human cells grown in a dish, not even nerve cells, four spaced pulses of a chemical signal "
+        "switched on a memory-related gene more strongly and for longer than one massed pulse. Blocking "
+        "two molecules of the memory pathway, ERK and CREB, removed the difference.",
+        "Cells in a dish, with a light-making gene standing for memory: it shows how basic the spacing "
+        "effect is, not how to plan a semester.",
+        ("kukushkin2024",),
+        "Your plan spaces each topic's reviews over days.",
+    ),
+    Tip(
+        "curiosity",
+        "brain",
+        "early",
+        "Start with a question you want answered.",
+        "In a brain-imaging study, people remembered the answers to questions they were curious about "
+        "better, straight away and a day later, and also unrelated things shown to them while they were "
+        "curious. Curiosity raised activity in the midbrain and the nucleus accumbens, regions of the "
+        "dopamine circuit that also respond to rewards; how much it helped memory went with activity in "
+        "the midbrain and the hippocampus.",
+        "One laboratory study with trivia questions: whether it carries over to a semester's courses was "
+        "not tested.",
+        ("gruber2014",),
+    ),
+    Tip(
+        "reward-memory",
+        "brain",
+        "early",
+        "Knowing that something is worth remembering helps you remember it.",
+        "In a brain-imaging study, people were more likely to remember a scene 24 hours later when a cue "
+        "had promised a high reward for remembering it than a low one. The reward circuit (the ventral "
+        "tegmental area, the nucleus accumbens) and the hippocampus became active before the scene "
+        "appeared, more so for the scenes later remembered.",
+        "The reward was money, in a laboratory, in one study: a reason of your own is not the same thing.",
+        ("adcock2006",),
+    ),
+    # Motivation and reward (D91): what keeps studying going, and what does not.
+    Tip(
+        "rewards",
+        "motivation",
+        "moderate",
+        "Reward yourself with progress you can see, more than with treats.",
+        "A meta-analysis of 128 experiments found that rewards promised for doing or finishing a task "
+        "made people less likely to go back to it by choice afterwards, while positive feedback made "
+        "them more likely to, and more interested in it.",
+        "The effects depended on the kind of reward, and treats harmed children's interest more than "
+        "college students'. Other meta-analyses of the same research reached different conclusions.",
+        ("deci1999",),
+        "Your week, your streak and Progress show what you did, not points to collect.",
+    ),
+    Tip(
+        "choice",
+        "motivation",
+        "moderate",
+        "Choose for yourself: the order, the place, which topic first.",
+        "A meta-analysis of 41 studies found that being given a choice raised motivation, effort, "
+        "performance and the feeling of being capable. The effect was strongest with 2 to 4 choices in a "
+        "row, and for small choices that did not change what was learned.",
+        "Choices between whole activities helped less than small ones, and the effect was larger for "
+        "children than for adults.",
+        ("patall2008",),
+        "Drag a session to another time and your plan adapts around it.",
+    ),
+    Tip(
+        "effort-feels",
+        "motivation",
+        "moderate",
+        "Feeling that you learn less is not proof that you do.",
+        "In college physics, students put at random in active classes learned more than those taught by "
+        "highly rated lecturers, yet felt they had learned less: they took the extra effort as a sign of "
+        "poor learning. In another study, people judged studying one painter at a time better than mixing "
+        "painters, after their own test had shown the opposite.",
+        "The physics study compared two ways of teaching, not of studying alone; the paintings study was "
+        "about learning to recognise styles.",
+        ("deslauriers2019", "kornell2008"),
+        "Recalling and mixing topics feel harder than rereading one at a time, and work better.",
+    ),
+    Tip(
+        "effort-reward",
+        "motivation",
+        "early",
+        "Effort can become rewarding in itself.",
+        "A review of research with animals and people proposed that when effort is rewarded, the feeling "
+        "of effort itself takes on some of the reward's value and becomes less unpleasant, and the habit "
+        "of working hard carries over to other tasks. A later review argued that effort is costly but "
+        "also adds value: the same result can be more rewarding when it took more effort.",
+        "Both are reviews that propose explanations; how to make effort rewarding for a given student is "
+        "not settled.",
+        ("eisenberger1992", "inzlicht2018"),
+        "Each session you report counts in your week and your streak: the effort is what is counted.",
+    ),
+    Tip(
+        "mindset",
+        "motivation",
+        "moderate",
+        "Don't count on a mindset alone to raise your grades.",
+        "Two meta-analyses, one of 273 studies with 365,915 students and one of 43 studies with 57,155, "
+        "found weak links between believing that intelligence can grow and grades, and weak effects of "
+        "programmes that teach the belief.",
+        "Students from poorer backgrounds or at risk of failing might benefit from such programmes, the "
+        "authors found.",
+        ("sisk2018",),
+    ),
     Tip(
         "track",
         "habits",
@@ -416,7 +641,7 @@ TIPS = (
 
 def sentences() -> set[str]:
     """Every sentence of this module a student reads, for the translation check."""
-    out = set(TOPICS.values())
+    out = set(TOPICS.values()) | set(TOPIC_NOTES.values())
     for label, meaning in STRENGTHS.values():
         out |= {label, meaning}
     for tip in TIPS:
