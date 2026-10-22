@@ -43,6 +43,7 @@ more than an impressive number.
     python benchmarks/syllabus_cost.py       # what reading a syllabus with a model would cost, per model (docs/CURRICULUM.md §3a); cards from notes by the model, at most (D84)
     python benchmarks/reviews.py             # competitors' App Store reviews by theme (docs/MARKET.md §4)
     TOKEN=<a plan> node benchmarks/page_cost.mjs   # what pages cost a slow device: CPU while open, slow frames while scrolling (D93; Node + Playwright, not a dependency)
+    TOKEN=<alex> ICS=<a timetable> node benchmarks/screen_load.mjs   # what each screen asks at phone size: words, things to tap, fields, screens, tour steps; taps to a first plan (Node + Playwright)
     cps metrics --db <store>                 # the pilot's measures (DECISIONS.md D15), predicted against reported recall (D55), exams (D56), tips and weekly notes read, questions to the coach (D62, D64, D65)
     cps inspect examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome
     cps plan examples/sample-timetable.ics --from 2026-03-02 --tz Europe/Rome --subject "Analysis:2:7" --subject "Algebra:4:5@2026-03-27" --out plan.ics
