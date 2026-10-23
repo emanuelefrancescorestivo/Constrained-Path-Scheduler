@@ -313,6 +313,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             response = server_error(request, error)
         finally:
             service.deactivate_language(chosen)
+        counted(request, response)
         cookie = request.cookies.get(SESSION_COOKIE)
         if cookie and getattr(request.state, "renew", False) and "set-cookie" not in response.headers:
             keep_signed_in(response, request, cookie)  # used today: kept for SESSION_LIFE more
@@ -413,6 +414,29 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
+
+    # -- what a student uses, counted with their yes (D96) -----------------------
+
+    def counted(request: Request, response: Response) -> None:
+        """One more use of the part of the app this request was, if its plan said
+        yes (D96). Only a page or a form that went through (2xx, or a redirect after
+        a form), only by the part's name; a failure here never touches the page."""
+        found = PLAN_PATH.match(request.url.path)
+        if found is None or not (200 <= response.status_code < 400):
+            return
+        if request.method == "GET" and response.status_code != 200:
+            return
+        token = found.group(1)
+        if request.url.path.startswith("/s/"):
+            part = "report" if request.method == "POST" else None
+        else:
+            part = service.usage_part(request.method, request.url.path[len("/p/") + len(token) :])
+        if part is None:
+            return
+        try:
+            service.count_use(store, token, part, config.clock())
+        except Exception:
+            LOG.exception("could not count a use")
 
     # -- e-mail accounts (D94) ---------------------------------------------------
 
@@ -980,6 +1004,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "exam_questions": service.exam_questions(subscription, now),
             "exam_results": list(service.EXAM_RESULTS.items()),
             "exam_helped": list(service.EXAM_HELPED.items()),
+            # Asked once, when there is a plan to use (D96).
+            "usage_ask": bool(subscription.plan) and service.usage_answer(store, subscription.token) is None,
         }
 
     @app.get("/p/{token}", response_class=HTMLResponse)
@@ -2449,6 +2475,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         notice = service.translate("Done.") if saved else None
         return page(request, "admin.html", key=key, items=service.moderation_view(store), saved=notice)
 
+    @app.get("/admin/{key}/usage", response_class=HTMLResponse)
+    def admin_usage(request: Request, key: str) -> HTMLResponse:
+        """What students use, over those who said yes (D96)."""
+        if not admin_key(key):
+            return missing(request)
+        return page(request, "admin_usage.html", key=key, report=service.usage_report(store, config.clock()))
+
     @app.post("/admin/{key}/review")
     async def admin_review(request: Request, key: str) -> Response:
         if not admin_key(key):
@@ -2787,6 +2820,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             show_mail=config.show_mail,
             reminders=service.reminders_view(store, subscription),
             tips_on=service.tips_on(subscription),
+            usage=service.usage_answer(store, token),
         )
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
@@ -3439,6 +3473,28 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(read)
         return page(request, "task_new.html", token=token, read=read, words=words, tab="tasks")
 
+    @app.post("/p/{token}/usage")
+    async def usage_answer(request: Request, token: str) -> Response:
+        """Yes or no to counting what the student uses (D96), from Today's card or
+        from Settings; a no deletes what was counted."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        yes = form.get("yes") == "1"
+        service.answer_usage(store, token, yes, config.clock())
+        if form.get("back") == "today":
+            return RedirectResponse(f"/p/{token}?saved={'usage-yes' if yes else 'usage-no'}", 303)
+        return RedirectResponse(f"/p/{token}/settings?saved=usage#usage", 303)
+
+    @app.get("/p/{token}/usage", response_class=HTMLResponse)
+    def usage_page(request: Request, token: str) -> HTMLResponse:
+        """What was counted of the student's use, as it is kept (D96)."""
+        if load(token) is None:
+            return missing(request)
+        return page(
+            request, "usage.html", token=token, tab="settings", usage=service.usage_view(store, token)
+        )
+
     @app.post("/p/{token}/ai")
     async def ai_setting(request: Request, token: str) -> Response:
         if load(token) is None:
@@ -3617,8 +3673,14 @@ def _notice(saved: str) -> str | None:
         return service.translate("Thank you. Good luck with the next one.")
     if saved in NETWORK_NOTICES:
         return service.translate(NETWORK_NOTICES[saved])
-    if saved in ("ai", "theme"):
+    if saved in ("ai", "theme", "usage"):
         return service.translate("Saved.")
+    if saved == "usage-yes":
+        return service.translate(
+            "Thank you. What you use is counted from now on; see it or stop in Settings."
+        )
+    if saved == "usage-no":
+        return service.translate("All right: nothing is counted. You can change your mind in Settings.")
     if saved == "language":
         return service.translate("Language changed. Your sessions are described in it from now on.")
     if saved == "passkey":

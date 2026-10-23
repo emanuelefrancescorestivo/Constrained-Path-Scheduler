@@ -370,6 +370,12 @@
 {% else %}
 <p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
 {% endif %}
+<h2 class="section" id="usage">{{ _("Help make the app simpler") }}</h2>
+<form method="post" action="/p/{{ token }}/usage" class="card">
+  <p>{% if usage %}{{ _("On: the app counts which of its parts you open and use each day.") }}{% else %}{{ _("Off: nothing is counted.") }}{% endif %}</p>
+  <p class="hint">{{ _("Only the part's name (Today, Focus, Flashcards…) and how many times a day, never what you write or what a page shows. The person who makes the app reads the totals of everyone who said yes, to take away what nobody uses. Kept six months; turning it off deletes it.") }}</p>
+  <div class="row-end">{% if usage %}<a class="btn btn-plain" href="/p/{{ token }}/usage">{{ _("See what was counted") }}</a>{% endif %}<button type="submit" name="yes" value="{{ '0' if usage else '1' }}" class="btn{% if not usage %} btn-primary{% endif %}">{% if usage %}{{ _("Turn off and delete") }}{% else %}{{ _("Turn on") }}{% endif %}</button></div>
+</form>
 <h2 class="section" id="semester">{{ _("Next semester") }}</h2>
 <p>{{ _("A new timetable and new exams, at the same address. Your streak, your progress, your diary, your flashcards, your people and your groups come with you.") }}</p>
 <p><a class="btn btn-sm" href="/p/{{ token }}/semester">{{ _("Start next semester") }}</a></p>

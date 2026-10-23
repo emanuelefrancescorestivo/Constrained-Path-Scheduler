@@ -287,6 +287,20 @@ CREATE TABLE IF NOT EXISTS mail_links (
     purpose TEXT NOT NULL,
     expires TEXT NOT NULL
 );
+-- What a student uses, counted only with their yes (DECISIONS.md D96): the answer,
+-- and per day the parts of the app opened or used, by name, with how many times.
+CREATE TABLE IF NOT EXISTS usage_consent (
+    token  TEXT PRIMARY KEY,
+    answer TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS usage (
+    token TEXT NOT NULL,
+    day   TEXT NOT NULL,
+    part  TEXT NOT NULL,
+    n     INTEGER NOT NULL,
+    PRIMARY KEY (token, day, part)
+);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -348,6 +362,8 @@ _FORGET = (
     "DELETE FROM push_sent WHERE token = :t",
     "DELETE FROM feedback WHERE token = :t",
     "DELETE FROM course_topics WHERE token = :t",
+    "DELETE FROM usage WHERE token = :t",
+    "DELETE FROM usage_consent WHERE token = :t",
     # The account the plan belongs to (D94), with its devices signed in and its links.
     "DELETE FROM sessions WHERE account IN (SELECT id FROM accounts WHERE token = :t)",
     "DELETE FROM mail_links WHERE account IN (SELECT id FROM accounts WHERE token = :t)",
@@ -397,6 +413,9 @@ _EXPORT = {
     "account": "SELECT email, created, confirmed FROM accounts WHERE token = :t",
     "signed_in": "SELECT s.device, s.created, s.seen FROM sessions s JOIN accounts a ON a.id = s.account "
     "WHERE a.token = :t ORDER BY s.created",
+    # D96: the answer about counting what is used, and what was counted.
+    "usage_answer": "SELECT answer, at FROM usage_consent WHERE token = :t",
+    "usage": "SELECT day, part, n FROM usage WHERE token = :t ORDER BY day, part",
 }
 
 

@@ -6,6 +6,12 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+
+- What a student uses, counted only with their yes (DECISIONS.md D96): asked once on Today,
+  a switch in Settings; per day, the name of each part of the app opened or used and how
+  many times, worked out on the server from the page's address; the student's own counts
+  in Settings, the owner's totals on `/admin/<key>/usage` and in `cps metrics`; a no
+  deletes what was counted; kept 180 days, in the plan's copy, gone with the plan.
 - Accounts (D94): a student makes one with an e-mail address and a password before the
   first plan, which then opens only for that account, on any device signed in to it.
   "Forgot your password?" sends a link by e-mail; another link confirms the address,

@@ -455,8 +455,9 @@ def command_metrics(args) -> int:
     """The pilot's numbers, week by week (D15). With 10 to 20 students they are
     counts to read and ask about, not rates to test."""
     m = service.engagement(args.db)
+    used = service.usage_report(args.db)
     if args.json:
-        print(json.dumps(m, indent=2))
+        print(json.dumps({**m, "usage": used}, indent=2))
         return 0
     net, ai, st = m["network"], m["ai"], m["streaks"]
     lines = [
@@ -489,9 +490,22 @@ def command_metrics(args) -> int:
         f"AI this month            {ai['calls']} calls, {ai['used']} answers used, "
         f"${ai['dollars']:.2f} of ${ai['cap']:.2f}"
         + ("" if ai["available"] else " (no key on this machine)"),
+        *_usage_lines(used),
     ]
     print("\n".join(lines))
     return 0
+
+
+def _usage_lines(u: dict) -> list[str]:
+    """What students use, over those who said yes to counting it (D96)."""
+    head = f"what is used (D96)       {u['yes']} said yes to counting, {u['no']} said no"
+    rows = [
+        f"  {p['label'][:28]:<28} {p['students']:>3} students, {p['last_7']:>3} in 7 days, "
+        f"{p['days']:>4} days, {p['times']:>5} times"
+        for p in u["parts"]
+    ]
+    unused = [f"  nobody used             {', '.join(u['unused'])}"] if u["unused"] and u["yes"] else []
+    return [head, *rows, *unused]
 
 
 def _calibration_lines(c: dict) -> list[str]:

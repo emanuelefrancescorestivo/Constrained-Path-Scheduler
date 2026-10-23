@@ -73,6 +73,15 @@
 
 {# One insight, when it matters today (D80): a day off due or a pace above the limit,
    else an insight just unlocked or a record just set. #}
+{% if usage_ask %}
+<form method="post" action="/p/{{ token }}/usage" class="card nudge-card usage-ask">
+  <input type="hidden" name="back" value="today">
+  <span class="tip-reason">{{ _("Help make the app simpler") }}</span>
+  <b>{{ _("May the app count which of its parts you use?") }}</b>
+  <p class="muted">{{ _("Only the part's name and how many times a day, never what you write. It shows what to take away. You can stop in Settings; stopping deletes it.") }}</p>
+  <div class="row-end"><button type="submit" name="yes" value="0" class="btn btn-plain">{{ _("No thanks") }}</button><button type="submit" name="yes" value="1" class="btn btn-primary">{{ _("Yes, count") }}</button></div>
+</form>
+{% endif %}
 {% if insight %}<a class="card link-card insight-today{% if insight.state %} pace-{{ insight.state }}{% endif %}" href="{{ insight.link.href if insight.link else '/p/' ~ token ~ '/progress#insights' }}">
   <span class="tip-reason">{% if insight.record %}{{ _("New record") }}{% elif insight.new %}{{ _("New insight") }}{% else %}{{ insight.title }}{% endif %}</span>
   <b>{% if insight.record %}{{ insight.record }}{% elif insight.new %}{{ insight.title }}: {{ insight.value }}{% else %}{{ insight.says }}{% endif %}</b>

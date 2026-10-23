@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _("What students use") }}{% endblock %}
+{% block main %}
+{# The owner's totals (D96): over the students who said yes, never one student's. #}
+<div class="page-title">
+  <h1>{{ _("What students use") }}</h1>
+  <p>{{ _("{yes} said yes to counting, {no} said no.", yes=report.yes, no=report.no) }} · <a href="/admin/{{ key }}">{{ _("Reports to review") }}</a> · <a href="/admin/{{ key }}/inbox">{{ _("Messages and errors") }}</a></p>
+</div>
+{% if report.parts %}
+<div class="card table-card">
+<table class="usage-table">
+  <thead><tr><th>{{ _("Part of the app") }}</th><th class="n">{{ _("Students") }}</th><th class="n">{{ _("In the last 7 days") }}</th><th class="n">{{ _("Days used") }}</th><th class="n">{{ _("Times") }}</th></tr></thead>
+  <tbody>
+  {% for p in report.parts %}
+  <tr><td>{{ _(p.label) }}</td><td class="n">{{ p.students }}</td><td class="n">{{ p.last_7 }}</td><td class="n">{{ p.days }}</td><td class="n">{{ p.times }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="card empty"><b>{{ _("Nothing counted yet") }}</b>{{ _("Counts appear here once students say yes and use the app.") }}</div>
+{% endif %}
+{% if report.unused %}
+<h2 class="section">{{ _("Nobody used") }}</h2>
+<p class="muted">{% for label in report.unused %}{{ _(label) }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+{% endif %}
+<p class="hint">{{ _("Students: those who said yes and used that part at least once. Days used: one student on one day counts one. With a pilot of 10 to 20 students these are counts to read and ask about, not rates to test.") }}</p>
+{% endblock %}

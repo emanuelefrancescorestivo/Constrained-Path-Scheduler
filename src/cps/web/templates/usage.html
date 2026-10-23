@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ _("What was counted") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# A student's own counts, as they are kept (D96): nothing here is worked out. #}
+<div class="page-title">
+  <h1>{{ _("What was counted") }}</h1>
+  {% if usage.answer %}
+  <p>{{ _("Since {date}: which parts of the app you opened or used, on how many days and how many times. Each day's counts are kept {n} days.", date=usage.since, n=usage.kept_days) }}</p>
+  {% else %}
+  <p>{{ _("Nothing is counted: you have not said yes, or you turned it off.") }}</p>
+  {% endif %}
+</div>
+{% if usage.answer %}
+{% if usage.used %}
+<ul class="card list usage-rows">
+  {% for u in usage.used %}
+  <li><span class="grow"><b>{{ u.label }}</b><br><small>{{ _n("{n} day", "{n} days", u.days) }} · {{ _n("{n} time", "{n} times", u.times) }} · {{ _("last on {date}", date=u.last) }}</small></span></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="card">{{ _("Nothing yet: counts appear here as you use the app.") }}</p>
+{% endif %}
+{% if usage.unused %}
+<h2 class="section">{{ _("Not opened since then") }}</h2>
+<p class="muted usage-unused">{{ usage.unused | join(" · ") }}</p>
+{% endif %}
+<form method="post" action="/p/{{ token }}/usage" class="row-end">
+  <a class="btn btn-plain" href="/p/{{ token }}/settings#usage">{{ _("Back to Settings") }}</a>
+  <button type="submit" name="yes" value="0" class="btn">{{ _("Turn off and delete") }}</button>
+</form>
+{% else %}
+<p><a class="btn" href="/p/{{ token }}/settings#usage">{{ _("Back to Settings") }}</a></p>
+{% endif %}
+{% endblock %}

@@ -75,6 +75,7 @@ from . import syllabus as _syllabus
 from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
+from . import usage as _usage
 from . import weekly as _weekly
 from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
@@ -3111,10 +3112,12 @@ def events(store: str | os.PathLike, token: str) -> list[dict]:
 
 
 def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
-    """Delete every subscription past its expiry (`subscription_expiry`), and the
-    sessions, links and plan-less accounts past theirs (D94)."""
+    """Delete every subscription past its expiry (`subscription_expiry`), the
+    sessions, links and plan-less accounts past theirs (D94), and what was counted of
+    the app's use more than six months ago (D96)."""
     gone = _store(store).sweep(now, expiry=_expiry_of)
     _accounts.sweep_accounts(_store(store), now or datetime.now(UTC))
+    _usage.sweep(_store(store), now or datetime.now(UTC))  # counts past six months (D96)
     return gone
 
 
@@ -3285,6 +3288,81 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
     """ "Not now": the suggestion to keep the plan safe waits `ACCOUNT_LATER`."""
     stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
     return replace(subscription, options={**subscription.options, "account_later": stamp})
+
+
+# --------------------------------------------------------------------------- #
+# What a student uses, counted with their yes (DECISIONS.md D96)
+# --------------------------------------------------------------------------- #
+
+USAGE_KEPT_DAYS = _usage.KEPT.days
+
+
+def usage_part(method: str, rest: str) -> str | None:
+    """The part of the app a request to a plan's page is (`rest` is the address
+    after `/p/<token>`), or None when it is not one the counts name."""
+    return _usage.part_of(method, rest)
+
+
+def usage_answer(store: str | os.PathLike, token: str) -> bool | None:
+    """Whether the student said yes to counting what they use; None if not asked."""
+    found = _usage.answer_of(_store(store), token)
+    return found.yes if found else None
+
+
+def answer_usage(store: str | os.PathLike, token: str, yes: bool, now: datetime | None = None) -> None:
+    """Keep the student's answer. A no, now or later, deletes what was counted."""
+    _usage.answer(_store(store), token, yes, now or datetime.now(UTC))
+    log_event(store, token, "usage", "yes" if yes else "no")
+
+
+def count_use(store: str | os.PathLike, token: str, part: str, now: datetime | None = None) -> bool:
+    """One more use of `part` today, only if the student said yes."""
+    return _usage.count(_store(store), token, part, now or datetime.now(UTC))
+
+
+def usage_view(store: str | os.PathLike, token: str) -> dict:
+    """A student's own counts, as they are kept: the parts used (on how many days,
+    how many times, the last day) and those not opened since the yes."""
+    found = _usage.answer_of(_store(store), token)
+    used, unused = _usage.own(_store(store), token)
+    return {
+        "answer": found.yes if found else None,
+        "since": format_date(datetime.fromisoformat(found.at).date()) if found and found.yes else None,
+        "used": [
+            {
+                "label": _(u.label),
+                "days": u.days,
+                "times": u.times,
+                "last": format_date(date.fromisoformat(u.last)) if u.last else None,
+            }
+            for u in used
+        ],
+        "unused": [_(u.label) for u in unused],
+        "kept_days": USAGE_KEPT_DAYS,
+    }
+
+
+def usage_report(store: str | os.PathLike, now: datetime | None = None) -> dict:
+    """For the owner: how many said yes and no, and for each part how many of those
+    who said yes used it, on how many days and how often; the parts nobody used.
+    Totals over students, never one student's row."""
+    found = _usage.report(_store(store), now or datetime.now(UTC))
+    return {
+        "yes": found["yes"],
+        "no": found["no"],
+        "parts": [
+            {
+                "part": t.part,
+                "label": t.label,
+                "students": t.students,
+                "days": t.days,
+                "times": t.times,
+                "last_7": t.last_7,
+            }
+            for t in found["parts"]
+        ],
+        "unused": found["unused"],
+    }
 
 
 # --------------------------------------------------------------------------- #
