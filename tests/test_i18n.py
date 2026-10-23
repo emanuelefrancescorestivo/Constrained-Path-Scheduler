@@ -91,6 +91,8 @@ def indirect_sentences() -> set[str]:
         *service._BEST_PART.values(),
         *service._PDF_ERRORS.values(),  # why a PDF gave no text (D90)
         *(label for _, label in usage.PARTS),  # the parts of the app counted (D96)
+        *service.SECTION_HINTS.values(),  # each section's line on its first visit (D97)
+        *(words for q in service.FIT_QUESTIONS for words in (q[1], q[2], q[4])),  # Today's questions (D98)
     }
 
 

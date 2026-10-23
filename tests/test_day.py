@@ -132,21 +132,23 @@ def test_spark_asks_the_questions_and_the_bars_draw_into_the_fields(tmp_path):
         assert all(say in page for say in service.ROUTINE_SAYS.values())
 
 
-def test_spark_floats_on_the_plans_pages_but_not_while_setting_up_or_focusing(tmp_path):
-    # D71: a link to the coach without scripts, Spark's sheet with them.
+def test_spark_waits_in_the_top_bar_but_not_while_setting_up_or_focusing(tmp_path):
+    # D71: a link to the coach without scripts, Spark's sheet with them; in the top bar
+    # since D97, never over a page's buttons.
     config = Config(store=tmp_path, clock=lambda: MORNING, background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
         files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
         today = unescape(web.get(f"/p/{token}").text)
-        assert f'<a class="spark-fab" href="/p/{token}/coach" data-spark' in today
+        assert f'<a class="spark-top" href="/p/{token}/coach" data-spark' in today
+        assert today.index("spark-top") < today.index("</header>")
         assert 'id="spark-help" class="sheet spark-sheet" popover' in today
         assert (
             f'action="/p/{token}/coach" class="spark-ask"' in today and f'href="/p/{token}/routine"' in today
         )
         for quiet in (f"/p/{token}/routine?new=1", f"/p/{token}/coach"):
-            assert "spark-fab" not in web.get(quiet).text, quiet
-        assert "spark-fab" in web.get(f"/p/{token}/focus").text
+            assert "spark-top" not in web.get(quiet).text, quiet
+        assert "spark-top" in web.get(f"/p/{token}/focus").text
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
-        assert "spark-fab" not in web.get(f"/p/{token}/focus").text  # nothing over the clock
+        assert "spark-top" not in web.get(f"/p/{token}/focus").text  # nothing beside the clock

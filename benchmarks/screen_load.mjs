@@ -3,12 +3,13 @@
 // screens of scrolling, and the taps from the home page to a first plan.
 //
 // Two walks:
-// - a new student on an empty `cps web`: the home page, a timetable imported, every
-//   setup screen accepted as it comes (the defaults), up to Today; then each tab once;
+// - a new student on an empty `cps web`: the home page, an account made (D94), a
+//   timetable imported, every setup screen accepted as it comes (the defaults), up to
+//   Today; then each section once;
 // - a student eight weeks in, @alex of `cps demo`: every page of the app.
 //
-// Counts are of what is visible: a folded section, a closed sheet or menu, a hidden
-// field are not counted. "Controls" are links, buttons, fields and folds the student can
+// Counts are of what is visible: what a closed fold holds (its summary aside), a closed
+// sheet or menu, a hidden field are not counted. "Controls" are links, buttons, fields and folds the student can
 // reach on the page, the top bar and the tab bar included. "Tour" is the steps of
 // Spark's tour that opened over the page on its first visit (0: none); "spark", whether
 // Spark shows at all (its button or a tip card), "floating", whether its button floats.
@@ -65,10 +66,20 @@ async function measure(walk, name) {
     await page.screenshot({ path: `${SHOTS}/${walk}-${name}-first.png` });
   }
   const row = await page.evaluate(() => {
+    // Inside a closed fold, only its summary is on screen. Chromium still gives the rest
+    // a box, so this is asked of the folds themselves (AUDIT 77: the first walk counted
+    // what closed folds held).
+    const folded = (el) => {
+      for (let d = el.closest("details:not([open])"); d; d = d.parentElement?.closest("details:not([open])")) {
+        const summary = d.querySelector(":scope > summary");
+        if (!summary || !summary.contains(el)) return true;
+      }
+      return false;
+    };
     const shown = (el) => {
       const box = el.getBoundingClientRect();
       const style = getComputedStyle(el);
-      return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && !el.closest("[inert]");
+      return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && !el.closest("[inert]") && !folded(el);
     };
     const controls = [...document.querySelectorAll("a[href], button, input:not([type=hidden]), select, textarea, summary")].filter(shown);
     const fields = new Set(
@@ -88,7 +99,8 @@ async function measure(walk, name) {
       // Today and the calendar scroll inside their panel, not the page.
       screens: Math.round((Math.max(document.documentElement.scrollHeight, ...[...document.querySelectorAll(".panel")].filter(shown).map((p) => p.scrollHeight + p.getBoundingClientRect().top)) / innerHeight) * 10) / 10,
       sections: [...document.querySelectorAll("main h2, main h3, main summary")].filter(shown).length,
-      spark: [...document.querySelectorAll(".spark-fab, .mascot-tip")].some(shown),
+      spark: [...document.querySelectorAll(".spark-top, .spark-fab, .mascot-tip")].some(shown),
+      // Spark's floating bubble, before D97 put it in the top bar: none since.
       floating: [...document.querySelectorAll(".spark-fab")].some(shown),
     };
   });
@@ -102,38 +114,53 @@ async function measure(walk, name) {
 const rows = [];
 
 // ---------------------------------------------------------------- a new student
+// An account first (D94): the address, the password, the button; then the timetable,
+// and setting up as it now goes (D98): the exams, the week with its plan, Today.
 let taps = 0;
 await page.goto(`${WEB}/?lang=en`);
 await measure("new", "home");
+let account = 0;
+if (await page.locator("form.signup").count()) {
+  await page.fill("form.signup input[name=email]", `walk${Date.now()}@example.org`);
+  await page.fill("form.signup input[name=password]", "a long walk through the app");
+  account = 3; // the two fields, then the button
+  await Promise.all([page.waitForURL(/made=/, { timeout: 60_000 }), page.click("form.signup button[type=submit]")]);
+}
+taps += account;
 await page.setInputFiles("#file", ICS);
 taps += 2; // the file chooser, then the button
 await Promise.all([page.waitForURL(/\/p\//, { timeout: 120_000 }), page.click("form.way:not(.way-draw) button[type=submit]")]);
 const plan = new URL(page.url()).pathname.split("/")[2];
-await measure("new", "1-exams-and-deadlines");
+await measure("new", "1-your-exams");
 taps += 1;
-await Promise.all([page.waitForURL(/routine/, { timeout: 120_000 }), page.click("main .btn-primary:visible")]);
-// The questions about the week, one card at a time with the script (D70).
-for (let card = 1; card <= 12; card++) {
-  await measure("new", `2-your-week-card-${card}`);
-  const next = page.locator("main button.btn-primary:visible").first();
-  const label = (await next.innerText()).trim();
-  taps += 1;
-  if (/see your week/i.test(label)) {
-    await Promise.all([page.waitForURL(/\/week/, { timeout: 120_000 }), next.click()]);
-    break;
+await Promise.all([page.waitForURL(/\/(week|routine)\?new=1/, { timeout: 120_000 }), page.click("main .btn-primary:visible")]);
+// Before D98 the questions about the week came next, one card at a time (D70), and
+// the calendar's links after the week: walked as they come, so that the same script
+// measures the app before and after.
+if (/routine/.test(page.url())) {
+  for (let card = 1; card <= 12; card++) {
+    await measure("new", `2-your-week-card-${card}`);
+    const next = page.locator("main button.btn-primary:visible").first();
+    const label = (await next.innerText()).trim();
+    taps += 1;
+    if (/see your week/i.test(label)) {
+      await Promise.all([page.waitForURL(/\/week/, { timeout: 120_000 }), next.click()]);
+      break;
+    }
+    await next.click();
   }
-  await next.click();
 }
-await measure("new", "3-your-plan");
-// The last step, putting the plan in a calendar, then on to Today.
+await measure("new", "2-your-week");
 taps += 1;
-await Promise.all([page.waitForURL(/\/feed/, { timeout: 120_000 }), page.click("[data-tour=setup-next]")]);
-await measure("new", "4-your-calendar");
-taps += 1;
-await Promise.all([page.waitForURL(new RegExp(`/p/${plan}$`), { timeout: 120_000 }), page.click(`main a.btn-primary[href="/p/${plan}"]`)]);
-await measure("new", "5-today");
+await Promise.all([page.waitForURL(new RegExp(`/p/${plan}(/feed\\?new=1)?$`), { timeout: 120_000 }), page.click("[data-tour=setup-next]")]);
+if (/\/feed/.test(page.url())) {
+  await measure("new", "2-your-calendar");
+  taps += 1;
+  await Promise.all([page.waitForURL(new RegExp(`/p/${plan}$`), { timeout: 120_000 }), page.click(`main a.btn-primary[href="/p/${plan}"]`)]);
+}
+await measure("new", "3-today");
 const toToday = taps;
-for (const [name, path] of [["calendar", "/week"], ["courses", "/courses"], ["focus", "/focus"], ["community", "/community"], ["progress", "/progress"], ["settings", "/settings"]]) {
+for (const [name, path] of [["calendar", "/week"], ["courses", "/courses"], ["community", "/community"], ["you", "/you"], ["focus", "/focus"], ["progress", "/progress"], ["settings", "/settings"]]) {
   await page.goto(`${WEB}/p/${plan}${path}`);
   await measure("new", name);
 }
@@ -143,7 +170,7 @@ const PAGES = {
   today: "", calendar: "/week", tasks: "/tasks", courses: "/courses", course: "/courses/0",
   focus: "/focus", community: "/community", notes: "/notes", groups: "/groups",
   progress: "/progress", trends: "/trends", cards: "/cards", tips: "/tips", coach: "/coach",
-  weekly: "/weekly", settings: "/settings", science: "/science", import: "/courses/import",
+  weekly: "/weekly", settings: "/settings", science: "/science", import: "/courses/import", you: "/you",
 };
 for (const [name, path] of Object.entries(PAGES)) {
   await page.goto(`${DEMO}/p/${TOKEN}${path}`);
@@ -151,6 +178,6 @@ for (const [name, path] of Object.entries(PAGES)) {
 }
 
 console.table(rows.map(({ walk, page, words, controls, first_screen, fields, screens, sections, tour, spark, floating }) => ({ walk, page, words, controls, first_screen, fields, screens, sections, tour, spark, floating })));
-console.log(`taps from the home page to Today, accepting every default: ${toToday}`);
+console.log(`taps from the home page to Today, accepting every default: ${toToday} (${account} of them for the account)`);
 console.log(`pages with a script error: ${errors.length}`);
 await browser.close();

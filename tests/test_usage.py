@@ -92,7 +92,7 @@ def test_each_address_is_one_named_part_or_nothing(method, rest, part):
 
 
 def test_every_part_has_words_and_every_rule_names_a_part():
-    assert len(usage.LABELS) == len(usage.PARTS) == 38  # as DECISIONS.md D96 says
+    assert len(usage.LABELS) == len(usage.PARTS) == 39  # as DECISIONS.md D96 says
     assert {part for _, _, part in usage._RULES} <= set(usage.LABELS)
 
 

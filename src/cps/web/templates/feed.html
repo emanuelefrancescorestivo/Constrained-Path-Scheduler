@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Connect your calendar") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
-{% if new %}{% set step = 4 %}{% include "_steps.html" %}{% endif %}
+{# Not a step of setting up any more (D98): Today offers it, one question a day. #}
 <h1>{% if new %}{{ _("Put your plan in your calendar") }}{% else %}{{ _("Connect your calendar") }}{% endif %}</h1>
 <p class="muted">{{ _("Subscribe once: every study session appears next to your timetable, updates by itself, and has a link to say how it went.") }}</p>
 {% if not planned %}<p class="notice">{{ _("There is nothing planned yet: add an exam or a deadline in Settings first.") }}</p>{% endif %}

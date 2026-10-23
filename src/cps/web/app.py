@@ -360,7 +360,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             except Exception:
                 LOG.exception("could not work out the page's sky")
         if token and "tour" not in context:
-            # Spark's tour of this section, the first time it is opened (D77).
+            # Spark's tour of Today, once after setting up (D77, D97).
             subscription = subscription or service.load_subscription(store, token)
             context["tour"] = service.tour_for(
                 subscription,
@@ -368,6 +368,15 @@ def create_app(config: Config | None = None) -> FastAPI:
                 setup=bool(context.get("setup")),
                 new=bool(context.get("new")),
             )
+        if token and "hint" not in context and not (context.get("setup") or context.get("new")):
+            # Every other section's line, the first time it is opened (D97): shown
+            # once, so it is remembered as the page goes out.
+            subscription = subscription or service.load_subscription(store, token)
+            context["hint"] = service.section_hint(subscription, context.get("tab"))
+            if context["hint"]:
+                seen = str(context.get("tab"))
+                with contextlib.suppress(service.Conflict):
+                    service.update_subscription(store, token, lambda current: service.see_tour(current, seen))
         return templates.TemplateResponse(request, name, context, status_code=status)
 
     def base(request: Request) -> str:
@@ -984,7 +993,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     def panel_context(subscription: service.Subscription) -> dict[str, Any]:
         now = config.clock()
         logged = service.logged_sessions(store, subscription)
-        return {
+        context: dict[str, Any] = {
             "view": service.today_view(subscription, now),
             "progress": service.progress_view(subscription, now, logged=logged),
             "review": service.review_with_ai(
@@ -1007,6 +1016,19 @@ def create_app(config: Config | None = None) -> FastAPI:
             # Asked once, when there is a plan to use (D96).
             "usage_ask": bool(subscription.plan) and service.usage_answer(store, subscription.token) is None,
         }
+        # One message at a time on Today (D97); a question that makes the plan fit, one
+        # a day from the day after it was made (D98).
+        tip = context["tip"]
+        context["fit"] = service.fit_question(subscription, now)
+        context["message"] = service.today_message(
+            exam=context["exam_questions"],
+            semester=context["semester_over"],
+            usage=context["usage_ask"],
+            fit=context["fit"],
+            insight=context["insight"],
+            tip=tip is not None and bool(tip.get("reason")),
+        )
+        return context
 
     @app.get("/p/{token}", response_class=HTMLResponse)
     def today(request: Request, token: str, reported: str | None = None, saved: str = "") -> HTMLResponse:
@@ -1114,7 +1136,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_visit(store, token, config.clock())
         service.log_tips(store, token)
         view = service.tips_view(topic[:20] or None)
-        return page(request, "tips.html", token=token, view=view, tab="focus")
+        return page(request, "tips.html", token=token, view=view, tab="tips")
 
     def coach_page(
         request: Request, token: str, subscription: service.Subscription, **context: Any
@@ -1126,7 +1148,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             limit=service.COACH_MAX,
             by_ai=service.ai_available() and service.ai_on(subscription),
             ai_available=service.ai_available(),
-            tab="focus",
+            tab="tips",
             **context,
         )
 
@@ -1163,7 +1185,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         service.log_visit(store, token, config.clock())
         view = service.weekly_view(subscription, config.clock())
-        return page(request, "weekly.html", token=token, view=view, tab="focus")
+        return page(request, "weekly.html", token=token, view=view, tab="tips")
 
     @app.get("/p/{token}/weekly/{key}", response_class=HTMLResponse)
     def weekly_note(request: Request, token: str, key: str) -> HTMLResponse:
@@ -1179,7 +1201,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             with contextlib.suppress(service.ServiceError):
                 service.update_subscription(store, token, lambda now: service.mark_note_read(now, key))
         service.log_event(store, token, "weekly", key)
-        return page(request, "weekly_note.html", token=token, note=note, tab="focus")
+        return page(request, "weekly_note.html", token=token, note=note, tab="tips")
 
     async def focus_change(
         request: Request,
@@ -1982,7 +2004,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         request: Request, subscription: service.Subscription, course: str, status: int = 200, **extra: Any
     ) -> HTMLResponse:
         view = service.cards_view(store, subscription, config.clock(), course=course[:80])
-        return page(request, "cards.html", status, token=subscription.token, view=view, tab="focus", **extra)
+        return page(request, "cards.html", status, token=subscription.token, view=view, tab="cards", **extra)
 
     # -- a course's topics, from its syllabus, shared with classmates (D81) ----------
 
@@ -2258,7 +2280,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         error = kwargs.pop("error", None)
         view = service.card_maker_view(store, subscription, now=config.clock(), **kwargs)
         return page(
-            request, "cards_make.html", status, token=subscription.token, view=view, error=error, tab="focus"
+            request, "cards_make.html", status, token=subscription.token, view=view, error=error, tab="cards"
         )
 
     @app.get("/p/{token}/cards/make", response_class=HTMLResponse)
@@ -2322,7 +2344,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         view = service.card_review_view(
             store, subscription, config.clock(), course=course[:80], week=week[:10]
         )
-        return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="focus")
+        return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="cards")
 
     @app.post("/p/{token}/cards/{card_id}/answer")
     async def cards_answer(
@@ -2362,7 +2384,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 message=service.translate("this card is not, or no longer, there"),
                 token=token,
             )
-        return page(request, "card.html", token=token, card=card, draft=card, tab="focus")
+        return page(request, "card.html", token=token, card=card, draft=card, tab="cards")
 
     @app.post("/p/{token}/cards/{card_id}", response_class=HTMLResponse)
     async def card_save(request: Request, token: str, card_id: str) -> Response:
@@ -2378,7 +2400,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             if card is None:
                 return refused(request, token, error)
             return page(
-                request, "card.html", 400, token=token, card=card, draft=fields, error=str(error), tab="focus"
+                request, "card.html", 400, token=token, card=card, draft=fields, error=str(error), tab="cards"
             )
         return RedirectResponse(
             f"/p/{token}/cards?course={quote(fields.get('course', ''))}&saved=card_saved", 303
@@ -2872,7 +2894,9 @@ def create_app(config: Config | None = None) -> FastAPI:
                 reminders=service.reminders_view(store, subscription),
             )
         service.log_event(store, token, "settings")
-        return RedirectResponse(f"/p/{token}/routine?new=1" if new else f"/p/{token}?saved=1", 303)
+        # Setting up goes on to the week with its plan (D98): the questions about the
+        # week come later, one a day on Today.
+        return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
 
     # -- the questions about the week (D42) --------------------------------------
 
@@ -3472,6 +3496,40 @@ def create_app(config: Config | None = None) -> FastAPI:
         if wants_json:
             return JSONResponse(read)
         return page(request, "task_new.html", token=token, read=read, words=words, tab="tasks")
+
+    @app.get("/p/{token}/you", response_class=HTMLResponse)
+    def you(request: Request, token: str) -> HTMLResponse:
+        """The fifth section (D97): progress, flashcards, tasks, focus, tips and
+        settings, in one short list."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        return page(
+            request,
+            "you.html",
+            token=token,
+            tab="you",
+            cards_due=service.cards_due(store, subscription, config.clock()),
+        )
+
+    @app.post("/p/{token}/fit")
+    async def fit_answer(request: Request, token: str) -> Response:
+        """A question that makes the plan fit (D98): taken, it leads to its page; put
+        off, back to Today. The next one comes tomorrow."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        key, go = str(form.get("key") or ""), form.get("go") == "1"
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.answer_fit(current, key, go, config.clock())
+            )
+            target = service.fit_target(key)
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "fit", f"{key} {'go' if go else 'later'}")
+        return RedirectResponse(f"/p/{token}{target}" if go else f"/p/{token}", 303)
 
     @app.post("/p/{token}/usage")
     async def usage_answer(request: Request, token: str) -> Response:

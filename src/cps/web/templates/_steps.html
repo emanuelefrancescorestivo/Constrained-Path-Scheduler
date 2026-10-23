@@ -1,6 +1,6 @@
-{# The onboarding progress: `step` is 1 to 4. #}
-<ol class="steps" aria-label="{{ _('Setting up, step {step} of 4', step=step) }}">
-  {% for name in (_("Timetable"), _("Exams and deadlines"), _("Your week"), _("Your calendar")) %}
+{# The onboarding progress (D98): `step` is 1 to 3; Today comes after. #}
+<ol class="steps" aria-label="{{ _('Setting up, step {step} of 3', step=step) }}">
+  {% for name in (_("Timetable"), _("Your exams"), _("Your week")) %}
   <li class="{% if loop.index < step %}done{% elif loop.index == step %}current{% endif %}">{{ name }}</li>
   {% endfor %}
 </ol>

@@ -89,7 +89,7 @@ def test_every_research_number_on_the_page_is_its_source_s():
     )
 
 
-def test_the_page_opens_for_anyone_and_from_the_logo_inside_a_plan(tmp_path):
+def test_the_page_opens_for_anyone_and_from_you_inside_a_plan(tmp_path):
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
         public = web.get("/science")
@@ -104,8 +104,9 @@ def test_the_page_opens_for_anyone_and_from_the_logo_inside_a_plan(tmp_path):
         files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        today = web.get(f"/p/{token}").text
-        assert 'popovertarget="brand-menu"' in today and f'href="/p/{token}/science"' in today
+        # Inside a plan it is one of the places under You (D97), and in the pages' footer.
+        assert f'href="/p/{token}/science"' in web.get(f"/p/{token}/you").text
+        assert f'href="/p/{token}/science"' in web.get(f"/p/{token}/courses").text
         inside = web.get(f"/p/{token}/science")
         assert inside.status_code == 200 and f'href="/p/{token}"' in inside.text
         assert web.get("/p/not-a-plan/science").status_code == 404

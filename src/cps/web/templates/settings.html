@@ -9,8 +9,8 @@
 <p class="muted">{{ _("When is each exam? Add your deadlines, and say how much you want to study. Next, you will see your week with the plan in it.") }}</p>
 {% elif new %}
 {% set step = 2 %}{% include "_steps.html" %}
-<h1>{{ _("Check what was found") }}</h1>
-<p class="muted">{{ _("Your timetable is read. Check the exams, add your deadlines, and say how much you want to study. Next, you will see your week.") }}</p>
+<h1>{{ _("Your exams") }}</h1>
+<p class="muted">{{ _("Your timetable is read. Check each exam's date; everything else starts from good defaults. Next, your week with the plan in it.") }}</p>
 {% else %}
 <h1>{{ _("Settings") }}</h1>
 {% endif %}
@@ -44,6 +44,7 @@
       {% if s.found and s.found_when %}<p class="hint">{{ _("Leave empty to follow your timetable ({when}).", when=s.found_when | nice_date) }}</p>{% endif %}
       {% endif %}
     </div>
+    {% if new %}<details class="adjust"><summary>{{ _("Adjust") }}</summary>{% endif %}
     <div class="exam-side">
       <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
         {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
@@ -52,11 +53,12 @@
         {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
       </select>
       <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
-        <option value="">{{ _("Practice: {hours} h", hours=s.practice_default | hours) }}</option>
-        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
+        <option value="">{{ _("Exam practice: {hours} h", hours=s.practice_default | hours) }}</option>
+        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Exam practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
       </select>
       <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> {{ _("Skip") }}</label>
     </div>
+    {% if new %}</details>{% endif %}
   </div>
   {% endfor %}
   {% set n = values.subjects | length %}
@@ -111,6 +113,12 @@
   <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
 </fieldset>
 
+{% if new %}
+{# While setting up (D98), these keep their defaults unless opened: Today asks about
+   deadlines, the trip and busy times later, one question a day. #}
+<details class="setup-more">
+<summary><b>{{ _("Deadlines, how much you study, when you are not free") }}</b><small>{{ _("Good defaults are set. Change them now, or later in Settings.") }}</small></summary>
+{% endif %}
 <fieldset id="deadlines">
   <legend>{{ _("Deadlines") }}</legend>
   <p class="hint">{{ _("Homework, reports, projects, readings: when each is due and roughly how many hours it takes.") }}</p>
@@ -191,7 +199,7 @@
 </fieldset>
 
 <fieldset id="busy">
-  <legend>{% if values.drawn %}{{ _("Your classes and busy times") }}{% else %}{{ _("Busy times not in your timetable") }}{% endif %}</legend>
+  <legend>{% if values.drawn %}{{ _("Your classes, and when you are not free") }}{% else %}{{ _("When you are not free, outside your timetable") }}{% endif %}</legend>
   <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% elif new %}{{ _("Training, a job, a commute: nothing is planned then. The next step asks about them;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
   {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
   <details>
@@ -226,6 +234,8 @@
   {% endfor %}
   </details>
 </fieldset>
+
+{% if new %}</details>{% endif %}
 
 <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new %}{{ _("Next: your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
 </form>
@@ -359,7 +369,7 @@
   <span class="pills-label">{{ _("Spark's tour") }}</span>
   <button type="submit" class="btn btn-sm">{{ _("Show it again") }}</button>
 </form>
-<p class="hint">{{ _("Spark shows you around Today, then each section the next time you open it.") }}</p>
+<p class="hint">{{ _("Spark shows you around Today again, and each section says what it is for the next time you open it.") }}</p>
 <h2 class="section" id="ai">{{ _("AI") }}</h2>
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">

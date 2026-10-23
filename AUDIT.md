@@ -949,3 +949,15 @@ or a feed's address passed on, was enough. Status: fixed for plans of an account
 (D94), which open only for their account whatever address is held; a plan without one
 (the demo's students, any made before D94) is as before, its feed's links still opening
 it.
+
+**77. The walk that measured the app counted what closed folds held.** Found on
+2026-10-23 while measuring the lighter setup (D98): the busiest setup screen still came
+out at 102 things to tap after its extras were folded away, against 25 to be seen on
+screen. `benchmarks/screen_load.mjs` took an element as on screen when it had a box, and
+Chromium gives a box to what a closed `<details>` holds. The review of 2026-10-22 said "a
+closed fold's content is not counted" and was wrong: its 104 things to tap and 75 fields
+on "Check what was found", and 138 on Settings, included the folded "Add an exam", "Type
+them instead" and the rest. Status: fixed; an element inside a closed fold now counts
+only if it is the fold's own summary. Measured again with the fixed walk, the same app
+gives 80 things to tap and 51 fields on that screen, and 117 on Settings; the review's
+conclusions stand, its counts of those screens were too high.
