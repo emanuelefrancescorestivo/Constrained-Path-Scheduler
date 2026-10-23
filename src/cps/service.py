@@ -75,6 +75,7 @@ from . import syllabus as _syllabus
 from . import tips as _tips
 from . import trends as _trends
 from . import universities as _universities
+from . import usage as _usage
 from . import weekly as _weekly
 from .assistant import Exam, Pin, Preferences, Quick, Task, Topic, blocks_for_hours
 from .assistant import schedule as assist
@@ -3111,10 +3112,12 @@ def events(store: str | os.PathLike, token: str) -> list[dict]:
 
 
 def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
-    """Delete every subscription past its expiry (`subscription_expiry`), and the
-    sessions, links and plan-less accounts past theirs (D94)."""
+    """Delete every subscription past its expiry (`subscription_expiry`), the
+    sessions, links and plan-less accounts past theirs (D94), and what was counted of
+    the app's use more than six months ago (D96)."""
     gone = _store(store).sweep(now, expiry=_expiry_of)
     _accounts.sweep_accounts(_store(store), now or datetime.now(UTC))
+    _usage.sweep(_store(store), now or datetime.now(UTC))  # counts past six months (D96)
     return gone
 
 
@@ -3285,6 +3288,177 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
     """ "Not now": the suggestion to keep the plan safe waits `ACCOUNT_LATER`."""
     stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
     return replace(subscription, options={**subscription.options, "account_later": stamp})
+
+
+# --------------------------------------------------------------------------- #
+# Today's one message (DECISIONS.md D97)
+# --------------------------------------------------------------------------- #
+
+# What Today may say besides the plan, most pressing first. One shows at a time; the
+# rest wait for the next visit or stay under "More". An exam just past asks first (the
+# answer is wanted while it is fresh, D56), then the end of the semester, then the
+# question about counting what is used (D96), then a question that makes the plan fit
+# (D98), then an insight (D80), then a tip the day calls for (D63).
+MESSAGES = ("exam", "semester", "usage", "fit", "insight", "tip")
+
+
+def today_message(**candidates: object) -> str | None:
+    """The one message Today shows: the first of `MESSAGES` that has something to say."""
+    unknown = set(candidates) - set(MESSAGES)
+    if unknown:
+        raise ValueError(f"not a message of Today: {sorted(unknown)}")
+    return next((name for name in MESSAGES if candidates.get(name)), None)
+
+
+# --------------------------------------------------------------------------- #
+# Making the plan fit, one question a day (DECISIONS.md D98)
+# --------------------------------------------------------------------------- #
+
+# What setting up used to ask before the first plan (D42, D45, D69, D33), asked once
+# the plan is there: from the day after it was made, one a day on Today, each with
+# "Not now". Its key, its title, what it says, where it leads (under the plan's
+# address) and its button.
+FIT_QUESTIONS = (
+    (
+        "week",
+        "Make the plan fit your week",
+        "Sport, a job, the trip to campus, when you study best: two minutes, and the plan works around them.",
+        "/routine",
+        "Answer",
+    ),
+    (
+        "deadlines",
+        "Bring in your deadlines",
+        "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan "
+        "makes time for each.",
+        "/settings#deadlines",
+        "Add the link",
+    ),
+    (
+        "calendar",
+        "Your sessions in your phone's calendar",
+        "Subscribe once, and every session shows where you already look, kept up to date.",
+        "/feed",
+        "Set it up",
+    ),
+)
+_FIT = {key: (title, says, path, button) for key, title, says, path, button in FIT_QUESTIONS}
+
+
+def fit_question(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's question that makes the plan fit (D98), or None: not on the day the
+    plan was made, not again on a day one was answered or put off, never one already
+    in place (a learning platform's link given) or seen."""
+    if subscription.plan is None:
+        return None
+    zone = _zone(subscription.options["tz"])
+    today = (now or datetime.now(UTC)).astimezone(zone).date()
+    made = datetime.fromisoformat(subscription.created).astimezone(zone).date()
+    state = subscription.options.get("fit") or {}
+    if today <= made or state.get("on") == today.isoformat():
+        return None
+    settled = set(state.get("done") or ()) | set(state.get("later") or ())
+    if subscription.options.get("deadlines_url"):
+        settled.add("deadlines")
+    for key, title, says, path, button in FIT_QUESTIONS:
+        if key not in settled:
+            return {"key": key, "title": _(title), "says": _(says), "href": path, "button": _(button)}
+    return None
+
+
+def answer_fit(subscription: Subscription, key: str, go: bool, now: datetime | None = None) -> Subscription:
+    """The student took the question (`go`) or put it off: either way it is settled,
+    and the next one waits for tomorrow."""
+    if key not in _FIT:
+        raise InvalidInput(_("There is no such question."))
+    zone = _zone(subscription.options["tz"])
+    state = dict(subscription.options.get("fit") or {})
+    field = "done" if go else "later"
+    state[field] = [*dict.fromkeys([*(state.get(field) or []), key])]
+    state["on"] = (now or datetime.now(UTC)).astimezone(zone).date().isoformat()
+    return replace(subscription, options={**subscription.options, "fit": state})
+
+
+def fit_target(key: str) -> str:
+    """Where a question leads, under the plan's address."""
+    if key not in _FIT:
+        raise InvalidInput(_("There is no such question."))
+    return _FIT[key][2]
+
+
+# --------------------------------------------------------------------------- #
+# What a student uses, counted with their yes (DECISIONS.md D96)
+# --------------------------------------------------------------------------- #
+
+USAGE_KEPT_DAYS = _usage.KEPT.days
+
+
+def usage_part(method: str, rest: str) -> str | None:
+    """The part of the app a request to a plan's page is (`rest` is the address
+    after `/p/<token>`), or None when it is not one the counts name."""
+    return _usage.part_of(method, rest)
+
+
+def usage_answer(store: str | os.PathLike, token: str) -> bool | None:
+    """Whether the student said yes to counting what they use; None if not asked."""
+    found = _usage.answer_of(_store(store), token)
+    return found.yes if found else None
+
+
+def answer_usage(store: str | os.PathLike, token: str, yes: bool, now: datetime | None = None) -> None:
+    """Keep the student's answer. A no, now or later, deletes what was counted."""
+    _usage.answer(_store(store), token, yes, now or datetime.now(UTC))
+    log_event(store, token, "usage", "yes" if yes else "no")
+
+
+def count_use(store: str | os.PathLike, token: str, part: str, now: datetime | None = None) -> bool:
+    """One more use of `part` today, only if the student said yes."""
+    return _usage.count(_store(store), token, part, now or datetime.now(UTC))
+
+
+def usage_view(store: str | os.PathLike, token: str) -> dict:
+    """A student's own counts, as they are kept: the parts used (on how many days,
+    how many times, the last day) and those not opened since the yes."""
+    found = _usage.answer_of(_store(store), token)
+    used, unused = _usage.own(_store(store), token)
+    return {
+        "answer": found.yes if found else None,
+        "since": format_date(datetime.fromisoformat(found.at).date()) if found and found.yes else None,
+        "used": [
+            {
+                "label": _(u.label),
+                "days": u.days,
+                "times": u.times,
+                "last": format_date(date.fromisoformat(u.last)) if u.last else None,
+            }
+            for u in used
+        ],
+        "unused": [_(u.label) for u in unused],
+        "kept_days": USAGE_KEPT_DAYS,
+    }
+
+
+def usage_report(store: str | os.PathLike, now: datetime | None = None) -> dict:
+    """For the owner: how many said yes and no, and for each part how many of those
+    who said yes used it, on how many days and how often; the parts nobody used.
+    Totals over students, never one student's row."""
+    found = _usage.report(_store(store), now or datetime.now(UTC))
+    return {
+        "yes": found["yes"],
+        "no": found["no"],
+        "parts": [
+            {
+                "part": t.part,
+                "label": t.label,
+                "students": t.students,
+                "days": t.days,
+                "times": t.times,
+                "last_7": t.last_7,
+            }
+            for t in found["parts"]
+        ],
+        "unused": found["unused"],
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -3748,7 +3922,7 @@ DEFAULT_FAMILIARITY = 3
 REPORT_WINDOW = timedelta(days=7)
 
 KIND_LABELS = {
-    "first review": "First self-test",
+    "first review": "First review",  # D97: the words of its own detail
     "review": "Self-test",
     "task": "Deadline work",
     "practice": "Exam practice",
@@ -5076,17 +5250,36 @@ def motion_of(subscription: Subscription | None) -> str:
 
 # -- Spark's tour (D77) -------------------------------------------------------------------
 
-# One short tour a section, shown the first time the student opens it: "week" on the
-# calendar while setting up, "today" on the plan once set up, then each tab's own.
-TOURS = ("week", "today", "tasks", "courses", "focus", "community", "progress")
-_TOUR_OF_TAB = {
-    "today": "today",
-    "calendar": "today",
-    "tasks": "tasks",
-    "courses": "courses",
-    "focus": "focus",
-    "community": "community",
-    "progress": "progress",
+# One tour, on Today, three steps (D97): the next step, how it went, where the rest is.
+# Every other section says what it is for in one line under its title the first time
+# it is opened (`section_hint`). Both are remembered in "tours_seen"; Settings shows
+# them again. "week" and the sections' old tours (D77) keep their names, so a plan
+# that saw them is read as before.
+TOURS = (
+    "week",
+    "today",
+    "tasks",
+    "courses",
+    "focus",
+    "community",
+    "progress",
+    "calendar",
+    "you",
+    "cards",
+    "tips",
+)
+SECTION_HINTS = {
+    "calendar": "Drag a study session to move it. Drag across empty time, or tap it on a phone, to keep "
+    "that time free: the plan works around it.",
+    "courses": "Each course week by week: what was taught, what you reviewed, what comes next.",
+    "community": "Choose a handle to join your classmates. Each post says who sees it; your plan "
+    "stays private.",
+    "you": "Your progress, flashcards, tasks, tips and settings, all in one place.",
+    "focus": "Choose how long, then start. Studied without the timer? Write it in the diary below.",
+    "progress": "Your week, your streak and how ready each exam is, then the detail.",
+    "tasks": "Everything that is due, soonest first. Tick a task when it is done.",
+    "cards": "Your own cards, each one back shortly before you would forget it.",
+    "tips": "What helps you learn, how sure the research is, and where it comes from.",
 }
 
 
@@ -5098,14 +5291,17 @@ def tours_seen(subscription: Subscription) -> list[str]:
 def tour_for(
     subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
 ) -> str | None:
-    """The tour a page shows, if any: its section's, the first time (D77). Drawing a
-    week by hand (`setup`) has its own instructions on the page and no tour; the
-    other pages of setting up have none either, except the calendar ("week")."""
-    if subscription is None or setup:
+    """The tour a page shows: Today's, once, after setting up (D77, D97)."""
+    if subscription is None or setup or new or tab != "today":
         return None
-    calendar = tab in ("today", "calendar")
-    name = ("week" if calendar else None) if new else _TOUR_OF_TAB.get(tab or "")
-    return name if name and name not in tours_seen(subscription) else None
+    return None if "today" in tours_seen(subscription) else "today"
+
+
+def section_hint(subscription: Subscription | None, tab: str | None) -> str | None:
+    """The line a section shows under its title the first time it is opened (D97)."""
+    if subscription is None or tab not in SECTION_HINTS or tab in tours_seen(subscription):
+        return None
+    return _(SECTION_HINTS[tab])
 
 
 def see_tour(subscription: Subscription, name: str) -> Subscription:

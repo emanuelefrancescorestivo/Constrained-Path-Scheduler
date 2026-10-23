@@ -128,11 +128,9 @@ def test_today_puts_the_next_step_first_and_folds_the_rest(web, clock):
     assert page.index('class="section next-step"') < page.index('id="reports"') < page.index("data-more")
     assert page.index("data-more") < page.index("<h2>Tasks</h2>")
     assert '<details class="why-now"><summary>Why now</summary>' in page
-    # Two sessions to report in sight, the rest of the five folded under "3 more".
-    sight, folded = page[page.index('id="reports"') :].split('<details class="more-asked">', 1)
-    assert sight.count('class="mini-outcomes"') == 2
-    assert folded.split("</details>", 1)[0].count('class="mini-outcomes"') == 3
-    assert "<summary>3 more</summary>" in folded
+    # One session to report, the latest (D97); the ones before it count as done.
+    asked = page[page.index('id="reports"') : page.index("data-more")]
+    assert asked.count('class="mini-outcomes"') == 1 and "more-asked" not in page
     # The summary says what is folded; the session's own page keeps its reasons open.
     assert re.search(r'<span class="more-what">[^<]*Tasks[^<]*</span>', page)
     session = re.search(r'action="(/s/[\w-]+/\w+)"', page).group(1)

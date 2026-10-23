@@ -156,7 +156,11 @@ def test_starting_from_a_file_finds_the_exams(web):
     assert subscription.options["start"] == "2026-09-29"
     assert subscription.options["preferences"] == service.DEFAULT_PREFERENCES
     page = web.get(f"/p/{token}/settings?new=1").text
-    assert "Check what was found" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
+    assert "<h1>Your exams</h1>" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
+    # While setting up, the rest has its defaults under folds (D98), and one way forward.
+    assert page.count('<details class="adjust">') == len(subscription.subjects)
+    assert '<details class="setup-more">' in page
+    assert 'class="tabbar"' not in page and "spark-top" not in page
 
 
 def test_starting_from_a_link_reads_it(web, timetable_server, monkeypatch):
@@ -217,14 +221,12 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
         },
         follow_redirects=False,
     )
-    # Setup goes on to the questions about the week (D42), then to the week, to
-    # draw busy times, and from there to the links.
-    assert answer.headers["location"] == f"/p/{token}/routine?new=1"
-    questions = web.get(answer.headers["location"]).text
-    assert "How long is your trip to university?" in questions
-    assert f'href="/p/{token}/week?new=1"' in questions  # the questions can be skipped
-    week = web.get(f"/p/{token}/week?new=1").text
-    assert "Your week." in week and f'href="/p/{token}/feed?new=1"' in week
+    # Setup goes on to the week with its plan, and from there to Today (D98): the
+    # questions about the week (D42) and the calendar's links come later, one a day.
+    assert answer.headers["location"] == f"/p/{token}/week?new=1"
+    week = web.get(answer.headers["location"]).text
+    assert "Your week." in week and f'href="/p/{token}" data-tour="setup-next">Looks good</a>' in week
+    assert "How long is your trip to university?" in web.get(f"/p/{token}/routine").text
     feed_page = web.get(f"/p/{token}/feed?new=1").text
     assert f"http://testserver/feed/{token}.ics" in feed_page
     assert f"webcal://testserver/feed/{token}.ics" in feed_page
@@ -332,16 +334,17 @@ def test_a_session_to_come_cannot_be_reported(web, planned):
 
 def test_today_asks_about_the_past_week(web, planned, clock):
     clock.now = MORNING + timedelta(days=3)
-    page = web.get(f"/p/{planned}").text
-    assert "How did these go?" in page
-    # One report form for each session of the past three days, up to the five asked
-    # about: "Done" for work, "How much could you recall?" for a self-test.
+    page = unescape(web.get(f"/p/{planned}").text)
+    assert "How did it go?" in page
+    # One session at a time, the latest (D97): "Done" for work, "How much could you
+    # recall?" for a self-test; the ones before it count as done and say so.
     plan = service.PlanReport.from_dict(_subscription(web, planned).plan)
     behind = [s for s in plan.history + plan.sessions if datetime.fromisoformat(s.start) <= clock.now]
     assert len(behind) >= 3
-    assert page.count('class="mini-outcomes"') == min(len(behind), 5)
-    tests = [s for s in behind[-5:] if s.kind in ("review", "first review")]
-    assert page.count('name="outcome" value="most"') == len(tests)
+    asked = page[page.index('id="reports"') :].split("</div>\n</div>", 1)[0]
+    assert asked.count('class="mini-outcomes"') == 1
+    assert asked.count('name="outcome" value="most"') == (behind[-1].kind in ("review", "first review"))
+    assert "sessions before it count as done" in page
 
 
 def test_a_form_from_another_site_is_refused(web, planned, clock):

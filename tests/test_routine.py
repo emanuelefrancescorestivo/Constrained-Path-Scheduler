@@ -214,17 +214,18 @@ def _form(html: str) -> dict:
     return form
 
 
-def test_setting_up_asks_about_the_week_then_shows_it(web):
+def test_the_questions_about_the_week_come_after_setting_up_then_show_it(web):
+    # Not a step of setting up since D98: Today offers them the next day, and Spark's
+    # sheet any day; answered, the week shows what changed.
     token = _start(web)
-    page = unescape(web.get(f"/p/{token}/routine?new=1").text)
+    page = unescape(web.get(f"/p/{token}/routine").text)
     assert "How long is your trip to university?" in page
     assert "Do you play a sport or train?" in page and "Do you have a job?" in page
-    assert 'name="new" value="1"' in page and 'class="steps"' in page
+    assert 'name="new" value="1"' not in page and 'class="steps"' not in page
     assert {"commute", "x0_kind", "x0_days", "x0_start", "x5_end"} <= _names(page)
     answer = web.post(
         f"/p/{token}/routine",
         data={
-            "new": "1",
             "commute": "30",
             "x0_kind": "training",
             "x0_label": "Football",
@@ -238,7 +239,7 @@ def test_setting_up_asks_about_the_week_then_shows_it(web):
         },
         follow_redirects=False,
     )
-    assert answer.status_code == 303 and answer.headers["location"] == f"/p/{token}/week?new=1"
+    assert answer.status_code == 303 and answer.headers["location"] == f"/p/{token}/week?saved=1"
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["commute_minutes"] == 30
     assert [(r["label"], r["weekday"]) for r in stored.busy_rows] == [("Football", 1), ("Football", 3)]

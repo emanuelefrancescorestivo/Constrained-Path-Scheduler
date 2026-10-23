@@ -3349,3 +3349,142 @@ hour).
 and an open action; not on files from GoodNotes, Notability or OneNote. How long the
 server takes to rewrite a large PDF was not measured. No limit on a student's total storage: a
 student could fill the disk with many sets of notes over time.
+
+## D96. What a student uses, counted only with their yes
+
+*The owner, 2026-10-23, before the pilot: "can we implement a consentual tracking for
+user to see what they use and not use in the first months of trial to then improve and
+streamline the app?"* The event log of D15 says who came back and how often; it does
+not say which of the app's thirty-odd pages anyone opens, which is what simplifying it
+needs (the review of 2026-10-22 counted the pages; it could not say which are used).
+
+**Chosen.**
+
+- **Asked, never assumed.** Today asks once, in one card, "May the app count which of
+  its parts you use?", with "No thanks" beside "Yes, count"; Settings has the same
+  switch ("Help make the app simpler"), off until the student turns it on. No answer
+  counts nothing. The answer is kept per plan (`usage_consent`), with when it was given.
+- **What is counted: a part's name and a number a day.** Thirty-nine parts
+  (`usage.PARTS`: Today, Calendar, a course's page, Focus, timing a session, saying how
+  a session went, Flashcards, answering one, the coach, Settings…), each worked out
+  from the page's address and the request's method alone (`usage.part_of`), so never
+  from what the page held or what was typed; per plan, per day (UTC), how many times
+  (`usage`: token, day, part, n). Not the hour, not the order, not how long. Addresses
+  that are not a part a student chose to open are not counted: the panel fetched again
+  after a change, the sky, a photo, the manifest, the counts' own page.
+- **On the server, at the page.** The middleware counts after the page is answered,
+  only a page that opened (200) or a form that went through (2xx or a redirect), in one
+  statement that writes nothing unless the plan said yes. No script in the browser
+  (D6), nothing stored on the device, no third party.
+- **A no deletes.** Saying no, or turning it off later, deletes what was counted at
+  once. Each day's counts are kept 180 days ("the first months of the trial"), then the
+  sweep deletes them; they are in the plan's copy (D43) and go with the plan.
+- **The student sees theirs.** Settings links to "What was counted": the parts used, on
+  how many days, how many times, the last day, and the parts not opened since the yes.
+- **The owner sees totals.** `/admin/<key>/usage` and `cps metrics`: how many said yes
+  and no; for each part, how many of those who said yes used it, how many of them in
+  the last 7 days, on how many student-days and how many times; the parts nobody used.
+  Never a plan's address nor one student's row.
+
+**Rejected.** An analytics service or script (D6; and a cookie banner for it); counting
+by default with a way out (counting is not needed to make the plan, so it waits for a
+yes); keeping the hour or the sequence of pages (more than "used or not" needs, and
+closer to watching someone); asking during setup (one more question before the first
+plan, which the review set out to cut); keeping counts after a no (allowed for what was
+given before, but a student who says stop expects it gone).
+
+**Disclosed.** With 10 to 20 students these are counts to read and ask about, not rates
+to test, and those who say yes may use the app differently from those who say no. A
+part used through a script alone (opening a fold, Spark's sheet, the calendar's views)
+is not seen: only pages and forms reach the server. A day is a UTC day. That consent is
+the right basis, and that server-side counts of this kind need no cookie consent, is
+this project's reading of the GDPR and the ePrivacy rules, not legal advice.
+
+## D97. Five sections, one message, one tour
+
+*The owner, 2026-10-23, after the review of the app's weight (packages A and B before
+the pilot, C in its first week): Community keeps its tab; Spark goes into the top bar;
+what the teacher found heaviest was "too many sections".*
+
+**Chosen.**
+
+- **Five sections**: Today, Calendar, Courses, Community, You (the tab bar; on a wide
+  screen Plan, Courses, Community, You, the plan and the calendar being one page there).
+  **You** is one short page in three groups: Progress, Flashcards, Tasks, Focus and diary;
+  Study tips, The science behind it; Settings, Connect calendar, Send feedback. Every other
+  page belongs to one section, and the tab bar shows which: Progress, Flashcards, Tips,
+  Tasks, Settings under You; Focus under Today, where its door is (each session's Start,
+  and "Study something else" under the next step). The gear, the "Connect calendar" link
+  and the logo's menu (D89) leave the top bar: their places are under You.
+- **Spark in the top bar.** A small button at the end of the bar opens the same sheet
+  (D71); nothing floats over a page's buttons any more.
+- **One tour.** Today's, once after setting up, three steps: the next step; the week and
+  how a session went; where the rest is. The other sections' tours (D77, 2 to 7 steps
+  each) become one line under the page's title the first time it is opened
+  (`service.SECTION_HINTS`), remembered like a tour; Settings' "Show it again" brings
+  both back.
+- **One session to report.** Today asks about the latest session that ended; those
+  before it count as done as planned (D44) and say so, and can still be changed on the
+  calendar.
+- **One message.** Besides the plan, Today shows at most one card at a time, the first of:
+  an exam just past (D56, one exam at a time), the end of the semester, the question about
+  counting what is used (D96), a question that makes the plan fit (D98), an insight (D80),
+  a tip the day calls for (D63) (`service.today_message`). What is under "More" stays.
+- **Plain words, the first four.** "First self-test" is "First review", as its own
+  detail already said; "Practice: 4.5 h" is "Exam practice: 4.5 h"; "Busy times not in
+  your timetable" and "Your classes and busy times" say "when you are not free".
+
+**Not changed yet: the other words, for the owner to approve.** "week of 21 Sep" on a
+session (the lectures of that week: "lectures of 21 to 25 Sep" needs the week's last
+day of lectures); "Self-test" (kept: it names what the student does, D24); "Usual weight"
+(an exam's weight, D49); "recall reps" and "memory days" (Your memory, D82); "Keep your
+plan" (a plan without an account, D35); "Busy times" on the calendar's button.
+
+**Rejected.** Four tabs with Community under You (the owner kept its tab); hiding Focus
+(it is where a session is timed; it moved, it did not go); one tour per section made
+shorter (a line says what a section is for, and does not cover the page); Spark only on
+Today (one place on every page is easier to find again).
+
+**Measured** with `benchmarks/screen_load.mjs` (fixed by AUDIT 77), on this change and on
+the commit before it (3cf1831), in Chromium at 390 × 844: tour steps on a new student's
+first visits, 19 before (Your week 3, Today 6, Courses 1, Community 3, Focus 3, Progress
+3), 3 after; pages with Spark's button floating over the content, 22 of the 35 pages before,
+none after; Today at week 8, 30 things to tap before, 24 after. Not measured: whether
+students find their way better; that is what the pilot and D96's counts are for.
+
+## D98. Setting up in three screens; the rest asked on Today, one a day
+
+*Same request: package A of the review.*
+
+**Chosen.**
+
+- **Three screens**: the timetable (or a week drawn by hand), **Your exams**, **Your
+  week** with the plan in it ("Looks good"), then Today. On Your exams each course shows
+  its exam's date, from the timetable or to type; how well it is known, its weight, its
+  exam practice and "Skip" fold under its own "Adjust"; deadlines, how much to study and
+  when the student is not free fold under one closed section, their defaults kept. The
+  questions about the week (D42, D45, D69) and putting the plan in a calendar (D33) are no
+  longer steps.
+- **Nothing else on screen while setting up**: no tab bar, no top bar's sections, no "+",
+  no Spark, and the logo is not a link. One way forward.
+- **What setting up no longer asks comes back on Today**, from the day after the plan
+  was made, one question a day, each with "Not now" (`service.FIT_QUESTIONS`): the week
+  (sport, a job, the trip, when you study best), the learning platform's deadlines (not
+  asked once its link is given), the plan in the phone's calendar. Taken or put off, a
+  question is settled and the next waits for tomorrow; Spark's sheet and Settings keep
+  every one of them at hand.
+
+**Rejected.** Asking all of it later on one page (the same weight, moved); asking only
+in Settings (nobody would find the trip to campus there); a question a day for good (three
+in the first days, then none).
+
+**Measured** as in D97: from the home page to Today, accepting every default, 14 taps
+before (3 of them for the account, D94) and 7 after; the screens of setting up, 9 before
+(the exams, six cards about the week, the week, the calendar) and 2 after (the exams, the
+week); on the busiest of them, 80 things to tap or fill and 51 fields before, 25 and 6
+after; its length, 5.8 phone screens before and 1.9 after. The plan made with the defaults
+is the same plan: nothing in it changed, only what is asked when.
+
+**Disclosed.** The defaults now stand unless the student opens a fold: a student who
+trains every evening has those evenings planned until the week's question is answered,
+from the second day. Checked in Chromium only.

@@ -9,6 +9,7 @@ import sqlite3
 import threading
 from contextlib import closing
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -138,6 +139,29 @@ def test_a_backup_is_a_whole_copy(tmp_path):
     store.put(TOKEN, {"x": 1})
     copy = store.backup(tmp_path / "backups" / "copy.sqlite")
     assert Store(copy).get(TOKEN) == {"x": 1}
+
+
+def test_a_backup_reaches_its_name_only_when_complete(tmp_path, monkeypatch):
+    """AUDIT 79: the copy was written under its final name, so whatever looked for it
+    while it was being written (a test on a slow Windows runner, a sync tool on the
+    server) found an empty or half-made database. It is written beside, then moved."""
+    store = Store(tmp_path / "live")
+    store.put(TOKEN, {"x": 1})
+    destination = tmp_path / "backups" / "cps-20261023-120000.sqlite"
+    opened, real = [], sqlite3.connect
+
+    def connect(path, *args, **kwargs):
+        opened.append((Path(path), destination.exists()))
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr("cps.store.sqlite3.connect", connect)
+    store.backup(destination)
+    monkeypatch.undo()
+    written = [p for p, _ in opened if p.parent == destination.parent]
+    assert written == [destination.with_name(destination.name + ".part")]
+    assert not any(existed for p, existed in opened if p.parent == destination.parent)
+    assert sorted(p.name for p in destination.parent.iterdir()) == [destination.name]
+    assert Store(destination).get(TOKEN) == {"x": 1}
 
 
 def test_rotating_backups_keep_a_week(tmp_path):

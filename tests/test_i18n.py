@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import i18n, service, tips, weekly
+from cps import i18n, service, tips, usage, weekly
 from cps.locales.fr import MESSAGES
 from cps.locales.it import MESSAGES as ITALIAN
 
@@ -90,6 +90,9 @@ def indirect_sentences() -> set[str]:
         *service._INSIGHT_HOW.values(),
         *service._BEST_PART.values(),
         *service._PDF_ERRORS.values(),  # why a PDF gave no text (D90)
+        *(label for _, label in usage.PARTS),  # the parts of the app counted (D96)
+        *service.SECTION_HINTS.values(),  # each section's line on its first visit (D97)
+        *(words for q in service.FIT_QUESTIONS for words in (q[1], q[2], q[4])),  # Today's questions (D98)
     }
 
 

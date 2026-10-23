@@ -949,3 +949,31 @@ or a feed's address passed on, was enough. Status: fixed for plans of an account
 (D94), which open only for their account whatever address is held; a plan without one
 (the demo's students, any made before D94) is as before, its feed's links still opening
 it.
+
+**77. The walk that measured the app counted what closed folds held.** Found on
+2026-10-23 while measuring the lighter setup (D98): the busiest setup screen still came
+out at 102 things to tap after its extras were folded away, against 25 to be seen on
+screen. `benchmarks/screen_load.mjs` took an element as on screen when it had a box, and
+Chromium gives a box to what a closed `<details>` holds. The review of 2026-10-22 said "a
+closed fold's content is not counted" and was wrong: its 104 things to tap and 75 fields
+on "Check what was found", and 138 on Settings, included the folded "Add an exam", "Type
+them instead" and the rest. Status: fixed; an element inside a closed fold now counts
+only if it is the fold's own summary. Measured again with the fixed walk, the same app
+gives 80 things to tap and 51 fields on that screen, and 117 on Settings; the review's
+conclusions stand, its counts of those screens were too high.
+
+**78. Five sections in a tab bar laid out for six.** Found by the owner on 2026-10-23,
+on the branch of D97 before it was merged: the phone's tab bar kept
+`grid-template-columns: repeat(6, 1fr)` from the six sections of D88, so the five of D97
+sat in the left five sixths with an empty column at the right. Status: fixed; the bar now
+makes as many equal columns as it has links (`tests/test_simpler.py` checks the rule).
+
+**79. A backup could be found before it was whole.** Found on 2026-10-23 by CI on
+Windows (Python 3.13), on the branch of D96 to D98: `test_the_running_app_backs_up_the_store`
+found the day's copy and read no plan from it. `Store.backup` opened the copy under its
+final name and then filled it, so anything that looked for `cps-*.sqlite` meanwhile (the
+test; on the server, a sync or an off-site copy of the backups folder) found an empty or
+half-made database. The branch's two new tables made the copy a little longer, enough for
+the slower runner to look in between. Status: fixed; the copy is written as
+`<name>.part` and moved to its name once complete (`tests/test_store.py` checks the
+order).

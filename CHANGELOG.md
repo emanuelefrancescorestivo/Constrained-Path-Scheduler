@@ -6,6 +6,12 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+
+- What a student uses, counted only with their yes (DECISIONS.md D96): asked once on Today,
+  a switch in Settings; per day, the name of each part of the app opened or used and how
+  many times, worked out on the server from the page's address; the student's own counts
+  in Settings, the owner's totals on `/admin/<key>/usage` and in `cps metrics`; a no
+  deletes what was counted; kept 180 days, in the plan's copy, gone with the plan.
 - Accounts (D94): a student makes one with an e-mail address and a password before the
   first plan, which then opens only for that account, on any device signed in to it.
   "Forgot your password?" sends a link by e-mail; another link confirms the address,
@@ -508,6 +514,16 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   and `CalendarReport.lectures`.
 
 ### Changed
+
+- Five sections (DECISIONS.md D97): Today, Calendar, Courses, Community and You, which
+  holds Progress, flashcards, tasks, Focus, tips, the science page and Settings; Spark in
+  the top bar instead of floating over pages; one tour, Today's, in three steps, and a line
+  for every other section on its first visit; Today asks about one session at a time and
+  shows one message; four of the engine's words in plain ones.
+- Setting up in three screens (D98): the timetable, the exams (the rest folded with its
+  defaults), the week with its plan, then Today, with nothing else on screen meanwhile;
+  the questions about the week, the learning platform's deadlines and the calendar's
+  links come back on Today, one a day from the day after, each with "Not now".
 - A silkier, more Apple-like interface (D37): on a phone, the "+" for a new task is
   in the top bar instead of floating over the page, and the tab bar's tabs are
   even; on/off choices are switches; corners are rounder, and continuous where the
@@ -521,6 +537,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- A backup is written beside its name and moved there once complete (AUDIT 79): whatever
+  found the day's copy while it was being written found an empty or half-made database.
+- The phone's tab bar shares its width evenly among its sections (AUDIT 78).
+
+- `benchmarks/screen_load.mjs` counted what closed folds held as on screen (AUDIT 77): the
+  review of 2026-10-22 over-counted its busiest setup screen and Settings.
 - The calendar feed carried the plan's address, which let whoever saw the feed change
   the plan (AUDIT item 76): a plan of an account now opens only for its account.
 - Pages kept a slow device busy while nobody touched them (AUDIT item 75): Spark, the

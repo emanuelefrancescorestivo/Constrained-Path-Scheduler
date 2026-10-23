@@ -5,7 +5,7 @@
 {% block main %}
 {# The questions about the week (D42): the trip to university, then sport, a job
    and anything else every week, each answer weekly busy time on the chosen days. #}
-{% if new %}{% set step = 3 %}{% include "_steps.html" %}{% endif %}
+{# Not a step of setting up any more (D98): Today offers it, one question a day. #}
 <div class="page-title">
   <h1>{% if new %}{{ _("A few questions about your week") }}{% else %}{{ _("Add to your week") }}{% endif %}</h1>
   <p>{{ _("So that nothing is planned while you are on the way, at training or at work. Skip what does not apply: all of it can be changed later on the calendar.") }}</p>

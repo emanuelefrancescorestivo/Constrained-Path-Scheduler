@@ -730,6 +730,14 @@ input.bare { background: transparent !important; padding-left: 0 !important; min
 input.bare:focus { padding-left: 0.6rem !important; background: var(--surface-2) !important; }
 details.inline > summary { display: inline-block; font-size: 0.85rem; margin: 4px 0; }
 details.inline > summary::before { content: none; }
+/* While setting up (D98): each exam's choices under "Adjust", and the week's numbers,
+   deadlines and busy times in one closed fold, their defaults kept. */
+.exam-row > details.adjust { flex: 0 0 auto; align-self: center; }
+.exam-row > details.adjust[open] { flex: 1 1 100%; }
+.exam-row > details.adjust > summary { font-size: 0.88rem; color: var(--accent-ink); }
+.setup-more { margin: 18px 0; }
+.setup-more > summary { display: grid; gap: 2px; padding: 12px 0; cursor: pointer; }
+.setup-more > summary small { color: var(--muted); font-weight: 400; }
 
 /* -- progress: ring, streak, the day grid, milestones, the review ---------------- */
 .ring { flex: none; display: block; }
@@ -1009,6 +1017,35 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   font-size: 0.68rem; font-weight: 750; letter-spacing: 0.04em;
 }
 
+/* -- what a student uses, counted with their yes (D96) ------------------------------ */
+.usage-ask .row-end { margin-top: 8px; }
+.usage-unused { line-height: 1.7; }
+.table-card { overflow-x: auto; padding: 0; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.usage-table th, .usage-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.usage-table th { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.usage-table .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.usage-table tr:last-child td { border-bottom: 0; }
+
+/* -- You, the fifth section (D97); Spark in the top bar ---------------------------- */
+.you-list a { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none !important; width: 100%; }
+.you-list .grow { min-width: 0; }
+.you-list b { display: block; }
+.you-list small { display: block; color: var(--muted); }
+.you-list .chev { color: var(--muted); font-size: 1.2rem; }
+.spark-top {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 38px; height: 38px; border-radius: 50%; margin-left: 4px;
+}
+.spark-top:hover { background: var(--fill-4); }
+.spark-top .mascot { width: 32px; height: 32px; }
+.next-else { margin: 8px 2px 0; font-size: 0.92rem; }
+.section-hint {
+  margin: 0 0 14px; padding: 10px 14px; max-width: 46rem; border-radius: 12px;
+  background: var(--accent-soft); color: var(--accent-ink); font-size: 0.94rem;
+}
+.board-hint { margin: 0 0 10px; }
+
 /* -- two ways to start: import a timetable, or draw a week (D32) ----------------- */
 .ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .ways .card + .card { margin-top: 0; }
@@ -1248,7 +1285,9 @@ label.check.check-long input { margin-top: 3px; flex: none; }
   .topbar { padding: 0 14px; }
   .topbar .nav, .topbar .link { display: none; }
   .tabbar {
-    display: grid; grid-template-columns: repeat(6, 1fr);
+    /* As many equal columns as there are sections (five since D97), the bar's width
+       shared evenly: a fixed count left a sixth column empty at the right. */
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
     height: calc(var(--tabbar) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
@@ -2110,26 +2149,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .weekly-for-you p { margin: 0; }
 .weekly-today .tip-reason { color: var(--accent-ink); font-size: 0.86rem; font-weight: 600; }
 
-/* -- Spark, floating (D71) ------------------------------------------------------------ */
-/* A speech bubble with the spark in it, low on the right, above the tab bar on a
-   phone; hidden over a form whose save button sticks to the bottom. */
-.spark-fab {
-  position: fixed; z-index: 35; right: max(18px, env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
-  width: 62px; height: 62px; display: grid; place-items: center;
-  border-radius: 50% 50% 12px 50%; background: var(--surface); border: 0.5px solid var(--line);
-  box-shadow: var(--shadow); text-decoration: none !important;
-  transition: transform 0.2s var(--ease-out);
-}
-.spark-fab:hover { transform: translateY(-2px); }
-.spark-fab:active { transform: scale(0.94); }
-.spark-fab .mascot { width: 48px; height: 48px; }
-body:has(.sticky-actions) .spark-fab, body:has(.focus) .spark-fab { display: none; }
-/* Room at the end of a page, so its last lines can be scrolled above the bubble. */
-body:has(.spark-fab) .footer { padding-bottom: 84px; }
-@media (max-width: 900px) {
-  body.has-tabs .spark-fab { bottom: calc(var(--tabbar) + 14px + env(safe-area-inset-bottom)); width: 56px; height: 56px; }
-  body.has-tabs .spark-fab .mascot { width: 42px; height: 42px; }
-}
+/* -- Spark's sheet (D71); its button is in the top bar (D97) ------------------------ */
 .spark-hello { margin-bottom: 14px; }
 .spark-ask { display: grid; gap: 10px; }
 .spark-ask textarea { width: 100%; resize: vertical; }
@@ -2340,21 +2360,11 @@ body[data-sky] .sticky-actions .btn { box-shadow: 0 8px 24px rgb(0 0 0 / 0.22), 
    so the strips that hide theirs (the days, the legend) keep doing so. */
 :where(html, html *) { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 
-/* Spark, in a round drop of glass. */
-body[data-sky] .spark-fab {
-  width: 62px; height: 62px; border-radius: 50%;
-  background: linear-gradient(150deg, var(--glass-top), var(--glass-bottom)), var(--glass-bar);
-  border: 1px solid var(--glass-rim);
-  box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 0 18px var(--glass-glow), var(--glass-drop);
-  -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%);
-}
-body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
-
 /* On a phone the tab bar floats: a pill of glass, Spark beside it. */
 @media (max-width: 900px) {
   body[data-sky] { --tabbar: 84px; }
   body[data-sky] .tabbar {
-    left: max(12px, env(safe-area-inset-left)); right: calc(max(12px, env(safe-area-inset-right)) + 72px);
+    left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
     bottom: calc(12px + env(safe-area-inset-bottom));
     height: 62px; padding: 0 5px; border-radius: 31px;
     background: linear-gradient(150deg, var(--glass-top), var(--glass-bottom)), var(--glass-bar);
@@ -2364,16 +2374,10 @@ body[data-sky] .spark-fab .mascot { width: 46px; height: 46px; }
   }
   body[data-sky] .tabbar a { margin: 5px 0; border-radius: 26px; color: var(--text); }
   body[data-sky] .tabbar a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
-  /* Six sections since Courses (D88): the pill takes the whole width and Spark waits
-     just above its right end, so each label keeps the room five had beside Spark. */
+  /* Five sections and Spark in the top bar (D97): the pill takes the whole width. */
   body[data-sky] .tabbar { right: max(12px, env(safe-area-inset-right)); }
-  body[data-sky].has-tabs .spark-fab {
-    right: max(12px, env(safe-area-inset-right)); bottom: calc(84px + env(safe-area-inset-bottom));
-    width: 56px; height: 56px;
-  }
-  body[data-sky].has-tabs .spark-fab .mascot { width: 42px; height: 42px; }
-  /* AUDIT 69: a column is about 59px on a 390px phone and "Communauté" is wide;
-     labels a little smaller, with a gap, keep the words apart. */
+  /* AUDIT 69: "Communauté" is wide for a column (about 73px on a 390px phone with five
+     sections); labels a little smaller, with a gap, keep the words apart. */
   body[data-sky] .tabbar { column-gap: 2px; }
   body[data-sky] .tabbar a { font-size: 0.6rem; letter-spacing: -0.01em; }
 }
@@ -2428,7 +2432,7 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
    glass whatever the device says. */
 @media (prefers-reduced-transparency: reduce) {
   :root:not([data-glass="clear"]) body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group,
-    .strip-item, .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
+    .strip-item, .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar) {
     background: var(--surface);
   }
   :root:not([data-glass="clear"]) :is(*, *::before, *::after) {
@@ -2436,7 +2440,7 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
   }
 }
 :root[data-glass="solid"] body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .strip-item,
-  .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar, .spark-fab) {
+  .cards-due, .more > summary, .topbar, .board, .sheet[popover], .pop[popover], .tabbar) {
   background: var(--surface);
 }
 :root[data-glass="solid"] :is(*, *::before, *::after) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
@@ -2447,7 +2451,7 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
    Spark wakes under the pointer. A page left open costs nothing while it is read. */
 :root[data-rest] :is(.mascot, .mascot *, .garden i, .neural, .neural *, .hero h1, .pulse),
 :root[data-rest] :is(.hero-field, .focus-dial)::before { animation-play-state: paused !important; }
-:root[data-rest] :is(.spark-fab, .mascot-tip):hover .mascot :is(*, *::before) { animation-play-state: running !important; }
+:root[data-rest] :is(.spark-top, .mascot-tip):hover .mascot :is(*, *::before) { animation-play-state: running !important; }
 
 /* -- Today, calmer (D73): the next step large, the rest folded under "More" ---------- */
 .hello h1 { font-size: 2.15rem; }

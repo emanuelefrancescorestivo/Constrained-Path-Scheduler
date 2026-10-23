@@ -40,9 +40,11 @@
     {% elif new %}
     <div class="notice" role="note">
       {% set step = 3 %}{% include "_steps.html" %}
-      <p>{{ _h("<strong>Your week.</strong> Your timetable is already here, and the plan with it. Drag on empty time (or tap it, on a phone) to block training, work, a commute, an evening off. Drag a study session to move it. The plan rearranges itself as you go.") }}</p>
-      <p><a class="btn btn-primary" href="/p/{{ token }}/feed?new=1" data-tour="setup-next">{{ _("Next: put it in your calendar") }}</a></p>
+      <p>{{ _h("<strong>Your week.</strong> Your timetable is here, and the plan with it. Drag a study session to move it; drag across empty time, or tap it on a phone, to keep it free.") }}</p>
+      <p><a class="btn btn-primary" href="/p/{{ token }}" data-tour="setup-next">{{ _("Looks good") }}</a></p>
     </div>
+    {% elif hint and tab == 'calendar' %}
+    <p class="section-hint board-hint" role="note">{{ hint }}</p>
     {% endif %}
     <div class="board-bar" id="calendar-bar" hidden>
       <span class="range" id="calendar-range" aria-live="polite"></span>

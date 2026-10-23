@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ _("You") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# Everything that is not Today, the calendar, a course or the community (D97): one
+   short list in three groups, each row a place and a line about it. #}
+<div class="page-title">
+  <h1>{{ _("You") }}</h1>
+</div>
+<h2 class="section">{{ _("Your study") }}</h2>
+<ul class="card list you-list">
+  <li><a href="/p/{{ token }}/progress"><span class="grow"><b>{{ _("Progress") }}</b><small>{{ _("Your week, your streak, how ready each exam is") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/cards"><span class="grow"><b>{{ _("Flashcards") }}</b><small>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Your own cards, each back just before you would forget it") }}{% endif %}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/tasks"><span class="grow"><b>{{ _("Tasks") }}</b><small>{{ _("Homework, reports, readings: what is due") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/focus"><span class="grow"><b>{{ _("Focus and diary") }}</b><small>{{ _("Time a session, or write down one you did") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+</ul>
+<h2 class="section">{{ _("Learning to learn") }}</h2>
+<ul class="card list you-list">
+  <li><a href="/p/{{ token }}/tips"><span class="grow"><b>{{ _("Study tips") }}</b><small>{{ _("What works, how sure we are, and the weekly note") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/science"><span class="grow"><b>{{ _("The science behind it") }}</b><small>{{ _("How the plan is made, and the research it rests on") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+</ul>
+<h2 class="section">{{ _("Your plan") }}</h2>
+<ul class="card list you-list">
+  <li><a href="/p/{{ token }}/settings"><span class="grow"><b>{{ _("Settings") }}</b><small>{{ _("Exams, your week, your account, reminders, appearance") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/feed"><span class="grow"><b>{{ _("Connect calendar") }}</b><small>{{ _("Your sessions in your phone's calendar") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/feedback?from=/p/{{ token }}/you"><span class="grow"><b>{{ _("Send feedback") }}</b><small>{{ _("Something broken, confusing or missing") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+</ul>
+{% endblock %}

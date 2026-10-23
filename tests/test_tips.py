@@ -259,6 +259,9 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
             assert f'href="{source.url}"' in text and source.cite in text
         assert 'id="tip-' not in web.get(f"/p/{token}/tips?topic=nonsense").text  # the list again
 
+        # Today shows one message (D97): the question about counting what is used comes
+        # first on a new plan; once it is answered, the day's tip.
+        web.post(f"/p/{token}/usage", data={"yes": "0"})
         today = unescape(web.get(f"/p/{token}").text)
         with i18n.use(lang):  # the day's tip and why, in the plan's language
             tip = service.tip_of_the_day(service.load_subscription(tmp_path, token), MORNING)
@@ -277,6 +280,7 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
+        web.post(f"/p/{token}/usage", data={"yes": "0"})  # one message at a time (D97)
         today = unescape(web.get(f"/p/{token}").text)
         assert "A lecture later today: Advanced Statistics at 09:00." in today
         assert f"/p/{token}/tips?topic=studying#tip-pretest" in today
@@ -296,8 +300,8 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         switched = web.post(f"/p/{token}/tip-setting", data={"tips": "off"}, follow_redirects=False)
         assert switched.status_code == 303
         off = web.get(f"/p/{token}").text
-        # The tip is gone; Spark still floats, as the assistant, not a tip (D71).
-        assert "tip-today" not in off and 'class="mascot is-think"' not in off and "mascot-fab" in off
+        # The tip is gone; Spark is still in the top bar, as the assistant, not a tip (D71, D97).
+        assert "tip-today" not in off and 'class="mascot is-think"' not in off and "mascot-top" in off
         assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text
 
 

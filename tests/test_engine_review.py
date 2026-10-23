@@ -701,7 +701,7 @@ def test_settings_show_each_exam_s_practice_and_change_one(web):
     token = _web_start(web)
     page = unescape(web.get(f"/p/{token}/settings").text)
     assert '<option value="" selected>Sized by each course</option>' in page
-    assert "Practice: 4.5 h" in page and 'name="s0_practice"' in page
+    assert "Exam practice: 4.5 h" in page and 'name="s0_practice"' in page
     fields = {**_form(web.get(f"/p/{token}/settings").text), "s0_practice": "9.0"}
     name = fields["s0_name"]
     assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
@@ -714,7 +714,7 @@ def test_settings_show_each_exam_s_practice_and_change_one(web):
     assert '<option value="9.0" selected>' in web.get(f"/p/{token}/settings").text
     refused = web.post(f"/p/{token}/settings", data={**fields, "s0_practice": "50"})
     assert refused.status_code == 400 and "0 to 40 hours" in unescape(refused.text)
-    assert "Practice: 4.5 h" in unescape(refused.text)  # the other rows keep their default
+    assert "Exam practice: 4.5 h" in unescape(refused.text)  # the other rows keep their default
 
 
 def test_a_plan_made_before_sizing_keeps_its_hours(web):

@@ -7,6 +7,7 @@ student agreed (`cps metrics`).
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from html import unescape
 from pathlib import Path
@@ -123,6 +124,15 @@ def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, conse
         assert question not in unescape(web.get(f"/p/{token}").text)
         now["at"] = AFTER
         today = unescape(web.get(f"/p/{token}").text)
+        # One exam at a time, the earliest first (D97): those before Algebra 3 are put
+        # aside with "Rather not say", and the next one is asked.
+        for _ in range(10):
+            assert today.count("exam-question") == 1
+            if question in today:
+                break
+            course = re.search(r'name="course" value="([^"]+)">\s*<b id="exam-q1"', today).group(1)
+            web.post(f"/p/{token}/exam", data={"course": course, "skip": "1"})
+            today = unescape(web.get(f"/p/{token}").text)
         assert question in today and consent in today and 'name="helped" value="lot"' in today
         assert 'name="consent" value="1">' in today  # not ticked for the student
         answer = web.post(
