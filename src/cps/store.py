@@ -643,14 +643,22 @@ class Store:
         return target
 
     def backup(self, destination: str | Path) -> Path:
-        """A consistent copy of the whole file, taken while it is in use."""
+        """A consistent copy of the whole file, taken while it is in use. It is
+        written under a name of its own and moved to `destination` once complete,
+        so whatever finds `destination` finds a whole copy (AUDIT 79)."""
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
+        partial = destination.with_name(destination.name + ".part")
         source = sqlite3.connect(self.path)
-        target = sqlite3.connect(destination)
+        target = sqlite3.connect(partial)
         try:
             source.backup(target)
+        except BaseException:
+            target.close()
+            partial.unlink(missing_ok=True)
+            raise
         finally:
             target.close()
             source.close()
+        os.replace(partial, destination)
         return destination

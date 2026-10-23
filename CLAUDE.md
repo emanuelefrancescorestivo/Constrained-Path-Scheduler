@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1140 passed, 17 deselected, 1 xfailed, about 370 s
-    pytest -m "slow or not slow" --cov=cps   # all 1157 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1141 passed, 17 deselected, 1 xfailed, about 370 s
+    pytest -m "slow or not slow" --cov=cps   # all 1158 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds

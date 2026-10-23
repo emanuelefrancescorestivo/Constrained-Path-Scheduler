@@ -967,3 +967,13 @@ on the branch of D97 before it was merged: the phone's tab bar kept
 `grid-template-columns: repeat(6, 1fr)` from the six sections of D88, so the five of D97
 sat in the left five sixths with an empty column at the right. Status: fixed; the bar now
 makes as many equal columns as it has links (`tests/test_simpler.py` checks the rule).
+
+**79. A backup could be found before it was whole.** Found on 2026-10-23 by CI on
+Windows (Python 3.13), on the branch of D96 to D98: `test_the_running_app_backs_up_the_store`
+found the day's copy and read no plan from it. `Store.backup` opened the copy under its
+final name and then filled it, so anything that looked for `cps-*.sqlite` meanwhile (the
+test; on the server, a sync or an off-site copy of the backups folder) found an empty or
+half-made database. The branch's two new tables made the copy a little longer, enough for
+the slower runner to look in between. Status: fixed; the copy is written as
+`<name>.part` and moved to its name once complete (`tests/test_store.py` checks the
+order).

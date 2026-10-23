@@ -538,6 +538,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Fixed
 
+- A backup is written beside its name and moved there once complete (AUDIT 79): whatever
+  found the day's copy while it was being written found an empty or half-made database.
+- The phone's tab bar shares its width evenly among its sections (AUDIT 78).
+
 - `benchmarks/screen_load.mjs` counted what closed folds held as on screen (AUDIT 77): the
   review of 2026-10-22 over-counted its busiest setup screen and Settings.
 - The calendar feed carried the plan's address, which let whoever saw the feed change
