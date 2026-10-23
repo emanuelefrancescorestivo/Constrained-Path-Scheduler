@@ -29,7 +29,7 @@ more than an impressive number.
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
     pytest                                   # 1092 passed, 17 deselected, 1 xfailed, about 300 s
-    pytest -m "slow or not slow" --cov=cps   # all 1109 + 1 xfailed, 93% coverage, about 8 min; CI runs this
+    pytest -m "slow or not slow" --cov=cps   # all 1109 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
