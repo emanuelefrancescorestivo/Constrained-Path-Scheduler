@@ -238,8 +238,34 @@
 <h2 class="section" id="topics">{{ _("Your courses' topics") }}</h2>
 <p>{{ _("Paste each course's program once, or take the one a classmate shared: your sessions then say what each week was about.") }}</p>
 <p><a class="btn btn-sm" href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
-<h2 class="section" id="account">{{ _("Keep your plan") }}</h2>
-<p>{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}</p>
+{% if login %}
+{# D94: the account the plan belongs to. #}
+<h2 class="section" id="login">{{ _("Your account") }}</h2>
+{% if login_error %}<p class="alert" role="alert">{{ login_error }}</p>{% endif %}
+<ul class="list">
+  <li class="account-row">
+    <span class="grow"><b>{{ login.email }}</b><small class="muted">{% if login.confirmed %}{{ _("Address confirmed") }}{% else %}{{ _("Address not confirmed yet") }}{% endif %}</small></span>
+    {% if not login.confirmed %}<form method="post" action="/p/{{ token }}/account/confirm"><button type="submit" class="btn btn-sm btn-tinted">{% if show_mail %}{{ _("Show the e-mail") }}{% else %}{{ _("Send the link again") }}{% endif %}</button></form>{% endif %}
+  </li>
+</ul>
+<details class="account-fold">
+  <summary>{{ _("Change your password") }}</summary>
+  <form method="post" action="/p/{{ token }}/account/password" class="account-form">
+    <label for="current-password">{{ _("Current password") }}</label>
+    <input id="current-password" name="current" type="password" autocomplete="current-password" maxlength="{{ password_max }}" required>
+    <label for="new-password">{{ _("New password") }}</label>
+    <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="{{ password_min }}" maxlength="{{ password_max }}" aria-describedby="new-password-hint" required>
+    <p class="hint" id="new-password-hint">{{ _("At least {n} characters. Three or four words make a good one.", n=password_min) }}</p>
+    <p><button type="submit" class="btn btn-sm btn-primary">{{ _("Change my password") }}</button></p>
+  </form>
+</details>
+<div class="account-actions">
+  <form method="post" action="/account/signout"><button type="submit" class="btn btn-sm">{{ _("Sign out") }}</button></form>
+  {% if login.devices > 1 %}<form method="post" action="/p/{{ token }}/account/elsewhere"><button type="submit" class="btn btn-plain btn-sm">{{ _n("Sign out the other device", "Sign out the {n} other devices", login.devices - 1) }}</button></form>{% endif %}
+</div>
+{% endif %}
+<h2 class="section" id="account">{% if login %}{{ _("Other ways to sign in") }}{% else %}{{ _("Keep your plan") }}{% endif %}</h2>
+<p>{% if login %}{{ _("Add a passkey to sign in with your face, fingerprint or screen lock instead of your password, and keep a recovery code in case you lose your phone and your e-mail.") }}{% else %}{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}{% endif %}</p>
 {% if account.passkeys %}
 <ul class="list passkeys">
   {% for k in account.passkeys %}

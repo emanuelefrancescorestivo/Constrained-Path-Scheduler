@@ -258,6 +258,35 @@ CREATE TABLE IF NOT EXISTS course_topics (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS course_topics_by_plan ON course_topics (token, university, course);
 CREATE INDEX IF NOT EXISTS course_topics_by_course ON course_topics (university, course);
+-- E-mail accounts (D94): one per student, made before the plan, the password kept
+-- only as its scrypt digest. A plan made while signed in belongs to its account
+-- (`token`) and opens only for that account. A session is a device signed in: only
+-- the SHA-256 of the cookie's random value is kept, as for the links sent by e-mail
+-- (to confirm the address, to choose a new password), which work once.
+CREATE TABLE IF NOT EXISTS accounts (
+    id        TEXT PRIMARY KEY,
+    email     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password  TEXT NOT NULL,
+    token     TEXT UNIQUE,
+    created   TEXT NOT NULL,
+    confirmed TEXT,
+    failures  INTEGER NOT NULL DEFAULT 0,
+    failed    TEXT
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    digest  TEXT PRIMARY KEY,
+    account TEXT NOT NULL,
+    created TEXT NOT NULL,
+    seen    TEXT NOT NULL,
+    device  TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS sessions_by_account ON sessions (account);
+CREATE TABLE IF NOT EXISTS mail_links (
+    digest  TEXT PRIMARY KEY,
+    account TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    expires TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -319,6 +348,10 @@ _FORGET = (
     "DELETE FROM push_sent WHERE token = :t",
     "DELETE FROM feedback WHERE token = :t",
     "DELETE FROM course_topics WHERE token = :t",
+    # The account the plan belongs to (D94), with its devices signed in and its links.
+    "DELETE FROM sessions WHERE account IN (SELECT id FROM accounts WHERE token = :t)",
+    "DELETE FROM mail_links WHERE account IN (SELECT id FROM accounts WHERE token = :t)",
+    "DELETE FROM accounts WHERE token = :t",
     # The AI ledger keeps what each call cost, for the month's cap, and forgets whose
     # plan it was (D12).
     "UPDATE ai_usage SET token = '' WHERE token = :t",
@@ -329,7 +362,7 @@ _FORGET = (
 # column, beside what `_FORGET` deletes. Left out are the secrets of the server and
 # of a device, which say nothing about the student: a passkey's public key, a push
 # address and its keys, the recovery code's digest, a ceremony's challenge, which
-# sessions were reminded.
+# sessions were reminded, a password's digest and the links sent by e-mail.
 _EXPORT = {
     "events": "SELECT at, kind, detail FROM events WHERE token = :t ORDER BY id",
     "profile": "SELECT handle, university, programme, year, country, bio, created FROM profiles "
@@ -359,6 +392,11 @@ _EXPORT = {
     "feedback": "SELECT created, kind, page, body FROM feedback WHERE token = :t ORDER BY id",
     "shared_topics": "SELECT university, name, topics, created, updated, uses FROM course_topics "
     "WHERE token = :t ORDER BY created",
+    # D94: the address and when it was confirmed, not the password's digest; the
+    # devices signed in, not their cookies' digests.
+    "account": "SELECT email, created, confirmed FROM accounts WHERE token = :t",
+    "signed_in": "SELECT s.device, s.created, s.seen FROM sessions s JOIN accounts a ON a.id = s.account "
+    "WHERE a.token = :t ORDER BY s.created",
 }
 
 
@@ -413,6 +451,7 @@ class Store:
             name
             for (data,) in db.execute("SELECT data FROM posts WHERE token = ?", (token,))
             for name in json.loads(data).get("photos", [])
+            + [f["name"] for f in json.loads(data).get("pdfs", [])]  # a set of notes' PDFs (D95)
         ]
         for statement in _FORGET:
             db.execute(statement, {"t": token})
@@ -537,6 +576,7 @@ class Store:
         gone = 0
         with self._connect() as db:
             db.execute("DELETE FROM challenges WHERE expires < ?", (stamp,))
+            db.execute("DELETE FROM mail_links WHERE expires < ?", (stamp,))
             rows = db.execute(
                 "SELECT token, data, expires FROM subscriptions WHERE expires < ?"
                 + (" OR expires IS NULL" if expiry is not None else ""),

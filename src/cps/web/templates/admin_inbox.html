@@ -6,6 +6,16 @@
   <h1>{{ _("Messages and errors") }}</h1>
   <p><a href="/admin/{{ key }}">{{ _("Reports to review") }}</a></p>
 </div>
+{% if accounts %}
+<h2 class="section">{{ _("A student forgot their password") }}</h2>
+<p class="muted">{{ _("While this server sends no e-mail, make the link here and send it to them yourself. It works once, for two hours.") }}</p>
+<form method="post" action="/admin/{{ key }}/reset" class="card account-form">
+  <label for="reset-email">{{ _("Their account's e-mail address") }}</label>
+  <input id="reset-email" name="email" type="email" autocomplete="off" required value="{{ reset_for or '' }}">
+  <p><button type="submit" class="btn btn-sm">{{ _("Make a link") }}</button></p>
+  {% if reset_for %}<p class="inbox-body" role="status">{% if reset_link %}{{ reset_link }}{% else %}{{ _("No account has this address.") }}{% endif %}</p>{% endif %}
+</form>
+{% endif %}
 <h2 class="section">{{ _("Messages") }}</h2>
 {% for m in view.messages %}
 <article class="card inbox-item{% if not m.seen %} unseen{% endif %}">

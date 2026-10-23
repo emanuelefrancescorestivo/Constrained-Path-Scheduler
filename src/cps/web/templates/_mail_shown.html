@@ -1,0 +1,9 @@
+{# The demo sends no e-mail (D94): the one a student would receive, shown instead.
+   `mail` is a cps.mail.Message. #}
+<div class="mail-shown">
+  <p><span class="badge badge-accent">{{ _("Demo") }}</span> {{ _("This demo sends no e-mail. Here is the one a student would receive:") }}</p>
+  <div class="mail-card">
+    <p><b>{{ mail.subject }}</b><br><small class="muted">{{ _("To: {address}", address=mail.to) }}</small></p>
+    <p class="mail-body">{{ mail.body | linkify }}</p>
+  </div>
+</div>

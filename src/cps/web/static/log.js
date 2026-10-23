@@ -7,8 +7,11 @@ import { toast } from "./ui.js";
 
 const form = document.querySelector("form.with-photos");
 const MAX_SIDE = 1600;
-// How many photos the form takes (four; eight pages of notes), as the page says.
+// How many photos the form takes (four; eight pages of notes), as the page says; and
+// PDFs, which only notes take (D95): sent as they are, the server cleans them.
 const MOST = Number(form.dataset.maxPhotos || 4);
+const MOST_PDFS = Number(form.dataset.maxPdfs || 0);
+const isPdf = (file) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
 
 async function shrink(file) {
   const bitmap = await createImageBitmap(file);
@@ -24,9 +27,15 @@ form.addEventListener("submit", async (event) => {
   const input = form.querySelector('input[type="file"]');
   if (!input.files.length || !window.createImageBitmap) return; // the plain form does it
   event.preventDefault();
-  if (input.files.length > MOST) {
+  const files = [...input.files];
+  const pdfs = files.filter(isPdf);
+  if (files.length - pdfs.length > MOST) {
     // Refused rather than cut: dropping the last pages without a word loses them.
     toast(t("At most {n} photos. Choose fewer.", { n: MOST }), { bad: true });
+    return;
+  }
+  if (pdfs.length > MOST_PDFS) {
+    toast(t("At most {n} PDFs. Choose fewer.", { n: MOST_PDFS }), { bad: true });
     return;
   }
   const button = form.querySelector('button[type="submit"]');
@@ -34,8 +43,9 @@ form.addEventListener("submit", async (event) => {
   try {
     const data = new FormData(form);
     data.delete("photos");
-    for (const file of input.files) {
-      data.append("photos", await shrink(file), "photo.jpg");
+    for (const file of files) {
+      if (isPdf(file)) data.append("photos", file, file.name);
+      else data.append("photos", await shrink(file), "photo.jpg");
     }
     const answer = await fetch(form.action, { method: "POST", body: data });
     if (answer.redirected) {

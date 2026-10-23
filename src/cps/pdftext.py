@@ -72,3 +72,69 @@ def text(data: bytes) -> Extracted:
     if not joined.strip():
         raise PdfError("empty")
     return Extracted(joined, count, len(out))
+
+
+# --------------------------------------------------------------------------- #
+# D95: a PDF of a student's notes, kept with the post that shares it
+# --------------------------------------------------------------------------- #
+
+NOTE_PAGES = 300  # a semester's notes in one file can run long; the size bounds it too
+
+
+@dataclass(frozen=True)
+class Cleaned:
+    data: bytes  # the PDF as kept: its pages, without what names its author or runs
+    pages: int
+    text: str  # what can be read of it, for flashcards (D84); "" for a scan
+
+
+# What a PDF may carry that is not its pages: who made it and with what (the document
+# information and the XMP metadata, often the student's real name), and what runs when
+# it opens (JavaScript, actions). Photos lose their location the same way (D18).
+_CATALOG_DROPPED = ("/Metadata", "/OpenAction", "/AA", "/AcroForm", "/Names", "/PieceInfo")
+_PAGE_DROPPED = ("/AA", "/Metadata", "/PieceInfo")
+
+
+def clean(data: bytes) -> Cleaned:
+    """A PDF of notes to keep: its pages written again, without its metadata and
+    without anything that runs when it is opened; and its text, as far as it has one
+    (a scan has none, which is fine for notes)."""
+    if len(data) > MAX_BYTES:
+        raise PdfError("large")
+    if not data.startswith(b"%PDF-"):
+        raise PdfError("not_pdf")
+    try:
+        from pypdf import PdfReader, PdfWriter
+        from pypdf.generic import NameObject
+    except ImportError as exc:  # the `web` extra brings it
+        raise PdfError("missing") from exc
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted and not reader.decrypt(""):
+            raise PdfError("locked")
+        count = len(reader.pages)
+        if count == 0:
+            raise PdfError("empty")
+        if count > NOTE_PAGES:
+            raise PdfError("large")
+        writer = PdfWriter()
+        found: list[str] = []
+        size = 0
+        for page in reader.pages:
+            if size < MAX_CHARS:
+                text = page.extract_text() or ""
+                found.append(text)
+                size += len(text)
+            kept = writer.add_page(page)
+            for key in _PAGE_DROPPED:
+                kept.pop(NameObject(key), None)
+        for key in _CATALOG_DROPPED:
+            writer._root_object.pop(NameObject(key), None)
+        writer.metadata = None
+        out = io.BytesIO()
+        writer.write(out)
+    except PdfError:
+        raise
+    except Exception as exc:  # pypdf raises many kinds on a damaged file
+        raise PdfError("unreadable") from exc
+    return Cleaned(out.getvalue(), count, "\n".join(found)[:MAX_CHARS])

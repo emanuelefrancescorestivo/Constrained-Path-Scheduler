@@ -1,9 +1,16 @@
 """
-Accounts that last (DECISIONS.md D35): a plan's passkeys and its recovery code.
+Accounts: an e-mail and a password (DECISIONS.md D94), and a plan's passkeys and its
+recovery code (D35).
 
-A plan is still its private address, as a calendar's secret link is: there is no
-name, no e-mail and no password. What this module adds are two ways back to that
-address when it is lost (a new phone, a cleared browser):
+Since D94 a student makes an account before the plan: an e-mail address and a
+password, kept only as its scrypt digest. The plan made while signed in belongs to
+that account and opens only for it, on the devices signed in to it (a session: a
+random value in a cookie, kept here as its SHA-256). Links sent by e-mail confirm the
+address or choose a new password; each works once. A plan made before D94, or a demo
+student, is still its private address, as a calendar's secret link is.
+
+D35 gave two ways back to a plan's address when it is lost (a new phone, a cleared
+browser), which stay as ways to sign in:
 
 * **Passkeys.** The device makes a key pair for this site and keeps it behind the
   student's face, fingerprint or screen lock; the site keeps the public half
@@ -13,23 +20,27 @@ address when it is lost (a new phone, a cleared browser):
   alphabet without look-alikes (about 100 bits), shown once, kept only as its
   SHA-256 digest. It works once; using it makes a new one, shown at once.
 
-Rejected: e-mail links (an address to keep, mail to send, a provider to pay for),
-passwords (to be hashed, leaked, reset), "Sign in with Google" (a third party told
-of every sign-in). A plan without a passkey or a code cannot be found again if its
-address is lost; the pages say so.
+D35 rejected e-mail links and passwords before launch; the owner asked for e-mail
+accounts at launch (D94). "Sign in with Google" stays rejected (a third party told of
+every sign-in).
 
-Challenges are kept here, not in a cookie (the service sets none): the browser
+Challenges are kept here, not in a cookie: the browser
 sends back the client data, which carries the challenge, and the challenge is
 found, checked and deleted in one transaction, so it is used once.
 """
 
 from __future__ import annotations
 
+import base64
+import functools
 import hashlib
+import hmac
 import json
+import re
 import secrets
 import sqlite3
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from . import passkeys as _pk
@@ -289,3 +300,375 @@ def use_recovery_code(store: Store, code: str) -> str | None:
             return None
         db.execute("DELETE FROM recovery_codes WHERE token = ?", (row[0],))
     return str(row[0])
+
+
+# --------------------------------------------------------------------------- #
+# E-mail accounts (D94)
+# --------------------------------------------------------------------------- #
+
+# OWASP Application Security Verification Standard 4.0.3, V2.1.1 and V2.1.2: at least
+# 12 characters once runs of spaces count as one, at least 64 allowed, more than 128
+# refused; no rule about which kinds of characters.
+PASSWORD_MIN = 12
+PASSWORD_MAX = 128
+# scrypt as OWASP's Password Storage Cheat Sheet sets it: one of its five settings of
+# equal strength, the one that needs 16 MiB a hash rather than 128 (N=2^17, p=1), so a
+# small server signs several students in at once.
+SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**14, 8, 5
+SCRYPT_MAXMEM = 64 * 1024 * 1024
+SESSION_LIFE = timedelta(days=90)  # a device stays signed in this long after its last use
+SESSION_TOUCH = timedelta(days=1)  # how often a session's last use is written down
+CONFIRM_LIFE = timedelta(days=7)
+RESET_LIFE = timedelta(hours=2)
+UNFINISHED_LIFE = timedelta(days=30)  # an account that never made a plan
+# Wrong passwords in a row before an account waits: at most 40 tries an hour, where
+# ASVS V2.2.1 allows 100. Counted per account, so it holds whatever addresses try.
+FAILURES = 10
+LOCKED_FOR = timedelta(minutes=15)
+EMAIL_MAX = 254
+_EMAIL = re.compile(r"[^@\s]{1,64}@[^@\s.]+(?:\.[^@\s.]+)*\.[^@\s.]{2,}")
+# Obvious choices, refused whole (NIST SP 800-63B asks for a blocklist of commonly
+# used values, compared with the whole password). Written by hand from the patterns
+# common lists show (digit runs, keyboard rows, "password" and its French and Italian
+# words with digits), not taken from a measured list; with a password made of two
+# characters at most. Not a check against leaked passwords, which needs an outside
+# service told of each one (or of part of its hash).
+COMMON = frozenset(
+    [
+        "123456789012",
+        "1234567890123",
+        "password1234",
+        "passwordpassword",
+        "qwertyuiopas",
+        "azertyuiopqs",
+        "motdepasse123",
+        "motdepasse1234",
+        "iloveyou1234",
+        "aaaaaaaaaaaa",
+        "111111111111",
+        "000000000000",
+        "123123123123",
+        "abcdefghijkl",
+        "abc123abc123",
+        "password123!",
+        "qwerty123456",
+        "azerty123456",
+        "passwordazerty",
+        "welcome12345",
+        "bonjour12345",
+        "ciaociao1234",
+        "passwordpassw",
+        "1q2w3e4r5t6y",
+        "soleil123456",
+        "juventus1234",
+        "napoli123456",
+        "football1234",
+        "password0000",
+    ]
+)
+
+
+class AccountError(Exception):
+    """Why an e-mail account could not be made or opened: `reason` is one of
+    "email", "short", "long", "common", "same", "taken", "wrong", "locked", "bound"."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class Account:
+    id: str
+    email: str
+    token: str | None  # the plan it owns, once made
+    created: str
+    confirmed: str | None
+
+
+def normal_email(text: str) -> str | None:
+    """An address as kept: trimmed and in lower case, if it has an address's shape
+    (something, @, a domain with a dot); None otherwise. Whether it receives mail is
+    only known when the confirmation link is opened."""
+    email = text.strip().lower()
+    if len(email) > EMAIL_MAX or not _EMAIL.fullmatch(email):
+        return None
+    return email
+
+
+def password_problem(password: str, email: str = "") -> str | None:
+    """What is wrong with a new password, as an `AccountError` reason; None if fine."""
+    length = len(re.sub(r" {2,}", " ", password))
+    if length < PASSWORD_MIN:
+        return "short"
+    if len(password) > PASSWORD_MAX:
+        return "long"
+    whole = password.strip().lower()
+    if whole in COMMON or len(set(whole)) <= 2:
+        return "common"
+    if email and email.lower() in whole:
+        return "same"
+    return None
+
+
+def _b64(data: bytes) -> str:
+    return base64.b64encode(data).decode("ascii")
+
+
+def hash_password(password: str) -> str:
+    """The digest kept for a password: scrypt with a random salt, its settings
+    written beside it so they can be raised later without locking anyone out."""
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(
+        password.encode("utf-8"),
+        salt=salt,
+        n=SCRYPT_N,
+        r=SCRYPT_R,
+        p=SCRYPT_P,
+        maxmem=SCRYPT_MAXMEM,
+        dklen=32,
+    )
+    return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${_b64(salt)}${_b64(digest)}"
+
+
+def password_matches(stored: str, password: str) -> bool:
+    try:
+        kind, n, r, p, salt, digest = stored.split("$")
+        if kind != "scrypt":
+            return False
+        expected = base64.b64decode(digest)
+        found = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=base64.b64decode(salt),
+            n=int(n),
+            r=int(r),
+            p=int(p),
+            maxmem=SCRYPT_MAXMEM,
+            dklen=len(expected),
+        )
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(found, expected)
+
+
+@functools.cache
+def _nobody() -> str:
+    """Checked when an address has no account, so that a wrong address takes as long
+    to refuse as a wrong password, and the time does not tell which addresses exist."""
+    return hash_password(secrets.token_urlsafe(18))
+
+
+def _secret_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("ascii", "replace")).hexdigest()
+
+
+def _account(row: tuple | None) -> Account | None:
+    return Account(*row) if row else None
+
+
+_COLUMNS = "id, email, token, created, confirmed"
+
+
+def create_account(store: Store, email: str, password: str, now: datetime) -> Account:
+    """A new account; `email` must be normal (`normal_email`) and `password` fine."""
+    reason = password_problem(password, email)
+    if reason:
+        raise AccountError(reason)
+    account = Account(secrets.token_urlsafe(12), email, None, _stamp(now), None)
+    try:
+        with store.connection() as db:
+            db.execute(
+                "INSERT INTO accounts (id, email, password, created) VALUES (?, ?, ?, ?)",
+                (account.id, email, hash_password(password), account.created),
+            )
+    except sqlite3.IntegrityError as error:
+        raise AccountError("taken") from error
+    return account
+
+
+def check_password(store: Store, email: str, password: str, now: datetime) -> Account:
+    """The account an address and a password open; `AccountError("wrong")` for either
+    wrong (the same answer, so it does not tell which), "locked" after `FAILURES`
+    wrong passwords in a row, for `LOCKED_FOR`."""
+    with store.connection() as db:
+        row = db.execute(
+            f"SELECT {_COLUMNS}, password, failures, failed FROM accounts WHERE email = ?", (email,)
+        ).fetchone()
+    if row is None:
+        password_matches(_nobody(), password)
+        raise AccountError("wrong")
+    account, stored, failures, failed = _account(row[:5]), row[5], row[6], row[7]
+    assert account is not None
+    if failures >= FAILURES and failed and datetime.fromisoformat(failed) + LOCKED_FOR > now:
+        raise AccountError("locked")
+    if not password_matches(stored, password):
+        with store.connection() as db:
+            db.execute(
+                "UPDATE accounts SET failures = CASE WHEN failures >= ? THEN 1 ELSE failures + 1 END, "
+                "failed = ? WHERE id = ?",
+                (FAILURES, _stamp(now), account.id),
+            )
+        raise AccountError("wrong")
+    if failures:
+        with store.connection() as db:
+            db.execute("UPDATE accounts SET failures = 0, failed = NULL WHERE id = ?", (account.id,))
+    return account
+
+
+def get_account(store: Store, account_id: str) -> Account | None:
+    with store.connection() as db:
+        return _account(db.execute(f"SELECT {_COLUMNS} FROM accounts WHERE id = ?", (account_id,)).fetchone())
+
+
+def account_by_email(store: Store, email: str) -> Account | None:
+    with store.connection() as db:
+        return _account(db.execute(f"SELECT {_COLUMNS} FROM accounts WHERE email = ?", (email,)).fetchone())
+
+
+def owner_of(store: Store, token: str) -> str | None:
+    """The account a plan belongs to, if it belongs to one."""
+    with store.connection() as db:
+        row = db.execute("SELECT id FROM accounts WHERE token = ?", (token,)).fetchone()
+    return row[0] if row else None
+
+
+def give_plan(store: Store, account_id: str, token: str) -> None:
+    """The plan becomes the account's; an account owns one plan, kept across semesters
+    (D36), so a second is refused."""
+    with store.connection() as db:
+        done = db.execute(
+            "UPDATE accounts SET token = ? WHERE id = ? AND token IS NULL", (token, account_id)
+        ).rowcount
+    if not done:
+        raise AccountError("bound")
+
+
+def set_password(store: Store, account: Account, password: str) -> None:
+    reason = password_problem(password, account.email)
+    if reason:
+        raise AccountError(reason)
+    with store.connection() as db:
+        db.execute(
+            "UPDATE accounts SET password = ?, failures = 0, failed = NULL WHERE id = ?",
+            (hash_password(password), account.id),
+        )
+
+
+def confirm(store: Store, account_id: str, now: datetime) -> None:
+    with store.connection() as db:
+        db.execute(
+            "UPDATE accounts SET confirmed = COALESCE(confirmed, ?) WHERE id = ?", (_stamp(now), account_id)
+        )
+
+
+# -- devices signed in ------------------------------------------------------
+
+
+def open_session(store: Store, account_id: str, now: datetime, device: str = "") -> str:
+    """A device signed in: the random value for its cookie (kept here as a digest)."""
+    value = secrets.token_urlsafe(32)
+    stamp = _stamp(now)
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO sessions (digest, account, created, seen, device) VALUES (?, ?, ?, ?, ?)",
+            (_secret_digest(value), account_id, stamp, stamp, device[:40]),
+        )
+    return value
+
+
+def session_account(store: Store, value: str, now: datetime) -> tuple[Account, bool] | None:
+    """The account a cookie's value is signed in to, and whether its cookie should be
+    sent again (its last use was written down now, at most once a day); None for an
+    unknown value or a session unused for `SESSION_LIFE`."""
+    if not value or len(value) > 100:
+        return None
+    digest = _secret_digest(value)
+    with store.connection() as db:
+        row = db.execute("SELECT account, seen FROM sessions WHERE digest = ?", (digest,)).fetchone()
+        if row is None:
+            return None
+        seen = datetime.fromisoformat(row[1])
+        if seen + SESSION_LIFE < now:
+            db.execute("DELETE FROM sessions WHERE digest = ?", (digest,))
+            return None
+        touched = seen + SESSION_TOUCH < now
+        if touched:
+            db.execute("UPDATE sessions SET seen = ? WHERE digest = ?", (_stamp(now), digest))
+        account = _account(db.execute(f"SELECT {_COLUMNS} FROM accounts WHERE id = ?", (row[0],)).fetchone())
+    return (account, touched) if account else None
+
+
+def close_session(store: Store, value: str) -> None:
+    with store.connection() as db:
+        db.execute("DELETE FROM sessions WHERE digest = ?", (_secret_digest(value),))
+
+
+def close_sessions(store: Store, account_id: str, keep: str | None = None) -> int:
+    """Sign the account out everywhere, but for the session `keep` (this device)."""
+    with store.connection() as db:
+        return db.execute(
+            "DELETE FROM sessions WHERE account = ? AND digest != ?",
+            (account_id, _secret_digest(keep) if keep else ""),
+        ).rowcount
+
+
+def sessions_of(store: Store, account_id: str) -> list[dict]:
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT device, created, seen FROM sessions WHERE account = ? ORDER BY seen DESC", (account_id,)
+        ).fetchall()
+    return [{"device": d, "created": c, "seen": s} for d, c, s in rows]
+
+
+# -- links sent by e-mail ---------------------------------------------------
+
+LINK_LIFE = {"confirm": CONFIRM_LIFE, "reset": RESET_LIFE}
+
+
+def new_link(store: Store, account_id: str, purpose: str, now: datetime) -> str:
+    """The random part of a link to send by e-mail; a newer link of the same kind
+    replaces the older one."""
+    value = secrets.token_urlsafe(24)
+    with store.connection() as db:
+        db.execute("DELETE FROM mail_links WHERE account = ? AND purpose = ?", (account_id, purpose))
+        db.execute(
+            "INSERT INTO mail_links (digest, account, purpose, expires) VALUES (?, ?, ?, ?)",
+            (_secret_digest(value), account_id, purpose, _stamp(now + LINK_LIFE[purpose])),
+        )
+    return value
+
+
+def link_account(store: Store, value: str, purpose: str, now: datetime, *, use: bool) -> Account | None:
+    """The account a link from an e-mail is for, if it is still good; `use` spends it."""
+    if not value or len(value) > 100:
+        return None
+    digest = _secret_digest(value)
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT account, purpose, expires FROM mail_links WHERE digest = ?", (digest,)
+        ).fetchone()
+        if row is None or row[1] != purpose or datetime.fromisoformat(row[2]) < now:
+            return None
+        if use:
+            db.execute("DELETE FROM mail_links WHERE digest = ?", (digest,))
+        return _account(db.execute(f"SELECT {_COLUMNS} FROM accounts WHERE id = ?", (row[0],)).fetchone())
+
+
+def sweep_accounts(store: Store, now: datetime) -> int:
+    """Sessions unused for `SESSION_LIFE`, links past their time, and accounts that
+    never made a plan, `UNFINISHED_LIFE` after they were made (with what they had)."""
+    with store.connection() as db:
+        db.execute("DELETE FROM sessions WHERE seen < ?", (_stamp(now - SESSION_LIFE),))
+        db.execute("DELETE FROM mail_links WHERE expires < ?", (_stamp(now),))
+        stale = [
+            a
+            for (a,) in db.execute(
+                "SELECT id FROM accounts WHERE token IS NULL AND created < ?",
+                (_stamp(now - UNFINISHED_LIFE),),
+            )
+        ]
+        for account_id in stale:
+            db.execute("DELETE FROM sessions WHERE account = ?", (account_id,))
+            db.execute("DELETE FROM mail_links WHERE account = ?", (account_id,))
+            db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    return len(stale)

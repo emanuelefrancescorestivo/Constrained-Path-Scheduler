@@ -152,6 +152,17 @@ Fill in `CPS_DOMAIN` (for example `plan.yourname.eu`), `CPS_CONTACT`,
 Ctrl+X. This file stays on the server: Git ignores it, and it should never be pasted
 into a chat or an issue.
 
+**E-mail (D94).** Students sign up with their e-mail and a password. The app sends
+e-mail for two things only: the link that confirms an address and the link that
+chooses a new password. For that it needs an SMTP service: make an account with one
+(a transactional e-mail service, or your university's mail if it allows it), let it
+check your domain if it asks (it gives DNS records to add, as in step 4), and fill
+in `CPS_SMTP_HOST`, `CPS_SMTP_PORT`, `CPS_SMTP_USER`, `CPS_SMTP_PASSWORD`,
+`CPS_MAIL_FROM` and `CPS_MAIL_PROVIDER` (its company and country, for the privacy
+page). Without them the pilot still works: students can confirm later, and a student
+who forgets a password gets a link you make on
+`https://plan.yourname.eu/admin/<CPS_ADMIN_TOKEN>/inbox` and send yourself.
+
 ## 7. The first start
 
 ```bash

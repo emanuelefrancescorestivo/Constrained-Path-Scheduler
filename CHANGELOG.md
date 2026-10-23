@@ -6,6 +6,16 @@ The project becomes a study assistant: the product schedules with rules, and the
 research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
+- Accounts (D94): a student makes one with an e-mail address and a password before the
+  first plan, which then opens only for that account, on any device signed in to it.
+  "Forgot your password?" sends a link by e-mail; another link confirms the address,
+  which can wait. Settings has the account: change the password, sign out, sign out the
+  other devices. Passkeys and the recovery code still work. One cookie keeps a device
+  signed in. Without an e-mail service the owner makes reset links on the inbox page;
+  the demo shows its e-mails on screen.
+- Notes as PDFs (D95): a set of notes takes up to three PDFs beside its photos and
+  text. They are kept without their author's name and without anything that runs, are
+  downloaded rather than opened in the site, and their text makes flashcards.
 - Glass: Automatic, See-through, Solid (D93), in Settings under Appearance. Solid draws
   plain cards and bars with no blur, the lightest for an older computer or phone;
   Automatic turns solid by itself on a device too slow to blur, or that asks for less
@@ -511,6 +521,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+- The calendar feed carried the plan's address, which let whoever saw the feed change
+  the plan (AUDIT item 76): a plan of an account now opens only for its account.
 - Pages kept a slow device busy while nobody touched them (AUDIT item 75): Spark, the
   garden and the home page's lights now rest six seconds after the last tap or key, the
   sky holds still behind the glass, and Spark's tour and the focus ring stop redrawing

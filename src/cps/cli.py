@@ -418,12 +418,14 @@ def command_demo(args) -> int:
     config.background = False
     config.sweep_every = None
     config.admin_token = admin
+    # The demo's accounts are made up: an e-mail it cannot send is shown on screen (D94).
+    config.show_mail = config.mailer is None
     if args.public:
         world = found
         config.demo = lambda: add_student(where, world, lang=service.current_language()).token
-        # Friends on one university network share an address: thirty starts an hour
-        # from it rather than ten. A student is a copy of one semester: quick to make.
-        config.start_limit = (30, 3600.0)
+        # Friends on one university network share an address: forty starts an hour
+        # from it, as for the pilot (D94). A student is a copy of one semester: quick to make.
+        config.start_limit = (40, 3600.0)
     print(f"\nserving on {base} (Ctrl+C to stop)", flush=True)
     with contextlib.suppress(KeyboardInterrupt):
         uvicorn.run(

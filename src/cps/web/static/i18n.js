@@ -63,6 +63,7 @@ const FR = {
   "left the app {n} times ({minutes} min)": "app quittée {n} fois ({minutes} min)",
   "A photo could not be read. Try a JPEG or a PNG.": "Une photo n'a pas pu être lue. Essaie un JPEG ou un PNG.",
   "At most {n} photos. Choose fewer.": "{n} photos au plus. Choisis-en moins.",
+  "At most {n} PDFs. Choose fewer.": "{n} PDF au plus. Choisis-en moins.",
   // Drawing a week (D32)
   "Add": "Ajouter",
   "Add a class": "Ajouter un cours",
@@ -183,6 +184,7 @@ const IT = {
   "left the app {n} times ({minutes} min)": "uscito dall'app {n} volte ({minutes} min)",
   "A photo could not be read. Try a JPEG or a PNG.": "Non è stato possibile leggere una foto. Prova un JPEG o un PNG.",
   "At most {n} photos. Choose fewer.": "Al massimo {n} foto. Scegline meno.",
+  "At most {n} PDFs. Choose fewer.": "Al massimo {n} PDF. Scegline meno.",
   "Add": "Aggiungi",
   "Add a class": "Aggiungi una lezione",
   "Added, on this day only.": "Aggiunta, solo in questo giorno.",

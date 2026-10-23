@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Choose a new password") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="card account-card">
+  <h1>{{ _("Choose a new password") }}</h1>
+  {% if unsent %}
+  <p>{{ _("This server cannot send e-mail yet, so it cannot send you a link.") }}</p>
+  <p class="hint">{{ _("Sign in with a passkey or your recovery code from the home page, or ask the person who runs this service for a link.") }}</p>
+  {% elif asked %}
+    {% if shown %}{% with mail=shown %}{% include "_mail_shown.html" %}{% endwith %}
+    {% elif nobody %}<p>{{ _("No account in this demo has this address.") }}</p>
+    {% else %}
+  <p>{{ _("If an account has this address, an e-mail with a link is on its way. The link works for two hours.") }}</p>
+  <p class="hint">{{ _("Nothing after a few minutes? Look in your spam folder, or check the address and ask again.") }}</p>
+    {% endif %}
+  {% else %}
+  <p class="hint">{{ _("Give your account's e-mail address: a link to choose a new password is sent to it.") }}</p>
+  {% if not can_send %}<p class="alert" role="status">{{ _("This server cannot send e-mail yet, so it cannot send you a link.") }}</p>{% endif %}
+  <form method="post" action="/account/forgot" class="account-form">
+    <label for="email">{{ _("E-mail address") }}</label>
+    <input id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254" value="{{ email or '' }}" required>
+    <p><button type="submit" class="btn btn-primary btn-block">{{ _("Send me a link") }}</button></p>
+  </form>
+  {% endif %}
+  <p><a href="/account/signin">{{ _("Back to sign in") }}</a></p>
+</div>
+{% endblock %}

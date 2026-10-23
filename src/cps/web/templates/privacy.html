@@ -7,13 +7,18 @@
 
 <h2>{{ _("What is kept") }}</h2>
 <ul>
+  {% if accounts %}
+  <li>{{ _("Your account: your e-mail address, when you made the account and confirmed the address, and a one-way fingerprint of your password (scrypt, salted), from which the password cannot be read back.") }}</li>
+  <li>{{ _("The devices signed in to your account: their kind (such as iPhone or Windows), when each signed in and was last used. Each keeps a cookie holding a random value; the server keeps only its fingerprint (SHA-256).") }}</li>
+  {% endif %}
   <li>{{ _("Your timetable: its link, if you gave one, and its content as last read.") }}</li>
   <li>{{ _("What you typed: exams, deadlines, busy times, how many hours you study, days off.") }}</li>
   <li>{{ _("Your plan, and which sessions you reported as done, skipped or hard.") }}</li>
   <li>{{ _("A log of what happened to your plan (created, settings changed, a session reported, opened that day, with the date), to count how often plans are used. It holds no timetable content.") }}</li>
   <li>{{ _("The sessions you log, the explanations you write and the notes you share, with their photos, and who you chose to show each one to: only you, your followers, or everyone. Photos are kept without their location data.") }}</li>
   <li>{{ _("Your flashcards and each answer you gave them, to schedule the next review. Only you see them.") }}</li>
-  <li>{{ _("Your courses' topics, assessment, credits and hours, as read from a program you pasted or uploaded. A PDF you upload is read and not kept: the server keeps no copy of the file.") }}</li>
+  <li>{{ _("The PDFs of notes you share: their pages, without the author's name and the other details they carried, shown only to those you chose and saved rather than opened in a page of the site, with the text read from them for flashcards. They go with their post, and with your plan.") }}</li>
+  <li>{{ _("Your courses' topics, assessment, credits and hours, as read from a program you pasted or uploaded. A program's PDF is read and not kept: the server keeps no copy of the file.") }}</li>
   <li>{{ _("If you join the network: your handle, university, programme and year as you gave them, who you follow and who follows you, your kudos and comments, the reports you make and the people you block. Others at your university see you among its students.") }}</li>
   <li>{{ _("If you add a passkey: its public key, the kind of device it was added on (such as iPhone or Mac), and when it was added and last used. Its private key stays on your device or in your password manager; your face or fingerprint never leaves your device and is never seen here.") }}</li>
   <li>{{ _("If you make a recovery code: a one-way fingerprint of it (SHA-256), from which the code cannot be read back.") }}</li>
@@ -22,7 +27,12 @@
   <li>{{ _("If you send feedback: your message, what you said it is about, the page you sent it from (without your plan's address) and your language. Only the owner of this service reads it, and it is deleted with your plan.") }}</li>
 </ul>
 <p>{{ _("When something goes wrong in the app, on the server or in a page's script, the error is noted for the owner: where it happened (the kind of page, never your plan's address), what kind of error, its message and the lines of code involved, and how often it happened. These notes name no plan and are deleted 30 days after the error last happened.") }}</p>
+{% if accounts %}
+<p>{{ _("One cookie, cps_session, keeps a device signed in, for {days} days after it was last used; signing out deletes it. It is the only cookie, used for nothing else: no analytics and no advertising. Your name is not asked for. The service's own log records the time, the kind of page and the answer's status, not your plan's address. The company that hosts the server may log connections, with IP addresses, under its own policy.", days=session_days) }}</p>
+<p>{% if sends_mail and mail_provider %}{{ _("E-mail is sent only to confirm your address and to choose a new password, through {provider}, which delivers it.", provider=mail_provider) }}{% elif sends_mail %}{{ _("E-mail is sent only to confirm your address and to choose a new password.") }}{% else %}{{ _("This server sends no e-mail yet.") }}{% endif %}</p>
+{% else %}
 <p>{{ _("Not asked for and not kept: your name, your e-mail address, a password. There are no cookies, no analytics and no advertising. The service's own log records the time, the kind of page and the answer's status, not your plan's address. The company that hosts the server may log connections, with IP addresses, under its own policy.") }}</p>
+{% endif %}
 <p>{{ _("Your browser remembers which celebrations it has already shown you (a milestone, a full week, a group's goal), so each appears once. That list stays on your device and is never sent; clearing the site's data forgets it.") }}</p>
 <p>{{ _("To work offline, this device keeps a copy of the pages of your plan you open. The copy never leaves the device; deleting your plan, or the site's data, removes it.") }}</p>
 <p>{{ _("Your browser also remembers the address of the plan last opened on it, so that a study group's invitation link can offer to join with it. It stays on your device; deleting your plan, or the site's data, forgets it.") }}</p>
@@ -37,13 +47,17 @@
 <p>{{ _("To make your study plan and keep it up to date, which is what you ask for by using the service. Nothing is sold, shared or used for anything else.") }}</p>
 
 <h2>{{ _("Where, and who can see it") }}</h2>
+{% if accounts %}
+<p>{{ _("On the server that runs this service. Your plan opens only for your account, on the devices signed in to it with your password, a passkey or your recovery code. Its calendar feed has an address of its own, which your calendar app reads: anyone who has it can see your sessions, so keep it private, as you would a calendar's secret address. Google Calendar, for one, reads it from Google's servers.") }}</p>
+{% else %}
 <p>{{ _("On the server that runs this service. Your plan's two addresses (the page and the calendar feed) are the only keys to it, with your passkeys and your recovery code, which lead to the page's address: anyone who has them can see your plan, and the page's address lets them change it. Keep them private, as you would a calendar's secret address. Your calendar app reads the feed; Google Calendar, for one, reads it from Google's servers.") }}</p>
+{% endif %}
 {% if host %}<p>{{ _("The server is hosted by {host}.", host=host) }}</p>{% endif %}
 <p>{{ _("In a study group, its members see the group's total hours each week and whether you studied that week; never your plan, your courses or your sessions.") }}</p>
 <p>{{ _("In the network, others see your handle, university, programme and the line about you, and each post only by the people you chose for it. A photo's address works only for them. Reports are read by the owner of this service alone; nobody is told who reported them, and nobody is told they were blocked.") }}</p>
 
 <h2>{{ _("For how long") }}</h2>
-<p>{{ _("Until {months} months after you last open your plan, then deleted automatically, with everything kept under it: your next semesters go on in the same plan. Your calendar app reading the feed does not count as opening it. You can delete everything at once from Settings, \"Delete my plan and all my data\". Backups of the server's data are kept for at most 7 days.", months=retention) }}</p>
+<p>{{ _("Until {months} months after you last open your plan, then deleted automatically, with everything kept under it: your next semesters go on in the same plan. Your calendar app reading the feed does not count as opening it. You can delete everything at once from Settings, \"Delete my plan and all my data\". Backups of the server's data are kept for at most 7 days.", months=retention) }}{% if accounts %} {{ _("An account that never made a plan is deleted 30 days after it was made.") }}{% endif %}</p>
 
 <h2>{{ _("Your rights") }}</h2>
 <p>{{ _("You can see everything kept about you on your plan's pages, download a copy of it in one file, change it in Settings and delete it at any time.") }}{% if contact %} {{ _("For any question, or to exercise another right under the GDPR, write to {contact}.", contact=contact) }}{% endif %}</p>

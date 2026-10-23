@@ -981,6 +981,34 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 
 /* -- the public demo (D31) ------------------------------------------------------ */
 
+/* -- e-mail accounts (D94): sign up, sign in, a new password ------------------------ */
+.signup, .account-card { max-width: 30rem; margin-inline: auto; }
+.account-card h1 { margin-top: 0; }
+.account-form input:not([type="hidden"]) { width: 100%; }
+.account-form .btn-block { margin-top: 14px; }
+.signed-as { max-width: 40rem; margin: 0 auto 12px; }
+.signed-as-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; color: var(--muted); font-size: 0.92rem; }
+.account-fold { margin: 8px 0; }
+.account-fold > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.mail-shown { display: grid; gap: 8px; }
+.mail-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--fill-4); }
+.mail-card p { margin: 0 0 8px; }
+.mail-body { overflow-wrap: anywhere; font-size: 0.92rem; }
+.account-row { align-items: center; gap: 10px; }
+.account-row .grow, .post-pdfs .grow { min-width: 0; }
+.account-row b, .post-pdfs b { display: block; overflow-wrap: anywhere; }
+.account-row small, .post-pdfs small { display: block; }
+.post-pdfs > li { align-items: center; gap: 12px; }
+
+/* -- a set of notes' PDFs (D95) --------------------------------------------------- */
+.post-pdfs { margin: 10px 0 0; }
+.file-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 36px; height: 44px; border-radius: 7px; background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 0.68rem; font-weight: 750; letter-spacing: 0.04em;
+}
+
 /* -- two ways to start: import a timetable, or draw a week (D32) ----------------- */
 .ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .ways .card + .card { margin-top: 0; }

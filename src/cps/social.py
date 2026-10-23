@@ -25,7 +25,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from . import universities
+from . import pdftext, universities
 from .i18n import _
 from .store import LEAVE_GROUPS, Store
 
@@ -37,6 +37,11 @@ MAX_PHOTOS = 4
 MAX_NOTE_PHOTOS = 8  # a page of notes per photo; a set of notes has more pages (D26)
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
 MAX_PHOTO_SIDE = 8000
+# PDFs of notes (D95), beside or instead of the photos: a few files, each within
+# pdftext's bounds; kept without their metadata, and their text kept for flashcards.
+MAX_NOTE_PDFS = 3
+MAX_PDF_BYTES = pdftext.MAX_BYTES
+MAX_PDF_TEXT = 50_000  # characters of a set's PDFs kept for flashcards; the card maker reads 20,000
 LIMITS = {"course": 80, "title": 120, "note": 1000, "concept": 120, "text": 1200, "simple": 400}
 LIMITS["body"] = 20_000  # notes written as text (D85)
 
@@ -139,7 +144,42 @@ def _keep_photo(store: Store, cleaned: bytes, ext: str) -> str:
     return name
 
 
-PHOTO_NAME = re.compile(r"[A-Za-z0-9_-]{12}\.(jpg|png)")
+PHOTO_NAME = re.compile(r"[A-Za-z0-9_-]{12}\.(jpg|png|pdf)")
+
+
+def _pdf_refusal(reason: str) -> SocialError:
+    if reason == "large":
+        return SocialError(
+            _(
+                "A PDF of notes can be at most {mb} MB and {pages} pages.",
+                mb=MAX_PDF_BYTES // (1024 * 1024),
+                pages=pdftext.NOTE_PAGES,
+            )
+        )
+    if reason == "locked":
+        return SocialError(_("That PDF is locked with a password: save a copy without one, then add it."))
+    if reason == "missing":
+        return SocialError(_("PDFs cannot be read on this server."))
+    if reason == "not_pdf":
+        return SocialError(_("That file is neither a photo nor a PDF."))
+    return SocialError(_("That PDF could not be read."))
+
+
+def clean_pdf(data: bytes) -> pdftext.Cleaned:
+    """A PDF of notes ready to keep (D95): written again without its metadata (often
+    its author's name) and without anything that runs when it is opened."""
+    try:
+        return pdftext.clean(data)
+    except pdftext.PdfError as error:
+        raise _pdf_refusal(error.reason) from error
+
+
+def _file_title(name: str) -> str:
+    """A PDF's name as uploaded, shown on the post: the last part of the path, without
+    ".pdf", in at most 80 characters."""
+    base = re.split(r"[\\/]", name)[-1]
+    base = re.sub(r"\.pdf$", "", base, flags=re.I).strip()
+    return base[:80] or _("Notes")
 
 
 # --------------------------------------------------------------------------- #
@@ -210,9 +250,11 @@ def create_post(
     visibility: str,
     data: dict,
     photos: Iterable[bytes] = (),
+    pdfs: Iterable[tuple[str, bytes]] = (),
     now: datetime | None = None,
 ) -> Post:
-    """Check a post's fields, keep its photos, and store it."""
+    """Check a post's fields, keep its photos (and a set of notes' PDFs, D95), and
+    store it."""
     if kind not in KINDS:
         raise SocialError(f"unknown kind of post {kind!r}")
     if visibility not in VISIBILITIES and not (kind == "notes" and visibility == GROUP):
@@ -221,6 +263,11 @@ def create_post(
     most = MAX_NOTE_PHOTOS if kind == "notes" else MAX_PHOTOS
     if len(photos) > most:
         raise SocialError(_("at most {n} photos", n=most))
+    pdfs = [(name, data) for name, data in pdfs if data]
+    if pdfs and kind != "notes":
+        raise SocialError(_("That file is neither a photo nor a PDF."))
+    if len(pdfs) > MAX_NOTE_PDFS:
+        raise SocialError(_("at most {n} PDFs", n=MAX_NOTE_PDFS))
     clean: dict = {}
     if kind == "session":
         clean["course"] = _text(data.get("course", ""), "course", required=True)
@@ -262,8 +309,8 @@ def create_post(
             raise SocialError(_("at most {n} characters", n=LIMITS["body"]))
         if not data.get("own_work"):
             raise SocialError(_("say that these are your own notes, in your own words"))
-        if not photos and not clean["body"]:
-            raise SocialError(_("add your notes: photos of the pages, or the text"))
+        if not photos and not pdfs and not clean["body"]:
+            raise SocialError(_("add your notes: photos of the pages, a PDF, or the text"))
         clean["own_work"] = True
         if visibility == GROUP:
             group = str(data.get("group") or "")
@@ -276,8 +323,14 @@ def create_post(
         clean["course"] = _text(data.get("course", ""), "course")
         clean["text"] = _text(data.get("text", ""), "text", required=True)
     cleaned = [clean_photo(p) for p in photos]  # all checked before any is kept
+    files = [(_file_title(name), clean_pdf(data)) for name, data in pdfs]
     names = [_keep_photo(store, *c) for c in cleaned]
     clean["photos"] = names
+    if files:
+        kept = [(title, f, _keep_photo(store, f.data, "pdf")) for title, f in files]
+        clean["pdfs"] = [{"name": name, "title": title, "pages": f.pages} for title, f, name in kept]
+        clean["pdf_text"] = "\n\n".join(f.text for _title, f, _name in kept if f.text.strip())[:MAX_PDF_TEXT]
+        names = [*names, *(name for _title, _f, name in kept)]
     post = Post(_new_id(), token, kind, _now(now), day, visibility, clean)
     with store.connection() as db:
         db.execute(
@@ -318,7 +371,7 @@ def delete_post(store: Store, token: str, post_id: str) -> bool:
         db.execute("DELETE FROM reports WHERE target = ?", (post_id,))
         db.execute("DELETE FROM photos WHERE post = ?", (post_id,))
         db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-    for name in post.data.get("photos", []):
+    for name in [*post.data.get("photos", []), *(f["name"] for f in post.data.get("pdfs", []))]:
         (store.photos / name).unlink(missing_ok=True)
     return True
 
