@@ -961,3 +961,9 @@ them instead" and the rest. Status: fixed; an element inside a closed fold now c
 only if it is the fold's own summary. Measured again with the fixed walk, the same app
 gives 80 things to tap and 51 fields on that screen, and 117 on Settings; the review's
 conclusions stand, its counts of those screens were too high.
+
+**78. Five sections in a tab bar laid out for six.** Found by the owner on 2026-10-23,
+on the branch of D97 before it was merged: the phone's tab bar kept
+`grid-template-columns: repeat(6, 1fr)` from the six sections of D88, so the five of D97
+sat in the left five sixths with an empty column at the right. Status: fixed; the bar now
+makes as many equal columns as it has links (`tests/test_simpler.py` checks the rule).

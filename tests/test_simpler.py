@@ -147,3 +147,12 @@ def test_a_question_already_settled_is_not_asked(web):
     plan = service.load_subscription(web.root, token)
     assert service.fit_question(plan, MORNING) is None  # the day it was made
     assert service.fit_question(plan, MORNING + timedelta(days=1))["key"] == "calendar"
+
+
+def test_the_tab_bar_shares_its_width_evenly_among_the_sections():
+    # Found by the owner on 2026-10-23 (AUDIT 78): six fixed columns for five sections
+    # left an empty sixth at the right. As many columns as there are links.
+    css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text()
+    rule = re.search(r"\n  \.tabbar \{(.*?)\n  \}", css, re.S)[1]
+    assert "grid-auto-flow: column" in rule and "grid-auto-columns: minmax(0, 1fr)" in rule
+    assert "grid-template-columns" not in rule
