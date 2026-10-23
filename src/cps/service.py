@@ -66,6 +66,7 @@ from . import i18n as _i18n
 from . import inbox as _inbox
 from . import insights as _insights
 from . import learning as _learning
+from . import mail as _mail
 from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
@@ -3068,6 +3069,7 @@ def export_data(store: str | os.PathLike, token: str, now: datetime | None = Non
     for post in tables["posts"]:
         post["data"] = json.loads(post["data"])
         names += [str(n) for n in post["data"].get("photos", [])]
+        names += [str(f["name"]) for f in post["data"].get("pdfs", [])]  # D95
     photos = {}
     for name in names:
         path = where.photos / name
@@ -3076,7 +3078,7 @@ def export_data(store: str | os.PathLike, token: str, now: datetime | None = Non
     return {
         "exported": (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds"),
         "about": "Everything this study planner keeps under your plan's address. "
-        "The photos are in base64, by the names your posts give.",
+        "The photos and PDFs are in base64, by the names your posts give.",
         "plan": document,
         **tables,
         "photos": photos,
@@ -3109,8 +3111,11 @@ def events(store: str | os.PathLike, token: str) -> list[dict]:
 
 
 def sweep_subscriptions(store: str | os.PathLike, now: datetime | None = None) -> int:
-    """Delete every subscription past its expiry (`subscription_expiry`)."""
-    return _store(store).sweep(now, expiry=_expiry_of)
+    """Delete every subscription past its expiry (`subscription_expiry`), and the
+    sessions, links and plan-less accounts past theirs (D94)."""
+    gone = _store(store).sweep(now, expiry=_expiry_of)
+    _accounts.sweep_accounts(_store(store), now or datetime.now(UTC))
+    return gone
 
 
 def backup_subscriptions(
@@ -3263,11 +3268,14 @@ def account_view(store: str | os.PathLike, subscription: Subscription, now: date
     recovery = _accounts.recovery_made(_store(store), subscription.token)
     later = subscription.options.get("account_later")
     deleted = subscription_expiry(subscription).astimezone(zone).date()
+    # A plan of an e-mail account (D94) is found again by signing in: no nudge.
+    owned = _accounts.owner_of(_store(store), subscription.token) is not None
     return {
         "passkeys": keys,
         "recovery": day(recovery) if recovery else None,
-        "safe": bool(keys or recovery),
-        "nudge": not (keys or recovery)
+        "safe": bool(keys or recovery or owned),
+        "owned": owned,
+        "nudge": not (keys or recovery or owned)
         and (not later or now - datetime.fromisoformat(later) >= ACCOUNT_LATER),
         "deleted": format_date(deleted, "day") + f" {deleted.year}",
     }
@@ -3277,6 +3285,243 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
     """ "Not now": the suggestion to keep the plan safe waits `ACCOUNT_LATER`."""
     stamp = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
     return replace(subscription, options={**subscription.options, "account_later": stamp})
+
+
+# --------------------------------------------------------------------------- #
+# E-mail accounts (DECISIONS.md D94)
+# --------------------------------------------------------------------------- #
+
+Account = _accounts.Account
+SESSION_LIFE = _accounts.SESSION_LIFE
+PASSWORD_MIN = _accounts.PASSWORD_MIN
+PASSWORD_MAX = _accounts.PASSWORD_MAX
+
+
+class AccountRefused(ServiceError):
+    """An account that could not be made, opened or changed; the message says why."""
+
+
+def _refused(reason: str) -> AccountRefused:
+    return AccountRefused(
+        {
+            "email": _("That does not look like an e-mail address."),
+            "short": _(
+                "Choose a password of at least {n} characters: three or four words make a good one.",
+                n=PASSWORD_MIN,
+            ),
+            "long": _("A password can have at most {n} characters.", n=PASSWORD_MAX),
+            "common": _("That password is one of the most common: choose another."),
+            "same": _("Choose a password that does not contain your e-mail address."),
+            "taken": _(
+                "An account with this e-mail address exists already: sign in, or choose a new "
+                "password if you forgot it."
+            ),
+            "wrong": _("Wrong e-mail address or password."),
+            "locked": _(
+                "Too many wrong passwords: try again in a quarter of an hour, or choose a new password."
+            ),
+            "bound": _("This account has a plan already."),
+        }.get(reason, _("Wrong e-mail address or password."))
+    )
+
+
+def sign_up(store: str | os.PathLike, email: str, password: str, now: datetime | None = None) -> Account:
+    """A new account, before its plan (D94)."""
+    normal = _accounts.normal_email(email)
+    if normal is None:
+        raise _refused("email")
+    try:
+        return _accounts.create_account(_store(store), normal, password, now or datetime.now(UTC))
+    except _accounts.AccountError as error:
+        raise _refused(error.reason) from error
+
+
+def sign_in_with_password(
+    store: str | os.PathLike, email: str, password: str, now: datetime | None = None
+) -> Account:
+    now = now or datetime.now(UTC)
+    try:
+        account = _accounts.check_password(_store(store), _accounts.normal_email(email) or "", password, now)
+    except _accounts.AccountError as error:
+        raise _refused(error.reason) from error
+    if account.token:
+        log_event(store, account.token, "signin", "password")
+        mark_seen(store, account.token, now)
+    return account
+
+
+def open_session(
+    store: str | os.PathLike, account: Account, now: datetime | None = None, device: str = ""
+) -> str:
+    """A device signed in to the account: the value its cookie keeps."""
+    return _accounts.open_session(_store(store), account.id, now or datetime.now(UTC), device)
+
+
+def signed_in(
+    store: str | os.PathLike, cookie: str, now: datetime | None = None
+) -> tuple[Account, bool] | None:
+    """The account a cookie is signed in to, and whether to send the cookie again."""
+    return _accounts.session_account(_store(store), cookie, now or datetime.now(UTC))
+
+
+def sign_out(store: str | os.PathLike, cookie: str) -> None:
+    _accounts.close_session(_store(store), cookie)
+
+
+def sign_out_elsewhere(store: str | os.PathLike, account: Account, cookie: str) -> int:
+    """Every other device signed in to the account is signed out; their number."""
+    return _accounts.close_sessions(_store(store), account.id, keep=cookie)
+
+
+def plan_owner(store: str | os.PathLike, token: str) -> str | None:
+    """The account a plan belongs to; None for a plan of its address alone (D35)."""
+    return _accounts.owner_of(_store(store), token)
+
+
+def account_of(store: str | os.PathLike, account_id: str) -> Account | None:
+    return _accounts.get_account(_store(store), account_id)
+
+
+def give_plan(store: str | os.PathLike, account: Account, token: str) -> None:
+    try:
+        _accounts.give_plan(_store(store), account.id, token)
+    except _accounts.AccountError as error:
+        raise _refused(error.reason) from error
+
+
+def plan_for_session(
+    store: str | os.PathLike, token: str, account_id: str, now: datetime | None = None, device: str = ""
+) -> str:
+    """A passkey or recovery-code sign-in into a plan that belongs to an account: a
+    session for that account, so its pages open (D94)."""
+    account = _accounts.get_account(_store(store), account_id)
+    assert account is not None
+    return open_session(store, account, now, device)
+
+
+def confirmation_mail(
+    store: str | os.PathLike, account: Account, base_url: str, now: datetime | None = None
+) -> _mail.Message:
+    """The e-mail with the link that confirms the account's address."""
+    value = _accounts.new_link(_store(store), account.id, "confirm", now or datetime.now(UTC))
+    link = f"{base_url}/account/confirm/{value}"
+    return _mail.Message(
+        to=account.email,
+        subject=_("Confirm your e-mail address"),
+        body=_(
+            "Hello,\n\nTo confirm that this is the address of your study plan's account, open this "
+            "link within 7 days:\n\n{link}\n\nA confirmed address lets you choose a new password "
+            "if you forget yours. If you did not make this account, ignore this e-mail.\n\nStudy plan",
+            link=link,
+        ),
+    )
+
+
+def reset_mail(
+    store: str | os.PathLike, email: str, base_url: str, now: datetime | None = None
+) -> _mail.Message | None:
+    """The e-mail with the link that chooses a new password; None if no account has
+    this address (the page says the same either way)."""
+    normal = _accounts.normal_email(email)
+    account = _accounts.account_by_email(_store(store), normal) if normal else None
+    if account is None:
+        return None
+    value = _accounts.new_link(_store(store), account.id, "reset", now or datetime.now(UTC))
+    link = f"{base_url}/account/reset/{value}"
+    return _mail.Message(
+        to=account.email,
+        subject=_("Choose a new password"),
+        body=_(
+            "Hello,\n\nSomeone, hopefully you, asked to choose a new password for your study plan. "
+            "To choose it, open this link within two hours:\n\n{link}\n\nIf it was not you, ignore "
+            "this e-mail: your password stays as it is.\n\nStudy plan",
+            link=link,
+        ),
+    )
+
+
+def link_for(
+    store: str | os.PathLike, value: str, purpose: str, now: datetime | None = None
+) -> Account | None:
+    """The account a link from an e-mail is for, while it is good; not spent."""
+    return _accounts.link_account(_store(store), value, purpose, now or datetime.now(UTC), use=False)
+
+
+def confirm_address(store: str | os.PathLike, value: str, now: datetime | None = None) -> Account | None:
+    now = now or datetime.now(UTC)
+    account = _accounts.link_account(_store(store), value, "confirm", now, use=True)
+    if account is not None:
+        _accounts.confirm(_store(store), account.id, now)
+        if account.token:
+            log_event(store, account.token, "account", "confirmed")
+    return account
+
+
+def reset_password(
+    store: str | os.PathLike, value: str, password: str, now: datetime | None = None
+) -> Account:
+    """A new password from a link sent by e-mail: every device is signed out, and the
+    address counts as confirmed (the link reached it)."""
+    now = now or datetime.now(UTC)
+    account = _accounts.link_account(_store(store), value, "reset", now, use=False)
+    if account is None:
+        raise AccountRefused(_("This link has expired or was used already. Ask for a new one."))
+    try:
+        _accounts.set_password(_store(store), account, password)
+    except _accounts.AccountError as error:
+        raise _refused(error.reason) from error
+    _accounts.link_account(_store(store), value, "reset", now, use=True)
+    _accounts.close_sessions(_store(store), account.id)
+    _accounts.confirm(_store(store), account.id, now)
+    if account.token:
+        log_event(store, account.token, "account", "reset")
+    return account
+
+
+def change_password(
+    store: str | os.PathLike,
+    account: Account,
+    current: str,
+    new: str,
+    cookie: str,
+    now: datetime | None = None,
+) -> int:
+    """A new password, the current one given; the other devices are signed out (their
+    number is returned)."""
+    now = now or datetime.now(UTC)
+    try:
+        _accounts.check_password(_store(store), account.email, current, now)
+    except _accounts.AccountError as error:
+        raise AccountRefused(
+            _("That is not your current password.")
+            if error.reason == "wrong"
+            else str(_refused(error.reason))
+        ) from error
+    try:
+        _accounts.set_password(_store(store), account, new)
+    except _accounts.AccountError as error:
+        raise _refused(error.reason) from error
+    if account.token:
+        log_event(store, account.token, "account", "password")
+    return _accounts.close_sessions(_store(store), account.id, keep=cookie)
+
+
+def mailer_from_env() -> Callable[[_mail.Message], None] | None:
+    """What sends the service's e-mail, from the environment (`cps.mail`); None if
+    no SMTP server is named, and nothing is sent."""
+    smtp = _mail.Smtp.from_env()
+    return smtp.send if smtp is not None else None
+
+
+def email_account_view(store: str | os.PathLike, account: Account) -> dict:
+    """The account part of Settings: the address, whether it is confirmed, how many
+    devices are signed in."""
+    return {
+        "email": account.email,
+        "confirmed": account.confirmed is not None,
+        "devices": len(_accounts.sessions_of(_store(store), account.id)),
+        "password_min": PASSWORD_MIN,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -5347,7 +5592,9 @@ def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: Zon
     }
     if post.kind == "notes":
         card["body"] = d.get("body", "")
-        card["cards_from"] = bool(d.get("body")) and viewer is not None
+        # D95: a set's PDFs, each fetched from the viewer's page, as the photos are.
+        card["pdfs"] = [{**f, "src": prefix + f["name"]} for f in d.get("pdfs", [])]
+        card["cards_from"] = bool(d.get("body") or d.get("pdf_text")) and viewer is not None
     if post.kind == "session":
         effort = int(d.get("effort", 0))
         card["effort_word"] = _(EFFORT_WORDS[max(k for k in EFFORT_WORDS if k <= effort)]) if effort else ""
@@ -5423,7 +5670,19 @@ def photo_for(store: str | os.PathLike, viewer: str | None, name: str) -> tuple[
     path = where.photos / name
     if not path.is_file():
         return None
-    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
+    return path.read_bytes(), _MEDIA.get(path.suffix, "image/jpeg")
+
+
+_MEDIA = {".png": "image/png", ".pdf": "application/pdf"}  # a post's files, by their ending (D95)
+
+
+def pdf_title(store: str | os.PathLike, name: str) -> str:
+    """The name a set of notes' PDF was uploaded under (D95), to save it under."""
+    post = social.photo_post(_store(store), name)
+    for f in post.data.get("pdfs", []) if post else []:
+        if f["name"] == name:
+            return str(f["title"])
+    return "notes"
 
 
 # --------------------------------------------------------------------------- #
@@ -6107,7 +6366,7 @@ def _note_source(store: str | os.PathLike, subscription: Subscription, note_id: 
     with them; None otherwise."""
     where = _store(store)
     post = social.get_post(where, note_id) if note_id else None
-    if post is None or post.kind != "notes" or not post.data.get("body"):
+    if post is None or post.kind != "notes" or not (post.data.get("body") or post.data.get("pdf_text")):
         return None
     return post if social.may_see(where, subscription.token, post) else None
 
@@ -6131,7 +6390,9 @@ def card_maker_view(
     now = now or datetime.now(UTC)
     note = _note_source(store, subscription, note_id)
     if note is not None and text is None:
-        text, course = note.data["body"], course or note.data.get("course", "")
+        # The note's text, then its PDFs' (D95).
+        noted = "\n\n".join(t for t in (note.data.get("body", ""), note.data.get("pdf_text", "")) if t)
+        text, course = noted, course or note.data.get("course", "")
     text = (text or "")[: _cardmaker.MAX_TEXT]
     found = _cardmaker.read(text)
     if both:
@@ -6303,7 +6564,7 @@ def admin_photo(store: str | os.PathLike, name: str) -> tuple[bytes, str] | None
     path = where.photos / name
     if not path.is_file():
         return None
-    return path.read_bytes(), "image/png" if name.endswith(".png") else "image/jpeg"
+    return path.read_bytes(), _MEDIA.get(path.suffix, "image/jpeg")
 
 
 def _person_token(store: Store, handle: str) -> str:
@@ -6367,11 +6628,12 @@ def post_notes(
     form: Mapping[str, str],
     photos: Sequence[bytes] = (),
     *,
+    pdfs: Sequence[tuple[str, bytes]] = (),
     now: datetime | None = None,
 ) -> social.Post:
     """Notes for the library (D26): the student's own, by course, with the pages as
-    photos or written as text (D85); shared with everyone by default, since the
-    library is for others, or with one of their study groups only (D85)."""
+    photos or PDFs (D95), or written as text (D85); shared with everyone by default,
+    since the library is for others, or with one of their study groups only (D85)."""
     now = now or datetime.now(UTC)
     where = _store(store)
     visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
@@ -6393,6 +6655,7 @@ def post_notes(
             visibility=visibility,
             data=data,
             photos=photos,
+            pdfs=pdfs,
             now=now,
         )
     )

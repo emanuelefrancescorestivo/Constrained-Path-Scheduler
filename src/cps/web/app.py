@@ -67,10 +67,15 @@ HERE = Path(__file__).parent
 mimetypes.add_type("font/woff2", ".woff2")
 # A plan's pages and its sessions' pages: the language is the plan's.
 PLAN_PATH = re.compile(r"^/(?:p|s)/([A-Za-z0-9_-]{22,64})(?:/|$)")
+# Where signing in may lead back to: one of a plan's pages, nothing else (D94).
+NEXT_PATH = re.compile(r"/(?:p|s)/[A-Za-z0-9_-]{22,64}(?:/[A-Za-z0-9_./-]*)?")
+# The cookie a signed-in device keeps (D94): a random value, nothing else.
+SESSION_COOKIE = "cps_session"
 LOG = logging.getLogger("cps.web")
 MAX_UPLOAD = 5 * 1024 * 1024  # the same bound as a timetable read from a link
 MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and the fields
-MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 64 * 1024  # notes have up to eight pages (D26)
+# Notes have up to eight photos (D26) and three PDFs (D95), and the fields.
+MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 3 * 10 * 1024 * 1024 + 64 * 1024
 SWEEP_EVERY = timedelta(hours=6)
 REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38)
 
@@ -166,13 +171,25 @@ class Config:
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     fetch: Callable[[str], bytes] = service.fetch_calendar
     background: bool = True  # refresh feeds in a thread (tests turn it off)
-    start_limit: tuple[int, float] = (10, 3600.0)  # new plans per address per hour
+    # New plans per address per hour. A class on one university network shares one
+    # public address: forty lets a cohort start together (D94).
+    start_limit: tuple[int, float] = (40, 3600.0)
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
-    signin_limit: tuple[int, float] = (30, 3600.0)  # passkey and recovery-code tries per address per hour
+    # Sign-ins (password, passkey, recovery code) per address per hour, for a class
+    # behind one address; each account also locks after ten wrong passwords (D94).
+    signin_limit: tuple[int, float] = (120, 3600.0)
     admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
     # The public demo (D31): makes a fresh made-up student and returns their plan's
     # token; set, the home page offers it and every page says it is a demo.
     demo: Callable[[], str] | None = None
+    # E-mail accounts (D94): a student makes one before the plan, and the plan opens
+    # only for it. Off, plans are opened by their address alone (D35), as in the
+    # tests' own apps; `cps web` and `cps demo` turn it on (CPS_ACCOUNTS=off does not).
+    accounts: bool = False
+    signup_limit: tuple[int, float] = (40, 3600.0)  # new accounts per address per hour, a class's
+    mailer: Callable[[Any], None] | None = None  # sends a `cps.mail.Message`; None: nothing is sent
+    show_mail: bool = False  # `cps demo` only: an e-mail it cannot send is shown on screen
+    mail_provider: str | None = None  # who sends the e-mail, named on the privacy page
 
     @classmethod
     def from_env(cls) -> Config:
@@ -185,6 +202,9 @@ class Config:
             host=os.environ.get("CPS_HOST") or None,
             backup_dir=Path(os.environ["CPS_BACKUP_DIR"]) if os.environ.get("CPS_BACKUP_DIR") else None,
             admin_token=os.environ.get("CPS_ADMIN_TOKEN") or None,
+            accounts=(os.environ.get("CPS_ACCOUNTS") or "on").strip().lower() != "off",
+            mailer=service.mailer_from_env(),
+            mail_provider=os.environ.get("CPS_MAIL_PROVIDER") or None,
         )
 
 
@@ -196,6 +216,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     changes = Limiter(*config.change_limit)
     errors_in = Limiter(10, 60.0)  # browser errors per address and minute (D43)
     signins = Limiter(*config.signin_limit)
+    signups = Limiter(*config.signup_limit)
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["outcome_words"] = OUTCOME_WORDS
     templates.env.globals["recall_words"] = RECALL_WORDS
@@ -211,6 +232,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["lang"] = service.current_language
     templates.env.globals["languages"] = service.LANGUAGES
     templates.env.globals["demo"] = config.demo is not None
+    templates.env.globals["accounts"] = config.accounts
+    templates.env.globals["password_min"] = service.PASSWORD_MIN
+    templates.env.globals["password_max"] = service.PASSWORD_MAX
+    templates.env.filters["linkify"] = _linkify
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -280,12 +305,17 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             if request.method == "POST" and not _same_origin(request):
                 response: Response = HTMLResponse("Refused: this form was sent from another site.", 403)
+            elif (refused := gate(request)) is not None:
+                response = refused
             else:
                 response = await call_next(request)
         except Exception as error:  # a defect: counted in the owner's log (D43), a page for the student
             response = server_error(request, error)
         finally:
             service.deactivate_language(chosen)
+        cookie = request.cookies.get(SESSION_COOKIE)
+        if cookie and getattr(request.state, "renew", False) and "set-cookie" not in response.headers:
+            keep_signed_in(response, request, cookie)  # used today: kept for SESSION_LIFE more
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
         if request.url.path.startswith("/static/"):
@@ -384,6 +414,98 @@ def create_app(config: Config | None = None) -> FastAPI:
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
 
+    # -- e-mail accounts (D94) ---------------------------------------------------
+
+    def signed(request: Request) -> service.Account | None:
+        """The account this browser is signed in to, looked up once a request."""
+        if not hasattr(request.state, "signed"):
+            cookie = request.cookies.get(SESSION_COOKIE, "")
+            found = service.signed_in(store, cookie, config.clock()) if cookie else None
+            request.state.signed = found[0] if found else None
+            request.state.renew = bool(found and found[1])
+        return request.state.signed
+
+    def gate(request: Request) -> Response | None:
+        """A plan that belongs to an account opens only for that account: any other
+        visitor, with its address or without, is asked to sign in. Its manifest is
+        let through (a browser fetches it without cookies), and the calendar feed is
+        not a plan's page: a calendar app reads it by its own secret link."""
+        found = PLAN_PATH.match(request.url.path)
+        if found is None or request.url.path.endswith("/manifest.webmanifest"):
+            return None
+        owner = service.plan_owner(store, found.group(1))
+        if owner is None:
+            return None
+        account = signed(request)
+        if account is not None and account.id == owner:
+            return None
+        return RedirectResponse(f"/account/signin?next={quote(request.url.path)}", 303)
+
+    def keep_signed_in(response: Response, request: Request, value: str) -> Response:
+        response.set_cookie(
+            SESSION_COOKIE,
+            value,
+            max_age=int(service.SESSION_LIFE.total_seconds()),
+            path="/",
+            secure=base(request).startswith("https://"),
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
+    def plan_signed_in(answer: Response, request: Request, token: str, owner: str) -> None:
+        """A passkey or the recovery code opened a plan of an account: this browser is
+        signed in to that account, a session it had before ending first."""
+        if previous := request.cookies.get(SESSION_COOKIE):
+            service.sign_out(store, previous)
+        value = service.plan_for_session(store, token, owner, config.clock(), _device(request))
+        keep_signed_in(answer, request, value)
+
+    def signed_in_to(request: Request, account: service.Account, go: str) -> Response:
+        """Sign this browser in to the account, and go on to `go`; a session it had
+        before (another account's, or this one's) ends first."""
+        if previous := request.cookies.get(SESSION_COOKIE):
+            service.sign_out(store, previous)
+        value = service.open_session(store, account, config.clock(), _device(request))
+        return keep_signed_in(RedirectResponse(go, 303), request, value)
+
+    def where_next(account: service.Account, wanted: str = "") -> str:
+        if wanted and NEXT_PATH.fullmatch(wanted) and account.token and wanted.split("/")[2] == account.token:
+            return wanted
+        if account.token and load(account.token) is not None:
+            return f"/p/{account.token}"
+        return "/#start"
+
+    def send_mail(message: Any) -> str:
+        """Hand an e-mail to the mailer: "sent", or "shown" (the demo shows it on
+        screen), or "none" (this server sends no e-mail). A failure is kept in the
+        owner's error log (D43); the student is told it was sent, as it may still be."""
+        mailer = config.mailer
+        if mailer is None:
+            return "shown" if config.show_mail else "none"
+
+        def deliver() -> None:
+            try:
+                mailer(message)
+            except Exception as error:
+                LOG.warning("an e-mail was not sent: %s", type(error).__name__)
+                with contextlib.suppress(Exception):
+                    service.record_error(
+                        store,
+                        source="server",
+                        route="mail",
+                        kind=type(error).__name__,
+                        message=str(error)[:300],
+                        detail="",
+                        now=config.clock(),
+                    )
+
+        if config.background:
+            threading.Thread(target=deliver, name="cps-mail", daemon=True).start()
+        else:
+            deliver()
+        return "sent"
+
     def push_options() -> dict[str, Any]:
         """Who the pushes say they are from, and how they are sent (D38)."""
         options: dict[str, Any] = {"contact": config.contact, "base_url": config.base_url}
@@ -440,8 +562,199 @@ def create_app(config: Config | None = None) -> FastAPI:
         return RedirectResponse(f"/p/{token}?saved=demo", 303)
 
     @app.get("/", response_class=HTMLResponse)
-    def home(request: Request) -> HTMLResponse:
-        return page(request, "home.html", tz="Europe/Paris")
+    def home(request: Request, made: int = 0) -> Response:
+        account = signed(request) if config.accounts else None
+        if account is not None and account.token and load(account.token) is not None:
+            return RedirectResponse(f"/p/{account.token}", 303)  # signed in: straight to the plan
+        return page(request, "home.html", tz="Europe/Paris", account=account, made=made)
+
+    # -- e-mail accounts (D94) ---------------------------------------------------
+
+    def home_with(request: Request, status: int = 200, **context: Any) -> HTMLResponse:
+        context.setdefault("tz", "Europe/Paris")
+        return page(
+            request, "home.html", status, account=signed(request) if config.accounts else None, **context
+        )
+
+    @app.post("/account/signup", response_class=HTMLResponse)
+    async def signup(request: Request) -> Response:
+        if not config.accounts:
+            return missing(request)
+        if not signups.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        email = str(form.get("email") or "")
+        try:
+            account = service.sign_up(store, email, str(form.get("password") or ""), config.clock())
+        except service.AccountRefused as error:
+            return home_with(request, 400, signup_error=str(error), email=email)
+        sent = send_mail(service.confirmation_mail(store, account, base(request), config.clock()))
+        return signed_in_to(request, account, f"/?made={1 if sent == 'sent' else 2}#start")
+
+    @app.get("/account/signin", response_class=HTMLResponse)
+    def signin_page(request: Request, next: str = "") -> Response:
+        account = signed(request)
+        if account is not None:
+            return RedirectResponse(where_next(account, next), 303)
+        return page(request, "signin.html", next=next if NEXT_PATH.fullmatch(next) else "")
+
+    @app.post("/account/signin", response_class=HTMLResponse)
+    async def signin_password(request: Request) -> Response:
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        email, wanted = str(form.get("email") or ""), str(form.get("next") or "")
+        try:
+            account = service.sign_in_with_password(
+                store, email, str(form.get("password") or ""), config.clock()
+            )
+        except service.AccountRefused as error:
+            return page(
+                request,
+                "signin.html",
+                400,
+                error=str(error),
+                email=email,
+                next=wanted if NEXT_PATH.fullmatch(wanted) else "",
+            )
+        return signed_in_to(request, account, where_next(account, wanted))
+
+    @app.post("/account/signout", response_class=HTMLResponse)
+    def signout(request: Request) -> Response:
+        account = signed(request)
+        cookie = request.cookies.get(SESSION_COOKIE, "")
+        if cookie:
+            service.sign_out(store, cookie)
+        answer = page(
+            request,
+            "message.html",
+            forget=account.token
+            if account and account.token
+            else None,  # this device's offline copies go (D33)
+            title=service.translate("Signed out"),
+            message=service.translate("This device is signed out. Sign in again to open your plan."),
+            link="/account/signin",
+            link_text=service.translate("Sign in"),
+        )
+        answer.delete_cookie(SESSION_COOKIE, path="/")
+        return answer
+
+    @app.get("/account/forgot", response_class=HTMLResponse)
+    def forgot_page(request: Request) -> HTMLResponse:
+        return page(request, "forgot.html", can_send=config.mailer is not None or config.show_mail)
+
+    @app.post("/account/forgot", response_class=HTMLResponse)
+    async def forgot(request: Request) -> HTMLResponse:
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
+        email = str(form.get("email") or "")
+        message = service.reset_mail(store, email, base(request), config.clock())
+        if config.mailer is None and not config.show_mail:
+            return page(request, "forgot.html", 503, email=email, can_send=False, unsent=True)
+        sent = send_mail(message) if message is not None else "sent"
+        return page(
+            request,
+            "forgot.html",
+            email=email,
+            asked=True,
+            can_send=True,
+            # The demo shows the e-mail it would send: its accounts are made up.
+            shown=message if sent == "shown" else None,
+            nobody=message is None and config.show_mail,
+        )
+
+    @app.get("/account/reset/{value}", response_class=HTMLResponse)
+    def reset_page(request: Request, value: str) -> HTMLResponse:
+        account = service.link_for(store, value, "reset", config.clock())
+        return page(request, "reset.html", 200 if account else 410, value=value, account=account)
+
+    @app.post("/account/reset/{value}", response_class=HTMLResponse)
+    async def reset(request: Request, value: str) -> Response:
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            account = service.reset_password(store, value, str(form.get("password") or ""), config.clock())
+        except service.AccountRefused as error:
+            known = service.link_for(store, value, "reset", config.clock())
+            return page(request, "reset.html", 400, value=value, account=known, error=str(error))
+        return signed_in_to(
+            request, account, where_next(account) + ("" if "#" in where_next(account) else "?saved=password")
+        )
+
+    @app.get("/account/confirm/{value}", response_class=HTMLResponse)
+    def confirm_page(request: Request, value: str) -> HTMLResponse:
+        # A GET changes nothing (an e-mail scanner opens links): the button confirms.
+        account = service.link_for(store, value, "confirm", config.clock())
+        return page(request, "confirm.html", 200 if account else 410, value=value, account=account)
+
+    @app.post("/account/confirm/{value}", response_class=HTMLResponse)
+    def confirm(request: Request, value: str) -> Response:
+        account = service.confirm_address(store, value, config.clock())
+        if account is None:
+            return page(request, "confirm.html", 410, value=value, account=None)
+        here = signed(request)
+        if here is not None and here.id == account.id and account.token:
+            return RedirectResponse(f"/p/{account.token}/settings?saved=confirmed#login", 303)
+        return page(
+            request,
+            "message.html",
+            title=service.translate("Address confirmed"),
+            message=service.translate("Thank you: your e-mail address is confirmed."),
+            link="/account/signin",
+            link_text=service.translate("Sign in"),
+        )
+
+    def owner_here(request: Request, token: str) -> service.Account | None:
+        """The account signed in here, if it owns the plan `token` (the gate already
+        let only its owner in)."""
+        account = signed(request)
+        return account if account is not None and account.token == token else None
+
+    @app.post("/p/{token}/account/confirm", response_class=HTMLResponse)
+    def confirm_again(request: Request, token: str) -> Response:
+        account = owner_here(request, token)
+        if account is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        message = service.confirmation_mail(store, account, base(request), config.clock())
+        sent = send_mail(message)
+        if sent == "shown":
+            return page(request, "mail_shown.html", token=token, tab="settings", mail=message)
+        return RedirectResponse(
+            f"/p/{token}/settings?saved={'mail' if sent == 'sent' else 'nomail'}#login", 303
+        )
+
+    @app.post("/p/{token}/account/password", response_class=HTMLResponse)
+    async def change_password(request: Request, token: str) -> Response:
+        account = owner_here(request, token)
+        if account is None:
+            return missing(request)
+        if not signins.allow(client(request)):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.change_password(
+                store,
+                account,
+                str(form.get("current") or ""),
+                str(form.get("password") or ""),
+                request.cookies.get(SESSION_COOKIE, ""),
+                config.clock(),
+            )
+        except service.AccountRefused as error:
+            return RedirectResponse(f"/p/{token}/settings?login_error={quote(str(error))}#login", 303)
+        return RedirectResponse(f"/p/{token}/settings?saved=password#login", 303)
+
+    @app.post("/p/{token}/account/elsewhere", response_class=HTMLResponse)
+    def sign_out_elsewhere(request: Request, token: str) -> Response:
+        account = owner_here(request, token)
+        if account is None:
+            return missing(request)
+        service.sign_out_elsewhere(store, account, request.cookies.get(SESSION_COOKIE, ""))
+        return RedirectResponse(f"/p/{token}/settings?saved=elsewhere#login", 303)
 
     # -- the app on a home screen (D33) ----------------------------------------
 
@@ -544,6 +857,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             controller=config.controller,
             host=config.host,
             retention=round(service.RETENTION.days * 12 / 365),
+            mail_provider=config.mail_provider,
+            sends_mail=config.mailer is not None,
+            session_days=service.SESSION_LIFE.days,
         )
 
     # -- the science behind the engine (D89): for anyone, and inside a plan ----------
@@ -565,9 +881,18 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.post("/start")
     async def start(request: Request) -> Response:
         if int(request.headers.get("content-length") or 0) > MAX_UPLOAD + 64 * 1024:
-            return page(
-                request, "home.html", 413, error=service.translate("That file is too large for a timetable.")
-            )
+            return home_with(request, 413, error=service.translate("That file is too large for a timetable."))
+        account = signed(request) if config.accounts else None
+        if config.accounts:
+            # D94: the account first, then the plan, which becomes the account's.
+            if account is None:
+                return home_with(
+                    request,
+                    401,
+                    signup_error=service.translate("Make your account first: it keeps your plan."),
+                )
+            if account.token and load(account.token) is not None:
+                return RedirectResponse(f"/p/{account.token}", 303)
         if not starts.allow(client(request)):
             return too_many(request)
         form = await request.form(max_files=1, max_fields=11)
@@ -579,11 +904,8 @@ def create_app(config: Config | None = None) -> FastAPI:
         if isinstance(upload, UploadFile) and upload.filename:
             ics = await upload.read(MAX_UPLOAD + 1)
             if len(ics) > MAX_UPLOAD:
-                return page(
-                    request,
-                    "home.html",
-                    413,
-                    error=service.translate("That file is too large for a timetable."),
+                return home_with(
+                    request, 413, error=service.translate("That file is too large for a timetable.")
                 )
         try:
             if link is None and ics is None and not draw:
@@ -600,8 +922,10 @@ def create_app(config: Config | None = None) -> FastAPI:
                 draw=draw,
             )
         except service.ServiceError as error:
-            return page(request, "home.html", 400, error=str(error), link=link or "", tz=tz)
+            return home_with(request, 400, error=str(error), link=link or "", tz=tz)
         service.save_subscription(store, subscription)
+        if account is not None:
+            service.give_plan(store, account, subscription.token)
         drawn = link is None and ics is None
         service.log_event(store, subscription.token, "start", "link" if link else "draw" if drawn else "file")
         if drawn:
@@ -990,7 +1314,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         if found is None:
             return Response("not found\n", 404, media_type="text/plain")
         data, kind = found
-        return Response(data, media_type=kind, headers={"Cache-Control": "private, max-age=86400"})
+        headers = {"Cache-Control": "private, max-age=86400"}
+        if kind == "application/pdf":
+            # D95: a PDF is saved, then opened by the device's own viewer, never shown
+            # inside a page of this site, so nothing a crafted file holds runs here.
+            title = re.sub(r"[^\w .-]", "_", service.pdf_title(store, name))[:80].strip() or "notes"
+            headers["Content-Disposition"] = f'attachment; filename="{title}.pdf"'
+        return Response(data, media_type=kind, headers=headers)
 
     @app.get("/p/{token}/m/{name}")
     def own_photo(token: str, name: str) -> Response:
@@ -1370,14 +1700,22 @@ def create_app(config: Config | None = None) -> FastAPI:
         if int(request.headers.get("content-length") or 0) > MAX_NOTES_UPLOAD:
             return again(
                 413,
-                service.translate("These photos are too large together; send fewer or smaller ones."),
+                service.translate("These files are too large together; send fewer or smaller ones."),
                 {},
             )
-        form = await request.form(max_files=service.social.MAX_NOTE_PHOTOS, max_fields=12)
+        most = service.social.MAX_NOTE_PHOTOS + service.social.MAX_NOTE_PDFS
+        form = await request.form(max_files=most, max_fields=12)
         fields = {k: str(v) for k, v in form.items() if not isinstance(v, UploadFile)}
-        photos = [await f.read() for f in form.getlist("photos") if isinstance(f, UploadFile) and f.filename]
+        uploads = [
+            (str(f.filename), await f.read())
+            for f in form.getlist("photos")
+            if isinstance(f, UploadFile) and f.filename
+        ]
+        # One field takes both (D95): a PDF is told by its first bytes, not by its name.
+        pdfs = [(name, data) for name, data in uploads if data.startswith(b"%PDF-")]
+        photos = [data for _name, data in uploads if not data.startswith(b"%PDF-")]
         try:
-            post = service.post_notes(store, subscription, fields, photos, now=config.clock())
+            post = service.post_notes(store, subscription, fields, photos, pdfs=pdfs, now=config.clock())
         except service.ServiceError as error:
             return again(400, str(error), fields)
         service.log_event(store, token, "notes", post.visibility)
@@ -2426,10 +2764,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await session_change(request, token, sid, start, days, change, "report")
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
-    def settings(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
+    def settings(
+        request: Request, token: str, new: int = 0, saved: str = "", login_error: str = ""
+    ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
+        owner = owner_here(request, token)
         return page(
             request,
             "settings.html",
@@ -2441,6 +2782,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             saved=_notice(saved),
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             account=service.account_view(store, subscription, config.clock()),
+            login=service.email_account_view(store, owner) if owner else None,
+            login_error=login_error[:300],
+            show_mail=config.show_mail,
             reminders=service.reminders_view(store, subscription),
             tips_on=service.tips_on(subscription),
         )
@@ -2669,6 +3013,24 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return page(request, "admin_inbox.html", key=key, view=service.inbox_view(store))
 
+    @app.post("/admin/{key}/reset", response_class=HTMLResponse)
+    async def admin_reset_link(request: Request, key: str) -> HTMLResponse:
+        """A link to choose a new password, for the owner to send a student by hand
+        while the server sends no e-mail (D94). Nobody else can ask for one."""
+        if not admin_key(key):
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        email = str(form.get("email") or "")
+        message = service.reset_mail(store, email, base(request), config.clock())
+        return page(
+            request,
+            "admin_inbox.html",
+            key=key,
+            view=service.inbox_view(store),
+            reset_for=email,
+            reset_link=next(iter(re.findall(r"https?://\S+", message.body)), "") if message else "",
+        )
+
     @app.post("/admin/{key}/feedback/{ident}/seen")
     def admin_feedback_seen(request: Request, key: str, ident: int) -> Response:
         if not admin_key(key):
@@ -2843,7 +3205,11 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(error.to_dict(), 400)
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        return JSONResponse({"go": f"/p/{token}"})
+        answer = JSONResponse({"go": f"/p/{token}"})
+        owner = service.plan_owner(store, token)
+        if owner is not None:  # a plan of an account (D94): this device is signed in to it
+            plan_signed_in(answer, request, token, owner)
+        return answer
 
     @app.post("/recover", response_class=HTMLResponse)
     async def recover(request: Request) -> HTMLResponse:
@@ -2853,8 +3219,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             token, code = service.recover(store, str(form.get("code") or ""), config.clock())
         except service.SignInFailed as error:
-            return page(request, "home.html", 400, signin_error=str(error), tz="Europe/Paris")
-        return page(request, "recovery.html", token=token, code=code, recovered=True)
+            return home_with(request, 400, signin_error=str(error))
+        answer = page(request, "recovery.html", token=token, code=code, recovered=True)
+        owner = service.plan_owner(store, token)
+        if owner is not None:  # a plan of an account (D94): this device is signed in to it
+            plan_signed_in(answer, request, token, owner)
+        return answer
 
     @app.get("/p/{token}/semester", response_class=HTMLResponse)
     def semester(request: Request, token: str) -> HTMLResponse:
@@ -3205,19 +3575,29 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.post("/p/{token}/delete", response_class=HTMLResponse)
     def delete(request: Request, token: str) -> HTMLResponse:
+        owned = service.plan_owner(store, token) is not None
         if not service.delete_subscription(store, token):
             return missing(request)
-        return page(
+        answer = page(
             request,
             "message.html",
             forget=token,  # this device's offline copies go too (pwa.js, D33)
             title=service.translate("Deleted"),
             message=service.translate(
+                "Your account, your plan, your timetable, your deadlines and everything you reported "
+                "are deleted. Remove the calendar subscription from your calendar app too: it will "
+                "stop updating now."
+            )
+            if owned
+            else service.translate(
                 "Your plan, your timetable, your deadlines and everything you reported are "
                 "deleted. Remove the calendar subscription from your calendar app too: it will "
                 "stop updating now."
             ),
         )
+        if owned:
+            answer.delete_cookie(SESSION_COOKIE, path="/")
+        return answer
 
     return app
 
@@ -3249,6 +3629,16 @@ def _notice(saved: str) -> str | None:
         return service.translate("Passkey removed. Remove it from your device's passwords too.")
     if saved == "bad_invite":
         return service.translate("That is not an invitation link or code.")
+    if saved == "password":
+        return service.translate("Password changed. Your other devices are signed out.")
+    if saved == "elsewhere":
+        return service.translate("Your other devices are signed out.")
+    if saved == "confirmed":
+        return service.translate("Your e-mail address is confirmed.")
+    if saved == "mail":
+        return service.translate("Sent. Open the link in the e-mail to confirm your address.")
+    if saved == "nomail":
+        return service.translate("This server cannot send e-mail yet: confirm your address later.")
     if saved == "reminders":
         return service.translate("Reminders are on for this device.")
     if saved == "reminders_off":
@@ -3259,6 +3649,29 @@ def _notice(saved: str) -> str | None:
         return service.translate("No device received it. Turn reminders on again on your phone.")
     notice = TASK_NOTICES.get(saved)
     return service.translate(notice) if notice else None
+
+
+def _linkify(text: str) -> Markup:
+    """Plain text on a page: escaped, its line breaks kept, its web links made links
+    (the e-mail the demo shows, D94)."""
+    parts = re.split(r"(https?://[^\s<>\"]+)", str(text))
+    html = Markup("").join(
+        Markup('<a href="{0}">{0}</a>').format(part)
+        if part.startswith(("http://", "https://"))
+        else Markup.escape(part)
+        for part in parts
+    )
+    return Markup(str(html).replace("\n", "<br>"))
+
+
+def _device(request: Request) -> str:
+    """What a signed-in device is, from its browser's description, in a word a student
+    recognises in the list of devices signed in (D94); nothing more is kept."""
+    agent = request.headers.get("user-agent", "")
+    for word in ("iPhone", "iPad", "Android", "Windows", "Mac", "Linux", "CrOS"):
+        if word in agent:
+            return {"Mac": "Mac", "CrOS": "Chromebook"}.get(word, word)
+    return ""
 
 
 def _same_origin(request: Request) -> bool:

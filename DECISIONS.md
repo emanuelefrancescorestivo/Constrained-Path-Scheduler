@@ -3232,3 +3232,120 @@ about half a core to two thirds; Solid, about a fifth. A device judged slow once
 busy moment can do it) stays solid on Automatic until See-through is chosen or the site's
 data is cleared. Without scripts, nothing rests: the page works as before and costs as
 before.
+
+## D94. An account with an e-mail and a password, before the plan
+
+*The owner, 2026-10-23, before giving the app to the cohort: "we need to make the user
+make an account the first time they enter … they need to make an account with their
+email". Asked how, the owner chose an e-mail and a password, the address confirmed
+later rather than before the first plan.* D35 had declined e-mail links and passwords
+"until launch"; this is launch.
+
+**Chosen.**
+
+- **The account first.** The home page offers "Make your account" (an e-mail address
+  and a password) before the two ways to start; the plan made next belongs to it
+  (`accounts.token`), one plan an account, kept across semesters as before (D36). The
+  tests' own apps keep accounts off (`Config.accounts`), so the rest of the suite still
+  checks plans as D35 made them; `cps web` and `cps demo` turn them on, and
+  `CPS_ACCOUNTS=off` turns them off again.
+- **A plan of an account opens only for it.** Every `/p/<token>/…` and `/s/<token>/…`
+  page of such a plan asks anyone not signed in to that account to sign in, whatever
+  address they hold; after signing in they land on the page they asked for (only a page
+  of their own plan, never another site). Two things stay open by their own link: the
+  calendar feed, which a calendar app reads without anyone signed in, and the app's
+  manifest, which a browser fetches without cookies. A plan without an account (one
+  made before, a demo student, D31) still opens by its address.
+- **The password.** OWASP's Application Security Verification Standard 4.0.3, V2.1: at
+  least 12 characters once runs of spaces count as one, up to 128, no rule about kinds
+  of characters; and a short hand-written list of obvious choices (digit runs, keyboard
+  rows, "password" and "motdepasse" with digits), with any password of two different
+  characters at most, and any containing the address. It is kept only as scrypt with a
+  random salt, N = 2^14, r = 8, p = 5, one of the five settings of equal strength in
+  OWASP's Password Storage Cheat Sheet (16 MiB a hash, against 128 for N = 2^17). Its
+  settings are written beside it, so they can be raised later without locking anyone
+  out.
+- **Wrong passwords.** Ten in a row lock the account for 15 minutes, counted per
+  account whatever addresses try (ASVS V2.2.1 allows up to 100 failures an hour; this
+  allows 40); per address, at most 120 sign-ins an hour (password, passkey or code),
+  and 40 new accounts and 40 new plans (they were 30 sign-ins and 10 plans): a class on
+  one university network reaches the internet through one address, and a cohort signs
+  up together. Signing in ends the session the browser had, if any. A wrong address
+  and a wrong password get the same answer, and take as long (an unknown address is
+  checked against a hash made for nobody).
+- **Signed in: one cookie.** `cps_session`, a random value of 32 bytes; the server keeps
+  only its SHA-256, with the kind of device (iPhone, Windows… from the browser's
+  description) and when it signed in and was last used. HttpOnly, SameSite=Lax, Path=/,
+  Secure whenever the site is reached over HTTPS; 90 days after its last use, the last
+  use written down at most once a day, when the cookie is sent again. Signing out
+  deletes it and the device's offline copies (D33). Forms keep their same-origin check
+  (AUDIT 37), and a plan's pages still need the plan's token in their address, which
+  another site does not know.
+- **E-mail, for two things only.** A link that confirms the address (7 days), and a
+  link that chooses a new password (2 hours, once; it signs every device out). Each is
+  kept as a digest and works once; a newer one replaces an older one. Opening a link
+  changes nothing: a button on its page does, since mail scanners open links first.
+  "Forgot your password?" says the same whether an account has the address or not. Sent
+  through any SMTP server (`cps/mail.py`, the standard library, `CPS_SMTP_*`), in plain
+  text, with no image and no link but its own. Without one the app says it cannot send
+  e-mail, the student confirms later, and the owner makes a reset link on the inbox
+  page and sends it themself; the demo (`cps demo`) shows on screen the e-mail it would
+  send, since its accounts are made up.
+- **Confirming is not needed to use the app**, only to reset a password by e-mail: the
+  owner's choice, so the first plan is not one trip to the inbox away.
+- **Settings, "Your account"**: the address and whether it is confirmed (send the link
+  again), change the password (the current one needed; the other devices are signed
+  out), sign out, sign out the other devices. Passkeys and the recovery code stay, as
+  other ways to sign in, and a sign-in with either opens the account too.
+- **What goes, and when.** Deleting the plan deletes the account, its sessions and its
+  links. An account that never made a plan is deleted 30 days after it was made; a
+  session unused for 90 days, a link past its time, by the sweep. The plan's copy (D43)
+  has the address, when it was made and confirmed, and the devices signed in; never the
+  password's digest nor a cookie's.
+
+**Rejected.** A code by e-mail at each sign-in (no password to forget or leak, but no
+sign-in at all until an e-mail service is set up and paid for; the owner chose the
+password); confirming before the first plan (the owner's choice); "Sign in with Google"
+(D35); an authentication library or service (Supabase was weighed on 2026-10-23: it
+replaces what the store already does, and its sign-in centres on what D35 avoided);
+argon2 (the strongest choice, a new dependency to ask for; scrypt is in Python's own
+`hashlib`); a check against leaked passwords (an outside service told of each password,
+or of part of its hash).
+
+**Disclosed.** Checked with the test client (`tests/test_email_accounts.py`) and in
+Chromium; no real e-mail was sent, because no SMTP account exists yet (the owner's step,
+`docs/HETZNER.md` step 6). The address is not proved to be the student's until it is
+confirmed, and an account is made for any address typed. A plan without an account
+(the demo's students) still opens by its address, which its calendar feed carries
+(AUDIT 76). The list of obvious passwords is short and written by hand. The cookie is
+the only one; that it needs no consent, being needed for the service to work, is this
+project's reading of the ePrivacy rules, not legal advice.
+
+## D95. Notes as PDFs
+
+*Same request: "be able to upload their notes". Asked what that should cover, the
+owner chose PDFs (not a bigger limit for photos, not a storage limit per student).*
+
+**Chosen.** A set of notes (D26) takes up to three PDFs, 10 MB and 300 pages each,
+beside or instead of its photos and its text, in the same field: a PDF is told by its
+first bytes, not by its name. Each is written again page by page with pypdf before it
+is kept (`pdftext.clean`): without its document information and XMP metadata (often its
+author's real name, the app that made it), and without what runs when it opens (an open
+action, additional actions, form scripts, its names tree). Its text, as far as it has
+one, is kept with the post (50,000 characters for a set) and makes flashcards (D84),
+after the set's own text; a scan has no text and is kept all the same. A PDF is seen by
+exactly those who see its post, like a photo (D18), and is saved, then opened by the
+device's own viewer (`Content-Disposition: attachment`), never shown inside a page of
+the site. It goes with its post, with its plan, and is in the plan's copy (D43). The
+post shows each PDF's name as uploaded, its pages and "Download".
+
+**Rejected.** Showing a PDF inside the page (a viewer that runs what the file holds,
+under this site's address); keeping the file as uploaded (its metadata names its
+author); a storage limit per student (the owner did not choose it; the size and the
+count of files bound an upload, the change limit of D35 bounds a plan's uploads an
+hour).
+
+**Disclosed.** Tried on PDFs made by the tests and by pypdf, with an author, a creator
+and an open action; not on files from GoodNotes, Notability or OneNote. How long the
+server takes to rewrite a large PDF was not measured. No limit on a student's total storage: a
+student could fill the disk with many sets of notes over time.

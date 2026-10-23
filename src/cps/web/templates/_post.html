@@ -52,6 +52,7 @@
   <p class="post-note">{{ p.text }}</p>
   {% endif %}
   {% if p.photos %}<div class="photos n{{ p.photos | length }}">{% for src in p.photos %}<a href="{{ src }}"><img src="{{ src }}" alt="{{ _('Photo {n}', n=loop.index) }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+  {% if p.pdfs %}<ul class="list post-pdfs">{% for f in p.pdfs %}<li><span class="file-icon" aria-hidden="true">PDF</span><span class="grow"><b>{{ f.title }}</b><small class="muted">{{ _n("{n} page", "{n} pages", f.pages) }}</small></span><a class="btn btn-sm" href="{{ f.src }}" download>{{ _("Download") }}</a></li>{% endfor %}</ul>{% endif %}
   {% if p.kudos is defined %}
   <footer class="post-actions" id="acts-{{ p.id }}">
     {% if p.kind == "notes" and p.mine %}

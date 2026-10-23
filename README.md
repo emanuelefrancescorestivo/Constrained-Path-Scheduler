@@ -233,13 +233,13 @@ free instance wakes up.
    week or a milestone gets a burst of confetti, once. Nothing moves if your device
    asks for reduced motion, or if you choose Motion: Reduced in Settings.
 
-No e-mail and no password: the two addresses are the keys, as with any calendar
-subscription link, and the page says so. A passkey (the phone's face, fingerprint or
-screen lock) or a recovery code brings a student back to their plan on any device
-(D35); a new semester starts at the same address, keeping the streak, the progress
-and the network (D36); and a reminder can come to the phone before each session
-(D38). No cookies, no trackers, nothing loaded
-from another site; the scripts are the site's own, and every page works without them; the
+A student makes an account first, with an e-mail address and a password; the plan
+then opens only for that account, on any device signed in to it, and a forgotten
+password is reset by a link sent by e-mail (D94). A passkey (the phone's face,
+fingerprint or screen lock) or a recovery code signs in too (D35); a new semester
+starts in the same plan, keeping the streak, the progress and the network (D36); and
+a reminder can come to the phone before each session (D38). One cookie, to stay
+signed in; no trackers, nothing loaded from another site; the scripts are the site's own, and every page works without them; the
 log names routes, never the secret addresses; a link in an event never changes
 anything by being opened, only the button on its page does. Plans are deleted 12
 months after they were last opened, or at once from Settings. `src/cps/web/app.py`
@@ -418,8 +418,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1050 passed, 17 deselected (slow), 1 xfailed, ~260 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1067 passed, 1 xfailed, 93% coverage
+pytest                                    # 1092 passed, 17 deselected (slow), 1 xfailed, ~300 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1109 passed, 1 xfailed, 93% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

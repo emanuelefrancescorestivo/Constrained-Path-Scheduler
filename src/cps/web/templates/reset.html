@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Choose a new password") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="card account-card">
+  <h1>{{ _("Choose a new password") }}</h1>
+  {% if account %}
+  <p class="hint">{{ _("For {address}. Once it is saved, every device signed in to your account is signed out.", address=account.email) }}</p>
+  {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/account/reset/{{ value }}" class="account-form">
+    <label for="password">{{ _("New password") }}</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="{{ password_min }}" maxlength="{{ password_max }}" aria-describedby="password-hint" required>
+    <p class="hint" id="password-hint">{{ _("At least {n} characters. Three or four words make a good one.", n=password_min) }}</p>
+    <p><button type="submit" class="btn btn-primary btn-block">{{ _("Save my new password") }}</button></p>
+  </form>
+  {% else %}
+  <p>{{ _("This link has expired or was used already.") }}</p>
+  <p><a class="btn" href="/account/forgot">{{ _("Ask for a new link") }}</a></p>
+  {% endif %}
+</div>
+{% endblock %}

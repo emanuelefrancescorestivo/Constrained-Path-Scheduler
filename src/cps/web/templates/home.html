@@ -8,7 +8,7 @@
 {# The pitch first, with room to breathe, over a field of neurons whose signals
    travel between them (D58); then the ways in. Nothing here needs a script. #}
 {# After a failed start or sign-in the hero is short, so the message is in view. #}
-<section class="hero{% if error or signin_error %} hero-short{% endif %}">
+<section class="hero{% if error or signin_error or signup_error or account %} hero-short{% endif %}">
   <div class="hero-field" aria-hidden="true">{% include "_neural.html" %}</div>
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
   <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
@@ -19,13 +19,38 @@
   </form>
   <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
   <p class="hero-note"><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
-  <p class="hero-note hint">{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}</p>
+  <p class="hero-note hint">{% if accounts %}{{ _("The made-up student needs no account. To start from zero, make one with made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% else %}{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% endif %}</p>
   {% else %}
   <p class="hero-actions"><a class="btn btn-primary btn-lg" href="#start">{{ _("Plan my semester") }}</a></p>
   {% endif %}
 </section>
 
 <section class="start" id="start">
+{% if accounts and not account %}
+{# D94: the account first; its plan is made right after, and belongs to it. #}
+<div class="start-head">
+  <h2>{% if demo %}{{ _("Or start from zero: make your account") }}{% else %}{{ _("Make your account") }}{% endif %}</h2>
+  <p class="hint">{{ _("Your plan belongs to it: sign in on any device to open it.") }}</p>
+  {% if demo %}<p class="hint">{{ _("kept on this demo server until it restarts") }}</p>{% endif %}
+</div>
+{% if signup_error %}<p class="alert" role="alert">{{ signup_error }}</p>{% endif %}
+<form method="post" action="/account/signup" class="card way account-form signup">
+  <input type="hidden" name="lang" value="{{ lang() }}">
+  <label for="email">{{ _("E-mail address") }}</label>
+  <input id="email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254" value="{{ email or '' }}" required>
+  <label for="password">{{ _("Password") }}</label>
+  <input id="password" name="password" type="password" autocomplete="new-password" minlength="{{ password_min }}" maxlength="{{ password_max }}" aria-describedby="password-hint" required>
+  <p class="hint" id="password-hint">{{ _("At least {n} characters. Three or four words make a good one.", n=password_min) }}</p>
+  <p><button type="submit" class="btn btn-primary btn-block">{{ _("Create my account") }}</button></p>
+  <p class="hint">{{ _h("By making an account you accept the <a href=\"{terms}\">terms</a>; the <a href=\"{privacy}\">privacy notice</a> says what is kept.", terms="/terms?lang=" ~ lang(), privacy="/privacy?lang=" ~ lang()) }}</p>
+</form>
+{% else %}
+{% if account %}
+<div class="signed-as">
+  {% if made %}<p class="notice notice-ok" role="status">{% if made == 1 %}{{ _("Your account is made. An e-mail to confirm your address is on its way; you can confirm it later.") }}{% else %}{{ _("Your account is made. You can confirm your address later, in Settings.") }}{% endif %}</p>{% endif %}
+  <form method="post" action="/account/signout" class="signed-as-row"><span>{{ _("Signed in as {address}", address=account.email) }}</span> <button type="submit" class="btn btn-plain btn-sm">{{ _("Sign out") }}</button></form>
+</div>
+{% endif %}
 {# Two ways in, side by side: a timetable that exists somewhere, or none (D32) #}
 <div class="start-head">
   {% set step = 1 %}{% include "_steps.html" %}
@@ -70,13 +95,21 @@
   <p><button type="submit" class="btn btn-block btn-tinted">{{ _("Draw my week") }}</button></p>
 </form>
 </div>
-<p class="hint ways-note">{{ _("No e-mail, no password: your plan lives at a private address, like a calendar subscription link. Add a passkey to open it on any device.") }} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
+<p class="hint ways-note">{% if accounts %}{{ _("Your plan belongs to your account. In Settings, add a passkey to sign in with your face or fingerprint.") }}{% else %}{{ _("No e-mail, no password: your plan lives at a private address, like a calendar subscription link. Add a passkey to open it on any device.") }}{% endif %} <a href="/privacy?lang={{ lang() }}">{{ _("What is stored, and for how long.") }}</a></p>
+{% endif %}
 </section>
 
+{% if not account %}
 <section class="signin" id="signin">
+  {% if accounts %}
+  <h2>{{ _("Already have an account?") }}</h2>
+  <p><a class="btn btn-primary" href="/account/signin">{{ _("Sign in") }}</a></p>
+  <p class="hint">{{ _("Or open your plan with a passkey or your recovery code.") }}</p>
+  {% else %}
   <h2>{{ _("Already have a plan?") }}</h2>
   <p class="hint">{{ _("Open it with the passkey you added, or with your recovery code.") }}</p>
-  <p><button type="button" class="btn btn-primary" data-passkey-signin hidden>{{ _("Sign in with a passkey") }}</button></p>
+  {% endif %}
+  <p><button type="button" class="btn{% if not accounts %} btn-primary{% endif %}" data-passkey-signin hidden>{{ _("Sign in with a passkey") }}</button></p>
   <p class="alert" data-passkey-status role="status" aria-live="polite" hidden></p>
   {% if signin_error %}<p class="alert" role="alert">{{ signin_error }}</p>{% endif %}
   <form method="post" action="/recover" class="recover">
@@ -86,8 +119,10 @@
       <button type="submit" class="btn">{{ _("Open my plan") }}</button>
     </div>
   </form>
-  <p class="hint">{{ _("Neither? A plan cannot be found again without its address: there is no e-mail to send a link to.") }}</p>
+  {% if accounts %}<p class="hint"><a href="/account/forgot">{{ _("Forgot your password?") }}</a></p>
+  {% else %}<p class="hint">{{ _("Neither? A plan cannot be found again without its address: there is no e-mail to send a link to.") }}</p>{% endif %}
 </section>
+{% endif %}
 
 <ul class="features">
   <li><strong>{{ _("Deadlines first") }}</strong>{{ _("Earliest due first, with a warning early enough to act when one will not fit.") }}</li>

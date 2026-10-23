@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ mail.subject }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="card account-card">
+  <h1>{{ mail.subject }}</h1>
+  {% include "_mail_shown.html" %}
+  <p><a class="btn" href="/p/{{ token }}/settings#login">{{ _("Back to Settings") }}</a></p>
+</div>
+{% endblock %}

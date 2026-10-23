@@ -938,3 +938,14 @@ blurs too slowly (or by the new setting), and the tour and the focus ring stop d
 every frame. Read 15 to 25 s after opening, the same pages now take 0 % to 5 % of a core;
 the first seconds after opening still cost a weak device more (D93's table). Status:
 fixed for pages at rest; not measured on a real low-end device.
+
+**76. The calendar feed carried the plan's address, so whoever saw the feed could
+change the plan.** Found on 2026-10-23 while designing e-mail accounts (D94), by
+reading `service.session_url`: each study session in the feed links back to
+`/s/<token>/<session>` to report it, and that token is the plan's own address. The
+privacy page said the feed lets one see the plan and the page's address lets one change
+it; through the feed's links, the first gave the second. A calendar shared with family,
+or a feed's address passed on, was enough. Status: fixed for plans of an account
+(D94), which open only for their account whatever address is held; a plan without one
+(the demo's students, any made before D94) is as before, its feed's links still opening
+it.
