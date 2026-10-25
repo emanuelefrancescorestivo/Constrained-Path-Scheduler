@@ -7,6 +7,17 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The climb on Progress (DECISIONS.md D100): the hours added up since the plan began, with
+  a flag at each milestone passed, the next one and the biggest week, in place of the
+  weekly columns (still on Trends). Pictures on each insight and on a study group.
+
+- The diary week by week (D100): each session with a picture of what it was, its course's
+  colour, effort as bars, progress as a growing plant, rewards as medals; older weeks folded.
+
+- A picture for each place under You (DECISIONS.md D99): a tile of its own colour with
+  the thing drawn on it, a deck of cards for flashcards, a checklist for tasks, a stopwatch
+  for Focus, and so on; inline SVG, nothing to load, still under reduced motion.
+
 - What a student uses, counted only with their yes (DECISIONS.md D96): asked once on Today,
   a switch in Settings; per day, the name of each part of the app opened or used and how
   many times, worked out on the server from the page's address; the student's own counts
@@ -538,6 +549,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Fixed
 
+- The lengths on Focus sat in an empty glass pane of their own, touching its edge
+  (AUDIT 80).
 - A backup is written beside its name and moved there once complete (AUDIT 79): whatever
   found the day's copy while it was being written found an empty or half-made database.
 - The phone's tab bar shares its width evenly among its sections (AUDIT 78).

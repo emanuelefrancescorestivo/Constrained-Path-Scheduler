@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from itertools import accumulate
 
 from .progress import Session, monday, part_of_day
 
@@ -145,6 +146,34 @@ def direction(recent: Sequence[float], earlier: Sequence[float], tolerance: floa
         return "up" if a > 0 else "steady"
     change = (a - b) / b
     return "up" if change > tolerance else "down" if change < -tolerance else "steady"
+
+
+# D100: the climb on Progress. The hours add up week by week, and a flag marks each
+# of these totals passed; the first come close together, so that a student meets one
+# in their first week. The totals are a choice, not a result.
+MILESTONES = (1, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000)
+
+
+def climb(hours: Sequence[float]) -> list[float]:
+    """The running total of hours, week by week: it only ever goes up."""
+    return list(accumulate(max(0.0, h) for h in hours))
+
+
+def flags(totals: Sequence[float]) -> list[tuple[int, float]]:
+    """Each milestone the running total passed, with where it was passed: in weeks
+    from the start, 0 to `len(totals)`, between the ends of two weeks in proportion."""
+    passed, before = [], 0.0
+    for i, total in enumerate(totals):
+        for m in MILESTONES:
+            if before < m <= total:
+                passed.append((m, i + (m - before) / (total - before)))
+        before = max(before, total)
+    return passed
+
+
+def next_milestone(total: float) -> int | None:
+    """The next milestone after `total`, or None past the last."""
+    return next((m for m in MILESTONES if m > total), None)
 
 
 def by_course(

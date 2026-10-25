@@ -2204,4 +2204,21 @@ MESSAGES: dict[str, str] = {
     "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan makes time for each.": "Il link del calendario della tua piattaforma di studio (Moodle) porta qui ogni consegna in scadenza, e il piano trova il tempo per ciascuna.",
     # D97: Focus from Today
     "Study something else": "Studiare altro",
+    # D100: the climb and the diary week by week
+    "Your climb": "La tua scalata",
+    "studied since {day}": "di studio dal {day}",
+    "+{hours} h this week": "+{hours} h questa settimana",
+    "Hours studied, added up week by week: {hours} h since {day}": "Ore di studio, sommate settimana per settimana: {hours} h dal {day}",
+    "Next flag: {n} h": "Prossima bandierina: {n} h",
+    "Flag passed this week: {n} h": "Bandierina superata questa settimana: {n} h",
+    "{n} flag passed": "{n} bandierina superata",
+    "{n} flags passed": "{n} bandierine superate",
+    "Your biggest week yet": "La tua settimana più piena finora",
+    "Biggest week: {hours} h, week of {day}": "Settimana più piena: {hours} h, settimana del {day}",
+    "Week of {day}: {hours} h, {total} h in all": "Settimana del {day}: {hours} h, {total} h in tutto",
+    "Biggest week": "Settimana più piena",
+    "{n} session": "{n} sessione",
+    "{n} sessions": "{n} sessioni",
+    "{n} entry": "{n} voce",
+    "{n} entries": "{n} voci",
 }

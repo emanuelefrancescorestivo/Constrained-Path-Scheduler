@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% from "_mascot.html" import mascot %}
+{% from "_art.html" import art %}
 {# How long a session is meant to last, chosen before starting (D67). #}
 {% macro lengths(goals, chosen) %}
-<fieldset class="focus-lengths">
+<fieldset class="focus-lengths bare">
   <legend>{{ _("How long?") }}</legend>
   <div class="pills">{% for g in goals %}<label class="pill"><input type="radio" name="goal" value="{{ g.minutes }}"{% if g.minutes == chosen %} checked{% endif %}><span>{{ g.label }}</span></label>{% endfor %}</div>
 </fieldset>
@@ -68,13 +69,14 @@
   <p class="hint">{{ _("Rewards come at 30 minutes, at an hour, then every 45 minutes, and when you reach your length; only for time on this page.") }}</p>
 </form>
 <p class="section hint" data-tour="focus-log"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
-<a class="card link-card cards-link" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}" data-tour="focus-cards">
-  <b>{{ _("Flashcards") }}</b>
-  <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span>
+{# The same pictures as under You (D99). #}
+<a class="card link-card cards-link with-art" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}" data-tour="focus-cards">
+  {{ art("cards") }}<span class="grow"><b>{{ _("Flashcards") }}</b>
+  <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span></span>
 </a>
-<a class="card link-card cards-link" href="/p/{{ token }}/tips">
-  <b>{{ _("Study tips") }}</b>
-  <span>{{ _("What research says about studying well, with its sources.") }}</span>
+<a class="card link-card cards-link with-art" href="/p/{{ token }}/tips">
+  {{ art("tips") }}<span class="grow"><b>{{ _("Study tips") }}</b>
+  <span>{{ _("What research says about studying well, with its sources.") }}</span></span>
 </a>
 {% endif %}
 {% endblock %}

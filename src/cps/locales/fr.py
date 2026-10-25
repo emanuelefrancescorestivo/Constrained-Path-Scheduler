@@ -2231,4 +2231,21 @@ MESSAGES: dict[str, str] = {
     "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan makes time for each.": "Le lien du calendrier de ta plateforme d'apprentissage (Moodle) fait venir chaque devoir à rendre, et le plan trouve du temps pour chacun.",
     # D97: Focus from Today
     "Study something else": "Étudier autre chose",
+    # D100: the climb and the diary week by week
+    "Your climb": "Ton ascension",
+    "studied since {day}": "étudiées depuis le {day}",
+    "+{hours} h this week": "+{hours} h cette semaine",
+    "Hours studied, added up week by week: {hours} h since {day}": "Heures étudiées, additionnées semaine après semaine : {hours} h depuis le {day}",
+    "Next flag: {n} h": "Prochain drapeau : {n} h",
+    "Flag passed this week: {n} h": "Drapeau passé cette semaine : {n} h",
+    "{n} flag passed": "{n} drapeau passé",
+    "{n} flags passed": "{n} drapeaux passés",
+    "Your biggest week yet": "Ta plus grosse semaine à ce jour",
+    "Biggest week: {hours} h, week of {day}": "Plus grosse semaine : {hours} h, semaine du {day}",
+    "Week of {day}: {hours} h, {total} h in all": "Semaine du {day} : {hours} h, {total} h en tout",
+    "Biggest week": "Plus grosse semaine",
+    "{n} session": "{n} séance",
+    "{n} sessions": "{n} séances",
+    "{n} entry": "{n} entrée",
+    "{n} entries": "{n} entrées",
 }

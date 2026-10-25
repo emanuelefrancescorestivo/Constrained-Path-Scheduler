@@ -3488,3 +3488,80 @@ is the same plan: nothing in it changed, only what is asked when.
 **Disclosed.** The defaults now stand unless the student opens a fold: a student who
 trains every evening has those evenings planned until the week's question is answered,
 from the second day. Checked in Chromium only.
+
+## D99. A picture for each place under You
+
+*The owner, 2026-10-25, looking at You (D97): "cool but average short attention-span
+hyper dopamine seeking user needs icons or emojis or even better personalised
+app-themed drawings for each of the sections, or else they'll struggle to get it the
+first time (a deck of cards for flashcards, a to do list,...)".*
+
+**Chosen.** Each of the nine rows begins with a tile of its own colour with the thing
+drawn on it, as the icons of a phone's settings: a ring closing on a tick (Progress), a
+fanned deck of cards with a question on the front one (Flashcards), a clipboard with ticks
+(Tasks), a stopwatch partway round (Focus and diary), a lit bulb (Study tips), memory
+fading and climbing back at each review, the curve the plan is made of (The science
+behind it), a gear (Settings), a calendar page with one session marked (Connect
+calendar), a speech bubble with a heart (Send feedback). Drawn as inline SVG in one
+template (`_art.html`), white on the tile with the accents in a deep shade of it; no
+image file, no font, nothing to load. Decoration: hidden from screen readers, since the
+row's words say the same; a tile leans a little under the pointer and nothing moves on
+its own (D93); it keeps its colours in high-contrast modes.
+
+**Rejected.** Emoji (drawn differently on every phone and computer, and some not at all
+on older ones); an icon font or a library of icons (a new dependency, and generic shapes
+rather than the app's own); pictures on every page of the app at once (You is where the
+places are listed; the tab bar has its icons already). Focus's links to Flashcards and Study
+tips carry the same two pictures, so a place looks the same wherever it is linked.
+
+**Disclosed.** Checked in Chromium at 390 px (light and dark) and 1100 px (dark, French);
+the colours are a choice of taste, told apart by their drawings as much as by their hue.
+
+## D100. A look back worth looking at: the climb, pictures on Progress, the diary by week
+
+*The owner, 2026-10-25, three screenshots: Progress's insights ("same icon principles
+here, and the histogram is not really motivating"), and the diary ("boring to watch if
+u're a user looking back at what u did").*
+
+**The climb, in place of the weekly columns on Progress.** The card adds the hours up
+week by week since the plan began. A total only rises: a week cut short reads as a
+shorter step up, never as a drop, which is how the columns showed every week in progress
+(this week's column, half a week old, always the lowest). A gold flag stands where each
+milestone was passed (1, 5, 10, 25, 50, 75, 100, 150 h and on, `trends.MILESTONES`; the
+first come close together, so a student meets one in their first week), the next one is
+a dashed line with its number, and the summit is now. Under it: a flag passed this week
+(celebrated once, like the badges), or how many were passed, and the biggest week. The
+columns stay on Trends, where the weeks are compared. The line is drawn in a box stretched
+to the card's width only, its height in pixels, so flags and words placed at a share of
+the width keep their shape on a phone and on a computer (`charts.climb`).
+
+*Rejected:* keeping the columns with this week drawn "so far" (still a comparison the
+student loses every Monday); a streak of weeks (Progress has the day streak already); a
+goal line to reach (D80: the pace never asks for more; the next flag is shown, not asked
+for).
+
+**Pictures on Progress (D99's principle).** Each insight has its own tile: a speedometer
+for the pace, an alarm clock for starting on time, a target for focus, the sun and the
+moon for when you remember best, a crystal ball for memory against the forecast; a study
+group has three people.
+
+**The diary week by week.** Each session begins with a picture of what it was, read from
+the words of its title (a past paper or an exam, exercises or a problem sheet, a summary or
+notes, reading or a chapter, a lecture or a video, a project or a lab, flashcards; any
+other title, a pile of books), in English, French, Italian, Spanish and German words
+(`service.WORK_WORDS`); the course's colour dot before its name; effort as ten bars rising
+to it; progress as a plant, from a seed (stuck) to a flower (a breakthrough); the rewards
+of a timed session as medals. The weeks are folds, newest first, each with its sessions,
+its hours and the best plant of the week, the biggest week marked; this week and the last
+are open, the older ones folded, which also shortens Progress, a page a semester's diary
+made very long.
+
+*Rejected:* emoji for the kinds (D99); a model to read the titles (a picture is not worth
+a model's cost); hiding the older weeks behind a separate page (a fold opens in place and
+works without a script).
+
+**Disclosed.** The milestones are a choice, not a result. The kind of work is read by
+rules from a title the student typed; a title the words miss gets the pile of books, and
+a compound word is missed (German "Übungsblatt"). Checked in Chromium at 390 px (light,
+dark, Italian) and 1100 px (dark, French); not on a real phone. Whether the climb
+motivates more than the columns did is for the pilot to say.

@@ -30,6 +30,7 @@
   --accent: #007aff;
   --accent-hover: #0066d6;
   --accent-soft: rgb(0 122 255 / 12%);
+  --flag: #f5a400; /* the climb's flags (D100): gold, for something reached */
   --accent-ink: #007aff; /* text in the accent; a sky's own sheet sets it (D76) */
   --on-accent: #ffffff;
   --danger: #ff3b30;
@@ -106,6 +107,7 @@
     --accent: #0a84ff;
     --accent-hover: #409cff;
     --accent-soft: rgb(10 132 255 / 22%);
+    --flag: #ffc53d;
     --accent-ink: #0a84ff;
     --danger: #ff453a;
     --danger-text: #ff6961;
@@ -159,6 +161,7 @@
   --accent: #0a84ff;
   --accent-hover: #409cff;
   --accent-soft: rgb(10 132 255 / 22%);
+  --flag: #ffc53d;
   --accent-ink: #0a84ff;
   --danger: #ff453a;
   --danger-text: #ff6961;
@@ -834,7 +837,7 @@ td.d { display: table-cell; padding: 0; }
 .focus-cancel { margin-top: 6px; }
 .start-planned h2 { margin: 2px 0 12px; }
 /* A session's length and its rewards (D67) */
-.focus-lengths { margin: 4px 0 14px; padding: 0; border: 0; }
+.focus-lengths { margin: 4px 0 14px; }
 .focus-lengths legend { margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; }
 .focus-goal { margin: -8px 0 10px; color: var(--muted); font-weight: 600; }
 .focus-rewards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; }
@@ -874,6 +877,29 @@ td.d { display: table-cell; padding: 0; }
 .post-stats dd { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
 .post-stats small { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
 .post-focus { font-size: 0.82rem; color: var(--muted); margin: 6px 0 0; }
+/* D100: a diary session at a glance: its kind drawn, its course's dot, effort as bars
+   rising to it, progress as a plant, rewards as medals. */
+.post-head > .art { margin-top: 2px; }
+.post-head h3 .dot { margin: 0 7px 1px 0; vertical-align: middle; }
+.post-stats dd { display: flex; align-items: center; gap: 6px; }
+.effort-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 18px; }
+.effort-bars i { display: block; width: 3px; border-radius: 1.5px; background: var(--fill); }
+.effort-bars i.on { background: var(--accent); }
+.effort-bars .e1 { height: 22%; } .effort-bars .e2 { height: 30%; } .effort-bars .e3 { height: 38%; }
+.effort-bars .e4 { height: 46%; } .effort-bars .e5 { height: 54%; } .effort-bars .e6 { height: 62%; }
+.effort-bars .e7 { height: 70%; } .effort-bars .e8 { height: 80%; } .effort-bars .e9 { height: 90%; }
+.effort-bars .e10 { height: 100%; }
+.post-rewards { display: inline-flex; align-items: center; gap: 4px; }
+.medals { display: inline-flex; }
+.medals svg { width: 15px; height: 15px; margin-right: -3px; }
+.medals svg:last-child { margin-right: 1px; }
+/* The diary week by week (D100). */
+.diary-week + .diary-week { margin-top: 14px; }
+.diary-week > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; color: var(--text); }
+.diary-week > summary::before { color: var(--accent-ink); }
+.diary-week-name { font-weight: 700; }
+.diary-week-sum { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
+.diary-week > summary .plant { width: 28px; height: 28px; }
 .post-note { margin: 10px 0 0; white-space: pre-line; }
 .post-simple { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
 .post-simple .kicker { margin: 0 0 2px; font-size: 0.75rem; font-weight: 650; color: var(--accent-ink); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -981,6 +1007,9 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .grade-easy { background: var(--ok-soft); color: var(--ok); }
 .cards-link { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none !important; }
 .cards-link span { color: var(--muted); font-size: 0.9rem; }
+/* With a picture (D99): the picture, then the words. */
+.cards-link.with-art { flex-direction: row; align-items: center; gap: 12px; }
+.cards-link.with-art > .grow { display: flex; flex-direction: column; gap: 2px; color: inherit; font-size: inherit; }
 .cards-due {
   display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 14px; padding: 12px 16px;
   border-radius: var(--radius, 14px); background: var(--surface); color: var(--text); text-decoration: none !important;
@@ -1033,6 +1062,46 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .you-list b { display: block; }
 .you-list small { display: block; color: var(--muted); }
 .you-list .chev { color: var(--muted); font-size: 1.2rem; }
+/* Each place's picture (D99): a tile in its own colour with the thing drawn on it, as
+   the icons of a phone's settings. The deep shade is the drawing's accent. */
+.art {
+  flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 2px 6px rgb(0 0 0 / 0.14);
+  transition: transform 0.18s var(--ease-out);
+  forced-color-adjust: none; /* a picture keeps its colours in high-contrast modes */
+}
+.art svg { display: block; width: 44px; height: 44px; }
+.you-list a:hover .art, .you-list a:focus-visible .art { transform: translateY(-1px) rotate(-3deg); }
+.you-list a:active .art { transform: scale(0.94); }
+:root[data-motion="reduce"] .art { transition: none; }
+@media (prefers-reduced-motion: reduce) { .art { transition: none; } }
+.art.art-progress { background: linear-gradient(160deg, #42d77d, #0f9f62); color: #0b7a4d; }
+.art.art-cards { background: linear-gradient(160deg, #b388ff, #6f52ef); color: #5a3fd6; }
+.art.art-tasks { background: linear-gradient(160deg, #ffad4a, #ff7417); color: #d65a0a; }
+.art.art-focus { background: linear-gradient(160deg, #ff7aa8, #e0347f); color: #c2246a; }
+.art.art-tips { background: linear-gradient(160deg, #ffd24d, #ffa000); color: #b86e00; }
+.art.art-science { background: linear-gradient(160deg, #5cc0ff, #2a6be6); color: #1f56c4; }
+.art.art-settings { background: linear-gradient(160deg, #a3a3ad, #62626e); color: #4a4a55; }
+.art.art-calendar { background: linear-gradient(160deg, #ff6f61, #e2352b); color: #e2352b; }
+.art.art-feedback { background: linear-gradient(160deg, #3fd0dc, #128fb0); color: #ff3b6b; }
+/* D100: Progress and the diary. */
+.art.art-pace { background: linear-gradient(160deg, #8f9bff, #4f5fe8); color: #3b49c9; }
+.art.art-alarm { background: linear-gradient(160deg, #ff9a6b, #f2552c); color: #d23f19; }
+.art.art-target { background: linear-gradient(160deg, #ff7f8f, #e8364f); color: #c9213b; }
+.art.art-daytime { background: linear-gradient(135deg, #63c7ff 0%, #4a7cf0 52%, #2b2f7a 100%); color: #2b2f7a; }
+.art.art-crystal { background: linear-gradient(160deg, #c08bff, #7a3fe0); color: #6a2fd0; }
+.art.art-group { background: linear-gradient(160deg, #46d9a6, #12a07a); color: #0c7c5e; }
+.art.art-paper { background: linear-gradient(160deg, #ff7a7a, #e03b3b); color: #c42a2a; }
+.art.art-exercises { background: linear-gradient(160deg, #ffb85c, #f57c1f); color: #d4650f; }
+.art.art-summary { background: linear-gradient(160deg, #ffd95e, #f5b000); color: #b07a00; }
+.art.art-reading { background: linear-gradient(160deg, #6ec8ff, #2f86e8); color: #1f6cc4; }
+.art.art-lecture { background: linear-gradient(160deg, #9c8bff, #5c45e6); color: #4a33d0; }
+.art.art-project { background: linear-gradient(160deg, #7fa6c8, #46698c); color: #34546f; }
+.art.art-study { background: linear-gradient(160deg, #4fd6c8, #1798a6); color: #0f7a86; }
+/* A smaller tile beside a card's title. */
+.art.art-sm { width: 34px; height: 34px; border-radius: 10px; }
+.art.art-sm svg { width: 34px; height: 34px; }
+.plant { flex: none; display: inline-block; width: 32px; height: 32px; margin: -6px 0; vertical-align: -8px; forced-color-adjust: none; }
 .spark-top {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 38px; height: 38px; border-radius: 50%; margin-left: 4px;
@@ -1132,6 +1201,7 @@ html:not(.settled) .cal-empty-card { animation: rise 0.5s var(--ease-out) 0.2s b
 .group-card { display: block; margin-bottom: 10px; color: inherit; text-decoration: none !important; }
 .group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .group-head b { font-size: 1.05rem; }
+.group-head .group-name { flex: 1; min-width: 0; }
 .group-meter { grid-template-columns: 6rem 1fr auto; margin-top: 10px; }
 .group-card .hint { margin: 4px 0 0; }
 .group-new h2 { margin-top: 0; }
@@ -1270,12 +1340,29 @@ label.check.check-long input { margin-top: 3px; flex: none; }
 .table-view th:first-child { text-align: left; }
 .table-view tr.now th, .table-view tr.now td { font-weight: 650; }
 .link-card { color: inherit; text-decoration: none !important; }
-.trajectory { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: center; }
-.trajectory .tile-value { font-size: 1.4rem; }
 .tile-stack { display: flex; flex-direction: column; gap: 2px; }
 .spark-ends { font-size: 0.8rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.trajectory .chart { min-width: 0; }
-.trajectory-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.88rem; color: var(--muted); }
+/* The climb (D100): the hours added up, rising, with a flag at each milestone. */
+.climb { display: block; }
+.climb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.climb-total { display: flex; flex-direction: column; margin: 0; }
+.climb-total b { font-family: var(--font-display); font-size: 2.1rem; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.climb-total > span { color: var(--muted); font-size: 0.88rem; }
+.climb-plot { display: block; margin: 18px 0 6px; overflow: visible; }
+.climb-plot .hit { fill: transparent; }
+.climb-ground { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.climb-next { stroke: var(--muted); stroke-opacity: 0.6; stroke-width: 1.2; stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
+.climb-wash-top { stop-color: var(--accent); stop-opacity: 0.34; }
+.climb-wash-bottom { stop-color: var(--accent); stop-opacity: 0.02; }
+.climb-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.climb-plot text { font-size: 11.5px; font-weight: 650; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.climb-flag line { stroke: var(--text); stroke-opacity: 0.55; stroke-width: 1.5; }
+.climb-flag path { fill: var(--flag); }
+.climb-flag text { fill: var(--text); }
+.climb-halo { fill: var(--accent); fill-opacity: 0.18; }
+.climb-summit { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
+.climb-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.86rem; color: var(--muted); }
+.climb-new { color: var(--text); font-weight: 650; }
 .gain { font-size: 0.85rem; color: var(--muted); margin: 6px 0 0; }
 .gain b { color: var(--text); }
 
@@ -2444,6 +2531,14 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
   background: var(--surface);
 }
 :root[data-glass="solid"] :is(*, *::before, *::after) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+/* A fieldset that only groups a few controls inside a card (the lengths on Focus) is no
+   pane of its own: the glass above, meant for fieldsets that are sections, drew one
+   around it with nothing inside it padded (AUDIT 80). */
+fieldset.bare, body[data-sky] fieldset.bare, :root:not([data-glass="clear"]) body[data-sky] fieldset.bare,
+:root[data-glass="solid"] body[data-sky] fieldset.bare {
+  padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
 
 /* Ambient motion rests (D93): Spark, the garden, the home page's lights, the focus
    dial's breath and a running session's pulse pause six seconds after the page arrives

@@ -3,10 +3,14 @@
    just unlocked says "New", and a record just set is celebrated once (motion.js,
    data-celebrate). Each says how it is measured, folded. Works without scripts. #}
 {% from "_charts.html" import spark %}
+{% from "_art.html" import art %}
+{# Each insight's picture (D100). #}
+{% set pictures = {"pace": "pace", "on_time": "alarm", "focus": "target", "recall_time": "daytime", "forecast": "crystal"} %}
 {% set trend_words = {"up": _("better than your weeks before"), "down": _("below your weeks before"), "steady": _("as in your weeks before")} %}
 {% macro insight(c) %}
 <article class="card insight insight-{{ c.key }}{% if not c.unlocked %} locked{% endif %}{% if c.state %} pace-{{ c.state }}{% endif %}"{% if c.celebrate %} data-celebrate="{{ c.celebrate }}"{% elif c.new %} data-celebrate="insight-{{ c.key }}"{% endif %}>
   <header>
+    {% if c.key in pictures %}{{ art(pictures[c.key], "sm") }}{% endif %}
     <h3>{{ c.title }}</h3>
     {% if c.new %}<span class="badge badge-accent">{{ _("New") }}</span>{% endif %}
   </header>

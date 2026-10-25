@@ -39,3 +39,23 @@
 {% endmacro %}
 
 {% macro key(kind) %}<span class="key key-{{ kind }}" aria-hidden="true"></span>{% endmacro %}
+
+{# D100: the climb. An outer SVG in pixels holds the line's box, stretched to its width
+   only, and the flags, the next flag's words and the summit, placed at a share of the
+   width so they keep their shape. `g` from charts.climb, `texts` one per week. #}
+{% macro climb(g, texts, label, next_words) %}
+<svg class="climb-plot" width="100%" height="{{ g.h }}" overflow="visible" role="img" aria-label="{{ label }}" focusable="false">
+  <defs><linearGradient id="climb-wash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="climb-wash-top"/><stop offset="1" class="climb-wash-bottom"/></linearGradient></defs>
+  <svg viewBox="0 0 {{ g.w }} {{ g.h }}" preserveAspectRatio="none" width="100%" height="{{ g.h }}">
+    <line class="climb-ground" x1="0" x2="{{ g.w }}" y1="{{ g.base }}" y2="{{ g.base }}"/>
+    {% if g.next %}<line class="climb-next" x1="0" x2="{{ g.w }}" y1="{{ g.next.y }}" y2="{{ g.next.y }}"/>{% endif %}
+    <path class="climb-wash" d="{{ g.area }}" fill="url(#climb-wash)"/>
+    <path class="climb-line" d="{{ g.d }}"/>
+    {% for h in g.hits %}<rect class="hit" x="{{ h.x }}" y="0" width="{{ h.w }}" height="{{ g.h }}"><title>{{ texts[loop.index0] }}</title></rect>{% endfor %}
+  </svg>
+  {% if g.next %}<text class="climb-next-words" x="0" y="{{ g.next.y - 7 }}">{{ next_words }}</text>{% endif %}
+  {% for f in g.flags %}<svg class="climb-flag" x="{{ f.x }}%" y="{{ f.y }}" overflow="visible"><line x1="0" y1="1" x2="0" y2="-25"/><path d="M0.8 -25 L15 -20 L0.8 -15 Z"/><text x="{{ -5 if f.end else 18 }}" y="-16" text-anchor="{{ 'end' if f.end else 'start' }}">{{ f.m }} h</text></svg>{% endfor %}
+  <circle class="climb-halo" cx="100%" cy="{{ g.summit }}" r="10"/>
+  <circle class="climb-summit" cx="100%" cy="{{ g.summit }}" r="5.5"/>
+</svg>
+{% endmacro %}

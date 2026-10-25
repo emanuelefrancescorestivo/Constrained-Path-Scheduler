@@ -43,18 +43,20 @@
 </div>
 {% endif %}
 
-{% if trend %}
-{% from "_charts.html" import columns %}
+{% if climb %}
+{# D100: the hours added up, which only rise, with a flag at each milestone passed. #}
+{% from "_charts.html" import climb as climb_chart %}
 <div class="section" data-tour="progress-trend">
-  <div class="section-title"><h2>{{ _("Your trajectory") }}</h2><a href="/p/{{ token }}/trends">{{ _("See trends") }}</a></div>
-  <a class="card trajectory link-card" href="/p/{{ token }}/trends">
-    <div class="tile-stack"><span class="tile-label">{{ _("Studied this week") }}</span><b class="tile-value" data-count>{{ trend.tiles.hours.value | hours }} h</b></div>
-    {% set ws = trend.weeks %}
-    {% set c = charts.columns(ws | map(attribute="hours") | list, ws | map(attribute="label") | list, current=ws | map(attribute="current") | list, average=ws | map(attribute="hours_avg") | list) %}
-    {% set texts = [] %}{% for w in ws %}{% set _x = texts.append(_("Week of {day}: {hours} h", day=w.first, hours=w.hours | hours)) %}{% endfor %}
-    {{ columns(c, texts, _("Hours studied per week"), ["", ""], None, mini=True) }}
-    <div class="trajectory-foot">
-      <span>{% if trend.tiles.hours.average is none %}{{ _("first week: no average yet") }}{% else %}{{ _("4-week average: {hours} h", hours=trend.tiles.hours.average | hours) }}{% endif %}</span>
+  <div class="section-title"><h2>{{ _("Your climb") }}</h2><a href="/p/{{ token }}/trends">{{ _("See trends") }}</a></div>
+  <a class="card climb link-card" href="/p/{{ token }}/trends"{% if climb.new %} data-celebrate="flag-{{ climb.new }}"{% endif %}>
+    <div class="climb-head">
+      <p class="climb-total"><b><span data-count>{{ climb.total | hours }}</span> h</b><span>{{ _("studied since {day}", day=climb.since) }}</span></p>
+      {% if climb.this_week %}<span class="badge badge-accent">{{ _("+{hours} h this week", hours=climb.this_week | hours) }}</span>{% endif %}
+    </div>
+    {{ climb_chart(charts.climb(climb.totals, climb.passed, climb.next), climb.texts, _("Hours studied, added up week by week: {hours} h since {day}", hours=climb.total | hours, day=climb.since), _("Next flag: {n} h", n=climb.next) if climb.next else "") }}
+    <div class="climb-foot">
+      {% if climb.new %}<span class="climb-new">{{ _("Flag passed this week: {n} h", n=climb.new) }}</span>{% elif climb.flags %}<span>{{ _n("{n} flag passed", "{n} flags passed", climb.flags) }}</span>{% endif %}
+      {% if climb.biggest %}<span>{% if climb.biggest.now %}{{ _("Your biggest week yet") }}{% else %}{{ _("Biggest week: {hours} h, week of {day}", hours=climb.biggest.hours | hours, day=climb.biggest.first) }}{% endif %}</span>{% endif %}
       {% if trend.forecast %}{% set f = trend.forecast[0] %}<span>{{ _("{name}: {n} % predicted on exam day with your plan", name=f.name, n=f.with_plan) }}</span>{% endif %}
     </div>
   </a>
@@ -97,7 +99,14 @@
 
 <div class="section" id="diary">
   <div class="section-title"><h2>{{ _("Your diary") }}</h2>{% if diary.week.sessions %}<small>{{ _n("{n} session this week", "{n} sessions this week", diary.week.sessions) }} · {{ diary.week.hours }} h{% if diary.week.effort %} · {{ _("effort {n}/10", n=diary.week.effort) }}{% endif %}</small>{% endif %}</div>
-  {% for p in diary.posts %}{% include "_post.html" %}{% else %}
+  {# D100: week by week, the older weeks folded, each with its sum and its best progress. #}
+  {% from "_art.html" import grow %}
+  {% for wk in diary.weeks %}
+  <details class="diary-week"{% if wk.open %} open{% endif %}>
+    <summary><span class="diary-week-name">{{ wk.name }}</span><span class="diary-week-sum">{% if wk.sessions %}{{ _n("{n} session", "{n} sessions", wk.sessions) }} · {{ wk.hours }} h{% else %}{{ _n("{n} entry", "{n} entries", wk.posts | length) }}{% endif %}</span>{% if wk.biggest %}<span class="badge badge-accent">{{ _("Biggest week") }}</span>{% endif %}{{ grow(wk.best) }}</summary>
+    {% for p in wk.posts %}{% include "_post.html" %}{% endfor %}
+  </details>
+  {% else %}
   <div class="card empty"><b>{{ _("Nothing logged yet") }}</b>{{ _("Time a session, then say how it went: it lands here, with your notes and photos.") }}</div>
   {% endfor %}
 </div>

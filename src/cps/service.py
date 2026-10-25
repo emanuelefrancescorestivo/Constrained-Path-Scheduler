@@ -5764,6 +5764,125 @@ def logged_sessions(store: str | os.PathLike, subscription: Subscription) -> lis
 
 EFFORT_WORDS = {1: "very easy", 3: "easy", 5: "steady", 7: "hard", 9: "very hard", 10: "all out"}
 PROGRESS_WORDS = {1: "stuck", 2: "a little", 3: "steady", 4: "good", 5: "a breakthrough"}
+# D100: what kind of work a diary session was, read from the words of its title, for
+# its picture. The first kind with a word in the title wins (a plural too); none of
+# them, "study". English, French, Italian, Spanish and German words; a picture only,
+# so a word misread costs a different drawing, nothing else.
+WORK_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "paper",
+        (
+            "paper",
+            "exam",
+            "mock",
+            "annale",
+            "examen",
+            "esame",
+            "esami",
+            "simulazione",
+            "partiel",
+            "klausur",
+            "prüfung",
+        ),
+    ),
+    ("cards", ("flashcard", "card", "carte", "tarjeta", "karteikarte")),
+    (
+        "exercises",
+        (
+            "exercise",
+            "problem",
+            "sheet",
+            "worksheet",
+            "homework",
+            "exercice",
+            "td",
+            "devoir",
+            "esercizio",
+            "esercizi",
+            "problema",
+            "problemi",
+            "compiti",
+            "ejercicio",
+            "übung",
+            "aufgabe",
+        ),
+    ),
+    (
+        "summary",
+        (
+            "summary",
+            "note",
+            "notes",
+            "résumé",
+            "fiche",
+            "riassunto",
+            "riassunti",
+            "appunti",
+            "schema",
+            "resumen",
+            "apuntes",
+            "zusammenfassung",
+            "mitschrift",
+        ),
+    ),
+    (
+        "reading",
+        (
+            "reading",
+            "read",
+            "chapter",
+            "book",
+            "article",
+            "chapitre",
+            "livre",
+            "lettura",
+            "capitolo",
+            "capitoli",
+            "libro",
+            "lectura",
+            "kapitel",
+        ),
+    ),
+    (
+        "lecture",
+        (
+            "lecture",
+            "video",
+            "recording",
+            "class",
+            "cours",
+            "lezione",
+            "lezioni",
+            "registrazione",
+            "clase",
+            "vorlesung",
+        ),
+    ),
+    (
+        "project",
+        (
+            "project",
+            "lab",
+            "code",
+            "coding",
+            "programming",
+            "projet",
+            "progetto",
+            "laboratorio",
+            "proyecto",
+            "projekt",
+        ),
+    ),
+)
+_WORK = tuple(
+    (kind, re.compile(r"\b(?:" + "|".join(map(re.escape, words)) + r")(?:s|es)?\b", re.IGNORECASE))
+    for kind, words in WORK_WORDS
+)
+
+
+def work_kind(title: str) -> str:
+    """The kind of work a session's title names (`WORK_WORDS`), "study" if none."""
+    return next((kind for kind, pattern in _WORK if pattern.search(title or "")), "study")
 
 
 def duration_words(minutes: int) -> str:
@@ -5793,6 +5912,7 @@ def post_card(post: social.Post, *, viewer: str | None, now: datetime, zone: Zon
         card["cards_from"] = bool(d.get("body") or d.get("pdf_text")) and viewer is not None
     if post.kind == "session":
         effort = int(d.get("effort", 0))
+        card["work"] = work_kind(str(d.get("title", "")))
         card["effort_word"] = _(EFFORT_WORDS[max(k for k in EFFORT_WORDS if k <= effort)]) if effort else ""
         card["progress_word"] = _(PROGRESS_WORDS.get(int(d.get("progress", 0)), ""))
         card["hours"] = format_number(int(d.get("minutes", 0)) / 60)
@@ -5835,14 +5955,53 @@ def diary_view(store: str | os.PathLike, subscription: Subscription, now: dateti
     monday = _progress.monday(now.astimezone(zone).date())
     week = [p for p in posts if p.kind == "session" and date.fromisoformat(p.day) >= monday]
     efforts = [int(p.data["effort"]) for p in week]
+    cards = [post_card(p, viewer=subscription.token, now=now, zone=zone) for p in posts]
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    for card in cards:  # D100: a session in its course's colour
+        card["color"] = colours.get(str(card.get("course", "")).strip().casefold())
     return {
-        "posts": [post_card(p, viewer=subscription.token, now=now, zone=zone) for p in posts],
+        "posts": cards,
+        "weeks": _diary_weeks(cards, monday),
         "week": {
             "sessions": len(week),
             "hours": format_number(sum(int(p.data["minutes"]) for p in week) / 60),
             "effort": format_number(sum(efforts) / len(efforts)) if efforts else "",
         },
     }
+
+
+def _diary_weeks(cards: Sequence[dict], monday: date) -> list[dict]:
+    """D100: the diary week by week, newest first, to look back on: each week's
+    sessions and hours, the best of how its sessions went (1 to 5, 0 without one),
+    and the week with the most hours marked once there are two weeks. This week and
+    the last are open; so is the latest, if older."""
+    by_week: dict[date, dict] = {}
+    for card in cards:
+        first = _progress.monday(date.fromisoformat(card["day"]))
+        week = by_week.setdefault(
+            first, {"first": first, "posts": [], "minutes": 0, "sessions": 0, "best": 0}
+        )
+        week["posts"].append(card)
+        if card["kind"] == "session":
+            week["sessions"] += 1
+            week["minutes"] += int(card.get("minutes", 0))
+            week["best"] = max(week["best"], int(card.get("progress", 0)))
+    weeks = sorted(by_week.values(), key=lambda w: w["first"], reverse=True)
+    most = max(weeks, key=lambda w: w["minutes"], default=None) if len(weeks) > 1 else None
+    for i, week in enumerate(weeks):
+        first = week.pop("first")
+        week["name"] = (
+            _("This week")
+            if first == monday
+            else _("Last week")
+            if first == monday - timedelta(days=7)
+            else _("Week of {day}", day=format_date(first, "short"))
+        )
+        week["open"] = i == 0 or first >= monday - timedelta(days=7)
+        week["hours"] = format_number(week["minutes"] / 60)
+        week["biggest"] = week is most and week["minutes"] > 0
+    return weeks
 
 
 def delete_post(store: str | os.PathLike, token: str, post_id: str) -> bool:
@@ -8043,6 +8202,51 @@ def trends_view(
             "effort": sum(x.effort for x in in_range) / len(in_range) if in_range else None,
         },
         "forecast": forecast(plan, now, shown) if plan else [],
+    }
+
+
+def climb_view(trend: dict) -> dict | None:
+    """D100: the climb on Progress, from the Trends page's weeks over the whole
+    semester (`trends_view(..., "all")`): the hours added up week by week, which only
+    ever rise, so a short week reads as a step up, never as a drop; the flags passed
+    on the way (`trends.MILESTONES`), the next one, and the biggest week. A flag passed
+    this week is celebrated once. None before there is a week."""
+    weeks = trend["weeks"]
+    if not weeks:
+        return None
+    hours = [float(w["hours"]) for w in weeks]
+    totals = _trends.climb(hours)
+    passed = _trends.flags(totals)
+    now = weeks[-1]["current"]
+    fresh = [m for m, at in passed if now and at > len(weeks) - 1]
+    biggest = max(range(len(hours)), key=lambda i: (hours[i], i))
+    return {
+        "total": totals[-1],
+        "since": trend["since"],
+        "this_week": hours[-1] if now else 0.0,
+        "totals": totals,
+        "passed": passed,
+        "flags": len(passed),
+        "next": _trends.next_milestone(totals[-1]),
+        "new": fresh[-1] if fresh else None,
+        "biggest": (
+            {
+                "hours": hours[biggest],
+                "first": weeks[biggest]["first"],
+                "now": now and biggest == len(weeks) - 1,
+            }
+            if len(weeks) > 1 and hours[biggest] > 0
+            else None
+        ),
+        "texts": [
+            _(
+                "Week of {day}: {hours} h, {total} h in all",
+                day=w["first"],
+                hours=format_number(h),
+                total=format_number(t),
+            )
+            for w, h, t in zip(weeks, hours, totals, strict=True)
+        ],
     }
 
 

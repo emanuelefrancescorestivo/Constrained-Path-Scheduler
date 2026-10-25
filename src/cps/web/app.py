@@ -1077,6 +1077,8 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_visit(store, token, config.clock())
         now = config.clock()
         logged = service.logged_sessions(store, subscription)
+        # The whole semester's weeks, for the climb (D100).
+        trend = service.trends_view(store, subscription, now, "all") if subscription.plan else None
         return page(
             request,
             "progress.html",
@@ -1086,7 +1088,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
             ),
             diary=service.diary_view(store, subscription, now),
-            trend=service.trends_view(store, subscription, now, "12") if subscription.plan else None,
+            trend=trend,
+            climb=service.climb_view(trend) if trend else None,
             groups=service.groups_view(store, subscription, now)["groups"],
             badges=service.badges_view(store, subscription, now, logged=logged),
             insights=service.insights_view(store, subscription, now) if subscription.plan else None,

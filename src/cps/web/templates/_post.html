@@ -2,12 +2,13 @@
    author, kudos and comments in the network's pages), `token`, and `here`, the
    page to come back to after a tap. #}
 {% from "_people.html" import avatar %}
+{% from "_art.html" import art, grow %}
 <article class="card post" id="post-{{ p.id }}">
   <header class="post-head">
-    {% if p.author %}{{ avatar(p.author) }}{% endif %}
+    {% if p.author %}{{ avatar(p.author) }}{% elif p.kind == "session" and p.work %}{{ art(p.work) }}{% endif %}
     <div class="grow">
       <p class="kicker">{% if p.author %}<a href="/p/{{ token }}/u/{{ p.author.handle }}">@{{ p.author.handle }}</a>{% if p.author.university %} · {{ p.author.university }}{% endif %} · {% endif %}{{ p.when }}</p>
-      <h3>{% if p.kudos is defined %}<a class="post-link" href="/p/{{ token }}/post/{{ p.id }}">{% endif %}{% if p.kind == "explain" %}{{ p.concept }}{% elif p.kind == "notes" %}{{ p.title }}{% else %}{{ p.course }}{% endif %}{% if p.kudos is defined %}</a>{% endif %}</h3>
+      <h3>{% if p.kudos is defined %}<a class="post-link" href="/p/{{ token }}/post/{{ p.id }}">{% endif %}{% if p.kind == "explain" %}{{ p.concept }}{% elif p.kind == "notes" %}{{ p.title }}{% else %}{% if p.color is defined and p.color is not none %}<span class="dot c{{ p.color }}" aria-hidden="true"></span>{% endif %}{{ p.course }}{% endif %}{% if p.kudos is defined %}</a>{% endif %}</h3>
     </div>
     {% if p.mine and p.hidden %}<span class="badge badge-warn">{{ _("Hidden while it is reviewed") }}</span>{% endif %}
     {% if p.mine %}<span class="badge vis-{{ p.visibility }}" title="{{ _('Who sees it') }}">{% if p.visibility == 'me' %}{{ _("Only me") }}{% elif p.visibility == 'followers' %}{{ _("Followers") }}{% elif p.visibility == 'group' %}{{ p.group.name if p.group else _("Group") }}{% else %}{{ _("Everyone") }}{% endif %}</span>{% endif %}
@@ -34,12 +35,13 @@
   </header>
   {% if p.kind == "session" %}
   {% if p.title %}<p class="post-title">{{ p.title }}</p>{% endif %}
+  {# D100: effort as bars that rise to it, progress as a plant that grows, rewards as medals. #}
   <dl class="post-stats">
     <div><dt>{{ _("Time") }}</dt><dd>{{ p.duration }}</dd></div>
-    <div><dt>{{ _("Effort") }}</dt><dd>{{ p.effort }}/10 <small>{{ p.effort_word }}</small></dd></div>
-    <div><dt>{{ _("Progress") }}</dt><dd>{{ p.progress_word }}</dd></div>
+    <div><dt>{{ _("Effort") }}</dt><dd><span class="effort-bars" aria-hidden="true">{% for i in range(1, 11) %}<i class="e{{ i }}{% if i <= p.effort | int %} on{% endif %}"></i>{% endfor %}</span>{{ p.effort }}/10 <small>{{ p.effort_word }}</small></dd></div>
+    <div><dt>{{ _("Progress") }}</dt><dd>{{ grow(p.progress | int) }}{{ p.progress_word }}</dd></div>
   </dl>
-  <p class="post-focus">{{ p.focus }}{% if p.goal %} · {{ p.goal }}{% endif %}{% if p.rewards %} · <span class="post-rewards">{{ _n("{n} reward", "{n} rewards", p.rewards) }}</span>{% endif %}</p>
+  <p class="post-focus">{{ p.focus }}{% if p.goal %} · {{ p.goal }}{% endif %}{% if p.rewards %} · <span class="post-rewards"><span class="medals" aria-hidden="true">{% for _i in range([p.rewards, 5] | min) %}<svg viewBox="0 0 16 16" focusable="false"><path d="M4.5 1h2.6l1 3.2L9 1h2.6L9.8 6.4H6.2Z" fill="#5b8cff"/><circle cx="8" cy="10.4" r="4.6" fill="#f5b301"/><circle cx="8" cy="10.4" r="2.6" fill="#ffd862"/></svg>{% endfor %}</span>{{ _n("{n} reward", "{n} rewards", p.rewards) }}</span>{% endif %}</p>
   {% if p.simple %}<blockquote class="post-simple"><p class="kicker">{{ _("In simple words") }}</p><p>{{ p.simple }}</p></blockquote>{% endif %}
   {% if p.note %}<p class="post-note">{{ p.note }}</p>{% endif %}
   {% elif p.kind == "notes" %}
