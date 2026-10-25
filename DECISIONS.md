@@ -3565,3 +3565,42 @@ rules from a title the student typed; a title the words miss gets the pile of bo
 a compound word is missed (German "Übungsblatt"). Checked in Chromium at 390 px (light,
 dark, Italian) and 1100 px (dark, French); not on a real phone. Whether the climb
 motivates more than the columns did is for the pilot to say.
+
+## D101. Flashcards from a course's materials, by the smallest model
+
+*The owner, 2026-10-25, with a screenshot of Flashcards: "we really should invest in
+making it easy to make flashcards from courses materials with some cheap but efficient
+language model".*
+
+**Chosen.** Flashcards, a course page and each of its weeks offer the course's materials
+in one tap: its topics, as its syllabus gave them (D81, D83, D90), and the notes of the
+course the student can open, theirs and their groups', with their PDFs' text (D85, D95).
+The page lists what will be read; the rules read the notes at once, for free, and with AI
+on a button has a model write cards from all of it. The model names, for each card, the
+topic it belongs to, and the card goes to that topic's week (D87), so a whole course's
+cards land in their weeks without the student filing them; a week's button asks for that
+week's topics alone. Nothing is kept before the student ticks the cards.
+
+The cards are written by Claude Haiku 5.5 (`ai.CARDS_MODEL`; `CPS_AI_CARDS_MODEL` names
+another), at low effort, with a 90-second timeout: writing cards from material that is
+there is reading and rephrasing, and the student checks every card before keeping it.
+One call reads at most 150,000 characters and gives at most 60 cards. The cut keeps the
+prompt under Haiku 5.5's price step at 100K tokens (prices five times higher past it,
+`ai.LONG_PROMPTS`, now counted) even at two characters a token. A whole course costs
+$0.0098 to $0.0137 a call at two to four characters a token, against $0.39 to $0.55 with
+Opus 5.5 (`python benchmarks/syllabus_cost.py`); the cap counts the worst case, $0.1066,
+before calling. The monthly cap and the daily limit of D12 are unchanged.
+
+*Rejected:* one call a note or a week, merged (more calls for the same reading, and the
+model cannot weigh the topics against each other); the Batch API at half price (an answer
+within the hour is too late for a student waiting on the page); sending the PDFs
+themselves (each page billed as an image too, D84's benchmark; their text is already
+read); the coach's model, Opus 5.5 (forty times the price for a task a student checks
+card by card).
+
+**Disclosed.** No model has been called: every answer in the tests is a fake provider's,
+so how good Haiku 5.5's cards are is not known until a key is set (the owner's step, no
+key in this repository). Two to four characters a token is an assumption. A classmate's
+notes reach the model under the reader's yes alone, as one note already could since D84;
+the privacy page and the notes form now say so (AUDIT 81), and whether that should need
+the author's yes too is the owner's decision.

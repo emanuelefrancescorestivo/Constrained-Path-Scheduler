@@ -27,7 +27,16 @@
 </div>
 {% endif %}
 
-<a class="card section card-make" href="/p/{{ token }}/cards/make"><b>{{ _("Make cards from your notes") }}</b><br><small>{{ _("Paste your notes: definitions, questions and lists become cards you pick from.") }}</small></a>
+{# D101: a course's materials, one tap away; pasting notes stays. #}
+{% from "_art.html" import art %}
+<div class="card section card-make">
+  <div class="materials-head">{{ art("cards") }}<div class="grow">
+    <b>{{ _("Make cards from a course") }}</b><br>
+    <small>{% if view.from_courses %}{{ _("From its topics and the notes you can open: you pick the cards to keep.") }}{% else %}{{ _("Add a course's topics, or share notes for it, and its cards are one tap away.") }}{% endif %}</small>
+  </div></div>
+  {% if view.from_courses %}<p class="course-chips">{% for c in view.from_courses %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/make?from=course&amp;course={{ c | urlencode }}">{{ c }}</a>{% endfor %}</p>{% endif %}
+  <p class="hint"><a href="/p/{{ token }}/cards/make">{{ _("Or paste your notes") }}</a></p>
+</div>
 
 <form method="post" action="/p/{{ token }}/cards" class="card section card-new">
   <h2>{{ _("New card") }}</h2>

@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1166 passed, 17 deselected, 1 xfailed, about 370 s
-    pytest -m "slow or not slow" --cov=cps   # all 1183 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1174 passed, 17 deselected, 1 xfailed, about 370 s
+    pytest -m "slow or not slow" --cov=cps   # all 1191 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -75,7 +75,7 @@ more than an impressive number.
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29); a card's week of lectures and a week's practice, each card once a day (D87) |
 | `i18n.py`, `locales/` | `_()` and `_n()` keyed by the English sentence, the language per request in a context variable, dates and numbers in each language's words; English, French (D10), Italian (D34) |
-| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), flashcards written from notes on request (D84), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
+| `ai.py` | AI, opt-in and capped (D12): a task typed in one line read by rules (English, French), the coach's answer kept to its rules (D65), flashcards written from notes on request (D84), and from a course's materials by Claude Haiku 5.5, each card with its topic's week (D101), the model through one small interface (Anthropic's SDK, the optional `ai` extra), the ledger, the monthly cap and the daily limit |
 | `social.py` | the study network's tables: posts (sessions, explanations, notes), photos stripped of metadata, follows, kudos (and "helpful" marks), comments, reports, blocks; who may see what; the notes library and the month's top per course; study groups (D16 to D20, D26, D28); their invitation links (D40); profiles with a year and a country, and classmates (D39); a course's topics shared with classmates (D81); notes as text and for one study group, seen by its members while the author is one (D85); notes as PDFs, up to three a set (D95) |
 | `service.py` | the API every front end uses; the sky and the garden of the streak behind a plan's pages (D73), where the sun is in the plan's day (D76); which section's tour a page shows, and the ones seen (D77); lectures become weekly topics; subscriptions, reports, Moodle deadlines, page views; passkeys and the recovery code, the next semester with the past kept for progress (D35, D36); the questions about the week and the trip to campus around each day's classes (D42); when the student studies best, a pause after training or work (D45); a weekly budget offered from what is kept (D47); a warm-up before today's lectures (D51); how an exam went, asked after it (D56); a class of the timetable skipped, once or weekly, or caught up on alone (D60), or marked as a quiz, a mock exam or a partial exam (D61); a focus session's length and rewards (D67); the insights on Progress and the one on Today (D80); Your memory on Progress (D82); the student's day: getting up, going to bed, lunch (D69); a course's topics from its pasted program, on the sessions of their week, shared with classmates (D81); Courses: each course week by week, done and to come, its workload against its ECTS credits, its cards by week, its notes and links (D86, D87, D88); a semester's program imported, pasted or as a PDF, each course offered to the plan's by name, its mock exams and readings on its weeks, its hours of classes in the workload check (D90); the tips page one topic at a time (D91); the science page's numbers, from FSRS-6 and the app's settings (D89); Today's one message (D97) and the questions that make the plan fit, one a day (D98); what a student uses, with their yes (D96); typed errors; no UI imports |
 | `sources.py` | a calendar from a link; refuses non-http schemes, private addresses (after redirects too), oversized answers |
@@ -234,7 +234,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   choice; a diary session's picture is read by rules from its title's words, a compound
   word missed. Whether the climb motivates more than the weekly columns is for the pilot.
 - Cards from notes (D84) are read by rules from shapes notes commonly take, not from real
-  students' notes; the model's cards ran against a fake provider only. Photos of notes are
+  students' notes; the model's cards, from a note or a course's materials (D101, Haiku 5.5),
+  ran against a fake provider only. A classmate's notes reach the model under the reader's
+  yes alone (AUDIT 81). Photos of notes are
   not read. A group's notes (D85) were checked in Chromium only.
 - Your memory (D82) is the memory model's estimate with average weights, not a
   measurement; recall reps count what was reported. Checked in Chromium only.

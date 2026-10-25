@@ -6568,6 +6568,8 @@ def cards_view(
         "next": wait_words(later - now) if later else None,
         "today": flashcards.reviewed_today(where, token, now, zone),
         "courses": course_names(subscription),
+        # D101: the courses with something to make cards from, one tap each.
+        "from_courses": courses_with_materials(store, subscription),
         "new_per_day": flashcards.NEW_PER_DAY,
         # A course's weeks, for its new cards (D87): the week in course by default.
         **_week_choice(subscription, chosen[0].course if chosen else course, now),
@@ -6738,13 +6740,23 @@ def card_maker_view(
     now: datetime | None = None,
     provider: _ai.Provider | None = None,
     week: str | None = None,
+    from_course: bool = False,
+    of_week: str | None = None,
 ) -> dict:
     """The page that makes flashcards from notes (D84): the text (pasted, or a note's),
     and the cards read from it for the student to pick. By rules; by the model too
-    when the student asks and AI is on and allowed, its cards first."""
+    when the student asks and AI is on and allowed, its cards first.
+
+    `from_course` (D101): the course's materials instead of a text, its topics and the
+    notes the student may read, one week's topics when `of_week` names it. The rules
+    read the notes; the model reads all of it, and each of its cards comes with the
+    week of the topic it belongs to."""
     now = now or datetime.now(UTC)
     note = _note_source(store, subscription, note_id)
-    if note is not None and text is None:
+    materials = course_materials(store, subscription, course, of_week or None) if from_course else None
+    if materials is not None:
+        text = materials["notes"]
+    elif note is not None and text is None:
         # The note's text, then its PDFs' (D95).
         noted = "\n\n".join(t for t in (note.data.get("body", ""), note.data.get("pdf_text", "")) if t)
         text, course = noted, course or note.data.get("course", "")
@@ -6752,49 +6764,144 @@ def card_maker_view(
     found = _cardmaker.read(text)
     if both:
         found = _cardmaker.both_ways(found)[: _cardmaker.MAX_CARDS]
-    candidates = [{"front": c.front, "back": c.back, "kind": c.kind} for c in found]
+    candidates = [{"front": c.front, "back": c.back, "kind": c.kind, "week": ""} for c in found]
     used_ai = False
-    model = (provider or _ai.from_env()) if use_ai and ai_on(subscription) and text.strip() else None
+    source = materials["text"] if materials is not None else text
+    model = (provider or _ai.cards_from_env()) if use_ai and ai_on(subscription) and source.strip() else None
     if model is not None:
         language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
-        system, prompt = _ai.cards_prompt(text, language, course)
-        data = _ai.ask(
-            _store(store),
-            subscription.token,
-            model,
-            "cards",
-            system=system,
-            prompt=prompt,
-            schema=_ai.CARDS_SCHEMA,
-            max_tokens=_ai.CARDS_MAX_TOKENS,
-            now=now,
-        )
-        written = _ai.cards_from_answer(data) if data else []
+        written: list[tuple[str, str, str]] = []
+        if materials is not None:
+            topics = materials["topics"]
+            system, prompt = _ai.materials_prompt(
+                materials["text"],
+                language,
+                course,
+                [(t["id"], t["title"]) for t in topics],
+                only_topics=bool(of_week and topics),
+            )
+            data = _ai.ask(
+                _store(store),
+                subscription.token,
+                model,
+                "cards",
+                system=system,
+                prompt=prompt,
+                schema=_ai.MATERIALS_SCHEMA,
+                max_tokens=_ai.MATERIALS_MAX_TOKENS,
+                now=now,
+            )
+            weeks_of = {t["id"]: t["monday"] for t in topics}
+            written = [
+                (f, b, weeks_of.get(t, "") or (of_week or ""))
+                for f, b, t in (_ai.materials_from_answer(data, list(weeks_of)) if data else [])
+            ]
+        else:
+            system, prompt = _ai.cards_prompt(text, language, course)
+            data = _ai.ask(
+                _store(store),
+                subscription.token,
+                model,
+                "cards",
+                system=system,
+                prompt=prompt,
+                schema=_ai.CARDS_SCHEMA,
+                max_tokens=_ai.CARDS_MAX_TOKENS,
+                now=now,
+            )
+            written = [(f, b, "") for f, b in (_ai.cards_from_answer(data) if data else [])]
         if written:
             used_ai = True
-            known = {(c["front"].casefold(), c["back"].casefold()) for c in candidates}
-            fresh = [
-                {"front": f, "back": b, "kind": "ai"}
-                for f, b in written
-                if (f.casefold(), b.casefold()) not in known
-            ]
-            candidates = (fresh + candidates)[: _cardmaker.MAX_CARDS]
+            # One card a question: the model's, which has its week, over the rules' (D101).
+            asked = {f.casefold() for f, _b, _w in written}
+            fresh = [{"front": f, "back": b, "kind": "ai", "week": w} for f, b, w in written]
+            kept = [c for c in candidates if c["front"].casefold() not in asked]
+            candidates = (fresh + kept)[: _cardmaker.MAX_CARDS]
         log_event(store, subscription.token, "cardmaker", "ai" if used_ai else "rules")
+    choice = _week_choice(subscription, course, now, week)
+    labels = {o["value"]: o["label"] for o in choice["weeks"]}
     for c in candidates:
         c["word"] = _(CARD_KINDS[c["kind"]])
+        c["week_label"] = labels.get(c["week"], "")
     return {
         "text": text,
         "course": course,
         "courses": course_names(subscription),
         "note": {"id": note.id, "title": note.data.get("title", "")} if note else None,
+        "materials": materials,
         "candidates": candidates,
         "both": both,
-        "read": bool(text.strip()),
-        "ai_ready": ai_available() and ai_on(subscription),
+        "read": bool(source.strip()),
+        "ai_ready": _ai.cards_from_env() is not None and ai_on(subscription),
+        "ai_off": _ai.cards_from_env() is not None and not ai_on(subscription),
         "ai_used": used_ai,
         "most": _cardmaker.MAX_CARDS,
         # The course's weeks, to file the cards under one (D87): this week by default.
-        **_week_choice(subscription, course, now, week),
+        **choice,
+    }
+
+
+# D101: what a course's materials may give the model at once, in characters: under
+# Claude Haiku 5.5's price step of 100K tokens (`ai.LONG_PROMPTS`) even at two
+# characters a token (dense formulas; prose runs at three to four), with the
+# instructions and the topics' list besides.
+MATERIALS_MOST = 150_000
+
+
+def courses_with_materials(store: str | os.PathLike, subscription: Subscription) -> list[str]:
+    """D101: the plan's courses with topics kept or a note with text the student may
+    read, in the plan's order."""
+    where = _store(store)
+    token = subscription.token
+    kept = {k for k, v in (subscription.options.get("topics") or {}).items() if v.get("items")}
+    posts = list(social.posts_of(where, token, "notes", limit=200))
+    for group in social.groups_of(where, token):
+        posts += social.group_notes(where, token, group.id)
+    noted = {
+        course_key(p.data.get("course", "")) for p in posts if p.data.get("body") or p.data.get("pdf_text")
+    }
+    return [c for c in course_names(subscription) if course_key(c) in kept | noted]
+
+
+def course_materials(
+    store: str | os.PathLike, subscription: Subscription, course: str, week: str | None = None
+) -> dict:
+    """D101: what a course gives to make cards from: its topics (a week's, when `week`
+    names one of its Mondays), then the notes of the course the student may read,
+    theirs and their groups', newest first, each note's text and its PDFs'. Cut at
+    `MATERIALS_MOST` characters, which the view says."""
+    key = course_key(course)
+    kept = (subscription.options.get("topics") or {}).get(key) or {}
+    items = [i for i in kept.get("items") or () if week is None or i.get("monday") == week]
+    topics = [
+        {"id": f"t{n}", "title": i["title"], "monday": i.get("monday") or ""} for n, i in enumerate(items, 1)
+    ]
+    notes: list[str] = []
+    sources: list[dict] = []
+    for post in _course_note_posts(store, subscription, course):
+        body = "\n\n".join(t for t in (post.data.get("body", ""), post.data.get("pdf_text", "")) if t).strip()
+        if body:
+            title = post.data.get("title", "") or _("Notes")
+            notes.append(f"## {title}\n\n{body}")
+            sources.append(
+                {
+                    "title": title,
+                    "mine": post.token == subscription.token,
+                    "chars": len(body),
+                    "pdfs": len(post.data.get("pdfs", [])),
+                }
+            )
+    listed = "\n".join(f"- {t['title']}" for t in topics)
+    whole = "\n\n".join(x for x in ((f"## {_('Topics')}\n\n{listed}" if topics else ""), *notes) if x)
+    return {
+        "text": whole[:MATERIALS_MOST],
+        "notes": "\n\n".join(notes),
+        "topics": topics,
+        "sources": sources,
+        "chars": min(len(whole), MATERIALS_MOST),
+        "cut": len(whole) > MATERIALS_MOST,
+        "week": week or "",
+        "index": _course_index(subscription, course),
     }
 
 
@@ -6807,17 +6914,25 @@ def add_made_cards(
     picked: Sequence[str],
     now: datetime | None = None,
     week: str | None = None,
+    weeks: Sequence[str] = (),
 ) -> int:
     """The cards the student ticked in the preview, added to the course's deck, and
-    to one of its weeks when chosen (D87)."""
+    to one of its weeks when chosen (D87); a card with a week of its own (`weeks`,
+    from the topic the model filed it under, D101) goes to that week."""
     now = now or datetime.now(UTC)
     chosen = {int(i) for i in picked if str(i).isdigit()}
-    pairs = [(f, b) for i, (f, b) in enumerate(zip(fronts, backs, strict=False)) if i in chosen]
-    if not pairs:
+    by_week: dict[str | None, list[tuple[str, str]]] = {}
+    for i, (f, b) in enumerate(zip(fronts, backs, strict=False)):
+        if i in chosen:
+            own = weeks[i] if i < len(weeks) else ""
+            by_week.setdefault(own or week or None, []).append((f, b))
+    if not by_week:
         raise InvalidInput(_("tick the cards to add"))
-    return len(
-        _flash(lambda: flashcards.add(_store(store), subscription.token, course, pairs, now, week or None))
-    )
+    added = 0
+    for filed, pairs in by_week.items():
+        call = functools.partial(flashcards.add, _store(store), subscription.token, course, pairs, now, filed)
+        added += len(_flash(call))
+    return added
 
 
 REPORT_REASONS = social.REPORT_REASONS
@@ -9925,8 +10040,11 @@ def remove_course_link(subscription: Subscription, index: int, link_id: str) -> 
     return replace(subscription, options={**subscription.options, "materials": materials})
 
 
-def _course_notes(store: str | os.PathLike, subscription: Subscription, course: str) -> list[dict]:
-    """The notes of a course a student can open: their own, and their groups'."""
+def _course_note_posts(
+    store: str | os.PathLike, subscription: Subscription, course: str
+) -> list[social.Post]:
+    """The notes of a course a student can open, newest first: their own, and their
+    groups'."""
     where = _store(store)
     token = subscription.token
     found: dict[str, social.Post] = {}
@@ -9936,7 +10054,14 @@ def _course_notes(store: str | os.PathLike, subscription: Subscription, course: 
         for post in social.group_notes(where, token, group.id):
             found.setdefault(post.id, post)
     mine = [p for p in found.values() if course_key(p.data.get("course", "")) == course_key(course)]
-    mine.sort(key=lambda p: p.created, reverse=True)
+    return sorted(mine, key=lambda p: p.created, reverse=True)
+
+
+def _course_notes(store: str | os.PathLike, subscription: Subscription, course: str) -> list[dict]:
+    """The notes of a course a student can open: their own, and their groups'."""
+    where = _store(store)
+    token = subscription.token
+    mine = _course_note_posts(store, subscription, course)
     names = {g.id: g.name for g in social.groups_of(where, token)}
     out = []
     for post in mine[:12]:

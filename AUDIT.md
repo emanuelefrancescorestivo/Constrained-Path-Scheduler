@@ -985,3 +985,13 @@ the session's card, and the glass of D73 gives every fieldset a pane, since sett
 uses fieldsets as its sections; this one had no padding, so the pane hugged what it held.
 Status: fixed; a fieldset that only groups controls inside a card is marked `bare` and
 gets no pane, under every glass setting (`tests/test_lively.py` checks both).
+
+**81. The privacy page said nothing from the network goes to the model.** Found on
+2026-10-25 while adding cards from a course's materials (D101): since D84 a student with
+AI on could have cards written from a note shared with them by a classmate, a group or
+the library, and the privacy page said "Nothing else is sent: ... nothing from the
+network"; the hint beside the AI switch in Settings did not name flashcards at all.
+Status: fixed; both name the notes the student can open, theirs or shared with them, and
+a course's topics, and the form that shares notes says that whoever can open them can
+make flashcards from them, with a model when their AI is on. Whether a classmate's notes
+should be sent under the reader's yes alone is a question for the owner (D101).
