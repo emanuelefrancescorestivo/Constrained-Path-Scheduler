@@ -70,7 +70,8 @@ of its data (D43) holds them.
 | A classmate's topics | a query | none |
 | Notes in a group, the library | the database | none |
 | Cards from notes | rules | none |
-| Cards written by the model | AI on, asked each time, capped per month and per day | at most $0.20 a call with the default model, $0.005 with the smallest (`python benchmarks/syllabus_cost.py`) |
+| Cards written by the model from one note | AI on, asked each time, capped per month and per day; Claude Haiku 5.5 since D101 | at most $0.005 a call with Haiku 5.5, $0.20 with Opus 5.5 (`python benchmarks/syllabus_cost.py`) |
+| Cards from a course's materials (D101): its topics and the notes the student can open, one tap | the same, one call of at most 150,000 characters and 60 cards | $0.0098 to $0.0137 a call with Haiku 5.5, at two to four characters a token (an assumption); the cap reserves $0.1066 before the call |
 | A syllabus PDF read by the model, for programs written as prose | not built (CURRICULUM.md §3a, way E) | at most $0.40 a ten-page PDF with the default model |
 
 The owner named card-making as something students would pay for. What the model adds

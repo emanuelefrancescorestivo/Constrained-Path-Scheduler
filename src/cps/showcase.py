@@ -193,6 +193,38 @@ CARDS = (
     ("Determinant of A in eigenvalues?", "The product of the eigenvalues."),
     ("A symmetric real matrix is…", "Orthogonally diagonalisable: A = Q D Qᵀ."),
 )
+# D101: Algebra 3's program as a syllabus lists it, and a teammate's notes as text, so
+# a course in the demo has materials to make cards from. Made up for the demo.
+ALGEBRA_PROGRAM = "\n".join(
+    f"Week {n}: {topic}"
+    for n, topic in enumerate(
+        (
+            "Vector spaces, subspaces, bases",
+            "Linear maps, kernel and image",
+            "Rank-nullity theorem",
+            "Matrices of a linear map, change of basis",
+            "Determinants",
+            "Eigenvalues and eigenvectors",
+            "Diagonalisation",
+            "Inner products and orthogonality",
+            "Gram-Schmidt and orthogonal projections",
+            "Symmetric matrices, the spectral theorem",
+            "Quadratic forms",
+            "Revision",
+        ),
+        1,
+    )
+)
+GROUP_NOTES = """Kernel: the vectors that A sends to zero
+Image: the vectors Av for every v
+Rank = the dimension of the image
+
+Q: What does the rank-nullity theorem say?
+A: rank(A) + dim ker(A) = number of columns.
+
+Eigenvalue: a number λ such that Av = λv for some vector v other than zero
+A matrix is **diagonalisable** when it has a basis of eigenvectors.
+"""
 CARDS_ANALYSIS = (
     ("ε-δ definition of a limit", "For every ε > 0 there is δ > 0 with 0 < |x − a| < δ ⇒ |f(x) − L| < ε."),
     ("When does Σ 1/n^α converge?", "When α > 1."),
@@ -515,8 +547,10 @@ def add_student(
     # are met and some are not.
     since = now - timedelta(weeks=4)
     group = service.create_group(where, you.token, {"name": "Thursday library", "goal": "10"}, now=since)
+    mates = []
     for name in TEAMMATES:
         mate = _copy(where, mate_model)
+        mates.append(mate)
         mate_handle = _join(
             where, mate.token, _free_handle(where, name), "Université Lyon 1", "L2 Mathématiques"
         )
@@ -542,6 +576,23 @@ def add_student(
         {"course": "Analysis 3", "paste": "\n".join(f"{q}\t{a}" for q, a in CARDS_ANALYSIS)},
         now=now - timedelta(days=2),
     )
+    # D101: Algebra 3's topics and a teammate's notes for the group, its materials.
+    if "Algebra 3" in service.topic_courses(you):
+        index = service.topic_courses(you).index("Algebra 3")
+        service.update_subscription(
+            where,
+            you.token,
+            lambda s: service.save_course_topics(where, s, index, ALGEBRA_PROGRAM, share=False, now=now),
+        )
+        form = {
+            "course": "Algebra 3",
+            "title": "Kernel, rank, eigenvalues",
+            "body": GROUP_NOTES,
+            "own_work": "1",
+            "visibility": "group",
+            "group": group.id,
+        }
+        service.post_notes(where, mates[0], form, now=now - timedelta(days=2))
     from . import cards as flashcards
 
     for card in flashcards.of(Store(where), you.token, "Algebra 3")[:4]:

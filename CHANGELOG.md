@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Flashcards from a course's materials (DECISIONS.md D101): one tap from Flashcards, a
+  course or one of its weeks reads its topics and the notes the student can open; with AI
+  on, Claude Haiku 5.5 writes up to 60 cards, each filed under its topic's week, for about
+  a cent a course (`benchmarks/syllabus_cost.py`).
+
 - The climb on Progress (DECISIONS.md D100): the hours added up since the plan began, with
   a flag at each milestone passed, the next one and the biggest week, in place of the
   weekly columns (still on Trends). Pictures on each insight and on a study group.
@@ -549,6 +554,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Fixed
 
+- The privacy page and Settings now say that notes shared with a student, and a course's
+  topics, can be sent to the model for flashcards (AUDIT 81).
 - The lengths on Focus sat in an empty glass pane of their own, touching its edge
   (AUDIT 80).
 - A backup is written beside its name and moved there once complete (AUDIT 79): whatever

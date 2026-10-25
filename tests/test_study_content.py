@@ -205,11 +205,14 @@ def test_the_model_reads_the_notes_only_when_asked_with_ai_on(tmp_path, people):
     ada = service.set_ai(ada, True)
     view = service.card_maker_view(tmp_path, ada, text=NOTES, use_ai=True, now=NOW, provider=model)
     assert model.asked == 1 and view["ai_used"]
+    # D101: a card also says its week, none for a note's cards (the form's week files them).
     assert view["candidates"][0] == {
         "front": "What is the trace?",
         "back": "The sum of the diagonal entries.",
         "kind": "ai",
         "word": "Written by AI",
+        "week": "",
+        "week_label": "",
     }
     assert len(view["candidates"]) == 10  # and the rules' nine
     broken = _Model({"cards": []})
@@ -224,7 +227,9 @@ def test_the_pages_make_cards_and_share_notes_with_a_group(tmp_path, people):
     ada, bob, _cleo, group = people
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
-        assert "Make cards from your notes" in web.get(f"/p/{bob.token}/cards").text
+        # D101: Flashcards offers a course's materials first, and pasting notes still.
+        deck = web.get(f"/p/{bob.token}/cards").text
+        assert "Make cards from a course" in deck and "Or paste your notes" in deck
         page = web.post(f"/p/{bob.token}/cards/make", data={"text": NOTES, "action": "read"}).text
         assert "Cards found" in page and page.count('name="pick"') == 9
         form = {"text": NOTES, "action": "add", "course": "Algebra 3", "front": ["Rank"], "back": ["dim"]}

@@ -2288,7 +2288,12 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/cards/make", response_class=HTMLResponse)
     def cards_make(
-        request: Request, token: str, note: str = "", course: str = "", week: str | None = None
+        request: Request,
+        token: str,
+        note: str = "",
+        course: str = "",
+        week: str | None = None,
+        source: str = Query("", alias="from"),
     ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
@@ -2299,6 +2304,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             note_id=note[:40],
             course=course[:80],
             week=None if week is None else week[:10],
+            # A course's materials, gathered on the server (D101): a week's, from its row.
+            from_course=source == "course" and bool(course.strip()),
+            of_week=None if week is None or source != "course" else week[:10],
         )
 
     @app.post("/p/{token}/cards/make", response_class=HTMLResponse)
@@ -2309,10 +2317,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         if not changes.allow(token):
             return too_many(request)
         # The cards found travel back with the form: three fields each, at most 200 (D84).
-        form = await request.form(max_files=0, max_fields=3 * service.CARDS_MADE_MOST + 10)
+        # Four with a week of its own (D101).
+        form = await request.form(max_files=0, max_fields=4 * service.CARDS_MADE_MOST + 12)
         text = str(form.get("text") or "")[: service.CARDS_TEXT_MOST]
         course = str(form.get("course") or "")[:80]
         action = form.get("action")
+        from_course = form.get("from") == "course" and bool(course.strip())
         if action == "add":
             try:
                 added = service.add_made_cards(
@@ -2324,19 +2334,31 @@ def create_app(config: Config | None = None) -> FastAPI:
                     [str(v) for v in form.getlist("pick")],
                     now=config.clock(),
                     week=str(form.get("week") or "")[:10] or None,
+                    weeks=[str(v)[:10] for v in form.getlist("cardweek")],
                 )
             except service.ServiceError as error:
-                return cards_make_page(request, subscription, 400, text=text, course=course, error=str(error))
+                return cards_make_page(
+                    request,
+                    subscription,
+                    400,
+                    text=None if from_course else text,
+                    course=course,
+                    error=str(error),
+                    from_course=from_course,
+                    of_week=str(form.get("of") or "")[:10] or None,
+                )
             service.log_event(store, token, "cards", str(added))
             return RedirectResponse(f"/p/{token}/cards?course={quote(course.strip())}&added={added}", 303)
         return cards_make_page(
             request,
             subscription,
-            text=text,
+            text=None if from_course else text,
             course=course,
             both=bool(form.get("both")),
             use_ai=action == "ai",
             week=str(form.get("week") or "")[:10] if "week" in form else None,
+            from_course=from_course,
+            of_week=str(form.get("of") or "")[:10] or None,
         )
 
     @app.get("/p/{token}/cards/review", response_class=HTMLResponse)

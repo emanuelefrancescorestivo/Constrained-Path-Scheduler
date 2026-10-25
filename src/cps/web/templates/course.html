@@ -34,7 +34,7 @@
         <p class="week-meta">
           {% if w.memory %}<span class="mtag lvl-{{ w.memory.level }}">{{ _("{n} % recall today", n=w.memory.recall) }}</span>{% endif %}
           {% if w.ahead %}<span>{{ _n("{n} review planned", "{n} reviews planned", w.ahead) }}</span>{% endif %}
-          {% if w.cards %}<a href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _n("Practise its {n} card", "Practise its {n} cards", w.cards) }}</a>{% elif w.state != "ahead" %}<a href="/p/{{ token }}/cards/make?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _("Make cards for this week") }}</a>{% endif %}
+          {% if w.cards %}<a href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _n("Practise its {n} card", "Practise its {n} cards", w.cards) }}</a>{% elif w.state != "ahead" %}<a href="/p/{{ token }}/cards/make?from=course&amp;course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _("Make cards for this week") }}</a>{% endif %}
           {% for l in w.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.title }} ↗</a>{% endfor %}
         </p>
       </div>
@@ -91,7 +91,7 @@
   <ul class="card list material-list">
     <li>
       <a class="grow" href="/p/{{ token }}/cards?course={{ v.course | urlencode }}"><b>{{ _("Flashcards") }}</b><br><small>{% if v.cards %}{{ _n("{n} card", "{n} cards", v.cards) }}{% if v.due %} · {{ _n("{n} to review", "{n} to review", v.due) }}{% endif %}{% if v.unfiled %} · {{ _n("{n} without a week", "{n} without a week", v.unfiled) }}{% endif %}{% else %}{{ _("No cards yet") }}{% endif %}</small></a>
-      {% if v.due %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}">{{ _("Review") }}</a>{% else %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?course={{ v.course | urlencode }}">{{ _("Make cards") }}</a>{% endif %}
+      {% if v.due %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}">{{ _("Review") }}</a>{% endif %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?from=course&amp;course={{ v.course | urlencode }}">{{ _("Make cards") }}</a>
     </li>
     {% for n in v.notes %}
     <li>

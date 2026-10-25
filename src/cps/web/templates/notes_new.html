@@ -39,6 +39,8 @@
     <p class="hint">{{ _("A group's notes are seen by its members only, while you are one of them; the group is used only when you choose it above.") }}</p>
     {% endif %}
     <p class="hint">{{ _("Only notes shared with everyone can be among the month's most helpful.") }}</p>
+    {# AUDIT 81: whoever may open the notes may make flashcards from them, with AI if theirs is on. #}
+    <p class="hint">{{ _("Whoever can open your notes can make flashcards from them; with AI turned on, a model reads them for that.") }}</p>
   </fieldset>
   <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Share") }}</button></div>
 </form>

@@ -1,47 +1,87 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Cards from your notes") }} · {{ _("Study plan") }}{% endblock %}
+{% from "_art.html" import art %}
+{% set m = view.materials %}
+{% block title %}{% if m %}{{ _("Cards from {course}", course=view.course) }}{% else %}{{ _("Cards from your notes") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 <p class="back"><a href="/p/{{ token }}/cards">{{ _("Flashcards") }}</a></p>
 <div class="page-title">
+  {% if m %}
+  <h1>{{ _("Cards from {course}", course=view.course) }}</h1>
+  <p>{{ _("Its topics and the notes you can open, read together. Tick the cards you want to be asked; nothing is added before you choose.") }}</p>
+  {% else %}
   <h1>{{ _("Cards from your notes") }}</h1>
   <p>{{ _("Paste your notes and read them: definitions, questions and their answers, lists and words in bold become cards. Tick the ones you want to be asked; nothing is added before you choose.") }}</p>
+  {% endif %}
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 {% if view.note %}<p class="notice" role="status">{{ _("From the notes «{title}».", title=view.note.title) }}</p>{% endif %}
 
+{% if m %}
+{# D101: what will be read, and one tap to have the cards written from all of it. #}
+<div class="card section materials">
+  <div class="materials-head">{{ art("cards") }}<div class="grow">
+    <h2>{% if m.week %}{{ _("This week's materials") }}{% else %}{{ _("The course's materials") }}{% endif %}</h2>
+    <p class="muted">{% if m.topics %}{{ _n("{n} topic", "{n} topics", m.topics | length) }}{% else %}{{ _("No topics yet") }}{% endif %} · {{ _n("{n} set of notes", "{n} sets of notes", m.sources | length) }}</p>
+  </div></div>
+  {% if m.sources %}<ul class="materials-list">{% for src in m.sources %}<li><b>{{ src.title }}</b> <small class="muted">{% if src.mine %}{{ _("your notes") }}{% else %}{{ _("a classmate's") }}{% endif %}{% if src.pdfs %} · {{ _n("{n} PDF", "{n} PDFs", src.pdfs) }}{% endif %}</small></li>{% endfor %}</ul>{% endif %}
+  {% if m.cut %}<p class="hint">{{ _("Long materials: the first {n} characters are read.", n=m.chars | hours) }}</p>{% endif %}
+  {% if not m.text %}
+  <p>{{ _("Nothing to read yet for this course: add its topics, or share notes for it.") }}</p>
+  <p>{% if m.index is not none %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/topics/{{ m.index }}">{{ _("Add the topics") }}</a> {% endif %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a></p>
+  {% elif view.ai_ready %}
+  <form method="post" action="/p/{{ token }}/cards/make" class="form-actions">
+    <input type="hidden" name="from" value="course"><input type="hidden" name="course" value="{{ view.course }}">
+    {% if m.week %}<input type="hidden" name="of" value="{{ m.week }}">{% endif %}
+    {% if view.weeks %}<input type="hidden" name="week" value="{{ view.week }}">{% endif %}
+    <button class="btn btn-primary" name="action" value="ai">{% if view.ai_used %}{{ _("Write more with AI") }}{% else %}{{ _("Write cards with AI") }}{% endif %}</button>
+  </form>
+  <p class="hint">{{ _("The materials are sent to the model, within your AI limits; each card it writes says the topic it belongs to and goes to that topic's week.") }}</p>
+  {% elif view.ai_off %}
+  <p class="hint">{{ _("Below, the cards read by rules from the notes. With AI on, a model writes cards from all of it, topics included.") }} <a href="/p/{{ token }}/settings#ai">{{ _("Turn AI on in Settings") }}</a></p>
+  {% else %}
+  <p class="hint">{{ _("Read by rules on this server: your notes are not sent anywhere.") }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if view.read %}
 <form method="post" action="/p/{{ token }}/cards/make" class="section" id="found">
   <input type="hidden" name="action" value="add">
-  <input type="hidden" name="text" value="{{ view.text }}">
+  {% if m %}<input type="hidden" name="from" value="course">{% if m.week %}<input type="hidden" name="of" value="{{ m.week }}">{% endif %}{% else %}<input type="hidden" name="text" value="{{ view.text }}">{% endif %}
   <div class="section-title"><h2>{{ _("Cards found") }}</h2><small>{{ _n("{n} card", "{n} cards", view.candidates | length) }}</small></div>
   {% if view.candidates %}
   <ul class="card list made-cards">
     {% for c in view.candidates %}
     <li>
-      <input type="hidden" name="front" value="{{ c.front }}"><input type="hidden" name="back" value="{{ c.back }}">
+      <input type="hidden" name="front" value="{{ c.front }}"><input type="hidden" name="back" value="{{ c.back }}"><input type="hidden" name="cardweek" value="{{ c.week }}">
       <label class="made-card grow"><input type="checkbox" name="pick" value="{{ loop.index0 }}" checked>
-        <span class="made-text"><span class="made-front">{{ c.front }}</span><span class="made-back">{{ c.back }}</span><small class="made-kind">{{ c.word }}</small></span>
+        <span class="made-text"><span class="made-front">{{ c.front }}</span><span class="made-back">{{ c.back }}</span><small class="made-kind">{{ c.word }}{% if c.week_label %} · {{ c.week_label }}{% endif %}</small></span>
       </label>
     </li>
     {% endfor %}
   </ul>
-  {% if view.ai_used %}<p class="hint">{{ _("The cards marked «Written by AI» come from a model reading your notes: check each against them before you keep it.") }}</p>{% endif %}
+  {% if view.ai_used %}<p class="hint">{% if m %}{{ _("The cards marked «Written by AI» come from a model reading the course's materials: check each against them before you keep it.") }}{% else %}{{ _("The cards marked «Written by AI» come from a model reading your notes: check each against them before you keep it.") }}{% endif %}</p>{% endif %}
   <div class="card section">
     <label for="m-course">{{ _("Course") }}</label>
     <input id="m-course" name="course" required maxlength="80" list="m-courses" autocomplete="off" value="{{ view.course }}">
     {% if view.weeks %}
     <label for="m-week">{{ _("Week") }}</label>
     <select id="m-week" name="week"><option value="">{{ _("The whole course") }}</option>{% for o in view.weeks %}<option value="{{ o.value }}"{% if view.week == o.value %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select>
-    <p class="hint">{{ _("Cards of a week come back in that week's self-tests too.") }}</p>
+    <p class="hint">{% if view.ai_used and m %}{{ _("A card with a week of its own goes to that week; the others to the week chosen here.") }}{% else %}{{ _("Cards of a week come back in that week's self-tests too.") }}{% endif %}</p>
     {% endif %}
     <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Add the cards ticked") }}</button></div>
   </div>
+  {% elif m %}
+  <p class="card">{% if view.ai_ready %}{{ _("The rules found no card in the notes; a model can write them from all of it.") }}{% else %}{{ _("No card found in the notes. Write a term and its definition on one line, a question and its answer on two, or put a word in **bold**.") }}{% endif %}</p>
   {% else %}
   <p class="card">{{ _("No card found. Write a term and its definition on one line (\"Eigenvalue: a number λ such that…\"), a question and its answer on two, or put a word in **bold**.") }}</p>
   {% endif %}
 </form>
 {% endif %}
 
+{% if m %}
+<p class="section hint"><a href="/p/{{ token }}/cards/make?course={{ view.course | urlencode }}">{{ _("Or paste notes instead") }}</a></p>
+{% else %}
 <form method="post" action="/p/{{ token }}/cards/make" class="card section cards-make-form">
   <h2>{% if view.read %}{{ _("Change the text") }}{% else %}{{ _("Your notes") }}{% endif %}</h2>
   <label for="m-text" class="visually-hidden">{{ _("Your notes") }}</label>
@@ -55,5 +95,6 @@
   </div>
   <p class="hint">{% if view.ai_ready %}{{ _("Read by rules on this server. With AI, the text of your notes is sent to the model too, within your AI limits.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
 </form>
+{% endif %}
 {% if view.courses %}<datalist id="m-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
 {% endblock %}
