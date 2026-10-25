@@ -1,0 +1,149 @@
+{# A small drawing for each place under You (D99): a tile in its own colour with the
+   thing itself drawn on it (a deck of cards, a checklist, a stopwatch…), so a place is
+   known by its picture before its name is read. Decoration: hidden from screen
+   readers, the row's words say the same. White on the tile's colour; the accents are
+   `currentColor`, a deep shade of the tile set by the style sheet. Nothing moves. #}
+{% macro art(name, size="") -%}
+<span class="art art-{{ name }}{% if size %} art-{{ size }}{% endif %}" aria-hidden="true"><svg viewBox="0 0 44 44" focusable="false">
+{%- if name == "progress" %}
+<circle cx="22" cy="22" r="11.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="4.2"/>
+<path d="M22 10.5a11.5 11.5 0 1 1-11.5 11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/>
+<path d="M16.8 22.4l3.6 3.6 6.9-7.2" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == "cards" %}
+<rect x="11" y="9.5" width="17" height="23" rx="3" fill="#fff" fill-opacity=".38" transform="rotate(-16 19.5 21)"/>
+<rect x="13" y="10" width="17" height="23" rx="3" fill="#fff" fill-opacity=".66" transform="rotate(-6 21.5 21.5)"/>
+<rect x="15.5" y="11" width="17" height="23" rx="3" fill="#fff"/>
+<path d="M21.6 19.2a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.2 1-1.2 1.8v.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+<circle cx="23.9" cy="27.6" r="1.25" fill="currentColor"/>
+{%- elif name == "tasks" %}
+<rect x="11.5" y="9.5" width="21" height="26" rx="3.5" fill="#fff"/>
+<rect x="17" y="7" width="10" height="5" rx="2" fill="#fff" stroke="currentColor" stroke-width="1.6"/>
+<path d="M15.5 17.5l1.8 1.8 3.2-3.4M15.5 24.5l1.8 1.8 3.2-3.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="15.6" y="29.2" width="4.2" height="4.2" rx="1.2" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="1.6"/>
+<path d="M23 18h6.5M23 25h6.5M23 31.3h5" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="2" stroke-linecap="round"/>
+{%- elif name == "focus" %}
+<rect x="19.5" y="7" width="5" height="3.2" rx="1.2" fill="#fff"/>
+<path d="M30.2 12.6l2.2 2.2" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="22" cy="24" r="11.3" fill="#fff"/>
+<path d="M22 24v-8.8a8.8 8.8 0 0 1 7.6 4.4Z" fill="currentColor" fill-opacity=".22"/>
+<path d="M22 24l4.6-5.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+<circle cx="22" cy="24" r="1.8" fill="currentColor"/>
+{%- elif name == "tips" %}
+<path d="M22 8.8a8.6 8.6 0 0 0-5.1 15.5c.9.7 1.4 1.6 1.4 2.7v.7h7.4V27c0-1.1.5-2 1.4-2.7A8.6 8.6 0 0 0 22 8.8Z" fill="#fff"/>
+<path d="M19.6 22.4l2.4-3.2 2.4 3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="18.6" y="29.6" width="6.8" height="2.3" rx="1.15" fill="#fff" fill-opacity=".9"/>
+<rect x="19.7" y="32.8" width="4.6" height="2.1" rx="1.05" fill="#fff" fill-opacity=".75"/>
+<path d="M9.5 15.5l2 .9M34.5 15.5l-2 .9M12.6 8.9l1.5 1.6M31.4 8.9l-1.5 1.6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+{%- elif name == "science" %}
+{# Memory fading, and climbing back at each review: the curve the plan is made of. #}
+<path d="M11 10.5V33h23" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13 13c2.5 6.5 4.2 9.4 6.4 10.6v-9.2c2.8 4.6 4.9 6.3 7.6 6.9v-6.9c2.4 2.4 4.4 3.3 6.8 3.6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="19.4" cy="14.4" r="2" fill="#fff"/>
+<circle cx="27" cy="14.4" r="2" fill="#fff"/>
+{%- elif name == "settings" %}
+<path fill="#fff" fill-rule="evenodd" d="M18.5 13.3L19.8 10L24.2 10L25.5 13.3L25.7 13.3L28.9 11.9L32.1 15.1L30.7 18.3L30.7 18.5L34 19.8L34 24.2L30.7 25.5L30.7 25.7L32.1 28.9L28.9 32.1L25.7 30.7L25.5 30.7L24.2 34L19.8 34L18.5 30.7L18.3 30.7L15.1 32.1L11.9 28.9L13.3 25.7L13.3 25.5L10 24.2L10 19.8L13.3 18.5L13.3 18.3L11.9 15.1L15.1 11.9L18.3 13.3ZM22 17.6a4.4 4.4 0 1 0 0 8.8a4.4 4.4 0 1 0 0-8.8Z"/>
+{%- elif name == "calendar" %}
+<rect x="9.5" y="11" width="25" height="23.5" rx="4.5" fill="#fff"/>
+<path d="M9.5 15.5a4.5 4.5 0 0 1 4.5-4.5h16a4.5 4.5 0 0 1 4.5 4.5V18h-25Z" fill="currentColor"/>
+<rect x="15" y="8" width="2.8" height="6" rx="1.4" fill="#fff"/>
+<rect x="26.2" y="8" width="2.8" height="6" rx="1.4" fill="#fff"/>
+<g fill="currentColor" fill-opacity=".35"><circle cx="15.5" cy="23" r="1.5"/><circle cx="22" cy="23" r="1.5"/><circle cx="15.5" cy="29" r="1.5"/><circle cx="22" cy="29" r="1.5"/><circle cx="28.5" cy="29" r="1.5"/></g>
+<rect x="25.8" y="20.4" width="5.4" height="5.2" rx="1.5" fill="currentColor"/>
+{%- elif name == "feedback" %}
+<path d="M12 12.5h20a3.5 3.5 0 0 1 3.5 3.5v11a3.5 3.5 0 0 1-3.5 3.5H20.5l-5.3 4.3v-4.3H12a3.5 3.5 0 0 1-3.5-3.5V16a3.5 3.5 0 0 1 3.5-3.5Z" fill="#fff"/>
+<path d="M22 26.6s-5-3-5-6.4c0-1.6 1.2-2.8 2.7-2.8 1 0 1.8.5 2.3 1.3.5-.8 1.3-1.3 2.3-1.3 1.5 0 2.7 1.2 2.7 2.8 0 3.4-5 6.4-5 6.4Z" fill="currentColor"/>
+{#- Progress (D100): the insights and the group. #}
+{%- elif name == "pace" %}
+<path d="M9 30a13 13 0 0 1 26 0" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="4.2" stroke-linecap="round"/>
+<path d="M9 30a13 13 0 0 1 17-12.4" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/>
+<path d="M22 30l6.6-7.6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="22" cy="30" r="3.2" fill="#fff"/>
+{%- elif name == "alarm" %}
+<path d="M9.6 15.4a5.4 5.4 0 0 1 7.4-7.2Z" fill="#fff"/>
+<path d="M34.4 15.4a5.4 5.4 0 0 0-7.4-7.2Z" fill="#fff"/>
+<path d="M14.6 33.6l-2.4 2.8M29.4 33.6l2.4 2.8" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="22" cy="24" r="11" fill="#fff"/>
+<path d="M22 17.4V24l4.4 2.7" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="22" cy="24" r="1.5" fill="currentColor"/>
+{%- elif name == "target" %}
+<circle cx="20.5" cy="23.5" r="12" fill="#fff"/>
+<circle cx="20.5" cy="23.5" r="8.2" fill="currentColor" fill-opacity=".28"/>
+<circle cx="20.5" cy="23.5" r="4.6" fill="#fff"/>
+<circle cx="20.5" cy="23.5" r="2" fill="currentColor"/>
+<path d="M20.5 23.5L32 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M30.2 9.2v4.6h4.6M33.2 7.2v3.6h3.6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == "daytime" %}
+<circle cx="15.5" cy="15.5" r="5" fill="#fff"/>
+<path d="M15.5 7v1.8M15.5 22.2V24M7 15.5h1.8M22.2 15.5H24M9.5 9.5l1.3 1.3M20.2 20.2l1.3 1.3M9.5 21.5l1.3-1.3M20.2 10.8l1.3-1.3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M30.4 21.2a7.6 7.6 0 1 0 6.4 11.6a6.2 6.2 0 1 1-6.4-11.6Z" fill="#fff"/>
+<circle cx="35.5" cy="21.5" r="1.1" fill="#fff"/><circle cx="24.5" cy="34.5" r=".9" fill="#fff" fill-opacity=".8"/>
+{%- elif name == "crystal" %}
+<circle cx="22" cy="19.5" r="11" fill="#fff"/>
+<path d="M16 15.6a7 7 0 0 1 5-3.6" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="2" stroke-linecap="round"/>
+<path d="M24.6 15.4l1.4 4 4 1.4-4 1.4-1.4 4-1.4-4-4-1.4 4-1.4Z" fill="currentColor"/>
+<circle cx="18.2" cy="23.6" r="1.2" fill="currentColor" fill-opacity=".6"/>
+<path d="M15.2 30.2h13.6l2 4.3H13.2Z" fill="#fff" fill-opacity=".85"/>
+<rect x="11.5" y="34" width="21" height="3.2" rx="1.6" fill="#fff"/>
+{%- elif name == "group" %}
+<circle cx="12.6" cy="18.6" r="3.7" fill="#fff" fill-opacity=".72"/>
+<path d="M5.8 33a6.8 6.8 0 0 1 13.6 0Z" fill="#fff" fill-opacity=".72"/>
+<circle cx="31.4" cy="18.6" r="3.7" fill="#fff" fill-opacity=".72"/>
+<path d="M24.6 33a6.8 6.8 0 0 1 13.6 0Z" fill="#fff" fill-opacity=".72"/>
+<circle cx="22" cy="15.4" r="4.7" fill="#fff"/>
+<path d="M13.4 33.5a8.6 8.6 0 0 1 17.2 0Z" fill="#fff"/>
+{#- The diary (D100): what a session was, read from its title by the service. #}
+{%- elif name == "paper" %}
+<path d="M13.5 8.5h12.5l6 6v20.5a1.5 1.5 0 0 1-1.5 1.5h-17a1.5 1.5 0 0 1-1.5-1.5V10a1.5 1.5 0 0 1 1.5-1.5Z" fill="#fff"/>
+<path d="M26 8.5v6h6Z" fill="currentColor" fill-opacity=".25"/>
+<path d="M16 19h8M16 23.5h11M16 28h6" stroke="currentColor" stroke-opacity=".35" stroke-width="1.8" stroke-linecap="round"/>
+<circle cx="27.4" cy="30.2" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+<path d="M25.4 30.3l1.4 1.4 2.6-2.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == "exercises" %}
+<rect x="8.5" y="10" width="21" height="25" rx="2.5" fill="#fff"/>
+<path d="M8.5 16.4h21M8.5 22.6h21M8.5 28.8h21M15.5 10v25M22.5 10v25" stroke="currentColor" stroke-opacity=".16" stroke-width="1"/>
+<path d="M12 25.5l2.4-3.6 2.4 2.4 3.6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="rotate(38 31 21)"><rect x="28.3" y="6.5" width="5.4" height="19" rx="1.2" fill="#fff" stroke="currentColor" stroke-width="1.4"/><path d="M28.3 25.5h5.4l-2.7 5Z" fill="currentColor"/><path d="M28.3 10h5.4" stroke="currentColor" stroke-width="1.4"/></g>
+{%- elif name == "summary" %}
+<rect x="12" y="9" width="21.5" height="27" rx="3" fill="#fff"/>
+<path d="M12 14h-2.2M12 19.5h-2.2M12 25h-2.2M12 30.5h-2.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+<rect x="15" y="18.4" width="15.5" height="4" rx="2" fill="currentColor" fill-opacity=".32"/>
+<path d="M16.4 15h12.6M16.4 20.4h12.6M16.4 25.8h8.6M16.4 31h10.6" stroke="currentColor" stroke-opacity=".4" stroke-width="1.8" stroke-linecap="round"/>
+{%- elif name == "reading" %}
+<path d="M22 13.6c-3.4-2.4-7.6-3-12.5-2.2V32c4.9-.8 9.1-.2 12.5 2.2Z" fill="#fff"/>
+<path d="M22 13.6c3.4-2.4 7.6-3 12.5-2.2V32c-4.9-.8-9.1-.2-12.5 2.2Z" fill="#fff" fill-opacity=".86"/>
+<path d="M12.6 16.6c2.4-.2 4.6.2 6.6 1.1M12.6 21c2.4-.2 4.6.2 6.6 1.1M12.6 25.4c2.4-.2 4.6.2 6.6 1.1M24.8 17.7c2-.9 4.2-1.3 6.6-1.1M24.8 22.1c2-.9 4.2-1.3 6.6-1.1" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M28.4 11.1v8.4l2-1.6 2 1.6v-8.6" fill="currentColor"/>
+{%- elif name == "lecture" %}
+<rect x="8" y="10.5" width="28" height="19" rx="3.2" fill="#fff"/>
+<path d="M19.4 15.6v8.8l7.4-4.4Z" fill="currentColor"/>
+<path d="M17.5 35h9M22 29.5V35" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+{%- elif name == "project" %}
+<rect x="10.5" y="11" width="23" height="16" rx="2.4" fill="#fff"/>
+<path d="M7 30.2h30l-2.2 3.8H9.2Z" fill="#fff"/>
+<path d="M18.4 15.6l-3.4 3.4 3.4 3.4M25.6 15.6l3.4 3.4-3.4 3.4M23.3 14.4l-2.6 9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == "study" %}
+<rect x="9.5" y="27.5" width="25" height="7" rx="1.8" fill="#fff"/>
+<rect x="12" y="20" width="21" height="7" rx="1.8" fill="#fff" fill-opacity=".84"/>
+<rect x="10.5" y="12.4" width="21" height="7" rx="1.8" fill="#fff" transform="rotate(-7 21 15.9)"/>
+<path d="M13.5 31h5M16 23.5h5M14.5 15.6l5-.6" stroke="currentColor" stroke-opacity=".5" stroke-width="1.7" stroke-linecap="round"/>
+{%- endif %}
+</svg></span>
+{%- endmacro %}
+
+{# How a session went (D100), drawn as a plant: from a seed (stuck) to a flower (a
+   breakthrough). `n` is the diary's 1 to 5; anything else draws nothing. Fixed
+   colours, the same on light and dark: a terracotta pot, green leaves. #}
+{% macro grow(n) -%}
+{%- if n in (1, 2, 3, 4, 5) -%}
+<svg class="plant plant-{{ n }}" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+{%- if n == 1 %}<ellipse cx="14" cy="15.4" rx="2.3" ry="1.5" fill="#a8743f"/>{% endif %}
+{%- if n >= 2 %}<path d="M14 16.5V{{ {2: 13, 3: 9, 4: 6.5, 5: 7.5}[n] }}" stroke="#2d9f5a" stroke-width="1.6" stroke-linecap="round"/>{% endif %}
+{%- if n == 2 %}<path d="M14 14c-2.6.2-4-1-4.2-3 2.4-.1 3.9.9 4.2 3ZM14 13.4c.3-2 1.8-3 4.2-2.9-.2 2-1.6 3.1-4.2 2.9Z" fill="#3cc275"/>{% endif %}
+{%- if n >= 3 %}<path d="M14 14.6c-3.2.2-5-1.2-5.2-3.7 3-.1 4.8 1.1 5.2 3.7ZM14 11.4c.4-2.5 2.2-3.8 5.2-3.7-.2 2.5-2 3.9-5.2 3.7Z" fill="#3cc275"/>{% endif %}
+{%- if n == 4 %}<ellipse cx="14" cy="5.4" rx="2.1" ry="2.6" fill="#ff7aa8"/>{% endif %}
+{%- if n == 5 %}<g fill="#ff7aa8"><circle cx="14" cy="3.6" r="2.4"/><circle cx="17.4" cy="6.1" r="2.4"/><circle cx="16.1" cy="10" r="2.4"/><circle cx="11.9" cy="10" r="2.4"/><circle cx="10.6" cy="6.1" r="2.4"/></g><circle cx="14" cy="7" r="2.1" fill="#ffd24d"/><path d="M22.5 2.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7Z" fill="#ffc53d"/>{% endif %}
+<rect x="7" y="16.4" width="14" height="3" rx="1.2" fill="#ef9466"/>
+<path d="M8.2 19.4h11.6l-1.5 6.6a1.4 1.4 0 0 1-1.4 1.1h-5.8a1.4 1.4 0 0 1-1.4-1.1Z" fill="#e07b4f"/>
+</svg>
+{%- endif -%}
+{%- endmacro %}

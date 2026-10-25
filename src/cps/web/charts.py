@@ -134,3 +134,44 @@ def sparkline(values: Sequence[float], *, top: float = 100.0) -> dict:
         return {"d": f"M0,{y:.1f} L{WIDTH},{y:.1f}", "w": WIDTH, "h": HEIGHT}
     step = WIDTH / (n - 1)
     return {"d": _path([(step * i, v) for i, v in enumerate(values)], top), "w": WIDTH, "h": HEIGHT}
+
+
+# D100: the climb on Progress. Its line is drawn in a box stretched to the card's width
+# only: the height is in pixels, so flags and words placed at a share of the width and
+# a number of pixels down keep their shape at every width.
+CLIMB_W = 1000
+CLIMB_H = 150
+CLIMB_TOP = 40  # room above the highest point for a flag
+CLIMB_BASE = 142
+FLAGS_SHOWN = 4  # the latest flags; older ones are counted, not drawn
+FLAG_GAP = 9.0  # per cent of the width: a flag closer than this to the next is left out
+
+
+def climb(totals: Sequence[float], passed: Sequence[tuple[int, float]], next_flag: int | None) -> dict:
+    """The running total rising from nothing at the start, a wash under it, the latest
+    flags passed where they were passed, the next flag's level and the summit, now."""
+    n = max(len(totals), 1)
+    top = float(max([next_flag or 0, *totals, 1]))
+
+    def y(value: float) -> float:
+        return round(CLIMB_BASE - (CLIMB_BASE - CLIMB_TOP) * max(0.0, value) / top, 1)
+
+    points = [(0.0, y(0.0)), *((CLIMB_W * (i + 1) / n, y(t)) for i, t in enumerate(totals))]
+    d = "M" + " L".join(f"{x:.1f},{v}" for x, v in points)
+    shown: list[dict] = []
+    for m, at in reversed(passed[-FLAGS_SHOWN * 2 :]):
+        x = round(100 * at / n, 1)
+        if len(shown) == FLAGS_SHOWN or (shown and shown[-1]["x"] - x < FLAG_GAP):
+            continue
+        shown.append({"m": m, "x": x, "y": y(m), "end": x > 82})
+    return {
+        "w": CLIMB_W,
+        "h": CLIMB_H,
+        "base": CLIMB_BASE,
+        "d": d,
+        "area": f"{d} L{CLIMB_W},{CLIMB_BASE} L0,{CLIMB_BASE} Z",
+        "flags": list(reversed(shown)),
+        "summit": y(totals[-1]) if totals else y(0.0),
+        "next": {"m": next_flag, "y": y(next_flag)} if next_flag else None,
+        "hits": [{"x": round(CLIMB_W * i / n, 1), "w": round(CLIMB_W / n, 1)} for i in range(len(totals))],
+    }

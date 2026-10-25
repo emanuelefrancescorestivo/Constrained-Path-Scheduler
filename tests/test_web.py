@@ -1582,7 +1582,8 @@ def test_appearance_is_automatic_light_or_dark_per_plan(web, planned):
 
 def test_the_trends_page_and_the_trajectory_card(web, planned):
     progress = unescape(web.get(f"/p/{planned}/progress").text)
-    assert "Your trajectory" in progress and f"/p/{planned}/trends" in progress
+    # D100: the card on Progress is the climb, the hours added up; Trends keeps the weeks.
+    assert "Your climb" in progress and f"/p/{planned}/trends" in progress
     page = unescape(web.get(f"/p/{planned}/trends").text)
     for words in (
         "Trends",

@@ -977,3 +977,11 @@ half-made database. The branch's two new tables made the copy a little longer, e
 the slower runner to look in between. Status: fixed; the copy is written as
 `<name>.part` and moved to its name once complete (`tests/test_store.py` checks the
 order).
+
+**80. The lengths on Focus drawn as an empty pane.** Found by the owner on 2026-10-25, a
+screenshot of Focus: "How long?" and its lengths sat in a rounded pane of their own, the
+words and the first length touching its left edge. The lengths are a `<fieldset>` inside
+the session's card, and the glass of D73 gives every fieldset a pane, since setting up
+uses fieldsets as its sections; this one had no padding, so the pane hugged what it held.
+Status: fixed; a fieldset that only groups controls inside a card is marked `bare` and
+gets no pane, under every glass setting (`tests/test_lively.py` checks both).
