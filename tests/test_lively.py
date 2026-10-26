@@ -75,6 +75,21 @@ def test_each_place_under_you_has_its_own_picture(web):
         assert f".art.art-{name} {{ background: linear-gradient" in css, name
 
 
+def test_each_topic_of_study_tips_has_its_own_picture(web):
+    # D99 again, on the owner's word for Study tips (2026-10-26): six topics, the coach
+    # and the weekly note, each with a drawing of its own.
+    from cps import tips
+
+    token = _start(web)
+    page = web.get(f"/p/{token}/tips").text
+    topics = re.findall(r'href="/p/[^"]+/tips\?topic=([a-z]+)"><span class="art art-([a-z]+)"', page)
+    assert [key for key, _ in topics] == list(tips.TOPICS)
+    links = re.findall(r'href="/p/[^"]+/(coach|weekly)">\s*<span class="art art-([a-z]+)"', page)
+    assert [where for where, _ in links] == ["coach", "weekly"]
+    drawn = [name for _, name in topics + links]
+    assert len(set(drawn)) == len(drawn) == 8
+
+
 def test_the_lengths_on_focus_are_no_pane_of_their_own(web):
     # AUDIT 80: the glass gave the lengths' fieldset a pane with nothing padded inside.
     token = _start(web)

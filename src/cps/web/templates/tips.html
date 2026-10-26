@@ -1,6 +1,9 @@
 {% extends "base.html" %}
+{% from "_art.html" import art %}
 {% block title %}{% if view.topic %}{{ view.name }} · {% endif %}{{ _("Study tips") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
+{# Each topic's picture (D99). #}
+{% set pictures = {"studying": "cap", "brain": "brain", "motivation": "trophy", "habits": "repeat", "breaks": "hourglass", "body": "moon"} %}
 {% macro strengths() %}
 <details class="card strengths-card">
   <summary>{{ _("What the labels mean") }}</summary>
@@ -45,19 +48,19 @@
 <ul class="card list tip-topic-list" aria-label="{{ _('Topics') }}">
   {% for t in view.topics %}
   <li>
-    <a class="grow" href="/p/{{ token }}/tips?topic={{ t.key }}"><b>{{ t.name }}</b><br><small>{{ t.note }} · {{ _n("{n} tip", "{n} tips", t.count) }}</small></a>
+    <a class="grow tip-topic-link" href="/p/{{ token }}/tips?topic={{ t.key }}">{% if t.key in pictures %}{{ art(pictures[t.key]) }}{% endif %}<span class="grow"><b>{{ t.name }}</b><small>{{ t.note }} · {{ _n("{n} tip", "{n} tips", t.count) }}</small></span></a>
     <span class="chev" aria-hidden="true">›</span>
   </li>
   {% endfor %}
 </ul>
 
-<a class="card link-card cards-link" href="/p/{{ token }}/coach">
-  <b>{{ _("Ask the coach") }}</b>
-  <span>{{ _("A question about studying, answered from these tips.") }}</span>
+<a class="card link-card cards-link with-art" href="/p/{{ token }}/coach">
+  {{ art("coach") }}<span class="grow"><b>{{ _("Ask the coach") }}</b>
+  <span>{{ _("A question about studying, answered from these tips.") }}</span></span>
 </a>
-<a class="card link-card cards-link" href="/p/{{ token }}/weekly">
-  <b>{{ _("The weekly note") }}</b>
-  <span>{{ _("One study a week on how we learn, in plain words, with its source.") }}</span>
+<a class="card link-card cards-link with-art" href="/p/{{ token }}/weekly">
+  {{ art("letter") }}<span class="grow"><b>{{ _("The weekly note") }}</b>
+  <span>{{ _("One study a week on how we learn, in plain words, with its source.") }}</span></span>
 </a>
 {{ strengths() }}
 {% endif %}
