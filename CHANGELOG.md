@@ -7,6 +7,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Pictures on Study tips (DECISIONS.md D99): each topic, the coach and the weekly note.
+
 - Flashcards from a course's materials (DECISIONS.md D101): one tap from Flashcards, a
   course or one of its weeks reads its topics and the notes the student can open; with AI
   on, Claude Haiku 5.5 writes up to 60 cards, each filed under its topic's week, for about

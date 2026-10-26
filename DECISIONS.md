@@ -3517,6 +3517,12 @@ tips carry the same two pictures, so a place looks the same wherever it is linke
 **Disclosed.** Checked in Chromium at 390 px (light and dark) and 1100 px (dark, French);
 the colours are a choice of taste, told apart by their drawings as much as by their hue.
 
+*Added 2026-10-26, the owner on Study tips: "could add icons here too".* Each of its six
+topics has its own tile: a mortarboard (How to study), a brain (How the brain learns), a
+trophy (Motivation and reward), a loop closing on a tick (Habits), an hourglass (Breaks), a
+moon asleep (Sleep, movement and coffee); "Ask the coach" a speech bubble with a question,
+"The weekly note" a letter. Checked in Chromium at 390 px (dark, light) and 1100 px.
+
 ## D100. A look back worth looking at: the climb, pictures on Progress, the diary by week
 
 *The owner, 2026-10-25, three screenshots: Progress's insights ("same icon principles
