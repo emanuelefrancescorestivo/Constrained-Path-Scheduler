@@ -171,6 +171,9 @@ const PAGES = {
   focus: "/focus", community: "/community", notes: "/notes", groups: "/groups",
   progress: "/progress", trends: "/trends", cards: "/cards", tips: "/tips", coach: "/coach",
   weekly: "/weekly", settings: "/settings", science: "/science", import: "/courses/import", you: "/you",
+  // Settings' own pages (D103); before them, these addresses were not pages.
+  "settings-week": "/settings/week", "settings-exams": "/settings/exams", "settings-account": "/settings/account",
+  "settings-phone": "/settings/phone", "settings-look": "/settings/look", "settings-data": "/settings/data",
 };
 for (const [name, path] of Object.entries(PAGES)) {
   await page.goto(`${DEMO}/p/${TOKEN}${path}`);

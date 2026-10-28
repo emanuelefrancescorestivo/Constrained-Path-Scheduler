@@ -277,7 +277,7 @@ def test_the_copy_holds_the_plan_and_everything_kept_under_it(web):
         web.path, subscription, {"course": "Algebra 3", "front": "Rank?", "back": "dim of image"}, MORNING
     )
     service.send_feedback(web.path, token, kind="idea", body="Dark calendar please", now=MORNING)
-    settings = web.get(f"/p/{token}/settings").text
+    settings = web.get(f"/p/{token}/settings/data").text  # AI and your data (D103)
     assert f'href="/p/{token}/export" download' in settings
     answer = web.get(f"/p/{token}/export")
     assert answer.status_code == 200

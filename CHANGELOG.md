@@ -533,6 +533,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Changed
 
+- Lighter pages (DECISIONS.md D103, package C of the review): Progress shows the week, the
+  streak, the exams and the climb, the rest under "More detail" with one "How we measure
+  these"; Settings is six rows, each its own page that saves only its part; each exam is
+  changed on its course's page.
+
 - The app opens on the feed (DECISIONS.md D102) for a student who has joined the study
   network; Community is the first tab, Today the second. Students without a handle still
   open on Today.
@@ -559,6 +564,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- The weekly review's "See your progress" opens last week's review (AUDIT.md item 83).
 
 - The feed's first line no longer asks a student who has a handle to choose one (AUDIT.md
   item 82).

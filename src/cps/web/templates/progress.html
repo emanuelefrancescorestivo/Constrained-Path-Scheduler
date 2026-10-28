@@ -10,7 +10,7 @@
 {% if not view.planned %}
 <div class="card"><h2>{{ _("Nothing to count yet") }}</h2>
 <p class="muted">{{ _("Your progress appears here once there is a plan: add an exam or a deadline.") }}</p>
-<p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a></p></div>
+<p><a class="btn btn-primary" href="/p/{{ token }}/settings/exams">{{ _("Add exams") }}</a></p></div>
 {% else %}
 {% set w = view.week %}{% set st = view.streak %}
 <div class="pair" data-tour="progress-week">
@@ -33,13 +33,23 @@
   </div>
 </div>
 
-{% if memory %}{% include "_memory.html" %}{% endif %}
-
-{% if insights %}
-{% from "_insights.html" import insight %}
-<div class="section" id="insights" data-tour="progress-insights">
-  <div class="section-title"><h2>{{ _("Your insights") }}</h2></div>
-  <div class="insights">{% for c in insights.cards %}{{ insight(c) }}{% endfor %}</div>
+{% if view.exams %}
+<div class="section" id="exams">
+  <div class="section-title"><h2>{{ _("Exams") }}</h2><small>{{ _("how ready each one is") }}</small></div>
+  <div class="card">
+    <ul class="list">
+    {% for e in view.exams %}
+      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
+        <span class="dot"></span>
+        <div class="grow">
+          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
+          <div class="meta">{{ _("{ready} of {n} topics on track", ready=e.topics_ready, n=e.topics) }}</div>
+          <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
 </div>
 {% endif %}
 
@@ -62,6 +72,38 @@
   </a>
 </div>
 {% endif %}
+
+{# D103 (package C of the 2026-10-23 review): the week, the streak, the exams and the
+   climb above; everything else one tap away, folded, so the page is short. The fold
+   opens by itself when a link or a saved session leads into it (`more`). #}
+{% set inside = [] %}
+{% if memory %}{% set _x = inside.append(_("Your memory")) %}{% endif %}
+{% if insights %}{% set _x = inside.append(_("Your insights")) %}{% endif %}
+{% set _x = inside.append(_("Your diary")) %}{% set _x = inside.append(_("Badges")) %}
+<details class="more section progress-more" id="more"{% if more %} open{% endif %}>
+  <summary><span class="more-title">{{ _("More detail") }}</span><span class="more-what">{{ inside | join(" · ") }}</span></summary>
+  <div class="more-body">
+
+{% if memory %}{% include "_memory.html" %}{% endif %}
+
+{% if insights %}
+{% from "_insights.html" import insight %}
+<div class="section" id="insights" data-tour="progress-insights">
+  <div class="section-title"><h2>{{ _("Your insights") }}</h2></div>
+  <div class="insights">{% for c in insights.cards %}{{ insight(c) }}{% endfor %}</div>
+</div>
+{% endif %}
+{% if memory or insights %}
+{# One "How we measure these" for every number above, instead of one on each card (D103). #}
+<details class="section how-all" id="how">
+  <summary>{{ _("How we measure these") }}</summary>
+  <dl>
+    {% if memory %}<dt>{{ _("Memory strength") }}</dt><dd>{{ _("The memory model's stability: the days until a topic's predicted recall falls to 90 % without a review, at the median of the topics taught so far. It grows when you recall a topic after a gap, and the later the review that still succeeds, the more it adds. A model with average weights: an estimate, not a measurement of you.") }}</dd>{% endif %}
+    {% if insights %}{% for c in insights.cards %}<dt>{{ c.title }}</dt><dd>{{ c.how }}</dd>{% endfor %}{% endif %}
+  </dl>
+</details>
+{% endif %}
+
 
 {% if groups %}
 <div class="section">
@@ -112,7 +154,7 @@
 </div>
 
 {% if review and review.planned %}
-<div class="section">
+<div class="section" id="review">
   <div class="section-title"><h2>{{ _("Last week") }}</h2></div>
   {% include "_review.html" %}
 </div>
@@ -123,25 +165,7 @@
   {% from "_badges.html" import shelf %}{{ shelf(badges) }}
   <p class="hint badges-note">{{ _("For habits that make study stick, never for hours or rankings.") }} {{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h {{ _("so far") }}.</p>
 </div>
-
-{% if view.exams %}
-<div class="section">
-  <div class="section-title"><h2>{{ _("Exams") }}</h2></div>
-  <div class="card">
-    <ul class="list">
-    {% for e in view.exams %}
-      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
-        <span class="dot"></span>
-        <div class="grow">
-          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
-          <div class="meta">{{ _("{ready} of {n} topics on track", ready=e.topics_ready, n=e.topics) }}</div>
-          <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
-        </div>
-      </li>
-    {% endfor %}
-    </ul>
   </div>
-</div>
-{% endif %}
+</details>
 {% endif %}
 {% endblock %}

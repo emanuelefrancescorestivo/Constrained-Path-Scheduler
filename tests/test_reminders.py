@@ -344,21 +344,21 @@ def token(web) -> str:
 
 
 def test_reminders_are_turned_on_tested_timed_and_off_in_settings(web, token):
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/settings/phone").text  # its own page (D103)
     assert 'id="reminders"' in page and "/static/push.js" in page and "data-key=" in page
     assert "Send a test reminder" not in page  # no device yet
     refused = web.post(f"/p/{token}/push", json={**Phone().info(), "endpoint": "https://evil.example/x"})
     assert refused.status_code == 400
     answer = web.post(f"/p/{token}/push", json=Phone().info())
-    assert answer.json() == {"go": f"/p/{token}/settings?saved=reminders#reminders"}
-    page = web.get(f"/p/{token}/settings?saved=reminders").text
+    assert answer.json() == {"go": f"/p/{token}/settings/phone?saved=reminders"}
+    page = web.get(f"/p/{token}/settings/phone?saved=reminders").text
     assert (
         "<b>Mac</b>" in page
         and "Reminders are on for this device." in page
         and "Send a test reminder" in page
     )
     tested = web.post(f"/p/{token}/push/test", follow_redirects=False)
-    assert tested.headers["location"].endswith("saved=test_sent#reminders")
+    assert tested.headers["location"] == f"/p/{token}/settings/phone?saved=test_sent"
     assert web.pushed[0]["payload"]["title"] == "Reminders are on"
     assert web.pushed[0]["subject"] == "mailto:owner@example.org"
     assert web.post(f"/p/{token}/reminders", data={"lead": "30"}, follow_redirects=False).status_code == 303
@@ -372,14 +372,14 @@ def test_reminders_are_turned_on_tested_timed_and_off_in_settings(web, token):
         == []
     )
     none = web.post(f"/p/{token}/push/test", follow_redirects=False)
-    assert none.headers["location"].endswith("saved=test_none#reminders")
+    assert none.headers["location"] == f"/p/{token}/settings/phone?saved=test_none"
 
 
 def test_a_device_turns_itself_off_by_its_address(web, token):
     phone = Phone()
     web.post(f"/p/{token}/push", json=phone.info())
     gone = web.post(f"/p/{token}/push/remove", json={"endpoint": phone.endpoint})
-    assert gone.json()["go"].endswith("saved=reminders_off#reminders")
+    assert gone.json()["go"].endswith("/settings/phone?saved=reminders_off")
     assert reminders.tokens_with_devices(Store(web.store_path)) == []
 
 

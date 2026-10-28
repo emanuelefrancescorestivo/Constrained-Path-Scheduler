@@ -1,0 +1,41 @@
+{# One part of the settings, on its own page (D103). #}
+<h2 class="section" id="language">{{ _("Language") }}</h2>
+<form method="post" action="/p/{{ token }}/language" class="pills" aria-label="{{ _('Language') }}">
+  {% for code, name in languages.items() %}
+  <button type="submit" name="lang" value="{{ code }}" lang="{{ code }}" class="btn btn-sm"{% if code == lang() %} aria-pressed="true"{% endif %}>{{ name }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("The pages and what each session says to do, in your calendar too.") }}</p>
+<h2 class="section" id="appearance">{{ _("Appearance") }}</h2>
+<form method="post" action="/p/{{ token }}/appearance" class="pills" aria-label="{{ _('Appearance') }}">
+  {% for value, word in (("auto", _("Automatic")), ("light", _("Light")), ("dark", _("Dark"))) %}
+  <button type="submit" name="theme" value="{{ value }}" class="btn btn-sm"{% if (theme or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic follows your device's light or dark setting.") }}</p>
+<form method="post" action="/p/{{ token }}/motion" class="pills motion-choice" aria-label="{{ _('Motion') }}">
+  <span class="pills-label">{{ _("Motion") }}</span>
+  {% for value, word in (("auto", _("Automatic")), ("reduce", _("Reduced"))) %}
+  <button type="submit" name="motion" value="{{ value }}" class="btn btn-sm"{% if (motion or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.") }}</p>
+<form method="post" action="/p/{{ token }}/glass" class="pills motion-choice" aria-label="{{ _('Glass') }}">
+  <span class="pills-label">{{ _("Glass") }}</span>
+  {% for value, word in (("auto", _("Automatic")), ("clear", _("See-through")), ("solid", _("Solid"))) %}
+  <button type="submit" name="glass" value="{{ value }}" class="btn btn-sm"{% if (glass or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.") }}</p>
+<form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" aria-label="{{ _('Tips') }}">
+  <span class="pills-label">{{ _("Tips") }}</span>
+  {% for value, word in (("on", _("On")), ("off", _("Off"))) %}
+  <button type="submit" name="tips" value="{{ value }}" class="btn btn-sm"{% if ("on" if tips_on else "off") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
+  {% endfor %}
+</form>
+<p class="hint">{{ _("A study tip on Today and Focus, chosen for your day. The tips page stays in Focus either way.") }}</p>
+<form method="post" action="/p/{{ token }}/tour/again" class="pills motion-choice" id="tour-again">
+  <span class="pills-label">{{ _("Spark's tour") }}</span>
+  <button type="submit" class="btn btn-sm">{{ _("Show it again") }}</button>
+</form>
+<p class="hint">{{ _("Spark shows you around Today again, and each section says what it is for the next time you open it.") }}</p>

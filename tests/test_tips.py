@@ -302,7 +302,7 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         off = web.get(f"/p/{token}").text
         # The tip is gone; Spark is still in the top bar, as the assistant, not a tip (D71, D97).
         assert "tip-today" not in off and 'class="mascot is-think"' not in off and "mascot-top" in off
-        assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings").text
+        assert 'aria-pressed="true">Off' in web.get(f"/p/{token}/settings/look").text
 
 
 def test_the_weekly_note_pages(tmp_path):

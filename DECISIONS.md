@@ -3639,3 +3639,66 @@ app that opens on its second tab reads as a mistake).
 keep opening on the address it was added with until it is added again: browsers update an
 installed app's manifest on their own schedule, and Safari keeps the address it was added
 with. Whether students open the app more often for the feed is for the pilot to say.
+
+## D103. Lighter pages: Progress folded, Settings in pages
+
+*The owner, 2026-10-28, agreeing to package C of the review of the app's weight
+(2026-10-23; D97 put it in the pilot's first week): "yes agreed work on that". The
+review's C1 and C2; its C3, a pilot switch for extras, is not part of this change (below).*
+
+**Chosen.**
+
+- **Progress** shows the week's ring, the streak, each exam's readiness and the climb (D100)
+  on top, and everything else under one **More detail** fold, named by what it holds (Your
+  memory · Your insights · Your diary · Badges), in the style of Today's More (D97). The
+  climb stays above it: it came after the review, on the owner's word that Progress should
+  reward (D100). The fold opens by itself when a link leads into it (`?more=1`, used by
+  Today's insight and the weekly review) and after a change to the diary, whose notice and
+  entry are inside it. **One "How we measure these"** under the insights explains every
+  number (memory strength and each insight), instead of one fold on each card.
+- **Settings** is six rows, each its own page with its picture, as a phone's settings: Your
+  week (hours, days off, the day, the sessions, exam practice, self-tests, the trip, when
+  you are not free), Exams and deadlines (each exam as a row, the ones found in the
+  timetable with Plan for it, Add an exam, the deadlines, the timetable and the next
+  semester), the account (Your account, or Keep your plan without one), Reminders and the
+  app, Language and appearance, AI and your data. **Each exam is changed on its course's
+  page** (its date, how well it is known, its weight, its practice, or no longer planned
+  for); setting up keeps its one exams screen (D98).
+- **A page saves only what it shows** (`forms.week_revision`, `deadlines_revision`,
+  `exam_revision`): what it leaves out is not passed to `service.revise_subscription`, so it
+  stays as it is, and the exams' list is read again inside the store's compare-and-swap, so
+  a change made elsewhere meanwhile is kept. Saving a page unchanged changes nothing but
+  the defaults it shows (no trip, any time of day), which the plan already used.
+- Every link and redirect to a part of the old page points to its page now; a bookmark to
+  one of the old anchors (`…/settings#ai`) lands on the list, and ui.js takes it on to the
+  page that holds it (each row names its old anchors). The weekly review's link pointed to
+  an anchor Progress did not have (AUDIT 83).
+- Five new pictures for the rows (a week, a key, a bell, a palette, a shield); Exams and
+  deadlines takes the exam paper (D100).
+
+*Rejected:* posting every setting from every page as hidden fields (a change made in
+another tab meanwhile would be overwritten); keeping each exam's whole row on Exams and
+deadlines as well as on its course's page (two places to change one thing; the list links
+to the course instead); folding the climb with the rest (the review predates it, and it is
+the part of Progress meant to reward); a page of its own for each part of Progress (more
+pages to learn; one fold keeps them one tap away, and works without scripts).
+
+**Measured** with `benchmarks/screen_load.mjs` in Chromium at 390 × 844, on this change and
+on the commit before it (986cd07), for @alex eight weeks in: Progress 9.1 phone screens
+and 1,241 words before, 1.7 and 139 after, the fold closed (the review's target: 3 or fewer);
+Settings 8.9 screens with 104 things to tap or fill and 47 fields before, 1 screen with 18
+things to tap and none to fill after (target: 2 or fewer); of its pages, the longest is Your
+week, 2.6 screens and 39 things to tap; a course's page grows from 3.4 to 4 screens, with
+its exam. For a new student, Progress from 8.2 screens to 2, Settings from 9.2 to 1. The
+taps from the home page to Today are the same, 7.
+
+**Not done: the pilot switch (C3).** The review proposed a server setting that turns some
+extras off without deleting them, so that the pilot tests the core, and asked which: the
+AI coach, cards from notes, the program import, the weekly note, badges, Trends. That
+choice is the owner's and has not been made; nothing is switched off.
+
+**Disclosed.** Checked in Chromium only. Without scripts, an old bookmark to a part of
+Settings opens the list, not the part. Renaming a course is no longer offered on the exam's
+form (Settings had the name as a field): a course drawn by hand is renamed on the calendar,
+one from a timetable keeps the timetable's name. Whether students find a setting faster
+across six pages than on one long one is for the pilot (D96's counts) to say.

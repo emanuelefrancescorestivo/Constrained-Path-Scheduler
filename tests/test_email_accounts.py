@@ -281,7 +281,7 @@ def test_a_session_unused_for_90_days_ends_and_one_in_use_is_kept(web, owned, cl
 def test_changing_the_password_needs_the_current_one_and_signs_out_the_others(web, owned):
     other = TestClient(web.app)
     other.post("/account/signin", data={"email": EMAIL, "password": PASSWORD})
-    settings = web.get(f"/p/{owned}/settings").text
+    settings = web.get(f"/p/{owned}/settings/account").text
     assert 'id="login"' in settings and EMAIL in settings and "Sign out the other device" in settings
     refused = web.post(
         f"/p/{owned}/account/password",
@@ -313,7 +313,7 @@ def test_the_confirmation_link_works_once_and_opening_it_changes_nothing(web, ow
         (None,)
     ]  # a mail scanner opening it confirms nothing
     done = web.post(f"/account/confirm/{value}", follow_redirects=False)
-    assert done.headers["location"] == f"/p/{owned}/settings?saved=confirmed#login"
+    assert done.headers["location"] == f"/p/{owned}/settings/account?saved=confirmed"
     assert _row(web, "SELECT confirmed FROM accounts")[0][0] is not None
     assert web.post(f"/account/confirm/{value}").status_code == 410
     web.post(f"/p/{owned}/account/confirm")  # confirmed already: a new link is still sent on request

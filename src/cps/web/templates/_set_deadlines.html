@@ -1,0 +1,46 @@
+{# One part of the settings (D103), shown on its own page and, for the plan's
+   form, while setting up. #}
+<fieldset id="deadlines">
+  <legend>{{ _("Deadlines") }}</legend>
+  <p class="hint">{{ _("Homework, reports, projects, readings: when each is due and roughly how many hours it takes.") }}</p>
+  <label for="deadlines_url">{{ _("Your learning platform's calendar link (Moodle)") }}</label>
+  <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url }}" placeholder="https://…/calendar/export_execute.php?…">
+  <p class="hint">{{ _("In Moodle: Calendar, Export calendar, All courses, Recent and next 60 days, Get calendar URL. Assignments and quizzes due appear below by themselves, at 2 hours each until you change it.") }}</p>
+  {% if values.deadlines_error %}<p class="error">{{ _("The learning platform's link could not be read: {error}", error=values.deadlines_error) }}</p>{% endif %}
+  {% for t in values.tasks %}
+  <div class="item">
+    <label for="t{{ loop.index0 }}_name">{{ _("What") }}</label>
+    <input id="t{{ loop.index0 }}_name" name="t{{ loop.index0 }}_name" value="{{ t.name }}">
+    {% if t.name in values.imported %}<p class="hint">{{ _("From your learning platform; its date follows it. The hours are your estimate.") }}</p>{% endif %}
+    <label for="t{{ loop.index0 }}_due">{{ _("Due") }}</label>
+    <input id="t{{ loop.index0 }}_due" name="t{{ loop.index0 }}_due" type="datetime-local" value="{{ t.due | replace(' ', 'T') }}">
+    <div class="row">
+      <div><label for="t{{ loop.index0 }}_hours">{{ _("Hours of work") }}</label>
+      <input id="t{{ loop.index0 }}_hours" name="t{{ loop.index0 }}_hours" type="number" min="0.5" step="0.5" value="{{ t.hours }}" inputmode="decimal"></div>
+      <div><label for="t{{ loop.index0 }}_course">{{ _("Course") }}</label>
+      <input id="t{{ loop.index0 }}_course" name="t{{ loop.index0 }}_course" value="{{ t.course }}" list="courses"></div>
+    </div>
+    <label class="check"><input type="checkbox" name="t{{ loop.index0 }}_remove" value="1"> {{ _("Remove") }}</label>
+  </div>
+  {% endfor %}
+  {% set n = values.tasks | length %}
+  {# The empty rows folded once there is a deadline (D103): one tap to add another. #}
+  <details class="add-rows"{% if not values.tasks %} open{% endif %}>
+  <summary>+ {{ _("Add a deadline") }}</summary>
+  {% for k in range(empty_rows) %}
+  {% set i = n + k %}
+  <div class="item new">
+    <label for="t{{ i }}_name">{{ _("Add a deadline") }}</label>
+    <input id="t{{ i }}_name" name="t{{ i }}_name">
+    <label for="t{{ i }}_due">{{ _("Due") }}</label>
+    <input id="t{{ i }}_due" name="t{{ i }}_due" type="datetime-local">
+    <div class="row">
+      <div><label for="t{{ i }}_hours">{{ _("Hours of work") }}</label>
+      <input id="t{{ i }}_hours" name="t{{ i }}_hours" type="number" min="0.5" step="0.5" value="2" inputmode="decimal"></div>
+      <div><label for="t{{ i }}_course">{{ _("Course") }}</label>
+      <input id="t{{ i }}_course" name="t{{ i }}_course" list="courses"></div>
+    </div>
+  </div>
+  {% endfor %}
+  </details>
+</fieldset>

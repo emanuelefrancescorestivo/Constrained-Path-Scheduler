@@ -1,0 +1,46 @@
+{# One part of the settings, on its own page (D103). #}
+{% if login %}
+{# D94: the account the plan belongs to. #}
+<h2 class="section" id="login">{{ _("Your account") }}</h2>
+{% if login_error %}<p class="alert" role="alert">{{ login_error }}</p>{% endif %}
+<ul class="list">
+  <li class="account-row">
+    <span class="grow"><b>{{ login.email }}</b><small class="muted">{% if login.confirmed %}{{ _("Address confirmed") }}{% else %}{{ _("Address not confirmed yet") }}{% endif %}</small></span>
+    {% if not login.confirmed %}<form method="post" action="/p/{{ token }}/account/confirm"><button type="submit" class="btn btn-sm btn-tinted">{% if show_mail %}{{ _("Show the e-mail") }}{% else %}{{ _("Send the link again") }}{% endif %}</button></form>{% endif %}
+  </li>
+</ul>
+<details class="account-fold">
+  <summary>{{ _("Change your password") }}</summary>
+  <form method="post" action="/p/{{ token }}/account/password" class="account-form">
+    <label for="current-password">{{ _("Current password") }}</label>
+    <input id="current-password" name="current" type="password" autocomplete="current-password" maxlength="{{ password_max }}" required>
+    <label for="new-password">{{ _("New password") }}</label>
+    <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="{{ password_min }}" maxlength="{{ password_max }}" aria-describedby="new-password-hint" required>
+    <p class="hint" id="new-password-hint">{{ _("At least {n} characters. Three or four words make a good one.", n=password_min) }}</p>
+    <p><button type="submit" class="btn btn-sm btn-primary">{{ _("Change my password") }}</button></p>
+  </form>
+</details>
+<div class="account-actions">
+  <form method="post" action="/account/signout"><button type="submit" class="btn btn-sm">{{ _("Sign out") }}</button></form>
+  {% if login.devices > 1 %}<form method="post" action="/p/{{ token }}/account/elsewhere"><button type="submit" class="btn btn-plain btn-sm">{{ _n("Sign out the other device", "Sign out the {n} other devices", login.devices - 1) }}</button></form>{% endif %}
+</div>
+{% endif %}
+<h2 class="section" id="account">{% if login %}{{ _("Other ways to sign in") }}{% else %}{{ _("Keep your plan") }}{% endif %}</h2>
+<p>{% if login %}{{ _("Add a passkey to sign in with your face, fingerprint or screen lock instead of your password, and keep a recovery code in case you lose your phone and your e-mail.") }}{% else %}{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}{% endif %}</p>
+{% if account.passkeys %}
+<ul class="list passkeys">
+  {% for k in account.passkeys %}
+  <li>
+    <span class="grow"><b>{{ k.device }}</b><small class="muted">{{ _("Added {date}", date=k.added) }}{% if k.last %} · {{ _("last used {date}", date=k.last) }}{% endif %}</small></span>
+    <form method="post" action="/p/{{ token }}/passkeys/{{ k.id }}/remove"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p><button type="button" class="btn btn-primary btn-sm" data-passkey-add="/p/{{ token }}/passkeys/options" data-passkey-save="/p/{{ token }}/passkeys" hidden>{% if account.passkeys %}{{ _("Add another passkey") }}{% else %}{{ _("Add a passkey") }}{% endif %}</button></p>
+<p class="hint" data-passkey-unsupported>{{ _("Passkeys need a recent browser with this page's script; a recovery code works everywhere.") }}</p>
+<p class="alert" data-passkey-status role="status" aria-live="polite" hidden></p>
+<form method="post" action="/p/{{ token }}/recovery" class="recovery-form">
+  <p>{% if account.recovery %}{{ _("Recovery code made on {date}. Make a new one if you lost it: the old one stops working.", date=account.recovery) }}{% else %}{{ _("No recovery code yet. It is shown once: write it down, or keep it in your password manager.") }}{% endif %}</p>
+  <button type="submit" class="btn btn-sm{% if not account.recovery %} btn-tinted{% endif %}">{% if account.recovery %}{{ _("Make a new recovery code") }}{% else %}{{ _("Make a recovery code") }}{% endif %}</button>
+</form>

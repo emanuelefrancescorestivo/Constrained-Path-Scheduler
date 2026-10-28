@@ -105,7 +105,9 @@ def test_a_plan_in_italian(web):
     drawing = unescape(web.get(f"/p/{token}/timetable").text)
     assert "Disegna la tua settimana" in drawing and "Avanti: esami e scadenze" in drawing
     settings = unescape(web.get(f"/p/{token}/settings").text)
-    assert "Impostazioni" in settings and "Sul tuo telefono" in settings and "Italiano" in settings
+    assert "Impostazioni" in settings and "Promemoria e l'app" in settings  # its rows (D103)
+    assert "Sul tuo telefono" in unescape(web.get(f"/p/{token}/settings/phone").text)
+    assert "Italiano" in unescape(web.get(f"/p/{token}/settings/look").text)
 
 
 def test_every_file_the_pages_use_ships_with_the_package():

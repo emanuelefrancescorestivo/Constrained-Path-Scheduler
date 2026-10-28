@@ -30,7 +30,7 @@
 <div class="card">
   <h2>{{ _("Nothing to plan yet") }}</h2>
   <p class="muted">{{ _("Add an exam or a deadline, and the plan appears here and on the calendar.") }}</p>
-  <p><a class="btn btn-primary" href="/p/{{ token }}/settings">{{ _("Add exams") }}</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">{{ _("New task") }}</button></p>
+  <p><a class="btn btn-primary" href="/p/{{ token }}/settings/exams">{{ _("Add exams") }}</a> <button type="button" class="btn btn-tinted" popovertarget="quick-add">{{ _("New task") }}</button></p>
 </div>
 {% else %}
 
@@ -87,7 +87,7 @@
 {% elif message == "insight" %}
 {# An insight, when it matters today (D80): a day off due or a pace above the limit,
    else an insight just unlocked or a record just set. #}
-<a class="card link-card insight-today{% if insight.state %} pace-{{ insight.state }}{% endif %}" href="{{ insight.link.href if insight.link else '/p/' ~ token ~ '/progress#insights' }}">
+<a class="card link-card insight-today{% if insight.state %} pace-{{ insight.state }}{% endif %}" href="{{ insight.link.href if insight.link else '/p/' ~ token ~ '/progress?more=1#insights' }}">
   <span class="tip-reason">{% if insight.record %}{{ _("New record") }}{% elif insight.new %}{{ _("New insight") }}{% else %}{{ insight.title }}{% endif %}</span>
   <b>{% if insight.record %}{{ insight.record }}{% elif insight.new %}{{ insight.title }}: {{ insight.value }}{% else %}{{ insight.says }}{% endif %}</b>
 </a>
@@ -164,7 +164,7 @@
   <span class="muted">{{ _("It has no password. If you lose this address, a passkey or a recovery code brings you back to it.") }}</span>
   <div class="row-end">
     <form method="post" action="/p/{{ token }}/account/later"><button type="submit" class="btn btn-plain btn-sm">{{ _("Not now") }}</button></form>
-    <a class="btn btn-primary btn-sm" href="/p/{{ token }}/settings#account">{{ _("Keep it safe") }}</a>
+    <a class="btn btn-primary btn-sm" href="/p/{{ token }}/settings/account">{{ _("Keep it safe") }}</a>
   </div>
 </div>
 {% endif %}
@@ -207,7 +207,7 @@
 
 {% if view.exams %}
 <div class="section">
-  <div class="section-title"><h2>{{ _("Exams") }}</h2><a href="/p/{{ token }}/settings">{{ _("Edit") }}</a></div>
+  <div class="section-title"><h2>{{ _("Exams") }}</h2><a href="/p/{{ token }}/settings/exams">{{ _("Edit") }}</a></div>
   <div class="card">
     <ul class="list">
     {% for e in view.exams %}

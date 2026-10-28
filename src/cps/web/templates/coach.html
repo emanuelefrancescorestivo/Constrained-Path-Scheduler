@@ -15,7 +15,7 @@
   <textarea id="coach-question" name="question" rows="3" maxlength="{{ limit }}" required placeholder="{{ _('I have two exams next week. How should I split my time?') }}">{{ asked or "" }}</textarea>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <div class="row-end"><button type="submit" class="btn btn-primary">{{ _("Ask") }}</button></div>
-  <p class="hint">{% if by_ai %}{{ _("AI is on: Claude, a model by Anthropic, answers, using only the tips. Your question is not kept.") }}{% else %}{{ _("AI is off: the coach matches your question to the tips.") }}{% if ai_available %} <a href="/p/{{ token }}/settings#ai">{{ _("Turn AI on in Settings") }}</a>{% endif %}{% endif %}</p>
+  <p class="hint">{% if by_ai %}{{ _("AI is on: Claude, a model by Anthropic, answers, using only the tips. Your question is not kept.") }}{% else %}{{ _("AI is off: the coach matches your question to the tips.") }}{% if ai_available %} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn AI on in Settings") }}</a>{% endif %}{% endif %}</p>
 </form>
 
 {% if answer %}

@@ -126,7 +126,7 @@ def test_what_setting_up_no_longer_asks_comes_one_question_a_day(web, clock):
     clock.now = MORNING + timedelta(days=2)
     assert "Bring in your deadlines" in unescape(web.get(f"/p/{token}").text)
     taken = web.post(f"/p/{token}/fit", data={"key": "deadlines", "go": "1"}, follow_redirects=False)
-    assert taken.headers["location"] == f"/p/{token}/settings#deadlines"
+    assert taken.headers["location"] == f"/p/{token}/settings/exams#deadlines"
     clock.now = MORNING + timedelta(days=3)
     assert "Your sessions in your phone's calendar" in unescape(web.get(f"/p/{token}").text)
     web.post(f"/p/{token}/fit", data={"key": "calendar", "go": "1"})

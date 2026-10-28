@@ -140,6 +140,80 @@ NETWORK_NOTICES = {
     "group_saved": "Saved.",
     "demo": "Welcome. This student is yours: the timetable and the classmates are made up; try anything.",
 }
+# D103: Settings' rows, each its own page, in order: the plan's own settings first,
+# then the account, the phone, the look, AI and the data. Each names the old page's
+# anchors that lead to it now, and the setting up form's values its page shows again
+# after a mistake.
+SETTINGS_PARTS = ("week", "exams", "account", "phone", "look", "data")
+SETTINGS_NOTICES = {"removed": "Removed from your plan."}
+WEEK_VALUES = (
+    "activities",
+    "weekly_hours",
+    "rest_days",
+    "practice_hours",
+    "day",
+    "blocks_per_day",
+    "block_minutes",
+    "commute",
+    "study_time",
+    "quick_tests",
+    "warm_up",
+    "study_on_the_way",
+)
+
+
+def settings_rows(signed_in: bool) -> list[dict[str, Any]]:
+    return [
+        {
+            "part": "week",
+            "art": "week",
+            "title": service.translate("Your week"),
+            "line": service.translate("Study hours, days off, your day, when you are not free"),
+            "anchors": ["your-week", "busy"],
+        },
+        {
+            "part": "exams",
+            "art": "paper",
+            "title": service.translate("Exams and deadlines"),
+            "line": service.translate("Each exam, deadlines from your learning platform, your timetable"),
+            "anchors": ["deadlines", "topics", "timetable", "semester"],
+        },
+        {
+            "part": "account",
+            "art": "key",
+            "title": service.translate("Your account") if signed_in else service.translate("Keep your plan"),
+            "line": service.translate("E-mail, password, passkeys, recovery code")
+            if signed_in
+            else service.translate("Passkeys and a recovery code, to open it anywhere"),
+            "anchors": ["login", "account"],
+        },
+        {
+            "part": "phone",
+            "art": "bell",
+            "title": service.translate("Reminders and the app"),
+            "line": service.translate("A notification before each session, the app on your home screen"),
+            "anchors": ["reminders", "app"],
+        },
+        {
+            "part": "look",
+            "art": "palette",
+            "title": service.translate("Language and appearance"),
+            "line": service.translate("Language, light or dark, motion, glass, tips, Spark's tour"),
+            "anchors": ["language", "appearance", "tour-again"],
+        },
+        {
+            "part": "data",
+            "art": "shield",
+            "title": service.translate("AI and your data"),
+            "line": service.translate("AI, what is counted, a copy of your data, deleting it"),
+            "anchors": ["ai", "usage"],
+        },
+    ]
+
+
+# The notices of a change to the diary, whose entries are under Progress's "More
+# detail" (D103): the fold opens to show them.
+DIARY_NOTICES = frozenset({"logged", "deleted", "1", "left"})
 CARD_NOTICES = {
     "card_saved": "Saved.",
     "card_deleted": "Deleted.",
@@ -731,7 +805,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return page(request, "confirm.html", 410, value=value, account=None)
         here = signed(request)
         if here is not None and here.id == account.id and account.token:
-            return RedirectResponse(f"/p/{account.token}/settings?saved=confirmed#login", 303)
+            return RedirectResponse(f"/p/{account.token}/settings/account?saved=confirmed", 303)
         return page(
             request,
             "message.html",
@@ -759,7 +833,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if sent == "shown":
             return page(request, "mail_shown.html", token=token, tab="settings", mail=message)
         return RedirectResponse(
-            f"/p/{token}/settings?saved={'mail' if sent == 'sent' else 'nomail'}#login", 303
+            f"/p/{token}/settings/account?saved={'mail' if sent == 'sent' else 'nomail'}", 303
         )
 
     @app.post("/p/{token}/account/password", response_class=HTMLResponse)
@@ -780,8 +854,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 config.clock(),
             )
         except service.AccountRefused as error:
-            return RedirectResponse(f"/p/{token}/settings?login_error={quote(str(error))}#login", 303)
-        return RedirectResponse(f"/p/{token}/settings?saved=password#login", 303)
+            return RedirectResponse(f"/p/{token}/settings/account?login_error={quote(str(error))}", 303)
+        return RedirectResponse(f"/p/{token}/settings/account?saved=password", 303)
 
     @app.post("/p/{token}/account/elsewhere", response_class=HTMLResponse)
     def sign_out_elsewhere(request: Request, token: str) -> Response:
@@ -789,7 +863,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if account is None:
             return missing(request)
         service.sign_out_elsewhere(store, account, request.cookies.get(SESSION_COOKIE, ""))
-        return RedirectResponse(f"/p/{token}/settings?saved=elsewhere#login", 303)
+        return RedirectResponse(f"/p/{token}/settings/account?saved=elsewhere", 303)
 
     # -- the app on a home screen (D33) ----------------------------------------
 
@@ -1085,7 +1159,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(request, "_panel.html", token=token, **panel_context(subscription))
 
     @app.get("/p/{token}/progress", response_class=HTMLResponse)
-    def progress(request: Request, token: str, saved: str = "") -> HTMLResponse:
+    def progress(request: Request, token: str, saved: str = "", more: int = 0) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -1110,6 +1184,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             insights=service.insights_view(store, subscription, now) if subscription.plan else None,
             memory=service.learning_view(store, subscription, now),
             saved=_notice(saved),
+            # D103: "More detail" opens by itself for a link into it and after a diary
+            # change, whose notice and entry are inside.
+            more=bool(more) or saved in DIARY_NOTICES,
             tab="progress",
         )
 
@@ -2042,6 +2119,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     # -- Courses: each course's weeks, workload, cards and materials (D86-D88) -------
 
     COURSE_NOTICES = {
+        "exam": "Saved. The plan has changed to match.",
         "credits": "Credits saved.",
         "link": "Link added.",
         "unlinked": "Link removed.",
@@ -2139,8 +2217,19 @@ def create_app(config: Config | None = None) -> FastAPI:
             view = service.course_view(store, subscription, index, config.clock())
         except service.ServiceError:
             return missing(request)
+        # Its exam, changed here (D103): the row the setting up form has for it.
+        values = service.setup_view(subscription)
+        exam = values["subjects"][index] if index < len(values["subjects"]) else None
         return page(
-            request, "course.html", status, token=subscription.token, view=view, tab="courses", **extra
+            request,
+            "course.html",
+            status,
+            token=subscription.token,
+            view=view,
+            tab="courses",
+            exam_row=exam,
+            values=values,
+            **extra,
         )
 
     @app.get("/p/{token}/courses/{index}", response_class=HTMLResponse)
@@ -2176,6 +2265,35 @@ def create_app(config: Config | None = None) -> FastAPI:
             lambda current, f: service.set_course_credits(current, index, f.get("credits", "")),
             "credits",
         )
+
+    @app.post("/p/{token}/courses/{index}/exam")
+    async def course_exam(request: Request, token: str, index: int) -> Response:
+        """A course's exam changed on its page (D103): its date, how well it is known,
+        its weight and its practice, or no longer planned for."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        courses = service.topic_courses(subscription)
+        if not 0 <= index < len(courses):
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=20)
+        rows = forms.settings_values({k: str(v) for k, v in form.items()}, [])["subjects"]
+
+        def revise(current: service.Subscription) -> service.Subscription:
+            stored = service.setup_view(current)["subjects"]
+            change = forms.exam_revision(stored, rows, course=courses[index])
+            return service.revise_subscription(current, now=config.clock(), fetch=config.fetch, **change)
+
+        try:
+            service.update_subscription(store, token, revise)
+        except service.ServiceError as error:
+            return course_page(request, subscription, index, 400, error=str(error))
+        service.log_event(store, token, "settings")
+        if not rows:
+            return RedirectResponse(f"/p/{token}/settings/exams?saved=removed", 303)
+        return RedirectResponse(f"/p/{token}/courses/{index}?saved=exam#exam", 303)
 
     @app.post("/p/{token}/courses/{index}/links")
     async def course_link(request: Request, token: str, index: int) -> Response:
@@ -2601,7 +2719,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
             )
         service.log_event(store, token, "language", chosen)
-        return RedirectResponse(f"/p/{token}/settings?saved=language", 303)
+        return RedirectResponse(f"/p/{token}/settings/look?saved=language", 303)
 
     @app.post("/p/{token}/appearance")
     async def appearance(request: Request, token: str) -> Response:
@@ -2614,7 +2732,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "theme", chosen)
-        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+        return RedirectResponse(f"/p/{token}/settings/look?saved=theme#appearance", 303)
 
     @app.post("/p/{token}/motion")
     async def motion(request: Request, token: str) -> Response:
@@ -2627,7 +2745,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "motion", chosen)
-        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+        return RedirectResponse(f"/p/{token}/settings/look?saved=theme#appearance", 303)
 
     @app.post("/p/{token}/glass")
     async def glass(request: Request, token: str) -> Response:
@@ -2640,7 +2758,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "glass", chosen)
-        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+        return RedirectResponse(f"/p/{token}/settings/look?saved=theme#appearance", 303)
 
     @app.post("/p/{token}/tour")
     async def tour_seen(request: Request, token: str) -> Response:
@@ -2678,7 +2796,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "tips setting", chosen)
-        return RedirectResponse(f"/p/{token}/settings?saved=theme#appearance", 303)
+        return RedirectResponse(f"/p/{token}/settings/look?saved=theme#appearance", 303)
 
     @app.get("/p/{token}/agenda", response_class=HTMLResponse)
     def agenda(request: Request, token: str, w: int = 0) -> HTMLResponse:
@@ -2859,31 +2977,75 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await session_change(request, token, sid, start, days, change, "report")
 
     @app.get("/p/{token}/settings", response_class=HTMLResponse)
-    def settings(
-        request: Request, token: str, new: int = 0, saved: str = "", login_error: str = ""
-    ) -> HTMLResponse:
+    def settings(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
+        """Setting up's exams (D98) with `new`, else the list of Settings' pages (D103)."""
         subscription = load(token)
         if subscription is None:
             return missing(request)
+        if new:
+            return page(
+                request,
+                "settings.html",
+                token=token,
+                values=service.setup_view(subscription),
+                new=True,
+                empty_rows=forms.EMPTY_ROWS,
+                tab="settings",
+                saved=_notice(saved),
+            )
         owner = owner_here(request, token)
         return page(
             request,
             "settings.html",
             token=token,
-            values=service.setup_view(subscription),
-            new=bool(new),
-            empty_rows=forms.EMPTY_ROWS,
+            new=False,
+            rows=settings_rows(bool(owner)),
             tab="settings",
             saved=_notice(saved),
+        )
+
+    def settings_part(
+        request: Request,
+        subscription: service.Subscription,
+        part: str,
+        status: int = 200,
+        values: dict | None = None,
+        **extra: Any,
+    ) -> HTMLResponse:
+        token = subscription.token
+        owner = owner_here(request, token)
+        row = next(r for r in settings_rows(bool(owner)) if r["part"] == part)
+        return page(
+            request,
+            "settings_part.html",
+            status,
+            token=token,
+            part=part,
+            row=row,
+            values=values or service.setup_view(subscription),
+            new=False,
+            empty_rows=forms.EMPTY_ROWS,
+            tab="settings",
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
             account=service.account_view(store, subscription, config.clock()),
             login=service.email_account_view(store, owner) if owner else None,
-            login_error=login_error[:300],
             show_mail=config.show_mail,
             reminders=service.reminders_view(store, subscription),
             tips_on=service.tips_on(subscription),
             usage=service.usage_answer(store, token),
+            **extra,
         )
+
+    @app.get("/p/{token}/settings/{part}", response_class=HTMLResponse)
+    def settings_page(
+        request: Request, token: str, part: str, saved: str = "", login_error: str = ""
+    ) -> HTMLResponse:
+        """One row of Settings on its own page (D103)."""
+        subscription = load(token)
+        if subscription is None or part not in SETTINGS_PARTS:
+            return missing(request)
+        notice = service.translate(SETTINGS_NOTICES[saved]) if saved in SETTINGS_NOTICES else _notice(saved)
+        return settings_part(request, subscription, part, saved=notice, login_error=login_error[:300])
 
     @app.post("/p/{token}/settings", response_class=HTMLResponse)
     async def save_settings(request: Request, token: str) -> Response:
@@ -2896,16 +3058,57 @@ def create_app(config: Config | None = None) -> FastAPI:
         raw = {k: str(v) for k, v in form.items()}
         values = forms.settings_values(raw, [str(d) for d in form.getlist("rest")])
         new = raw.get("new") == "1"
+        # D103: a page of Settings saves its part alone; setting up saves it all.
+        part = raw.get("part", "")
         try:
-            change = forms.revision(values)
-            service.update_subscription(
-                store,
-                token,
-                lambda current: service.revise_subscription(
-                    current, now=config.clock(), fetch=config.fetch, **change
-                ),
-            )
+            if part == "add":
+                rows = values["subjects"]
+
+                def revise(current: service.Subscription) -> service.Subscription:
+                    stored = service.setup_view(current)["subjects"]
+                    return service.revise_subscription(
+                        current, now=config.clock(), fetch=config.fetch, **forms.exam_revision(stored, rows)
+                    )
+
+            else:
+                change = (
+                    forms.week_revision(values)
+                    if part == "week"
+                    else forms.deadlines_revision(values)
+                    if part == "deadlines"
+                    else forms.revision(values)
+                )
+
+                def revise(current: service.Subscription) -> service.Subscription:
+                    return service.revise_subscription(
+                        current, now=config.clock(), fetch=config.fetch, **change
+                    )
+
+            service.update_subscription(store, token, revise)
         except service.ServiceError as error:
+            if part in ("week", "deadlines", "add"):
+                # The page again, with what was typed in its part (D103).
+                stored = service.setup_view(subscription)
+                typed = (
+                    {k: values[k] for k in WEEK_VALUES if values.get(k) is not None}
+                    if part == "week"
+                    else {"tasks": values["tasks"], "deadlines_url": values["deadlines_url"]}
+                    if part == "deadlines"
+                    else {}
+                )
+                if "day" in typed:
+                    typed["day"] = {**stored["day"], **typed["day"]}  # with its choices
+                shown_part = "week" if part == "week" else "exams"
+                added = values["subjects"][0] if part == "add" and values["subjects"] else None
+                return settings_part(
+                    request,
+                    subscription,
+                    shown_part,
+                    400,
+                    values={**stored, **typed},
+                    error=str(error),
+                    added=added,
+                )
             # The offered exam rows came back as typed rows: not offered twice. Each
             # keeps what its exam practice is when not chosen (D46).
             stored = service.setup_view(subscription)
@@ -2919,21 +3122,27 @@ def create_app(config: Config | None = None) -> FastAPI:
                 ],
                 "suggested": [],
             }
+            if not new:  # the whole form, from a page made before Settings had pages
+                rows = settings_rows(bool(owner_here(request, token)))
+                return page(
+                    request, "settings.html", 400, token=token, new=False, rows=rows, error=str(error)
+                )
             return page(
                 request,
                 "settings.html",
                 400,
                 token=token,
                 values=shown,
-                new=new,
+                new=True,
                 empty_rows=forms.EMPTY_ROWS,
                 error=str(error),
                 tab="settings",
-                ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
-                account=service.account_view(store, subscription, config.clock()),
-                reminders=service.reminders_view(store, subscription),
             )
         service.log_event(store, token, "settings")
+        if part in ("week", "deadlines", "add"):
+            where = "week" if part == "week" else "exams"
+            anchor = "#deadlines" if part == "deadlines" else ""
+            return RedirectResponse(f"/p/{token}/settings/{where}?saved=1{anchor}", 303)
         # Setting up goes on to the week with its plan (D98): the questions about the
         # week come later, one a day on Today.
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
@@ -3187,14 +3396,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(error.to_dict(), 400)
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        return JSONResponse({"go": f"/p/{token}/settings?saved=passkey#account"})
+        return JSONResponse({"go": f"/p/{token}/settings/account?saved=passkey#account"})
 
     @app.post("/p/{token}/passkeys/{passkey}/remove")
     def passkey_remove(request: Request, token: str, passkey: str) -> Response:
         if load(token) is None:
             return missing(request)
         service.remove_passkey(store, token, passkey)
-        return RedirectResponse(f"/p/{token}/settings?saved=passkey_removed#account", 303)
+        return RedirectResponse(f"/p/{token}/settings/account?saved=passkey_removed#account", 303)
 
     @app.post("/p/{token}/recovery", response_class=HTMLResponse)
     def recovery_code(request: Request, token: str) -> HTMLResponse:
@@ -3411,7 +3620,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        return JSONResponse({"go": f"/p/{token}/settings?saved=reminders#reminders"})
+        return JSONResponse({"go": f"/p/{token}/settings/phone?saved=reminders"})
 
     @app.post("/p/{token}/push/remove")
     async def push_off(request: Request, token: str) -> Response:
@@ -3425,10 +3634,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             except service.ServiceError as error:
                 return JSONResponse(error.to_dict(), 400)
             service.remove_push_device(store, token, str(body.get("endpoint") or ""))
-            return JSONResponse({"go": f"/p/{token}/settings?saved=reminders_off#reminders"})
+            return JSONResponse({"go": f"/p/{token}/settings/phone?saved=reminders_off"})
         form = await request.form(max_files=0, max_fields=2)
         service.remove_push_device(store, token, str(form.get("device") or ""))
-        return RedirectResponse(f"/p/{token}/settings?saved=reminders_off#reminders", 303)
+        return RedirectResponse(f"/p/{token}/settings/phone?saved=reminders_off", 303)
 
     @app.post("/p/{token}/reminders")
     async def reminders_lead(request: Request, token: str) -> Response:
@@ -3441,9 +3650,9 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, token, lambda current: service.set_reminder_lead(current, minutes)
             )
         except (ValueError, service.ServiceError):
-            return RedirectResponse(f"/p/{token}/settings#reminders", 303)
+            return RedirectResponse(f"/p/{token}/settings/phone", 303)
         service.log_event(store, token, "reminders", f"lead {minutes}")
-        return RedirectResponse(f"/p/{token}/settings?saved=1#reminders", 303)
+        return RedirectResponse(f"/p/{token}/settings/phone?saved=1", 303)
 
     @app.post("/p/{token}/push/test")
     def push_test(request: Request, token: str) -> Response:
@@ -3454,7 +3663,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return too_many(request)
         reached = service.send_test_reminder(store, subscription, **push_options())
         return RedirectResponse(
-            f"/p/{token}/settings?saved={'test_sent' if reached else 'test_none'}#reminders", 303
+            f"/p/{token}/settings/phone?saved={'test_sent' if reached else 'test_none'}", 303
         )
 
     def back_to(token: str, where: str, **query: Any) -> str:
@@ -3582,7 +3791,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.answer_usage(store, token, yes, config.clock())
         if form.get("back") == "today":
             return RedirectResponse(f"/p/{token}?saved={'usage-yes' if yes else 'usage-no'}", 303)
-        return RedirectResponse(f"/p/{token}/settings?saved=usage#usage", 303)
+        return RedirectResponse(f"/p/{token}/settings/data?saved=usage#usage", 303)
 
     @app.get("/p/{token}/usage", response_class=HTMLResponse)
     def usage_page(request: Request, token: str) -> HTMLResponse:
@@ -3604,7 +3813,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "ai", "on" if on else "off")
-        return RedirectResponse(f"/p/{token}/settings?saved=ai#ai", 303)
+        return RedirectResponse(f"/p/{token}/settings/data?saved=ai#ai", 303)
 
     @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)
     async def task_done(request: Request, token: str) -> Response:

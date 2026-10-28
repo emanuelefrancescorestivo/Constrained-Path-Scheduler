@@ -1,7 +1,8 @@
 {# The insights (D80): the pace first, then four measures from the student's own data.
    An insight with too little data yet says how many more it needs, with a bar; one
    just unlocked says "New", and a record just set is celebrated once (motion.js,
-   data-celebrate). Each says how it is measured, folded. Works without scripts. #}
+   data-celebrate). How each is measured is said once for all, below them on Progress
+   (D103). Works without scripts. #}
 {% from "_charts.html" import spark %}
 {% from "_art.html" import art %}
 {# Each insight's picture (D100). #}
@@ -25,6 +26,5 @@
   <p class="insight-says">{{ c.says }}</p>
   <div class="progress" role="progressbar" aria-valuenow="{{ c.percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ c.title }}"><span class="w{{ (c.percent // 10) * 10 }}"></span></div>
   {% endif %}
-  <details class="insight-how"><summary>{{ _("How it is measured") }}</summary><p>{{ c.how }}</p></details>
 </article>
 {% endmacro %}

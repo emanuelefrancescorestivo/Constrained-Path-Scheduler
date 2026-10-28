@@ -121,7 +121,7 @@ def test_a_tour_finished_stays_finished_and_settings_show_it_again(web):
     assert 'id="tour"' not in web.get(f"/p/{token}").text
     assert 'id="tour"' not in web.get(f"/p/{token}/tasks").text  # a line there, not a tour (D97)
     assert web.post(f"/p/{token}/tour", data={"name": "nothing"}).status_code == 400
-    settings = web.get(f"/p/{token}/settings").text
+    settings = web.get(f"/p/{token}/settings/look").text
     assert f'action="/p/{token}/tour/again"' in settings
     again = web.post(f"/p/{token}/tour/again", follow_redirects=False)
     assert again.status_code == 303 and again.headers["location"] == f"/p/{token}"

@@ -3331,7 +3331,7 @@ FIT_QUESTIONS = (
         "Bring in your deadlines",
         "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan "
         "makes time for each.",
-        "/settings#deadlines",
+        "/settings/exams#deadlines",
         "Add the link",
     ),
     (
@@ -8490,7 +8490,7 @@ def _pace_card(pace: dict, token: str) -> dict:
             "{n} days of study in a row. Plan a day off: a day with nothing planned keeps your streak.",
             pace["in_a_row"],
         )
-        card["link"] = {"href": f"/p/{token}/settings#your-week", "words": _("Plan a day off")}
+        card["link"] = {"href": f"/p/{token}/settings/week#your-week", "words": _("Plan a day off")}
     elif pace["state"] == "above" and pace["limit"] and pace["hours"] > pace["limit"]:
         card["says"] = _(
             "Above your limit of {limit} h. Your plan keeps to it: the extra hours are yours to rest.",

@@ -1,0 +1,7 @@
+{# One part of the settings, on its own page (D103). #}
+<h2 id="timetable">{{ _("Your timetable") }}</h2>
+<p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
+{{ _("Time zone: {zone}.", zone=values.tz) }}</p>
+<h2 class="section" id="semester">{{ _("Next semester") }}</h2>
+<p>{{ _("A new timetable and new exams, at the same address. Your streak, your progress, your diary, your flashcards, your people and your groups come with you.") }}</p>
+<p><a class="btn btn-sm" href="/p/{{ token }}/semester">{{ _("Start next semester") }}</a></p>

@@ -4,6 +4,7 @@ without a name, with the classmates who take the course."""
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -275,9 +276,11 @@ def test_the_pages_read_save_and_show_topics(tmp_path):
         files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        # The courses' topics are reached from the Courses section (D88): Settings
-        # leads there, the old address too, and each course's page to its topics.
-        assert f'href="/p/{token}/courses"' in web.get(f"/p/{token}/settings").text
+        # The courses' topics are reached from the Courses section (D88): its tab is on
+        # every page (Settings no longer repeats the link, D103), the old address leads
+        # there too, and each course's page to its topics.
+        tabs = re.search(r'<nav class="tabbar".*?</nav>', web.get(f"/p/{token}/settings").text, re.S)[0]
+        assert f'href="/p/{token}/courses"' in tabs
         moved = web.get(f"/p/{token}/topics", follow_redirects=False)
         assert moved.status_code == 302 and moved.headers["location"] == f"/p/{token}/courses"
         overview = web.get(f"/p/{token}/courses").text

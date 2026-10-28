@@ -78,6 +78,14 @@ def _form(html: str) -> dict:
     return form
 
 
+def _part(html: str, marker: str) -> dict:
+    """The one form of a page with `marker` in it, as a browser would submit it untouched:
+    Settings' pages and a course's page each hold several (D103)."""
+    found = [f for f in re.findall(r"<form\b.*?</form>", html, re.S) if marker in f]
+    assert len(found) == 1, (marker, len(found))
+    return _form(found[0])
+
+
 def _setup(client, token: str, **changes) -> dict:
     form = {**_form(client.get(f"/p/{token}/settings?new=1").text), **changes}
     answer = client.post(f"/p/{token}/settings", data=form, follow_redirects=False)
@@ -242,27 +250,51 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
 
 
 def test_a_mistake_in_the_settings_keeps_what_was_typed(web, planned):
-    form = _form(web.get(f"/p/{planned}/settings").text)
-    form.update(s8_name="Quantum Basket Weaving", s8_exam="", t1_name="Essay", t1_due="2026-10-20T12:00")
+    # D103: an exam is added on Exams and deadlines, a deadline in its form there; a
+    # mistake in either shows the page again with what was typed.
+    exams = web.get(f"/p/{planned}/settings/exams").text
+    form = {**_part(exams, 'name="part" value="add"'), "s0_name": "Quantum Basket Weaving", "s0_exam": ""}
     answer = web.post(f"/p/{planned}/settings", data=form)
     assert answer.status_code == 400
     assert "Quantum Basket Weaving: give the exam" in unescape(answer.text)
-    assert 'value="Quantum Basket Weaving"' in answer.text and 'value="Essay"' in answer.text
-    assert [t["name"] for t in _subscription(web, planned).options["tasks"]] == ["Stats report"]
+    assert 'value="Quantum Basket Weaving"' in answer.text
+    form = {**_part(exams, 'name="part" value="deadlines"'), "t1_name": "Essay", "t1_due": ""}
+    answer = web.post(f"/p/{planned}/settings", data=form)
+    assert answer.status_code == 400 and "Essay: give the date it is due" in unescape(answer.text)
+    assert 'value="Essay"' in answer.text
+    subscription = _subscription(web, planned)
+    assert [t["name"] for t in subscription.options["tasks"]] == ["Stats report"]
+    assert "Quantum Basket Weaving" not in [s["name"] for s in subscription.subjects]
 
 
 def test_an_exam_can_be_dropped_and_a_busy_time_added(web, planned):
-    form = _form(web.get(f"/p/{planned}/settings").text)
-    form.update(s0_remove="1", a0_label="Training", a0_weekday="Wed", a0_start="18:00", a0_end="20:00")
-    assert web.post(f"/p/{planned}/settings", data=form, follow_redirects=False).status_code == 303
+    # D103: an exam is dropped on its course's page, a busy time added on Your week.
+    course = web.get(f"/p/{planned}/courses/0").text
+    assert "Computer Programming 3" in course
+    form = {**_part(course, '/exam"'), "s0_remove": "1"}
+    dropped = web.post(f"/p/{planned}/courses/0/exam", data=form, follow_redirects=False)
+    assert dropped.headers["location"] == f"/p/{planned}/settings/exams?saved=removed"
+    form = _part(web.get(f"/p/{planned}/settings/week").text, 'name="part" value="week"')
+    form.update(a0_label="Training", a0_weekday="Wed", a0_start="18:00", a0_end="20:00")
+    saved = web.post(f"/p/{planned}/settings", data=form, follow_redirects=False)
+    assert saved.headers["location"] == f"/p/{planned}/settings/week?saved=1"
     subscription = _subscription(web, planned)
     assert "Computer Programming 3" not in [s["name"] for s in subscription.subjects]
     assert subscription.busy_rows == (
         {"label": "Training", "start": "18:00", "end": "20:00", "weekday": 2, "date": None, "kind": "other"},
     )
-    page = web.get(f"/p/{planned}/settings").text
+    assert [t["name"] for t in subscription.options["tasks"]] == ["Stats report"]  # untouched
+    page = web.get(f"/p/{planned}/settings/exams?saved=removed").text
+    assert "Removed from your plan." in page
     assert "Also in your timetable: <strong>Computer Programming 3</strong>" in page
-    assert 'value="Training"' in page
+    again = web.post(
+        f"/p/{planned}/settings",
+        data=_part(page, 'name="s0_name" value="Computer Programming 3"'),
+        follow_redirects=False,
+    )
+    assert again.status_code == 303
+    assert "Computer Programming 3" in [s["name"] for s in _subscription(web, planned).subjects]
+    assert 'value="Training"' in web.get(f"/p/{planned}/settings/week").text
 
 
 def test_a_deadline_added_from_today(web, planned):
@@ -288,12 +320,15 @@ def test_the_week_is_a_list_of_days(web, planned):
 
 
 def test_a_plan_with_nothing_to_plan_says_what_to_add(web, planned):
-    form = _form(web.get(f"/p/{planned}/settings").text)
-    for i in range(6):
-        form[f"s{i}_remove"] = "1"
-    form["t0_remove"] = "1"
-    answer = web.post(f"/p/{planned}/settings", data=form)
+    form = {**_part(web.get(f"/p/{planned}/settings/exams").text, 'value="deadlines"'), "t0_remove": "1"}
+    assert web.post(f"/p/{planned}/settings", data=form, follow_redirects=False).status_code == 303
+    while len(_subscription(web, planned).subjects) > 1:
+        form = {**_part(web.get(f"/p/{planned}/courses/0").text, '/exam"'), "s0_remove": "1"}
+        assert web.post(f"/p/{planned}/courses/0/exam", data=form, follow_redirects=False).status_code == 303
+    form = {**_part(web.get(f"/p/{planned}/courses/0").text, '/exam"'), "s0_remove": "1"}
+    answer = web.post(f"/p/{planned}/courses/0/exam", data=form)
     assert answer.status_code == 400 and "add a subject" in answer.text
+    assert len(_subscription(web, planned).subjects) == 1  # the last exam stays
 
 
 # --------------------------------------------------------------------------- #
@@ -529,12 +564,12 @@ def test_the_sweep_moves_a_plan_saved_under_the_old_rule(web, planned):
 
 def test_a_learning_platform_link_brings_its_deadlines(web, planned, timetable_server, monkeypatch):
     monkeypatch.setattr(service, "LINKS_MAY_BE_PRIVATE", True)
-    form = _form(web.get(f"/p/{planned}/settings").text)
+    form = _part(web.get(f"/p/{planned}/settings/exams").text, 'value="deadlines"')
     form["deadlines_url"] = f"{timetable_server}/sample-moodle.ics"
     assert web.post(f"/p/{planned}/settings", data=form, follow_redirects=False).status_code == 303
     names = [t["name"] for t in _subscription(web, planned).options["tasks"]]
     assert names == ["Stats report", "Week 4 quiz", "Problem sheet 3", "Essay on fairness"]
-    page = web.get(f"/p/{planned}/settings").text
+    page = web.get(f"/p/{planned}/settings/exams").text
     assert page.count("From your learning platform") == 3
 
 
@@ -668,7 +703,7 @@ def test_a_busy_time_drawn_on_the_calendar_moves_the_plan(web, planned):
 
 
 def test_busy_times_can_be_drawn_before_any_exam_is_known(web, planned):
-    form = _form(web.get(f"/p/{planned}/settings").text)
+    form = _form(web.get(f"/p/{planned}/settings/week").text)
     # A plan whose exams are dropped: nothing to plan, but the week can be drawn.
     subscription = _subscription(web, planned)
     bare = service.revise_subscription(subscription, subjects=[], tasks=[], strict=False)
@@ -978,7 +1013,9 @@ def test_a_plan_started_in_french_is_french_and_can_switch(web, clock):
     sid = service.session_id(first)
     web.post(f"/s/{token}/{sid}", data={"outcome": "done"})
     switched = web.post(f"/p/{token}/language", data={"lang": "en"}, follow_redirects=False)
-    assert switched.status_code == 303 and switched.headers["location"].endswith("/settings?saved=language")
+    assert switched.status_code == 303 and switched.headers["location"].endswith(
+        "/settings/look?saved=language"
+    )
     after = _subscription(web, token)
     assert after.options["lang"] == "en" and after.outcomes[sid] == "done"
     page = unescape(web.get(switched.headers["location"]).text)
@@ -1451,7 +1488,7 @@ def test_a_task_typed_in_one_line_is_read_into_the_form(web, planned):
 def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypatch):
     from cps import ai
 
-    assert "AI is not set up on this server" in unescape(web.get(f"/p/{planned}/settings").text)
+    assert "AI is not set up on this server" in unescape(web.get(f"/p/{planned}/settings/data").text)
 
     class Model:
         model = ai.DEFAULT_MODEL
@@ -1462,7 +1499,7 @@ def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypat
             )
 
     monkeypatch.setattr(ai, "from_env", lambda: Model())
-    settings = unescape(web.get(f"/p/{planned}/settings").text)
+    settings = unescape(web.get(f"/p/{planned}/settings/data").text)
     assert "AI is off." in settings and "Turn AI on" in settings and "Anthropic" in settings
     ask = {"words": "stats report", "headers": {"Accept": "application/json"}}
     assert (
@@ -1472,17 +1509,17 @@ def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypat
         == "rules"
     )
     web.post(f"/p/{planned}/ai", data={"on": "1"})
-    assert "AI is on." in unescape(web.get(f"/p/{planned}/settings").text)
+    assert "AI is on." in unescape(web.get(f"/p/{planned}/settings/data").text)
     read = web.post(
         f"/p/{planned}/tasks/understand", data={"words": ask["words"]}, headers=ask["headers"]
     ).json()
     assert read["by"] == "ai" and read["name"] == "Statistics report" and "Read by AI" in read["note"]
     web.post(f"/p/{planned}/ai", data={"on": "0"})
-    assert "AI is off." in unescape(web.get(f"/p/{planned}/settings").text)
+    assert "AI is off." in unescape(web.get(f"/p/{planned}/settings/data").text)
 
 
 def test_motion_is_automatic_or_reduced_per_plan(web, planned):
-    page = unescape(web.get(f"/p/{planned}/settings").text)
+    page = unescape(web.get(f"/p/{planned}/settings/look").text)
     assert 'src="/static/motion.js"' in page and "data-motion" not in page.split("<head>")[0]
     assert 'name="motion" value="auto" class="btn btn-sm" aria-pressed="true"' in page
     reduced = web.post(f"/p/{planned}/motion", data={"motion": "reduce"}, follow_redirects=False)
@@ -1496,14 +1533,14 @@ def test_motion_is_automatic_or_reduced_per_plan(web, planned):
 
 def test_the_glass_is_automatic_see_through_or_solid_per_plan(web, planned):
     # D93: solid panes for a slow device; the stylesheet then blurs nothing at all.
-    page = unescape(web.get(f"/p/{planned}/settings").text)
+    page = unescape(web.get(f"/p/{planned}/settings/look").text)
     assert 'name="glass" value="auto" class="btn btn-sm" aria-pressed="true"' in page
     assert "data-glass" not in page.split("<head>")[0]
     solid = web.post(f"/p/{planned}/glass", data={"glass": "solid"}, follow_redirects=False)
     assert solid.headers["location"].endswith("#appearance")
     for path in ("", "/courses", "/tips"):
         assert 'data-glass="solid">' in web.get(f"/p/{planned}{path}").text.split("<head>")[0]
-    page = unescape(web.get(f"/p/{planned}/settings").text)
+    page = unescape(web.get(f"/p/{planned}/settings/look").text)
     assert 'name="glass" value="solid" class="btn btn-sm" aria-pressed="true"' in page
     assert web.post(f"/p/{planned}/glass", data={"glass": "frosted"}).status_code == 400
     web.post(f"/p/{planned}/glass", data={"glass": "auto"})
@@ -1561,7 +1598,7 @@ def test_pages_carry_what_moves_and_the_stylesheet_keeps_it_still_on_request(web
 
 
 def test_appearance_is_automatic_light_or_dark_per_plan(web, planned):
-    page = web.get(f"/p/{planned}/settings").text
+    page = web.get(f"/p/{planned}/settings/look").text
     assert "data-theme" not in page.split("<head>")[0] and 'content="light dark"' in page
     assert 'name="theme" value="auto" class="btn btn-sm" aria-pressed="true"' in page
     web.post(f"/p/{planned}/appearance", data={"theme": "dark"})

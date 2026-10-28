@@ -1,0 +1,38 @@
+{# One part of the settings (D103), shown on its own page and, for the plan's
+   form, while setting up. #}
+<fieldset id="busy">
+  <legend>{% if values.drawn %}{{ _("Your classes, and when you are not free") }}{% else %}{{ _("When you are not free, outside your timetable") }}{% endif %}</legend>
+  <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% elif new %}{{ _("Training, a job, a commute: nothing is planned then. The next step asks about them;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
+  {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
+  <details>
+  <summary>{{ _("Type them instead") }}</summary>
+  {% set rows = values.activities | length + empty_rows %}
+  {% for i in range(rows) %}
+  {% set a = values.activities[i] if i < values.activities | length else {} %}
+  <div class="item{% if not a %} new{% endif %}">
+    <label for="a{{ i }}_label">{{ _("What") }}</label>
+    <input id="a{{ i }}_label" name="a{{ i }}_label" value="{{ a.label or '' }}" placeholder="{{ _('Training') }}">
+    <div class="row">
+      <div><label for="a{{ i }}_weekday">{{ _("Every") }}</label>
+      <select id="a{{ i }}_weekday" name="a{{ i }}_weekday">
+        <option value="">{{ _("(one day)") }}</option>
+        {% for d in values.weekdays %}<option value="{{ d }}"{% if a.weekday == d %} selected{% endif %}>{{ _(d) }}</option>{% endfor %}
+      </select></div>
+      <div><label for="a{{ i }}_date">{{ _("or on") }}</label>
+      <input id="a{{ i }}_date" name="a{{ i }}_date" type="date" value="{{ a.date or '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label for="a{{ i }}_start">{{ _("From") }}</label>
+      <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
+      <div><label for="a{{ i }}_end">{{ _("to") }}</label>
+      <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
+    </div>
+    <label for="a{{ i }}_kind">{{ _("Kind") }}</label>
+    <select id="a{{ i }}_kind" name="a{{ i }}_kind">
+      {% for k, word in values.kinds %}<option value="{{ k }}"{% if (a.kind or ('class' if values.drawn else 'other')) == k %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+    </select>
+    {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> {{ _("Remove") }}</label>{% endif %}
+  </div>
+  {% endfor %}
+  </details>
+</fieldset>

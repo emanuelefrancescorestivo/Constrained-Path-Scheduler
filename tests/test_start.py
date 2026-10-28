@@ -152,7 +152,7 @@ def test_drawing_a_week_from_the_start_to_a_plan(web):
     stored = service.load_subscription(web.path, token)
     assert stored is not None and [s["name"] for s in stored.subjects] == ["Algebra"]
     assert stored.plan is not None and service.PlanReport.from_dict(stored.plan).sessions
-    settings = unescape(web.get(f"/p/{token}/settings").text)
+    settings = unescape(web.get(f"/p/{token}/settings/exams").text)  # with the timetable (D103)
     assert "Drawn by you" in settings and f'href="/p/{token}/timetable"' in settings
     today = unescape(web.get(f"/p/{token}").text)
     assert "Algebra" in today
@@ -179,5 +179,5 @@ def test_classes_can_be_typed_without_scripts(web):
     form.update({"s0_name": "Chemistry", "s0_exam": "2026-12-18T09:00"})
     answer = web.post(f"/p/{token}/settings", data={**form, "new": "1"}, follow_redirects=False)
     assert answer.status_code == 303, re.findall(r'role="alert">([^<]*)', answer.text)
-    values = _inputs(web.get(f"/p/{token}/settings").text)
+    values = _inputs(web.get(f"/p/{token}/settings/week").text)
     assert values["a0_label"] == "Chemistry" and values["a0_kind"] == "class"

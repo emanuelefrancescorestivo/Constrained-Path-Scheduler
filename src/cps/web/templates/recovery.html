@@ -11,7 +11,7 @@
 {% endif %}
 <p class="code" translate="no">{{ code }}</p>
 <p class="hint">{{ _("It is shown only now. Write it down, or keep it in your password manager. It works once; using it gives you a new one.") }}</p>
-<p><a class="btn btn-primary" href="/p/{{ token }}{% if not recovered %}/settings#account{% endif %}">{% if recovered %}{{ _("Open my plan") }}{% else %}{{ _("I have kept it") }}{% endif %}</a></p>
+<p><a class="btn btn-primary" href="/p/{{ token }}{% if not recovered %}/settings/account{% endif %}">{% if recovered %}{{ _("Open my plan") }}{% else %}{{ _("I have kept it") }}{% endif %}</a></p>
 {% if recovered %}<p class="hint">{{ _("On this device, add a passkey in Settings: next time, no code is needed.") }}</p>{% endif %}
 </div>
 {% endblock %}
