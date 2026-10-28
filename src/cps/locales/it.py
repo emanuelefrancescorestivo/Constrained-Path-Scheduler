@@ -2250,4 +2250,28 @@ MESSAGES: dict[str, str] = {
     "Whoever can open your notes can make flashcards from them; with AI turned on, a model reads them for that.": "Chi può aprire i tuoi appunti può farne delle flashcard; con l'IA attiva, un modello li legge per questo.",
     # Community's line for a student with a handle (AUDIT 82)
     "What your classmates studied, explained and shared. Each post says who sees it; your plan stays private.": "Cosa hanno studiato, spiegato e condiviso i tuoi compagni. Ogni post dice chi lo vede; il tuo piano resta privato.",
+    # Lighter pages: Progress folded, Settings in pages (D103)
+    "A notification before each session, the app on your home screen": "Una notifica prima di ogni sessione, l'app sulla schermata Home",
+    "AI and your data": "L'IA e i tuoi dati",
+    "AI, what is counted, a copy of your data, deleting it": "L'IA, cosa viene contato, una copia dei tuoi dati, eliminarli",
+    "Add and plan": "Aggiungi e pianifica",
+    "Change an exam's date, how well you know it, its weight or its practice on its course's page.": "Cambia la data di un esame, quanto lo conosci, il suo peso o la sua esercitazione nella pagina del suo corso.",
+    "Date": "Data",
+    "E-mail, password, passkeys, recovery code": "E-mail, password, passkey, codice di recupero",
+    "Each exam, deadlines from your learning platform, your timetable": "Ogni esame, le scadenze della tua piattaforma dei corsi, il tuo orario",
+    "How we measure these": "Come li misuriamo",
+    "Language and appearance": "Lingua e aspetto",
+    "Language, light or dark, motion, glass, tips, Spark's tour": "Lingua, chiaro o scuro, animazioni, vetro, consigli, il tour di Spark",
+    "More detail": "Più dettagli",
+    "No date yet": "Ancora nessuna data",
+    "No exam yet: add one below, or a deadline.": "Ancora nessun esame: aggiungine uno qui sotto, o una scadenza.",
+    "Passkeys and a recovery code, to open it anywhere": "Passkey e un codice di recupero, per aprirlo ovunque",
+    "Plan for it": "Pianificalo",
+    "Reminders and the app": "Promemoria e l'app",
+    "Removed from your plan.": "Tolto dal tuo piano.",
+    "Stop planning for this course": "Non pianificare più questo corso",
+    "Study hours, days off, your day, when you are not free": "Ore di studio, giorni liberi, la tua giornata, quando non sei libero",
+    "how ready each one is": "quanto è pronto ciascuno",
+    # Your week's page: an exam's own practice is on its course (D103)
+    "Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. One exam's own is on its course's page.": "In base a ogni corso: 1,5 ore ogni quattro settimane di lezione, almeno 3, nelle ultime due settimane prima dell'esame. Quella di un solo esame si cambia nella pagina del suo corso.",
 }

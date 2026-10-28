@@ -1,0 +1,94 @@
+{# One part of the settings (D103), shown on its own page and, for the plan's
+   form, while setting up. #}
+<fieldset>
+  <legend>{{ _("Exams") }}</legend>
+  {% if values.drawn %}<p class="hint">{{ _("For each course you drew: the exam's date, and how well you know the course already. Leave the date empty for a class with no exam.") }}</p>
+  {% else %}<p class="hint">{{ _("For each exam: how well you already know what was taught before today. Each later week of lectures is planned on its own once it has been taught.") }}</p>{% endif %}
+  {% for s in values.subjects %}
+  {% set i = loop.index0 %}
+  <div class="item exam-row">
+    <input type="hidden" name="s{{ i }}_found" value="{{ '1' if s.found else '' }}">
+    <input type="hidden" name="s{{ i }}_found_when" value="{{ s.found_when }}">
+    <input type="hidden" name="s{{ i }}_suggested" value="{{ '1' if s.suggested else '' }}">
+    <div class="exam-main">
+      <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}" class="bare" aria-label="{{ _('Course') }}">
+      {% if s.found and s.found_when and not s.exam %}
+      <p class="hint">{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}</p>
+      <details class="inline"><summary>{{ _("Different date") }}</summary>
+        <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" aria-label="{{ _('Exam date') }}">
+      </details>
+      {% else %}
+      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
+      {% if s.found and not s.found_when %}<p class="hint">{{ _("Not in your timetable any more: give its date.") }}</p>{% endif %}
+      {% if s.found and s.found_when %}<p class="hint">{{ _("Leave empty to follow your timetable ({when}).", when=s.found_when | nice_date) }}</p>{% endif %}
+      {% endif %}
+    </div>
+    {% if new %}<details class="adjust"><summary>{{ _("Adjust") }}</summary>{% endif %}
+    <div class="exam-side">
+      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+      </select>
+      <select id="s{{ i }}_weight" name="s{{ i }}_weight" aria-label="{{ _('How much this exam weighs') }}">
+        {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
+      </select>
+      <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
+        <option value="">{{ _("Exam practice: {hours} h", hours=s.practice_default | hours) }}</option>
+        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Exam practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
+      </select>
+      <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> {{ _("Skip") }}</label>
+    </div>
+    {% if new %}</details>{% endif %}
+  </div>
+  {% endfor %}
+  {% set n = values.subjects | length %}
+  {% for f in values.unplanned_exams %}
+  {% set i = n + loop.index0 %}
+  <div class="item">
+    <p>{{ _h("Also in your timetable: <strong>{subject}</strong>, {when}.", subject=f.subject, when=f.when | nice_date) }}</p>
+    <input type="hidden" name="s{{ i }}_found" value="1">
+    <input type="hidden" name="s{{ i }}_name" value="{{ f.subject }}">
+    <input type="hidden" name="s{{ i }}_familiarity" value="3">
+    <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1" checked> {{ _("Do not plan for it") }}</label>
+  </div>
+  {% endfor %}
+  {% set n = n + (values.unplanned_exams | length) %}
+  {% set offered = values.suggested or [] %}
+  {% for c in offered %}
+  {% set i = n + loop.index0 %}
+  <div class="item exam-row offered">
+    <input type="hidden" name="s{{ i }}_found" value="">
+    <input type="hidden" name="s{{ i }}_suggested" value="1">
+    <input type="hidden" name="s{{ i }}_name" value="{{ c }}">
+    <div class="exam-main">
+      <p class="offered-name">{{ c }}</p>
+      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    </div>
+    <div class="exam-side">
+      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  {% endfor %}
+  {% set n = n + (offered | length) %}
+  <details{% if not values.subjects and not offered %} open{% endif %}>
+  <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>
+  {% for k in range(empty_rows) %}
+  {% set i = n + k %}
+  <div class="item new">
+    <input type="hidden" name="s{{ i }}_found" value="">
+    <label for="s{{ i }}_name">{{ _("Add an exam: course") }}</label>
+    <input id="s{{ i }}_name" name="s{{ i }}_name" list="courses">
+    <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
+    <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    <label for="s{{ i }}_familiarity">{{ _("How well you know it already") }}</label>
+    <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity">
+      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+  </details>
+  <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+</fieldset>

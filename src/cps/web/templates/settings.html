@@ -1,18 +1,15 @@
 {% extends "base.html" %}
+{% from "_art.html" import art %}
 {% block title %}{{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/passkeys.js"></script>
-<script type="module" src="/static/push.js"></script>{% endblock %}
 {% block main %}
-{% if new and values.drawn %}
+{% if new %}
 {% set step = 2 %}{% include "_steps.html" %}
+{% if values.drawn %}
 <h1>{{ _("Your exams and deadlines") }}</h1>
 <p class="muted">{{ _("When is each exam? Add your deadlines, and say how much you want to study. Next, you will see your week with the plan in it.") }}</p>
-{% elif new %}
-{% set step = 2 %}{% include "_steps.html" %}
+{% else %}
 <h1>{{ _("Your exams") }}</h1>
 <p class="muted">{{ _("Your timetable is read. Check each exam's date; everything else starts from good defaults. Next, your week with the plan in it.") }}</p>
-{% else %}
-<h1>{{ _("Settings") }}</h1>
 {% endif %}
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
@@ -20,98 +17,7 @@
 <form method="post" action="/p/{{ token }}/settings">
 {% if new %}<input type="hidden" name="new" value="1">{% endif %}
 
-<fieldset>
-  <legend>{{ _("Exams") }}</legend>
-  {% if values.drawn %}<p class="hint">{{ _("For each course you drew: the exam's date, and how well you know the course already. Leave the date empty for a class with no exam.") }}</p>
-  {% else %}<p class="hint">{{ _("For each exam: how well you already know what was taught before today. Each later week of lectures is planned on its own once it has been taught.") }}</p>{% endif %}
-  {% for s in values.subjects %}
-  {% set i = loop.index0 %}
-  <div class="item exam-row">
-    <input type="hidden" name="s{{ i }}_found" value="{{ '1' if s.found else '' }}">
-    <input type="hidden" name="s{{ i }}_found_when" value="{{ s.found_when }}">
-    <input type="hidden" name="s{{ i }}_suggested" value="{{ '1' if s.suggested else '' }}">
-    <div class="exam-main">
-      <input id="s{{ i }}_name" name="s{{ i }}_name" value="{{ s.name }}" class="bare" aria-label="{{ _('Course') }}">
-      {% if s.found and s.found_when and not s.exam %}
-      <p class="hint">{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}</p>
-      <details class="inline"><summary>{{ _("Different date") }}</summary>
-        <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" aria-label="{{ _('Exam date') }}">
-      </details>
-      {% else %}
-      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
-      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
-      {% if s.found and not s.found_when %}<p class="hint">{{ _("Not in your timetable any more: give its date.") }}</p>{% endif %}
-      {% if s.found and s.found_when %}<p class="hint">{{ _("Leave empty to follow your timetable ({when}).", when=s.found_when | nice_date) }}</p>{% endif %}
-      {% endif %}
-    </div>
-    {% if new %}<details class="adjust"><summary>{{ _("Adjust") }}</summary>{% endif %}
-    <div class="exam-side">
-      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
-        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
-      </select>
-      <select id="s{{ i }}_weight" name="s{{ i }}_weight" aria-label="{{ _('How much this exam weighs') }}">
-        {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
-      </select>
-      <select id="s{{ i }}_practice" name="s{{ i }}_practice" aria-label="{{ _('Exam practice') }}">
-        <option value="">{{ _("Exam practice: {hours} h", hours=s.practice_default | hours) }}</option>
-        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Exam practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
-      </select>
-      <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1"> {{ _("Skip") }}</label>
-    </div>
-    {% if new %}</details>{% endif %}
-  </div>
-  {% endfor %}
-  {% set n = values.subjects | length %}
-  {% for f in values.unplanned_exams %}
-  {% set i = n + loop.index0 %}
-  <div class="item">
-    <p>{{ _h("Also in your timetable: <strong>{subject}</strong>, {when}.", subject=f.subject, when=f.when | nice_date) }}</p>
-    <input type="hidden" name="s{{ i }}_found" value="1">
-    <input type="hidden" name="s{{ i }}_name" value="{{ f.subject }}">
-    <input type="hidden" name="s{{ i }}_familiarity" value="3">
-    <label class="check"><input type="checkbox" name="s{{ i }}_remove" value="1" checked> {{ _("Do not plan for it") }}</label>
-  </div>
-  {% endfor %}
-  {% set n = n + (values.unplanned_exams | length) %}
-  {% set offered = values.suggested or [] %}
-  {% for c in offered %}
-  {% set i = n + loop.index0 %}
-  <div class="item exam-row offered">
-    <input type="hidden" name="s{{ i }}_found" value="">
-    <input type="hidden" name="s{{ i }}_suggested" value="1">
-    <input type="hidden" name="s{{ i }}_name" value="{{ c }}">
-    <div class="exam-main">
-      <p class="offered-name">{{ c }}</p>
-      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
-      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
-    </div>
-    <div class="exam-side">
-      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
-        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
-      </select>
-    </div>
-  </div>
-  {% endfor %}
-  {% set n = n + (offered | length) %}
-  <details{% if not values.subjects and not offered %} open{% endif %}>
-  <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>
-  {% for k in range(empty_rows) %}
-  {% set i = n + k %}
-  <div class="item new">
-    <input type="hidden" name="s{{ i }}_found" value="">
-    <label for="s{{ i }}_name">{{ _("Add an exam: course") }}</label>
-    <input id="s{{ i }}_name" name="s{{ i }}_name" list="courses">
-    <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
-    <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
-    <label for="s{{ i }}_familiarity">{{ _("How well you know it already") }}</label>
-    <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity">
-      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
-    </select>
-  </div>
-  {% endfor %}
-  </details>
-  <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
-</fieldset>
+{% include "_set_exams.html" %}
 
 {% if new %}
 {# While setting up (D98), these keep their defaults unless opened: Today asks about
@@ -119,282 +25,27 @@
 <details class="setup-more">
 <summary><b>{{ _("Deadlines, how much you study, when you are not free") }}</b><small>{{ _("Good defaults are set. Change them now, or later in Settings.") }}</small></summary>
 {% endif %}
-<fieldset id="deadlines">
-  <legend>{{ _("Deadlines") }}</legend>
-  <p class="hint">{{ _("Homework, reports, projects, readings: when each is due and roughly how many hours it takes.") }}</p>
-  <label for="deadlines_url">{{ _("Your learning platform's calendar link (Moodle)") }}</label>
-  <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url }}" placeholder="https://…/calendar/export_execute.php?…">
-  <p class="hint">{{ _("In Moodle: Calendar, Export calendar, All courses, Recent and next 60 days, Get calendar URL. Assignments and quizzes due appear below by themselves, at 2 hours each until you change it.") }}</p>
-  {% if values.deadlines_error %}<p class="error">{{ _("The learning platform's link could not be read: {error}", error=values.deadlines_error) }}</p>{% endif %}
-  {% for t in values.tasks %}
-  <div class="item">
-    <label for="t{{ loop.index0 }}_name">{{ _("What") }}</label>
-    <input id="t{{ loop.index0 }}_name" name="t{{ loop.index0 }}_name" value="{{ t.name }}">
-    {% if t.name in values.imported %}<p class="hint">{{ _("From your learning platform; its date follows it. The hours are your estimate.") }}</p>{% endif %}
-    <label for="t{{ loop.index0 }}_due">{{ _("Due") }}</label>
-    <input id="t{{ loop.index0 }}_due" name="t{{ loop.index0 }}_due" type="datetime-local" value="{{ t.due | replace(' ', 'T') }}">
-    <div class="row">
-      <div><label for="t{{ loop.index0 }}_hours">{{ _("Hours of work") }}</label>
-      <input id="t{{ loop.index0 }}_hours" name="t{{ loop.index0 }}_hours" type="number" min="0.5" step="0.5" value="{{ t.hours }}" inputmode="decimal"></div>
-      <div><label for="t{{ loop.index0 }}_course">{{ _("Course") }}</label>
-      <input id="t{{ loop.index0 }}_course" name="t{{ loop.index0 }}_course" value="{{ t.course }}" list="courses"></div>
-    </div>
-    <label class="check"><input type="checkbox" name="t{{ loop.index0 }}_remove" value="1"> {{ _("Remove") }}</label>
-  </div>
-  {% endfor %}
-  {% set n = values.tasks | length %}
-  {% for k in range(empty_rows) %}
-  {% set i = n + k %}
-  <div class="item new">
-    <label for="t{{ i }}_name">{{ _("Add a deadline") }}</label>
-    <input id="t{{ i }}_name" name="t{{ i }}_name">
-    <label for="t{{ i }}_due">{{ _("Due") }}</label>
-    <input id="t{{ i }}_due" name="t{{ i }}_due" type="datetime-local">
-    <div class="row">
-      <div><label for="t{{ i }}_hours">{{ _("Hours of work") }}</label>
-      <input id="t{{ i }}_hours" name="t{{ i }}_hours" type="number" min="0.5" step="0.5" value="2" inputmode="decimal"></div>
-      <div><label for="t{{ i }}_course">{{ _("Course") }}</label>
-      <input id="t{{ i }}_course" name="t{{ i }}_course" list="courses"></div>
-    </div>
-  </div>
-  {% endfor %}
-</fieldset>
+{% include "_set_deadlines.html" %}
 
-<fieldset id="your-week">
-  <legend>{{ _("Your week") }}</legend>
-  <label for="weekly_hours">{{ _("Study hours a week at most (empty: no limit)") }}</label>
-  <input id="weekly_hours" name="weekly_hours" type="number" min="1" max="80" step="0.5" value="{{ values.weekly_hours or '' }}" inputmode="decimal">
-  <p class="label">{{ _("Days off") }}</p>
-  <div class="pills" role="group" aria-label="{{ _('Days off') }}">
-  {% for d in values.weekdays %}
-    <label class="pill"><input type="checkbox" name="rest" value="{{ d }}"{% if d in values.rest_days %} checked{% endif %}><span>{{ _(d) }}</span></label>
-  {% endfor %}
-  </div>
-  {% with day = values.day %}{% include "_day.html" %}{% endwith %}
-  <div class="row">
-    <div><label for="blocks_per_day">{{ _("Sessions a day at most") }}</label>
-    <select id="blocks_per_day" name="blocks_per_day">{% for k in range(1, 7) %}<option{% if k == values.blocks_per_day | int %} selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
-    <div><label for="block_minutes">{{ _("Session length") }}</label>
-    <select id="block_minutes" name="block_minutes">{% for m in (45, 60, 90, 120) %}<option value="{{ m }}"{% if m == values.block_minutes | int %} selected{% endif %}>{{ m }} min</option>{% endfor %}</select></div>
-  </div>
-  <label for="practice_hours">{{ _("Exam practice before each exam") }}</label>
-  <select id="practice_hours" name="practice_hours">
-    <option value=""{% if values.practice_hours == "" or values.practice_hours is none %} selected{% endif %}>{{ _("Sized by each course") }}</option>
-    {% for h in values.practice_choices %}<option value="{{ h }}"{% if values.practice_hours != "" and values.practice_hours is not none and values.practice_hours | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("{hours} hours", hours=h | hours) }}{% endif %}</option>{% endfor %}
-  </select>
-  <p class="hint">{{ _("Sized by each course: 1.5 hours for every four weeks it was taught, at least 3, in the last two weeks before the exam. Change one exam beside it, above.") }}</p>
-  <input type="hidden" name="quick_shown" value="1">
-  <label class="check"><input type="checkbox" name="quick_tests" value="1"{% if values.quick_tests %} checked{% endif %}> {{ _("Quick self-tests in the hour between two classes") }}</label>
-  <p class="hint">{{ _("45 minutes, at most one a day, counted in your weekly hours.") }}</p>
-  <label class="check"><input type="checkbox" name="warm_up" value="1"{% if values.warm_up %} checked{% endif %}> {{ _("A warm-up before each lecture") }}</label>
-  <p class="hint">{{ _("Today reminds you: two minutes to guess what the lecture will answer. Not counted in your hours.") }}</p>
-  {% if not new %}
-  <label for="study_time">{{ _("When you study best") }}</label>
-  <select id="study_time" name="study_time">{% for k, words in values.study_times %}<option value="{{ k }}"{% if k == values.study_time %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}</select>
-  <label for="commute">{{ _("Trip to university, one way") }}</label>
-  <select id="commute" name="commute">{% for m in values.commute_choices %}<option value="{{ m }}"{% if m == values.commute | int %} selected{% endif %}>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</option>{% endfor %}</select>
-  <p class="hint">{{ _("Kept free before your first class and after your last, on each day you have classes.") }}</p>
-  <label class="check"><input type="checkbox" name="study_on_the_way" value="1"{% if values.study_on_the_way %} checked{% endif %}> {{ _("I can study on the way (train, bus)") }}</label>
-  {% endif %}
-</fieldset>
+{% include "_set_week.html" %}
 
-<fieldset id="busy">
-  <legend>{% if values.drawn %}{{ _("Your classes, and when you are not free") }}{% else %}{{ _("When you are not free, outside your timetable") }}{% endif %}</legend>
-  <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% elif new %}{{ _("Training, a job, a commute: nothing is planned then. The next step asks about them;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
-  {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
-  <details>
-  <summary>{{ _("Type them instead") }}</summary>
-  {% set rows = values.activities | length + empty_rows %}
-  {% for i in range(rows) %}
-  {% set a = values.activities[i] if i < values.activities | length else {} %}
-  <div class="item{% if not a %} new{% endif %}">
-    <label for="a{{ i }}_label">{{ _("What") }}</label>
-    <input id="a{{ i }}_label" name="a{{ i }}_label" value="{{ a.label or '' }}" placeholder="{{ _('Training') }}">
-    <div class="row">
-      <div><label for="a{{ i }}_weekday">{{ _("Every") }}</label>
-      <select id="a{{ i }}_weekday" name="a{{ i }}_weekday">
-        <option value="">{{ _("(one day)") }}</option>
-        {% for d in values.weekdays %}<option value="{{ d }}"{% if a.weekday == d %} selected{% endif %}>{{ _(d) }}</option>{% endfor %}
-      </select></div>
-      <div><label for="a{{ i }}_date">{{ _("or on") }}</label>
-      <input id="a{{ i }}_date" name="a{{ i }}_date" type="date" value="{{ a.date or '' }}"></div>
-    </div>
-    <div class="row">
-      <div><label for="a{{ i }}_start">{{ _("From") }}</label>
-      <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
-      <div><label for="a{{ i }}_end">{{ _("to") }}</label>
-      <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
-    </div>
-    <label for="a{{ i }}_kind">{{ _("Kind") }}</label>
-    <select id="a{{ i }}_kind" name="a{{ i }}_kind">
-      {% for k, word in values.kinds %}<option value="{{ k }}"{% if (a.kind or ('class' if values.drawn else 'other')) == k %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
-    </select>
-    {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> {{ _("Remove") }}</label>{% endif %}
-  </div>
-  {% endfor %}
-  </details>
-</fieldset>
+{% include "_set_busy.html" %}
 
 {% if new %}</details>{% endif %}
 
 <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new %}{{ _("Next: your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
 </form>
-
-{% if not new %}
-<div class="card section">
-<h2>{{ _("Your timetable") }}</h2>
-<p>{% if values.source_url %}{{ _("Read from its link, again every few hours.") }}{% elif values.drawn %}{{ _h("Drawn by you: <a href=\"{url}\">change your classes on the calendar</a>.", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _("From the file you gave; it does not change.") }}{% endif %}
-{{ _("Time zone: {zone}.", zone=values.tz) }}</p>
-<h2 class="section" id="topics">{{ _("Your courses' topics") }}</h2>
-<p>{{ _("Paste each course's program once, or take the one a classmate shared: your sessions then say what each week was about.") }}</p>
-<p><a class="btn btn-sm" href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
-{% if login %}
-{# D94: the account the plan belongs to. #}
-<h2 class="section" id="login">{{ _("Your account") }}</h2>
-{% if login_error %}<p class="alert" role="alert">{{ login_error }}</p>{% endif %}
-<ul class="list">
-  <li class="account-row">
-    <span class="grow"><b>{{ login.email }}</b><small class="muted">{% if login.confirmed %}{{ _("Address confirmed") }}{% else %}{{ _("Address not confirmed yet") }}{% endif %}</small></span>
-    {% if not login.confirmed %}<form method="post" action="/p/{{ token }}/account/confirm"><button type="submit" class="btn btn-sm btn-tinted">{% if show_mail %}{{ _("Show the e-mail") }}{% else %}{{ _("Send the link again") }}{% endif %}</button></form>{% endif %}
-  </li>
-</ul>
-<details class="account-fold">
-  <summary>{{ _("Change your password") }}</summary>
-  <form method="post" action="/p/{{ token }}/account/password" class="account-form">
-    <label for="current-password">{{ _("Current password") }}</label>
-    <input id="current-password" name="current" type="password" autocomplete="current-password" maxlength="{{ password_max }}" required>
-    <label for="new-password">{{ _("New password") }}</label>
-    <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="{{ password_min }}" maxlength="{{ password_max }}" aria-describedby="new-password-hint" required>
-    <p class="hint" id="new-password-hint">{{ _("At least {n} characters. Three or four words make a good one.", n=password_min) }}</p>
-    <p><button type="submit" class="btn btn-sm btn-primary">{{ _("Change my password") }}</button></p>
-  </form>
-</details>
-<div class="account-actions">
-  <form method="post" action="/account/signout"><button type="submit" class="btn btn-sm">{{ _("Sign out") }}</button></form>
-  {% if login.devices > 1 %}<form method="post" action="/p/{{ token }}/account/elsewhere"><button type="submit" class="btn btn-plain btn-sm">{{ _n("Sign out the other device", "Sign out the {n} other devices", login.devices - 1) }}</button></form>{% endif %}
-</div>
-{% endif %}
-<h2 class="section" id="account">{% if login %}{{ _("Other ways to sign in") }}{% else %}{{ _("Keep your plan") }}{% endif %}</h2>
-<p>{% if login %}{{ _("Add a passkey to sign in with your face, fingerprint or screen lock instead of your password, and keep a recovery code in case you lose your phone and your e-mail.") }}{% else %}{{ _("Your plan has no password: its address is its key. Add a passkey to open it on any device with your face, fingerprint or screen lock, and keep a recovery code in case you lose your phone.") }}{% endif %}</p>
-{% if account.passkeys %}
-<ul class="list passkeys">
-  {% for k in account.passkeys %}
-  <li>
-    <span class="grow"><b>{{ k.device }}</b><small class="muted">{{ _("Added {date}", date=k.added) }}{% if k.last %} · {{ _("last used {date}", date=k.last) }}{% endif %}</small></span>
-    <form method="post" action="/p/{{ token }}/passkeys/{{ k.id }}/remove"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
-  </li>
-  {% endfor %}
-</ul>
-{% endif %}
-<p><button type="button" class="btn btn-primary btn-sm" data-passkey-add="/p/{{ token }}/passkeys/options" data-passkey-save="/p/{{ token }}/passkeys" hidden>{% if account.passkeys %}{{ _("Add another passkey") }}{% else %}{{ _("Add a passkey") }}{% endif %}</button></p>
-<p class="hint" data-passkey-unsupported>{{ _("Passkeys need a recent browser with this page's script; a recovery code works everywhere.") }}</p>
-<p class="alert" data-passkey-status role="status" aria-live="polite" hidden></p>
-<form method="post" action="/p/{{ token }}/recovery" class="recovery-form">
-  <p>{% if account.recovery %}{{ _("Recovery code made on {date}. Make a new one if you lost it: the old one stops working.", date=account.recovery) }}{% else %}{{ _("No recovery code yet. It is shown once: write it down, or keep it in your password manager.") }}{% endif %}</p>
-  <button type="submit" class="btn btn-sm{% if not account.recovery %} btn-tinted{% endif %}">{% if account.recovery %}{{ _("Make a new recovery code") }}{% else %}{{ _("Make a recovery code") }}{% endif %}</button>
-</form>
-<h2 class="section" id="reminders">{{ _("Reminders") }}</h2>
-<p>{{ _("A notification on your phone before each study session, with what to do in it.") }}</p>
-<div data-push data-key="{{ reminders.key }}" data-save="/p/{{ token }}/push" data-remove="/p/{{ token }}/push/remove" data-devices="{{ reminders.devices | map(attribute='id') | join(',') }}">
-  <p class="hint" data-push-off hidden>{{ _("Not on this device yet.") }}</p>
-  <p class="hint" data-push-here hidden>{{ _("On for this device.") }}</p>
-  <p class="row-buttons">
-    <button type="button" class="btn btn-primary btn-sm" data-push-on hidden>{{ _("Turn on reminders on this device") }}</button>
-    <button type="button" class="btn btn-sm" data-push-stop hidden>{{ _("Turn off on this device") }}</button>
-  </p>
-  <p class="hint" data-push-install hidden>{{ _h("On an iPhone or iPad, reminders work in the installed app: in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from there, and turn them on here.") }}</p>
-  <p class="hint" data-push-unsupported>{{ _("Reminders need a browser that allows notifications, with this page's script.") }}</p>
-  <p class="alert" data-push-status role="status" aria-live="polite" hidden></p>
-</div>
-{% if reminders.devices %}
-<ul class="list passkeys">
-  {% for d in reminders.devices %}
-  <li>
-    <span class="grow"><b>{{ d.device }}</b><small class="muted">{{ _("Added {date}", date=d.added) }}</small></span>
-    <form method="post" action="/p/{{ token }}/push/remove"><input type="hidden" name="device" value="{{ d.id }}"><button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button></form>
-  </li>
-  {% endfor %}
-</ul>
-<form method="post" action="/p/{{ token }}/push/test"><button type="submit" class="btn btn-sm">{{ _("Send a test reminder") }}</button></form>
-{% endif %}
-<form method="post" action="/p/{{ token }}/reminders" class="pills lead-choice" aria-label="{{ _('When') }}">
-  <span class="pills-label">{{ _("When") }}</span>
-  {% for m in reminders.leads %}
-  <button type="submit" name="lead" value="{{ m }}" class="btn btn-sm"{% if reminders.lead == m %} aria-pressed="true"{% endif %}>{{ _("{n} min before", n=m) }}</button>
-  {% endfor %}
-  <button type="submit" name="lead" value="0" class="btn btn-sm"{% if not reminders.lead %} aria-pressed="true"{% endif %}>{{ _("Never") }}</button>
-</form>
-{% if demo %}<p class="hint">{{ _("In this demo the server sleeps when nobody uses it: reminders arrive only while it is awake.") }}</p>{% endif %}
-<h2 class="section" id="app">{{ _("On your phone") }}</h2>
-<p>{{ _("Install it as an app: it gets an icon on your home screen, opens full screen, and shows your plan offline.") }}</p>
-<p><button type="button" class="btn btn-primary btn-sm" data-install hidden>{{ _("Install") }}</button></p>
-<p class="hint" data-install-ios hidden>{{ _h("In Safari: tap <b>Share</b>, then <b>Add to Home Screen</b>.") }}</p>
-<p class="hint">{{ _("Elsewhere, in your browser's menu: Install app, or Add to Home Screen. The pages you open are kept on this device to work offline; deleting your plan removes them.") }}</p>
-<h2 class="section" id="language">{{ _("Language") }}</h2>
-<form method="post" action="/p/{{ token }}/language" class="pills" aria-label="{{ _('Language') }}">
-  {% for code, name in languages.items() %}
-  <button type="submit" name="lang" value="{{ code }}" lang="{{ code }}" class="btn btn-sm"{% if code == lang() %} aria-pressed="true"{% endif %}>{{ name }}</button>
-  {% endfor %}
-</form>
-<p class="hint">{{ _("The pages and what each session says to do, in your calendar too.") }}</p>
-<h2 class="section" id="appearance">{{ _("Appearance") }}</h2>
-<form method="post" action="/p/{{ token }}/appearance" class="pills" aria-label="{{ _('Appearance') }}">
-  {% for value, word in (("auto", _("Automatic")), ("light", _("Light")), ("dark", _("Dark"))) %}
-  <button type="submit" name="theme" value="{{ value }}" class="btn btn-sm"{% if (theme or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
-  {% endfor %}
-</form>
-<p class="hint">{{ _("Automatic follows your device's light or dark setting.") }}</p>
-<form method="post" action="/p/{{ token }}/motion" class="pills motion-choice" aria-label="{{ _('Motion') }}">
-  <span class="pills-label">{{ _("Motion") }}</span>
-  {% for value, word in (("auto", _("Automatic")), ("reduce", _("Reduced"))) %}
-  <button type="submit" name="motion" value="{{ value }}" class="btn btn-sm"{% if (motion or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
-  {% endfor %}
-</form>
-<p class="hint">{{ _("Automatic animates pages, charts and milestones, unless your device asks for reduced motion. Reduced keeps everything still.") }}</p>
-<form method="post" action="/p/{{ token }}/glass" class="pills motion-choice" aria-label="{{ _('Glass') }}">
-  <span class="pills-label">{{ _("Glass") }}</span>
-  {% for value, word in (("auto", _("Automatic")), ("clear", _("See-through")), ("solid", _("Solid"))) %}
-  <button type="submit" name="glass" value="{{ value }}" class="btn btn-sm"{% if (glass or "auto") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
-  {% endfor %}
-</form>
-<p class="hint">{{ _("Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.") }}</p>
-<form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" aria-label="{{ _('Tips') }}">
-  <span class="pills-label">{{ _("Tips") }}</span>
-  {% for value, word in (("on", _("On")), ("off", _("Off"))) %}
-  <button type="submit" name="tips" value="{{ value }}" class="btn btn-sm"{% if ("on" if tips_on else "off") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
-  {% endfor %}
-</form>
-<p class="hint">{{ _("A study tip on Today and Focus, chosen for your day. The tips page stays in Focus either way.") }}</p>
-<form method="post" action="/p/{{ token }}/tour/again" class="pills motion-choice" id="tour-again">
-  <span class="pills-label">{{ _("Spark's tour") }}</span>
-  <button type="submit" class="btn btn-sm">{{ _("Show it again") }}</button>
-</form>
-<p class="hint">{{ _("Spark shows you around Today again, and each section says what it is for the next time you open it.") }}</p>
-<h2 class="section" id="ai">{{ _("AI") }}</h2>
-{% if ai.available %}
-<form method="post" action="/p/{{ token }}/ai" class="card">
-  <p>{% if ai.on %}{{ _("AI is on. It reads the tasks you type in one line, writes your weekly review's paragraph, and answers your questions to the coach.") }}{% else %}{{ _("AI is off. Tasks typed in one line are read by rules, the weekly review is written from a template, and the coach answers from the tips by matching your words.") }}{% endif %}</p>
-  <p class="hint">{{ _("When it is on, the line you type (with today's date, your time zone and your course names), your weekly review's numbers (with course and exam names), your questions to the coach and the materials you make flashcards from with AI (notes you can open and a course's topics) are sent to Anthropic, which makes the Claude models. Nothing else: not your timetable, not your plan's address, nothing else from the network.") }}</p>
-  <div class="row-end"><button type="submit" name="on" value="{{ '0' if ai.on else '1' }}" class="btn{% if not ai.on %} btn-primary{% endif %}">{% if ai.on %}{{ _("Turn AI off") }}{% else %}{{ _("Turn AI on") }}{% endif %}</button></div>
-</form>
 {% else %}
-<p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
-{% endif %}
-<h2 class="section" id="usage">{{ _("Help make the app simpler") }}</h2>
-<form method="post" action="/p/{{ token }}/usage" class="card">
-  <p>{% if usage %}{{ _("On: the app counts which of its parts you open and use each day.") }}{% else %}{{ _("Off: nothing is counted.") }}{% endif %}</p>
-  <p class="hint">{{ _("Only the part's name (Today, Focus, Flashcards…) and how many times a day, never what you write or what a page shows. The person who makes the app reads the totals of everyone who said yes, to take away what nobody uses. Kept six months; turning it off deletes it.") }}</p>
-  <div class="row-end">{% if usage %}<a class="btn btn-plain" href="/p/{{ token }}/usage">{{ _("See what was counted") }}</a>{% endif %}<button type="submit" name="yes" value="{{ '0' if usage else '1' }}" class="btn{% if not usage %} btn-primary{% endif %}">{% if usage %}{{ _("Turn off and delete") }}{% else %}{{ _("Turn on") }}{% endif %}</button></div>
-</form>
-<h2 class="section" id="semester">{{ _("Next semester") }}</h2>
-<p>{{ _("A new timetable and new exams, at the same address. Your streak, your progress, your diary, your flashcards, your people and your groups come with you.") }}</p>
-<p><a class="btn btn-sm" href="/p/{{ token }}/semester">{{ _("Start next semester") }}</a></p>
-<h2 class="section">{{ _("Your data") }}</h2>
-<p>{{ _("Kept while you use it: deleted 12 months after you last open it, on {date} if you do not come back before.", date=account.deleted) }}</p>
-<p><a href="/p/{{ token }}/export" download>{{ _("Download a copy of my data") }}</a> · <a href="/p/{{ token }}/delete">{{ _("Delete my plan and all my data") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>
-<p class="hint">{{ _("The copy is one file (JSON) with everything kept under your plan's address: your timetable, plan and reports, your diary and posts with their photos, your flashcards.") }}</p>
-<h2 class="section">{{ _("Feedback") }}</h2>
-<p>{{ _("Something broken, confusing or missing? The person who makes this app reads every message.") }} <a href="/p/{{ token }}/feedback?from=/p/{{ token }}/settings">{{ _("Send feedback") }}</a></p>
-</div>
+{# D103 (package C of the 2026-10-23 review): six rows, each its own page, as a phone's
+   settings; each exam is changed on its course's page. The old addresses' anchors
+   (#ai, #reminders…) lead to their page: `data-anchors` for ui.js. #}
+<div class="page-title"><h1>{{ _("Settings") }}</h1></div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+<ul class="card list you-list settings-list">
+  {% for row in rows %}
+  <li><a href="/p/{{ token }}/settings/{{ row.part }}" data-anchors="{{ row.anchors | join(' ') }}">{{ art(row.art) }}<span class="grow"><b>{{ row.title }}</b><small>{{ row.line }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  {% endfor %}
+</ul>
 {% endif %}
 {% endblock %}

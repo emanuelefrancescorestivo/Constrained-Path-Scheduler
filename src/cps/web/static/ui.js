@@ -195,10 +195,10 @@ const sheet = document.getElementById("quick-add");
 // A browser without the popover attribute (before 2024) cannot open the sheet:
 // the + buttons go to the deadlines in Settings instead.
 if (sheet && !("popover" in HTMLElement.prototype)) {
-  const settings = document.querySelector('a[href$="/settings"]');
+  const plan = window.location.pathname.match(/^\/p\/[^/]+/);
   document.querySelectorAll("[popovertarget=quick-add]").forEach((button) =>
     button.addEventListener("click", () => {
-      if (settings) window.location.assign(`${settings.getAttribute("href")}#deadlines`);
+      if (plan) window.location.assign(`${plan[0]}/settings/exams#deadlines`);
     }),
   );
 } else if (sheet) {
@@ -344,4 +344,17 @@ if (plan && document.body.dataset.sun) {
       else element.src = icon;
     }
   }, 5 * 60 * 1000);
+}
+
+// -- Settings' old anchors (D103) -------------------------------------------------
+// Settings was one page; a link or bookmark to one of its parts by its anchor (#ai,
+// #reminders…) now lands on the list, and goes on to the part's own page. Without
+// this, the list.
+
+const anchored = window.location.hash.slice(1);
+if (anchored) {
+  const row = [...document.querySelectorAll(".settings-list a[data-anchors]")].find((a) =>
+    a.dataset.anchors.split(" ").includes(anchored),
+  );
+  if (row) window.location.replace(`${row.getAttribute("href")}#${anchored}`);
 }

@@ -269,7 +269,7 @@ def test_settings_change_the_trip_and_setting_up_leaves_it_to_the_questions(web)
     service.update_subscription(
         web.path, token, lambda s: service.revise_subscription(s, commute_minutes=20, now=MORNING)
     )
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/settings/week").text  # Your week (D103)
     assert '<option value="20" selected>' in page
     assert f'href="/p/{token}/routine"' in page
     form = {**_form(page), "commute": "60"}

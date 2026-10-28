@@ -66,7 +66,7 @@
     <div id="calendar">
       <div class="board-fallback">
         {% if setup %}<p>{{ _h("Drawing needs JavaScript. <a href=\"{settings}\">Type your classes instead</a>, with Class as their kind.", settings="/p/" ~ token ~ "/settings?new=1#busy") }}</p>
-        {% else %}<p>{{ _h("The calendar needs JavaScript. <a href=\"{agenda}\">See the week as a list</a>, and add busy times in <a href=\"{settings}\">Settings</a>.", agenda="/p/" ~ token ~ "/agenda", settings="/p/" ~ token ~ "/settings") }}</p>{% endif %}
+        {% else %}<p>{{ _h("The calendar needs JavaScript. <a href=\"{agenda}\">See the week as a list</a>, and add busy times in <a href=\"{settings}\">Settings</a>.", agenda="/p/" ~ token ~ "/agenda", settings="/p/" ~ token ~ "/settings/week#busy") }}</p>{% endif %}
       </div>
     </div>
   </section>

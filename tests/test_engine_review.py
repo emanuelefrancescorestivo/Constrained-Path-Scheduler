@@ -656,6 +656,14 @@ def _form(html: str) -> dict:
     return form
 
 
+def _part(html: str, marker: str) -> dict:
+    """The one form of a page with `marker` in it (Settings' pages and a course's page
+    hold several, D103), as a browser would submit it untouched."""
+    found = [f for f in re.findall(r"<form\b.*?</form>", html, re.S) if marker in f]
+    assert len(found) == 1, (marker, len(found))
+    return _form(found[0])
+
+
 def test_setting_up_asks_when_the_student_studies_best(web):
     token = _web_start(web)
     page = unescape(web.get(f"/p/{token}/routine?new=1").text)
@@ -676,9 +684,9 @@ def test_setting_up_asks_when_the_student_studies_best(web):
 def test_settings_change_when_the_student_studies_best(web):
     token = _web_start(web)
     assert 'name="study_time"' not in web.get(f"/p/{token}/settings?new=1").text  # asked next
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/settings/week").text
     assert '<option value="any" selected>' in page
-    fields = {**_form(page), "study_time": "afternoon"}
+    fields = {**_part(page, 'value="week"'), "study_time": "afternoon"}
     saved = web.post(f"/p/{token}/settings", data=fields, follow_redirects=False)
     assert saved.status_code == 303, saved.text
     stored = service.load_subscription(web.path, token)
@@ -699,22 +707,24 @@ def test_the_question_is_asked_in_the_student_s_language(web):
 
 def test_settings_show_each_exam_s_practice_and_change_one(web):
     token = _web_start(web)
-    page = unescape(web.get(f"/p/{token}/settings").text)
-    assert '<option value="" selected>Sized by each course</option>' in page
+    week = unescape(web.get(f"/p/{token}/settings/week").text)
+    assert '<option value="" selected>Sized by each course</option>' in week
+    page = unescape(web.get(f"/p/{token}/courses/0").text)
     assert "Exam practice: 4.5 h" in page and 'name="s0_practice"' in page
-    fields = {**_form(web.get(f"/p/{token}/settings").text), "s0_practice": "9.0"}
+    fields = {**_part(web.get(f"/p/{token}/courses/0").text, '/exam"'), "s0_practice": "9.0"}
     name = fields["s0_name"]
-    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    saved = web.post(f"/p/{token}/courses/0/exam", data=fields, follow_redirects=False)
+    assert saved.status_code == 303 and saved.headers["location"] == f"/p/{token}/courses/0?saved=exam#exam"
     stored = service.load_subscription(web.path, token)
     assert stored is not None
     assert stored.options["preferences"]["practice"] == {name: 9.0}
     assert stored.options["preferences"]["practice_hours"] is None
     plan = service.PlanReport.from_dict(stored.plan)
     assert sum(s.subject == name for s in _practice(plan)) == 6
-    assert '<option value="9.0" selected>' in web.get(f"/p/{token}/settings").text
-    refused = web.post(f"/p/{token}/settings", data={**fields, "s0_practice": "50"})
+    assert '<option value="9.0" selected>' in web.get(f"/p/{token}/courses/0").text
+    refused = web.post(f"/p/{token}/courses/0/exam", data={**fields, "s0_practice": "50"})
     assert refused.status_code == 400 and "0 to 40 hours" in unescape(refused.text)
-    assert "Exam practice: 4.5 h" in unescape(refused.text)  # the other rows keep their default
+    assert "Exam practice: 4.5 h" in unescape(web.get(f"/p/{token}/courses/1").text)  # the others keep theirs
 
 
 def test_a_plan_made_before_sizing_keeps_its_hours(web):
@@ -724,7 +734,7 @@ def test_a_plan_made_before_sizing_keeps_its_hours(web):
         token,
         lambda s: service.revise_subscription(s, preferences={"practice_hours": 4.5}, now=MORNING),
     )
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/settings/week").text
     assert '<option value="4.5" selected>' in page
 
 
@@ -816,9 +826,11 @@ def test_not_now_keeps_the_budget_and_the_offer_waits(web):
 
 def test_settings_switch_quick_self_tests_and_the_way(web):
     token = _web_start(web)
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/settings/week").text
     assert 'name="quick_tests" value="1" checked' in page
-    fields = {k: v for k, v in _form(page).items() if k not in ("quick_tests", "study_on_the_way")}
+    fields = {
+        k: v for k, v in _part(page, 'value="week"').items() if k not in ("quick_tests", "study_on_the_way")
+    }
     assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["quick_tests"] is False  # unticked
@@ -850,15 +862,15 @@ def test_the_trip_question_asks_about_studying_on_the_way(web):
 
 def test_settings_give_an_exam_its_weight(web):
     token = _web_start(web)
-    page = web.get(f"/p/{token}/settings").text
+    page = web.get(f"/p/{token}/courses/0").text  # an exam's weight is on its course's page (D103)
     assert 'name="s0_weight"' in page and '<option value="1.0" selected>Usual weight</option>' in page
-    fields = {**_form(page), "s0_weight": "2.0"}
+    fields = {**_part(page, '/exam"'), "s0_weight": "2.0"}
     name = fields["s0_name"]
-    assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
+    assert web.post(f"/p/{token}/courses/0/exam", data=fields, follow_redirects=False).status_code == 303
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["preferences"]["weights"] == {name: 2.0}
-    assert '<option value="2.0" selected>' in web.get(f"/p/{token}/settings").text
-    web.post(f"/p/{token}/settings", data={**fields, "s0_weight": "1.0"})
+    assert '<option value="2.0" selected>' in web.get(f"/p/{token}/courses/0").text
+    web.post(f"/p/{token}/courses/0/exam", data={**fields, "s0_weight": "1.0"})
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["preferences"]["weights"] == {}
 
@@ -866,7 +878,7 @@ def test_settings_give_an_exam_its_weight(web):
 def test_today_shows_the_warm_up_when_settings_ask_for_it(web):
     token = _web_start(web)
     assert "Warm up before today's lectures" not in unescape(web.get(f"/p/{token}").text)
-    fields = {**_form(web.get(f"/p/{token}/settings").text), "warm_up": "1"}
+    fields = {**_part(web.get(f"/p/{token}/settings/week").text, 'value="week"'), "warm_up": "1"}
     assert web.post(f"/p/{token}/settings", data=fields, follow_redirects=False).status_code == 303
     stored = service.load_subscription(web.path, token)
     assert stored is not None and stored.options["warm_up"] is True

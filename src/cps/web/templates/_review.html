@@ -13,7 +13,7 @@
   {% if dismiss %}
   <form method="post" action="/p/{{ token }}/review/seen" class="row-end">
     <input type="hidden" name="week" value="{{ review.week }}">
-    <a class="btn btn-sm" href="/p/{{ token }}/progress#review">{{ _("See your progress") }}</a>
+    <a class="btn btn-sm" href="/p/{{ token }}/progress?more=1#review">{{ _("See your progress") }}</a>
     <button class="btn btn-sm btn-plain">{{ _("Hide until next week") }}</button>
   </form>
   {% endif %}

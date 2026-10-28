@@ -96,10 +96,9 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
     }
 
 
-def revision(values: Mapping[str, Any]) -> dict[str, Any]:
-    """The keyword arguments `service.revise_subscription` takes."""
+def _subjects(rows: list[Mapping[str, Any]]) -> list[service.SubjectSpec]:
     subjects = []
-    for s in values["subjects"]:
+    for s in rows:
         if s.get("suggested") and not s["exam"]:
             continue  # a class drawn by hand, offered with its name: no date, no exam (D32)
         if s["found"] and not s["exam"]:
@@ -109,6 +108,29 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
         else:
             raise service.InvalidInput(service.translate("{name}: give the exam's date", name=s["name"]))
         subjects.append(service.SubjectSpec(s["name"], exam, familiarity=int(s["familiarity"])))
+    return subjects
+
+
+def _per_exam(rows: list[Mapping[str, Any]]) -> dict[str, dict[str, float]]:
+    """Each exam's own practice hours (D46) and, only for an exam that does not weigh
+    as usual, its weight (D49)."""
+    return {
+        "practice": {
+            s["name"]: _number(str(s["practice"]), s["name"])
+            for s in rows
+            if str(s.get("practice") or "").strip()
+        },
+        "weights": {
+            s["name"]: _number(str(s.get("weight") or "1"), s["name"])
+            for s in rows
+            if _number(str(s.get("weight") or "1"), s["name"]) != 1.0
+        },
+    }
+
+
+def revision(values: Mapping[str, Any]) -> dict[str, Any]:
+    """The keyword arguments `service.revise_subscription` takes."""
+    subjects = _subjects(values["subjects"])
     tasks = []
     for t in values["tasks"]:
         if not t["due"]:
@@ -129,17 +151,7 @@ def revision(values: Mapping[str, Any]) -> dict[str, Any]:
             "practice_hours": _number(str(values["practice_hours"]), service.translate("exam practice"))
             if str(values["practice_hours"]).strip()
             else None,
-            "practice": {
-                s["name"]: _number(str(s["practice"]), s["name"])
-                for s in values["subjects"]
-                if str(s.get("practice") or "").strip()
-            },
-            # Only the exams that do not weigh as usual (D49).
-            "weights": {
-                s["name"]: _number(str(s.get("weight") or "1"), s["name"])
-                for s in values["subjects"]
-                if _number(str(s.get("weight") or "1"), s["name"]) != 1.0
-            },
+            **_per_exam(values["subjects"]),
         },
         **(
             {"day": values["day"]}
@@ -186,3 +198,53 @@ def routine_answers(form: Any) -> tuple[int, list[dict[str, Any]]]:
         )
         index += 1
     return commute, answers
+
+
+# D103: Settings is a list of pages, and a page saves only what it shows. Each part is
+# the keyword arguments of `service.revise_subscription` it may change; the others are
+# left out, which leaves them as they are. Rejected: posting every setting from every
+# page as hidden fields, which a change made elsewhere meanwhile would overwrite.
+WEEK_CHANGES = (
+    "busy_rows",
+    "day",
+    "study_window",
+    "blocks_per_day",
+    "block_minutes",
+    "commute_minutes",
+    "study_time",
+    "quick_tests",
+    "warm_up",
+    "study_on_the_way",
+)
+WEEK_PREFERENCES = ("weekly_hours", "rest_days", "practice_hours")
+
+
+def week_revision(values: Mapping[str, Any]) -> dict[str, Any]:
+    """Your week (D103): the hours, days off, the day, the sessions, exam practice
+    before every exam, the self-tests, the trip and when the student is not free. Each
+    exam's own practice and weight are on its course's page, so they are not touched."""
+    change = revision({**values, "subjects": [], "tasks": []})
+    out = {k: change[k] for k in WEEK_CHANGES if k in change}
+    out["preferences"] = {k: change["preferences"][k] for k in WEEK_PREFERENCES}
+    return out
+
+
+def deadlines_revision(values: Mapping[str, Any]) -> dict[str, Any]:
+    """The deadlines (D103): the learning platform's link and the tasks."""
+    change = revision({**values, "subjects": [], "activities": []})
+    return {"tasks": change["tasks"], "deadlines_url": change["deadlines_url"]}
+
+
+def exam_revision(
+    stored: list[Mapping[str, Any]], rows: list[Mapping[str, Any]], *, course: str | None = None
+) -> dict[str, Any]:
+    """The exams with one changed (D103): `course`'s row, as `service.setup_view` gives
+    them, replaced by `rows` (none removes it), or `rows` added when `course` is None.
+    Each exam's practice and weight are worked out again from all of them."""
+    if course is None:
+        merged = [*stored, *rows]
+    else:
+        merged = []
+        for row in stored:
+            merged.extend(rows if str(row["name"]).casefold() == course.casefold() else [row])
+    return {"subjects": _subjects(merged), "preferences": _per_exam(merged)}

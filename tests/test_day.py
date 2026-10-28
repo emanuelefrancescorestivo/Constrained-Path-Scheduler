@@ -108,7 +108,7 @@ def test_the_day_on_the_questions_and_in_settings_without_scripts(tmp_path):
         }
         saved = web.post(f"/p/{token}/routine", data=form, follow_redirects=False)
         assert saved.status_code == 303
-        settings = unescape(web.get(f"/p/{token}/settings").text)
+        settings = unescape(web.get(f"/p/{token}/settings/week").text)
         assert 'value="06:45"' in settings and 'value="12:00"' in settings and "I get up at" in settings
         refused = web.post(f"/p/{token}/routine", data={**form, "bed": "07:30"})
         assert refused.status_code == 400 and "three hours" in unescape(refused.text)

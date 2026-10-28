@@ -1,0 +1,21 @@
+{# One part of the settings, on its own page (D103). #}
+<h2 class="section" id="ai">{{ _("AI") }}</h2>
+{% if ai.available %}
+<form method="post" action="/p/{{ token }}/ai" class="card">
+  <p>{% if ai.on %}{{ _("AI is on. It reads the tasks you type in one line, writes your weekly review's paragraph, and answers your questions to the coach.") }}{% else %}{{ _("AI is off. Tasks typed in one line are read by rules, the weekly review is written from a template, and the coach answers from the tips by matching your words.") }}{% endif %}</p>
+  <p class="hint">{{ _("When it is on, the line you type (with today's date, your time zone and your course names), your weekly review's numbers (with course and exam names), your questions to the coach and the materials you make flashcards from with AI (notes you can open and a course's topics) are sent to Anthropic, which makes the Claude models. Nothing else: not your timetable, not your plan's address, nothing else from the network.") }}</p>
+  <div class="row-end"><button type="submit" name="on" value="{{ '0' if ai.on else '1' }}" class="btn{% if not ai.on %} btn-primary{% endif %}">{% if ai.on %}{{ _("Turn AI off") }}{% else %}{{ _("Turn AI on") }}{% endif %}</button></div>
+</form>
+{% else %}
+<p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
+{% endif %}
+<h2 class="section" id="usage">{{ _("Help make the app simpler") }}</h2>
+<form method="post" action="/p/{{ token }}/usage" class="card">
+  <p>{% if usage %}{{ _("On: the app counts which of its parts you open and use each day.") }}{% else %}{{ _("Off: nothing is counted.") }}{% endif %}</p>
+  <p class="hint">{{ _("Only the part's name (Today, Focus, Flashcards…) and how many times a day, never what you write or what a page shows. The person who makes the app reads the totals of everyone who said yes, to take away what nobody uses. Kept six months; turning it off deletes it.") }}</p>
+  <div class="row-end">{% if usage %}<a class="btn btn-plain" href="/p/{{ token }}/usage">{{ _("See what was counted") }}</a>{% endif %}<button type="submit" name="yes" value="{{ '0' if usage else '1' }}" class="btn{% if not usage %} btn-primary{% endif %}">{% if usage %}{{ _("Turn off and delete") }}{% else %}{{ _("Turn on") }}{% endif %}</button></div>
+</form>
+<h2 class="section">{{ _("Your data") }}</h2>
+<p>{{ _("Kept while you use it: deleted 12 months after you last open it, on {date} if you do not come back before.", date=account.deleted) }}</p>
+<p><a href="/p/{{ token }}/export" download>{{ _("Download a copy of my data") }}</a> · <a href="/p/{{ token }}/delete">{{ _("Delete my plan and all my data") }}</a> · <a href="/privacy">{{ _("Privacy") }}</a> · <a href="/terms">{{ _("Terms") }}</a></p>
+<p class="hint">{{ _("The copy is one file (JSON) with everything kept under your plan's address: your timetable, plan and reports, your diary and posts with their photos, your flashcards.") }}</p>

@@ -25,10 +25,10 @@
 <p class="muted usage-unused">{{ usage.unused | join(" · ") }}</p>
 {% endif %}
 <form method="post" action="/p/{{ token }}/usage" class="row-end">
-  <a class="btn btn-plain" href="/p/{{ token }}/settings#usage">{{ _("Back to Settings") }}</a>
+  <a class="btn btn-plain" href="/p/{{ token }}/settings/data#usage">{{ _("Back to Settings") }}</a>
   <button type="submit" name="yes" value="0" class="btn">{{ _("Turn off and delete") }}</button>
 </form>
 {% else %}
-<p><a class="btn" href="/p/{{ token }}/settings#usage">{{ _("Back to Settings") }}</a></p>
+<p><a class="btn" href="/p/{{ token }}/settings/data#usage">{{ _("Back to Settings") }}</a></p>
 {% endif %}
 {% endblock %}

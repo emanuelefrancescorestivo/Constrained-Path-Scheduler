@@ -37,7 +37,7 @@
   </form>
   <p class="hint">{{ _("The materials are sent to the model, within your AI limits; each card it writes says the topic it belongs to and goes to that topic's week.") }}</p>
   {% elif view.ai_off %}
-  <p class="hint">{{ _("Below, the cards read by rules from the notes. With AI on, a model writes cards from all of it, topics included.") }} <a href="/p/{{ token }}/settings#ai">{{ _("Turn AI on in Settings") }}</a></p>
+  <p class="hint">{{ _("Below, the cards read by rules from the notes. With AI on, a model writes cards from all of it, topics included.") }} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn AI on in Settings") }}</a></p>
   {% else %}
   <p class="hint">{{ _("Read by rules on this server: your notes are not sent anywhere.") }}</p>
   {% endif %}

@@ -1004,3 +1004,10 @@ who opened Community for the first time read it too, but since D102 it is the fi
 sentence of the app for every member. Status: fixed; a student with a handle reads what
 the feed is ("What your classmates studied, explained and shared"), one without still
 reads the invitation (`tests/test_front_door.py` checks both).
+
+**83. The weekly review's link led to an anchor that did not exist.** Found on 2026-10-28
+while folding Progress (D103): the weekly review on Today links to "See your progress" at
+`/progress#review`, and no element of Progress had that id, so the link opened the top of
+the page instead of last week's review. Status: fixed; "Last week" has `id="review"`, and
+the link asks for "More detail" open (`?more=1#review`), since the review is inside it now
+(`tests/test_lighter.py` checks both).

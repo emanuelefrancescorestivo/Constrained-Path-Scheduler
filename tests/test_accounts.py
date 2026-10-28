@@ -414,13 +414,16 @@ def token(web) -> str:
 
 
 def test_a_passkey_added_in_settings_opens_the_plan_from_the_home_page(web, token, device):
-    settings = web.get(f"/p/{token}/settings").text
+    settings = web.get(f"/p/{token}/settings/account").text  # its own page (D103)
     assert 'id="account"' in settings and "data-passkey-add" in settings and "/static/passkeys.js" in settings
     options = web.post(f"/p/{token}/passkeys/options").json()
     assert options["rp"]["id"] == "testserver"
     answer = web.post(f"/p/{token}/passkeys", json=device.create(options))
-    assert answer.status_code == 200 and answer.json()["go"] == f"/p/{token}/settings?saved=passkey#account"
-    settings = web.get(f"/p/{token}/settings?saved=passkey").text
+    assert (
+        answer.status_code == 200
+        and answer.json()["go"] == f"/p/{token}/settings/account?saved=passkey#account"
+    )
+    settings = web.get(f"/p/{token}/settings/account?saved=passkey").text
     assert "<b>Mac</b>" in settings and "Passkey added." in settings and "Add another passkey" in settings
     home = web.get("/").text
     assert "data-passkey-signin" in home and 'action="/recover"' in home
@@ -453,8 +456,8 @@ def test_a_recovery_code_is_shown_once_and_opens_the_plan(web, token):
     made = web.post(f"/p/{token}/recovery")
     assert made.status_code == 200 and made.headers["cache-control"] == "no-store"
     code = CODE.search(made.text).group(0)
-    assert "Recovery code made on 2 March" in web.get(f"/p/{token}/settings").text
-    assert code not in web.get(f"/p/{token}/settings").text
+    assert "Recovery code made on 2 March" in web.get(f"/p/{token}/settings/account").text
+    assert code not in web.get(f"/p/{token}/settings/account").text
     opened = web.post("/recover", data={"code": code.lower()})
     assert opened.status_code == 200 and "Welcome back" in opened.text and f'href="/p/{token}"' in opened.text
     fresh = CODE.search(opened.text).group(0)
@@ -481,7 +484,7 @@ def test_today_suggests_keeping_the_plan_until_it_is_safe(web, token):
 def test_the_next_semester_page_starts_it_at_the_same_address(web, token):
     page = web.get(f"/p/{token}/semester").text
     assert f'action="/p/{token}/semester"' in page and 'name="draw"' in page
-    assert "Start next semester" in web.get(f"/p/{token}/settings").text
+    assert "Start next semester" in web.get(f"/p/{token}/settings/exams").text
     empty = web.post(f"/p/{token}/semester", data={})
     assert empty.status_code == 400 and "link, or choose its file" in empty.text
     files = {"file": ("autumn.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}

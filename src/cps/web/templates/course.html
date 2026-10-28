@@ -56,6 +56,46 @@
 </section>
 {% endif %}
 
+{# Its exam, changed here (D103): the date, how well it is known, its weight and its
+   practice; or no longer planned for. The same fields as the exams while setting up. #}
+{% if exam_row %}{% set s = exam_row %}
+<div class="section" id="exam">
+  <div class="section-title"><h2>{{ _("Exam") }}</h2></div>
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/exam" class="card exam-card">
+    <input type="hidden" name="s0_name" value="{{ s.name }}">
+    <input type="hidden" name="s0_found" value="{{ '1' if s.found else '' }}">
+    <input type="hidden" name="s0_found_when" value="{{ s.found_when }}">
+    {% if s.found and s.found_when and not s.exam %}
+    <p>{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}</p>
+    <details class="inline"><summary>{{ _("Different date") }}</summary>
+      <input id="s0_exam" name="s0_exam" type="datetime-local" aria-label="{{ _('Exam date') }}">
+    </details>
+    {% else %}
+    <label for="s0_exam">{{ _("Date") }}</label>
+    <input id="s0_exam" name="s0_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
+    {% if s.found and s.found_when %}<p class="hint">{{ _("Leave empty to follow your timetable ({when}).", when=s.found_when | nice_date) }}</p>{% endif %}
+    {% endif %}
+    <label for="s0_familiarity">{{ _("How well you know it already") }}</label>
+    <select id="s0_familiarity" name="s0_familiarity">
+      {% for k, word in familiarity %}<option value="{{ k }}"{% if k == s.familiarity | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+    </select>
+    <div class="row">
+      <div><label for="s0_weight">{{ _("How much this exam weighs") }}</label>
+      <select id="s0_weight" name="s0_weight">
+        {% for w, words in values.weights %}<option value="{{ w }}"{% if (s.weight or 1.0) | float == w %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
+      </select></div>
+      <div><label for="s0_practice">{{ _("Exam practice") }}</label>
+      <select id="s0_practice" name="s0_practice">
+        <option value="">{{ _("Exam practice: {hours} h", hours=s.practice_default | hours) }}</option>
+        {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Exam practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
+      </select></div>
+    </div>
+    <label class="check"><input type="checkbox" name="s0_remove" value="1"> {{ _("Stop planning for this course") }}</label>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Save and plan") }}</button></div>
+  </form>
+</div>
+{% endif %}
+
 {# Assessment and workload (D83, D86) #}
 <div class="section" id="credits" data-tour="course-workload">
   <div class="section-title"><h2>{{ _("Workload") }}</h2></div>

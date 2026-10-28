@@ -14,7 +14,6 @@
       {% set c = charts.line(m.series, m.labels, top=top) %}
       {% set texts = [] %}{% for v in m.series %}{% set _x = texts.append(_("Week of {day}: {n} days", day=m.labels[loop.index0], n=v if v is not none else "–")) %}{% endfor %}
       {{ line(c, texts, _("Memory strength, week by week, in days"), None, ticks=[_("{n} d", n=top | round | int), _("{n} d", n=(top / 2) | round | int)]) }}
-      <details class="insight-how"><summary>{{ _("How it is measured") }}</summary><p>{{ _("The memory model's stability: the days until a topic's predicted recall falls to 90 % without a review, at the median of the topics taught so far. It grows when you recall a topic after a gap, and the later the review that still succeeds, the more it adds. A model with average weights: an estimate, not a measurement of you.") }}</p></details>
     </article>
 
     <article class="card memory-card memory-map">

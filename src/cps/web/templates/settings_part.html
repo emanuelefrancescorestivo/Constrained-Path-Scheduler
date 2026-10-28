@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_art.html" import art %}
+{% block title %}{{ row.title }} · {{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}{% if part == "account" %}<script type="module" src="/static/passkeys.js"></script>{% elif part == "phone" %}<script type="module" src="/static/push.js"></script>{% endif %}{% endblock %}
+{% block main %}
+{# One row of Settings (D103): a part of the settings on its own page. The plan's own
+   settings (the week, the deadlines) save that part alone; each exam is changed on its
+   course's page. #}
+<p class="back"><a href="/p/{{ token }}/settings">{{ _("Settings") }}</a></p>
+<div class="page-title settings-head">{{ art(row.art) }}<h1>{{ row.title }}</h1></div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+
+{% if part == "week" %}
+<form method="post" action="/p/{{ token }}/settings">
+<input type="hidden" name="part" value="week">
+{% include "_set_week.html" %}
+{% include "_set_busy.html" %}
+<div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Save and plan") }}</button></div>
+</form>
+
+{% elif part == "exams" %}
+<div class="section" id="exams">
+  <div class="section-title"><h2>{{ _("Exams") }}</h2></div>
+  {% if values.subjects %}
+  <ul class="card list exam-links">
+    {% for s in values.subjects %}
+    <li><a href="/p/{{ token }}/courses/{{ loop.index0 }}#exam">
+      <span class="grow"><b>{{ s.name }}</b><small>{% if s.exam %}{{ s.exam | nice_date }}{% elif s.found_when %}{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}{% else %}{{ _("No date yet") }}{% endif %}</small></span>
+      <span class="chev" aria-hidden="true">›</span></a></li>
+    {% endfor %}
+  </ul>
+  <p class="hint">{{ _("Change an exam's date, how well you know it, its weight or its practice on its course's page.") }}</p>
+  {% else %}
+  <p class="card">{{ _("No exam yet: add one below, or a deadline.") }}</p>
+  {% endif %}
+  {% if values.unplanned_exams %}
+  <ul class="card list section found-exams">
+    {% for f in values.unplanned_exams %}
+    <li><form method="post" action="/p/{{ token }}/settings" class="found-exam">
+      <input type="hidden" name="part" value="add">
+      <input type="hidden" name="s0_found" value="1">
+      <input type="hidden" name="s0_name" value="{{ f.subject }}">
+      <input type="hidden" name="s0_familiarity" value="3">
+      <p class="grow">{{ _h("Also in your timetable: <strong>{subject}</strong>, {when}.", subject=f.subject, when=f.when | nice_date) }}</p>
+      <button type="submit" class="btn btn-sm btn-tinted">{{ _("Plan for it") }}</button>
+    </form></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% set a = added or {} %}
+  <details class="card section add-exam"{% if not values.subjects or added %} open{% endif %}>
+    <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>
+    <form method="post" action="/p/{{ token }}/settings">
+      <input type="hidden" name="part" value="add">
+      <input type="hidden" name="s0_found" value="">
+      <label for="add_name">{{ _("Add an exam: course") }}</label>
+      <input id="add_name" name="s0_name" list="courses" required maxlength="80" value="{{ a.name or '' }}">
+      <label for="add_exam">{{ _("Exam") }}</label>
+      <input id="add_exam" name="s0_exam" type="datetime-local" required value="{{ (a.exam or '') | replace(' ', 'T') }}">
+      <label for="add_familiarity">{{ _("How well you know it already") }}</label>
+      <select id="add_familiarity" name="s0_familiarity">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == (a.familiarity or 3) | int %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+      </select>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Add and plan") }}</button></div>
+    </form>
+    <datalist id="courses">{% for c in values.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+  </details>
+</div>
+<form method="post" action="/p/{{ token }}/settings" class="section">
+<input type="hidden" name="part" value="deadlines">
+{% include "_set_deadlines.html" %}
+<div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Save and plan") }}</button></div>
+</form>
+<div class="card section">{% include "_set_timetable.html" %}</div>
+
+{% elif part == "account" %}
+<div class="card section">{% include "_set_account.html" %}</div>
+{% elif part == "phone" %}
+<div class="card section">{% include "_set_phone.html" %}</div>
+{% elif part == "look" %}
+<div class="card section">{% include "_set_look.html" %}</div>
+{% elif part == "data" %}
+<div class="card section">{% include "_set_data.html" %}</div>
+{% endif %}
+{% endblock %}

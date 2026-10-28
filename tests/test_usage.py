@@ -136,7 +136,7 @@ def test_the_student_sees_their_own_counts_and_what_they_never_opened(web):
     page = web.get(f"/p/{token}/usage").text
     assert "Progress" in page and "1 day" in page and "1 time" in page
     assert "Not opened since then" in page and "Flashcards" in page
-    settings = web.get(f"/p/{token}/settings").text
+    settings = web.get(f"/p/{token}/settings/data").text
     assert "On: the app counts" in settings and f"/p/{token}/usage" in settings
 
 
@@ -150,9 +150,9 @@ def test_a_no_counts_nothing_and_turning_off_deletes_what_was_counted(web):
     web.get(f"/p/{token}/focus")
     assert _rows(web, token)
     answer = web.post(f"/p/{token}/usage", data={"yes": "0"}, follow_redirects=False)
-    assert answer.headers["location"].endswith("/settings?saved=usage#usage")
+    assert answer.headers["location"].endswith("/settings/data?saved=usage#usage")
     assert _rows(web, token) == []
-    assert "Off: nothing is counted." in web.get(f"/p/{token}/settings").text
+    assert "Off: nothing is counted." in web.get(f"/p/{token}/settings/data").text
 
 
 def test_the_owner_reads_totals_of_those_who_said_yes_never_a_plan(web):

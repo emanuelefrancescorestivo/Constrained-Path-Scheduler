@@ -80,6 +80,7 @@ def indirect_sentences() -> set[str]:
         *web.NETWORK_NOTICES.values(),
         *web.CARD_WORDS.values(),
         *web.CARD_NOTICES.values(),
+        *web.SETTINGS_NOTICES.values(),  # Settings' pages (D103)
         *service.REPORT_REASONS.values(),
         *service.EFFORT_WORDS.values(),
         *service.PROGRESS_WORDS.values(),

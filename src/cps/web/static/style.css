@@ -1114,6 +1114,12 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art.art-lecture { background: linear-gradient(160deg, #9c8bff, #5c45e6); color: #4a33d0; }
 .art.art-project { background: linear-gradient(160deg, #7fa6c8, #46698c); color: #34546f; }
 .art.art-study { background: linear-gradient(160deg, #4fd6c8, #1798a6); color: #0f7a86; }
+/* D103: Settings' rows. */
+.art.art-week { background: linear-gradient(160deg, #57d38c, #18a35a); color: #0f7f45; }
+.art.art-key { background: linear-gradient(160deg, #9aa4b8, #5c6680); color: #48506a; }
+.art.art-bell { background: linear-gradient(160deg, #ffb648, #ff8a00); color: #c25e00; }
+.art.art-palette { background: linear-gradient(160deg, #ff8fd0, #c94fe0); color: #a335c0; }
+.art.art-shield { background: linear-gradient(160deg, #3fc6ff, #1a7fd6); color: #1666b8; }
 /* A smaller tile beside a card's title. */
 .art.art-sm { width: 34px; height: 34px; border-radius: 10px; }
 .art.art-sm svg { width: 34px; height: 34px; }
@@ -2741,6 +2747,23 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .insight-how { margin-top: auto; }
 .insight-how summary { margin: 4px 0 0; font-size: 0.8rem; font-weight: 550; }
 .insight-how p { margin: 4px 0 0; font-size: 0.82rem; color: var(--muted); }
+/* Settings' pages (D103): the row's picture beside the title; each exam a row that
+   leads to its course; a found exam offered with one button. */
+.settings-head { display: flex; align-items: center; gap: 12px; }
+.settings-head h1 { margin: 0; }
+.exam-links a { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+.exam-links small { display: block; color: var(--muted); }
+.exam-links .chev { color: var(--muted); font-size: 1.2rem; }
+.found-exam { display: flex; align-items: center; gap: 12px; width: 100%; }
+.found-exam p { margin: 0; font-size: 0.92rem; }
+.add-rows > summary { margin: 14px 0 4px; }
+.add-exam > summary { margin: 0; }
+.exam-card .row { margin-top: 4px; }
+/* One "How we measure these" for every number on Progress (D103). */
+.how-all > summary { font-size: 0.88rem; }
+.how-all dl { margin: 0 0 4px; }
+.how-all dt { font-weight: 650; margin-top: 12px; }
+.how-all dd { margin: 2px 0 0; font-size: 0.86rem; color: var(--muted); }
 .insight.locked h3 { color: var(--muted); }
 .insight.locked .insight-says { color: var(--muted); }
 .insight.pace-rest, .insight.pace-above, .insight-today.pace-rest, .insight-today.pace-above {

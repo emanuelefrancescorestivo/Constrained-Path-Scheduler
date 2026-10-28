@@ -25,7 +25,7 @@
   <details class="menu">
     <summary aria-label="{{ _('More for {name}', name=t.name) }}">···</summary>
     <div class="menu-items">
-      <a href="/p/{{ token }}/settings#deadlines">{{ _("Edit in Settings") }}</a>
+      <a href="/p/{{ token }}/settings/exams#deadlines">{{ _("Edit in Settings") }}</a>
       <form method="post" action="/p/{{ token }}/tasks/delete" data-async>
         <input type="hidden" name="name" value="{{ t.name }}">
         <input type="hidden" name="back" value="{{ back }}">
