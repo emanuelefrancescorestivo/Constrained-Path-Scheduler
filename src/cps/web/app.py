@@ -372,7 +372,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             # Every other section's line, the first time it is opened (D97): shown
             # once, so it is remembered as the page goes out.
             subscription = subscription or service.load_subscription(store, token)
-            context["hint"] = service.section_hint(subscription, context.get("tab"))
+            tab = context.get("tab")
+            joined = tab == "community" and service.profile_of(store, token) is not None
+            context["hint"] = service.section_hint(subscription, tab, joined=joined)
             if context["hint"]:
                 seen = str(context.get("tab"))
                 with contextlib.suppress(service.Conflict):
@@ -506,7 +508,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if wanted and NEXT_PATH.fullmatch(wanted) and account.token and wanted.split("/")[2] == account.token:
             return wanted
         if account.token and load(account.token) is not None:
-            return f"/p/{account.token}"
+            return f"/p/{account.token}/open"
         return "/#start"
 
     def send_mail(message: Any) -> str:
@@ -592,13 +594,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             return too_many(request)
         token = config.demo()
         service.log_event(store, token, "created", "demo")
-        return RedirectResponse(f"/p/{token}?saved=demo", 303)
+        return RedirectResponse(f"/p/{token}/open?saved=demo", 303)
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request, made: int = 0) -> Response:
         account = signed(request) if config.accounts else None
         if account is not None and account.token and load(account.token) is not None:
-            return RedirectResponse(f"/p/{account.token}", 303)  # signed in: straight to the plan
+            return RedirectResponse(f"/p/{account.token}/open", 303)  # signed in: straight in (D102)
         return page(request, "home.html", tz="Europe/Paris", account=account, made=made)
 
     # -- e-mail accounts (D94) ---------------------------------------------------
@@ -791,11 +793,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # -- the app on a home screen (D33) ----------------------------------------
 
-    def manifest(start: str, look: str) -> Response:
+    def manifest(start: str, look: str, opens: str | None = None) -> Response:
         """The web app manifest: what a phone needs to install the site as an app.
         A plan's own (`start` its address) opens that plan from the home screen. Its
         icons are the white ones, or the graphite ones for `look` "dark" (D74): the
-        page asks for those when the plan, or the device, is in dark mode."""
+        page asks for those when the plan, or the device, is in dark mode. It opens on
+        `opens`, the plan's front door (D102), its `id` staying the plan's address so
+        that an app installed before stays the same app."""
         dark = "-dark" if look == "dark" else ""
         background = "#0e1015" if look == "dark" else "#f2f2f7"
         body = {
@@ -804,7 +808,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "short_name": service.translate("Study plan"),
             "description": service.translate("Your timetable, your deadlines, your week"),
             "lang": service.current_language(),
-            "start_url": start,
+            "start_url": opens or start,
             "scope": "/",
             "display": "standalone",
             "background_color": background,
@@ -828,11 +832,22 @@ def create_app(config: Config | None = None) -> FastAPI:
     def site_manifest(look: str = "light") -> Response:
         return manifest("/", look)
 
+    @app.get("/p/{token}/open")
+    def front_door(request: Request, token: str, saved: str = "") -> Response:
+        """Where the app opens (D102): the feed for a student who has joined the
+        network, Today otherwise; a notice to show goes along."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        where = "/community" if service.front_door(store, subscription) == "community" else ""
+        notice = f"?saved={quote(saved[:40])}" if saved else ""
+        return RedirectResponse(f"/p/{token}{where}{notice}", 303)
+
     @app.get("/p/{token}/manifest.webmanifest")
     def plan_manifest(request: Request, token: str, look: str = "light") -> Response:
         if load(token) is None:
             return missing(request)
-        return manifest(f"/p/{token}", look)
+        return manifest(f"/p/{token}", look, f"/p/{token}/open")
 
     day_long = {"Cache-Control": "public, max-age=86400"}
 
@@ -925,7 +940,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                     signup_error=service.translate("Make your account first: it keeps your plan."),
                 )
             if account.token and load(account.token) is not None:
-                return RedirectResponse(f"/p/{account.token}", 303)
+                return RedirectResponse(f"/p/{account.token}/open", 303)
         if not starts.allow(client(request)):
             return too_many(request)
         form = await request.form(max_files=1, max_fields=11)
@@ -3288,7 +3303,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(error.to_dict(), 400)
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        answer = JSONResponse({"go": f"/p/{token}"})
+        answer = JSONResponse({"go": f"/p/{token}/open"})
         owner = service.plan_owner(store, token)
         if owner is not None:  # a plan of an account (D94): this device is signed in to it
             plan_signed_in(answer, request, token, owner)

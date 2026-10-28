@@ -995,3 +995,12 @@ Status: fixed; both name the notes the student can open, theirs or shared with t
 a course's topics, and the form that shares notes says that whoever can open them can
 make flashcards from them, with a model when their AI is on. Whether a classmate's notes
 should be sent under the reader's yes alone is a question for the owner (D101).
+
+**82. The feed's first line asked a member to choose a handle.** Found on 2026-10-28 in
+the browser check of D102: the demo's student, who has a handle, opened the app on the
+feed under "Choose a handle to join your classmates". Community's first-visit line (D97)
+was written for a student who has not joined, and was shown to every student; a member
+who opened Community for the first time read it too, but since D102 it is the first
+sentence of the app for every member. Status: fixed; a student with a handle reads what
+the feed is ("What your classmates studied, explained and shared"), one without still
+reads the invitation (`tests/test_front_door.py` checks both).

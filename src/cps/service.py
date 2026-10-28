@@ -5281,6 +5281,11 @@ SECTION_HINTS = {
     "cards": "Your own cards, each one back shortly before you would forget it.",
     "tips": "What helps you learn, how sure the research is, and where it comes from.",
 }
+# Community's line for a student who already has a handle (AUDIT 82): the one above asks
+# them to choose one, and since D102 the feed is the first screen such a student sees.
+JOINED_HINT = (
+    "What your classmates studied, explained and shared. Each post says who sees it; your plan stays private."
+)
 
 
 def tours_seen(subscription: Subscription) -> list[str]:
@@ -5297,11 +5302,12 @@ def tour_for(
     return None if "today" in tours_seen(subscription) else "today"
 
 
-def section_hint(subscription: Subscription | None, tab: str | None) -> str | None:
-    """The line a section shows under its title the first time it is opened (D97)."""
+def section_hint(subscription: Subscription | None, tab: str | None, *, joined: bool = False) -> str | None:
+    """The line a section shows under its title the first time it is opened (D97);
+    Community's says what the feed is to a student who has joined (AUDIT 82)."""
     if subscription is None or tab not in SECTION_HINTS or tab in tours_seen(subscription):
         return None
-    return _(SECTION_HINTS[tab])
+    return _(JOINED_HINT) if tab == "community" and joined else _(SECTION_HINTS[tab])
 
 
 def see_tour(subscription: Subscription, name: str) -> Subscription:
@@ -6138,6 +6144,16 @@ def _month_start(now: datetime) -> str:
     """The first moment of `now`'s month, in UTC, as the network's tables write times."""
     first = now.astimezone(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     return first.isoformat(timespec="seconds")
+
+
+def front_door(store: str | os.PathLike, subscription: Subscription) -> str:
+    """D102: where the app opens: "community", the feed, for a student with a plan who
+    has joined the study network (a handle); "today" otherwise. A student who has not
+    joined would open on an empty feed and an invitation to choose a handle, and one
+    just through setting up is shown Today and its tour first."""
+    if subscription.plan is None or social.get_profile(_store(store), subscription.token) is None:
+        return "today"
+    return "community"
 
 
 def community_view(

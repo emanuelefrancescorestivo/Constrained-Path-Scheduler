@@ -62,9 +62,10 @@ def _tabs(page: str) -> list[str]:
 def test_five_sections_in_the_tab_bar_and_four_in_the_top_bar(web):
     token = _start(web)
     today = web.get(f"/p/{token}").text
-    assert _tabs(today) == ["Today", "Calendar", "Courses", "Community", "You"]
+    # D102: the feed first, where the app opens for a student who has joined, then the rest.
+    assert _tabs(today) == ["Community", "Today", "Calendar", "Courses", "You"]
     nav = re.search(r'<nav class="nav".*?</nav>', today, re.S)[0]
-    assert re.findall(r">([^<]+)</a>", nav) == ["Plan", "Courses", "Community", "You"]
+    assert re.findall(r">([^<]+)</a>", nav) == ["Community", "Plan", "Courses", "You"]
     # No gear, no "Connect calendar", no logo menu: all of them are under You.
     header = today[today.index('<header class="topbar">') : today.index("</header>")]
     assert f'href="/p/{token}/settings"' not in header and "brand-menu" not in header

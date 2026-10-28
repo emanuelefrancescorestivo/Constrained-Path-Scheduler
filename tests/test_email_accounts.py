@@ -185,14 +185,14 @@ def test_the_password_is_kept_only_as_a_salted_scrypt_digest(web):
 def test_a_plan_made_while_signed_in_belongs_to_the_account(web, owned):
     assert _row(web, "SELECT token FROM accounts WHERE email = ?", EMAIL) == [(owned,)]
     assert web.get(f"/p/{owned}").status_code == 200
-    assert web.get("/", follow_redirects=False).headers["location"] == f"/p/{owned}"
+    assert web.get("/", follow_redirects=False).headers["location"] == f"/p/{owned}/open"
     again = web.post(
         "/start",
         data={"tz": "Europe/Paris"},
         files={"file": ("t.ics", SEMESTER.read_bytes(), "text/calendar")},
         follow_redirects=False,
     )
-    assert again.headers["location"] == f"/p/{owned}"  # one plan an account, kept across semesters
+    assert again.headers["location"] == f"/p/{owned}/open"  # one plan an account, kept across semesters
     assert web.store.count() == 1
 
 
@@ -229,7 +229,7 @@ def test_signing_in_leads_back_to_the_page_asked_for_and_nowhere_else(web, owned
             data={"email": EMAIL, "password": PASSWORD, "next": wanted},
             follow_redirects=False,
         )
-        assert answer.headers["location"] == f"/p/{owned}", wanted
+        assert answer.headers["location"] == f"/p/{owned}/open", wanted
 
 
 def test_a_wrong_address_and_a_wrong_password_get_the_same_answer(web, owned):
