@@ -425,7 +425,7 @@ def test_a_passkey_added_in_settings_opens_the_plan_from_the_home_page(web, toke
     home = web.get("/").text
     assert "data-passkey-signin" in home and 'action="/recover"' in home
     signin = web.post("/signin/options").json()
-    assert web.post("/signin", json=device.get(signin)).json() == {"go": f"/p/{token}"}
+    assert web.post("/signin", json=device.get(signin)).json() == {"go": f"/p/{token}/open"}
     spoiled = web.post("/signin", json=device.get(web.post("/signin/options").json(), spoil=True))
     assert spoiled.status_code == 400 and spoiled.json()["message"] == "That did not work. Try again."
     assert web.post("/signin", content=b"not json").status_code == 400

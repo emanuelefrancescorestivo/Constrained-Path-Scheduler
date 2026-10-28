@@ -3610,3 +3610,32 @@ key in this repository). Two to four characters a token is an assumption. A clas
 notes reach the model under the reader's yes alone, as one note already could since D84;
 the privacy page and the notes form now say so (AUDIT 81), and whether that should need
 the author's yes too is the owner's decision.
+
+## D102. The app opens on the feed
+
+*The owner, 2026-10-28: "as soon as you open [the app it] should have the feed then the
+rest"; asked which screen, they chose "the app opens on the feed".*
+
+**Chosen.** A student who has joined the study network (has a handle) and has a plan
+opens the app on Community's feed; every other student opens on Today, as before. One
+front door, `/p/<plan>/open`, decides (`service.front_door`), and every way in goes
+through it: the home page when signed in, signing in by e-mail or passkey, the installed
+app (its `start_url`; its `id` stays the plan's address, so an app installed before stays
+the same app), the demo's Start, and the logo. Community moves to the first tab, and to
+the first place in the top bar, since an app opens on its first tab; Today is the second,
+one tap away. Today's address is unchanged, so a link, a reminder or a calendar's link to
+a session still opens Today. Without a network the installed app opens on the feed kept
+on the device, else on Today's.
+The feed's first-visit line now says what the feed is to a member, instead of asking
+them to choose a handle (AUDIT 82).
+
+*Rejected:* the feed for everyone (a student without a handle would open on an empty feed
+and an invitation to choose one, and a student just through setting up needs Today and
+its tour first); moving the feed to Today's address (every link to Today, the tour and the
+reminders point there); keeping Today as the first tab while the app opens on the feed (an
+app that opens on its second tab reads as a mistake).
+
+**Disclosed.** Checked in Chromium only. A home-screen app added before this change may
+keep opening on the address it was added with until it is added again: browsers update an
+installed app's manifest on their own schedule, and Safari keeps the address it was added
+with. Whether students open the app more often for the feed is for the pilot to say.

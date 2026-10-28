@@ -190,10 +190,13 @@ def test_the_public_demo_gives_each_visitor_a_student_of_their_own(tmp_path, cap
         home = web.get("/").text
         assert 'action="/demo"' in home and "Start the demo" in home
         started = web.post("/demo", follow_redirects=False)
-        assert started.status_code == 303 and started.headers["location"].endswith("?saved=demo")
-        token = started.headers["location"].split("/p/")[1].split("?")[0]
-        page = unescape(web.get(started.headers["location"]).text)
-        assert "This student is yours" in page
+        assert started.status_code == 303 and started.headers["location"].endswith("/open?saved=demo")
+        token = started.headers["location"].split("/p/")[1].split("/")[0]
+        # D102: the made-up student has a handle, so the demo opens on the feed.
+        door = web.get(started.headers["location"], follow_redirects=False)
+        assert door.headers["location"] == f"/p/{token}/community?saved=demo"
+        page = unescape(web.get(door.headers["location"]).text)
+        assert "This student is yours" in page and 'class="feed"' in page
         assert "everything starts again when it restarts" in web.get(f"/p/{token}/progress").text
         _student_pages(web, token)
         # After a restart, an old link says what happened instead of a bare 404.

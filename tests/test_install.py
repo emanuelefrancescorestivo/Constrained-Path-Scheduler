@@ -50,7 +50,9 @@ def test_the_manifest_opens_the_plan_it_was_installed_from(web):
 
     token = _plan(web, lang="it")
     own = web.get(f"/p/{token}/manifest.webmanifest").json()
-    assert own["start_url"] == own["id"] == f"/p/{token}" and own["lang"] == "it"
+    # D102: it opens on the plan's front door; its id stays the plan's address, so an
+    # app installed before stays the same app.
+    assert own["start_url"] == f"/p/{token}/open" and own["id"] == f"/p/{token}" and own["lang"] == "it"
     assert own["name"] == "Piano di studio"  # the plan's language
     assert web.get("/p/" + "x" * 32 + "/manifest.webmanifest").status_code == 404
     page = web.get(f"/p/{token}/timetable").text

@@ -2248,4 +2248,6 @@ MESSAGES: dict[str, str] = {
     "Or paste your notes": "Oppure incolla i tuoi appunti",
     # AUDIT 81: notes read for flashcards
     "Whoever can open your notes can make flashcards from them; with AI turned on, a model reads them for that.": "Chi può aprire i tuoi appunti può farne delle flashcard; con l'IA attiva, un modello li legge per questo.",
+    # Community's line for a student with a handle (AUDIT 82)
+    "What your classmates studied, explained and shared. Each post says who sees it; your plan stays private.": "Cosa hanno studiato, spiegato e condiviso i tuoi compagni. Ogni post dice chi lo vede; il tuo piano resta privato.",
 }

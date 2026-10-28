@@ -533,6 +533,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Changed
 
+- The app opens on the feed (DECISIONS.md D102) for a student who has joined the study
+  network; Community is the first tab, Today the second. Students without a handle still
+  open on Today.
+
 - Five sections (DECISIONS.md D97): Today, Calendar, Courses, Community and You, which
   holds Progress, flashcards, tasks, Focus, tips, the science page and Settings; Spark in
   the top bar instead of floating over pages; one tour, Today's, in three steps, and a line
@@ -555,6 +559,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- The feed's first line no longer asks a student who has a handle to choose one (AUDIT.md
+  item 82).
 
 - The privacy page and Settings now say that notes shared with a student, and a course's
   topics, can be sent to the model for flashcards (AUDIT 81).

@@ -89,6 +89,14 @@ async function networkFirst(request, isPage) {
   } catch {
     const copy = await caches.match(request, { ignoreVary: true });
     if (copy) return copy;
+    // The plan's front door (D102) is a redirect, never kept: without a network it
+    // opens on the kept feed, else on the kept Today.
+    const door = new URL(request.url).pathname.match(/^(\/p\/[^/]+)\/open$/);
+    if (door) {
+      const kept = (await caches.match(`${door[1]}/community`, { ignoreVary: true, ignoreSearch: true })) ||
+        (await caches.match(door[1], { ignoreVary: true, ignoreSearch: true }));
+      if (kept) return kept;
+    }
     if (isPage) return (await caches.match(OFFLINE)) || Response.error();
     return Response.error();
   }
