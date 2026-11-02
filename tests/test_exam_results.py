@@ -24,6 +24,13 @@ MORNING = datetime(2026, 9, 29, 6, 0, tzinfo=UTC)
 AFTER = datetime(2027, 1, 27, 7, 0, tzinfo=UTC)  # 08:00 in Paris, before the third exam at 09:00
 
 
+def _record(subscription: service.Subscription, course: str) -> dict:
+    """The answer kept for a course's exam: under the course and the exam's moment,
+    so a course taken again later is asked about again (AUDIT item 84)."""
+    (record,) = [r for r in subscription.options["exam_results"].values() if r["course"] == course]
+    return record
+
+
 @pytest.fixture(scope="module")
 def plan_then():
     """A plan set up at the start of the semester, refreshed the day after its
@@ -47,7 +54,7 @@ def test_an_answer_is_kept_with_the_prediction_and_shared_only_with_consent(plan
     answered = service.answer_exam(
         plan_then, "Algebra 3", {"result": "well", "mark": " 28 / 30 ", "helped": "lot"}, AFTER
     )
-    record = answered.options["exam_results"]["Algebra 3"]
+    record = _record(answered, "Algebra 3")
     plan = service.PlanReport.from_dict(plan_then.plan)
     assert record["result"] == "well" and record["mark"] == "28 / 30" and record["consent"] is False
     assert record["helped"] == "lot"
@@ -55,7 +62,7 @@ def test_an_answer_is_kept_with_the_prediction_and_shared_only_with_consent(plan
     assert 0 < record["predicted"] < 1
     assert [q["course"] for q in service.exam_questions(answered, AFTER)] == ["Computer Programming 3"]
     skipped = service.answer_exam(answered, "Computer Programming 3", {"skip": "1"}, AFTER)
-    assert skipped.options["exam_results"]["Computer Programming 3"]["skipped"] is True
+    assert _record(skipped, "Computer Programming 3")["skipped"] is True
     assert service.exam_questions(skipped, AFTER) == []
     for form, words in (
         ({"result": "excellent"}, "choose how it went"),
@@ -85,7 +92,7 @@ def test_the_measures_show_shared_answers_without_course_or_plan(tmp_path, plan_
     )
     service.save_subscription(tmp_path, kept)
     exams = service.calibration(tmp_path)["exams"]
-    predicted = shared.options["exam_results"]["Algebra 3"]["predicted"]
+    predicted = _record(shared, "Algebra 3")["predicted"]
     assert exams == {
         "shared": [{"predicted": predicted, "result": "just", "mark": "18/30", "helped": "little"}],
         "private": 1,
@@ -144,10 +151,11 @@ def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, conse
         after = unescape(web.get(answer.headers["location"]).text)
         assert thanks in after and question not in after
         stored = service.load_subscription(tmp_path, token)
-        assert stored is not None and stored.options["exam_results"]["Algebra 3"]["consent"] is True
+        assert stored is not None and _record(stored, "Algebra 3")["consent"] is True
         refused = web.post(f"/p/{token}/exam", data={"course": "Algebra 3", "result": "passed"})
         assert refused.status_code == 400
-        assert web.get(f"/p/{token}/export").json()["plan"]["options"]["exam_results"]["Algebra 3"]
+        kept = web.get(f"/p/{token}/export").json()["plan"]["options"]["exam_results"]
+        assert [r for r in kept.values() if r["course"] == "Algebra 3"]
         privacy = unescape(web.get(f"/privacy?lang={lang}").text)
         assert {"en": "After each exam", "fr": "Après chaque examen", "it": "Dopo ogni esame"}[
             lang

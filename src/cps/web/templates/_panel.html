@@ -94,6 +94,13 @@
 {% elif message == "tip" %}
 {# A tip the day calls for (D63), in one line with the spark #}
 {% include "_tip_card.html" %}
+{% elif message == "outcome" %}{% set o = exam_outcome %}
+{# The answer just given, beside the recall the plan forecast for that exam (D105) #}
+<a class="card nudge-card section exam-outcome" href="/p/{{ token }}/progress#taken">
+  <span class="tip-reason">{{ _("Your exam against the forecast") }}</span>
+  <b>{{ _("{course}: {result}", course=o.course, result=o.says) }}{% if o.mark %} ({{ o.mark }}){% endif %}</b>
+  <span class="muted">{% if o.predicted is not none %}{{ _("The plan forecast {n} % of its topics recalled on exam day.", n=o.predicted) }}{% else %}{{ _("No forecast for this exam.") }}{% endif %}</span>
+</a>
 {% elif message == "semester" %}
 <a class="card nudge-card section" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
 {% elif message == "exam" %}

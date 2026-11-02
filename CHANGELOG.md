@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How an exam went, beside its forecast (DECISIONS.md D105): once a student says how an
+  exam went, Today shows the answer beside the recall the plan forecast for it, and
+  Progress lists every exam that way, highest forecast first, with how many pairs agree.
+
 - A class's link (DECISIONS.md D104): one link, made on Courses, brings a student's
   courses' topics to the whole class; each classmate takes them into their own matching
   courses in one tap, placed on their own weeks.
@@ -568,6 +572,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- A course taken again is asked about again after its exam, its first answer kept
+  (AUDIT.md item 84).
 
 - The weekly review's "See your progress" opens last week's review (AUDIT.md item 83).
 

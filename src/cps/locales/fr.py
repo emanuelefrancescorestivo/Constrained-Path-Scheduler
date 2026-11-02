@@ -2341,4 +2341,16 @@ MESSAGES: dict[str, str] = {
     # The privacy notice: a class's link (D104)
     "If you make your class's link: when you made it and how many plans took it. Whoever has the link sees your courses with their topics, assessment and credits, and the university and programme of your profile; never your handle, your plan or your sessions. A new link, or stopping it, ends the old one.": "Si tu crées le lien de ta classe : quand tu l'as créé et combien de plans l'ont pris. Qui a le lien voit tes cours avec leurs thèmes, leur évaluation et leurs crédits, et l'université et la filière de ton profil ; jamais ton pseudo, ton plan ni tes séances. Un nouveau lien, ou l'arrêter, met fin à l'ancien.",
     "Your browser also remembers the address of the plan last opened on it, so that a study group's invitation link, or a class's link, can offer to use it. It stays on your device; deleting your plan, or the site's data, forgets it.": "Ton navigateur retient aussi l'adresse du dernier plan ouvert sur lui, pour qu'un lien d'invitation à un groupe d'étude, ou le lien d'une classe, propose de l'utiliser. Elle reste sur ton appareil ; supprimer ton plan, ou les données du site, l'efface.",
+    # After an exam, the forecast beside how it went (D105)
+    "Your exam against the forecast": "Ton examen face à la prévision",
+    "{course}: {result}": "{course} : {result}",
+    "The plan forecast {n} % of its topics recalled on exam day.": "Le plan prévoyait {n} % de ses sujets retenus le jour de l'examen.",
+    "No forecast for this exam.": "Pas de prévision pour cet examen.",
+    "How your exams went": "Comment se sont passés tes examens",
+    "highest forecast first": "la prévision la plus haute d'abord",
+    "Forecast: {n} %": "Prévision : {n} %",
+    "Compared two by two: in {k} of {n} pair, the higher forecast went with the better result.": "Comparés deux à deux, la prévision la plus haute allait avec le meilleur résultat : {k} sur {n} paire.",
+    "Compared two by two: in {k} of {n} pairs, the higher forecast went with the better result.": "Comparés deux à deux, la prévision la plus haute allait avec le meilleur résultat : {k} sur {n} paires.",
+    "The forecast is how much of a course's topics an average memory would recall on exam day, from the sessions you reported. A result also depends on the exam, and a few exams make a hint, not a verdict.": "La prévision est la part des sujets d'un cours qu'une mémoire moyenne retiendrait le jour de l'examen, d'après les séances que tu as indiquées. Un résultat dépend aussi de l'examen, et quelques examens donnent un indice, pas un verdict.",
+    "How it went: {result}": "Comment ça s'est passé : {result}",
 }

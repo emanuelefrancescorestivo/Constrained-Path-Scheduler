@@ -3750,3 +3750,51 @@ courses whose names share less than half their words are not matched, and a cour
 named alike at another university would be. Whoever has the link sees the courses and
 their topics, as with any link shared in a chat. Checked in Chromium only, at phone and
 desktop widths. Whether whole classes join this way is for the pilot to say.
+
+## D105. After an exam, the forecast beside how it went
+
+*The owner, 2026-11-02: "build the exam card", after the review of what the app still
+needs proposed closing the loop after exams: the app asked how each exam went (D56) and
+kept the recall it had predicted beside the answer, but only the owner's measures read
+it back.*
+
+**Chosen.**
+
+- **The answer, beside its forecast, where the student looks.** Once a student says how
+  an exam went, Today shows it for a day (`OUTCOME_HOURS`), next after the question
+  itself in Today's one message (D97): "Algebra 3: Not passed (12/30). The plan forecast
+  N % of its topics recalled on exam day." It leads to Progress, where "How your exams
+  went" lists every exam answered about, under the exams to come; the course's page
+  says it under the exam's date. "Rather not say" shows nothing.
+- **The forecast as it stood.** Each row shows the recall the model predicted for the
+  exam when the answer came (`recall_predicted`, kept since D56), rounded to 5 % as
+  every forecast is (D24), with a bar of that length; and the result as the student
+  chose it among the five answers, with their mark as they wrote it.
+- **Read down the list.** Exams are listed highest forecast first, so a forecast that
+  holds shows as results that go down the list too. With two exams or more, a line
+  counts the pairs: "Compared two by two: in 5 of 8 pairs, the higher forecast went
+  with the better result." Two exams are compared only when their results differ and
+  the forecasts shown differ; "Did not sit it" and an exam with no forecast are never
+  compared.
+- **What the forecast is, every time.** Under the list: the forecast is how much of a
+  course's topics an average memory would recall on exam day, from the sessions
+  reported; a result also depends on the exam, and a few exams make a hint, not a
+  verdict.
+- **A course taken again is asked about again** (AUDIT item 84). An answer is kept under
+  the course and the exam's moment; an answer kept before, under the course's name
+  alone, answers the exams of that course before it was given, never a later one. The
+  first answer stays: a resit lists both.
+
+*Rejected:* turning the forecast into an expected grade (no scale maps recall to marks,
+and marks have no common scale, D56); a score of how right the forecast was, such as a
+correlation (with three to six exams a semester it would swing with one exam; counting
+the pairs that agree says the same in words a student can check down the list);
+comparing a student with others (the measures stay the owner's, with consent, D56); the
+card on Today until it is dismissed (a day is enough to see it; Progress keeps it).
+
+**Disclosed.** The forecast is the memory model's with average weights and a guessed
+starting state (D24), not a measurement; its result is set beside a pass, not a mark. The
+pages were checked in Chromium only, at phone and desktop widths, light and dark, with a
+plan whose clock stood after its exams: no demo student has an exam behind them, so the
+demo shows nothing of it until one does.
+
