@@ -1011,3 +1011,13 @@ while folding Progress (D103): the weekly review on Today links to "See your pro
 the page instead of last week's review. Status: fixed; "Last week" has `id="review"`, and
 the link asks for "More detail" open (`?more=1#review`), since the review is inside it now
 (`tests/test_lighter.py` checks both).
+
+**84. A course taken again was never asked about.** Found on 2026-11-02 while showing
+each exam beside its forecast (D105): the answer to "How did the exam go?" (D56) was kept
+under the course's name alone, and Today asked only about courses with no answer, so a
+student who failed an exam and set its course's next date was never asked about the
+resit, and a second answer would have replaced the first. Status: fixed; an answer is
+kept under the course and the exam's moment, and one kept before answers only the exams
+of its course before it was given (`tests/test_exam_outcome.py` checks both, and that the
+first answer stays).
+

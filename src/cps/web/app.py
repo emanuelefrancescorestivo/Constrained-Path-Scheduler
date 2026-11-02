@@ -1102,6 +1102,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
             "exam_questions": service.exam_questions(subscription, now),
+            "exam_outcome": service.exam_outcomes(subscription, now)["latest"],
             "exam_results": list(service.EXAM_RESULTS.items()),
             "exam_helped": list(service.EXAM_HELPED.items()),
             # Asked once, when there is a plan to use (D96).
@@ -1113,6 +1114,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         context["fit"] = service.fit_question(subscription, now)
         context["message"] = service.today_message(
             exam=context["exam_questions"],
+            outcome=context["exam_outcome"],
             semester=context["semester_over"],
             usage=context["usage_ask"],
             fit=context["fit"],

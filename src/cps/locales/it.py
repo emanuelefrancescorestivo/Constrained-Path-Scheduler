@@ -1254,7 +1254,7 @@ MESSAGES: dict[str, str] = {
     "Did not sit it": "Non l'ho sostenuto",
     "How did the {course} exam go?": "Com'è andato l'esame di {course}?",
     "It was on {date}; your answer helps check whether the plan's predictions hold.": "Era il {date}; la tua risposta aiuta a verificare se le previsioni del piano reggono.",
-    "Your mark, if you like (27/30, 14/20, B+)": "Il tuo voto, se vuoi (27/30, 14/20, B+)",
+    "Your mark, if you like (27/30, 14/20, B+)": "Il tuo voto, se vuoi (27/30, 30 e lode)",
     "The owner of this app may read this answer and the plan's prediction for this exam, without your name or your plan, to check whether the predictions hold.": "Il gestore di questa app può leggere questa risposta e la previsione del piano per questo esame, senza il tuo nome né il tuo piano, per verificare se le previsioni reggono.",
     "Thank you. Good luck with the next one.": "Grazie. In bocca al lupo per il prossimo.",
     "this exam is not waiting for an answer": "questo esame non aspetta una risposta",
@@ -2314,4 +2314,16 @@ MESSAGES: dict[str, str] = {
     # The privacy notice: a class's link (D104)
     "If you make your class's link: when you made it and how many plans took it. Whoever has the link sees your courses with their topics, assessment and credits, and the university and programme of your profile; never your handle, your plan or your sessions. A new link, or stopping it, ends the old one.": "Se crei il link della tua classe: quando l'hai creato e quanti piani l'hanno preso. Chi ha il link vede i tuoi corsi con i loro temi, la valutazione e i crediti, e l'università e il corso di studi del tuo profilo; mai il tuo nome utente, il tuo piano o le tue sessioni. Un nuovo link, o fermarlo, chiude il vecchio.",
     "Your browser also remembers the address of the plan last opened on it, so that a study group's invitation link, or a class's link, can offer to use it. It stays on your device; deleting your plan, or the site's data, forgets it.": "Il tuo browser ricorda anche l'indirizzo dell'ultimo piano aperto, così che un link d'invito a un gruppo di studio, o il link di una classe, possa proporre di usarlo. Resta sul tuo dispositivo; cancellare il piano, o i dati del sito, lo dimentica.",
+    # After an exam, the forecast beside how it went (D105)
+    "Your exam against the forecast": "Il tuo esame rispetto alla previsione",
+    "{course}: {result}": "{course}: {result}",
+    "The plan forecast {n} % of its topics recalled on exam day.": "Il piano prevedeva il {n} % dei suoi argomenti ricordati il giorno dell'esame.",
+    "No forecast for this exam.": "Nessuna previsione per questo esame.",
+    "How your exams went": "Come sono andati i tuoi esami",
+    "highest forecast first": "prima la previsione più alta",
+    "Forecast: {n} %": "Previsione: {n} %",
+    "Compared two by two: in {k} of {n} pair, the higher forecast went with the better result.": "Confrontati a due a due, la previsione più alta è andata con il risultato migliore: {k} su {n} coppia.",
+    "Compared two by two: in {k} of {n} pairs, the higher forecast went with the better result.": "Confrontati a due a due, la previsione più alta è andata con il risultato migliore: {k} su {n} coppie.",
+    "The forecast is how much of a course's topics an average memory would recall on exam day, from the sessions you reported. A result also depends on the exam, and a few exams make a hint, not a verdict.": "La previsione è quanta parte degli argomenti di un corso una memoria media ricorderebbe il giorno dell'esame, in base alle sessioni che hai segnalato. Un risultato dipende anche dall'esame, e pochi esami danno un indizio, non un verdetto.",
+    "How it went: {result}": "Com'è andata: {result}",
 }

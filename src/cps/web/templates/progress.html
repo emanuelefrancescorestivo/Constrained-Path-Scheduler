@@ -53,6 +53,31 @@
 </div>
 {% endif %}
 
+{% set taken = view.taken %}
+{% if taken and taken.exams %}
+{# D105: each exam answered about, beside the recall the plan forecast for it, the
+   highest forecast first, so the results can be read down the list. #}
+<div class="section" id="taken">
+  <div class="section-title"><h2>{{ _("How your exams went") }}</h2><small>{{ _("highest forecast first") }}</small></div>
+  <div class="card">
+    <ul class="list">
+    {% for e in taken.exams %}
+      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
+        <span class="dot"></span>
+        <div class="grow">
+          <div class="title">{{ e.course }} <span class="badge">{{ e.says }}</span></div>
+          <div class="meta">{% if e.when %}{{ e.when }} · {% endif %}{% if e.mark %}{{ e.mark }} · {% endif %}{% if e.predicted is not none %}{{ _("Forecast: {n} %", n=e.predicted) }}{% else %}{{ _("No forecast for this exam.") }}{% endif %}</div>
+          {% if e.predicted is not none %}<div class="progress"><span class="w{{ (e.predicted // 10) * 10 }}"></span></div>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% if taken.pairs %}<p class="hint">{{ _n("Compared two by two: in {k} of {n} pair, the higher forecast went with the better result.", "Compared two by two: in {k} of {n} pairs, the higher forecast went with the better result.", taken.pairs, k=taken.agree) }}</p>{% endif %}
+  <p class="hint">{{ _("The forecast is how much of a course's topics an average memory would recall on exam day, from the sessions you reported. A result also depends on the exam, and a few exams make a hint, not a verdict.") }}</p>
+</div>
+{% endif %}
+
 {% if climb %}
 {# D100: the hours added up, which only rise, with a flag at each milestone passed. #}
 {% from "_charts.html" import climb as climb_chart %}

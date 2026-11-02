@@ -7,6 +7,7 @@
 <div class="page-title course-head {% if v.color is not none %}c{{ v.color }}{% else %}cn{% endif %}">
   <h1><span class="dot"></span>{{ v.course }}</h1>
   <p>{% if v.exam %}{{ _("Exam: {date}, {when}", date=v.exam.date, when=v.exam.says) }}{% endif %}{% if v.credits %}{% if v.exam %} · {% endif %}{{ _("{n} ECTS", n=v.credits) }}{% endif %}</p>
+  {% if v.outcome %}{% set o = v.outcome %}<p><a href="/p/{{ token }}/progress#taken">{{ _("How it went: {result}", result=o.says) }}{% if o.mark %} ({{ o.mark }}){% endif %}{% if o.predicted is not none %} · {{ _("Forecast: {n} %", n=o.predicted) }}{% endif %}</a></p>{% endif %}
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}

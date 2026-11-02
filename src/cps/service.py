@@ -3296,10 +3296,11 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 
 # What Today may say besides the plan, most pressing first. One shows at a time; the
 # rest wait for the next visit or stay under "More". An exam just past asks first (the
-# answer is wanted while it is fresh, D56), then the end of the semester, then the
-# question about counting what is used (D96), then a question that makes the plan fit
-# (D98), then an insight (D80), then a tip the day calls for (D63).
-MESSAGES = ("exam", "semester", "usage", "fit", "insight", "tip")
+# answer is wanted while it is fresh, D56), then the answer just given beside its
+# forecast (D105), then the end of the semester, then the question about counting what
+# is used (D96), then a question that makes the plan fit (D98), then an insight (D80),
+# then a tip the day calls for (D63).
+MESSAGES = ("exam", "outcome", "semester", "usage", "fit", "insight", "tip")
 
 
 def today_message(**candidates: object) -> str | None:
@@ -4519,15 +4520,33 @@ def exam_questions(subscription: Subscription, now: datetime | None = None) -> l
     out = []
     for x in sorted(plan.subjects, key=lambda x: x.exam):
         exam = datetime.fromisoformat(x.exam)
-        if exam <= now < exam + timedelta(days=EXAM_ASK_DAYS) and x.name not in answered:
+        due = exam <= now < exam + timedelta(days=EXAM_ASK_DAYS)
+        if due and not _exam_answered(answered, x.name, x.exam):
             out.append(
                 {
                     "course": x.name,
+                    "exam": x.exam,
                     "when": format_date(exam.astimezone(zone).date(), "short"),
                     "color": colours.get(x.name.casefold()),
                 }
             )
     return out
+
+
+def _exam_key(course: str, exam: str) -> str:
+    """Where an exam's answer is kept: the course and the exam's moment, so a course
+    retaken later is asked about again (AUDIT item 84)."""
+    return f"{course}@{exam}"
+
+
+def _exam_answered(answers: Mapping[str, dict], course: str, exam: str) -> bool:
+    """Whether this exam of the course was answered about. An answer kept before
+    AUDIT item 84 is under the course's name alone; it answers the exams of that
+    course before it was given, never a later one."""
+    if _exam_key(course, exam) in answers:
+        return True
+    old = answers.get(course)
+    return old is not None and datetime.fromisoformat(old["at"]) >= datetime.fromisoformat(exam)
 
 
 def recall_predicted(plan: PlanReport, course: str) -> float | None:
@@ -4549,7 +4568,8 @@ def answer_exam(
     (`skip`) keeps nothing but that it was asked. The recall the model predicted
     for the exam is kept beside the answer, as it stood when the answer came."""
     now = now or datetime.now(UTC)
-    if course not in {q["course"] for q in exam_questions(subscription, now)}:
+    asked = next((q for q in exam_questions(subscription, now) if q["course"] == course), None)
+    if asked is None:
         raise InvalidInput(_("this exam is not waiting for an answer"))
     stamp = now.astimezone(UTC).isoformat(timespec="seconds")
     if form.get("skip"):
@@ -4574,8 +4594,85 @@ def answer_exam(
             "predicted": None if predicted is None else round(predicted, 4),
             "at": stamp,
         }
-    answers = {**subscription.options.get("exam_results", {}), course: record}
+    record = {"course": course, "exam": asked["exam"], **record}
+    answers = {**subscription.options.get("exam_results", {}), _exam_key(course, asked["exam"]): record}
     return replace(subscription, options={**subscription.options, "exam_results": answers})
+
+
+# After an exam, the forecast beside how it went (DECISIONS.md D105).
+OUTCOME_HOURS = 24  # Today shows a new answer beside its forecast for a day
+# The answers in order, best last, to compare two exams; "Did not sit it" is not
+# compared, nor is "Rather not say".
+_RESULT_RANK = {"failed": 0, "just": 1, "passed": 2, "well": 3}
+
+
+def _exam_records(subscription: Subscription) -> list[dict]:
+    """Every exam answered about, each with its course and the exam's moment when
+    known (an answer kept before AUDIT item 84 holds neither: they come from its key
+    and from the plan's exam of that course before the answer)."""
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    out = []
+    for key, record in (subscription.options.get("exam_results") or {}).items():
+        course = record.get("course", key)
+        exam = record.get("exam")
+        if exam is None and plan is not None:
+            answered = datetime.fromisoformat(record["at"])
+            exam = next(
+                (
+                    x.exam
+                    for x in plan.subjects
+                    if x.name == course and datetime.fromisoformat(x.exam) <= answered
+                ),
+                None,
+            )
+        out.append({**record, "course": course, "exam": exam})
+    return out
+
+
+def exam_outcomes(subscription: Subscription, now: datetime | None = None) -> dict:
+    """D105: each exam the student said how it went, beside the recall the plan
+    predicted for it when they answered (rounded to 5, as every forecast, D24),
+    highest forecast first; and, comparing them two by two, how often the higher
+    forecast went with the better result. Two exams with the same result or the same
+    forecast shown are not compared. `latest` is the answer given in the last
+    `OUTCOME_HOURS`, for Today."""
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    zone = _zone(subscription.options["tz"])
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    rows = []
+    for record in _exam_records(subscription):
+        if record.get("skipped") or record.get("result") not in EXAM_RESULTS:
+            continue
+        predicted = record.get("predicted")
+        exam = record["exam"]
+        rows.append(
+            {
+                "course": record["course"],
+                "result": record["result"],
+                "says": translate(EXAM_RESULTS[record["result"]]),
+                "mark": record.get("mark") or "",
+                "predicted": None if predicted is None else _five(predicted),
+                "when": format_date(datetime.fromisoformat(exam).astimezone(zone).date(), "short")
+                if exam
+                else "",
+                "at": record["at"],
+                "color": colours.get(record["course"].casefold()),
+            }
+        )
+    rows.sort(key=lambda r: (r["predicted"] is None, -(r["predicted"] or 0), r["at"]))
+    ranked = [r for r in rows if r["predicted"] is not None and r["result"] in _RESULT_RANK]
+    pairs = agree = 0
+    for i, a in enumerate(ranked):
+        for b in ranked[i + 1 :]:
+            better = _RESULT_RANK[a["result"]] - _RESULT_RANK[b["result"]]
+            if a["predicted"] == b["predicted"] or better == 0:
+                continue
+            pairs += 1
+            agree += (a["predicted"] > b["predicted"]) == (better > 0)
+    since = (now - timedelta(hours=OUTCOME_HOURS)).astimezone(UTC).isoformat(timespec="seconds")
+    latest = max((r for r in rows if r["at"] > since), key=lambda r: r["at"], default=None)
+    return {"exams": rows, "pairs": pairs, "agree": agree, "latest": latest}
 
 
 def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
@@ -5036,6 +5133,7 @@ def progress_view(
             },
             "milestones": _milestones(run.best, len(done), full),
             "exams": _exam_rows(plan, now, colours),
+            "taken": exam_outcomes(subscription, now),
         }
     )
     return view
@@ -10324,11 +10422,14 @@ def course_view(
     plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
     colours = {name.casefold(): i for name, i in course_colours(plan)} if plan else {}
     current = next((w for w in weeks if w["state"] == "now"), None)
+    taken = [r for r in exam_outcomes(subscription, now)["exams"] if course_key(r["course"]) == key]
     return {
         "index": index,
         "course": course,
         "color": colours.get(course.casefold()),
         "exam": _exam_of(plan, course, now) if plan else None,
+        # its last exam answered about, beside the forecast (D105)
+        "outcome": max(taken, key=lambda r: r["at"]) if taken else None,
         "weeks": weeks,
         "now": current,
         "taught": len(taught),
