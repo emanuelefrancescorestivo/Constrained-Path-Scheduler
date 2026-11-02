@@ -6,6 +6,7 @@
   <p>{{ _("Each course week by week: what has been taught and reviewed, what is to come, and everything to study it with.") }}</p>
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 {% if courses %}
 <a class="card import-card" href="/p/{{ token }}/courses/import">
   <span class="grow"><b>{{ _("Import your semester's program") }}</b><br><small>{{ _("Paste it or choose its PDF: every course's topics, weeks, assessment, credits and hours at once.") }}</small></span>
@@ -31,4 +32,36 @@
 {% else %}
 <p class="card">{{ _("Your plan has no courses with an exam yet. Add them in Settings, then come back.") }}</p>
 {% endif %}
+
+{# D104: one link for the whole class. Whoever opens it takes these courses' topics
+   into their own plan; making it is the yes to that, and the page says what it shows. #}
+{% set cl = class_link %}
+<section class="card section invite-link class-link" id="class">
+  <h2>{{ _("Your class's link") }}</h2>
+  {% if cl.code %}
+  <p class="hint">{{ _n("Whoever opens it takes your course's topics into their own plan, in one tap. Share it in your class's chat.", "Whoever opens it takes the topics of your {n} courses into their own plan, in one tap. Share it in your class's chat.", cl.courses | length) }}</p>
+  <input class="copy" id="c-link" value="{{ class_url }}" readonly aria-label="{{ _('Class link') }}">
+  <div class="row-buttons">
+    <a class="btn btn-primary btn-sm" href="https://wa.me/?text={{ _('Our courses, week by week, for your study plan: {link}', link=class_url) | urlencode }}" rel="noopener noreferrer" target="_blank">{{ _("WhatsApp") }}</a>
+    <button type="button" class="btn btn-sm" data-share data-share-text="{{ _('Our courses, week by week, for your study plan: {link}', link=class_url) }}" hidden>{{ _("Share") }}</button>
+    <button type="button" class="btn btn-sm" data-copy="#c-link" hidden>{{ _("Copy") }}</button>
+  </div>
+  {% if cl.uses %}<p class="hint">{{ _n("Taken by {n} plan so far.", "Taken by {n} plans so far.", cl.uses) }}</p>{% endif %}
+  <div class="row-buttons">
+    <form method="post" action="/p/{{ token }}/class-link"><input type="hidden" name="action" value="renew"><button type="submit" class="btn btn-plain btn-sm">{{ _("Make a new link") }}</button></form>
+    <form method="post" action="/p/{{ token }}/class-link"><input type="hidden" name="action" value="stop"><button type="submit" class="btn btn-plain btn-sm">{{ _("Stop the link") }}</button></form>
+  </div>
+  <p class="hint">{{ _("A new link or stopping it: the old link stops working, and what was taken stays taken.") }}</p>
+  {% elif cl.courses %}
+  <p class="hint">{{ _n("One link for your whole class: whoever opens it takes your course's topics into their own plan, in one tap.", "One link for your whole class: whoever opens it takes the topics of your {n} courses into their own plan, in one tap.", cl.courses | length) }}</p>
+  <p class="hint">{{ _("They see your courses and their topics, and the university and programme of your profile; never your handle, your plan or your sessions.") }}</p>
+  <form method="post" action="/p/{{ token }}/class-link"><input type="hidden" name="action" value="make"><button type="submit" class="btn btn-tinted btn-sm">{{ _("Make your class's link") }}</button></form>
+  {% else %}
+  <p class="hint">{{ _("Once a course has its topics, one link brings them to your whole class.") }}</p>
+  {% endif %}
+  <form method="post" action="/p/{{ token }}/class-paste" class="inline-form class-paste">
+    <label for="c-paste">{{ _("A classmate sent you a class link? Paste it") }}</label>
+    <div class="row-input"><input id="c-paste" name="code" required maxlength="200" autocomplete="off" placeholder="https://…/c/…"><button type="submit" class="btn">{{ _("Open") }}</button></div>
+  </form>
+</section>
 {% endblock %}

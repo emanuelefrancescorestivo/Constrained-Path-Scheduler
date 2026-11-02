@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your class's program") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="/static/invite.js"></script>{% endblock %}
+{% block main %}
+{# A class's link as anyone who opens it sees it (D104): the courses and their topics,
+   and the way to take them with one's own plan (this device's, remembered by pwa.js,
+   or the link pasted on Courses on another). #}
+<div class="card invitation class-page" data-invite="{{ view.code }}" data-join-path="class">
+  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h6.5a2 2 0 0 1 2 2V19a1.6 1.6 0 0 0-1.6-1.6H4zM20 5.5h-6.5a2 2 0 0 0-2 2V19a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg></span>
+  <h1>{{ _("Your class's program") }}</h1>
+  {% if view.university %}<p class="class-where">{{ view.university }}{% if view.programme %} · {{ view.programme }}{% endif %}</p>{% endif %}
+  <p>{{ _n("The topics of one course, week by week, ready to take into your own study plan.", "The topics of {n} courses, week by week, ready to take into your own study plan.", view.courses | length) }}</p>
+  <ul class="list class-courses">
+    {% for c in view.courses %}
+    <li><span class="grow"><b>{{ c.course }}</b><small>{% if c.count %}{{ _n("{n} topic", "{n} topics", c.count) }}{% endif %}{% if c.count and c.facts %} · {% endif %}{% if c.facts %}{{ _("its assessment and credits") }}{% endif %}</small>{% if c.titles %}<small class="muted">{{ c.titles | join(" · ") }}{% if c.more %} · …{% endif %}</small>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  <p><a class="btn btn-primary btn-block" data-join-mine hidden>{{ _("Take it with my plan") }}</a></p>
+  <p class="hint">{{ _("Your plan is on another device? Open it there, go to Courses, and paste this link.") }}</p>
+  <p><a class="btn btn-block" href="/">{{ _("No plan yet? Start one, then open this link again") }}</a></p>
+</div>
+{% endblock %}

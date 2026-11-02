@@ -236,6 +236,7 @@ TABLES = {
     "push_devices": "reminder_devices",
     "feedback": "feedback",
     "course_topics": "shared_topics",
+    "class_links": "class_link",  # D104: when it was made and its uses, not its code
     "accounts": "account",
     "sessions": "signed_in",
     "usage_consent": "usage_answer",

@@ -258,6 +258,16 @@ CREATE TABLE IF NOT EXISTS course_topics (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS course_topics_by_plan ON course_topics (token, university, course);
 CREATE INDEX IF NOT EXISTS course_topics_by_course ON course_topics (university, course);
+-- A class's link (D104): what a student's courses hold (their topics, and what a
+-- course page or the semester's program said of them), offered to whoever has the
+-- link, read from the plan when the link is opened. One per plan; a new one replaces
+-- it and the old link stops working. It goes with the plan (`_FORGET`).
+CREATE TABLE IF NOT EXISTS class_links (
+    code    TEXT PRIMARY KEY,
+    token   TEXT NOT NULL UNIQUE,
+    created TEXT NOT NULL,
+    uses    INTEGER NOT NULL DEFAULT 0
+);
 -- E-mail accounts (D94): one per student, made before the plan, the password kept
 -- only as its scrypt digest. A plan made while signed in belongs to its account
 -- (`token`) and opens only for that account. A session is a device signed in: only
@@ -362,6 +372,7 @@ _FORGET = (
     "DELETE FROM push_sent WHERE token = :t",
     "DELETE FROM feedback WHERE token = :t",
     "DELETE FROM course_topics WHERE token = :t",
+    "DELETE FROM class_links WHERE token = :t",
     "DELETE FROM usage WHERE token = :t",
     "DELETE FROM usage_consent WHERE token = :t",
     # The account the plan belongs to (D94), with its devices signed in and its links.
@@ -408,6 +419,9 @@ _EXPORT = {
     "feedback": "SELECT created, kind, page, body FROM feedback WHERE token = :t ORDER BY id",
     "shared_topics": "SELECT university, name, topics, created, updated, uses FROM course_topics "
     "WHERE token = :t ORDER BY created",
+    # D104: when the class's link was made and how many plans took it; not its code,
+    # which is the link itself.
+    "class_link": "SELECT created, uses FROM class_links WHERE token = :t",
     # D94: the address and when it was confirmed, not the password's digest; the
     # devices signed in, not their cookies' digests.
     "account": "SELECT email, created, confirmed FROM accounts WHERE token = :t",

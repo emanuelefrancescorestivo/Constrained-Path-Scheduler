@@ -79,6 +79,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("GET", r"/tasks", "tasks"),
     ("GET", r"/courses", "courses"),
     ("GET", r"/courses/import", "program"),
+    ("GET", r"/class/[^/]+", "program"),  # a class's program, taken (D104)
     ("GET", r"/courses/\d+", "course"),
     ("GET", r"/topics(/\d+)?", "topics"),
     ("GET", r"/focus", "focus"),
@@ -118,6 +119,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("POST", r"/(groups(/.*)?|join(/.*)?)", "groups"),
     ("POST", r"/(u/[^/]+/(follow|unfollow)|requests/[^/]+|profile)", "people"),
     ("POST", r"/courses/import", "program"),
+    ("POST", r"/(class/[^/]+|class-link|class-paste)", "program"),  # a class's program (D104)
     ("POST", r"/courses/\d+/(credits|links.*)", "course"),
     ("POST", r"/topics/\d+(/take)?", "topics"),
     ("POST", r"/(settings|exam|budget|courses/\d+/exam)", "settings"),

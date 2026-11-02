@@ -214,6 +214,8 @@ def settings_rows(signed_in: bool) -> list[dict[str, Any]]:
 # The notices of a change to the diary, whose entries are under Progress's "More
 # detail" (D103): the fold opens to show them.
 DIARY_NOTICES = frozenset({"logged", "deleted", "1", "left"})
+# A class link pasted on Courses that is not one (D104).
+CLASS_NOTICES = {"bad_class": "That is not a class link."}
 CARD_NOTICES = {
     "card_saved": "Saved.",
     "card_deleted": "Deleted.",
@@ -1584,16 +1586,19 @@ def create_app(config: Config | None = None) -> FastAPI:
         return value if re.fullmatch(rf"/p/{re.escape(token)}/join/[A-Za-z0-9_-]{{12}}", value) else ""
 
     @app.get("/p/{token}/profile", response_class=HTMLResponse)
-    def profile(request: Request, token: str, next: str = "") -> HTMLResponse:
+    def profile(request: Request, token: str, next: str = "", for_class: str = "") -> HTMLResponse:
         if load(token) is None:
             return missing(request)
         current = service.profile_of(store, token)
+        # Coming from a class link (D104): its university and programme, to change.
+        shown = service.class_page_view(store, for_class) if for_class and current is None else None
+        values = {"university": shown["university"], "programme": shown["programme"]} if shown else {}
         return page(
             request,
             "profile.html",
             token=token,
             profile=current,
-            values=current or {},
+            values=current or values,
             years=service.YEAR_WORDS,
             next=safe_next(token, next),
             tab="community",
@@ -1941,6 +1946,21 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         return page(request, "invitation.html", invite=view)
 
+    @app.get("/c/{code}", response_class=HTMLResponse)
+    def class_page(request: Request, code: str) -> HTMLResponse:
+        """A class's link, as anyone who opens it sees it (D104): the courses and their
+        topics, and how to take them into one's own plan."""
+        view = service.class_page_view(store, code)
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this class link does not work any more"),
+            )
+        return page(request, "class.html", view=view)
+
     @app.get("/p/{token}/join/{code}", response_class=HTMLResponse)
     def join_page(request: Request, token: str, code: str) -> HTMLResponse:
         subscription = load(token)
@@ -2126,7 +2146,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     }
 
     @app.get("/p/{token}/courses", response_class=HTMLResponse)
-    def courses_list(request: Request, token: str, imported: int = -1) -> HTMLResponse:
+    def courses_list(request: Request, token: str, imported: int = -1, saved: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -2139,7 +2159,101 @@ def create_app(config: Config | None = None) -> FastAPI:
             if imported >= 0
             else None
         )
-        return page(request, "courses.html", token=token, courses=courses, tab="courses", saved=notice)
+        class_link = service.class_link_view(store, subscription)
+        return page(
+            request,
+            "courses.html",
+            token=token,
+            courses=courses,
+            tab="courses",
+            saved=notice or (_notice(saved) if saved else None),
+            class_link=class_link,
+            class_url=f"{base(request)}/c/{class_link['code']}" if class_link["code"] else None,
+        )
+
+    # -- a class's link: one student's courses, taken by the whole class (D104) --------
+
+    @app.post("/p/{token}/class-link")
+    async def class_link_change(request: Request, token: str) -> Response:
+        """Make the plan's class link, make a new one in its place, or stop it."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
+        action = str(form.get("action") or "make")
+        try:
+            if action == "stop":
+                service.stop_class_link(store, subscription)
+            else:
+                service.make_class_link(store, subscription, renew=action == "renew", now=config.clock())
+        except service.ServiceError as error:
+            return page(
+                request,
+                "courses.html",
+                400,
+                token=token,
+                courses=service.courses_view(store, subscription, config.clock()),
+                tab="courses",
+                error=str(error),
+                class_link=service.class_link_view(store, subscription),
+                class_url=None,
+            )
+        service.log_event(store, token, "class link", action)
+        return RedirectResponse(f"/p/{token}/courses#class", 303)
+
+    @app.post("/p/{token}/class-paste")
+    async def class_paste(request: Request, token: str) -> Response:
+        """A class link pasted on Courses: the link or its code."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        found = re.search(r"(?:^|/c/)([A-Za-z0-9_-]{12})(?:[/?#]|$)", str(form.get("code") or "").strip())
+        if not found:
+            return RedirectResponse(f"/p/{token}/courses?saved=bad_class#class", 303)
+        return RedirectResponse(f"/p/{token}/class/{found.group(1)}", 303)
+
+    def class_take_page(
+        request: Request, subscription: service.Subscription, code: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        view = service.class_take_view(store, subscription, code)
+        if view is None:
+            return page(
+                request,
+                "message.html",
+                404,
+                title=service.translate("Not found"),
+                message=service.translate("this class link does not work any more"),
+                token=subscription.token,
+            )
+        return page(
+            request, "class_take.html", status, token=subscription.token, view=view, tab="courses", **extra
+        )
+
+    @app.get("/p/{token}/class/{code}", response_class=HTMLResponse)
+    def class_take(request: Request, token: str, code: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return class_take_page(request, subscription, code)
+
+    @app.post("/p/{token}/class/{code}", response_class=HTMLResponse)
+    async def class_take_save(request: Request, token: str, code: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=60)
+        picks = {int(str(v)) for v in form.getlist("take") if str(v).isdigit()}
+        try:
+            entries = service.take_class_program(store, subscription, code, picks)
+            service.update_subscription(store, token, lambda now: service.with_class_program(now, entries))
+        except service.ServiceError as error:
+            return class_take_page(request, subscription, code, 400, error=str(error))
+        service.log_event(store, token, "topics", "class")
+        return RedirectResponse(f"/p/{token}/courses?imported={len(entries)}", 303)
 
     # -- a semester's program in one document, pasted or as a PDF (D90) --------------
 
@@ -3998,6 +4112,8 @@ def _notice(saved: str) -> str | None:
         return service.translate("Passkey removed. Remove it from your device's passwords too.")
     if saved == "bad_invite":
         return service.translate("That is not an invitation link or code.")
+    if saved in CLASS_NOTICES:
+        return service.translate(CLASS_NOTICES[saved])
     if saved == "password":
         return service.translate("Password changed. Your other devices are signed out.")
     if saved == "elsewhere":

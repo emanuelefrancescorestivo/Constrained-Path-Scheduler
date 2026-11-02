@@ -47,7 +47,7 @@ import os
 import re
 import secrets
 import threading
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
@@ -9436,6 +9436,166 @@ def take_classmates_topics(
 def with_course_topics(subscription: Subscription, entry: Mapping) -> Subscription:
     """The plan with a course's topics (`take_classmates_topics`) in place of its own."""
     topics = {**(subscription.options.get("topics") or {}), course_key(str(entry["course"])): dict(entry)}
+    return replace(subscription, options={**subscription.options, "topics": topics})
+
+
+# --------------------------------------------------------------------------- #
+# A class's link: one student's courses, taken by the whole class (D104)
+# --------------------------------------------------------------------------- #
+
+CLASS_PREVIEW = 3  # topics a course shows on the link's page
+
+
+def _class_courses(subscription: Subscription) -> list[dict]:
+    """What a plan's class link offers: each of its courses that has topics, or what
+    a course page said of it (assessment, credits, hours), in the plan's order."""
+    kept = subscription.options.get("topics") or {}
+    out = []
+    for course in topic_courses(subscription):
+        entry = kept.get(course_key(course)) or {}
+        items = [i for i in entry.get("items") or () if i.get("title")]
+        facts = entry.get("facts") or {}
+        if items or facts:
+            out.append({"course": course, "items": items, "facts": facts})
+    return out
+
+
+def _class_source(store: str | os.PathLike, code: str) -> tuple[Subscription, list[dict]] | None:
+    """The plan a class link offers, read now, and its courses; None for a link that
+    does not work: replaced, stopped, its plan deleted, or nothing left to offer."""
+    owner = social.class_link_owner(_store(store), code)
+    source = load_subscription(store, owner) if owner else None
+    if source is None:
+        return None
+    courses = _class_courses(source)
+    return (source, courses) if courses else None
+
+
+def class_link_view(store: str | os.PathLike, subscription: Subscription) -> dict:
+    """The class link on Courses (D104): its code once made, how many plans took
+    it, and what it offers."""
+    courses = _class_courses(subscription)
+    current = social.current_class_link(_store(store), subscription.token)
+    return {
+        "code": current[0] if current else None,
+        "uses": current[1] if current else 0,
+        "courses": [c["course"] for c in courses],
+        "topics": sum(len(c["items"]) for c in courses),
+    }
+
+
+def make_class_link(
+    store: str | os.PathLike, subscription: Subscription, *, renew: bool = False, now: datetime | None = None
+) -> str:
+    """A class link for the plan's courses, or (`renew`) a new one in place of it."""
+    if not _class_courses(subscription):
+        raise InvalidInput(_("add a course's topics first: the link offers them"))
+    return social.class_link(_store(store), subscription.token, renew=renew, now=now)
+
+
+def stop_class_link(store: str | os.PathLike, subscription: Subscription) -> None:
+    social.stop_class_link(_store(store), subscription.token)
+
+
+def class_page_view(store: str | os.PathLike, code: str) -> dict | None:
+    """What a class link shows whoever opens it (D104): its courses, each with its
+    number of topics and the first few, and the university and programme its maker's
+    profile names. Never who made it, nor anything of their plan but its courses."""
+    found = _class_source(store, code)
+    if found is None:
+        return None
+    source, courses = found
+    profile = social.get_profile(_store(store), source.token)
+    return {
+        "code": code,
+        "university": profile.university if profile else "",
+        "programme": profile.programme if profile else "",
+        "courses": [
+            {
+                "course": c["course"],
+                "count": len(c["items"]),
+                "titles": [i["title"] for i in c["items"][:CLASS_PREVIEW]],
+                "more": max(0, len(c["items"]) - CLASS_PREVIEW),
+                "facts": bool(c["facts"]),
+            }
+            for c in courses
+        ],
+    }
+
+
+def class_take_view(store: str | os.PathLike, subscription: Subscription, code: str) -> dict | None:
+    """A class link opened with a plan (D104): each of its courses matched to one of
+    the plan's by the words their names share, as a semester's program is (D90),
+    and ticked when that course has no topics of its own yet."""
+    found = _class_source(store, code)
+    shown = class_page_view(store, code)
+    if found is None or shown is None:
+        return None
+    source, courses = found
+    mine = topic_courses(subscription)
+    kept = subscription.options.get("topics") or {}
+    rows = []
+    for i, j in enumerate(_matches([c["course"] for c in courses], mine)):
+        own = (kept.get(course_key(mine[j])) or {}) if j is not None else {}
+        rows.append(
+            {
+                **shown["courses"][i],
+                "index": i,
+                "mine": mine[j] if j is not None else None,
+                "own_topics": len(own.get("items") or ()),
+                "taken": own.get("from") == f"class:{code}",
+            }
+        )
+    return {
+        **shown,
+        "rows": rows,
+        "matched": sum(r["mine"] is not None for r in rows),
+        "own": source.token == subscription.token,
+        "profile": social.get_profile(_store(store), subscription.token) is not None,
+    }
+
+
+def take_class_program(
+    store: str | os.PathLike, subscription: Subscription, code: str, picks: Collection[int]
+) -> dict[str, dict]:
+    """The picked courses of a class link (by their place on the link), each with its
+    topics placed on the plan's own weeks and what its course page said: the entries
+    for `with_class_program`, keyed by the plan's course. A plan's first take of a link
+    counts as one use of it."""
+    found = _class_source(store, code)
+    if found is None:
+        raise InvalidInput(_("this class link does not work any more"))
+    source, courses = found
+    if source.token == subscription.token:
+        raise InvalidInput(_("this is your own class's link"))
+    mine = topic_courses(subscription)
+    kept = subscription.options.get("topics") or {}
+    entries: dict[str, dict] = {}
+    for i, j in enumerate(_matches([c["course"] for c in courses], mine)):
+        if j is None or i not in picks:
+            continue
+        course, offered = mine[j], courses[i]
+        read = [_syllabus.Topic.from_dict(t) for t in offered["items"]][: _syllabus.MAX_TOPICS]
+        before = kept.get(course_key(course)) or {}
+        entries[course_key(course)] = {
+            "course": course,
+            "items": _placed(subscription, course, read),
+            "from": f"class:{code}",
+            "facts": offered["facts"] or before.get("facts") or {},
+        }
+    if not entries:
+        raise InvalidInput(_("tick at least one of your courses"))
+    if not any((e or {}).get("from") == f"class:{code}" for e in kept.values()):
+        social.count_class_use(_store(store), code)
+    for key in entries:  # the topics are the class's now, no longer this plan's own list
+        social.unshare_topics(_store(store), subscription.token, key)
+    return entries
+
+
+def with_class_program(subscription: Subscription, entries: Mapping[str, Mapping]) -> Subscription:
+    """The plan with the courses a class link brought (`take_class_program`) in place
+    of their own topics."""
+    topics = {**(subscription.options.get("topics") or {}), **{k: dict(v) for k, v in entries.items()}}
     return replace(subscription, options={**subscription.options, "topics": topics})
 
 
