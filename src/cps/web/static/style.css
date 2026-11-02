@@ -1773,6 +1773,13 @@ h2[id] { scroll-margin-top: 72px; }
 html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--ease-spring) both; }
 @supports (corner-shape: squircle) { .badge-tile { corner-shape: squircle; } }
 .invitation { max-width: 30rem; margin: 0 auto; text-align: center; }
+/* A class's link (D104): its courses, each with its topics' first titles, read left to
+   right inside the centred card; on the take page, each beside the plan's own. */
+.class-where { margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+.class-courses { text-align: left; margin: 14px 0; }
+.class-courses small, .class-take small { display: block; color: var(--muted); }
+.class-take .check { display: flex; align-items: flex-start; gap: 12px; margin: 0; }
+.class-paste { margin-top: 16px; }
 .invitation h1 { font-size: 1.6rem; margin: 10px 0 6px; }
 .invitation .way-icon { margin: 0 auto; }
 .invite-link .copy { width: 100%; margin: 8px 0 4px; }

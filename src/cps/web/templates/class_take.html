@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Your class's program") }} · {{ _("Courses") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# A class's link opened with a plan (D104): each of its courses beside the plan's own,
+   matched by name, ticked when the plan's course has no topics yet. #}
+<p class="back"><a href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Your class's program") }}</h1>
+  {% if view.university %}<p>{{ view.university }}{% if view.programme %} · {{ view.programme }}{% endif %}</p>{% endif %}
+</div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if view.own %}
+<p class="card">{{ _("This is your own class's link: share it, and your classmates take your courses' topics from it.") }}</p>
+{% else %}
+<form method="post" action="/p/{{ token }}/class/{{ view.code }}" class="section">
+  <ul class="card list class-take">
+    {% for r in view.rows %}
+    <li>
+      {% if r.mine %}
+      <label class="check check-long"><input type="checkbox" name="take" value="{{ r.index }}"{% if not r.own_topics or r.taken %} checked{% endif %}>
+        <span class="grow"><b>{{ r.mine }}</b>{% if r.mine != r.course %} <small class="muted">{{ _("«{name}» on the link", name=r.course) }}</small>{% endif %}
+        <small>{% if r.count %}{{ _n("{n} topic", "{n} topics", r.count) }}{% endif %}{% if r.count and r.facts %} · {% endif %}{% if r.facts %}{{ _("its assessment and credits") }}{% endif %}{% if r.taken %} · {{ _("taken before") }}{% elif r.own_topics %} · {{ _n("in place of your own topic", "in place of your {n} topics", r.own_topics) }}{% endif %}</small></span>
+      </label>
+      {% else %}
+      <span class="grow muted"><b>{{ r.course }}</b> <small>{{ _("not one of your courses") }}</small></span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if view.matched %}
+  <p class="hint">{{ _("Each course's topics land on your own weeks of lectures, and each week's sessions say what it was about. Your exams and the times of your plan do not change.") }}</p>
+  <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Take the ticked courses") }}</button></div>
+  {% else %}
+  <p class="card">{{ _("None of these courses is in your plan. Add its exam first, in Settings, Exams and deadlines.") }}</p>
+  {% endif %}
+</form>
+{% if not view.profile and view.university %}<p class="hint">{{ _h("Then meet your class: <a href=\"{url}\">choose a handle</a>, at {university}.", url="/p/" ~ token ~ "/profile?for_class=" ~ view.code, university=view.university) }}</p>{% endif %}
+{% endif %}
+{% endblock %}

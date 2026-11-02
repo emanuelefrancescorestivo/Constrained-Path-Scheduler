@@ -3702,3 +3702,51 @@ Settings opens the list, not the part. Renaming a course is no longer offered on
 form (Settings had the name as a field): a course drawn by hand is renamed on the calendar,
 one from a timetable keeps the timetable's name. Whether students find a setting faster
 across six pages than on one long one is for the pilot (D96's counts) to say.
+
+## D104. A class's link that brings the program
+
+*The owner, 2026-11-02: "build the class invite link that brings the program", after
+the review of what the app still needs proposed recruiting whole classes rather than
+students one by one, with one link per class that brings the class's program.*
+
+**Chosen.**
+
+- **One link per plan, for the whole class.** On Courses, a student whose courses have
+  topics makes "Your class's link" (`/c/<code>`) and shares it in the class's chat.
+  Whoever opens it sees the courses and, for each, its number of topics and the first
+  three, and whether its assessment and credits come with it.
+- **Taken with one's own plan, in one tap.** The link's page offers "Take it with my
+  plan" to a device that has opened a plan before (as a group's link does, D40); on
+  another device the link is pasted on Courses. The plan's page then shows each course
+  of the link beside the plan's own, matched by the words their names share, as a
+  semester's program is (D90: "Algebra 3" and "ALGEBRA 3 - CM"); a course not in the
+  plan is shown as such and cannot be taken. A course with no topics of its own is
+  ticked; one that has some is not, and says it would replace them. The topics are
+  placed on the taker's own weeks of lectures, with what the course page said
+  (assessment, credits, hours) when the link has it; the taker's own shared list for
+  that course is withdrawn, since the topics are the class's now.
+- **Read live, counted once.** The link holds no copy: it reads its plan when opened,
+  so topics added later reach whoever opens it next. A plan's first take counts once
+  ("Taken by 3 plans so far"). A new link replaces it and stopping it ends it; what was
+  taken stays taken. The link goes with its plan (`_FORGET`) and is in the plan's copy
+  of its data, without its code, which is the link itself.
+- **Meeting the class.** A taker without a handle is offered the profile's form filled
+  in with the link's university and programme, so the class find each other as
+  classmates (D39).
+- **What it shows.** The courses, their topics, and the university and programme of
+  the maker's profile; never the maker's handle, plan or sessions. Making the link is
+  the yes to this, and the card says so before it is made.
+
+*Rejected:* a study group for the class (a group is eight at most, D28, for a shared
+goal among friends; a class is 30 to 200); a copy of the topics frozen when the link is
+made (a correction or a week added later would never reach the class); taking every
+matched course without asking (a student's own topics are theirs to keep); adding the
+link's courses that are not in the plan (a course is planned for from its exam, which
+only the student knows); showing who made the link (the class needs the program, not a
+name; the network is where people choose to be seen).
+
+**Disclosed.** Courses are matched by the words of their names, as a program's are: two
+courses whose names share less than half their words are not matched, and a course
+named alike at another university would be. Whoever has the link sees the courses and
+their topics, as with any link shared in a chat. Checked in Chromium only, at phone and
+desktop widths. Whether whole classes join this way is for the pilot to say.

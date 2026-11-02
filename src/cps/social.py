@@ -1564,3 +1564,50 @@ def take_topics(store: Store, token: str, list_id: str, counted: bool) -> Shared
         if not counted:
             db.execute("UPDATE course_topics SET uses = uses + 1 WHERE id = ?", (list_id,))
     return SharedTopics(row[0], row[1], json.loads(row[2]), row[3], row[4] + (0 if counted else 1))
+
+
+# --------------------------------------------------------------------------- #
+# A class's link (D104): one plan's courses, offered to whoever has the link
+# --------------------------------------------------------------------------- #
+
+
+def class_link(store: Store, token: str, *, renew: bool = False, now: datetime | None = None) -> str:
+    """The code of a plan's class link: made when first asked for; a new one replaces
+    it, and the old link stops working."""
+    with store.connection() as db:
+        row = db.execute("SELECT code FROM class_links WHERE token = ?", (token,)).fetchone()
+        if row is not None and not renew:
+            return str(row[0])
+        code = secrets.token_urlsafe(9)  # 12 characters, 72 bits, as a group's link
+        db.execute("DELETE FROM class_links WHERE token = ?", (token,))
+        db.execute(
+            "INSERT INTO class_links (code, token, created) VALUES (?, ?, ?)", (code, token, _now(now))
+        )
+    return code
+
+
+def current_class_link(store: Store, token: str) -> tuple[str, int] | None:
+    """A plan's class link, if it has one: its code and how many plans took it."""
+    with store.connection() as db:
+        row = db.execute("SELECT code, uses FROM class_links WHERE token = ?", (token,)).fetchone()
+    return (str(row[0]), int(row[1])) if row else None
+
+
+def stop_class_link(store: Store, token: str) -> None:
+    with store.connection() as db:
+        db.execute("DELETE FROM class_links WHERE token = ?", (token,))
+
+
+def class_link_owner(store: Store, code: str) -> str | None:
+    """The plan whose courses a class link offers; None for a link that does not
+    work (any more)."""
+    if not INVITE_CODE.fullmatch(code):
+        return None
+    with store.connection() as db:
+        row = db.execute("SELECT token FROM class_links WHERE code = ?", (code,)).fetchone()
+    return str(row[0]) if row else None
+
+
+def count_class_use(store: Store, code: str) -> None:
+    with store.connection() as db:
+        db.execute("UPDATE class_links SET uses = uses + 1 WHERE code = ?", (code,))

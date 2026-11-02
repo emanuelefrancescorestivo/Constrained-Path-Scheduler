@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A class's link (DECISIONS.md D104): one link, made on Courses, brings a student's
+  courses' topics to the whole class; each classmate takes them into their own matching
+  courses in one tap, placed on their own weeks.
+
 - Pictures on Study tips (DECISIONS.md D99): each topic, the coach and the weekly note.
 
 - Flashcards from a course's materials (DECISIONS.md D101): one tap from Flashcards, a
