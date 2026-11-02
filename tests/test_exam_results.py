@@ -112,14 +112,34 @@ from cps.web import Config, create_app  # noqa: E402
 
 
 @pytest.mark.parametrize(
-    ("lang", "question", "consent", "thanks"),
+    ("lang", "question", "consent", "thanks", "marks"),
     [
-        ("en", "How did the Algebra 3 exam go?", "The owner of this app may read this answer", "Thank you."),
-        ("fr", "Comment s'est passé l'examen de Algebra 3 ?", "Le responsable de cette appli", "Merci."),
-        ("it", "Com'è andato l'esame di Algebra 3?", "Il gestore di questa app", "Grazie."),
+        (
+            "en",
+            "How did the Algebra 3 exam go?",
+            "The owner of this app may read this answer",
+            "Thank you.",
+            "(27/30, 14/20, B+)",
+        ),
+        # The mark's examples in each language's usual scale: out of 20 in French, out
+        # of 30 in Italian (D105).
+        (
+            "fr",
+            "Comment s'est passé l'examen de Algebra 3 ?",
+            "Le responsable de cette appli",
+            "Merci.",
+            "(14/20, 16,5/20)",
+        ),
+        (
+            "it",
+            "Com'è andato l'esame di Algebra 3?",
+            "Il gestore di questa app",
+            "Grazie.",
+            "(27/30, 30 e lode)",
+        ),
     ],
 )
-def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, consent, thanks):
+def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, consent, thanks, marks):
     now = {"at": MORNING}
     config = Config(store=tmp_path, clock=lambda: now["at"], background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
@@ -141,6 +161,7 @@ def test_today_asks_and_the_privacy_page_says_so(tmp_path, lang, question, conse
             web.post(f"/p/{token}/exam", data={"course": course, "skip": "1"})
             today = unescape(web.get(f"/p/{token}").text)
         assert question in today and consent in today and 'name="helped" value="lot"' in today
+        assert marks in today
         assert 'name="consent" value="1">' in today  # not ticked for the student
         answer = web.post(
             f"/p/{token}/exam",

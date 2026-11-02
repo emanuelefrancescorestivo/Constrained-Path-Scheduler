@@ -1281,7 +1281,7 @@ MESSAGES: dict[str, str] = {
     "Did not sit it": "Je ne l'ai pas passé",
     "How did the {course} exam go?": "Comment s'est passé l'examen de {course} ?",
     "It was on {date}; your answer helps check whether the plan's predictions hold.": "C'était le {date} ; ta réponse aide à vérifier si les prévisions du plan tiennent.",
-    "Your mark, if you like (27/30, 14/20, B+)": "Ta note, si tu veux (27/30, 14/20, B+)",
+    "Your mark, if you like (27/30, 14/20, B+)": "Ta note, si tu veux (14/20, 16,5/20)",
     "The owner of this app may read this answer and the plan's prediction for this exam, without your name or your plan, to check whether the predictions hold.": "Le responsable de cette appli peut lire cette réponse et la prévision du plan pour cet examen, sans ton nom ni ton plan, pour vérifier si les prévisions tiennent.",
     "Thank you. Good luck with the next one.": "Merci. Bonne chance pour le prochain.",
     "this exam is not waiting for an answer": "cet examen n'attend pas de réponse",

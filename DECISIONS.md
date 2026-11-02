@@ -3784,6 +3784,10 @@ it back.*
   the course and the exam's moment; an answer kept before, under the course's name
   alone, answers the exams of that course before it was given, never a later one. The
   first answer stays: a resit lists both.
+- **Marks in the language's scale.** The examples under the question's mark field
+  follow the language's usual scale: out of 20 in French ("14/20, 16,5/20"), out of 30
+  in Italian ("27/30, 30 e lode"); English keeps all three kinds. The mark is still kept
+  as written, whatever its scale.
 
 *Rejected:* turning the forecast into an expected grade (no scale maps recall to marks,
 and marks have no common scale, D56); a score of how right the forecast was, such as a
@@ -3794,7 +3798,8 @@ card on Today until it is dismissed (a day is enough to see it; Progress keeps i
 
 **Disclosed.** The forecast is the memory model's with average weights and a guessed
 starting state (D24), not a measurement; its result is set beside a pass, not a mark. The
-pages were checked in Chromium only, at phone and desktop widths, light and dark, with a
-plan whose clock stood after its exams: no demo student has an exam behind them, so the
-demo shows nothing of it until one does.
+mark's examples follow the language, not the country: a student in Switzerland, marked 1
+to 6, reads the French examples out of 20. The pages were checked in Chromium only, at
+phone and desktop widths, light and dark, with a plan whose clock stood after its exams:
+no demo student has an exam behind them, so the demo shows nothing of it until one does.
 
