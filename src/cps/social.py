@@ -809,6 +809,133 @@ def kudos_of(store: Store, post_ids: Iterable[str], viewer: str) -> dict[str, tu
     return {i: (counts.get(i, 0), i in mine) for i in ids}
 
 
+# A session's reactions (D108): kudos, and three more. Notes keep their one "helpful"
+# mark and explanations their "I got it" (both `toggle_kudos`): the notes library
+# ranks by them (D26), and a reaction that only says "helpful" in four ways would not
+# rank fairly. Kudos given before D108 are the first reaction.
+REACTIONS = ("kudos", "fire", "strong", "brain")
+
+
+def react(store: Store, token: str, post: Post, kind: str, now: datetime | None = None) -> str | None:
+    """React to a session, or take the reaction back: the same one again takes it
+    back, another replaces it; one per person per post. Returns the reaction kept."""
+    if kind not in REACTIONS:
+        raise SocialError(_("choose a reaction from the list"))
+    if post.kind != "session" and kind != "kudos":
+        raise SocialError(_("only a study session takes these reactions"))
+    if post.kind == "session" and post.token == token:
+        raise SocialError(_("others react to your sessions; you cannot react to your own"))
+    if not may_see(store, token, post):
+        raise SocialError(_("this post is not, or no longer, visible to you"))
+    if get_profile(store, token) is None and post.token != token:
+        raise SocialError(_("choose a handle first, in your profile"))
+    if post.kind == "notes" and post.token == token:
+        raise SocialError(_("others mark your notes helpful; you cannot mark your own"))
+    with store.connection() as db:
+        row = db.execute("SELECT kind FROM kudos WHERE post = ? AND token = ?", (post.id, token)).fetchone()
+        if row is not None and row[0] == kind:
+            db.execute("DELETE FROM kudos WHERE post = ? AND token = ?", (post.id, token))
+            return None
+        db.execute(
+            "INSERT INTO kudos (post, token, created, kind) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (post, token) DO UPDATE SET kind = excluded.kind, created = excluded.created",
+            (post.id, token, _now(now), kind),
+        )
+    return kind
+
+
+def reactions_of(store: Store, post_ids: Iterable[str], viewer: str) -> dict[str, dict]:
+    """Per post: how many of each reaction, and `viewer`'s own (None if none)."""
+    ids = list(post_ids)
+    out: dict[str, dict] = {i: {"counts": dict.fromkeys(REACTIONS, 0), "mine": None} for i in ids}
+    if not ids:
+        return out
+    marks = ",".join("?" * len(ids))
+    with store.connection() as db:
+        for post, kind, n in db.execute(
+            f"SELECT post, kind, COUNT(*) FROM kudos WHERE post IN ({marks}) GROUP BY post, kind", ids
+        ):
+            if kind in REACTIONS:
+                out[post]["counts"][kind] = n
+        for post, kind in db.execute(
+            f"SELECT post, kind FROM kudos WHERE token = ? AND post IN ({marks})", [viewer, *ids]
+        ):
+            out[post]["mine"] = kind
+    return out
+
+
+# Studying now (D108): while a focus session runs, the people who follow a student see
+# that they are studying, the course and since when, if the student said yes; nobody
+# else, and never anyone blocked either way. A row lasts until the session ends, and
+# is not shown past its `until` if the session never said it ended.
+PRESENCE_SHOWN = 8
+
+
+def studying_now_on(store: Store, token: str) -> bool:
+    with store.connection() as db:
+        row = db.execute("SELECT studying_now FROM profiles WHERE token = ?", (token,)).fetchone()
+    return bool(row and row[0])
+
+
+def set_studying_now(store: Store, token: str, on: bool) -> None:
+    """The student's yes, or no, to Studying now; a no takes the row away at once."""
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    with store.connection() as db:
+        db.execute("UPDATE profiles SET studying_now = ? WHERE token = ?", (int(bool(on)), token))
+        if not on:
+            db.execute("DELETE FROM presence WHERE token = ?", (token,))
+
+
+def mark_present(store: Store, token: str, course: str, started: datetime, until: datetime) -> bool:
+    """A focus session running: shown to followers if the student said yes; True if so."""
+    if not studying_now_on(store, token):
+        clear_presence(store, token)
+        return False
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO presence (token, course, started, until) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (token) DO UPDATE SET course = excluded.course, started = excluded.started, "
+            "until = excluded.until",
+            (token, course[: LIMITS["course"]], _now(started), _now(until)),
+        )
+    return True
+
+
+def clear_presence(store: Store, token: str) -> None:
+    with store.connection() as db:
+        db.execute("DELETE FROM presence WHERE token = ?", (token,))
+
+
+def present_followed(
+    store: Store, viewer: str, now: datetime | None = None, limit: int = PRESENCE_SHOWN
+) -> list[tuple[Profile, str, datetime]]:
+    """The people `viewer` follows who are studying now, newest first: each with the
+    course and when they started. Rows past their `until` go."""
+    stamp = _now(now)
+    with store.connection() as db:
+        db.execute("DELETE FROM presence WHERE until < ?", (stamp,))
+        rows = db.execute(
+            """
+            SELECT x.token, x.course, x.started FROM presence x
+            JOIN follows f ON f.followed = x.token AND f.follower = :v AND f.status = 'accepted'
+            JOIN profiles p ON p.token = x.token AND p.studying_now = 1
+            WHERE x.token != :v AND NOT EXISTS (
+                SELECT 1 FROM blocks b
+                WHERE (b.blocker = :v AND b.blocked = x.token) OR (b.blocker = x.token AND b.blocked = :v)
+            )
+            ORDER BY x.started DESC LIMIT :n
+            """,
+            {"v": viewer, "n": limit},
+        ).fetchall()
+    out = []
+    for token, course, started in rows:
+        profile = get_profile(store, token)
+        if profile is not None:
+            out.append((profile, course, datetime.fromisoformat(started)))
+    return out
+
+
 MAX_COMMENT = 600
 
 
@@ -899,6 +1026,7 @@ def leave(store: Store, token: str) -> None:
             "UPDATE posts SET visibility = 'me' WHERE token = :t",
             "DELETE FROM comments WHERE token = :t",
             "DELETE FROM kudos WHERE token = :t",
+            "DELETE FROM presence WHERE token = :t",
             "DELETE FROM follows WHERE follower = :t OR followed = :t",
             "DELETE FROM profiles WHERE token = :t",
             *LEAVE_GROUPS,  # a group is for people with a handle (D28)

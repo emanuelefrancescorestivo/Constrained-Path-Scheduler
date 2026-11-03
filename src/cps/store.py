@@ -311,6 +311,15 @@ CREATE TABLE IF NOT EXISTS usage (
     n     INTEGER NOT NULL,
     PRIMARY KEY (token, day, part)
 );
+-- Studying now (DECISIONS.md D108): while a focus session runs, for a student who said
+-- yes, the course and since when, seen by those who follow them; the row goes when
+-- the session ends, and is not shown past `until` if it never said so.
+CREATE TABLE IF NOT EXISTS presence (
+    token   TEXT PRIMARY KEY,
+    course  TEXT NOT NULL,
+    started TEXT NOT NULL,
+    until   TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -331,6 +340,9 @@ _ADDED_COLUMNS = (
     ("profiles", "country", "TEXT NOT NULL DEFAULT ''"),
     ("study_groups", "invite", "TEXT"),
     ("cards", "week", "TEXT"),  # the Monday of the week of lectures a card belongs to (D87)
+    # A reaction to a session (D108); the kudos given before it stay kudos.
+    ("kudos", "kind", "TEXT NOT NULL DEFAULT 'kudos'"),
+    ("profiles", "studying_now", "INTEGER NOT NULL DEFAULT 0"),  # the yes to Studying now (D108)
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 
@@ -357,6 +369,7 @@ _FORGET = (
     "DELETE FROM posts WHERE token = :t",
     "DELETE FROM comments WHERE token = :t",
     "DELETE FROM kudos WHERE token = :t",
+    "DELETE FROM presence WHERE token = :t",
     "DELETE FROM reports WHERE reporter = :t",
     "DELETE FROM follows WHERE follower = :t OR followed = :t",
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
@@ -397,7 +410,8 @@ _EXPORT = {
     "posts": "SELECT id, kind, created, day, visibility, data, hidden FROM posts WHERE token = :t "
     "ORDER BY created",
     "comments": "SELECT id, post, created, body, hidden FROM comments WHERE token = :t ORDER BY created",
-    "kudos": "SELECT post, created FROM kudos WHERE token = :t ORDER BY created",
+    "kudos": "SELECT post, kind, created FROM kudos WHERE token = :t ORDER BY created",
+    "studying_now": "SELECT course, started, until FROM presence WHERE token = :t",
     "follows": "SELECT CASE WHEN f.follower = :t THEN 'you follow' ELSE 'follows you' END AS direction, "
     "COALESCE(p.handle, '') AS handle, f.status, f.created FROM follows f LEFT JOIN profiles p "
     "ON p.token = CASE WHEN f.follower = :t THEN f.followed ELSE f.follower END "

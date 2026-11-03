@@ -1286,6 +1286,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             focus=service.focus_view(subscription, config.clock()),
             cards_due=service.cards_due(store, subscription, config.clock()),
             tip=service.focus_tip(subscription),
+            # While the timer runs: who the student follows is studying too (D108).
+            alongside=service.studying_now_view(store, subscription, config.clock())
+            if subscription.options.get("focus")
+            else [],
             tab="focus",
         )
 
@@ -1389,6 +1393,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         if fresh is None:
             return missing(request)
+        service.sync_presence(store, fresh, config.clock())  # Studying now follows the timer (D108)
         service.log_event(store, token, kind)
         return fresh
 
@@ -1415,6 +1420,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 409)
+        if fresh is not None:
+            service.sync_presence(store, fresh, config.clock())
         view = service.focus_view(fresh, config.clock()) if fresh else {}
         return JSONResponse({k: view.get(k) for k in ("elapsed", "away", "away_minutes", "interruptions")})
 
@@ -1627,6 +1634,20 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
 
+    @app.post("/p/{token}/post/{post_id}/react")
+    async def react(request: Request, token: str, post_id: str) -> Response:
+        """A reaction to a session (D108): the same one again takes it back."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            service.react(store, token, post_id, form.get("kind"), now=config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
+
     @app.post("/p/{token}/post/{post_id}/comments")
     async def comment(request: Request, token: str, post_id: str) -> Response:
         subscription = load(token)
@@ -1677,6 +1698,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             values=current or values,
             years=service.YEAR_WORDS,
             next=safe_next(token, next),
+            studying_now=service.studying_now_on(store, token),
             tab="community",
         )
 
@@ -1695,7 +1717,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if not changes.allow(token):
             return too_many(request)
         subscription = load(token)
-        form = await request.form(max_files=0, max_fields=10)
+        form = await request.form(max_files=0, max_fields=11)
         fields = {k: str(v) for k, v in form.items()}
         before = service.profile_of(store, token)
         then = safe_next(token, fields.get("next", ""))
@@ -1713,9 +1735,11 @@ def create_app(config: Config | None = None) -> FastAPI:
                 values=fields,
                 years=service.YEAR_WORDS,
                 next=then,
+                studying_now=fields.get("studying_now") == "1",
                 error=str(error),
                 tab="community",
             )
+        service.set_studying_now(store, token, fields.get("studying_now") == "1")
         service.log_event(store, token, "profile", "new" if before is None else "changed")
         if then:
             return RedirectResponse(then, 303)
@@ -3370,7 +3394,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             context["view"] = service.first_run_class_view(store, subscription)
         elif step == "sharing":
             context.update(
-                chosen=service.share_default(subscription), profile=service.profile_of(store, token)
+                chosen=service.share_default(subscription),
+                profile=service.profile_of(store, token),
+                studying_now=service.studying_now_on(store, token),
             )
         else:
             context["view"] = service.first_run_remind_view(store, subscription, config.clock())
@@ -3438,6 +3464,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 )
             except service.ServiceError as error:
                 return first_run_page(request, subscription, "sharing", 400, error=str(error))
+            if service.profile_of(store, token) is not None:
+                service.set_studying_now(store, token, fields.get("studying_now") == "1")
             service.log_event(store, token, "first run", f"sharing {chosen}")
             return RedirectResponse(f"/p/{token}", 303)
         # Reminders: on (the page's script asked the browser), or not now. Either way

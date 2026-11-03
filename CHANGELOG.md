@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Studying now and a session's reactions (DECISIONS.md D108): while a student's focus
+  timer runs, the people who follow them see it atop Community, with Join to start their
+  own 25 minutes (off until the student says yes, on the profile or in the first run); a
+  study session takes four reactions (kudos, on fire, keep going, big brain) in place of
+  kudos alone.
+
 - A first run after Strava's (DECISIONS.md D107): on a phone, three welcome cards before
   the account; then who is studying (the network's profile), the courses, the class (a
   class link opened before the plan carried through, classmates to follow) and who sees
@@ -596,6 +602,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- A form sent in the background by the page's script lost the value of the button that
+  sent it (AUDIT.md item 91).
 
 - The first day's short session is no longer offered again once a session is logged that
   day (AUDIT.md item 90).

@@ -22,6 +22,10 @@
     <time class="focus-timer" id="focus-timer" aria-live="off">{{ '%d:%02d' % (focus.elapsed // 3600, (focus.elapsed % 3600) // 60) }}</time>
   </div>
   <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+  {% if alongside %}
+  {# Studying now (D108): who the student follows is focusing too. #}
+  <p class="focus-alongside"><span class="live-dot" aria-hidden="true"></span>{{ _("Also studying now:") }} {% for s in alongside %}<b>@{{ s.handle }}</b> <span class="muted">{{ s.course }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {% endif %}
   {% set reached = focus.rewards | selectattr("reached") | list %}
   {% if focus.goal %}<p class="focus-goal">{{ _("Your length: {time}", time=focus.goal_words) }}</p>{% endif %}
   <ol class="focus-rewards" aria-label="{{ _('Rewards') }}">

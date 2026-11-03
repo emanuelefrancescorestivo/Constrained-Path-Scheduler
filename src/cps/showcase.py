@@ -474,9 +474,13 @@ def seed_world(where: Path, real_now: datetime | None = None) -> Showcase:
             service.toggle_kudos(where, people[handle], library[index].id, now=now - timedelta(hours=2))
     for post in [*explain, *rng.sample(posts, min(14, len(posts)))]:
         for handle in rng.sample(list(people), 3):
-            if handle != social.get_post(store, post.id).token:  # type: ignore[union-attr]
-                with contextlib.suppress(service.InvalidInput):  # not visible to them
-                    service.toggle_kudos(where, people[handle], post.id, now=now - timedelta(hours=1))
+            if people[handle] != social.get_post(store, post.id).token:  # type: ignore[union-attr]
+                with contextlib.suppress(service.InvalidInput):  # not visible to them, or their own
+                    if post.kind == "session":  # a session's reactions (D108)
+                        kind = rng.choice(social.REACTIONS)
+                        service.react(where, people[handle], post.id, kind, now=now - timedelta(hours=1))
+                    else:
+                        service.toggle_kudos(where, people[handle], post.id, now=now - timedelta(hours=1))
     service.add_comment(
         where, people["noah"], explain[0].id, "I study psychology and this made complete sense."
     )
@@ -538,7 +542,13 @@ def add_student(
     shared = [p for p in social.posts_of(Store(where), you.token, "session") if p.visibility != "me"]
     for post in shared[:4]:
         for other in rng.sample(("marco", "lena", "sofia"), 2):
-            service.toggle_kudos(where, people[other], post.id, now=now - timedelta(hours=3))
+            kind = rng.choice(social.REACTIONS)  # a session's reactions (D108)
+            service.react(where, people[other], post.id, kind, now=now - timedelta(hours=3))
+    # Two of them studying now (D108), as the new student arrives: said yes, timer running.
+    for other, course, minutes in (("marco", "Algebra 3", 18), ("lena", "Advanced Statistics", 7)):
+        social.set_studying_now(Store(where), people[other], True)
+        started = now - timedelta(minutes=minutes)
+        social.mark_present(Store(where), people[other], course, started, started + timedelta(minutes=70))
     if shared:
         service.add_comment(where, people["marco"], shared[0].id, "Nice one. Same sheet tomorrow for me.")
 

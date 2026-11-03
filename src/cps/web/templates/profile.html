@@ -22,6 +22,8 @@
     <option value="">{{ _("Rather not say") }}</option>
     {% for code, words in years.items() %}<option value="{{ code }}"{% if values.year == code %} selected{% endif %}>{{ _(words) }}</option>{% endfor %}
   </select>
+  {# Studying now (D108): off until ticked. #}
+  <label class="check"><input type="checkbox" name="studying_now" value="1"{% if studying_now %} checked{% endif %}> {{ _("Studying now: the people who follow me see when my focus timer runs, and on which course") }}</label>
   <label for="pf-bio">{{ _("About you (optional)") }}</label>
   <textarea id="pf-bio" name="bio" rows="2" maxlength="280">{{ values.bio or '' }}</textarea>
   <label class="check"><input type="checkbox" name="old_enough" value="1" required{% if profile or values.old_enough %} checked{% endif %}> {{ _("I am 15 or older") }}</label>

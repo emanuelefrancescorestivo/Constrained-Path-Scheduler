@@ -31,6 +31,25 @@
 
 {% set nav = view.tab %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
 
+{% if view.tab != "explore" and view.studying %}
+{# Studying now (D108): who the student follows is focusing, for those who said yes;
+   Join starts the student's own timer, on their course of the same name. #}
+<section class="card studying-now" aria-labelledby="studying-title">
+  <h2 id="studying-title"><span class="live-dot" aria-hidden="true"></span>{{ _("Studying now") }}</h2>
+  <ul class="list">
+    {% for s in view.studying %}
+    <li>
+      {{ avatar(s) }}
+      <a class="grow person-link" href="/p/{{ token }}/u/{{ s.handle }}"><span class="title">@{{ s.handle }}</span><span class="meta">{{ _n("{course} · for {n} minute", "{course} · for {n} minutes", s.minutes, course=s.course) }}</span></a>
+      {% if view.focusing %}<a class="btn btn-sm" href="/p/{{ token }}/focus">{{ _("Your session") }}</a>
+      {% else %}<form method="post" action="/p/{{ token }}/focus/start"><input type="hidden" name="course" value="{{ s.join }}"><input type="hidden" name="goal" value="{{ view.join_minutes }}"><button type="submit" class="btn btn-sm btn-primary" aria-label="{{ _('Join @{handle}: {n} minutes on {course}', handle=s.handle, n=view.join_minutes, course=s.join) }}">{{ _("Join") }}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="hint">{% if view.focusing %}{{ _("You are studying too.") }}{% else %}{{ _("Join starts your own {n} minutes, alongside them.", n=view.join_minutes) }}{% endif %}</p>
+</section>
+{% endif %}
+
 {% if view.tab == "explore" %}
 {% set f = view.filters %}
 <form class="filters" method="get" action="/p/{{ token }}/community" role="search">
