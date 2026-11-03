@@ -62,7 +62,8 @@ def _start(client, **data) -> str:
     files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
     answer = client.post("/start", data={"tz": "Europe/Paris", **data}, files=files, follow_redirects=False)
     assert answer.status_code == 303, answer.text
-    assert answer.headers["location"].endswith("/settings?new=1")
+    # A new plan begins its first run, who is studying first (D107; test_first_run).
+    assert answer.headers["location"].endswith("/start/you")
     return answer.headers["location"].split("/")[2]
 
 
@@ -117,6 +118,12 @@ def _subscription(web, token) -> service.Subscription:
     return service.load_subscription(web.store.path, token)
 
 
+def _past_first_run(web, token) -> None:
+    """A plan whose first run (D107) is over, as a student's is from their second
+    session: what follows is what any later day does."""
+    service.update_subscription(web.store.path, token, service.finish_first_run)
+
+
 # --------------------------------------------------------------------------- #
 # Starting
 # --------------------------------------------------------------------------- #
@@ -138,7 +145,8 @@ def test_the_home_page_pitches_first_and_keeps_an_error_beside_the_forms(web):
     assert neural.PARTIAL.read_text(encoding="utf-8") == neural.render()
     home = web.get("/").text
     assert '<svg class="neural"' in home and '<div class="hero-field" aria-hidden="true">' in home
-    assert home.index('class="hero"') < home.index('id="start"') < home.index('action="/start"')
+    # A phone first sees the welcome cards (D107; test_first_run), then the same page.
+    assert home.index('class="hero') < home.index('id="start"') < home.index('action="/start"')
     assert 'href="#start"' in home  # the hero's button leads to the ways in
     failed = web.post("/start", data={"tz": "Europe/Paris"}).text
     assert 'class="hero hero-short"' in failed
@@ -171,7 +179,10 @@ def test_starting_from_a_file_finds_the_exams(web):
     assert subscription.options["start"] == "2026-09-29"
     assert subscription.options["preferences"] == service.DEFAULT_PREFERENCES
     page = web.get(f"/p/{token}/settings?new=1").text
-    assert "<h1>Your exams</h1>" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
+    # A new plan's first run titles it as Strava asks for sports (D107).
+    assert (
+        "<h1>What do you study?</h1>" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
+    )
     # While setting up, the rest has its defaults under folds (D98), and one way forward.
     assert page.count('<details class="adjust">') == len(subscription.subjects)
     assert '<details class="setup-more">' in page
@@ -236,10 +247,12 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
         },
         follow_redirects=False,
     )
-    # Setup goes on to the week with its plan, and from there to Today (D98): the
+    # Setup went on to the week with its plan, and from there to Today (D98): the
     # questions about the week (D42) and the calendar's links come later, one a day.
-    assert answer.headers["location"] == f"/p/{token}/week?new=1"
-    week = web.get(answer.headers["location"]).text
+    # A new plan's first run goes on to the class instead (D107); the week's page,
+    # which a new semester still shows, is the same.
+    assert answer.headers["location"] == f"/p/{token}/start/class"
+    week = web.get(f"/p/{token}/week?new=1").text
     assert "Your week." in week and f'href="/p/{token}" data-tour="setup-next">Looks good</a>' in week
     assert "How long is your trip to university?" in web.get(f"/p/{token}/routine").text
     feed_page = web.get(f"/p/{token}/feed?new=1").text
@@ -1102,6 +1115,7 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
         follow_redirects=False,
     )
     assert joined.headers["location"].endswith("/community?tab=explore&saved=joined")
+    _past_first_run(web, planned)  # its first session is the first run's (test_first_run)
     saved = web.post(
         f"/p/{planned}/log",
         data={

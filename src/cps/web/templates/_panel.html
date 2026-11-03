@@ -16,6 +16,17 @@
         </div>
       </li>
 {% endmacro %}
+{# The plan's first day with nothing left that day (D106): a short session now. #}
+{% macro first_day_card(f) %}
+<form method="post" action="/p/{{ token }}/focus/start" class="card nudge-card section first-day">
+  <input type="hidden" name="course" value="{{ f.course }}">
+  <input type="hidden" name="goal" value="{{ f.minutes }}">
+  <span class="tip-reason">{{ _("Your first day") }}</span>
+  <b>{{ _("Start today: {n} minutes on {course}", n=f.minutes, course=f.course) }}</b>
+  <span class="muted">{% if f.when %}{{ _("Your first planned session is on {when}. A short one now starts your streak today.", when=f.when) }}{% else %}{{ _("A short session now starts your streak today.") }}{% endif %}</span>
+  <div class="row-end"><button type="submit" formaction="/p/{{ token }}/first-day/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
+</form>
+{% endmacro %}
 {% set greetings = {"morning": _("Good morning"), "afternoon": _("Good afternoon"), "evening": _("Good evening"), "night": _("Good evening")} %}
 <div class="hello">
   <h1>{{ greetings[sky] if sky in greetings else _("Today") }}</h1>
@@ -23,6 +34,12 @@
 </div>
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
+{% if spark_line %}
+{# A first run's Today (D107): Spark's one line stands in for the tour, until the
+   first session is done. #}
+{% from "_mascot.html" import mascot %}
+<div class="mascot-tip run-line">{{ mascot("wave", uid="line") }}<p>{{ _("Your plan is ready. One session today is enough: I’ll plan the rest.") }}</p></div>
+{% endif %}
 {% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
 
@@ -34,6 +51,9 @@
 </div>
 {% else %}
 
+{# A first run's first day (D107): its short session is the next step, before the
+   plan's next one. #}
+{% if spark_line and message == "first" %}{{ first_day_card(first_day) }}{% endif %}
 {# The next step, large: the session going on, or the next one. #}
 <div class="section next-step" data-tour="next">
 {% if view.now %}
@@ -94,16 +114,14 @@
 {% elif message == "tip" %}
 {# A tip the day calls for (D63), in one line with the spark #}
 {% include "_tip_card.html" %}
-{% elif message == "first" %}{% set f = first_day %}
-{# The plan's first day with nothing left that day (D106): a short session now. #}
-<form method="post" action="/p/{{ token }}/focus/start" class="card nudge-card section first-day">
-  <input type="hidden" name="course" value="{{ f.course }}">
-  <input type="hidden" name="goal" value="{{ f.minutes }}">
-  <span class="tip-reason">{{ _("Your first day") }}</span>
-  <b>{{ _("Start today: {n} minutes on {course}", n=f.minutes, course=f.course) }}</b>
-  <span class="muted">{% if f.when %}{{ _("Your first planned session is on {when}. A short one now starts your streak today.", when=f.when) }}{% else %}{{ _("A short session now starts your streak today.") }}{% endif %}</span>
-  <div class="row-end"><button type="submit" formaction="/p/{{ token }}/first-day/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
-</form>
+{% elif message == "first" %}
+{% if not spark_line %}{{ first_day_card(first_day) }}{% endif %}
+{% elif message == "remind" %}
+{# A first run's first session is done (D107): reminders are asked now, not before. #}
+<a class="card nudge-card section run-remind-card" href="/p/{{ token }}/start/remind">
+  <span class="tip-reason">{{ _("Your first session is done") }}</span>
+  <b>{{ _("Same time tomorrow? A reminder before each session") }}</b>
+</a>
 {% elif message == "outcome" %}{% set o = exam_outcome %}
 {# The answer just given, beside the recall the plan forecast for that exam (D105) #}
 <a class="card nudge-card section exam-outcome" href="/p/{{ token }}/progress#taken">

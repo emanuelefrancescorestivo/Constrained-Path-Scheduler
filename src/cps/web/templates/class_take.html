@@ -13,6 +13,7 @@
 <p class="card">{{ _("This is your own class's link: share it, and your classmates take your courses' topics from it.") }}</p>
 {% else %}
 <form method="post" action="/p/{{ token }}/class/{{ view.code }}" class="section">
+{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
   <ul class="card list class-take">
     {% for r in view.rows %}
     <li>

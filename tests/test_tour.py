@@ -6,6 +6,7 @@ shown; tour.js does the rest, and the Python tests check what it is given."""
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -81,13 +82,22 @@ def test_a_tour_that_does_not_exist_is_refused(plan):
 def web(tmp_path):
     config = Config(store=tmp_path, clock=lambda: MORNING, background=False, sweep_every=None)
     with TestClient(create_app(config)) as client:
+        client.root = tmp_path
         yield client
 
 
 def _start(web) -> str:
+    """A plan as one made before D107 is: no first run, so Today's tour comes after
+    setting up. A new plan's first run has Spark's line instead (test_first_run)."""
     files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
     start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
-    return start.headers["location"].split("/")[2]
+    token = start.headers["location"].split("/")[2]
+
+    def before_d107(current: service.Subscription) -> service.Subscription:
+        return replace(current, options={k: v for k, v in current.options.items() if k != "first_run"})
+
+    service.update_subscription(web.root, token, before_d107)
+    return token
 
 
 def _steps(page: str) -> list[str]:
@@ -157,3 +167,16 @@ def test_the_calendar_offers_a_month_once_set_up(web):
     token = _start(web)
     assert '<button type="button" data-view="30">Month</button>' in web.get(f"/p/{token}").text
     assert 'data-view="30"' in web.get(f"/p/{token}/week").text
+
+
+def test_a_first_run_has_no_tour_and_settings_bring_it_back_after(web):
+    """D107: Spark's one line stands in for the tour during a first run; once it is
+    over, the tour is not shown by itself, and Settings show it again."""
+    files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
+    start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+    token = start.headers["location"].split("/")[2]
+    assert 'id="tour"' not in web.get(f"/p/{token}").text
+    service.update_subscription(web.root, token, service.finish_first_run)
+    assert 'id="tour"' not in web.get(f"/p/{token}").text
+    service.update_subscription(web.root, token, service.reset_tours)
+    assert 'id="tour"' in web.get(f"/p/{token}").text

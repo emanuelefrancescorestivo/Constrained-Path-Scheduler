@@ -117,6 +117,8 @@ def test_more_detail_opens_for_a_link_into_it_and_after_a_diary_change(web):
     token = _set_up(web)
     assert 'id="more" open>' not in web.get(f"/p/{token}/progress").text
     assert 'id="more" open>' in web.get(f"/p/{token}/progress?more=1").text
+    # Past its first run (D107), whose first session goes on to reminders (test_first_run).
+    service.update_subscription(web.root, token, service.finish_first_run)
     logged = web.post(
         f"/p/{token}/log",
         data={"course": "Algebra 3", "title": "Sheet", "effort": "5", "progress": "3", "minutes": "30"},

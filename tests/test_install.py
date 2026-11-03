@@ -110,7 +110,8 @@ def test_a_plan_in_italian(web):
     assert "Français" in home and "English" in home  # the other languages, offered
     token = _plan(web, lang="it")
     drawing = unescape(web.get(f"/p/{token}/timetable").text)
-    assert "Disegna la tua settimana" in drawing and "Avanti: esami e scadenze" in drawing
+    # A new plan's way forward during its first run (D107): who is studying, then the courses.
+    assert "Disegna la tua settimana" in drawing and ">Avanti</a>" in drawing
     settings = unescape(web.get(f"/p/{token}/settings").text)
     assert "Impostazioni" in settings and "Promemoria e l'app" in settings  # its rows (D103)
     assert "Sul tuo telefono" in unescape(web.get(f"/p/{token}/settings/phone").text)

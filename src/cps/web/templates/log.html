@@ -2,8 +2,23 @@
 {% block title %}{{ _("Log a session") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="{{ asset('log.js') }}"></script>{% endblock %}
 {% block main %}
+{% if first %}
+{# The first session of a first run (D107): its summary before the diary's
+   questions, as Strava shows a saved activity. #}
+{% from "_mascot.html" import mascot %}
+<div class="run-done">
+  <div class="run-hero">{{ mascot("cheer", uid="done") }}</div>
+  <h1 class="run-big">{{ _("First session done!") }}</h1>
+  <div class="run-stats">
+    <p><b>{{ draft.minutes }}</b><small>{{ _n("minute", "minutes", draft.minutes | int) }}</small></p>
+    <p><b>{{ _("Day 1") }}</b><small>{{ _("of your streak") }}</small></p>
+    {% if draft.course %}<p><b class="run-course">{{ draft.course }}</b><small>{{ _("studied") }}</small></p>{% endif %}
+  </div>
+  <p class="muted">{{ _("Two taps say how it went, then save it.") }}</p>
+</div>
+{% endif %}
 <div class="page-title">
-  <h1>{{ _("How was it?") }}</h1>
+  {% if first %}<h2>{{ _("How was it?") }}</h2>{% else %}<h1>{{ _("How was it?") }}</h1>{% endif %}
   {% if draft.timed %}<p>{{ _n("{n} minute focused", "{n} minutes focused", draft.minutes | int) }}{% if draft.checked %} · {% if draft.interruptions %}{{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", draft.interruptions | int, minutes=draft.away_minutes) }}{% else %}{{ _("focused the whole time") }}{% endif %}{% else %} · {{ _("timed, focus not checked") }}{% endif %}</p>{% endif %}
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
@@ -50,7 +65,7 @@
   <fieldset class="card section">
     <legend>{{ _("Who sees it") }}</legend>
     <div class="pills" role="radiogroup">
-      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or ('followers' if profile else 'me')) == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
+      {% for value, word in (("me", "Only me"), ("followers", "Followers"), ("everyone", "Everyone")) %}<label class="pill"><input type="radio" name="visibility" value="{{ value }}"{% if (draft.visibility or ((share or 'followers') if profile else 'me')) == value %} checked{% endif %}{% if not profile and value != 'me' %} disabled{% endif %}><span>{{ _(word) }}</span></label>{% endfor %}
     </div>
     {% if profile %}<p class="hint">{{ _("Every session stays in your diary, whoever sees it.") }}</p>
     {% else %}<p class="hint">{{ _h('To share sessions, <a href="{href}">choose a handle</a>. Until then they stay in your diary, for you only.', href="/p/" ~ token ~ "/profile") }}</p>{% endif %}

@@ -477,6 +477,10 @@ def create_app(config: Config | None = None) -> FastAPI:
                 setup=bool(context.get("setup")),
                 new=bool(context.get("new")),
             )
+        if token and "run" not in context:
+            # A new student's first run (D107): its steps' bar, Spark's line on Today.
+            subscription = subscription or service.load_subscription(store, token)
+            context["run"] = subscription is not None and service.first_run(subscription) is not None
         if token and "hint" not in context and not (context.get("setup") or context.get("new")):
             # Every other section's line, the first time it is opened (D97): shown
             # once, so it is remembered as the page goes out.
@@ -713,7 +717,10 @@ def create_app(config: Config | None = None) -> FastAPI:
         account = signed(request) if config.accounts else None
         if account is not None and account.token and load(account.token) is not None:
             return RedirectResponse(f"/p/{account.token}/open", 303)  # signed in: straight in (D102)
-        return page(request, "home.html", tz="Europe/Paris", account=account, made=made)
+        # A class link opened with no plan yet (D104) sends its code here, to be
+        # carried through the account to the plan's first run (D107).
+        code = service.class_code(request.query_params.get("class"))
+        return page(request, "home.html", tz="Europe/Paris", account=account, made=made, class_code=code)
 
     # -- e-mail accounts (D94) ---------------------------------------------------
 
@@ -729,14 +736,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not signups.allow(client(request)):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=4)
+        form = await request.form(max_files=0, max_fields=5)
         email = str(form.get("email") or "")
+        code = service.class_code(form.get("class"))
         try:
             account = service.sign_up(store, email, str(form.get("password") or ""), config.clock())
         except service.AccountRefused as error:
-            return home_with(request, 400, signup_error=str(error), email=email)
+            return home_with(request, 400, signup_error=str(error), email=email, class_code=code)
         sent = send_mail(service.confirmation_mail(store, account, base(request), config.clock()))
-        return signed_in_to(request, account, f"/?made={1 if sent == 'sent' else 2}#start")
+        carried = f"&class={code}" if code else ""
+        return signed_in_to(request, account, f"/?made={1 if sent == 'sent' else 2}{carried}#start")
 
     @app.get("/account/signin", response_class=HTMLResponse)
     def signin_page(request: Request, next: str = "") -> Response:
@@ -1059,9 +1068,10 @@ def create_app(config: Config | None = None) -> FastAPI:
                 return RedirectResponse(f"/p/{account.token}/open", 303)
         if not starts.allow(client(request)):
             return too_many(request)
-        form = await request.form(max_files=1, max_fields=11)
+        form = await request.form(max_files=1, max_fields=12)
         link = str(form.get("link") or "").strip() or None
         tz = str(form.get("tz") or "Europe/Paris").strip()
+        code = service.class_code(form.get("class"))
         draw = form.get("draw") == "1"  # no file: the week is drawn by hand (D32)
         upload = form.get("file")
         ics = None
@@ -1086,7 +1096,10 @@ def create_app(config: Config | None = None) -> FastAPI:
                 draw=draw,
             )
         except service.ServiceError as error:
-            return home_with(request, 400, error=str(error), link=link or "", tz=tz)
+            return home_with(request, 400, error=str(error), link=link or "", tz=tz, class_code=code)
+        # A new student's plan goes through the first run (D107): who is studying
+        # once the timetable is in (a drawn week is drawn first), then the courses.
+        subscription = service.begin_first_run(subscription, code)
         service.save_subscription(store, subscription)
         if account is not None:
             service.give_plan(store, account, subscription.token)
@@ -1094,7 +1107,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, subscription.token, "start", "link" if link else "draw" if drawn else "file")
         if drawn:
             return RedirectResponse(f"/p/{subscription.token}/timetable", 303)
-        return RedirectResponse(f"/p/{subscription.token}/settings?new=1", 303)
+        return RedirectResponse(f"/p/{subscription.token}/start/you", 303)
 
     def plan_page(
         request: Request,
@@ -1152,11 +1165,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         # a day from the day after it was made (D98).
         tip = context["tip"]
         context["fit"] = service.fit_question(subscription, now)
-        context["first_day"] = service.first_day(subscription, now)
+        context["first_day"] = service.first_day(subscription, now, store)
+        context["spark_line"] = service.first_run(subscription) is not None and not service.studied_once(
+            store, subscription
+        )
         context["message"] = service.today_message(
             exam=context["exam_questions"],
             outcome=context["exam_outcome"],
             first=context["first_day"],
+            remind=service.remind_ask(store, subscription),
             semester=context["semester_over"],
             usage=context["usage_ask"],
             fit=context["fit"],
@@ -1429,6 +1446,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             draft=service.log_draft(subscription, config.clock()),
             profile=service.profile_of(store, token),
+            share=service.share_default(subscription),
+            first=service.first_session(store, subscription),
             tab="focus",
         )
 
@@ -1447,6 +1466,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 draft=service.log_draft(subscription, config.clock()),
                 profile=service.profile_of(store, token),
+                share=service.share_default(subscription),
+                first=service.first_session(store, subscription),
                 error=service.translate("These photos are too large together; send fewer or smaller ones."),
                 tab="focus",
             )
@@ -1471,10 +1492,15 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 draft=draft,
                 profile=service.profile_of(store, token),
+                share=service.share_default(subscription),
+                first=service.first_session(store, subscription),
                 error=str(error),
                 tab="focus",
             )
         service.log_event(store, token, "logged", fields.get("visibility", ""))
+        if service.first_run(subscription) is not None:
+            # The first session saved: then the question about reminders (D107).
+            return RedirectResponse(f"/p/{token}/start/remind", 303)
         return RedirectResponse(f"/p/{token}/progress?saved=logged#diary", 303)
 
     @app.post("/p/{token}/posts/{post_id}/delete")
@@ -2282,11 +2308,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/class/{code}", response_class=HTMLResponse)
-    def class_take(request: Request, token: str, code: str) -> HTMLResponse:
+    def class_take(request: Request, token: str, code: str, next: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return class_take_page(request, subscription, code)
+        # From the first run's class step (D107): back to it once the topics are taken.
+        then = back({"next": next}, token, "")
+        return class_take_page(request, subscription, code, next=then)
 
     @app.post("/p/{token}/class/{code}", response_class=HTMLResponse)
     async def class_take_save(request: Request, token: str, code: str) -> Response:
@@ -2295,14 +2323,17 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=60)
+        form = await request.form(max_files=0, max_fields=61)
         picks = {int(str(v)) for v in form.getlist("take") if str(v).isdigit()}
+        then = back(form, token, "")
         try:
             entries = service.take_class_program(store, subscription, code, picks)
             service.update_subscription(store, token, lambda now: service.with_class_program(now, entries))
         except service.ServiceError as error:
-            return class_take_page(request, subscription, code, 400, error=str(error))
+            return class_take_page(request, subscription, code, 400, error=str(error), next=then)
         service.log_event(store, token, "topics", "class")
+        if then:
+            return RedirectResponse(f"{then}?imported={len(entries)}", 303)
         return RedirectResponse(f"/p/{token}/courses?imported={len(entries)}", 303)
 
     # -- a semester's program in one document, pasted or as a PDF (D90) --------------
@@ -3153,6 +3184,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 values=service.setup_view(subscription),
                 new=True,
+                run=service.first_run(subscription) is not None,
                 empty_rows=forms.EMPTY_ROWS,
                 tab="settings",
                 saved=_notice(saved),
@@ -3298,6 +3330,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 token=token,
                 values=shown,
                 new=True,
+                run=service.first_run(subscription) is not None,
                 empty_rows=forms.EMPTY_ROWS,
                 error=str(error),
                 tab="settings",
@@ -3308,8 +3341,110 @@ def create_app(config: Config | None = None) -> FastAPI:
             anchor = "#deadlines" if part == "deadlines" else ""
             return RedirectResponse(f"/p/{token}/settings/{where}?saved=1{anchor}", 303)
         # Setting up goes on to the week with its plan (D98): the questions about the
-        # week come later, one a day on Today.
+        # week come later, one a day on Today. A first run goes on to the class (D107).
+        if new and service.first_run(load(token) or subscription) is not None:
+            service.update_subscription(store, token, lambda current: service.first_run_at(current, "class"))
+            return RedirectResponse(f"/p/{token}/start/class", 303)
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
+
+    # -- the first run (D107) ----------------------------------------------------
+
+    FIRST_RUN_PAGES = ("you", "class", "sharing", "remind")
+
+    def first_run_page(
+        request: Request, subscription: service.Subscription, step: str, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        """One step of a new student's first run: who is studying, the class, who
+        sees the sessions, and, after the first session, reminders."""
+        token = subscription.token
+        state = service.first_run(subscription) or {}
+        context: dict[str, Any] = {"token": token, "step": step}
+        if step == "you":
+            current = service.profile_of(store, token)
+            code = service.class_code(state.get("class"))
+            shown = service.class_page_view(store, code) if code and current is None else None
+            offered = {"university": shown["university"], "programme": shown["programme"]} if shown else {}
+            context.update(profile=current, years=service.YEAR_WORDS)
+            context["values"] = extra.pop("values", None) or current or offered
+        elif step == "class":
+            context["view"] = service.first_run_class_view(store, subscription)
+        elif step == "sharing":
+            context.update(
+                chosen=service.share_default(subscription), profile=service.profile_of(store, token)
+            )
+        else:
+            context["view"] = service.first_run_remind_view(store, subscription, config.clock())
+        # One way forward, as setting up has (`new`: no tabs, no "+", no Spark, D98).
+        return page(
+            request,
+            "first_run.html",
+            status,
+            tab="today" if step == "remind" else "settings",
+            new=True,
+            **context,
+            **extra,
+        )
+
+    @app.get("/p/{token}/start/{step}", response_class=HTMLResponse)
+    def first_run_step(request: Request, token: str, step: str, imported: int = -1) -> Response:
+        subscription = load(token)
+        if subscription is None or step not in FIRST_RUN_PAGES:
+            return missing(request)
+        if service.first_run(subscription) is None:
+            return RedirectResponse(f"/p/{token}", 303)  # over, or a plan made before it
+        return first_run_page(request, subscription, step, imported=imported)
+
+    @app.post("/p/{token}/start/{step}", response_class=HTMLResponse)
+    async def first_run_answer(request: Request, token: str, step: str) -> Response:
+        subscription = load(token)
+        if subscription is None or step not in FIRST_RUN_PAGES:
+            return missing(request)
+        if service.first_run(subscription) is None:
+            return RedirectResponse(f"/p/{token}", 303)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=12)
+        fields = {k: str(v) for k, v in form.items()}
+        skipped = fields.get("skip") == "1"
+        if step == "you":
+            if not skipped:
+                before = service.profile_of(store, token)
+                try:
+                    service.save_profile(store, token, fields, tz=subscription.options["tz"])
+                except service.ServiceError as error:
+                    return first_run_page(request, subscription, "you", 400, values=fields, error=str(error))
+                service.log_event(store, token, "profile", "new" if before is None else "changed")
+            service.log_event(store, token, "first run", "you, skipped" if skipped else "you")
+            if (service.first_run(subscription) or {}).get("step") not in ("you", "courses"):
+                # Back from the class step for a handle: on to the class again.
+                return RedirectResponse(f"/p/{token}/start/class", 303)
+            service.update_subscription(
+                store, token, lambda current: service.first_run_at(current, "courses")
+            )
+            return RedirectResponse(f"/p/{token}/settings?new=1", 303)
+        if step == "class":
+            service.update_subscription(
+                store, token, lambda current: service.first_run_at(current, "sharing")
+            )
+            service.log_event(store, token, "first run", "class")
+            return RedirectResponse(f"/p/{token}/start/sharing", 303)
+        if step == "sharing":
+            chosen = fields.get("visibility", "")
+            try:
+                service.update_subscription(
+                    store,
+                    token,
+                    lambda current: service.first_run_at(service.set_share_default(current, chosen), "today"),
+                )
+            except service.ServiceError as error:
+                return first_run_page(request, subscription, "sharing", 400, error=str(error))
+            service.log_event(store, token, "first run", f"sharing {chosen}")
+            return RedirectResponse(f"/p/{token}", 303)
+        # Reminders: on (the page's script asked the browser), or not now. Either way
+        # the first run is over.
+        service.update_subscription(store, token, service.finish_first_run)
+        service.log_event(store, token, "first run", "reminders" if fields.get("answer") == "on" else "later")
+        return RedirectResponse(f"/p/{token}", 303)
 
     # -- the questions about the week (D42) --------------------------------------
 
@@ -3794,6 +3929,11 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
+        if request.query_params.get("then") == "first-run":
+            # Turned on from the question after the first session (D107): that ends it.
+            service.update_subscription(store, token, service.finish_first_run)
+            service.log_event(store, token, "first run", "reminders")
+            return JSONResponse({"go": f"/p/{token}?saved=reminders"})
         return JSONResponse({"go": f"/p/{token}/settings/phone?saved=reminders"})
 
     @app.post("/p/{token}/push/remove")
