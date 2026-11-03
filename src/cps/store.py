@@ -411,7 +411,7 @@ _EXPORT = {
     "ORDER BY created",
     "comments": "SELECT id, post, created, body, hidden FROM comments WHERE token = :t ORDER BY created",
     "kudos": "SELECT post, kind, created FROM kudos WHERE token = :t ORDER BY created",
-    "studying now": "SELECT course, started, until FROM presence WHERE token = :t",
+    "studying_now": "SELECT course, started, until FROM presence WHERE token = :t",
     "follows": "SELECT CASE WHEN f.follower = :t THEN 'you follow' ELSE 'follows you' END AS direction, "
     "COALESCE(p.handle, '') AS handle, f.status, f.created FROM follows f LEFT JOIN profiles p "
     "ON p.token = CASE WHEN f.follower = :t THEN f.followed ELSE f.follower END "

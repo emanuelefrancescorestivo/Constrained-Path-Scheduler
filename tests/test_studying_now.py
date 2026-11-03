@@ -130,7 +130,7 @@ def test_leaving_the_network_takes_it_away_and_the_copy_has_it(tmp_path):
     service.set_studying_now(tmp_path, ada.token, True)
     _focus(tmp_path, ada, "Algebra 3", 25, NOW)
     copied = Store(tmp_path).export(ada.token)
-    assert [r["course"] for r in copied["studying now"]] == ["Algebra 3"]
+    assert [r["course"] for r in copied["studying_now"]] == ["Algebra 3"]
     service.leave_network(tmp_path, ada.token)
     with Store(tmp_path).connection() as db:
         assert db.execute("SELECT COUNT(*) FROM presence").fetchone()[0] == 0

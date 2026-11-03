@@ -603,8 +603,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Fixed
 
-- A form sent in the background kept the value of the button that sent it only without
-  the page's script (AUDIT.md item 91).
+- A form sent in the background by the page's script lost the value of the button that
+  sent it (AUDIT.md item 91).
 
 - The first day's short session is no longer offered again once a session is logged that
   day (AUDIT.md item 90).
