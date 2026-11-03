@@ -3971,3 +3971,47 @@ accepted): from the home page to Today, 10 taps, 3 of them for the account (7 be
 not on a real phone, nor with a screen reader. Strava's flow is described from teardowns,
 not tried. Whether the first run brings more students back on day 7 is for the pilot to
 say, with the measures the app already counts (D15).
+
+## D108. Studying now, and a session's reactions
+
+*The owner, 2026-11-03, after asking about chats, seeing who is studying, reactions and
+comments to make the app worth opening for students it cannot oblige: "yes build studying
+now and reactions, merge when green". Chats were advised against for the pilot (the owner
+would moderate private messages between students, and classes already have their group
+chats); comments already exist.*
+
+**Chosen.**
+
+1. **Studying now.** While a student's focus timer runs, the people who follow them (an
+   accepted follow) see it at the top of Community's feed: the handle, the course, for
+   how long, and **Join**, which starts the viewer's own 25 minutes on their course of
+   the same name (else their first). The focus page, while its timer runs, says who else
+   is studying. It is **off by default**: the yes is on the profile page and, for a new
+   student, beside "Who sees your sessions?" in the first run (D107). It is never shown
+   to anyone else, nor to anyone blocked either way. It follows the timer: shown for the
+   session's goal and ten minutes more (two hours without a goal), longer while the
+   page's heartbeat says it goes on, never past four hours, and gone when the timer
+   stops. A no, or leaving the network, takes it away at once. One row per student
+   (`presence`: the course, since when, until when), in the plan's copy of its data and
+   in the privacy notice. A still green dot says "now": nothing pulses (D93).
+2. **A session's reactions.** Kudos become one of four: 👏 Kudos, 🔥 On fire, 💪 Keep
+   going, 🧠 Big brain. One per person per post; the same again takes it back, another
+   replaces it. The author sees what came and does not react to their own. Kudos given
+   before D108 are 👏. Notes keep their "Helpful" mark and explanations their "I got
+   it": the notes library ranks by them (D26).
+3. **The demo** shows both: two of each student's classmates are studying as the student
+   arrives (said yes, timer running), and their reactions vary.
+
+**Found on the way** (AUDIT 91): a form sent in the background lost the value of the button
+that sent it; and the demo's classmates could give kudos to their own posts.
+
+**Not chosen.** Chats (above). Notifications when someone reacts or starts studying: the
+reminders (D38) are about the student's own sessions, and one more reason for the phone
+to buzz is not what makes study stick. Showing who is studying to everyone at a
+university: a follow is the consent. Counting who joined whom: Join starts an ordinary
+session.
+
+**Disclosed.** Checked in Chromium only, at phone size with touch emulated and at 1280px,
+not on a real phone nor with a screen reader; the reactions' pictures are the device's
+emoji. That studying alongside others helps is not shown here: whether Join is used, and
+whether it brings more sessions, is for the pilot (D15, D96).

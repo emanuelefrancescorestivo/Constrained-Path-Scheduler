@@ -6415,6 +6415,7 @@ def _cards(
     """Posts as cards, with their authors, kudos and comment counts, and, for notes,
     their place in the month's top of their course (D26)."""
     kudos = social.kudos_of(store, [p.id for p in posts], viewer)
+    reactions = social.reactions_of(store, [p.id for p in posts if p.kind == "session"], viewer)
     comments = social.comment_counts(store, [p.id for p in posts])
     tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
     authors: dict[str, dict | None] = {}
@@ -6435,6 +6436,18 @@ def _cards(
             comments=comments.get(post.id, 0),
             top=tops.get(post.id),
         )
+        if post.id in reactions:  # a session's reactions (D108)
+            these = reactions[post.id]
+            card["reactions"] = [
+                {
+                    "kind": kind,
+                    "emoji": REACTION_WORDS[kind][0],
+                    "label": _(REACTION_WORDS[kind][1]),
+                    "count": these["counts"][kind],
+                    "mine": these["mine"] == kind,
+                }
+                for kind in social.REACTIONS
+            ]
         out.append(card)
     return out
 
@@ -6505,6 +6518,9 @@ def community_view(
         "profile": me.public() if me else None,
         "requests": len(social.relations(where, token)["requests"]) if me else 0,
         "invitations": len(social.invitations_of(where, token)),
+        "studying": studying_now_view(store, subscription, now) if me else [],
+        "focusing": bool(subscription.options.get("focus")),
+        "join_minutes": JOIN_MINUTES,
     }
 
 
@@ -7408,9 +7424,83 @@ def toggle_kudos(store: str | os.PathLike, token: str, post_id: str, now: dateti
     )
 
 
+def react(
+    store: str | os.PathLike, token: str, post_id: str, kind: object, now: datetime | None = None
+) -> str | None:
+    """A reaction to a session (D108), or taking it back; the reaction kept."""
+    where = _store(store)
+    post = _social(lambda: _visible_post(where, token, post_id))
+    return _social(lambda: social.react(where, token, post, str(kind), now=now))
+
+
 def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -> None:
     where = _store(store)
     _social(lambda: social.add_comment(where, token, _visible_post(where, token, post_id), body))
+
+
+# -- Studying now (D108) -------------------------------------------------------------
+
+# What a reaction looks like and says (D108), in `social.REACTIONS`' order.
+REACTION_WORDS = {
+    "kudos": ("👏", "Kudos"),
+    "fire": ("🔥", "On fire"),
+    "strong": ("💪", "Keep going"),
+    "brain": ("🧠", "Big brain"),
+}
+PRESENCE_GRACE = timedelta(minutes=10)  # a session past its goal, or without beats, still shows this long
+PRESENCE_OPEN = 120  # minutes a session without a chosen length is taken to last
+PRESENCE_LONGEST = timedelta(hours=4)
+JOIN_MINUTES = FIRST_DAY_MINUTES  # Join starts the timer's shortest goal
+
+
+def studying_now_on(store: str | os.PathLike, token: str) -> bool:
+    return social.studying_now_on(_store(store), token)
+
+
+def set_studying_now(store: str | os.PathLike, token: str, on: bool) -> None:
+    """The yes to Studying now (D108): off by default; for a student with a handle."""
+    _social(lambda: social.set_studying_now(_store(store), token, on))
+
+
+def sync_presence(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> None:
+    """Studying now follows the focus timer (D108): shown while it runs, for the
+    session's goal and ten minutes more (two hours with no goal), longer while the
+    page's heartbeat says it goes on, never past four hours; gone when it stops."""
+    where = _store(store)
+    focus = subscription.options.get("focus")
+    if not focus:
+        social.clear_presence(where, subscription.token)
+        return
+    now = now or datetime.now(UTC)
+    started = datetime.fromisoformat(focus["started"])
+    planned = started + timedelta(minutes=int(focus.get("goal") or PRESENCE_OPEN)) + PRESENCE_GRACE
+    until = min(max(planned, now + PRESENCE_GRACE), started + PRESENCE_LONGEST)
+    if until <= now:
+        social.clear_presence(where, subscription.token)
+        return
+    social.mark_present(where, subscription.token, focus["course"], started, until)
+
+
+def studying_now_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> list[dict]:
+    """Who of the people the student follows is studying now (D108): each with the
+    course, the minutes so far, and the course of the student's own a Join starts
+    (the same name if they have it, else their first)."""
+    now = now or datetime.now(UTC)
+    mine = course_names(subscription)
+    by_name = {c.casefold(): c for c in mine}
+    out = []
+    for profile, course, started in social.present_followed(_store(store), subscription.token, now):
+        out.append(
+            {
+                **profile.public(),
+                "course": course,
+                "minutes": max(1, round((now - started).total_seconds() / 60)),
+                "join": by_name.get(course.casefold()) or (mine[0] if mine else course),
+            }
+        )
+    return out
 
 
 def delete_comment(store: str | os.PathLike, token: str, comment_id: str) -> bool:

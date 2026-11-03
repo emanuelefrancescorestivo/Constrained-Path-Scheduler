@@ -3109,3 +3109,20 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 .run-line { margin: 0 0 12px; }
 .run-line .mascot { width: 44px; height: 44px; }
 .run-line p { margin: 0; }
+
+/* -- Studying now and reactions (D108) ------------------------------------------
+   A still dot says "now": nothing pulses while a page is read (D93). */
+.live-dot { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: var(--ok); vertical-align: 1px; box-shadow: 0 0 0 3px var(--ok-soft); }
+.studying-now { margin: 0 0 16px; }
+.studying-now h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.studying-now .list li { display: flex; align-items: center; gap: 12px; }
+.studying-now .hint { margin: 8px 0 0; }
+.focus-alongside { margin: 10px 0 0; text-align: center; }
+.reactions { display: flex; flex-wrap: wrap; gap: 4px; }
+.reactions form { margin: 0; }
+.act.react { gap: 4px; min-width: 44px; justify-content: center; }
+.react-emoji { font-size: 1.15rem; line-height: 1; }
+.act.react.given { background: var(--accent-soft); }
+.run-switch { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 0; cursor: pointer; }
+.run-switch input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+.run-switch small { display: block; color: var(--muted); }

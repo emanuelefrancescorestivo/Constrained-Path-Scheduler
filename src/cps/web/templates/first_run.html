@@ -83,6 +83,10 @@
     <label class="run-choice"><input type="radio" name="visibility" value="{{ value }}"{% if chosen == value %} checked{% endif %}><span><b>{{ _(word) }}</b>{% if value == "followers" %} <span class="badge badge-accent">{{ _("Suggested") }}</span>{% endif %}<small>{{ _(says) }}</small></span></label>
     {% endfor %}
   </fieldset>
+  {% if profile %}
+  {# Studying now (D108): asked with who sees the sessions, off until ticked. #}
+  <label class="card run-switch"><input type="checkbox" name="studying_now" value="1"{% if studying_now %} checked{% endif %}><span><b>{{ _("Show my followers when I’m studying") }}</b><small>{{ _("While your focus timer runs: the course, and since when. They can join you.") }}</small></span></label>
+  {% endif %}
   <p class="card run-lock">{{ _("Always private: your plan, your exam results, and your notes until you post them.") }}</p>
   <p class="hint run-note">{% if profile %}{{ _("Each session can still say otherwise when you save it.") }}{% else %}{{ _("Until you choose a handle, your sessions stay in your diary, for you only.") }}{% endif %}</p>
   <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Continue") }}</button></div>

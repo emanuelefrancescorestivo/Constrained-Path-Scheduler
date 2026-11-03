@@ -60,6 +60,20 @@
     {% if p.kind == "notes" and p.mine %}
     {# Others mark notes helpful; an author cannot mark their own (D26). #}
     <span class="act act-static"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V10l4.5-7c1.4 0 2.3 1.2 2 2.5L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.2 21H7zM3 10h4v11H3z"/></svg>{{ _n("{n} helpful mark", "{n} helpful marks", p.kudos) }}</span>
+    {% elif p.reactions is defined %}
+    {# A session's reactions (D108): one per person, the same again takes it back;
+       the author sees what came, and does not react to their own. #}
+    <div class="reactions" role="group" aria-label="{{ _('Reactions') }}">
+      {% for r in p.reactions %}
+      {% if p.mine %}{% if r.count %}<span class="act act-static react" title="{{ r.label }}"><span class="react-emoji" aria-hidden="true">{{ r.emoji }}</span><span class="act-count" aria-hidden="true">{{ r.count }}</span><span class="visually-hidden">{{ r.label }}: {{ r.count }}</span></span>{% endif %}
+      {% else %}
+      <form method="post" action="/p/{{ token }}/post/{{ p.id }}/react" data-async data-region="#acts-{{ p.id }}" data-quiet>
+        <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
+        <button type="submit" name="kind" value="{{ r.kind }}" class="act react{% if r.mine %} given{% endif %}" aria-pressed="{{ 'true' if r.mine else 'false' }}" title="{{ r.label }}"><span class="react-emoji" aria-hidden="true">{{ r.emoji }}</span>{% if r.count %}<span class="act-count" aria-hidden="true">{{ r.count }}</span>{% endif %}<span class="visually-hidden">{{ r.label }}{% if r.count %}: {{ r.count }}{% endif %}</span></button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
     {% else %}
     <form method="post" action="/p/{{ token }}/post/{{ p.id }}/kudos" data-async data-region="#acts-{{ p.id }}" data-quiet>
       <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">

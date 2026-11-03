@@ -45,8 +45,7 @@ function leave(node) {
   setTimeout(() => node.remove(), 200);
 }
 
-async function send(form, submitter) {
-  const data = new FormData(form, submitter);
+async function send(form, submitter, data = new FormData(form, submitter)) {
   const response = await fetch(form.action, { method: "POST", body: new URLSearchParams(data) });
   const page = new DOMParser().parseFromString(await response.text(), "text/html");
   const swaps = [];
@@ -84,12 +83,15 @@ document.addEventListener("submit", async (event) => {
   const task = form.closest(".task");
   const finishing = form.action.endsWith("/tasks/done") && form.elements.done && form.elements.done.value === "1";
   if (task && finishing) task.classList.add("ticking"); // the tick shows at once
+  // The form's values before its buttons are disabled: a disabled button's name and
+  // value are not sent, and a reaction is the button tapped (D108, AUDIT 91).
+  const data = new FormData(form, event.submitter);
   form.querySelectorAll("button").forEach((b) => (b.disabled = true));
   // The button pressed shows a spinner if the answer takes more than a moment (D57).
   const pressed = event.submitter && event.submitter.classList.contains("btn") ? event.submitter : null;
   const busy = pressed && setTimeout(() => pressed.classList.add("busy"), 150);
   try {
-    const answer = await send(form, event.submitter);
+    const answer = await send(form, event.submitter, data);
     if (!answer.ok) {
       toast(answer.message || t("That did not work. Try again."), { bad: true });
       if (task) task.classList.remove("ticking");

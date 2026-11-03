@@ -1059,3 +1059,13 @@ bar on narrow phones (11px, 10px under 341px).
 minutes on…" once more, as if nothing had been done; the offer looked only at the plan's
 sessions, not at the diary. Status: fixed; it stops once a session is logged that day
 (`tests/test_first_run.py`).
+
+**91. A form sent in the background lost the value of the button that sent it.** Found on
+2026-11-03 while building reactions (D108) in Chromium: ui.js disabled a form's buttons
+before reading its values, and a disabled button's name and value are not sent, so a
+reaction tapped with the script reached the server without its kind and was refused
+("choose a reaction from the list"); without the script it worked. No form before D108
+carried its choice on a button, so none was hit. Status: fixed; the values are read
+first. Also found then: the demo's classmates were meant to give kudos only to others'
+posts, but the check compared a handle with a plan's token and never matched; it now
+compares tokens.
