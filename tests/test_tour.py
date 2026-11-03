@@ -15,6 +15,13 @@ from fastapi.testclient import TestClient
 from cps import service
 from cps.web import Config, create_app
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 SEMESTER = Path(__file__).resolve().parent.parent / "examples" / "sample-semester.ics"
 MORNING = datetime(2026, 9, 29, 6, tzinfo=UTC)
 
@@ -91,7 +98,7 @@ def _steps(page: str) -> list[str]:
 
 def test_every_step_of_todays_tour_lights_something(web):
     token = _start(web)
-    page = web.get(f"/p/{token}").text
+    page = _unversioned(web.get(f"/p/{token}").text)
     assert 'data-name="today"' in page
     assert '<script type="module" src="/static/tour.js"></script>' in page
     steps = _steps(page)

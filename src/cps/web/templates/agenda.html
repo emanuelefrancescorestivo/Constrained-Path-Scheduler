@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Week") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
+<h1 class="visually-hidden">{{ _("Week") }}</h1>
 <nav class="board-bar" aria-label="{{ _('Weeks') }}">
   <a class="btn btn-sm" href="/p/{{ token }}/agenda?w={{ agenda.week - 1 }}">‹ {{ _("Earlier") }}</a>
   <span class="range">{% if agenda.week == 0 %}{{ _("The next 7 days") }}{% else %}{{ _("{first} to {last}", first=agenda.days[0].label, last=agenda.days[-1].label) }}{% endif %}</span>

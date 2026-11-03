@@ -46,6 +46,7 @@ import math
 import os
 import re
 import secrets
+import sqlite3
 import threading
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -2979,6 +2980,14 @@ def _store(store: str | os.PathLike) -> Store:
         return _open(os.fspath(store))
 
 
+def store_healthy(store: str | os.PathLike) -> bool:
+    """Whether the store answers a read, for `/health` (AUDIT 88)."""
+    try:
+        return _store(store).healthy()
+    except (OSError, sqlite3.Error):
+        return False
+
+
 def log_event(store: str | os.PathLike, token: str, kind: str, detail: str = "") -> None:
     """Record what happened to a plan (created, changed, a session reported), for the
     pilot's measures. No timetable content, no names."""
@@ -3297,10 +3306,53 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # What Today may say besides the plan, most pressing first. One shows at a time; the
 # rest wait for the next visit or stay under "More". An exam just past asks first (the
 # answer is wanted while it is fresh, D56), then the answer just given beside its
-# forecast (D105), then the end of the semester, then the question about counting what
-# is used (D96), then a question that makes the plan fit (D98), then an insight (D80),
-# then a tip the day calls for (D63).
-MESSAGES = ("exam", "outcome", "semester", "usage", "fit", "insight", "tip")
+# forecast (D105), then, on the plan's first day with nothing left to do that day, a
+# first short session (D106), then the end of the semester, then the question about
+# counting what is used (D96), then a question that makes the plan fit (D98), then an
+# insight (D80), then a tip the day calls for (D63).
+MESSAGES = ("exam", "outcome", "first", "semester", "usage", "fit", "insight", "tip")
+
+
+FIRST_DAY_MINUTES = 25  # the first day's short session (D106), the timer's shortest goal
+
+
+def first_day(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """On the day the plan is made, if no session of it is left that day, a short one
+    now (D106): a new student who set up on a Tuesday, the first review on Thursday,
+    read "Nothing planned today" and had nothing to do. It offers the focus timer on
+    the course of the first session ahead, so the streak starts the day they join;
+    None on any other day, or when a session of the plan is still to come today."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    if datetime.fromisoformat(subscription.created).astimezone(zone).date() != today:
+        return None
+    if subscription.options.get("first_day_later") == today.isoformat():
+        return None  # "Not now"
+    plan = PlanReport.from_dict(subscription.plan)
+    ahead = sorted(
+        (s for s in plan.sessions if datetime.fromisoformat(s.end) > now),
+        key=lambda s: s.start,
+    )
+    if any(datetime.fromisoformat(s.start).astimezone(zone).date() == today for s in ahead):
+        return None
+    names = course_names(subscription)
+    course = ahead[0].subject if ahead else (names[0] if names else "")
+    if not course:
+        return None
+    when = (
+        format_date(datetime.fromisoformat(ahead[0].start).astimezone(zone).date(), "short") if ahead else ""
+    )
+    return {"course": course, "minutes": FIRST_DAY_MINUTES, "when": when}
+
+
+def first_day_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """ "Not now" to the first day's short session (D106): Today says what comes next."""
+    zone = _zone(subscription.options["tz"])
+    today = (now or datetime.now(UTC)).astimezone(zone).date().isoformat()
+    return replace(subscription, options={**subscription.options, "first_day_later": today})
 
 
 def today_message(**candidates: object) -> str | None:
@@ -3404,6 +3456,17 @@ def usage_answer(store: str | os.PathLike, token: str) -> bool | None:
     """Whether the student said yes to counting what they use; None if not asked."""
     found = _usage.answer_of(_store(store), token)
     return found.yes if found else None
+
+
+def usage_ask(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> bool:
+    """Whether Today asks to count what is used (D96): once there is a plan and no answer,
+    from the day after the plan was made, so a new student's first Today is their plan,
+    not a question about data (DECISIONS.md D106)."""
+    if subscription.plan is None or usage_answer(store, subscription.token) is not None:
+        return False
+    zone = _zone(subscription.options["tz"])
+    made = datetime.fromisoformat(subscription.created).astimezone(zone).date()
+    return (now or datetime.now(UTC)).astimezone(zone).date() > made
 
 
 def answer_usage(store: str | os.PathLike, token: str, yes: bool, now: datetime | None = None) -> None:
@@ -6254,17 +6317,26 @@ def front_door(store: str | os.PathLike, subscription: Subscription) -> str:
     return "community"
 
 
+FEED_FIRST = 10  # posts a feed shows at first; "Show more" adds as many (D106)
+FEED_MOST = 60  # and no more than this on one page
+
+
 def community_view(
     store: str | os.PathLike,
     subscription: Subscription,
     *,
     tab: str = "following",
     filters: Mapping[str, str] | None = None,
+    shown: int = FEED_FIRST,
     now: datetime | None = None,
 ) -> dict:
     """The network's two feeds: people one follows, and Explore (everyone's posts
-    across universities, by university, programme, course and kind)."""
+    across universities, by university, programme, course and kind). The newest
+    `shown` posts (D106: the feed the app opens on was 12 screens long on a phone);
+    `more` is how many the next "Show more" asks for, `next` the first post it adds,
+    None when there are no more."""
     now = now or datetime.now(UTC)
+    shown = max(FEED_FIRST, min(FEED_MOST, int(shown)))
     where = _store(store)
     zone = _zone(subscription.options["tz"])
     token = subscription.token
@@ -6279,15 +6351,19 @@ def community_view(
             programme=filters.get("prog", ""),
             course=filters.get("course", ""),
             kind=filters.get("kind", ""),
+            limit=shown + 1,
         )
     else:
         tab = "following"
-        posts = social.feed_following(where, token)
+        posts = social.feed_following(where, token, limit=shown + 1)
     me = social.get_profile(where, token)
+    further = len(posts) > shown and shown < FEED_MOST
     return {
         "tab": tab,
         "filters": filters,
-        "posts": _cards(where, token, posts, now, zone),
+        "posts": _cards(where, token, posts[:shown], now, zone),
+        "more": min(FEED_MOST, shown + FEED_FIRST) if further else None,
+        "next": posts[shown].id if further else None,
         "profile": me.public() if me else None,
         "requests": len(social.relations(where, token)["requests"]) if me else 0,
         "invitations": len(social.invitations_of(where, token)),

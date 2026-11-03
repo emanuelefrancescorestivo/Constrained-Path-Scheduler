@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Your class's program") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/invite.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('invite.js') }}"></script>{% endblock %}
 {% block main %}
 {# A class's link as anyone who opens it sees it (D104): the courses and their topics,
    and the way to take them with one's own plan (this device's, remembered by pwa.js,

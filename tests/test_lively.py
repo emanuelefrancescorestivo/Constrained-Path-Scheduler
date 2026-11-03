@@ -150,7 +150,7 @@ def test_progress_shows_the_climb_and_a_picture_on_each_insight(web, clock):
     for day, title in enumerate(("Past paper 2024", "Problem sheet 3", "Chapter 4")):
         clock.now = MORNING + timedelta(days=day)
         _log(web, token, title, minutes="90")
-    page = unescape(web.get(f"/p/{token}/progress").text)
+    page = unescape(web.get(f"/p/{token}/progress?more=1").text)  # the insights are in the fold (D106)
     assert "Your climb" in page and "4.5 h" in page and "Next flag: 5 h" in page
     assert 'class="climb-plot"' in page and 'class="climb-flag"' in page and "style=" not in page
     pictured = (
@@ -201,7 +201,7 @@ def test_the_diary_is_week_by_week_with_effort_and_progress_drawn(web, clock):
     assert [w["sessions"] for w in weeks] == [1, 1, 1] and [w["best"] for w in weeks] == [3, 2, 5]
     assert [w["biggest"] for w in weeks] == [False, False, True]
     assert weeks[0]["posts"][0]["work"] == "exercises" and weeks[0]["posts"][0]["color"] is not None
-    page = unescape(web.get(f"/p/{token}/progress").text)
+    page = unescape(web.get(f"/p/{token}/progress?more=1").text)  # inside "More detail" (D106)
     assert page.count('<details class="diary-week"') == 3
     assert page.count('<details class="diary-week" open>') == 1
     assert "Biggest week" in page
@@ -220,7 +220,7 @@ def test_a_week_with_no_session_counts_its_entries(web):
     service.post_explanation(web.root, plan, form, now=MORNING)
     weeks = service.diary_view(web.root, plan, MORNING)["weeks"]
     assert weeks[0]["sessions"] == 0 and len(weeks[0]["posts"]) == 1 and not weeks[0]["biggest"]
-    assert "1 entry" in unescape(web.get(f"/p/{token}/progress").text)
+    assert "1 entry" in unescape(web.get(f"/p/{token}/progress?more=1").text)
 
 
 def test_the_climb_starts_with_the_plan(web):

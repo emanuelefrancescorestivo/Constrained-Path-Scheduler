@@ -12,10 +12,11 @@ variables are what the calm-glass rules in style.css paint (D73). The live icon
 The accent (buttons, links, what is chosen) follows the sky too (D76): a hue for each
 moment, blue by day, indigo at night, violet and purple around sunrise and sunset,
 never red or orange (red is for exams and today). Its lightness is solved, not
-picked. In light mode white text on a button keeps a contrast of 4.8 (WCAG asks
-4.5), and so does text in the accent against the sky's base. In dark mode a button
-keeps 3.3 with white text (Apple's own dark blue has 3.65), and text in the accent's
-hue is made light enough for 7.5 against the sky's base, so a blue link does not
+picked. White text on a button keeps a contrast of 4.8 (WCAG asks 4.5) in both
+modes; in light mode so does text in the accent against the sky's base. In dark mode
+a button used to keep 3.3, after Apple's own dark blue (3.65); D106 raised it to the
+light mode's 4.8, its pressed colour lighter but still 4.5. Text in the accent's hue
+is made light enough for 7.5 against the dark sky's base, so a blue link does not
 sink into a blue sky.
 """
 
@@ -181,8 +182,8 @@ def accent(step: int, mode: str) -> tuple[Colour, Colour, Colour]:
             _solve(hue, 0.85, WHITE, 6.2, lighter=False),
             _solve(hue, 0.85, base, 4.8, lighter=False),
         )
-    button = _solve(hue, 0.95, WHITE, 3.3, lighter=False)
-    hover = _solve(hue, 0.95, WHITE, 2.8, lighter=False)
+    button = _solve(hue, 0.95, WHITE, 4.8, lighter=False)
+    hover = _solve(hue, 0.95, WHITE, 4.5, lighter=False)
     return button, hover, _solve(hue, 0.95, base, 7.5, lighter=True)
 
 

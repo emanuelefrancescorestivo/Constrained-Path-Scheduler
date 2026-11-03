@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if tab == 'calendar' %}{{ _("Calendar") }}{% else %}{{ _("Today") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/app.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('app.js') }}"></script>{% endblock %}
 {% block body %}
 <div class="plan{% if setup %} setup{% endif %}" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}"{% if setup %} data-setup="classes"{% endif %}>
   {% if not setup %}
@@ -9,7 +9,7 @@
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
     {# Shown by pwa.js where the app can be installed and is not yet (D33) #}
     <div class="card install-card" data-install-card hidden>
-      <img src="/static/icons/icon.svg" alt="">
+      <img src="{{ asset('icons/icon.svg') }}" alt="">
       <div class="grow">
         <b>{{ _("Put it on your home screen") }}</b>
         <p>{{ _("It opens like an app, full screen, and shows your plan even without a network.") }}</p>

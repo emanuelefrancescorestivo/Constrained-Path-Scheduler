@@ -234,7 +234,10 @@ def test_the_accent_follows_the_sky_and_stays_readable_at_every_step(mode):
             assert sky.contrast(ink, base) >= 4.5, step  # accent text on the sky
             assert sky.contrast(hover, sky.WHITE) > sky.contrast(button, sky.WHITE)  # pressed: darker
         else:
-            assert sky.contrast(button, sky.WHITE) >= 3.0, step  # as Apple's dark blue, 3.65
+            # White text on a button reads as in light mode (D106; 3.0 before, after
+            # Apple's dark blue), its pressed colour lighter but still readable.
+            assert sky.contrast(button, sky.WHITE) >= 4.5, step
+            assert 4.5 <= sky.contrast(hover, sky.WHITE) < sky.contrast(button, sky.WHITE), step
             assert sky.contrast(ink, base) >= 7.0, step
 
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_art.html" import art %}
 {% block title %}{{ row.title }} · {{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}{% if part == "account" %}<script type="module" src="/static/passkeys.js"></script>{% elif part == "phone" %}<script type="module" src="/static/push.js"></script>{% endif %}{% endblock %}
+{% block head %}{% if part == "account" %}<script type="module" src="{{ asset('passkeys.js') }}"></script>{% elif part == "phone" %}<script type="module" src="{{ asset('push.js') }}"></script>{% endif %}{% endblock %}
 {% block main %}
 {# One row of Settings (D103): a part of the settings on its own page. The plan's own
    settings (the week, the deadlines) save that part alone; each exam is changed on its

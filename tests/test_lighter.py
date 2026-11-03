@@ -93,13 +93,20 @@ def _kept(client, token: str) -> tuple:
 def test_progress_shows_the_week_the_exams_and_the_climb_and_folds_the_rest(web):
     token = _set_up(web)
     page = unescape(web.get(f"/p/{token}/progress").text)
-    fold = page.index('<details class="more section progress-more" id="more">')
+    # Closed, the fold is a link, and what it holds is not sent at all (D106).
+    fold = page.index('<a class="more more-closed section progress-more" id="more"')
+    for shown in ('class="card hero-ring"', 'class="card hero-streak"', 'id="exams"', "Your climb"):
+        assert shown in page[:fold], shown
+    folded = ('id="memory"', 'id="insights"', 'id="diary"', 'id="badges"', 'id="how"')
+    assert not [f for f in folded if f in page]
+    assert "Your memory · Your insights · Your diary · Badges" in page  # what the fold holds
+    page = unescape(web.get(f"/p/{token}/progress?more=1").text)
+    fold = page.index('<details class="more section progress-more" id="more" open>')
     above, below = page[:fold], page[fold:]
     for shown in ('class="card hero-ring"', 'class="card hero-streak"', 'id="exams"', "Your climb"):
         assert shown in above, shown
-    for folded in ('id="memory"', 'id="insights"', 'id="diary"', 'id="badges"', 'id="how"'):
-        assert folded in below and folded not in above, folded
-    assert "Your memory · Your insights · Your diary · Badges" in page  # what the fold holds
+    for one in folded:
+        assert one in below and one not in above, one
     # One "How we measure these" instead of one on each card.
     assert "How it is measured" not in page and page.count('class="section how-all"') == 1
     how = page[page.index('id="how"') :]

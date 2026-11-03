@@ -1,5 +1,5 @@
 {# The weekly review: its numbers, its paragraph, and who wrote it. #}
-<article class="card review" id="review">
+<article class="card review" id="review-card">
   <div class="card-title"><h3>{{ review.label }}</h3>{% if review.by == "ai" %}<span class="badge badge-accent">{{ _("written by AI") }}</span>{% endif %}</div>
   {% if review.sessions_planned and not compact %}
   <div class="review-numbers">

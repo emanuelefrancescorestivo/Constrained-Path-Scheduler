@@ -469,6 +469,16 @@ class Store:
         finally:
             db.close()
 
+    def healthy(self) -> bool:
+        """Whether the database answers a read: what `/health` reports, so Docker and an
+        uptime monitor notice a store that is missing, locked or damaged (AUDIT 88)."""
+        try:
+            with self._connect() as db:
+                db.execute("SELECT count(*) FROM subscriptions LIMIT 1").fetchone()
+        except sqlite3.Error:
+            return False
+        return True
+
     @property
     def photos(self) -> Path:
         """Where posts' photos are kept, next to the database (DECISIONS.md D18)."""

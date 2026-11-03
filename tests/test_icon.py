@@ -17,6 +17,13 @@ from fastapi.testclient import TestClient
 from cps import daylight, service
 from cps.web import Config, create_app, icon, sky
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 SEMESTER = Path(__file__).resolve().parent.parent / "examples" / "sample-semester.ics"
 ICONS = Path(service.__file__).parent / "web" / "static" / "icons"
 SVG = "{http://www.w3.org/2000/svg}"
@@ -194,11 +201,11 @@ def test_a_plans_pages_show_todays_icon_in_the_tab_and_the_top_bar(web):
 
 def test_a_plan_in_dark_mode_installs_the_graphite_icon(web):
     token = _start(web)
-    page = web.get(f"/p/{token}").text
+    page = _unversioned(web.get(f"/p/{token}").text)
     assert f'href="/p/{token}/manifest.webmanifest"' in page  # Automatic: pwa.js decides on the device
     assert 'href="/static/icons/apple-touch-icon.png"' in page
     web.post(f"/p/{token}/appearance", data={"theme": "dark"})
-    page = web.get(f"/p/{token}").text
+    page = _unversioned(web.get(f"/p/{token}").text)
     assert f'href="/p/{token}/manifest.webmanifest?look=dark"' in page
     assert 'href="/static/icons/apple-touch-icon-dark.png"' in page
 

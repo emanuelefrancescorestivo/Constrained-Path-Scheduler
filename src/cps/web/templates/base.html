@@ -27,17 +27,17 @@
 {% set live_icon = "/icon/week-%s-%s-%s.svg" % (weekday, sun, icon_mode) if sky and weekday and sun is number else "" %}
 <link rel="manifest" href="{% if token %}/p/{{ token }}{% endif %}/manifest.webmanifest{% if theme == 'dark' %}?look=dark{% endif %}">
 <link rel="icon" href="{{ live_icon or '/static/icons/icon.svg' }}" type="image/svg+xml"{% if live_icon %} data-live-icon{% endif %}>
-<link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon{% if theme == 'dark' %}-dark{% endif %}.png">
+<link rel="icon" href="{{ asset('icons/favicon-32.png') }}" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="{{ asset('icons/apple-touch-icon' ~ ('-dark' if theme == 'dark' else '') ~ '.png') }}">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
-<link rel="preload" href="/static/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="preload" href="{{ asset('fonts/figtree-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ asset('fonts/bricolage-grotesque-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ asset('style.css') }}">
 {% if sky and sun is number %}<link rel="stylesheet" href="/sky/{{ sun }}.css" data-sky-sheet>{% endif %}
-<script type="module" src="/static/errors.js"></script>
-<script type="module" src="/static/motion.js"></script>
-<script type="module" src="/static/pwa.js"></script>
-{% if token %}<script type="module" src="/static/ui.js"></script>{% endif %}
+<script type="module" src="{{ asset('errors.js') }}"></script>
+<script type="module" src="{{ asset('motion.js') }}"></script>
+<script type="module" src="{{ asset('pwa.js') }}"></script>
+{% if token %}<script type="module" src="{{ asset('ui.js') }}"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
 <body class="{% if token and not (setup or new) %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% if weekday %} data-day="{{ weekday }}"{% endif %}{% if sun is number %} data-sun="{{ sun }}" data-icon-mode="{{ icon_mode }}"{% endif %}{% endif %}>

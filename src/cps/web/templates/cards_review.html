@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Review") }} · {{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/cards.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('cards.js') }}"></script>{% endblock %}
 {% block main %}
+<h1 class="visually-hidden">{{ _("Review") }}</h1>
 <p class="back">{% if view.week and view.course_index is not none %}<a href="/p/{{ token }}/courses/{{ view.course_index }}#weeks">{{ view.course }}</a>{% else %}<a href="/p/{{ token }}/cards{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Flashcards") }}</a>{% endif %}</p>
 {% if view.card %}
 {% set c = view.card %}

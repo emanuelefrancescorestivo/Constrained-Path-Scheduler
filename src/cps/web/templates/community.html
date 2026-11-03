@@ -49,6 +49,7 @@
 {% endif %}
 
 <div class="feed">
+<h2 class="visually-hidden">{% if view.tab == "explore" %}{{ _("Explore") }}{% else %}{{ _("Following") }}{% endif %}</h2>
 {% for p in view.posts %}{% include "_post.html" %}{% else %}
 <div class="card empty">
   {% if view.tab == "explore" %}
@@ -59,5 +60,8 @@
   {% endif %}
 </div>
 {% endfor %}
+{# D106: the newest ten, then ten more a tap, a link that works without scripts and
+   lands on the first post it adds. #}
+{% if view.more %}<p class="feed-more"><a class="btn btn-tinted btn-block" href="/p/{{ token }}/community?{% if view.tab == 'explore' %}tab=explore&amp;{% for k, v in view.filters.items() if v %}{{ k }}={{ v | urlencode }}&amp;{% endfor %}{% endif %}n={{ view.more }}#post-{{ view.next }}">{{ _("Show more") }}</a></p>{% endif %}
 </div>
 {% endblock %}

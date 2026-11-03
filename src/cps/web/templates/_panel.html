@@ -94,6 +94,16 @@
 {% elif message == "tip" %}
 {# A tip the day calls for (D63), in one line with the spark #}
 {% include "_tip_card.html" %}
+{% elif message == "first" %}{% set f = first_day %}
+{# The plan's first day with nothing left that day (D106): a short session now. #}
+<form method="post" action="/p/{{ token }}/focus/start" class="card nudge-card section first-day">
+  <input type="hidden" name="course" value="{{ f.course }}">
+  <input type="hidden" name="goal" value="{{ f.minutes }}">
+  <span class="tip-reason">{{ _("Your first day") }}</span>
+  <b>{{ _("Start today: {n} minutes on {course}", n=f.minutes, course=f.course) }}</b>
+  <span class="muted">{% if f.when %}{{ _("Your first planned session is on {when}. A short one now starts your streak today.", when=f.when) }}{% else %}{{ _("A short session now starts your streak today.") }}{% endif %}</span>
+  <div class="row-end"><button type="submit" formaction="/p/{{ token }}/first-day/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
+</form>
 {% elif message == "outcome" %}{% set o = exam_outcome %}
 {# The answer just given, beside the recall the plan forecast for that exam (D105) #}
 <a class="card nudge-card section exam-outcome" href="/p/{{ token }}/progress#taken">

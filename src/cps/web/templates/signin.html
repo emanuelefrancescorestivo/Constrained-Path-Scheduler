@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Sign in") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/passkeys.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('passkeys.js') }}"></script>{% endblock %}
 {% block main %}
 {# Signing in with the account's e-mail and password (D94); a passkey or the
    recovery code still open a plan, on the home page and here. #}
