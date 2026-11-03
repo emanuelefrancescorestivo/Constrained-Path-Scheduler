@@ -41,10 +41,10 @@
         </div>
         <div class="sheet-row">
           <label class="label" for="qa-course">{{ _("Course") }}</label>
-          <div class="grow"><input id="qa-course" name="course" placeholder="{{ _('Optional') }}" list="qa-courses" autocomplete="off"></div>
+          <div class="grow"><input id="qa-course" name="course" placeholder="{{ _('Optional') }}" list="qa-sheet-courses" autocomplete="off"></div>
         </div>
       </div>
-      {% if courses %}<datalist id="qa-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
+      {% if courses %}<datalist id="qa-sheet-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
       <p class="hint">{{ _("It is planned at once, earliest deadline first, within your hours; if it cannot fit before it is due, you are told now, not the night before.") }}</p>
     </div>
   </form>

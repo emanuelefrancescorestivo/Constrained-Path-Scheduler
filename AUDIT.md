@@ -1021,3 +1021,34 @@ kept under the course and the exam's moment, and one kept before answers only th
 of its course before it was given (`tests/test_exam_outcome.py` checks both, and that the
 first answer stays).
 
+**85. The 41st student of a lecture could not sign up.** Found on 2026-11-03 in the full
+check (D106): new accounts and new plans were limited to 40 an hour per network address,
+written when the pilot was 10 to 20 students; a lecture hall on one Wi-Fi shares one
+address, and the first year to launch is fifty. Status: fixed; 200 an hour for both
+(`tests/test_full_check.py`).
+
+**86. The home page scrolled sideways on a phone.** Found on 2026-11-03 in the full check:
+the glow behind the sign-up form spilled 30 % past each side of its section, and a
+phone's browser widened the page to fit it (481px on a 390px screen) and zoomed it out.
+Status: fixed; the glow stops at the screen's edge and the home page clips sideways on
+its root too; 360, 390 and 1280px measured in Chromium with a mobile viewport.
+
+**87. Two IDs appeared twice, and some pages had no main heading.** Found on 2026-11-03 in
+the full check: Progress had `id="review"` on the section AUDIT 83 named and on the card
+inside it; Diary, Explain and New notes had two course lists `id="qa-courses"` (the page's
+and the quick-add sheet's); Agenda and Card review had no h1, and Science, Community and
+Semester went from h1 to h3. Status: fixed; `tests/test_full_check.py` checks thirteen
+pages for one h1, no level skipped and no ID twice.
+
+**88. `/health` said "ok" without looking at the data.** Found on 2026-11-03 in the full
+check: Docker's check and an uptime monitor would have seen a server with a missing or
+damaged database as healthy. Status: fixed; it reads the database and answers 503 when
+it cannot.
+
+**89. Buttons, grey text and the tab bar's labels were hard to read.** Found on 2026-11-03
+in the full check: white on the base blue was 4.0:1 (outside a plan's sky: the home page,
+signing in, offline), on dark-mode buttons 3.3 to 3.7:1, on red 3.4 to 3.6:1; grey text was 3.3:1, the setup
+steps and the footer about 2:1; the tab bar's labels were 9.6px and some badges and
+labels under 12px. Status: fixed (D106): 4.5:1 for text everywhere, 12px except the tab
+bar on narrow phones (11px, 10px under 341px).
+

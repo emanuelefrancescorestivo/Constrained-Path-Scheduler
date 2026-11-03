@@ -6,6 +6,7 @@ every day unless they would rather study then.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, time
 from html import unescape
 from pathlib import Path
@@ -13,6 +14,13 @@ from pathlib import Path
 import pytest
 
 from cps import service
+
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
 
 SEMESTER = Path(__file__).resolve().parent.parent / "examples" / "sample-semester.ics"
 MORNING = datetime(2026, 9, 29, 6, 0, tzinfo=UTC)  # 08:00 in Paris, a Tuesday
@@ -123,7 +131,7 @@ def test_spark_asks_the_questions_and_the_bars_draw_into_the_fields(tmp_path):
         files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        page = unescape(web.get(f"/p/{token}/routine?new=1").text)
+        page = _unversioned(unescape(web.get(f"/p/{token}/routine?new=1").text))
         assert '<script type="module" src="/static/routine.js">' in page
         assert 'class="card mascot-tip routine-guide" aria-live="polite" hidden' in page
         assert page.count('<section class="card question"') == 6 and "<section hidden" not in page

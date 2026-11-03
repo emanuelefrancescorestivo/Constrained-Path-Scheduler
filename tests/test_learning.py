@@ -125,7 +125,7 @@ def test_progress_shows_your_memory(tmp_path):
         files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        page = web.get(f"/p/{token}/progress").text
+        page = web.get(f"/p/{token}/progress?more=1").text  # inside "More detail" (D103, D106)
         assert 'id="memory"' in page and "Memory strength" in page and "Recall reps" in page
         assert page.count('class="mtile lvl-') >= 1
 

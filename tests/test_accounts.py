@@ -21,6 +21,13 @@ pytest.importorskip("cryptography")
 from cps import accounts, passkeys, service
 from cps.store import Store
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 NOW = datetime(2026, 3, 2, 7, 0, tzinfo=UTC)  # a Monday, 08:00 in Paris
 ORIGIN, RP = "http://testserver", "testserver"
@@ -414,7 +421,7 @@ def token(web) -> str:
 
 
 def test_a_passkey_added_in_settings_opens_the_plan_from_the_home_page(web, token, device):
-    settings = web.get(f"/p/{token}/settings/account").text  # its own page (D103)
+    settings = _unversioned(web.get(f"/p/{token}/settings/account").text)  # its own page (D103)
     assert 'id="account"' in settings and "data-passkey-add" in settings and "/static/passkeys.js" in settings
     options = web.post(f"/p/{token}/passkeys/options").json()
     assert options["rp"]["id"] == "testserver"

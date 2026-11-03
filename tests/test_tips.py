@@ -259,9 +259,10 @@ def test_the_tips_page_without_its_scripts_and_today_s_tip(tmp_path, lang, catal
             assert f'href="{source.url}"' in text and source.cite in text
         assert 'id="tip-' not in web.get(f"/p/{token}/tips?topic=nonsense").text  # the list again
 
-        # Today shows one message (D97): the question about counting what is used comes
-        # first on a new plan; once it is answered, the day's tip.
+        # Today shows one message (D97): on the plan's first day, a short session now
+        # comes first (D106); once it is put off with "Not now", the day's tip.
         web.post(f"/p/{token}/usage", data={"yes": "0"})
+        web.post(f"/p/{token}/first-day/later")
         today = unescape(web.get(f"/p/{token}").text)
         with i18n.use(lang):  # the day's tip and why, in the plan's language
             tip = service.tip_of_the_day(service.load_subscription(tmp_path, token), MORNING)
@@ -281,6 +282,7 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
         web.post(f"/p/{token}/usage", data={"yes": "0"})  # one message at a time (D97)
+        web.post(f"/p/{token}/first-day/later")  # the first day's short session put off (D106)
         today = unescape(web.get(f"/p/{token}").text)
         assert "A lecture later today: Advanced Statistics at 09:00." in today
         assert f"/p/{token}/tips?topic=studying#tip-pretest" in today

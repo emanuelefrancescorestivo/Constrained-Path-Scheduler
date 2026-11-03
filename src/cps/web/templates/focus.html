@@ -9,7 +9,7 @@
 </fieldset>
 {% endmacro %}
 {% block title %}{{ _("Focus") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}{% if focus.running %}<script type="module" src="/static/focus.js"></script>{% endif %}{% endblock %}
+{% block head %}{% if focus.running %}<script type="module" src="{{ asset('focus.js') }}"></script>{% endif %}{% endblock %}
 {# A session running: nothing floats over the clock (D71). #}
 {% block spark %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}
 {% block spark_button %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}

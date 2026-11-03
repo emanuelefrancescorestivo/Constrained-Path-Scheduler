@@ -22,6 +22,13 @@ from cps import service
 from cps.store import Store
 from cps.web import Config, create_app
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 STATIC = Path(__file__).resolve().parent.parent / "src/cps/web/static"
 SEMESTER = EXAMPLES / "sample-semester.ics"
@@ -734,7 +741,7 @@ def test_nonsense_busy_times_are_refused_and_change_nothing(web, planned):
 
 def test_the_week_page_loads_the_calendar_script_under_the_policy(web, planned):
     page = web.get(f"/p/{planned}/week")
-    assert 'type="module" src="/static/app.js"' in page.text
+    assert 'type="module" src="/static/app.js"' in _unversioned(page.text)
     assert 'data-first="2026-09-29"' in page.text
     policy = page.headers["content-security-policy"]
     assert "script-src 'self'" in policy and "unsafe-inline" not in policy
@@ -927,7 +934,7 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
             f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"}, follow_redirects=False
         )
         assert answer.status_code == 303
-    page = web.get(f"/p/{planned}/progress")
+    page = web.get(f"/p/{planned}/progress?more=1")  # the days are inside "More detail" (D106)
     text = unescape(page.text)
     days = len({datetime.fromisoformat(s.start).date() for s in sessions})
     assert f'<b class="big" data-count>{days}</b>' in text and f"{days} days studied" in text
@@ -1069,7 +1076,7 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
     page = unescape(web.get(f"/p/{planned}/focus").text)
     assert "Start this session" in page or "Start the timer" in page
     web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3"})
-    running = unescape(web.get(f"/p/{planned}/focus").text)
+    running = _unversioned(unescape(web.get(f"/p/{planned}/focus").text))
     assert "Finish" in running and "/static/focus.js" in running and "Algebra 3" in running
     assert "A session is running" in unescape(web.get(f"/p/{planned}").text)
     for minute in range(0, 50):
@@ -1127,7 +1134,9 @@ def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clo
     assert web.get(f"/m/{name}").status_code == 200
     web.post(f"/p/{planned}/posts/{post}/delete")
     assert web.get(f"/m/{name}").status_code == 404
-    assert "Nothing logged yet" in unescape(web.get(f"/p/{planned}/progress").text)
+    assert "Nothing logged yet" in unescape(
+        web.get(f"/p/{planned}/progress?more=1").text
+    )  # the diary, folded
 
 
 def test_a_log_with_a_mistake_is_shown_again_as_typed(web, planned):
@@ -1329,7 +1338,7 @@ def test_a_study_group_from_starting_it_to_leaving(web, planned, clock):
     page = unescape(web.get(f"/p/{planned}/groups/{group}").text)
     assert "1.5 h" in page and "0.5 h to go together." in page
     assert page.count('class="studied yes"') == 1 and "never your plan" in page
-    progress = unescape(web.get(f"/p/{planned}/progress").text)
+    progress = unescape(web.get(f"/p/{planned}/progress?more=1").text)
     assert "Your group" in progress and "0.5 h to go together." in progress
     saved = web.post(
         f"/p/{planned}/groups/{group}/settings", data={"name": "Library", "goal": "1"}, follow_redirects=False
@@ -1364,7 +1373,7 @@ def test_flashcards_from_writing_to_reviewing(web, planned):
     assert "1 card added." in page and "Review 1 card" in page and "Eigenvalue?" in page
     assert "1 card to review" in unescape(web.get(f"/p/{planned}/focus").text)
     assert "1 card to review" in unescape(web.get(f"/p/{planned}").text)
-    review = unescape(web.get(f"/p/{planned}/cards/review").text)
+    review = _unversioned(unescape(web.get(f"/p/{planned}/cards/review").text))
     assert "Eigenvalue?" in review and "Show the answer" in review and "Av = λv" in review
     assert "in 10 minutes" in review and "in 2 days" in review and 'src="/static/cards.js"' in review
     card = re.search(r'action="/p/[^/]+/cards/([^/]+)/answer"', review).group(1)
@@ -1441,7 +1450,7 @@ def test_report_block_and_the_owners_review(tmp_path, clock):
         for token in authors[2:]:
             web.post(f"/p/{token}/report/post/{post}", data={"reason": "exam"})
         assert "Past paper" not in unescape(web.get(f"/p/{authors[2]}/community?tab=explore").text)
-        assert "Hidden while it is reviewed" in unescape(web.get(f"/p/{ada}/progress").text)
+        assert "Hidden while it is reviewed" in unescape(web.get(f"/p/{ada}/progress?more=1").text)
         # The review page exists only at the owner's key.
         assert web.get("/admin/" + "x" * 30).status_code == 404
         queue = unescape(web.get(f"/admin/{key}").text)
@@ -1519,7 +1528,7 @@ def test_ai_is_off_until_turned_on_and_only_where_set_up(web, planned, monkeypat
 
 
 def test_motion_is_automatic_or_reduced_per_plan(web, planned):
-    page = unescape(web.get(f"/p/{planned}/settings/look").text)
+    page = _unversioned(unescape(web.get(f"/p/{planned}/settings/look").text))
     assert 'src="/static/motion.js"' in page and "data-motion" not in page.split("<head>")[0]
     assert 'name="motion" value="auto" class="btn btn-sm" aria-pressed="true"' in page
     reduced = web.post(f"/p/{planned}/motion", data={"motion": "reduce"}, follow_redirects=False)

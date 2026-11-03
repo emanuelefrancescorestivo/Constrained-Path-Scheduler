@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A first session on the first day (DECISIONS.md D106): on the day a plan is made, with
+  nothing left to do that day, Today offers 25 minutes of focus on the course of the
+  first session ahead.
+
+- `benchmarks/page_weight.py`: what a first visit to Today downloads, raw and with gzip,
+  and how many of the next page's files are asked about again (D106).
+
 - How an exam went, beside its forecast (DECISIONS.md D105): once a student says how an
   exam went, Today shows the answer beside the recall the plan forecast for it, and
   Progress lists every exam that way, highest forecast first, with how many pairs agree.
@@ -541,6 +548,16 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Changed
 
+- The app's files are named under a version and kept for a year (DECISIONS.md D106); a
+  page after the first asks for none of them again.
+
+- Progress sends "More detail" only when it is opened, Community shows ten posts and then
+  "Show more", the question about counting what is used waits for the second day, and
+  every control on a touch screen answers over 44px (D106).
+
+- Settings, Courses and a course's page expand the timetable once, not two or three
+  times (D106).
+
 - Lighter pages (DECISIONS.md D103, package C of the review): Progress shows the week, the
   streak, the exams and the climb, the rest under "More detail" with one "How we measure
   these"; Settings is six rows, each its own page that saves only its part; each exam is
@@ -572,6 +589,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- A whole lecture can sign up from one network: 200 new accounts and plans an hour per
+  address, from 40 (AUDIT.md item 85).
+
+- The home page no longer scrolls sideways on a phone (AUDIT.md item 86).
+
+- One main heading on every page, no heading level skipped, no ID twice (AUDIT.md item 87).
+
+- `/health` reads the database (AUDIT.md item 88).
+
+- Buttons, links and grey text at 4.5:1, text at 12px or more, the tab bar's labels from
+  9.6px to 11 or 12px (AUDIT.md item 89, D106).
 
 - A course taken again is asked about again after its exam, its first answer kept
   (AUDIT.md item 84).

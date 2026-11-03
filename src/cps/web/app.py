@@ -31,6 +31,7 @@ and fills templates (invariant 11).
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import logging
 import mimetypes
@@ -50,7 +51,7 @@ from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, FastAPI, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
@@ -78,6 +79,24 @@ MAX_POST_UPLOAD = 4 * 3 * 1024 * 1024 + 64 * 1024  # four photos of 3 MB, and th
 MAX_NOTES_UPLOAD = 8 * 3 * 1024 * 1024 + 3 * 10 * 1024 * 1024 + 64 * 1024
 SWEEP_EVERY = timedelta(hours=6)
 REMIND_EVERY = timedelta(minutes=1)  # how often the reminders due are sent (D38)
+
+
+def asset_version(folder: Path) -> str:
+    """The version of the app's own files (D106): a digest of every file under
+    `static/`, so it changes whenever one does. Pages name each file under it,
+    `/static/v/<version>/style.css`, and browsers keep that copy for a year: a new
+    release has a new name, so it is fetched once, and the pages after the first ask
+    nothing again (before, every page asked for each file again, AUDIT 67's no-cache)."""
+    digest = hashlib.sha256()
+    for path in sorted(folder.rglob("*")):
+        if path.is_file():
+            digest.update(path.relative_to(folder).as_posix().encode())
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+VERSIONED = re.compile(r"^/static/v/([0-9a-f]{10})/(.+)$")
+YEAR_LONG = "public, max-age=31536000, immutable"
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -248,8 +267,9 @@ class Config:
     fetch: Callable[[str], bytes] = service.fetch_calendar
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     # New plans per address per hour. A class on one university network shares one
-    # public address: forty lets a cohort start together (D94).
-    start_limit: tuple[int, float] = (40, 3600.0)
+    # public address: two hundred lets a whole lecture start together (D94; forty
+    # turned away the 41st of a first year of fifty, AUDIT item 85).
+    start_limit: tuple[int, float] = (200, 3600.0)
     change_limit: tuple[int, float] = (120, 3600.0)  # reports and edits per token per hour
     # Sign-ins (password, passkey, recovery code) per address per hour, for a class
     # behind one address; each account also locks after ten wrong passwords (D94).
@@ -262,7 +282,8 @@ class Config:
     # only for it. Off, plans are opened by their address alone (D35), as in the
     # tests' own apps; `cps web` and `cps demo` turn it on (CPS_ACCOUNTS=off does not).
     accounts: bool = False
-    signup_limit: tuple[int, float] = (40, 3600.0)  # new accounts per address per hour, a class's
+    # New accounts per address per hour, for the same lecture on one network (AUDIT 85).
+    signup_limit: tuple[int, float] = (200, 3600.0)
     mailer: Callable[[Any], None] | None = None  # sends a `cps.mail.Message`; None: nothing is sent
     show_mail: bool = False  # `cps demo` only: an e-mail it cannot send is shown on screen
     mail_provider: str | None = None  # who sends the e-mail, named on the privacy page
@@ -362,10 +383,19 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
+    version = asset_version(HERE / "static")
+    templates.env.globals["asset"] = lambda name: f"/static/v/{version}/{name}"
 
     @app.middleware("http")
     async def guard(request: Request, call_next: Callable) -> Response:
         began = time.perf_counter()
+        # A file named under a version (D106) is the file itself; under this release's
+        # version it may be kept for a year, under an older one (a page kept offline)
+        # it is today's file, asked about again as any other.
+        lasting = False
+        if found_version := VERSIONED.match(request.scope["path"]):
+            lasting = found_version.group(1) == version
+            request.scope["path"] = "/static/" + found_version.group(2)
         # The language (D10): a plan's own, else a `lang` asked for in the address,
         # else the browser's. No cookie.
         lang = None
@@ -395,10 +425,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             keep_signed_in(response, request, cookie)  # used today: kept for SESSION_LIFE more
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
-        if request.url.path.startswith("/static/"):
-            # The app's own files may be kept, but asked about again on every use (a
-            # 304 when nothing changed): without this, a browser guessed how long its
-            # copy was good, and an update showed only once that guess ran out (AUDIT 67).
+        if lasting and response.status_code == 200:
+            response.headers["Cache-Control"] = YEAR_LONG
+        elif request.scope["path"].startswith("/static/"):
+            # The app's own files under their plain names may be kept, but asked about
+            # again on every use (a 304 when nothing changed): without this, a browser
+            # guessed how long its copy was good, and an update showed only once that
+            # guess ran out (AUDIT 67). The pages name them under a version (D106).
             response.headers.setdefault("Cache-Control", "no-cache")
         else:
             response.headers.setdefault("Cache-Control", "no-store")
@@ -658,6 +691,9 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/health")
     def health() -> Response:
+        """Up, and its data readable: Docker's check and an uptime monitor read this (AUDIT 88)."""
+        if not service.store_healthy(store):
+            return Response("store unavailable\n", status_code=503, media_type="text/plain")
         return Response("ok\n", media_type="text/plain")
 
     @app.post("/demo")
@@ -963,9 +999,13 @@ def create_app(config: Config | None = None) -> FastAPI:
     def service_worker() -> Response:
         # From the site's root, so that it may keep copies of every page (a worker
         # answers only below its own address); fetched again at each visit.
-        return FileResponse(
-            HERE / "static" / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"}
+        # The files it keeps are named under this release's version (D106), and its
+        # own version carries it, so a release replaces the copies of the last one.
+        text = (HERE / "static" / "sw.js").read_text(encoding="utf-8")
+        text = text.replace('"/static/', f'"/static/v/{version}/').replace(
+            'const VERSION = "v6";', f'const VERSION = "v7-{version}";'
         )
+        return Response(text, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
     @app.get("/offline", response_class=HTMLResponse)
     def offline(request: Request) -> HTMLResponse:
@@ -1106,15 +1146,17 @@ def create_app(config: Config | None = None) -> FastAPI:
             "exam_results": list(service.EXAM_RESULTS.items()),
             "exam_helped": list(service.EXAM_HELPED.items()),
             # Asked once, when there is a plan to use (D96).
-            "usage_ask": bool(subscription.plan) and service.usage_answer(store, subscription.token) is None,
+            "usage_ask": service.usage_ask(store, subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
         tip = context["tip"]
         context["fit"] = service.fit_question(subscription, now)
+        context["first_day"] = service.first_day(subscription, now)
         context["message"] = service.today_message(
             exam=context["exam_questions"],
             outcome=context["exam_outcome"],
+            first=context["first_day"],
             semester=context["semester_over"],
             usage=context["usage_ask"],
             fit=context["fit"],
@@ -1172,6 +1214,10 @@ def create_app(config: Config | None = None) -> FastAPI:
         logged = service.logged_sessions(store, subscription)
         # The whole semester's weeks, for the climb (D100).
         trend = service.trends_view(store, subscription, now, "all") if subscription.plan else None
+        # D103: "More detail" opens by itself for a link into it and after a diary
+        # change, whose notice and entry are inside. D106: closed, it is a link, and
+        # what it holds is neither made nor sent.
+        opened = bool(more) or saved in DIARY_NOTICES
         return page(
             request,
             "progress.html",
@@ -1179,18 +1225,18 @@ def create_app(config: Config | None = None) -> FastAPI:
             view=service.progress_view(subscription, now, logged=logged),
             review=service.review_with_ai(
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
-            ),
-            diary=service.diary_view(store, subscription, now),
+            )
+            if opened
+            else None,
+            diary=service.diary_view(store, subscription, now) if opened else None,
             trend=trend,
             climb=service.climb_view(trend) if trend else None,
-            groups=service.groups_view(store, subscription, now)["groups"],
-            badges=service.badges_view(store, subscription, now, logged=logged),
+            groups=service.groups_view(store, subscription, now)["groups"] if opened else [],
+            badges=service.badges_view(store, subscription, now, logged=logged) if opened else None,
             insights=service.insights_view(store, subscription, now) if subscription.plan else None,
             memory=service.learning_view(store, subscription, now),
             saved=_notice(saved),
-            # D103: "More detail" opens by itself for a link into it and after a diary
-            # change, whose notice and entry are inside.
-            more=bool(more) or saved in DIARY_NOTICES,
+            more=opened,
             tab="progress",
         )
 
@@ -1509,6 +1555,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         course: str = "",
         kind: str = "",
         saved: str = "",
+        n: int = service.FEED_FIRST,
     ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
@@ -1519,6 +1566,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             subscription,
             tab=tab,
             filters={"uni": uni, "prog": prog, "course": course, "kind": kind},
+            shown=n,
             now=config.clock(),
         )
         return page(request, "community.html", token=token, view=view, saved=_notice(saved), tab="community")
@@ -3597,6 +3645,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         service.log_event(store, token, "exam", "skipped" if fields.get("skip") else "answered")
         return RedirectResponse(f"/p/{token}?saved=exam", 303)
+
+    @app.post("/p/{token}/first-day/later")
+    def first_day_later(request: Request, token: str) -> Response:
+        """ "Not now" to the first day's short session (D106)."""
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.first_day_later(current, config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
 
     @app.post("/p/{token}/account/later")
     def account_later(request: Request, token: str) -> Response:

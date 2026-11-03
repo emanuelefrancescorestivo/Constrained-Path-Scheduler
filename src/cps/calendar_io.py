@@ -177,8 +177,21 @@ def expand_events(
 
     Occurrences are clipped to the window rather than dropped, so a lecture that
     began before the planning horizon still blocks its tail.
+
+    The same timetable over the same window gives the same events, so they are kept
+    (`_expanded`): a course's page and the Settings pages asked for them two or three
+    times each, about 80 ms a time on the sample semester (DECISIONS.md D106). The
+    events are frozen; each caller gets its own list.
     """
-    zone = zone or window_start.tzinfo or UTC
+    return list(
+        _expanded(ics_text, window_start, window_end, zone or window_start.tzinfo or UTC, max_occurrences)
+    )
+
+
+@functools.lru_cache(maxsize=128)
+def _expanded(
+    ics_text: str, window_start: datetime, window_end: datetime, zone: tzinfo, max_occurrences: int
+) -> tuple[BusyEvent, ...]:
     calendar = Calendar.from_ical(ics_text.lstrip("\ufeff"))
     out: list[BusyEvent] = []
 
@@ -235,7 +248,7 @@ def expand_events(
             )
 
     out.sort(key=lambda e: (e.start, e.end))
-    return out
+    return tuple(out)
 
 
 # --------------------------------------------------------------------------- #

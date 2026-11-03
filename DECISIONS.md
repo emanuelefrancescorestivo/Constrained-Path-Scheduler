@@ -3803,3 +3803,92 @@ to 6, reads the French examples out of 20. The pages were checked in Chromium on
 phone and desktop widths, light and dark, with a plan whose clock stood after its exams:
 no demo student has an exam behind them, so the demo shows nothing of it until one does.
 
+## D106. The full check's fixes
+
+*The owner, 2026-11-03: "build all 14, merge when green", after a check of the whole app
+(every page in Chromium at phone and desktop size, light, dark and without scripts; a
+new student's first minutes with `benchmarks/screen_load.mjs`; each page's server time;
+the security headers, cookies and limits) ranked fourteen fixes.*
+
+**Chosen.**
+
+1. **A whole lecture signs up together** (AUDIT 85). New accounts and new plans per
+   network address per hour go from 40 to 200: a lecture hall on one Wi-Fi shares one
+   address, and Y1 is fifty. Sign-ins stay at 120, each account locking after ten wrong
+   passwords (D94).
+2. **The home page fits a phone** (AUDIT 86). The glow behind the sign-up spilled 30 %
+   past each side; a phone widened the page to fit it and zoomed everything out. It now
+   reaches the screen's edge and no further, and the home page clips sideways overflow
+   on its root too.
+3. **The first Today is the plan.** The question about counting what is used (D96) is
+   asked from the day after the plan was made, not on the first screen a new student
+   sees.
+4. **44px to aim at.** On a touch screen every button, pill, tick and fold answers over at
+   least 44px of height (Apple's figure) through an invisible band, and links that stand
+   alone through padding a negative margin takes back, so nothing moves; rows of
+   controls closer than 44px get more room between them. Desktops with a mouse are
+   unchanged.
+5. **Text at 4.5:1.** The base blue is `#006ae0` (white on it 5.1:1, as text on the page
+   4.6:1, where `#007aff` gave 4.0), grey text is 75 % of its ink (4.8:1 on the page,
+   where Apple's 60 % gave 3.3), and the text that used the faintest grey (the setup
+   steps, the footer, a hint) uses grey; white text on red (a destructive button, the
+   calendar's "now", a count) sits on `#d92d20`, 4.8:1, where the system red gave 3.6.
+   In dark mode a button now keeps 4.8:1 with
+   white text, its pressed colour 4.5, where D78 kept 3.3 after Apple's dark blue: the
+   owner was asked to choose and asked for all fourteen, so the readable one.
+6. **The timetable is expanded once.** `calendar_io.expand_events` keeps what it
+   expanded (128 timetables and windows), keyed by the timetable's text: a course's page
+   expanded it twice, a Settings page three times, Courses once per course. The events
+   are frozen and each caller gets its own list.
+7. **`/health` reads the data** (AUDIT 88): one read of the database, 503 when it
+   fails, so Docker's check and an uptime monitor notice a missing or damaged store.
+8. **A first session on the first day.** On the day the plan is made, when no session
+   of it is left that day, Today's one message (D97) offers 25 minutes of focus on the
+   course of the first session ahead, with "Not now"; it comes after an exam's question
+   and answer and before everything else.
+9. **Files named under a version, kept a year.** Every page names the app's files as
+   `/static/v/<version>/…`, the version a digest of the files themselves, and those are
+   served `immutable` for a year; the scripts' imports and the stylesheet's fonts are
+   relative, so they follow. A page kept offline that names an older version gets
+   today's file, asked about again; the plain names keep AUDIT 67's `no-cache`. The
+   service worker keeps the versioned names and carries the version, so a release
+   replaces the copies of the last.
+10. **Unique IDs, one main heading, no level skipped** (AUDIT 87): the weekly review's
+    card is `review-card` (the section around it on Progress is `review`, AUDIT 83), the
+    quick-add sheet's course list is its own; Agenda and Card review have a main
+    heading for screen readers, and Science, Community and Semester no longer skip from
+    h1 to h3.
+11. **12px as the smallest text**, from 9.6px for the tab bar's labels and 10.9 to 11.8px
+    for badges, the calendar's times and labels. The tab bar is the one exception:
+    11px on phones narrower than 376px (401px in French, for "Communauté"), 10px under
+    341px, where every label still fits (AUDIT 69). Text inside a drawing scales with it.
+12. **Progress's fold sent when opened.** Closed, "More detail" is a link to the page
+    with it open (`?more=1`, as links into it always were), and what it holds is neither
+    made nor sent.
+13. **Community shows ten posts, then "Show more"**, ten more a tap, up to sixty, a link
+    that works without scripts and lands on the first post it adds.
+14. **The weight measured** (`benchmarks/page_weight.py`): a first visit to Today, raw and
+    with gzip, and how many of the next page's files are asked about again. It decides
+    that the stylesheet needs no splitting: compressed, it is less than the fonts.
+
+*Rejected:* a larger button on touch screens instead of an invisible band (rows of small
+buttons would double in height); 12px for the tab bar on every phone (French cuts
+"Communauté"; a label on two lines breaks the bar); a version as a query string (`?v=`):
+the scripts' relative imports and the stylesheet's fonts would lose it; the first day's
+session scheduled into the plan (it would be a session the student did not choose to
+plan; a timer started from Today is theirs); hiding the tip on the first day for good
+("Not now" brings it back the same day).
+
+**Disclosed.** Checked in Chromium only, at 320 to 1280px, with touch emulated; not on a
+real phone, nor in Safari or Firefox, nor with a screen reader. Tap areas are measured by
+asking the page what lies 21px above and below each control's centre: on 17 pages, 47
+controls still answer over less, where controls sit closer than 44px (a card's edge, a
+menu over a post). The dark mode's buttons are darker than Apple's. Server times were
+measured on one machine and vary from run to run; only that the timetable is expanded
+once is tested.
+
+**Measured** (`python benchmarks/page_weight.py`): a first visit to Today is 12 answers,
+425 KB, 181 KB with gzip, of which the two fonts are 95 KB that do not compress; the
+stylesheet is 42 KB with gzip. Progress next, with the fold closed: 23 KB of page, its 8
+files already kept and none asked about again.
+

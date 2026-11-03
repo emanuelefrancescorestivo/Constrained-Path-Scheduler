@@ -29,6 +29,13 @@ from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cps import reminders, service
 from cps.store import Store
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 NOW = datetime(2026, 10, 12, 7, 0, tzinfo=UTC)  # a Monday, 09:00 in Paris
 APPLE = "https://web.push.apple.com/QGuQyavXutnMCQBdj7NBqcv6"
@@ -344,7 +351,7 @@ def token(web) -> str:
 
 
 def test_reminders_are_turned_on_tested_timed_and_off_in_settings(web, token):
-    page = web.get(f"/p/{token}/settings/phone").text  # its own page (D103)
+    page = _unversioned(web.get(f"/p/{token}/settings/phone").text)  # its own page (D103)
     assert 'id="reminders"' in page and "/static/push.js" in page and "data-key=" in page
     assert "Send a test reminder" not in page  # no device yet
     refused = web.post(f"/p/{token}/push", json={**Phone().info(), "endpoint": "https://evil.example/x"})

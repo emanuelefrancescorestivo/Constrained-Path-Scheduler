@@ -21,6 +21,13 @@ from fastapi.testclient import TestClient
 
 from cps.web import Config, create_app
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 STATIC = Path(__file__).resolve().parent.parent / "src" / "cps" / "web" / "static"
 NOW = datetime(2026, 10, 12, 7, 0, tzinfo=UTC)
 
@@ -55,7 +62,7 @@ def test_the_manifest_opens_the_plan_it_was_installed_from(web):
     assert own["start_url"] == f"/p/{token}/open" and own["id"] == f"/p/{token}" and own["lang"] == "it"
     assert own["name"] == "Piano di studio"  # the plan's language
     assert web.get("/p/" + "x" * 32 + "/manifest.webmanifest").status_code == 404
-    page = web.get(f"/p/{token}/timetable").text
+    page = _unversioned(web.get(f"/p/{token}/timetable").text)
     assert f'<link rel="manifest" href="/p/{token}/manifest.webmanifest">' in page
     assert 'rel="apple-touch-icon"' in page and 'src="/static/pwa.js"' in page
 

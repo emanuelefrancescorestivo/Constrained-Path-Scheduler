@@ -172,7 +172,7 @@ def test_progress_shows_the_insights_and_today_the_one_that_matters(tmp_path):
         files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
         start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
         token = start.headers["location"].split("/")[2]
-        page = web.get(f"/p/{token}/progress").text
+        page = web.get(f"/p/{token}/progress?more=1").text  # inside "More detail" (D103, D106)
         assert 'id="insights"' in page and "Your insights" in page
         assert page.count('class="card insight ') == 5
         assert "Answer 6 more self-tests to see this." in page

@@ -105,9 +105,16 @@
 {% if memory %}{% set _x = inside.append(_("Your memory")) %}{% endif %}
 {% if insights %}{% set _x = inside.append(_("Your insights")) %}{% endif %}
 {% set _x = inside.append(_("Your diary")) %}{% set _x = inside.append(_("Badges")) %}
-<details class="more section progress-more" id="more"{% if more %} open{% endif %}>
+{% if more %}
+<details class="more section progress-more" id="more" open>
   <summary><span class="more-title">{{ _("More detail") }}</span><span class="more-what">{{ inside | join(" · ") }}</span></summary>
   <div class="more-body">
+{% else %}
+{# D106: closed, the fold is a link, and the page comes without what it holds (79 % of
+   its HTML before); the link asks for the page with it open, as `more` always did. #}
+<a class="more more-closed section progress-more" id="more" href="/p/{{ token }}/progress?more=1#more"><span class="more-title">{{ _("More detail") }}</span><span class="more-what">{{ inside | join(" · ") }}</span></a>
+{% endif %}
+{% if more %}
 
 {% if memory %}{% include "_memory.html" %}{% endif %}
 
@@ -192,5 +199,6 @@
 </div>
   </div>
 </details>
+{% endif %}
 {% endif %}
 {% endblock %}

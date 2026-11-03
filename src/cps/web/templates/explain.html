@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Explain it simply") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/log.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('log.js') }}"></script>{% endblock %}
 {% block main %}
 <p class="back"><a href="/p/{{ token }}/community">{{ _("Community") }}</a></p>
 <div class="page-title">

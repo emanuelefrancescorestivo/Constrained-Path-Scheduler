@@ -24,6 +24,13 @@ from fastapi.testclient import TestClient
 
 from cps.web import Config, create_app
 
+
+def _unversioned(html: str) -> str:
+    """A page with its files' plain names: pages name them under the release's
+    version (D106, checked in test_full_check)."""
+    return re.sub(r"/static/v/[0-9a-f]{10}/", "/static/", html)
+
+
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 SEMESTER = EXAMPLES / "sample-semester.ics"
 MORNING = datetime(2026, 9, 29, 6, 0, tzinfo=UTC)
@@ -151,7 +158,7 @@ def test_a_browser_error_is_logged_without_the_address_and_not_endlessly(web):
 def test_every_page_hears_its_scripts_errors(web):
     token = _start(web)
     for path in ("/", f"/p/{token}", "/privacy"):
-        page = web.get(path).text
+        page = _unversioned(web.get(path).text)
         first = re.search(r'<script type="module" src="([^"]+)"', page)
         assert first and first.group(1) == "/static/errors.js", path
     script = web.get("/static/errors.js").text

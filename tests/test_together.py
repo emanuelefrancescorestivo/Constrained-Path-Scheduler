@@ -303,7 +303,7 @@ def test_an_invitation_link_opens_joins_and_needs_a_handle_first(web):
 
 def test_the_progress_page_shows_the_badge_shelf(web):
     token = _start(web)
-    page = web.get(f"/p/{token}/progress").text
+    page = web.get(f"/p/{token}/progress?more=1").text  # inside "More detail" (D103, D106)
     assert 'class="badges"' in page and "0 of 12" in page and "never for hours or rankings" in page
 
 

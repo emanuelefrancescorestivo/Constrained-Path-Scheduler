@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_mascot.html" import mascot %}
 {% block title %}{{ _("Your week") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}<script type="module" src="/static/routine.js"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ asset('routine.js') }}"></script>{% endblock %}
 {% block main %}
 {# The questions about the week (D42): the trip to university, then sport, a job
    and anything else every week, each answer weekly busy time on the chosen days. #}

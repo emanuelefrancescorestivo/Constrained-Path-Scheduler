@@ -2326,4 +2326,10 @@ MESSAGES: dict[str, str] = {
     "Compared two by two: in {k} of {n} pairs, the higher forecast went with the better result.": "Confrontati a due a due, la previsione più alta è andata con il risultato migliore: {k} su {n} coppie.",
     "The forecast is how much of a course's topics an average memory would recall on exam day, from the sessions you reported. A result also depends on the exam, and a few exams make a hint, not a verdict.": "La previsione è quanta parte degli argomenti di un corso una memoria media ricorderebbe il giorno dell'esame, in base alle sessioni che hai segnalato. Un risultato dipende anche dall'esame, e pochi esami danno un indizio, non un verdetto.",
     "How it went: {result}": "Com'è andata: {result}",
+    # The full check's fixes (D106)
+    "Show more": "Mostra altro",
+    "Your first day": "Il tuo primo giorno",
+    "Start today: {n} minutes on {course}": "Comincia oggi: {n} minuti di {course}",
+    "Your first planned session is on {when}. A short one now starts your streak today.": "La tua prima sessione in programma è {when}. Una breve adesso fa partire la tua serie da oggi.",
+    "A short session now starts your streak today.": "Una breve sessione adesso fa partire la tua serie da oggi.",
 }

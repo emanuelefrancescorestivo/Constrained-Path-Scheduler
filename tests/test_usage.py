@@ -96,8 +96,11 @@ def test_every_part_has_words_and_every_rule_names_a_part():
     assert {part for _, _, part in usage._RULES} <= set(usage.LABELS)
 
 
-def test_nothing_is_counted_before_a_yes_and_today_asks_once(web):
+def test_nothing_is_counted_before_a_yes_and_today_asks_once(web, clock):
     token = _start(web)
+    # Not on the plan's first day: a new student's first Today is their plan (D106).
+    assert "May the app count which of its parts you use?" not in web.get(f"/p/{token}").text
+    clock.now += timedelta(days=1)
     page = web.get(f"/p/{token}").text
     assert "May the app count which of its parts you use?" in page
     web.get(f"/p/{token}/focus")
