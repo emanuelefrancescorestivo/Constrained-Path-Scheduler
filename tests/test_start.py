@@ -129,14 +129,19 @@ def test_drawing_a_week_from_the_start_to_a_plan(web):
     assert 'data-setup="classes"' in page and "Draw your week" in page
     assert 'id="panel"' not in page and "topbar-add" not in page  # the calendar alone
     assert 'data-view="30"' not in page  # no month to draw classes on (D79)
-    assert f'href="/p/{token}/settings?new=1"' in page
+    # A new plan's first run (D107): who is studying, then the courses.
+    assert f'href="/p/{token}/start/you"' in page
+    assert (
+        web.post(f"/p/{token}/start/you", data={"skip": "1"}, follow_redirects=False).headers["location"]
+        == f"/p/{token}/settings?new=1"
+    )
 
     drawn = web.post(f"/p/{token}/activities?days=7", json=CLASSES)
     assert drawn.status_code == 200, drawn.text
     assert [a["color"] is not None for a in drawn.json()["activities"]] == [True, True, True, False]
 
     exams = web.get(f"/p/{token}/settings?new=1").text
-    assert "Your exams and deadlines" in unescape(exams)
+    assert "The courses you drew." in unescape(exams)
     form = _inputs(exams)
     offered = {
         form[k]: k.split("_")[0]
@@ -147,8 +152,8 @@ def test_drawing_a_week_from_the_start_to_a_plan(web):
     form[f"{offered['Algebra']}_exam"] = "2026-12-14T09:00"
     form["new"] = "1"
     saved = web.post(f"/p/{token}/settings", data=form, follow_redirects=False)
-    # On to the week with its plan (D98); the questions about the week come later.
-    assert saved.status_code == 303 and saved.headers["location"].endswith("/week?new=1")
+    # On to the class (D107; a new semester goes on to the week with its plan, D98).
+    assert saved.status_code == 303 and saved.headers["location"].endswith("/start/class")
     stored = service.load_subscription(web.path, token)
     assert stored is not None and [s["name"] for s in stored.subjects] == ["Algebra"]
     assert stored.plan is not None and service.PlanReport.from_dict(stored.plan).sessions

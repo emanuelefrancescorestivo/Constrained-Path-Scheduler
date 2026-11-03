@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A first run after Strava's (DECISIONS.md D107): on a phone, three welcome cards before
+  the account; then who is studying (the network's profile), the courses, the class (a
+  class link opened before the plan carried through, classmates to follow) and who sees
+  the sessions; Today with the first day's session first and Spark's one line instead of
+  the tour; the first session's summary; reminders asked once a session is done. Each
+  step after the account can be skipped; a new semester goes as it went.
+
 - A first session on the first day (DECISIONS.md D106): on the day a plan is made, with
   nothing left to do that day, Today offers 25 minutes of focus on the course of the
   first session ahead.
@@ -589,6 +596,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- The first day's short session is no longer offered again once a session is logged that
+  day (AUDIT.md item 90).
 
 - A whole lecture can sign up from one network: 200 new accounts and plans an hour per
   address, from 40 (AUDIT.md item 85).

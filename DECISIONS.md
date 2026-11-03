@@ -3892,3 +3892,82 @@ once is tested.
 stylesheet is 42 KB with gzip. Progress next, with the fold closed: 23 KB of page, its 8
 files already kept and none asked about again.
 
+
+## D107. A first run after Strava's
+
+*The owner, 2026-11-03: "we should have an intro for the first time an user uses the app,
+like we already do, but since we are inspired by strava let's translate strava's first
+login intro into our own app". A deck of the proposal, ten mock-up screens, came first;
+then "yes go with your suggestions, build it and merge when green".*
+
+What Strava's first run does, from published teardowns (screensdesign.com, UXCam's,
+updated April 2026, Mobbin's captures; not from the app itself): a few screens of the
+product before the account; the account and a check of the address; "Tell us who you
+are" (name, birthday, gender); permissions and a subscription offer; then straight to a
+first recorded activity, the feed, clubs and challenges left for later. A step to follow
+athletes, or one for privacy, could not be confirmed there, so none is claimed.
+
+**Chosen.** A new plan, made on the home page, has a first run (`service.first_run`);
+each step after the account can be skipped:
+
+1. **Three welcome cards on a phone**, before the account (Strava's product screens): the
+   plan around one's life, every week back before it fades, the class. The browser snaps
+   them as they are swiped; no script. A computer keeps the pitch, and so does the demo,
+   whose pitch is its button.
+2. **Who's studying?** (Strava's "Tell us who you are"): the network's profile, handle,
+   university, year, at least 15, asked here instead of on the first visit to Community.
+3. **What do you study?** (Strava's sports): setting up's exams page, under this title; the
+   timetable already knows the courses, the student checks the dates and can skip one.
+4. **Study with your class**, the step Strava does not have: its feed is full from day
+   one, ours (D102) is empty for a student alone. A class link opened before the plan
+   existed (D104) is carried through the account and offered here, its topics taken in
+   one tap; the classmates the profile finds (D39), five, can be followed.
+5. **Who sees your sessions?**: the three choices posts already have (only me,
+   followers, everyone), asked once, followers suggested; the diary's page starts from
+   it, and each session can still say otherwise.
+6. **Today with one session**: the first day's 25 minutes (D106) come first when nothing
+   else is planned that day, and Spark's one line ("Your plan is ready. One session today
+   is enough") stands in for the tour, which Settings can still show.
+7. **First session done!** (Strava's saved activity): the diary's page after the first
+   session opens with its summary, the minutes, day 1 of the streak, the course.
+8. **Same time tomorrow?**: reminders (D38) are asked after the first session, not in
+   setting up (a critique of Strava's flow is that it asks for notifications before the
+   home screen), with the plan's next session and the calendar's link; until it is
+   answered, Today asks once a session is done. Turning them on, or "Not now", ends the
+   first run.
+
+A new semester (D35), and a plan made before D107, go as they went: setting up's three
+steps, the week with its plan, the tour. Each step is logged ("first run") for the pilot's
+measures (D15).
+
+**Of the five choices in the deck**, the owner took the two marked as suggested (followers
+by default, reminders after the first session); for the other three the build takes the
+deck's: the welcome cards, the profile in the first run, the class step for everyone
+(the class's own card only with its link).
+
+**Changed from the deck.** A handle instead of a first name: the network already shows
+handles, and a name would be one more piece of personal data the app has no use for. The
+courses are setting up's form under the deck's title, not chips: it already reads the
+exams and leaves a course out, and is tested. The summary keeps the diary's two questions
+(how hard, how far) instead of the deck's recall chips. The week with its plan is no
+longer a step of a first run; it is a tab. The install card waits until the first run is
+over, since the question about reminders says how to put the app on an iPhone's home
+screen.
+
+**Found on the way** (AUDIT 90): the first day's short session was offered again after it
+was timed and logged; it now stops once a session is logged that day.
+
+**Not chosen.** A birthday and a gender (the app has no use for them); a subscription
+offer (nothing is sold); uploading contacts (classmates come from the class link and the
+university); leaderboards (badges reward habits, never hours); asking for notifications
+while setting up.
+
+**Measured** (`node benchmarks/screen_load.mjs`, Chromium at 390 × 844, every default
+accepted): from the home page to Today, 10 taps, 3 of them for the account (7 before:
+"Get started", the class and who sees the sessions add one each, who is studying is one
+"Skip", and the week's screen is gone); to a first session done and saved, 16.
+
+**Disclosed.** Checked in Chromium only, at phone size with touch emulated and at 1280px;
+not on a real phone, nor with a screen reader. Strava's flow is described from teardowns,
+not tried. Whether the first run brings more students back on day 7 is for the pilot to
+say, with the measures the app already counts (D15).

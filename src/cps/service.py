@@ -3307,16 +3307,19 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # rest wait for the next visit or stay under "More". An exam just past asks first (the
 # answer is wanted while it is fresh, D56), then the answer just given beside its
 # forecast (D105), then, on the plan's first day with nothing left to do that day, a
-# first short session (D106), then the end of the semester, then the question about
+# first short session (D106), then, once a first run's first session is done, the
+# question about reminders (D107), then the end of the semester, then the question about
 # counting what is used (D96), then a question that makes the plan fit (D98), then an
 # insight (D80), then a tip the day calls for (D63).
-MESSAGES = ("exam", "outcome", "first", "semester", "usage", "fit", "insight", "tip")
+MESSAGES = ("exam", "outcome", "first", "remind", "semester", "usage", "fit", "insight", "tip")
 
 
 FIRST_DAY_MINUTES = 25  # the first day's short session (D106), the timer's shortest goal
 
 
-def first_day(subscription: Subscription, now: datetime | None = None) -> dict | None:
+def first_day(
+    subscription: Subscription, now: datetime | None = None, store: str | os.PathLike | None = None
+) -> dict | None:
     """On the day the plan is made, if no session of it is left that day, a short one
     now (D106): a new student who set up on a Tuesday, the first review on Thursday,
     read "Nothing planned today" and had nothing to do. It offers the focus timer on
@@ -3331,6 +3334,8 @@ def first_day(subscription: Subscription, now: datetime | None = None) -> dict |
         return None
     if subscription.options.get("first_day_later") == today.isoformat():
         return None  # "Not now"
+    if store is not None and any(s.start.date() == today for s in logged_sessions(store, subscription)):
+        return None  # done already: a session logged today (AUDIT 90)
     plan = PlanReport.from_dict(subscription.plan)
     ahead = sorted(
         (s for s in plan.sessions if datetime.fromisoformat(s.end) > now),
@@ -3353,6 +3358,138 @@ def first_day_later(subscription: Subscription, now: datetime | None = None) -> 
     zone = _zone(subscription.options["tz"])
     today = (now or datetime.now(UTC)).astimezone(zone).date().isoformat()
     return replace(subscription, options={**subscription.options, "first_day_later": today})
+
+
+# -- the first run (D107) ----------------------------------------------------------
+
+# A new student's first run, after Strava's (D107): the timetable, who is studying,
+# the courses, the class, who sees the sessions; then Today with one session, the
+# session's summary, and the question about reminders once it is done. Each step
+# after the account can be skipped. A plan made before D107 has no first run.
+FIRST_RUN_STEPS = ("Timetable", "You", "Your courses", "Your class", "Sharing")
+FIRST_RUN_CLASSMATES = 5  # the classmates the class step offers to follow
+SHARE_DEFAULT = "followers"  # who sees a shared session unless the student chose (D107)
+_CLASS_CODE = re.compile(r"[A-Za-z0-9_-]{12}")
+
+
+def class_code(value: object) -> str:
+    """A class link's code as an address or a form gives it (D104), else ""."""
+    text = str(value or "").strip()
+    return text if _CLASS_CODE.fullmatch(text) else ""
+
+
+def begin_first_run(subscription: Subscription, code: object = "") -> Subscription:
+    """A plan a new student just made starts its first run (D107); the class link
+    they came with, if any, is what the class step offers."""
+    state = {"step": "you", "class": class_code(code)}
+    return replace(subscription, options={**subscription.options, "first_run": state})
+
+
+def first_run(subscription: Subscription) -> dict | None:
+    """The first run's state while it lasts (D107); None for a plan made before it
+    and once its last question, about reminders, is answered."""
+    state = subscription.options.get("first_run")
+    return None if not isinstance(state, dict) or state.get("finished") else state
+
+
+def first_run_at(subscription: Subscription, step: str) -> Subscription:
+    """The first run moved on to `step` (D107); a plan without one is unchanged."""
+    state = first_run(subscription)
+    if state is None:
+        return subscription
+    return replace(subscription, options={**subscription.options, "first_run": {**state, "step": step}})
+
+
+def finish_first_run(subscription: Subscription) -> Subscription:
+    """The question about reminders answered (D107): the first run is over, and
+    Today's tour, which it stood in for, is not shown afterwards."""
+    state = first_run(subscription)
+    if state is None:
+        return subscription
+    done = replace(subscription, options={**subscription.options, "first_run": {**state, "finished": True}})
+    return see_tour(done, "today")
+
+
+def share_default(subscription: Subscription) -> str:
+    """Who sees a session the student shares, unless they choose otherwise (D107)."""
+    value = subscription.options.get("share")
+    return value if value in social.VISIBILITIES else SHARE_DEFAULT
+
+
+def set_share_default(subscription: Subscription, visibility: object) -> Subscription:
+    """The first run's question, "Who sees your sessions?" (D107): each post can
+    still say otherwise."""
+    if visibility not in social.VISIBILITIES:
+        raise InvalidInput(_("choose who sees it: only you, your followers, or everyone"))
+    return replace(subscription, options={**subscription.options, "share": str(visibility)})
+
+
+def studied_once(store: str | os.PathLike, subscription: Subscription) -> bool:
+    """Whether the student has studied at all: a session logged in the diary, or one
+    of the plan reported as done (D107)."""
+    return bool(logged_sessions(store, subscription)) or any(
+        s.confirmed for s in progress_sessions(subscription)
+    )
+
+
+def first_session(store: str | os.PathLike, subscription: Subscription) -> bool:
+    """The diary's page after the first session of a first run: it opens as the
+    session's summary, "First session done!", day 1 of the streak (D107)."""
+    return first_run(subscription) is not None and not studied_once(store, subscription)
+
+
+def remind_ask(store: str | os.PathLike, subscription: Subscription) -> bool:
+    """Today's question after the first session (D107), until it is answered."""
+    return first_run(subscription) is not None and studied_once(store, subscription)
+
+
+def first_run_class_view(store: str | os.PathLike, subscription: Subscription) -> dict:
+    """The class step (D107): the class link the student came with, the classmates
+    their profile finds at the same university (D39), and whom they already follow
+    or asked to; without a profile there is no one to follow with."""
+    where = _store(store)
+    state = first_run(subscription) or {}
+    code = class_code(state.get("class"))
+    me = social.get_profile(where, subscription.token)
+    mates = []
+    if me is not None:
+        for person in social.classmates(where, subscription.token, limit=FIRST_RUN_CLASSMATES):
+            status = social.follow_status(where, subscription.token, person.token)
+            mates.append({**person.public(), "status": status or ""})
+    return {
+        "class": class_page_view(store, code) if code else None,
+        "profile": me.public() if me else None,
+        "classmates": mates,
+    }
+
+
+def first_run_remind_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict:
+    """The question after the first session (D107): the plan's next session, and
+    what turning reminders on needs (D38)."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    upcoming = None
+    if subscription.plan is not None:
+        plan = PlanReport.from_dict(subscription.plan)
+        ahead = sorted(
+            (s for s in plan.sessions if datetime.fromisoformat(s.start) > now), key=lambda s: s.start
+        )
+        if ahead:
+            first = ahead[0]
+            start = datetime.fromisoformat(first.start).astimezone(zone)
+            end = datetime.fromisoformat(first.end).astimezone(zone)
+            upcoming = {
+                "course": first.subject,
+                "when": f"{format_date(start.date(), 'short')} · {start:%H:%M}",
+                "minutes": round((end - start).total_seconds() / 60),
+            }
+    return {
+        "next": upcoming,
+        "lead": reminder_lead(subscription),
+        "reminders": reminders_view(store, subscription),
+    }
 
 
 def today_message(**candidates: object) -> str | None:
@@ -5457,8 +5594,9 @@ def tours_seen(subscription: Subscription) -> list[str]:
 def tour_for(
     subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
 ) -> str | None:
-    """The tour a page shows: Today's, once, after setting up (D77, D97)."""
-    if subscription is None or setup or new or tab != "today":
+    """The tour a page shows: Today's, once, after setting up (D77, D97); during a
+    first run (D107) Spark says one line on Today instead."""
+    if subscription is None or setup or new or tab != "today" or first_run(subscription) is not None:
         return None
     return None if "today" in tours_seen(subscription) else "today"
 

@@ -3021,3 +3021,91 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
   details.inline .btn { margin-block: 7px; }
 }
 .feed-more { margin: 14px 0 0; }
+
+/* -- a new student's first run (D107) ------------------------------------------
+   After Strava's: on a phone, three cards that the browser snaps as they are
+   swiped, then the account; then who is studying, the courses, the class, who sees
+   the sessions; Today with Spark's one line; the first session's summary; the
+   question about reminders. Nothing here moves on its own. */
+.welcome { display: none; }
+@media (max-width: 699px) {
+  .home .welcome { display: flex; flex-direction: column; min-height: calc(100svh - 96px); padding: 0 0 20px; }
+  .home .hero-welcomed { display: none; }
+}
+.welcome-skip { margin: 0; text-align: right; font-weight: 600; }
+.welcome-skip a { display: inline-block; padding: 10px 4px; }
+.welcome-cards {
+  flex: 1; display: flex; gap: 16px; margin: 0 -16px; padding: 0 16px; list-style: none;
+  overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.welcome-cards::-webkit-scrollbar { display: none; }
+.welcome-card {
+  flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+}
+.welcome-card :is(h1, h2) {
+  margin: 8px 0 0; max-width: 14ch; font-family: var(--font-display); font-size: 2.1rem;
+  line-height: 1.04; letter-spacing: -0.035em; font-weight: 750;
+}
+.welcome-card p { margin: 0; color: var(--muted); font-size: 1.05rem; }
+.welcome-art { position: relative; flex: 1; width: 100%; min-height: 230px; display: grid; place-items: center; }
+.welcome-art .mini-week { width: min(100%, 280px); height: 170px; margin: 0; }
+.welcome-spark { position: absolute; right: 4%; bottom: 0; }
+.welcome-spark .mascot { width: 84px; height: 84px; }
+.welcome-curve { width: min(100%, 300px); height: auto; padding: 14px; border-radius: var(--radius-lg); background: var(--fill-4); }
+.welcome-curve path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.welcome-curve .faded { stroke: var(--muted); stroke-width: 3; stroke-dasharray: 6 7; }
+.welcome-curve .kept { stroke: var(--accent); stroke-width: 5; }
+.welcome-curve circle { fill: var(--c1); }
+.welcome-class .mascot { width: 150px; height: 150px; }
+.welcome-class .avatar { position: absolute; border: 3px solid var(--surface); }
+.welcome-class .at0 { left: 6%; top: 6%; }
+.welcome-class .at1 { right: 6%; top: 2%; }
+.welcome-class .at2 { left: 2%; bottom: 16%; }
+.welcome-class .at3 { right: 3%; bottom: 18%; }
+.welcome-class .at4 { left: calc(50% - 38px); bottom: -6px; }
+.welcome-dots { display: flex; gap: 8px; justify-content: center; padding: 10px 0 2px; }
+.welcome-dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--fill-2); }
+.welcome-dots span.on { width: 22px; background: var(--text); }
+.welcome-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 14px; }
+.welcome-signin { display: inline-block; padding: 10px; font-weight: 600; }
+
+.run { max-width: 34rem; margin: 0 auto; }
+.run h1 { margin: 4px 0 14px; }
+.run-say { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.run-say .mascot { width: 52px; height: 52px; }
+.run-say p { margin: 0; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: var(--surface); }
+.run-years { margin: 10px 0 0; padding: 0; border: 0; }
+.run-years legend { margin-bottom: 6px; font-weight: 600; }
+.run-actions { display: flex; gap: 10px; margin-top: 14px; }
+.run-actions .btn-primary { flex: 1; }
+.run-note { margin: 12px 4px 0; }
+.run-class { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; }
+.run-class h2 { margin: 0; }
+.run-class p { margin: 0; }
+.run-label { margin: 18px 4px 6px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.run-choices { margin: 0; padding-block: 4px; }
+.run-choice { display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding: 12px 2px; cursor: pointer; }
+.run-choice + .run-choice { border-top: 1px solid var(--line); }
+.run-choice input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+.run-choice small { display: block; color: var(--muted); }
+.run-lock { margin: 12px 0 0; }
+.run-hero { display: flex; justify-content: center; margin: 8px 0 0; }
+.run-hero .mascot { width: 140px; height: 140px; }
+.run-big { margin: 4px 0 16px; text-align: center; font-size: clamp(2rem, 8vw, 2.6rem); line-height: 1.05; letter-spacing: -0.035em; }
+.run-next { display: flex; flex-direction: column; gap: 2px; margin: 0 0 14px; }
+.run-remind p { margin: 8px 0; }
+.run-later { margin: 4px 0 0; }
+.run-done { margin: 0 0 8px; text-align: center; }
+.run-stats { display: flex; gap: 10px; margin: 0 0 12px; }
+.run-stats p {
+  flex: 1; min-width: 0; margin: 0; padding: 12px 8px; border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.run-stats b { font-family: var(--font-display); font-size: 1.5rem; line-height: 1.1; overflow-wrap: anywhere; }
+.run-stats p:has(.run-course) { flex: 2; }
+.run-stats b.run-course { font-family: var(--font-text); font-size: 1rem; line-height: 1.3; overflow-wrap: break-word; }
+.run-stats small { color: var(--muted); }
+.run-line { margin: 0 0 12px; }
+.run-line .mascot { width: 44px; height: 44px; }
+.run-line p { margin: 0; }

@@ -1052,3 +1052,10 @@ steps and the footer about 2:1; the tab bar's labels were 9.6px and some badges 
 labels under 12px. Status: fixed (D106): 4.5:1 for text everywhere, 12px except the tab
 bar on narrow phones (11px, 10px under 341px).
 
+
+**90. Today offered the first day's short session again after it was done.** Found on
+2026-11-03 while building the first run (D107): a new student who timed the first day's
+25 minutes (D106) and logged them came back to Today that evening to "Start today: 25
+minutes on…" once more, as if nothing had been done; the offer looked only at the plan's
+sessions, not at the diary. Status: fixed; it stops once a session is logged that day
+(`tests/test_first_run.py`).

@@ -1,6 +1,9 @@
-{# The onboarding progress (D98): `step` is 1 to 3; Today comes after. #}
-<ol class="steps" aria-label="{{ _('Setting up, step {step} of 3', step=step) }}">
-  {% for name in (_("Timetable"), _("Your exams"), _("Your week")) %}
+{# The onboarding progress (D98): `step` counts from 1; Today comes after. A new
+   student's first run (D107, `run`) has five steps; a new semester keeps three. #}
+{% if run %}{% set names = (_("Timetable"), _("You"), _("Your courses"), _("Your class"), _("Sharing")) %}
+{% else %}{% set names = (_("Timetable"), _("Your exams"), _("Your week")) %}{% endif %}
+<ol class="steps{% if run %} steps-run{% endif %}" aria-label="{{ _('Setting up, step {step} of {n}', step=step, n=names | length) }}">
+  {% for name in names %}
   <li class="{% if loop.index < step %}done{% elif loop.index == step %}current{% endif %}">{{ name }}</li>
   {% endfor %}
 </ol>

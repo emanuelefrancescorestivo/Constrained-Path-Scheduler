@@ -3,8 +3,13 @@
 {% block title %}{{ _("Settings") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {% if new %}
-{% set step = 2 %}{% include "_steps.html" %}
-{% if values.drawn %}
+{% set step = 3 if run else 2 %}{% include "_steps.html" %}
+{% if run %}
+{# The first run's courses (D107): what Strava asks as your sports, the timetable
+   already knows; the student checks it. #}
+<h1>{{ _("What do you study?") }}</h1>
+<p class="muted">{% if values.drawn %}{{ _("The courses you drew. Give each exam its date; Skip, under Adjust, leaves a course out.") }}{% else %}{{ _("Found in your timetable. Check each exam's date; Skip, under Adjust, leaves a course out.") }}{% endif %}</p>
+{% elif values.drawn %}
 <h1>{{ _("Your exams and deadlines") }}</h1>
 <p class="muted">{{ _("When is each exam? Add your deadlines, and say how much you want to study. Next, you will see your week with the plan in it.") }}</p>
 {% else %}
@@ -33,7 +38,7 @@
 
 {% if new %}</details>{% endif %}
 
-<div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new %}{{ _("Next: your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
+<div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new and run %}{{ _("Looks right") }}{% elif new %}{{ _("Next: your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
 </form>
 {% else %}
 {# D103 (package C of the 2026-10-23 review): six rows, each its own page, as a phone's

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "_mascot.html" import mascot %}
+{% from "_people.html" import person_row %}
+{# A new student's first run (D107), after Strava's: who is studying, the class, who
+   sees the sessions, and, once the first session is done, reminders. The courses
+   are setting up's page (settings.html); Today comes after. Each step can be
+   skipped; nothing here needs a script but turning reminders on. #}
+{% block title %}{% if step == "you" %}{{ _("Who’s studying?") }}{% elif step == "class" %}{{ _("Study with your class") }}{% elif step == "sharing" %}{{ _("Who sees your sessions?") }}{% else %}{{ _("Same time tomorrow?") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
+{% block head %}{% if step == "remind" %}<script type="module" src="{{ asset('push.js') }}"></script>{% endif %}{% endblock %}
+{% block main %}
+<div class="run run-{{ step }}">
+{% if step != "remind" %}
+{% with step = {"you": 2, "class": 4, "sharing": 5}[step] %}{% include "_steps.html" %}{% endwith %}
+{% endif %}
+
+{% if step == "you" %}
+<div class="run-say">{{ mascot("think", uid="run") }}<p>{{ _("Tell me who is studying: your classmates find you by your university and year.") }}</p></div>
+<h1>{{ _("Who’s studying?") }}</h1>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/start/you" class="card form-grid run-form">
+  <label for="pf-handle">{{ _("Handle") }}</label>
+  <div class="handle-input"><span aria-hidden="true">@</span><input id="pf-handle" name="handle" value="{{ values.handle or '' }}" required pattern="@?[A-Za-z0-9_.]{3,20}" maxlength="21" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="pf-handle-hint"></div>
+  <p class="hint" id="pf-handle-hint">{{ _("3 to 20 letters, digits, _ or . Not your real name unless you want it to be.") }}</p>
+  <label for="pf-uni">{{ _("University") }}</label>
+  <input id="pf-uni" name="university" value="{{ values.university or '' }}" required maxlength="120" placeholder="{{ _('Start typing: Bologna, Sorbonne, polimi…') }}" list="universities" autocomplete="off" data-suggest="/p/{{ token }}/universities">
+  <datalist id="universities"></datalist>
+  {% if values.programme %}<input type="hidden" name="programme" value="{{ values.programme }}">{% endif %}
+  <fieldset class="run-years">
+    <legend>{{ _("Year") }}</legend>
+    <div class="pills" role="radiogroup">
+      {% for code, words in years.items() %}<label class="pill"><input type="radio" name="year" value="{{ code }}"{% if values.year == code %} checked{% endif %}><span>{{ _(words) }}</span></label>{% endfor %}
+    </div>
+  </fieldset>
+  <label class="check"><input type="checkbox" name="old_enough" value="1" required{% if profile or values.old_enough %} checked{% endif %}> {{ _("I am 15 or older") }}</label>
+  <p class="hint">{{ _h('By joining you agree to the <a href="{href}">community guidelines</a>: your own work only, kindness, no copied exam material.', href="/guidelines") }}</p>
+  <div class="run-actions">
+    <button type="submit" name="skip" value="1" class="btn btn-plain" formnovalidate>{{ _("Skip") }}</button>
+    <button type="submit" class="btn btn-primary">{{ _("Continue") }}</button>
+  </div>
+</form>
+<p class="hint run-note">{{ _("Nothing else is asked. Your plan, your calendar and your exam results are never shown.") }}</p>
+
+{% elif step == "class" %}
+<div class="run-say">{{ mascot("cheer", uid="run") }}<p>{{ _("Your classmates make the feed. Follow a few: you can change it any time.") }}</p></div>
+<h1>{{ _("Study with your class") }}</h1>
+{% if imported is defined and imported >= 0 %}<p class="notice notice-ok" role="status">{{ _n("{n} topic taken from your class.", "{n} topics taken from your class.", imported) }}</p>{% endif %}
+{% if view.class %}{% set c = view.class %}
+<div class="card run-class">
+  <span class="tip-reason">{{ _("Your class") }}</span>
+  <h2>{{ c.programme or c.university or _("Your class") }}</h2>
+  <p class="muted">{{ _n("{n} course with its topics, week by week", "{n} courses with their topics, week by week", c.courses | length) }}</p>
+  <p><a class="btn btn-primary btn-block" href="/p/{{ token }}/class/{{ c.code }}?next=/p/{{ token }}/start/class">{{ _("Take the topics") }}</a></p>
+</div>
+{% endif %}
+{% if view.profile %}
+{% if view.classmates %}
+<h2 class="run-label">{{ _("Classmates") }}</h2>
+<ul class="card list people run-mates">
+  {% for m in view.classmates %}
+  {% call person_row(m, token) %}
+  {% if m.status == "accepted" %}<span class="badge">{{ _("Following") }}</span>
+  {% elif m.status == "pending" %}<span class="badge">{{ _("Asked") }}</span>
+  {% else %}<form method="post" action="/p/{{ token }}/u/{{ m.handle }}/follow"><input type="hidden" name="next" value="/p/{{ token }}/start/class"><button type="submit" class="btn btn-primary btn-sm">{{ _("Follow") }}</button></form>{% endif %}
+  {% endcall %}
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted run-note">{{ _("Nobody from {university} has joined yet. Send your classmates the app: the feed fills as they join.", university=view.profile.university) }}</p>
+{% endif %}
+{% else %}
+<p class="muted run-note">{{ _h('To follow classmates, <a href="{href}">choose a handle</a> first. You can also do it later, in Community.', href="/p/" ~ token ~ "/start/you") }}</p>
+{% endif %}
+<form method="post" action="/p/{{ token }}/start/class" class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Continue") }}</button></form>
+
+{% elif step == "sharing" %}
+<div class="run-say">{{ mascot("idle", uid="run") }}<p>{{ _("You choose. Your plan is never shared.") }}</p></div>
+<h1>{{ _("Who sees your sessions?") }}</h1>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/start/sharing">
+  <fieldset class="card run-choices">
+    <legend class="visually-hidden">{{ _("Who sees your sessions?") }}</legend>
+    {% for value, word, says in (("me", "Only me", "Nobody else sees them"), ("followers", "My followers", "Classmates who follow you"), ("everyone", "Everyone", "Anyone in the community")) %}
+    <label class="run-choice"><input type="radio" name="visibility" value="{{ value }}"{% if chosen == value %} checked{% endif %}><span><b>{{ _(word) }}</b>{% if value == "followers" %} <span class="badge badge-accent">{{ _("Suggested") }}</span>{% endif %}<small>{{ _(says) }}</small></span></label>
+    {% endfor %}
+  </fieldset>
+  <p class="card run-lock">{{ _("Always private: your plan, your exam results, and your notes until you post them.") }}</p>
+  <p class="hint run-note">{% if profile %}{{ _("Each session can still say otherwise when you save it.") }}{% else %}{{ _("Until you choose a handle, your sessions stay in your diary, for you only.") }}{% endif %}</p>
+  <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Continue") }}</button></div>
+</form>
+
+{% else %}
+<div class="run-hero">{{ mascot("wave", uid="run") }}</div>
+<h1 class="run-big">{{ _("Same time tomorrow?") }}</h1>
+{% if view.next %}<div class="card run-next"><b>{{ view.next.when }}</b><span class="muted">{{ _("{course} · {n} min", course=view.next.course, n=view.next.minutes) }}</span></div>{% endif %}
+<div class="run-remind" data-push data-key="{{ view.reminders.key }}" data-save="/p/{{ token }}/push?then=first-run" data-remove="/p/{{ token }}/push/remove" data-devices="{{ view.reminders.devices | map(attribute='id') | join(',') }}">
+  <p class="hint" data-push-off hidden>{{ _("A notification on this phone before each session.") }}</p>
+  <p class="hint" data-push-here hidden>{{ _("On for this device.") }}</p>
+  <p><button type="button" class="btn btn-primary btn-block" data-push-on hidden>{{ _("Remind me {n} minutes before", n=view.lead or 10) }}</button></p>
+  <p><button type="button" class="btn btn-block" data-push-stop hidden>{{ _("Turn off on this device") }}</button></p>
+  <p class="hint" data-push-install hidden>{{ _h("On an iPhone or iPad, reminders work in the installed app: in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from there, and turn them on here.") }}</p>
+  <p class="hint" data-push-unsupported>{{ _("Reminders need a browser that allows notifications, with this page's script.") }}</p>
+  <p class="alert" data-push-status role="status" aria-live="polite" hidden></p>
+</div>
+<p><a class="btn btn-block" href="/p/{{ token }}/feed?new=1">{{ _("Put my plan in my calendar") }}</a></p>
+<p class="hint run-note">{{ _("Google, Apple or Outlook: the plan's sessions appear there and follow its changes.") }}</p>
+<form method="post" action="/p/{{ token }}/start/remind" class="run-later"><input type="hidden" name="answer" value="later"><button type="submit" class="btn btn-plain btn-block">{{ _("Not now") }}</button></form>
+{% endif %}
+</div>
+{% endblock %}

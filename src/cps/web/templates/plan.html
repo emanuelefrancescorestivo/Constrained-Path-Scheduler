@@ -7,7 +7,9 @@
   <aside class="panel" aria-label="{{ _('Today') }}">
     {% if reported %}<p class="notice notice-ok" role="status">{{ _("Recorded: {word}. The plan has changed to match.", word=reported) }}</p>{% endif %}
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
-    {# Shown by pwa.js where the app can be installed and is not yet (D33) #}
+    {# Shown by pwa.js where the app can be installed and is not yet (D33); not during
+       a first run (D107), whose question about reminders says how. #}
+    {% if not run %}
     <div class="card install-card" data-install-card hidden>
       <img src="{{ asset('icons/icon.svg') }}" alt="">
       <div class="grow">
@@ -20,6 +22,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
   {% endif %}
@@ -34,7 +37,7 @@
           <p class="wide-only">{{ _("Drag on the calendar where each class is, then give it its course's name. It comes back every week, in its course's colour. Training, a job or a commute can go in too.") }}</p>
           <p class="phone-only">{{ _("Tap the hour a class starts and name it: it comes back every week.") }}</p>
         </div>
-        <a class="btn btn-primary setup-next" href="/p/{{ token }}/settings?new=1">{{ _("Next: exams and deadlines") }}</a>
+        <a class="btn btn-primary setup-next" href="/p/{{ token }}/{% if run %}start/you{% else %}settings?new=1{% endif %}">{% if run %}{{ _("Next") }}{% else %}{{ _("Next: exams and deadlines") }}{% endif %}</a>
       </div>
     </div>
     {% elif new %}

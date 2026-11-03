@@ -1,6 +1,7 @@
 // How much each screen of the hosted app asks of a student, measured in Chromium at a
 // phone's size (390 × 844): the words on it, the things to tap or fill in, how many
-// screens of scrolling, and the taps from the home page to a first plan.
+// screens of scrolling, the taps from the home page to a first plan, and since D107 to a
+// first session done.
 //
 // Two walks:
 // - a new student on an empty `cps web`: the home page, an account made (D94), a
@@ -115,10 +116,16 @@ const rows = [];
 
 // ---------------------------------------------------------------- a new student
 // An account first (D94): the address, the password, the button; then the timetable,
-// and setting up as it now goes (D98): the exams, the week with its plan, Today.
+// and setting up as it now goes (D98): the exams, the week with its plan, Today. Since
+// D107, a phone first sees three welcome cards, and a new plan's first run goes: who is
+// studying, the courses, the class, who sees the sessions, Today.
 let taps = 0;
 await page.goto(`${WEB}/?lang=en`);
 await measure("new", "home");
+if (await page.locator(".welcome-actions a.btn-primary").isVisible()) {
+  taps += 1; // "Get started"
+  await page.click(".welcome-actions a.btn-primary");
+}
 let account = 0;
 if (await page.locator("form.signup").count()) {
   await page.fill("form.signup input[name=email]", `walk${Date.now()}@example.org`);
@@ -131,9 +138,23 @@ await page.setInputFiles("#file", ICS);
 taps += 2; // the file chooser, then the button
 await Promise.all([page.waitForURL(/\/p\//, { timeout: 120_000 }), page.click("form.way:not(.way-draw) button[type=submit]")]);
 const plan = new URL(page.url()).pathname.split("/")[2];
+// D107's first run: who is studying (skipped, as accepting every default does), then the courses.
+if (/\/start\/you/.test(page.url())) {
+  await measure("new", "1-who-is-studying");
+  taps += 1;
+  await Promise.all([page.waitForURL(/settings\?new=1/, { timeout: 120_000 }), page.click(".run-actions button[name=skip]")]);
+}
 await measure("new", "1-your-exams");
 taps += 1;
-await Promise.all([page.waitForURL(/\/(week|routine)\?new=1/, { timeout: 120_000 }), page.click("main .btn-primary:visible")]);
+await Promise.all([page.waitForURL(/\/(week|routine)\?new=1|\/start\/class/, { timeout: 120_000 }), page.click("main .btn-primary:visible")]);
+if (/\/start\/class/.test(page.url())) {
+  await measure("new", "2-your-class");
+  taps += 1;
+  await Promise.all([page.waitForURL(/\/start\/sharing/, { timeout: 120_000 }), page.click("main .sticky-actions .btn-primary")]);
+  await measure("new", "2-who-sees-your-sessions");
+  taps += 1;
+  await Promise.all([page.waitForURL(new RegExp(`/p/${plan}$`), { timeout: 120_000 }), page.click("main .sticky-actions .btn-primary")]);
+}
 // Before D98 the questions about the week came next, one card at a time (D70), and
 // the calendar's links after the week: walked as they come, so that the same script
 // measures the app before and after.
@@ -150,9 +171,11 @@ if (/routine/.test(page.url())) {
     await next.click();
   }
 }
-await measure("new", "2-your-week");
-taps += 1;
-await Promise.all([page.waitForURL(new RegExp(`/p/${plan}(/feed\\?new=1)?$`), { timeout: 120_000 }), page.click("[data-tour=setup-next]")]);
+if (/\/week/.test(page.url())) {
+  await measure("new", "2-your-week");
+  taps += 1;
+  await Promise.all([page.waitForURL(new RegExp(`/p/${plan}(/feed\\?new=1)?$`), { timeout: 120_000 }), page.click("[data-tour=setup-next]")]);
+}
 if (/\/feed/.test(page.url())) {
   await measure("new", "2-your-calendar");
   taps += 1;
@@ -160,6 +183,27 @@ if (/\/feed/.test(page.url())) {
 }
 await measure("new", "3-today");
 const toToday = taps;
+// Then the first session (D107): Today's short one or its next session, timed and
+// finished at once, its summary's two questions and Save, then "Not now" to reminders.
+let toSession = null;
+const go = page.locator("form.first-day button[type=submit]:not([formaction]), main .next-step button:has-text('Start focus')").first();
+if (await go.count()) {
+  taps += 1;
+  await Promise.all([page.waitForURL(/\/focus$/, { timeout: 120_000 }), go.click()]);
+  taps += 1;
+  await Promise.all([page.waitForURL(/\/log$/, { timeout: 120_000 }), page.click("form[action$='/focus/finish'] button")]);
+  await measure("new", "4-first-session-done");
+  taps += 3; // how hard, how far, Save
+  await page.click(".scale label.pill >> nth=4");
+  await page.click("fieldset:has(legend:has-text('Progress')) label.pill >> nth=2");
+  await Promise.all([page.waitForURL(/\/start\/remind|\/progress/, { timeout: 120_000 }), page.click("#log-form .sticky-actions button")]);
+  if (/\/start\/remind/.test(page.url())) {
+    await measure("new", "4-same-time-tomorrow");
+    taps += 1;
+    await Promise.all([page.waitForURL(new RegExp(`/p/${plan}$`), { timeout: 120_000 }), page.click(".run-later button")]);
+  }
+  toSession = taps;
+}
 for (const [name, path] of [["calendar", "/week"], ["courses", "/courses"], ["community", "/community"], ["you", "/you"], ["focus", "/focus"], ["progress", "/progress"], ["settings", "/settings"]]) {
   await page.goto(`${WEB}/p/${plan}${path}`);
   await measure("new", name);
@@ -182,5 +226,6 @@ for (const [name, path] of Object.entries(PAGES)) {
 
 console.table(rows.map(({ walk, page, words, controls, first_screen, fields, screens, sections, tour, spark, floating }) => ({ walk, page, words, controls, first_screen, fields, screens, sections, tour, spark, floating })));
 console.log(`taps from the home page to Today, accepting every default: ${toToday} (${account} of them for the account)`);
+if (toSession !== null) console.log(`taps from the home page to a first session done and saved (D107): ${toSession}`);
 console.log(`pages with a script error: ${errors.length}`);
 await browser.close();

@@ -5,10 +5,59 @@
 {% block site_class %} home{% endblock %}
 {% block body_class %} home{% endblock %}
 {% block main %}
+{% set welcome = not demo and not (error or signin_error or signup_error or account or made) %}
+{% if welcome %}
+{# A phone's first look (D107, after Strava's): three cards to swipe, one idea each,
+   then the account. The browser snaps them; no script. Wider screens keep the
+   pitch below, and so does the demo, whose pitch is its button. #}
+{% from "_mascot.html" import mascot %}
+<section class="welcome" aria-label="{{ _('Welcome') }}">
+  <p class="welcome-skip"><a href="#start">{{ _("Skip") }}</a></p>
+  <ol class="welcome-cards">
+    <li class="welcome-card">
+      <div class="welcome-art">
+        <div class="mini-week">
+          {% for d in range(5) %}<div class="mini-day">{% for b in ((0, 3, 0), (3, 2, 1), (5, 2, 2)) if (d + b[0]) % 4 != 3 %}<span class="mini-class c{{ (b[2] + d) % 5 }} at{{ (b[0] + d) % 6 }} h{{ b[1] }}"></span>{% endfor %}</div>{% endfor %}
+        </div>
+        <span class="welcome-spark">{{ mascot("wave", uid="w1") }}</span>
+      </div>
+      {# The page's one heading on a phone: the pitch below is not shown there. #}
+      <h1>{{ _("Your semester, planned around your life.") }}</h1>
+      <p>{{ _("Your timetable in. Your revision in the gaps.") }}</p>
+      <p class="welcome-dots" aria-hidden="true"><span class="on"></span><span></span><span></span></p>
+    </li>
+    <li class="welcome-card">
+      <div class="welcome-art">
+        <svg class="welcome-curve" viewBox="0 0 300 170" aria-hidden="true" focusable="false">
+          <path class="faded" d="M10 20 C40 100 60 130 90 140"/>
+          <path class="kept" d="M10 20 C30 70 45 85 70 90 L70 30 C100 75 120 85 150 90 L150 35 C185 70 205 78 230 82 L230 40 C255 60 275 64 292 66"/>
+          <circle cx="70" cy="30" r="8"/><circle cx="150" cy="35" r="8"/><circle cx="230" cy="40" r="8"/>
+        </svg>
+      </div>
+      <h2>{{ _("Every week comes back before it fades.") }}</h2>
+      <p>{{ _("Short reviews, just before you would forget.") }}</p>
+      <p class="welcome-dots" aria-hidden="true"><span></span><span class="on"></span><span></span></p>
+    </li>
+    <li class="welcome-card">
+      <div class="welcome-art welcome-class">
+        {% for initial in ("G", "M", "S", "L", "A") %}<span class="avatar avatar-lg c{{ loop.index0 }} at{{ loop.index0 }}" aria-hidden="true">{{ initial }}</span>{% endfor %}
+        {{ mascot("cheer", uid="w3") }}
+      </div>
+      <h2>{{ _("Study with your class.") }}</h2>
+      <p>{{ _("Their sessions, their notes, their cheers.") }}</p>
+      <p class="welcome-dots" aria-hidden="true"><span></span><span></span><span class="on"></span></p>
+    </li>
+  </ol>
+  <div class="welcome-actions">
+    <a class="btn btn-primary btn-lg btn-block" href="#start">{{ _("Get started") }}</a>
+    <a class="welcome-signin" href="{% if accounts %}/account/signin{% else %}#signin{% endif %}">{% if accounts %}{{ _("I already have an account") }}{% else %}{{ _("I already have a plan") }}{% endif %}</a>
+  </div>
+</section>
+{% endif %}
 {# The pitch first, with room to breathe, over a field of neurons whose signals
    travel between them (D58); then the ways in. Nothing here needs a script. #}
 {# After a failed start or sign-in the hero is short, so the message is in view. #}
-<section class="hero{% if error or signin_error or signup_error or account %} hero-short{% endif %}">
+<section class="hero{% if error or signin_error or signup_error or account %} hero-short{% endif %}{% if welcome %} hero-welcomed{% endif %}">
   <div class="hero-field" aria-hidden="true">{% include "_neural.html" %}</div>
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
   <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
@@ -36,6 +85,7 @@
 {% if signup_error %}<p class="alert" role="alert">{{ signup_error }}</p>{% endif %}
 <form method="post" action="/account/signup" class="card way account-form signup">
   <input type="hidden" name="lang" value="{{ lang() }}">
+  {% if class_code %}<input type="hidden" name="class" value="{{ class_code }}">{% endif %}
   <label for="email">{{ _("E-mail address") }}</label>
   <input id="email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254" value="{{ email or '' }}" required>
   <label for="password">{{ _("Password") }}</label>
@@ -61,6 +111,7 @@
 <div class="ways">
 <form method="post" action="/start" enctype="multipart/form-data" class="card way">
   <input type="hidden" name="lang" value="{{ lang() }}">
+  {% if class_code %}<input type="hidden" name="class" value="{{ class_code }}">{% endif %}
   <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span>
   <h3>{{ _("Import your timetable") }}</h3>
   <p class="hint">{{ _("Your exams are found in it, and every class stays where it is.") }}</p>
@@ -84,6 +135,7 @@
 
 <form method="post" action="/start" class="card way way-draw">
   <input type="hidden" name="lang" value="{{ lang() }}">
+  {% if class_code %}<input type="hidden" name="class" value="{{ class_code }}">{% endif %}
   <input type="hidden" name="draw" value="1">
   <input type="hidden" name="tz" value="{{ tz or 'Europe/Paris' }}" data-tz>
   <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8.5 2.5v4M15.5 2.5v4"/><path d="M8 13h3M13 16.5h3"/></svg></span>
