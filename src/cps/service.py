@@ -10939,7 +10939,8 @@ def _code_solved() -> dict:
     from .timegrid import TimeGrid
 
     weekdays = [d for d in range(CODE_DAYS) if d % 7 < 5]
-    grid = TimeGrid(days=CODE_DAYS).block_daily(23, 7).block_daily(8, 18, days=weekdays)
+    sleep = TimeGrid(days=CODE_DAYS).block_daily(23, 7)  # what is taken by sleep, the rest by classes
+    grid = sleep.block_daily(8, 18, days=weekdays)
     target = stability_for_interval(CODE_EXAM_DAYS, 0.9)
     topics = [(name, MemoryState(stability, difficulty)) for name, stability, difficulty in CODE_TOPICS]
     policy = _ssp.solve(_ssp.SSPConfig.for_heuristic(target))
@@ -10961,6 +10962,7 @@ def _code_solved() -> dict:
     # reachable state, not only at the root (CLAUDE.md, invariant 2).
     used = heuristics["capacity"]
     over = max(used(instance, state) - value for state, value in exact.values.items())
+    overshoots = sum(1 for state, value in exact.values.items() if used(instance, state) > value + 1e-9)
 
     def value_of(state: _plan.PlanState) -> float:
         return exact.values.get(state, instance.terminal_cost(state))
@@ -10990,8 +10992,18 @@ def _code_solved() -> dict:
             state = _review(state, block.start_day - last, Grade.GOOD)
             last = block.start_day
         reach.append((name, state.stability))
+    # Every evening left free, the plan the search chose here: its score, term by term.
+    end = root
+    while not instance.is_terminal(end):
+        _, ((_, end),) = instance.successors(end, _plan.SKIP)
+    unready = instance.unready_count(end)
+    owed = instance.terminal_cost(end) - instance.lateness_penalty * unready
     return {
         "grid": grid,
+        "sleep": sleep,
+        "all_free": (0.0, owed, unready, instance.terminal_cost(end)),
+        "overshoots": overshoots,
+        "states_checked": len(exact.values),
         "target": target,
         "topics": topics,
         "policy": policy,
@@ -11037,7 +11049,26 @@ def code_view() -> dict:
     days: list[dict[str, Any]] = []
     for day in range(CODE_DAYS):
         bits = "".join("1" if not grid.is_free(day * per_day + k, 1) else "0" for k in range(per_day))
-        days.append({"day": day, "bits": bits, "groups": [bits[i : i + 8] for i in range(0, per_day, 8)]})
+        # The same day as the calendar shows it: each stretch of taken time, sleep or
+        # classes, as one block.
+        stretches, k = [], 0
+        while k < per_day:
+            if bits[k] == "0":
+                k += 1
+                continue
+            start = k
+            while k < per_day and bits[k] == "1":
+                k += 1
+            asleep = not solved["sleep"].is_free(day * per_day + start, 1)
+            stretches.append({"kind": "sleep" if asleep else "classes", "start": start, "end": k})
+        days.append(
+            {
+                "day": day,
+                "bits": bits,
+                "groups": [bits[i : i + 8] for i in range(0, per_day, 8)],
+                "runs": stretches,
+            }
+        )
     blocks = []
     for b in instance.blocks:
         at = b.slot - b.day * per_day
@@ -11069,6 +11100,9 @@ def code_view() -> dict:
 
     # Memory: each topic's recall over the days to the exam if nothing is done, and what
     # tonight's review does to the first topic, recalled or forgotten.
+    colour = {name: f"c{i}" for i, (name, _) in enumerate(topics)}
+    for c in choices:
+        c["color"] = colour.get(c["topic"], "")
     curves = []
     for (name, memory), level in zip(topics, ("review", "good"), strict=True):
         points = [
@@ -11082,6 +11116,8 @@ def code_view() -> dict:
                 "level": level,
                 "points": _curve(points, CODE_EXAM_DAYS, 1.0),
                 "at_exam": round(100 * retrievability(CODE_EXAM_DAYS, memory.stability)),
+                "end_y": round(100 - 100 * retrievability(CODE_EXAM_DAYS, memory.stability), 1),
+                "color": colour[name],
             }
         )
     first = topics[0][1]
@@ -11096,7 +11132,7 @@ def code_view() -> dict:
     # Columns at stabilities from a day to about two weeks, each the grid's nearest.
     cols_at = sorted({int(np.argmin(np.abs(s_grid - wanted))) for wanted in CODE_TABLE_STABILITIES})
     top = max(float(policy.expected_cost[i, j]) for i in rows_at for j in cols_at) or 1.0
-    table = [
+    table: list[dict[str, Any]] = [
         {
             "difficulty": format_number(float(d_grid[i]), 1),
             "cells": [
@@ -11109,6 +11145,14 @@ def code_view() -> dict:
         }
         for i in rows_at
     ]
+    for row, i in zip(table, rows_at, strict=True):
+        for cell, j in zip(row["cells"], cols_at, strict=True):
+            cell["topics"] = [
+                {"topic": name, "color": colour[name]}
+                for name, m in topics
+                if min(rows_at, key=lambda r: abs(float(d_grid[r]) - m.difficulty)) == i
+                and min(cols_at, key=lambda c: abs(float(s_grid[c]) - m.stability)) == j
+            ]
     h_topics = [(name, policy.expected_reviews(m.difficulty, m.stability)) for name, m in topics]
     factor = Fraction(FACTOR).limit_denominator(100)
     return {
@@ -11144,7 +11188,23 @@ def code_view() -> dict:
         "runs": runs,
         "exact": {"value": format_number(exact_value, 5), "states": format_number(exact_states, 0)},
         "admissible": solved["admissible"],
-        "reach": [{"topic": name, "stability": format_number(v, 1)} for name, v in solved["reach"]],
+        "reach": [
+            {"topic": name, "stability": format_number(v, 1), "color": colour[name]}
+            for name, v in solved["reach"]
+        ],
+        # The plan the search chose, every evening left free, term by term (its total
+        # is the exhaustive optimum: tests/test_how.py).
+        "score": {
+            "blocks": format_number(solved["all_free"][0], 0),
+            "owed": format_number(solved["all_free"][1], 2),
+            "unready": solved["all_free"][2],
+            "penalties": format_number(instance.lateness_penalty * solved["all_free"][2], 0),
+            "total": format_number(solved["all_free"][3], 2),
+        },
+        "futures": sum(len(c["outcomes"]) for c in choices),
+        "overshoots": format_number(solved["overshoots"], 0),
+        "opened_share": max(1, round(100 * min(n for _, _, n, _ in solved["runs"]) / exact_states)),
+        "tonight_x": round(300 * delay / CODE_EXAM_DAYS, 1),
         "reachable": any(v >= solved["target"] for _, v in solved["reach"]),
         "choices": choices,
         "best": best["topic"],
