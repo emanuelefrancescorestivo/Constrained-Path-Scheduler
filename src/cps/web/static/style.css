@@ -2982,6 +2982,71 @@ main.site.code-page { max-width: 64rem; }
 .code-files code { flex: none; min-width: 7.5em; font-size: 0.85rem; }
 .code-files > li { align-items: baseline; gap: 12px; }
 .code-end-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+/* In three dimensions (D111). The week's three layers stack in one cell of a grid and
+   are one calendar; only while the figure scrolls in do they stand apart (below). */
+.code-stack-fig { perspective: 1200px; }
+.code-stack { display: grid; transform-style: preserve-3d; }
+.code-stack > .code-layer { grid-area: 1 / 1; }
+.code-sheet { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; opacity: 0; }
+.code-layer-name { fill: var(--muted); font-size: 12px; font-weight: 650; opacity: 0; }
+/* The value table as a landscape: a tower per cell on a plane seen from above and to
+   the side, the costliest at the back. Heights in twentieths of the largest value. */
+.code-land { display: grid; place-items: center; height: 330px; margin: -12px 0 8px; perspective: 1100px; perspective-origin: 50% 0%; }
+.code-land-plane {
+  position: relative; display: grid; grid-template-columns: repeat(5, 40px); gap: 7px;
+  transform-style: preserve-3d; transform: rotateX(56deg) rotateZ(-38deg); margin-top: 40px;
+}
+.code-tower { position: relative; width: 40px; height: 40px; transform-style: preserve-3d; --u: 5.5px; }
+.tz1 { --h: calc(1 * var(--u)); }
+.tz2 { --h: calc(2 * var(--u)); }
+.tz3 { --h: calc(3 * var(--u)); }
+.tz4 { --h: calc(4 * var(--u)); }
+.tz5 { --h: calc(5 * var(--u)); }
+.tz6 { --h: calc(6 * var(--u)); }
+.tz7 { --h: calc(7 * var(--u)); }
+.tz8 { --h: calc(8 * var(--u)); }
+.tz9 { --h: calc(9 * var(--u)); }
+.tz10 { --h: calc(10 * var(--u)); }
+.tz11 { --h: calc(11 * var(--u)); }
+.tz12 { --h: calc(12 * var(--u)); }
+.tz13 { --h: calc(13 * var(--u)); }
+.tz14 { --h: calc(14 * var(--u)); }
+.tz15 { --h: calc(15 * var(--u)); }
+.tz16 { --h: calc(16 * var(--u)); }
+.tz17 { --h: calc(17 * var(--u)); }
+.tz18 { --h: calc(18 * var(--u)); }
+.tz19 { --h: calc(19 * var(--u)); }
+.tz20 { --h: calc(20 * var(--u)); }
+.code-tower > i { position: absolute; display: block; background: var(--bar); }
+.code-tower .f-top {
+  inset: 0; transform: translateZ(var(--h)); border-radius: 4px;
+  display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 700;
+  color: var(--bar-ink); font-variant-numeric: tabular-nums;
+}
+.code-tower .f-front { left: 0; bottom: 0; width: 40px; height: var(--h); transform-origin: bottom; transform: rotateX(-90deg); background: var(--bar-1); }
+.code-tower .f-back { left: 0; top: 0; width: 40px; height: var(--h); transform-origin: top; transform: rotateX(90deg); background: var(--bar-1); }
+.code-tower .f-left { top: 0; left: 0; width: var(--h); height: 40px; transform-origin: left; transform: rotateY(-90deg); background: var(--bar-2); }
+.code-tower .f-right { top: 0; right: 0; width: var(--h); height: 40px; transform-origin: right; transform: rotateY(90deg); background: var(--bar-2); }
+.code-tower { --bar: color-mix(in srgb, var(--accent) 22%, var(--surface)); --bar-ink: var(--text); }
+.code-tower.code-v1 { --bar: color-mix(in srgb, var(--accent) 34%, var(--surface)); }
+.code-tower.code-v2 { --bar: color-mix(in srgb, var(--accent) 48%, var(--surface)); }
+.code-tower.code-v3 { --bar: color-mix(in srgb, var(--accent) 66%, var(--surface)); --bar-ink: #fff; }
+.code-tower.code-v4 { --bar: color-mix(in srgb, var(--accent) 84%, var(--surface)); --bar-ink: #fff; }
+.code-tower { --bar-1: color-mix(in srgb, var(--bar) 82%, #000); --bar-2: color-mix(in srgb, var(--bar) 66%, #000); }
+.code-tower.on-c0 .f-top { box-shadow: inset 0 0 0 3px var(--c0); }
+.code-tower.on-c1 .f-top { box-shadow: inset 0 0 0 3px var(--c1); }
+.code-axis { position: absolute; font-size: 12px; font-weight: 650; color: var(--muted); white-space: nowrap; }
+.code-axis-s { left: 0; bottom: -26px; }
+.code-axis-d { left: -14px; bottom: 0; transform-origin: 0 100%; transform: rotate(-90deg) translateY(-100%); }
+@media (max-width: 560px) {
+  .code-land { height: 290px; }
+  .code-land-plane { grid-template-columns: repeat(5, 34px); gap: 6px; margin-top: 34px; }
+  .code-tower { width: 34px; height: 34px; --u: 4.6px; }
+  .code-tower .f-front, .code-tower .f-back { width: 34px; }
+  .code-tower .f-left, .code-tower .f-right { height: 34px; }
+}
+.code-stats { perspective: 900px; }
+
 /* How far down the page: a hairline of the accent under the top bar, filled by
    scrolling (below); without scroll timelines there is none. */
 .code-progress { display: none; }
@@ -3023,6 +3088,31 @@ main.site.code-page { max-width: 64rem; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-draw { stroke-dasharray: 1; animation-name: code-draw; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-bar { transform-box: fill-box; transform-origin: 0 50%; animation-name: code-bar; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-pop { transform-box: fill-box; transform-origin: 50% 50%; animation-name: code-pop; }
+    /* In depth (D111): each figure rises from the page, tilted back, and comes upright
+       as it reaches the middle of the screen. */
+    :root:not([data-motion="reduce"]) .scroll-fig.code-fig, :root:not([data-motion="reduce"]) .sci-figure.scroll-fig {
+      animation: code-tilt linear both; animation-timeline: view(); animation-range: entry 0% cover 42%;
+    }
+    /* The week's three layers apart, the sheet of each showing, then one calendar. */
+    :root:not([data-motion="reduce"]) .code-stack-fig .code-stack {
+      animation: code-explode linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
+    }
+    :root:not([data-motion="reduce"]) .code-stack-fig .code-layer-classes {
+      animation: code-lift-1 linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
+    }
+    :root:not([data-motion="reduce"]) .code-stack-fig .code-layer-study {
+      animation: code-lift-2 linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
+    }
+    :root:not([data-motion="reduce"]) .code-stack-fig :is(.code-sheet, .code-layer-name) {
+      animation: code-unsheet linear both; animation-timeline: --fig; animation-range: cover 30% cover 46%;
+    }
+    /* The landscape: the towers rise, back rows first, as the plane turns. */
+    :root:not([data-motion="reduce"]) .scroll-fig .code-tower { animation-name: code-rise; }
+    :root:not([data-motion="reduce"]) .scroll-fig .code-land-plane {
+      animation: code-turn linear both; animation-timeline: --fig; animation-range: cover 0% cover 70%;
+    }
+    /* What was checked: each tile turns over. */
+    :root:not([data-motion="reduce"]) .scroll-fig.code-stats > p { animation-name: code-flip; }
     :root:not([data-motion="reduce"]) .code-progress {
       display: block; position: fixed; z-index: 29; top: var(--topbar); left: 0; right: 0; height: 3px;
       background: var(--accent); transform-origin: 0 50%;
@@ -3034,6 +3124,17 @@ main.site.code-page { max-width: 64rem; }
 @keyframes code-draw { from { stroke-dashoffset: 1; opacity: 0; } 6% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
 @keyframes code-bar { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes code-pop { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: none; } }
+@keyframes code-tilt {
+  from { transform: perspective(1400px) rotateX(26deg) translateY(36px) scale(0.94); opacity: 0.35; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes code-explode { from { transform: rotateX(54deg) rotateZ(-24deg) scale(0.78); } to { transform: none; } }
+@keyframes code-lift-1 { from { transform: translateZ(70px); } to { transform: none; } }
+@keyframes code-lift-2 { from { transform: translateZ(140px); } to { transform: none; } }
+@keyframes code-unsheet { from { opacity: 0.42; } to { opacity: 0; } }
+@keyframes code-rise { from { transform: scaleZ(0.02); } to { transform: none; } }
+@keyframes code-turn { from { transform: rotateX(64deg) rotateZ(-12deg); } to { transform: rotateX(56deg) rotateZ(-38deg); } }
+@keyframes code-flip { from { transform: rotateY(-80deg); opacity: 0; } to { transform: none; opacity: 1; } }
 /* Courses (D86-D88) */
 .course-rows > li { align-items: center; padding: 12px 0; }
 .course-row { display: grid; gap: 5px; }

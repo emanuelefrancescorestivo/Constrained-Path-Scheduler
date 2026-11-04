@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The code page in 3D (DECISIONS.md D111): the week's three layers (sleep, classes,
+  study blocks) float apart and fall into one calendar as the page scrolls; the value
+  table stands as a landscape of towers that rise while it turns; every figure rises
+  tilted and comes upright, and the checked tiles turn over. CSS only.
+
 - The code page in the app's own look (DECISIONS.md D110): the sky and the glass
   (dusk on the public pages), a big number for each scene, the topics in the course
   colours and the exam in red, the week drawn as the Calendar draws it, the score as a

@@ -2553,4 +2553,7 @@ MESSAGES: dict[str, str] = {
     "{n} % of the states": "{n} % des états",
     "{n} topic not ready at the end of the window": "{n} sujet pas prêt à la fin de la fenêtre",
     "{n} topics not ready at the end of the window": "{n} sujets pas prêts à la fin de la fenêtre",
+    # How the code works, in 3D (D111)
+    "difficulty": "difficulté",
+    "stability": "stabilité",
 }
