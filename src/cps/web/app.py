@@ -1037,9 +1037,15 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # -- the science behind the engine (D89): for anyone, and inside a plan ----------
 
+    # The two pages anyone can read without a plan, the science and the code, wear the
+    # app's sky as a plan's pages do (D110): dusk, the hour the code page's worked
+    # example plans for, with the first sprout of the garden. A plan's own pages keep
+    # the plan's sky.
+    dusk: dict[str, Any] = {"sky": "evening", "garden": 1, "sun": sky.step_of(3.2)}
+
     @app.get("/science", response_class=HTMLResponse)
     def science(request: Request) -> HTMLResponse:
-        return page(request, "science.html", science=service.science_view())
+        return page(request, "science.html", science=service.science_view(), **dusk)
 
     @app.get("/p/{token}/science", response_class=HTMLResponse)
     def plan_science(request: Request, token: str) -> HTMLResponse:
@@ -1051,7 +1057,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/how", response_class=HTMLResponse)
     def how(request: Request) -> HTMLResponse:
-        return page(request, "how.html", how=service.code_view())
+        return page(request, "how.html", how=service.code_view(), **dusk)
 
     @app.get("/p/{token}/how", response_class=HTMLResponse)
     def plan_how(request: Request, token: str) -> HTMLResponse:

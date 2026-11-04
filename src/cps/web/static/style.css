@@ -2851,85 +2851,152 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .sci-tag { flex: none; font-size: 0.75rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mem-ink-strong); background: var(--mem-strong); border-radius: 980px; padding: 2px 8px; }
 .sci-rules > li { align-items: flex-start; gap: 12px; }
 .sci-research { font-size: 0.92rem; color: var(--muted); }
-/* How the code works (D109): scenes of words and a figure, side by side where there
-   is room, the figure drawing itself as it scrolls into view (below). */
+/* How the code works (D109), in the app's own look (D110): the sky and the glass of a
+   plan's pages, Bricolage for what is large, a big number for each scene as Progress
+   has its tiles, the two topics in the app's first two course colours, the exam in its
+   red, the calendar drawn as the Calendar draws it. */
 main.site.code-page { max-width: 64rem; }
-.code-head { max-width: 46rem; }
-.code-scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px 32px; align-items: center; margin: 56px 0; }
-.code-scene h2 { font-size: 1.35rem; margin: 0 0 8px; }
+.code-hero { max-width: 46rem; margin: 4px 0 8px; }
+.code-hero h1 { font-size: clamp(2.3rem, 6vw, 3.6rem); line-height: 1.02; letter-spacing: -0.04em; margin: 2px 0 12px; }
+.code-hero .kicker, .code-kicker { color: var(--accent-ink); font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.78rem; margin: 0 0 4px; }
+.code-hero .lede { font-size: 1.08rem; line-height: 1.5; }
+.code-tonight { margin: 18px 0 14px; padding: 16px 18px; }
+.code-tonight-head { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.code-pill, .code-exam { display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 980px; font-size: 0.82rem; font-weight: 650; }
+.code-pill { background: var(--accent-soft); color: var(--accent-ink); }
+.code-exam { background: var(--danger-soft); color: var(--danger-text); }
+.code-courses { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.code-courses li { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.code-courses .dot { align-self: center; }
+.code-courses b { font-family: var(--font-display); font-size: 1.12rem; letter-spacing: -0.02em; }
+.code-courses small { color: var(--muted); font-size: 0.85rem; }
+.code-question { margin: 12px 0 0; font-weight: 600; }
+.code-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.code-steps a {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 5px; border-radius: 980px;
+  background: var(--fill-3); color: var(--text); font-size: 0.86rem; font-weight: 600; text-decoration: none;
+}
+.code-steps a:hover, .code-steps a:focus-visible { background: var(--accent-soft); color: var(--accent-ink); }
+.code-steps .sci-step { width: 22px; height: 22px; font-size: 0.75rem; }
+/* A scene: its words beside its figure where there is room */
+.code-scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px 36px; align-items: center; margin: 72px 0; scroll-margin-top: calc(var(--topbar) + 12px); }
+.code-scene h2 { font-size: clamp(1.45rem, 3.2vw, 1.9rem); line-height: 1.12; letter-spacing: -0.03em; margin: 6px 0 10px; }
+.code-kicker { display: flex; align-items: center; gap: 8px; }
+.code-kicker code { font-size: 0.8rem; text-transform: none; letter-spacing: 0; color: var(--accent-ink); }
+.code-big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 12px; }
+.code-big b { font-family: var(--font-display); font-size: clamp(2.4rem, 5.4vw, 3.2rem); line-height: 1; font-weight: 750; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+.code-big span { color: var(--muted); font-size: 0.95rem; font-weight: 550; max-width: 18em; }
 .code-copy p { line-height: 1.55; }
 .code-copy .formula { font-size: 1.05rem; }
-.code-file { margin: 0 0 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--accent-ink); }
-.code-fig { margin: 0; min-width: 0; }
+.code-fig { margin: 0; min-width: 0; padding: 18px; }
 .code-chart { display: block; width: 100%; height: auto; overflow: visible; }
 .code-tick { fill: var(--muted); font-size: 12px; }
 .code-text { fill: var(--text); font-size: 13px; font-weight: 600; }
 .code-small { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.code-num { fill: var(--text); font-weight: 650; }
-.slot-busy { fill: var(--busy); opacity: 0.55; }
-.slot-free { fill: var(--accent); opacity: 0.18; }
-.slot-block { fill: var(--accent); }
+.code-num { fill: var(--text); font-weight: 700; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.code-cdot { fill: var(--cc); }
+.code-curve { fill: none; stroke: var(--cc); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.code-exam-line { stroke: var(--danger-text); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.code-exam-text { fill: var(--danger-text); font-size: 12px; font-weight: 700; }
+/* The calendar of scene 1, in the Calendar's own manner: a column a day, sleep the
+   night's grey, classes a grey event with its bar, study blocks the accent; beside
+   each day, the same day as bits. Sleep is the darker grey, so the study blocks are
+   the only colour in it. */
+.cal-col { fill: var(--fill-3); }
+.ev-sleep { fill: color-mix(in srgb, var(--text) 24%, transparent); }
+.ev-classes { fill: color-mix(in srgb, var(--c-none) 22%, transparent); }
+.ev-bar { fill: var(--c-none); }
+.ev-study { fill: var(--accent); }
+.bit1 { fill: var(--text); opacity: 0.62; }
+.bit0 { fill: var(--fill-3); }
 .code-key { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
-.code-key.slot-busy { background: var(--busy); }
-.code-key.slot-free { background: var(--accent); opacity: 0.25; }
-.code-key.slot-block { background: var(--accent); }
-.code-bits { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 10px 0 0; }
+.code-key.ev-sleep { background: color-mix(in srgb, var(--text) 30%, transparent); }
+.code-key.ev-classes { background: color-mix(in srgb, var(--c-none) 34%, transparent); box-shadow: inset 3px 0 0 var(--c-none); }
+.code-key.ev-study { background: var(--accent); }
+.code-key.bit1 { background: var(--text); opacity: 0.62; width: 6px; }
+.code-bits { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 12px 0 0; }
 .code-bits code { font-size: 0.78rem; letter-spacing: 0.06em; color: var(--muted); }
 .code-label { font-size: 0.82rem; font-weight: 650; margin-right: 4px; }
 /* The review's two futures, under the curves */
 .code-fork { display: grid; justify-items: center; gap: 10px; margin-top: 14px; }
 .code-branches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-.code-node { margin: 0; padding: 8px 10px; border-radius: 12px; background: var(--fill-3); font-size: 0.86rem; text-align: center; }
+.code-node { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 14px; background: var(--fill-3); font-size: 0.86rem; text-align: center; }
 .code-good { background: var(--ok-soft); }
-.code-bad { background: var(--warn-soft); }
-/* The score as a sum of three terms */
-.code-equation { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
-.code-term { display: grid; gap: 2px; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--fill-3); text-align: center; flex: 1 1 8rem; }
-.code-term small { color: var(--muted); font-size: 0.8rem; }
-.code-op { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--muted); }
+.code-bad { background: var(--fill-3); }
+.code-glyph { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; font-size: 0.75rem; font-weight: 800; color: #fff; background: var(--ok); }
+.code-bad .code-glyph { background: var(--busy); }
+/* The score, as a receipt */
+.code-sum > li { align-items: baseline; gap: 10px; }
+.code-sum > li::before { left: 30px; }
+.code-sum .code-op { flex: none; width: 18px; text-align: center; font-weight: 700; color: var(--muted); }
+.code-sum .grow { display: grid; gap: 1px; }
+.code-sum small { color: var(--muted); font-size: 0.8rem; }
+.code-sum b { font-family: var(--font-display); font-size: 1.3rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.code-sum .code-total b { font-size: 2rem; color: var(--accent-ink); }
+.code-sum .code-total .grow { font-weight: 650; }
 /* The value table, one hue from light (few reviews) to dark (many) */
-.code-table { width: 100%; border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.code-table { width: 100%; border-collapse: separate; border-spacing: 4px; font-variant-numeric: tabular-nums; font-size: 0.92rem; }
 .code-table th { font-weight: 600; color: var(--muted); font-size: 0.8rem; padding: 4px; }
-.code-table td { text-align: center; padding: 8px 4px; border-radius: 8px; font-weight: 600; }
+.code-table td { position: relative; text-align: center; padding: 9px 4px; border-radius: 10px; font-weight: 650; }
+.code-table td .dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--surface); }
 .code-v0 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .code-v1 { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .code-v2 { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 .code-v3 { background: color-mix(in srgb, var(--accent) 44%, transparent); }
 .code-v4 { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.sci-key .dot { margin-right: 4px; vertical-align: 0; }
 /* The AND/OR tree */
 .code-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
-.code-root { fill: var(--fill-3); }
+.code-root { fill: var(--accent-soft); stroke: none; }
+.code-root + .code-text { fill: var(--accent-ink); }
 .code-best { stroke: var(--accent); stroke-width: 2; }
 .code-edge { stroke: var(--line-strong); stroke-width: 1.5; fill: none; }
 .code-chance { stroke-dasharray: 4 3; }
-.code-dot { fill: var(--ok); stroke: var(--surface); stroke-width: 2; }
-.code-dot.code-lapse { fill: var(--warn); }
-.code-q { fill: var(--text); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.code-outcome { fill: var(--ok); }
+.code-outcome.code-lapse { fill: var(--busy); }
+.code-mark { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.code-q { fill: var(--text); font-family: var(--font-display); font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .code-q-best { fill: var(--accent-ink); }
-.code-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.code-ring { fill: none; stroke: var(--accent); stroke-width: 2.2; }
+/* The guesses, as the app's meters */
+.code-track { fill: var(--fill-3); }
 .code-bar { fill: var(--accent); }
-/* What was checked */
+/* What was checked, as Progress's tiles */
 .code-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.code-stats p { display: grid; gap: 2px; margin: 0; padding: 12px; border-radius: 14px; background: var(--fill-3); }
-.code-stats b { font-size: 1.5rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.code-stats > p { display: grid; align-content: start; gap: 2px; margin: 0; padding: 14px; border-radius: 16px; background: var(--fill-3); }
+.code-stats b { font-family: var(--font-display); font-size: 1.8rem; line-height: 1.05; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 .code-stats small { color: var(--muted); font-size: 0.82rem; }
+.code-stats > p.code-stat-ring { grid-template-columns: 1fr auto; align-items: center; }
+.code-stat-ring > span { display: grid; gap: 2px; }
 /* The receding horizon */
-.code-done { fill: var(--busy); opacity: 0.35; }
+.code-done { fill: var(--ok); opacity: 0.35; }
 .code-now { fill: var(--accent); }
-.code-window { fill: var(--accent); opacity: 0.3; }
+.code-window { fill: var(--accent); opacity: 0.28; }
 .code-later { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
-.code-key.code-done { background: var(--busy); opacity: 0.5; }
+.code-exam-cell { fill: var(--danger-soft); }
+.code-exam-on { fill: var(--danger-text); font-size: 12px; font-weight: 700; }
+.code-key.code-done { background: var(--ok); opacity: 0.45; }
 .code-key.code-now { background: var(--accent); }
 .code-key.code-window { background: var(--accent); opacity: 0.35; }
 .code-key.code-later { border: 1px dashed var(--line-strong); }
 .code-files code { flex: none; min-width: 7.5em; font-size: 0.85rem; }
 .code-files > li { align-items: baseline; gap: 12px; }
+.code-end-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+/* How far down the page: a hairline of the accent under the top bar, filled by
+   scrolling (below); without scroll timelines there is none. */
+.code-progress { display: none; }
 @media (max-width: 860px) {
-  .code-scene { grid-template-columns: minmax(0, 1fr); margin: 40px 0; }
+  .code-scene { grid-template-columns: minmax(0, 1fr); margin: 48px 0; }
 }
+@media (max-width: 560px) {
+  .code-fig { padding: 14px; }
+  .code-stats b { font-size: 1.5rem; }
+}
+
 /* A chart's text scales with the chart: on a phone, 13 units are about 12px (AUDIT 92). */
 @media (max-width: 560px) {
-  .sci-tick, .sci-chart .code-tick { font-size: 13px; }
+  .sci-tick { font-size: 13px; }
+  .sci-chart :is(.code-tick, .code-small, .code-exam-text) { font-size: 14px; }
 }
 
 /* Figures that draw themselves (D109, the code page and the science page): each
@@ -2956,6 +3023,11 @@ main.site.code-page { max-width: 64rem; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-draw { stroke-dasharray: 1; animation-name: code-draw; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-bar { transform-box: fill-box; transform-origin: 0 50%; animation-name: code-bar; }
     :root:not([data-motion="reduce"]) .scroll-fig .st-pop { transform-box: fill-box; transform-origin: 50% 50%; animation-name: code-pop; }
+    :root:not([data-motion="reduce"]) .code-progress {
+      display: block; position: fixed; z-index: 29; top: var(--topbar); left: 0; right: 0; height: 3px;
+      background: var(--accent); transform-origin: 0 50%;
+      animation: code-bar linear both; animation-timeline: scroll(root);
+    }
   }
 }
 @keyframes code-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: none; } }

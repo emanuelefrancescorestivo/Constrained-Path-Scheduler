@@ -167,3 +167,41 @@ def test_figures_draw_themselves_only_where_motion_is_wanted():
         # a drawn line carries its length as 1, so the dash that draws it is the line
         for line in re.findall(r"<(?:polyline|line|rect)[^>]*st-draw[^>]*>", text):
             assert 'pathLength="1"' in line, line
+
+
+def test_the_score_is_shown_term_by_term_and_adds_up_to_the_optimum(view):
+    """D110: the receipt of scene 3 is the plan the search chose, every evening free."""
+    blocks, owed, unready, total = service._code_solved()["all_free"]
+    exact_value, _ = service._code_solved()["exact"]
+    assert total == pytest.approx(exact_value, abs=1e-12) and blocks == 0
+    penalty = service._code_solved()["instance"].lateness_penalty
+    assert owed + penalty * unready == pytest.approx(total, abs=1e-12)
+    assert view["score"] == {"blocks": "0", "owed": "3.22", "unready": 2, "penalties": "10", "total": "13.22"}
+    assert view["overshoots"] == "0" and view["admissible"] is True
+    assert view["futures"] == 5 and view["opened_share"] == 3  # 114 of 3906 states, rounded
+
+
+def test_the_calendar_drawn_is_the_bits(view):
+    """Each day's blocks of sleep and classes cover exactly its 1s."""
+    for day in view["days"]:
+        drawn = ["0"] * 48
+        for stretch in day["runs"]:
+            assert stretch["kind"] in ("sleep", "classes")
+            for k in range(stretch["start"], stretch["end"]):
+                drawn[k] = "1"
+        assert "".join(drawn) == day["bits"]
+        assert [s["kind"] for s in day["runs"]] == ["sleep", "classes", "sleep"]  # weekdays
+
+
+def test_the_pages_wear_the_apps_look(web, view):
+    """The public pages under the dusk sky, the topics in the first two course colours,
+    the exam in red; a plan's page keeps the plan's own sky."""
+    page = web.get("/how").text
+    assert 'data-sky="evening"' in page and 'href="/sky/320.css"' in page
+    assert 'class="dot c0"' in page and 'class="dot c1"' in page
+    assert 'class="code-exam"' in page and 'class="code-exam-line"' in page
+    assert 'class="code-progress"' in page
+    assert 'data-sky="evening"' in web.get("/science").text
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert ".code-progress { display: none; }" in css  # a bar only where scrolling fills it
+    assert "animation-timeline: scroll(root);" in css

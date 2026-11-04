@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The code page in the app's own look (DECISIONS.md D110): the sky and the glass
+  (dusk on the public pages), a big number for each scene, the topics in the course
+  colours and the exam in red, the week drawn as the Calendar draws it, the score as a
+  receipt that adds up to the optimum, the steps under the title and a bar that fills as
+  the page scrolls.
+
 - How the code works (DECISIONS.md D109): a page, `/how`, that runs the research
   planner on demo.py's worked example as it is drawn (the week as bits, a review's two
   futures, the score, value iteration, the AND/OR choices, each heuristic's nodes, the

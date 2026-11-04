@@ -4072,3 +4072,41 @@ A bigger example: above.
 the figures are still. Checked in Chromium only, at phone size and 1280px. The example is
 small on purpose; the planner's real cost and gain are those of
 `benchmarks/rule_vs_planner.py` (AUDIT 36), and the page says the app runs the rules.
+
+## D110. The code page in the app's own look
+
+*The owner, 2026-11-04, of the code page (D109) and its clips: "try to make it more on the
+theme and style of the app so it's engaging to watch but not too childish".*
+
+**Chosen.**
+
+1. **The app's sky and glass.** The two pages anyone can read without a plan, the code
+   and the science, wear a plan's sky at dusk (the hour the worked example plans for),
+   with the first sprout of the garden; inside a plan both keep the plan's own sky.
+   Their cards are the app's glass, with nothing new.
+2. **What is large is large, as on Progress.** Each scene of the code page has one big
+   number in Bricolage, set beside what it counts: 240 bits, 96 % recall tonight, a
+   score of 13.22, 51 sweeps, 5 futures, 114 nodes, 0 states where the guess
+   overshoots, 5 days in view. All come from `service.code_view`.
+3. **The app's own colours, each for what it means there.** The two topics are the
+   first two course colours (as a student's first two courses get them), on the curves,
+   in the tree, in the value table; the exam is red, the only red on the page (red is
+   for exams and today); the search's choices are the accent of the moment; a review
+   recalled is the app's green check, one forgotten a grey cross.
+4. **The figures in the app's manner.** The week is drawn as the Calendar draws it, a
+   column a day, sleep and classes as blocks and the study blocks in the accent, with
+   each day's bits beside it. The score is a receipt: the plan the search chose, every
+   evening left free, term by term (0 + 3.22 + 10 = 13.22, its total the exhaustive
+   optimum). The guesses are the app's meters, what was checked its tiles with a ring.
+   The page opens on tonight: the two courses, the exam, the question.
+5. **Where you are on the page.** A row of the nine steps under the title, each a
+   link, and a hairline of the accent under the top bar that fills as the page
+   scrolls, only where the browser ties animations to scrolling.
+
+**Not chosen.** Spark explaining the page, confetti, bouncing: the audience is students of
+AI, and the owner asked for engaging, not childish. Numbers that count up (motion.js):
+they run on time, not on scrolling, so a recorded clip would speed them up.
+
+**Disclosed.** The sky of the public pages is fixed at dusk; it does not follow the
+reader's sun, as a plan's does (D76). Checked in Chromium only, light and dark, at phone
+size and 1280px.
