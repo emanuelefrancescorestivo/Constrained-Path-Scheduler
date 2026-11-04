@@ -1047,6 +1047,18 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return page(request, "science.html", token=token, science=service.science_view())
 
+    # -- how the code works (D109): the research planner on a worked example ----------
+
+    @app.get("/how", response_class=HTMLResponse)
+    def how(request: Request) -> HTMLResponse:
+        return page(request, "how.html", how=service.code_view())
+
+    @app.get("/p/{token}/how", response_class=HTMLResponse)
+    def plan_how(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(request, "how.html", token=token, how=service.code_view())
+
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
         return page(request, "guidelines.html", contact=config.contact)

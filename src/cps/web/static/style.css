@@ -2838,6 +2838,8 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .sci-line.lvl-good { stroke: var(--mem-good); }
 .sci-line.lvl-strong { stroke: var(--mem-strong); }
 .sci-line.sci-accent { stroke: var(--accent); }
+.sci-line.sci-alone { stroke: var(--busy); stroke-width: 1.8; }
+.lvl-key.sci-alone-key { background: var(--busy); }
 .sci-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
 .sci-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 0.82rem; color: var(--muted); }
 .sci-maths { margin-top: 12px; }
@@ -2849,6 +2851,117 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .sci-tag { flex: none; font-size: 0.75rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mem-ink-strong); background: var(--mem-strong); border-radius: 980px; padding: 2px 8px; }
 .sci-rules > li { align-items: flex-start; gap: 12px; }
 .sci-research { font-size: 0.92rem; color: var(--muted); }
+/* How the code works (D109): scenes of words and a figure, side by side where there
+   is room, the figure drawing itself as it scrolls into view (below). */
+main.site.code-page { max-width: 64rem; }
+.code-head { max-width: 46rem; }
+.code-scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px 32px; align-items: center; margin: 56px 0; }
+.code-scene h2 { font-size: 1.35rem; margin: 0 0 8px; }
+.code-copy p { line-height: 1.55; }
+.code-copy .formula { font-size: 1.05rem; }
+.code-file { margin: 0 0 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--accent-ink); }
+.code-fig { margin: 0; min-width: 0; }
+.code-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.code-tick { fill: var(--muted); font-size: 12px; }
+.code-text { fill: var(--text); font-size: 13px; font-weight: 600; }
+.code-small { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.code-num { fill: var(--text); font-weight: 650; }
+.slot-busy { fill: var(--busy); opacity: 0.55; }
+.slot-free { fill: var(--accent); opacity: 0.18; }
+.slot-block { fill: var(--accent); }
+.code-key { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+.code-key.slot-busy { background: var(--busy); }
+.code-key.slot-free { background: var(--accent); opacity: 0.25; }
+.code-key.slot-block { background: var(--accent); }
+.code-bits { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 10px 0 0; }
+.code-bits code { font-size: 0.78rem; letter-spacing: 0.06em; color: var(--muted); }
+.code-label { font-size: 0.82rem; font-weight: 650; margin-right: 4px; }
+/* The review's two futures, under the curves */
+.code-fork { display: grid; justify-items: center; gap: 10px; margin-top: 14px; }
+.code-branches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.code-node { margin: 0; padding: 8px 10px; border-radius: 12px; background: var(--fill-3); font-size: 0.86rem; text-align: center; }
+.code-good { background: var(--ok-soft); }
+.code-bad { background: var(--warn-soft); }
+/* The score as a sum of three terms */
+.code-equation { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
+.code-term { display: grid; gap: 2px; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--fill-3); text-align: center; flex: 1 1 8rem; }
+.code-term small { color: var(--muted); font-size: 0.8rem; }
+.code-op { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--muted); }
+/* The value table, one hue from light (few reviews) to dark (many) */
+.code-table { width: 100%; border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.code-table th { font-weight: 600; color: var(--muted); font-size: 0.8rem; padding: 4px; }
+.code-table td { text-align: center; padding: 8px 4px; border-radius: 8px; font-weight: 600; }
+.code-v0 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.code-v1 { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.code-v2 { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.code-v3 { background: color-mix(in srgb, var(--accent) 44%, transparent); }
+.code-v4 { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+/* The AND/OR tree */
+.code-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.code-root { fill: var(--fill-3); }
+.code-best { stroke: var(--accent); stroke-width: 2; }
+.code-edge { stroke: var(--line-strong); stroke-width: 1.5; fill: none; }
+.code-chance { stroke-dasharray: 4 3; }
+.code-dot { fill: var(--ok); stroke: var(--surface); stroke-width: 2; }
+.code-dot.code-lapse { fill: var(--warn); }
+.code-q { fill: var(--text); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.code-q-best { fill: var(--accent-ink); }
+.code-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.code-bar { fill: var(--accent); }
+/* What was checked */
+.code-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.code-stats p { display: grid; gap: 2px; margin: 0; padding: 12px; border-radius: 14px; background: var(--fill-3); }
+.code-stats b { font-size: 1.5rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.code-stats small { color: var(--muted); font-size: 0.82rem; }
+/* The receding horizon */
+.code-done { fill: var(--busy); opacity: 0.35; }
+.code-now { fill: var(--accent); }
+.code-window { fill: var(--accent); opacity: 0.3; }
+.code-later { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.code-key.code-done { background: var(--busy); opacity: 0.5; }
+.code-key.code-now { background: var(--accent); }
+.code-key.code-window { background: var(--accent); opacity: 0.35; }
+.code-key.code-later { border: 1px dashed var(--line-strong); }
+.code-files code { flex: none; min-width: 7.5em; font-size: 0.85rem; }
+.code-files > li { align-items: baseline; gap: 12px; }
+@media (max-width: 860px) {
+  .code-scene { grid-template-columns: minmax(0, 1fr); margin: 40px 0; }
+}
+/* A chart's text scales with the chart: on a phone, 13 units are about 12px (AUDIT 92). */
+@media (max-width: 560px) {
+  .sci-tick, .sci-chart .code-tick { font-size: 13px; }
+}
+
+/* Figures that draw themselves (D109, the code page and the science page): each
+   `.scroll-fig` is a view timeline; its stages `.st1`..`.st5` come in one after the
+   other as it scrolls up the screen, a line (`.st-draw`, pathLength 1) is drawn, a
+   bar (`.st-bar`) grows, a mark (`.st-pop`) appears. Only where the browser ties
+   animations to scrolling and motion is wanted: elsewhere every figure is complete,
+   and scrolling back runs it backwards. Nothing loops (D93). */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    :root:not([data-motion="reduce"]) .scroll-fig { view-timeline: --fig block; }
+    :root:not([data-motion="reduce"]) :is(.code-copy, .science-block > h2) {
+      animation: surface linear both; animation-timeline: view(); animation-range: entry 0% entry 70%;
+    }
+    :root:not([data-motion="reduce"]) .scroll-fig :is(.st1, .st2, .st3, .st4, .st5) {
+      animation-name: code-in; animation-duration: 1ms; animation-timing-function: linear;
+      animation-fill-mode: both; animation-timeline: --fig;
+    }
+    :root:not([data-motion="reduce"]) .scroll-fig .st1 { animation-range: cover 4% cover 20%; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st2 { animation-range: cover 10% cover 27%; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st3 { animation-range: cover 16% cover 34%; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st4 { animation-range: cover 22% cover 41%; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st5 { animation-range: cover 28% cover 48%; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st-draw { stroke-dasharray: 1; animation-name: code-draw; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st-bar { transform-box: fill-box; transform-origin: 0 50%; animation-name: code-bar; }
+    :root:not([data-motion="reduce"]) .scroll-fig .st-pop { transform-box: fill-box; transform-origin: 50% 50%; animation-name: code-pop; }
+  }
+}
+@keyframes code-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: none; } }
+@keyframes code-draw { from { stroke-dashoffset: 1; opacity: 0; } 6% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes code-bar { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes code-pop { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: none; } }
 /* Courses (D86-D88) */
 .course-rows > li { align-items: center; padding: 12px 0; }
 .course-row { display: grid; gap: 5px; }
