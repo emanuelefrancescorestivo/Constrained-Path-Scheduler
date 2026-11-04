@@ -132,7 +132,7 @@
         <text class="code-small" x="{{ ox }}" y="194" text-anchor="middle">{{ o.value }}</text></g>
       {% endfor %}
       <text class="code-q{% if c.best %} code-q-best{% endif %} st4" x="{{ x }}" y="228" text-anchor="middle">{{ c.q }}</text>
-      {% if c.best %}<rect class="code-ring st-draw st5" pathLength="1" x="{{ x - 58 }}" y="78" width="116" height="160" rx="14"></rect>{% endif %}
+      {% if c.best %}<rect class="code-ring st-draw st5" pathLength="1" x="{{ x - 52 }}" y="84" width="104" height="154" rx="9"></rect>{% endif %}
       {% endfor %}
     </svg>
     <figcaption class="sci-key"><span>{{ _("Under each future: its expected cost from there on. Bottom: each choice's expected cost; the lowest is circled.") }}</span></figcaption>

@@ -1076,3 +1076,9 @@ the iPhone 13's width: a chart's text is sized in the chart's own units and scal
 it, so the 9-unit labels of D89's charts (90 %, today, 60 days) came out at 8.4px, under
 the 12px floor of D106 (AUDIT 89), which measured HTML text only. Status: fixed; under
 560px the labels are 13 units, about 12px.
+
+**93. The code page's ring around the best choice touched the next box.** Found on
+2026-11-04 checking the code page (D109) on the live demo at phone size: the ring drawn
+around tonight's cheapest choice was 6 units wider than its box on each side, and the
+boxes stand 5 apart, so its edge ran over the neighbouring choice's. Status: fixed; the
+ring follows the box's own sides and runs down around its futures.
