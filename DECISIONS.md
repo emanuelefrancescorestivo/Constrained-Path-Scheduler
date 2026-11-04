@@ -4110,3 +4110,31 @@ they run on time, not on scrolling, so a recorded clip would speed them up.
 **Disclosed.** The sky of the public pages is fixed at dusk; it does not follow the
 reader's sun, as a plan's does (D76). Checked in Chromium only, light and dark, at phone
 size and 1280px.
+
+## D111. The code page in three dimensions
+
+*The owner, 2026-11-04, of the restyled code page (D110): "nice make it 3d now".*
+
+**Chosen.** CSS 3D only, where the third dimension says something:
+
+1. **The week as layers.** The calendar of scene 1 is three layers, as the code builds
+   it: the sleep mask, the classes mask, then the study blocks cut from what is left.
+   As the figure scrolls in they float apart, tilted, each on a faint sheet with its
+   name, and fall into one calendar by the middle of the screen. Flat, they are simply
+   the calendar.
+2. **The value table as a landscape.** Above the table, a tower for each of its 25
+   cells, as tall as the value (in twentieths of the largest), the costliest at the
+   back, the two topics' towers ringed in their course colours. The towers rise, back
+   rows first, while the plane turns. The table under it still says every number.
+3. **Depth for the rest.** Every figure of the code page and the science page rises
+   from the page tilted back and comes upright by the middle of the screen; the four
+   tiles of what was checked turn over one by one.
+
+**Not chosen.** WebGL or a 3D library: a new dependency and a script, where the page works
+without its scripts and CSS draws boxes in 3D well enough. A tower that fades in: opacity
+below 1 flattens what is drawn in 3D (`tests/test_how.py` keeps the keyframes solid).
+
+**Disclosed.** Where the browser does not tie animations to scrolling, or motion is
+reduced, the layers are one calendar, the landscape stands still and the figures are flat.
+Checked in Chromium only, at phone size and 1280px; what a tilting glass card costs a slow
+device was not measured (D93).

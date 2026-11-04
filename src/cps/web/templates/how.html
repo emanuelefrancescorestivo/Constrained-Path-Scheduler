@@ -46,17 +46,33 @@
     <p>{{ _("Each half hour is one bit: 1 when it is taken (sleep, classes), 0 when it is free. {days} days are {n} bits; {busy} are taken, {free} are free.", days=h.day_count, n=h.slots, busy=h.busy_slots, free=h.free_slots) }}</p>
     <p>{{ _("Whether a stretch of time is free is one AND with a mask, however long the stretch. Free time is then cut into study blocks of {hours} hours, here at most one an evening.", hours=h.block_hours) }}</p>
   </div>
-  <figure class="card code-fig scroll-fig">
-    <svg class="code-chart" viewBox="0 0 330 244" role="img" aria-label="{{ _('{days} days of half-hour slots: taken, free, and the study blocks cut from what is free', days=h.day_count) }}">
+  {# The week as the code builds it (D111): the sleep mask and the classes mask, then the
+     blocks cut from what is left, three layers that fall into one calendar as the figure
+     scrolls into view. Flat, the three layers are simply the calendar. #}
+  <figure class="card code-fig scroll-fig code-stack-fig">
+    <div class="code-stack">
+    <svg class="code-chart code-layer code-layer-base" viewBox="0 0 330 244" role="img" aria-label="{{ _('{days} days of half-hour slots: taken, free, and the study blocks cut from what is free', days=h.day_count) }}">
+      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
       {% for hour in (0, 6, 12, 18, 24) %}<text class="code-tick" x="24" y="{{ 32 + hour * 8 + 4 }}" text-anchor="end">{{ '%02d' % hour }}</text>{% endfor %}
       {% for d in h.days %}{% set x0 = 32 + d.day * 59 %}
       <text class="code-tick" x="{{ x0 + 25 }}" y="20" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
       <rect class="cal-col" x="{{ x0 }}" y="32" width="40" height="192" rx="7"></rect>
-      <g class="st1">{% for r in d.runs %}<rect class="ev-{{ r.kind }}" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% if r.kind == "classes" %}<rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endif %}{% endfor %}</g>
+      {% for r in d.runs if r.kind == "sleep" %}<rect class="ev-sleep" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% endfor %}
       <g class="st2">{% for bit in d.bits %}<rect class="bit{{ bit }}" x="{{ x0 + 44 }}" y="{{ 32 + loop.index0 * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}</g>
       {% endfor %}
-      {% for b in h.blocks %}<rect class="ev-study st3 st-pop" x="{{ 33 + b.day * 59 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ h.block_slots * 4 - 1 }}" rx="5"></rect>{% endfor %}
+      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("sleep") }}</text>
     </svg>
+    <svg class="code-chart code-layer code-layer-classes" viewBox="0 0 330 244" aria-hidden="true">
+      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
+      {% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "classes" %}<rect class="ev-classes" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect><rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endfor %}{% endfor %}
+      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("classes") }}</text>
+    </svg>
+    <svg class="code-chart code-layer code-layer-study" viewBox="0 0 330 244" aria-hidden="true">
+      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
+      {% for b in h.blocks %}<rect class="ev-study" x="{{ 33 + b.day * 59 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ h.block_slots * 4 - 1 }}" rx="5"></rect>{% endfor %}
+      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("a study block") }}</text>
+    </svg>
+    </div>
     <p class="code-bits st4"><span class="code-label">{{ _("Day 1") }}</span>{% for g in h.days[0].groups %}<code>{{ g }}</code>{% endfor %}</p>
     <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span><span><i class="code-key bit1"></i>{{ _("a bit set: taken") }}</span></figcaption>
   </figure>
@@ -126,6 +142,17 @@
     <p>{{ _("Read optimistically between grid points, it is a lower bound: no plan does better. That makes it a safe guide for the search: here {a} + {b} = {sum} reviews at least.", a=h.h_topics[0].value, b=h.h_topics[1].value, sum=h.h_sum) }}</p>
   </div>
   <figure class="card code-fig scroll-fig">
+    {# The same numbers as a landscape (D111): a tower per cell, its height the value,
+       turning slowly as the page scrolls; the table under it says each number. #}
+    <div class="code-land" aria-hidden="true">
+      <div class="code-land-plane">
+        {% for row in h.table | reverse %}{% set k = loop.index %}{% for c in row.cells %}
+        <div class="code-tower code-v{{ c.shade }} tz{{ c.z }} st{{ k }}{% for t in c.topics %} on-{{ t.color }}{% endfor %}"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">{{ c.value }}</i></div>
+        {% endfor %}{% endfor %}
+        <span class="code-axis code-axis-s">{{ _("stability") }} →</span>
+        <span class="code-axis code-axis-d">{{ _("difficulty") }} →</span>
+      </div>
+    </div>
     <table class="code-table" aria-label="{{ _('Expected reviews to reach the target, by difficulty and stability') }}">
       <thead><tr><th scope="col">D \ S</th>{% for c in h.columns %}<th scope="col">{{ _("{n} d", n=c) }}</th>{% endfor %}</tr></thead>
       <tbody>{% for row in h.table %}<tr class="st{{ loop.index }}"><th scope="row">{{ row.difficulty }}</th>{% for c in row.cells %}<td class="code-v{{ c.shade }}">{{ c.value }}{% for t in c.topics %}<span class="dot {{ t.color }}" title="{{ t.topic }}"></span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}</tbody>

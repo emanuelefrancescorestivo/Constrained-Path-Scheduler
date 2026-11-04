@@ -205,3 +205,26 @@ def test_the_pages_wear_the_apps_look(web, view):
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     assert ".code-progress { display: none; }" in css  # a bar only where scrolling fills it
     assert "animation-timeline: scroll(root);" in css
+
+
+def test_the_landscape_and_the_layers_are_the_numbers(web, view):
+    """D111: a tower per cell of the value table, as tall as its value (the largest
+    twenty steps), the topics' towers marked in their colours; the week in three
+    layers, sleep, classes and the study blocks, that are one calendar when flat."""
+    values = [float(c["value"]) for row in view["table"] for c in row["cells"]]
+    heights = [c["z"] for row in view["table"] for c in row["cells"]]
+    assert max(heights) == 20 and all(1 <= z <= 20 for z in heights)
+    assert all(
+        (a > b) <= (za >= zb)
+        for a, za in zip(values, heights, strict=True)
+        for b, zb in zip(values, heights, strict=True)
+    )  # taller where costlier
+    page = web.get("/how").text
+    assert page.count('class="code-tower ') == len(values) == 25
+    assert 'on-c0"' in page and 'on-c1"' in page
+    for layer in ("code-layer-base", "code-layer-classes", "code-layer-study"):
+        assert f"code-layer {layer}" in page
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert all(f".tz{n} {{ --h: calc({n} * var(--u)); }}" in css for n in range(1, 21))
+    # A tower never fades while it rises: opacity below 1 would flatten it.
+    assert "@keyframes code-rise { from { transform: scaleZ(0.02); } to { transform: none; } }" in css

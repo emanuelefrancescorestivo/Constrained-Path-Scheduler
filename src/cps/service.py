@@ -11139,6 +11139,9 @@ def code_view() -> dict:
                 {
                     "value": format_number(float(policy.expected_cost[i, j]), 1),
                     "shade": min(4, int(5 * float(policy.expected_cost[i, j]) / (top + 1e-9))),
+                    # The tower's height in the 3D landscape (D111): twentieths of the
+                    # table's largest value, one style class each (no inline style).
+                    "z": max(1, round(20 * float(policy.expected_cost[i, j]) / top)),
                 }
                 for j in cols_at
             ],
