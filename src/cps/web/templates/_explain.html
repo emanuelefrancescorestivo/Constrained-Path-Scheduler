@@ -1,15 +1,17 @@
-{# The plain layer of the technical pages (D114): Emanuele asks what a student would,
-   Spark answers with a picture from everyday life, and one line says where that
-   picture stops being true. The technical text stays below it, unchanged. The two
-   lines come in one after the other as the page is scrolled (`.scroll-fig`, `.st1`,
-   `.st2`); without that, both are simply there. Spark is still here: its motion is
-   for the places it brings a tip, not for a page that is read. A percentage stays on
-   the line of its number (a no-break space). #}
-{% from "_student.html" import student %}
+{# The plain layer of the technical pages (D114): the student asks what a student
+   would, Spark answers with a picture from everyday life, and one line says where that
+   picture stops being true. The technical text stays below it, unchanged. The student
+   is the reader: their own avatar (D115, `my_avatar`, from the avatar page), or a
+   silhouette on the public pages and before they make one. The two lines come in one
+   after the other as the page is scrolled (`.scroll-fig`, `.st1`, `.st2`); without that,
+   both are simply there. Spark is still here: its motion is for the places it brings a
+   tip, not for a page that is read. A percentage stays on the line of its number (a
+   no-break space). Imported `with context`, for `my_avatar`. #}
+{% from "_avatar.html" import face %}
 {% from "_mascot.html" import mascot %}
 {% macro chat(question, answer, uid) -%}
 <div class="chat scroll-fig">
-  <div class="chat-row chat-ask st1">{{ student(uid ~ "-e") }}<p class="chat-bubble"><b class="chat-who">Emanuele</b>{{ question | replace(" %", " %") }}</p></div>
+  <div class="chat-row chat-ask st1">{{ face(my_avatar if my_avatar is defined else none, uid ~ "-me") }}<p class="chat-bubble"><b class="chat-who">{{ _("You") }}</b>{{ question | replace(" %", " %") }}</p></div>
   <div class="chat-row chat-answer st2"><p class="chat-bubble"><b class="chat-who">Spark</b>{{ answer | replace(" %", " %") }}</p>{{ mascot("idle", uid ~ "-s") }}</div>
 </div>
 {%- endmacro %}

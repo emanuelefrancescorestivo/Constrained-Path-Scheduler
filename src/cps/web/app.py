@@ -1049,9 +1049,16 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/science", response_class=HTMLResponse)
     def plan_science(request: Request, token: str) -> HTMLResponse:
-        if load(token) is None:
+        subscription = load(token)
+        if subscription is None:
             return missing(request)
-        return page(request, "science.html", token=token, science=service.science_view())
+        return page(
+            request,
+            "science.html",
+            token=token,
+            science=service.science_view(),
+            my_avatar=service.avatar_of(subscription),  # the one who asks (D114, D115)
+        )
 
     # -- how the code works (D109): the research planner on a worked example ----------
 
@@ -1061,9 +1068,51 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/how", response_class=HTMLResponse)
     def plan_how(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "how.html",
+            token=token,
+            how=service.code_view(),
+            my_avatar=service.avatar_of(subscription),  # the one who asks (D114, D115)
+        )
+
+    # -- the student's avatar (D115) ----------------------------------------------------
+
+    @app.get("/p/{token}/avatar", response_class=HTMLResponse)
+    def avatar_page(request: Request, token: str) -> HTMLResponse:
+        """The avatar maker: a part at a time, the preview following each choice."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        mine = service.avatar_of(subscription)
+        return page(
+            request,
+            "avatar.html",
+            token=token,
+            tab="you",
+            my_avatar=mine,
+            chosen=mine or service.AVATAR_START,
+            parts=service.AVATAR_PARTS,
+            saved=request.query_params.get("saved") == "1",
+        )
+
+    @app.post("/p/{token}/avatar")
+    async def avatar_save(request: Request, token: str) -> Response:
         if load(token) is None:
             return missing(request)
-        return page(request, "how.html", token=token, how=service.code_view())
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=len(service.AVATAR_PARTS) + 2)
+        chosen = {part: str(form.get(part) or "") for part in service.AVATAR_PARTS}
+        try:
+            service.update_subscription(store, token, lambda current: service.set_avatar(current, chosen))
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "avatar")
+        return RedirectResponse(f"/p/{token}/avatar?saved=1", 303)
 
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
@@ -4120,6 +4169,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             tab="you",
             cards_due=service.cards_due(store, subscription, config.clock()),
+            my_avatar=service.avatar_of(subscription),
         )
 
     @app.post("/p/{token}/fit")

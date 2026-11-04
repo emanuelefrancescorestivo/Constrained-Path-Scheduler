@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_ring.html" import ring %}
-{% from "_explain.html" import chat, limit, under %}
+{% from "_explain.html" import chat, limit, under with context %}
 {# How the code works (D109, in the app's own look since D110): the research planner on
    one worked example, scene by scene, each figure drawing itself as the page is
    scrolled (CSS scroll-driven animations, `.scroll-fig` and its stages `.st1`..`.st5`;
@@ -12,7 +12,7 @@
    on. Every number is computed by service.code_view from the planner's own code: the
    timetable as bits, FSRS-4.5, value iteration (SSP-MMC) and its sweeps, the
    heuristics, AO* and its trace, and the exhaustive solve that checks them. SVG text
-   is 12 units or more. Each scene opens in plain words (D114): Emanuele asks, Spark
+   is 12 units or more. Each scene opens in plain words (D114): the student (the reader's own avatar, D115) asks, Spark
    answers with a picture from a trip by car or on foot, a line says where the picture
    stops; each step of a pinned scene says it plainly, then technically. #}
 {% block title %}{{ _("How the code works") }} · {{ _("Study plan") }}{% endblock %}

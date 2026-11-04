@@ -454,7 +454,7 @@ def test_how_the_code_works_is_under_you_beside_the_science(web):
 
 
 def test_each_part_opens_in_plain_words_then_the_real_thing(web):
-    """D114: Emanuele asks what a student would, Spark answers with a picture from
+    """D114: the student asks what a student would, Spark answers with a picture from
     everyday life, a line says where the picture stops; on the code page the technical
     text follows under its label, and every step of a scene run while scrolled through
     says it plainly first, then exactly."""
@@ -512,19 +512,20 @@ def test_the_pictures_numbers_are_the_examples_own(web, view):
     assert f"the same plant is at {kept['alone_end']} %" in science
 
 
-def test_emanuele_is_a_drawing_and_each_page_keeps_its_ids_apart(web):
-    """Drawn after the owner, at his wish (D114): an SVG of shapes, no photograph, no
-    image, no style attribute or script; each chat's drawing keeps its own ids."""
-    source = (ROOT / "src/cps/web/templates/_student.html").read_text(encoding="utf-8")
+def test_the_one_who_asks_is_the_reader_and_each_page_keeps_its_ids_apart(web):
+    """The student in the chats is the reader (D115): on the public pages, with no plan,
+    a silhouette; the drawing has no image, no style attribute and no script."""
+    source = (ROOT / "src/cps/web/templates/_avatar.html").read_text(encoding="utf-8")
     for absent in ("<image", "data:", "style=", "<script", "<foreignObject", "http"):
         assert absent not in source
+    assert not (ROOT / "src/cps/web/templates/_student.html").exists()
     for path in ("/how", "/science"):
         page = web.get(path).text
         ids = re.findall(r'\sid="([^"]+)"', page)
         assert len(ids) == len(set(ids))
-        assert page.count('<svg class="student" viewBox="0 0 120 120" aria-hidden="true"') == page.count(
-            'class="chat scroll-fig"'
-        )
+        chats = page.count('class="chat scroll-fig"')
+        assert page.count('<svg class="av-face av-ghost" viewBox="0 0 120 120" aria-hidden="true"') == chats
+        assert "Emanuele" not in page
 
 
 def test_the_pictures_move_only_with_motion_and_never_loop():

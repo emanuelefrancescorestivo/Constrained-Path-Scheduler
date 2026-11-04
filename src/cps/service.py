@@ -5698,6 +5698,46 @@ def set_glass(subscription: Subscription, glass: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "glass": glass})
 
 
+# -- the student's avatar (D115) -------------------------------------------------------
+
+# A student makes their own avatar from these parts; it asks the questions on the
+# science and code pages (D114). Kept in the plan's options as the names chosen: a
+# drawing of shapes, nothing uploaded. The first of each is where the maker starts,
+# save the skin, which starts in the middle of the six.
+AVATAR_PARTS: dict[str, tuple[str, ...]] = {
+    "skin": ("s1", "s2", "s3", "s4", "s5", "s6"),
+    "hair": ("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
+    "colour": ("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
+    "face": ("none", "moustache", "beard"),
+    "glasses": ("none", "round", "square"),
+    "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6"),
+}
+AVATAR_START: dict[str, str] = {part: names[0] for part, names in AVATAR_PARTS.items()} | {"skin": "s3"}
+
+
+def avatar_of(subscription: Subscription | None) -> dict[str, str] | None:
+    """The avatar a student made (D115), or None before they make one. A part saved
+    under a name this version does not draw falls back to where the maker starts."""
+    chosen = subscription.options.get("avatar") if subscription else None
+    if not isinstance(chosen, Mapping):
+        return None
+    return {
+        part: chosen[part] if chosen.get(part) in names else AVATAR_START[part]
+        for part, names in AVATAR_PARTS.items()
+    }
+
+
+def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscription:
+    """Keep the avatar a student made: every part one of its names (D115)."""
+    avatar = {}
+    for part, names in AVATAR_PARTS.items():
+        value = chosen.get(part) or AVATAR_START[part]
+        if value not in names:
+            raise InvalidInput(_("choose one of the options shown for each part"))
+        avatar[part] = value
+    return replace(subscription, options={**subscription.options, "avatar": avatar})
+
+
 def language_of(subscription: Subscription) -> str:
     """The language a plan's pages and calendar events are written in (D10)."""
     return pick(subscription.options.get("lang"))

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import face %}
+{# The avatar maker (D115): a student makes the avatar that asks the questions on the
+   science and code pages (D114). One part at a time, each a row of choices; the preview
+   above follows every choice through CSS alone (`.av-maker:has(...)`), so the page needs
+   no script, and Save keeps it. Where `:has` is missing, the preview shows what was
+   saved, and changes after Save. #}
+{% block title %}{{ _("Your avatar") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<p class="back"><a href="/p/{{ token }}/you">{{ _("You") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Your avatar") }}</h1>
+  <p class="lede">{{ _("Make the student who asks the questions on the science and code pages: you.") }}</p>
+</div>
+{% if saved %}<p class="notice notice-ok" role="status">{{ _("Saved. Your avatar now asks the questions on the science and code pages.") }} <a href="/p/{{ token }}/science">{{ _("See it there") }} ›</a></p>{% endif %}
+{% set words = {
+  "short": _("Short"), "swept": _("Swept"), "long": _("Long"), "curly": _("Curly"), "bun": _("Bun"),
+  "shaved": _("Shaved"), "scarf": _("Headscarf"),
+  "dark": _("Dark brown"), "black": _("Black"), "brown": _("Brown"), "auburn": _("Auburn"), "blonde": _("Blonde"),
+  "grey": _("Grey"), "pink": _("Pink"), "blue": _("Blue"),
+  "none": _("None"), "moustache": _("Moustache"), "beard": _("Beard"), "round": _("Round"), "square": _("Square"),
+} %}
+<form class="av-maker" method="post" action="/p/{{ token }}/avatar">
+  <div class="card av-stage">{{ face(chosen, "maker", every=true, extra=" av-preview") }}{{ face(chosen, "saved", extra=" av-saved") }}</div>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Skin tone") }}</legend>
+    <div class="av-chips">{% for v in parts.skin %}<input class="av-pick" type="radio" name="skin" id="av-skin-{{ v }}" value="{{ v }}"{% if chosen.skin == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-skin-{{ v }}"><span class="av av-swatch av-swatch-skin skin-{{ v }}"></span><span class="visually-hidden">{{ _("Skin tone {n}", n=loop.index) }}</span></label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Hair") }}</legend>
+    <div class="av-chips">{% for v in parts.hair %}<input class="av-pick" type="radio" name="hair" id="av-hair-{{ v }}" value="{{ v }}"{% if chosen.hair == v %} checked{% endif %}><label class="av-chip" for="av-hair-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Hair or headscarf colour") }}</legend>
+    <div class="av-chips">{% for v in parts.colour %}<input class="av-pick" type="radio" name="colour" id="av-colour-{{ v }}" value="{{ v }}"{% if chosen.colour == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-colour-{{ v }}" title="{{ words[v] }}"><span class="av av-swatch av-swatch-hair col-{{ v }}"></span><span class="visually-hidden">{{ words[v] }}</span></label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Face") }}</legend>
+    <div class="av-chips">{% for v in parts.face %}<input class="av-pick" type="radio" name="face" id="av-face-{{ v }}" value="{{ v }}"{% if chosen.face == v %} checked{% endif %}><label class="av-chip" for="av-face-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Glasses") }}</legend>
+    <div class="av-chips">{% for v in parts.glasses %}<input class="av-pick" type="radio" name="glasses" id="av-glasses-{{ v }}" value="{{ v }}"{% if chosen.glasses == v %} checked{% endif %}><label class="av-chip" for="av-glasses-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card av-part">
+    <legend class="tile-label">{{ _("Top") }}</legend>
+    <div class="av-chips">{% for v in parts.top %}<input class="av-pick" type="radio" name="top" id="av-top-{{ v }}" value="{{ v }}"{% if chosen.top == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-top-{{ v }}"><span class="av av-swatch av-swatch-top top-{{ v }}"></span><span class="visually-hidden">{{ _("Colour {n}", n=loop.index) }}</span></label>{% endfor %}</div>
+  </fieldset>
+  <p class="av-save"><button class="btn btn-primary" type="submit">{{ _("Save my avatar") }}</button></p>
+</form>
+<p class="hint">{{ _("A drawing made of shapes: nothing is uploaded. It is shown on your own pages only.") }}</p>
+{% endblock %}

@@ -7,9 +7,14 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Your avatar (DECISIONS.md D115): under You, a student makes their own avatar from skin
+  tones, hair styles and colours (a headscarf among them), a moustache or a beard, glasses
+  and a top in a course colour, the preview following each choice with no script. It asks
+  the questions on the science and code pages.
+
 - The technical pages in plain words (DECISIONS.md D114): on How the code works and on the
-  science page, each part opens with a question from Emanuele, a student drawn after the
-  owner, and Spark's answer with a picture from everyday life (a navigation app, light
+  science page, each part opens with a question from the student (their own avatar) and
+  Spark's answer with a picture from everyday life (a navigation app, light
   switches, a phone's battery, ripples in a pond, a loaded coin, headlights; leaking
   glasses, the gym, watering a plant), with a line on where the picture stops being true.
   Each step of a scene says it plainly, then exactly, and the pictures are drawn into the

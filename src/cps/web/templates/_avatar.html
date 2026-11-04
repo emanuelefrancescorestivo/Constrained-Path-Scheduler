@@ -1,0 +1,62 @@
+{# The student's own avatar (D115), made from parts on the avatar page and kept as their
+   names in the plan's options: it asks the questions on the science and code pages
+   (D114). Soft shapes in Spark's manner, no outlines; every colour a class on the root
+   (`skin-*`, `col-*`, `top-*`, set in style.css), so there is no style attribute. With
+   no avatar made yet (or on the public pages), a plain silhouette.
+
+   `every` draws every part at once, each tagged (`avo` and the option's class), for the
+   avatar page's preview: there the radios choose what shows and its colours through
+   CSS (`:has`), with no script. `uid` keeps the clip path's id apart when a page shows
+   more than one. Decoration: hidden from screen readers; the words beside it say who
+   speaks. #}
+{% macro face(spec, uid="me", every=false, extra="") -%}
+{% if spec is none and not every -%}
+<svg class="av-face av-ghost{{ extra }}" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+  <defs><clipPath id="{{ uid }}-round"><circle cx="60" cy="60" r="58"></circle></clipPath></defs>
+  <circle class="av-bg" cx="60" cy="60" r="58"></circle>
+  <g clip-path="url(#{{ uid }}-round)">
+    <circle class="av-ghost-fill" cx="60" cy="50" r="20"></circle>
+    <path class="av-ghost-fill" d="M22 122C24 98 40 86 60 86 80 86 96 98 98 122Z"></path>
+  </g>
+</svg>
+{%- else -%}
+{% set s = spec or {} %}
+<svg class="av-face av skin-{{ s.skin or 's3' }} col-{{ s.colour or 'dark' }} top-{{ s.top or 'c0' }}{{ extra }}" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+  <defs><clipPath id="{{ uid }}-round"><circle cx="60" cy="60" r="58"></circle></clipPath></defs>
+  <circle class="av-bg" cx="60" cy="60" r="58"></circle>
+  <g clip-path="url(#{{ uid }}-round)">
+    {% if every or s.hair in ("long",) %}<path class="avo hs-long av-hair" d="M30 50C28 30 42 15 60 15 78 15 92 30 90 50L93 100C86 106 78 104 74 98L74 72H46V98C42 104 34 106 27 100Z"></path>{% endif %}
+    <path class="av-top" d="M14 122C16 100 32 90 60 88 88 90 104 100 106 122Z"></path>
+    <path class="av-collar" d="M48 90 60 103 72 90"></path>
+    <path class="av-shade" d="M52 76H68V93C66 96 54 96 52 93Z"></path>
+    <ellipse class="av-shade" cx="34" cy="58" rx="5.5" ry="8"></ellipse>
+    <ellipse class="av-shade" cx="86" cy="58" rx="5.5" ry="8"></ellipse>
+    {% if every or s.hair in ("scarf",) %}<path class="avo hs-scarf av-hair" d="M27 60C25 34 40 15 60 15 80 15 95 34 93 60 94 74 98 88 104 100 90 110 30 110 16 100 22 88 26 74 27 60Z"></path>{% endif %}
+    <path class="av-skin" d="M33 50C33 30 46 23 60 23 74 23 87 30 87 50V61C87 78 75 89 60 89 45 89 33 78 33 61Z"></path>
+    <ellipse class="av-light" cx="52" cy="40" rx="15" ry="9"></ellipse>
+    <ellipse class="av-blush" cx="43" cy="67" rx="5.5" ry="3.4"></ellipse>
+    <ellipse class="av-blush" cx="77" cy="67" rx="5.5" ry="3.4"></ellipse>
+    <path class="av-brow" d="M42 46C45.5 43 50.5 42.5 54.5 44"></path>
+    <path class="av-brow" d="M65.5 44C69.5 42.5 74.5 43 78 46"></path>
+    <path class="av-eye" d="M44.5 52.5C46.5 50.6 50.5 50.6 52.5 52.5 50.5 54.2 46.5 54.2 44.5 52.5Z"></path>
+    <path class="av-eye" d="M67.5 52.5C69.5 50.6 73.5 50.6 75.5 52.5 73.5 54.2 69.5 54.2 67.5 52.5Z"></path>
+    <circle class="av-glint" cx="49" cy="52.1" r=".7"></circle>
+    <circle class="av-glint" cx="72" cy="52.1" r=".7"></circle>
+    <path class="av-line" d="M60 56V64C58.4 65.8 58.2 67 59.4 68"></path>
+    <path class="av-mouth" d="M54.5 79C57.5 81.4 62.5 81.4 65.5 79"></path>
+    {% if every or s.face in ("beard",) %}<path class="avo fh-beard av-hair" d="M33 58C33 74 40 86 50 90 54 92 66 92 70 90 80 86 87 74 87 58 85 66 82 72 77 75 74 80 70 84 60 85 50 84 46 80 43 75 38 72 35 66 33 58Z"></path>{% endif %}
+    {% if every or s.face in ("moustache", "beard") %}<path class="avo fh-moustache fh-beard av-hair" d="M46 75C47 70.5 53 69 60 70.6 67 69 73 70.5 74 75 74.6 76.6 74 77.6 73.2 78 71.8 75.2 67 73.6 60 74 53 73.6 48.2 75.2 46.8 78 46 77.6 45.4 76.6 46 75Z"></path>{% endif %}
+    {% if every or s.glasses in ("round",) %}<g class="avo gl-round av-glasses"><circle cx="48.5" cy="52.5" r="7.5"></circle><circle cx="71.5" cy="52.5" r="7.5"></circle><path d="M56 52C58 50.5 62 50.5 64 52M41 51 34.5 49.5M79 51 85.5 49.5"></path></g>{% endif %}
+    {% if every or s.glasses in ("square",) %}<g class="avo gl-square av-glasses"><rect x="40" y="46.5" width="17" height="12" rx="3.5"></rect><rect x="63" y="46.5" width="17" height="12" rx="3.5"></rect><path d="M57 51C58.8 49.8 61.2 49.8 63 51M40 50 34.5 49M80 50 85.5 49"></path></g>{% endif %}
+    {% if every or s.hair in ("short", "bun") %}<path class="avo hs-short hs-bun av-hair" d="M33 54C31 36 42 21 60 21 78 21 89 36 87 54 85 44 80 37 72 35 64 38 52 38 44 37 37 42 34 48 33 54Z"></path>{% endif %}
+    {% if every or s.hair in ("bun",) %}<circle class="avo hs-bun av-hair" cx="60" cy="14" r="10"></circle>{% endif %}
+    {% if every or s.hair in ("shaved",) %}<path class="avo hs-shaved av-hair av-stubble" d="M33 50C32 34 43 23 60 23 77 23 88 34 87 50 84 40 76 33 60 33 44 33 36 40 33 50Z"></path>{% endif %}
+    {% if every or s.hair in ("swept",) %}<g class="avo hs-swept"><path class="av-hair" d="M29 56C25 40 27 24 39 14 47 8 58 6 69 7 82 8 92 16 94 29 96 39 93 48 89 56 88 47 85 41 81 37 79 41 75 43 70 42 73 38 72 33 70 30 64 37 54 41 42 42 44 38 44 35 42 33 38 38 34 45 32 56Z"></path><path class="av-hair-deep" d="M58 29C53 35 48 40 44 46 49 42 54 40 59 37 60 34 60 31 58 29Z"></path></g>{% endif %}
+    {% if every or s.hair in ("long",) %}<path class="avo hs-long av-hair" d="M33 56C30 36 42 20 60 20 78 20 90 36 87 56 84 46 78 38 68 34 62 40 50 42 40 46 35 50 34 53 33 56Z"></path>{% endif %}
+    {% if every or s.hair in ("curly",) %}<path class="avo hs-curly av-hair" d="M31 54C25 48 27 38 33 35 30 27 37 20 44 22 46 14 56 12 61 17 66 11 76 13 78 21 86 19 92 27 89 34 95 39 92 49 88 54 86 45 80 38 72 37 66 33 58 36 50 34 43 38 36 42 31 54Z"></path>{% endif %}
+    {% if every or s.hair in ("scarf",) %}<path class="avo hs-scarf av-hair" d="M34 48C36 32 46 24 60 24 74 24 84 32 86 48 80 40 70 35 60 35 50 35 40 40 34 48Z"></path>{% endif %}
+    {% if every or s.hair in ("short", "swept", "long", "curly", "bun", "scarf") %}<path class="avo hs-short hs-swept hs-long hs-curly hs-bun hs-scarf av-sheen" d="M44 22C50 17 60 15.5 69 18 60 18.5 52 21 46.5 26Z"></path>{% endif %}
+  </g>
+</svg>
+{%- endif %}
+{%- endmacro %}

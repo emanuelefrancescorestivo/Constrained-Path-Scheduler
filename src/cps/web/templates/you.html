@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_art.html" import art %}
+{% from "_avatar.html" import face %}
 {% block title %}{{ _("You") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {# Everything that is not Today, the calendar, a course or the community (D97): one
@@ -7,6 +8,9 @@
 <div class="page-title">
   <h1>{{ _("You") }}</h1>
 </div>
+{# The student's avatar (D115): made here, it asks the questions on the science and code
+   pages. #}
+<a class="card you-me" href="/p/{{ token }}/avatar">{{ face(my_avatar, "you-me") }}<span class="grow"><b>{% if my_avatar %}{{ _("Your avatar") }}{% else %}{{ _("Make your avatar") }}{% endif %}</b><small>{{ _("It asks the questions on the science and code pages") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
 <h2 class="section">{{ _("Your study") }}</h2>
 <ul class="card list you-list">
   <li><a href="/p/{{ token }}/progress">{{ art("progress") }}<span class="grow"><b>{{ _("Progress") }}</b><small>{{ _("Your week, your streak, how ready each exam is") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>

@@ -3143,15 +3143,14 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   .sci-glasses .code-tower :is(.f-front, .f-back) { width: 28px; }
   .sci-glasses .code-tower :is(.f-left, .f-right) { height: 28px; }
 }
-/* The plain layer (D114): Emanuele asks, Spark answers with a picture from everyday
+/* The plain layer (D114): the student (their own avatar, D115) asks, Spark answers with a picture from everyday
    life, a line says where the picture stops; each step of a scene in plain words, its
    technical sentence under it. */
 .chat { display: grid; gap: 10px; margin: 14px 0 16px; }
 .chat-row { display: flex; align-items: flex-end; gap: 10px; }
 .chat-answer { justify-content: flex-end; }
-.chat .student, .chat .mascot { flex: none; width: 48px; height: 48px; }
+.chat .av-face, .chat .mascot { flex: none; width: 48px; height: 48px; }
 .chat .mascot, .chat .mascot * { animation: none !important; }
-.student-bg { fill: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
 .chat-bubble { margin: 0; max-width: 34rem; padding: 10px 14px; border-radius: 18px; font-size: 1rem; line-height: 1.45; }
 .chat-ask .chat-bubble { background: var(--fill-3); border-bottom-left-radius: 6px; }
 .chat-answer .chat-bubble { background: var(--accent-soft); color: var(--text); border-bottom-right-radius: 6px; }
@@ -3200,9 +3199,113 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .sci-drop-key { display: inline-block; margin-right: 6px; vertical-align: -2px; }
 .code-ripple { display: none; position: absolute; left: 100%; top: 100%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%; border: 2px solid var(--accent); pointer-events: none; }
 @media (max-width: 560px) {
-  .chat .student, .chat .mascot { width: 40px; height: 40px; }
+  .chat .av-face, .chat .mascot { width: 40px; height: 40px; }
   .chat-bubble { font-size: 0.95rem; }
 }
+/* The student's avatar (D115): its colours are custom properties set by class, on the
+   avatar (`skin-*`, `col-*`, `top-*`) or, on the avatar page, by the radio checked
+   (`.av-maker:has(...)`, which weighs more), so the preview follows each choice with no
+   script. Every part's fill comes from them. */
+.av { --av-skin: #dba67f; --av-shade: #c98f68; --av-deep: #ae7552; --av-hair: #3f2618; --av-brow: #2b1a10; --av-top: var(--c0); }
+.av.skin-s1 { --av-skin: #f7dcc8; --av-shade: #ebc3a8; --av-deep: #d29f84; }
+.av.skin-s2 { --av-skin: #f1c7a5; --av-shade: #e2ab88; --av-deep: #c98c6c; }
+.av.skin-s3 { --av-skin: #dba67f; --av-shade: #c98f68; --av-deep: #ae7552; }
+.av.skin-s4 { --av-skin: #b97e57; --av-shade: #a56a45; --av-deep: #8a5536; }
+.av.skin-s5 { --av-skin: #8d5a3b; --av-shade: #7a4a2e; --av-deep: #5e3520; }
+.av.skin-s6 { --av-skin: #5e3b27; --av-shade: #4e2f1e; --av-deep: #33200f; }
+.av.col-dark { --av-hair: #3f2618; --av-brow: #2b1a10; }
+.av.col-black { --av-hair: #23201f; --av-brow: #151312; }
+.av.col-brown { --av-hair: #6b4430; --av-brow: #4a2e1f; }
+.av.col-auburn { --av-hair: #8d3f22; --av-brow: #5e2a17; }
+.av.col-blonde { --av-hair: #d8b26a; --av-brow: #9c7a45; }
+.av.col-grey { --av-hair: #a9a5a0; --av-brow: #77736e; }
+.av.col-pink { --av-hair: #e58bb5; --av-brow: #6b4b3a; }
+.av.col-blue { --av-hair: #5a7fd6; --av-brow: #4a3a30; }
+.av.top-c0 { --av-top: var(--c0); }
+.av.top-c1 { --av-top: var(--c1); }
+.av.top-c2 { --av-top: var(--c2); }
+.av.top-c3 { --av-top: var(--c3); }
+.av.top-c4 { --av-top: var(--c4); }
+.av.top-c5 { --av-top: var(--c5); }
+.av.top-c6 { --av-top: var(--c6); }
+/* The same colours on the avatar page's preview, from the radio checked; apart, so that a
+   browser without :has drops only these (tests/test_avatar.py keeps the two the same). */
+.av-maker:has(#av-skin-s1:checked) .av-preview { --av-skin: #f7dcc8; --av-shade: #ebc3a8; --av-deep: #d29f84; }
+.av-maker:has(#av-skin-s2:checked) .av-preview { --av-skin: #f1c7a5; --av-shade: #e2ab88; --av-deep: #c98c6c; }
+.av-maker:has(#av-skin-s3:checked) .av-preview { --av-skin: #dba67f; --av-shade: #c98f68; --av-deep: #ae7552; }
+.av-maker:has(#av-skin-s4:checked) .av-preview { --av-skin: #b97e57; --av-shade: #a56a45; --av-deep: #8a5536; }
+.av-maker:has(#av-skin-s5:checked) .av-preview { --av-skin: #8d5a3b; --av-shade: #7a4a2e; --av-deep: #5e3520; }
+.av-maker:has(#av-skin-s6:checked) .av-preview { --av-skin: #5e3b27; --av-shade: #4e2f1e; --av-deep: #33200f; }
+.av-maker:has(#av-colour-dark:checked) .av-preview { --av-hair: #3f2618; --av-brow: #2b1a10; }
+.av-maker:has(#av-colour-black:checked) .av-preview { --av-hair: #23201f; --av-brow: #151312; }
+.av-maker:has(#av-colour-brown:checked) .av-preview { --av-hair: #6b4430; --av-brow: #4a2e1f; }
+.av-maker:has(#av-colour-auburn:checked) .av-preview { --av-hair: #8d3f22; --av-brow: #5e2a17; }
+.av-maker:has(#av-colour-blonde:checked) .av-preview { --av-hair: #d8b26a; --av-brow: #9c7a45; }
+.av-maker:has(#av-colour-grey:checked) .av-preview { --av-hair: #a9a5a0; --av-brow: #77736e; }
+.av-maker:has(#av-colour-pink:checked) .av-preview { --av-hair: #e58bb5; --av-brow: #6b4b3a; }
+.av-maker:has(#av-colour-blue:checked) .av-preview { --av-hair: #5a7fd6; --av-brow: #4a3a30; }
+.av-maker:has(#av-top-c0:checked) .av-preview { --av-top: var(--c0); }
+.av-maker:has(#av-top-c1:checked) .av-preview { --av-top: var(--c1); }
+.av-maker:has(#av-top-c2:checked) .av-preview { --av-top: var(--c2); }
+.av-maker:has(#av-top-c3:checked) .av-preview { --av-top: var(--c3); }
+.av-maker:has(#av-top-c4:checked) .av-preview { --av-top: var(--c4); }
+.av-maker:has(#av-top-c5:checked) .av-preview { --av-top: var(--c5); }
+.av-maker:has(#av-top-c6:checked) .av-preview { --av-top: var(--c6); }
+.av-face { display: block; }
+.av-bg { fill: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.av-ghost-fill { fill: color-mix(in srgb, var(--accent) 36%, var(--surface)); }
+.av-skin { fill: var(--av-skin); }
+.av-shade { fill: var(--av-shade); }
+.av-hair { fill: var(--av-hair); }
+.av-hair-deep { fill: var(--av-brow); }
+.av-stubble { opacity: 0.32; }
+.av-sheen { fill: #fff; opacity: 0.18; }
+.av-light { fill: #fff; opacity: 0.14; }
+.av-blush { fill: #f29a8a; opacity: 0.3; }
+.av-top { fill: var(--av-top); }
+.av-collar { fill: none; stroke: rgb(0 0 0 / 22%); stroke-width: 1.6; stroke-linejoin: round; }
+.av-brow { fill: none; stroke: var(--av-brow); stroke-width: 3.6; stroke-linecap: round; }
+.av-eye { fill: #3a2418; }
+.av-glint { fill: #fff; }
+.av-line { fill: none; stroke: var(--av-deep); stroke-width: 1.5; stroke-linecap: round; }
+.av-mouth { fill: none; stroke: #b56a5a; stroke-width: 1.7; stroke-linecap: round; }
+.av-glasses { fill: rgb(255 255 255 / 16%); stroke: #2b2b2b; stroke-width: 1.7; stroke-linecap: round; }
+.av-glasses path { fill: none; }
+/* The maker: every part is drawn in the preview, and only the ones checked show. A
+   browser without :has shows the avatar as saved instead. */
+@supports selector(:has(*)) {
+  .av-maker .avo { display: none; }
+  .av-stage .av-saved { display: none; }
+}
+@supports not selector(:has(*)) {
+  .av-stage .av-preview { display: none; }
+}
+.av-maker:has(#av-hair-short:checked) .hs-short, .av-maker:has(#av-hair-swept:checked) .hs-swept,
+.av-maker:has(#av-hair-long:checked) .hs-long, .av-maker:has(#av-hair-curly:checked) .hs-curly,
+.av-maker:has(#av-hair-bun:checked) .hs-bun, .av-maker:has(#av-hair-shaved:checked) .hs-shaved,
+.av-maker:has(#av-hair-scarf:checked) .hs-scarf,
+.av-maker:has(#av-face-moustache:checked) .fh-moustache, .av-maker:has(#av-face-beard:checked) .fh-beard,
+.av-maker:has(#av-glasses-round:checked) .gl-round, .av-maker:has(#av-glasses-square:checked) .gl-square { display: inline; }
+.av-maker { display: grid; gap: 12px; }
+.av-stage { position: sticky; top: calc(var(--topbar, 56px) + 8px); z-index: 2; display: grid; place-items: center; padding: 14px; }
+.av-stage .av-face { width: 148px; height: 148px; }
+.av-part { margin: 0; border: 0; padding: 12px 16px 14px; min-width: 0; }
+.av-part legend { float: left; width: 100%; margin-bottom: 8px; padding: 0; }
+.av-chips { clear: both; display: flex; flex-wrap: wrap; gap: 8px; }
+.av-pick { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.av-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 14px; border-radius: 22px; background: var(--fill-3); border: 2px solid transparent; font-weight: 600; cursor: pointer; }
+.av-chip-swatch { padding: 0; width: 44px; }
+.av-pick:checked + .av-chip { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.av-pick:focus-visible + .av-chip { outline: 2px solid var(--accent); outline-offset: 2px; }
+.av-swatch { display: block; width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
+.av-swatch-skin { background: var(--av-skin); }
+.av-swatch-hair { background: var(--av-hair); }
+.av-swatch-top { background: var(--av-top); }
+.av-save { margin: 4px 0 0; }
+.av-save .btn { width: 100%; }
+.you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
+.you-me .av-face { width: 56px; height: 56px; flex: none; }
+.you-me small { display: block; color: var(--muted); }
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
 @property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
