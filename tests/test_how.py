@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -113,7 +114,10 @@ def test_the_page_opens_for_anyone_and_inside_a_plan(web, view):
     assert " style=" not in text and "<script>" not in text  # nothing the CSP would block
     for number in (view["exact"]["value"], view["exact"]["states"], view["h_sum"], view["best_q"], "19/81"):
         assert number in text
-    assert len(re.findall(r'class="[^"]*\bscroll-fig\b', text)) == 9  # one per scene
+    # Ten scenes: four run while scrolled through (D112), the rest draw themselves.
+    assert text.count('class="code-scene') == 10
+    assert len(re.findall(r'<div class="code-pin[ "]', text)) == 4
+    assert len(re.findall(r'class="[^"]*\bscroll-fig\b', text)) == 7
     assert 'href="/science"' in text
     assert "Comment marche le code" in web.get("/how?lang=fr").text
     assert "Come funziona il codice" in web.get("/how?lang=it").text
@@ -226,5 +230,141 @@ def test_the_landscape_and_the_layers_are_the_numbers(web, view):
         assert f"code-layer {layer}" in page
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     assert all(f".tz{n} {{ --h: calc({n} * var(--u)); }}" in css for n in range(1, 21))
-    # A tower never fades while it rises: opacity below 1 would flatten it.
-    assert "@keyframes code-rise { from { transform: scaleZ(0.02); } to { transform: none; } }" in css
+    # A tower never fades while it grows (D112): opacity below 1 would flatten it.
+    sweep = re.search(r"@keyframes code-sweep \{(.*?)\n\}", css, re.S)
+    assert sweep and "opacity" not in sweep[1] and "--zq: var(--q7)" in sweep[1]
+
+
+# --------------------------------------------------------------------------- #
+# D112: the engine as it runs
+# --------------------------------------------------------------------------- #
+
+
+def test_the_traces_record_the_search_without_changing_it():
+    """AO* and value iteration take an optional trace; with it they return the same
+    answer, and the trace is the run: one entry per expansion or sweep, in order."""
+    solved = service._code_solved()
+    instance = solved["instance"]
+    for key, heuristic in solved["heuristics"].items():
+        trace: list[plan.Expansion] = []
+        traced = plan.solve_ao_star(instance, heuristic, trace=trace)
+        plain = plan.solve_ao_star(instance, heuristic)
+        assert (traced.value, traced.nodes, traced.policy) == (plain.value, plain.nodes, plain.policy)
+        assert len(trace) == traced.nodes
+        assert [e.state for e in trace] == [e.state for e in solved["traces"][key]]
+    sweeps: list = []
+    config = solved["policy"].config
+    traced_policy = ssp.solve(config, trace=sweeps)
+    plain_policy = ssp.solve(config)
+    assert len(sweeps) == traced_policy.sweeps == plain_policy.sweeps
+    assert (sweeps[-1] == plain_policy.expected_cost).all()
+    assert (traced_policy.expected_cost == plain_policy.expected_cost).all()
+
+
+def test_the_search_drawn_is_the_search_that_ran(web, view):
+    """The disc's nodes are the states AO* opened (and those its best plan reached), each
+    shown when it was produced and filled when it was opened; the best plan of each
+    step is the marked graph then; the last is every evening left free."""
+    solved = service._code_solved()
+    trace = solved["traces"]["capacity"]
+    optimum = solved["exact"][0]
+    search = view["search"]
+    # "The estimate at the root rises toward the true cost and never passes it."
+    values = [solved["heuristics"]["capacity"](solved["instance"], solved["instance"].initial)]
+    values += [e.root_value for e in trace]
+    assert all(b >= a - 1e-12 for a, b in pairwise(values))
+    assert all(v <= optimum + 1e-9 for v in values) and values[-1] == pytest.approx(optimum, abs=1e-9)
+    assert search["start"] == "4"  # "the best plan costs at least {h}"
+    # "Here, every evening left free": the last best plan leaves each block free.
+    final = trace[-1].marked
+    assert final and all(action == plan.SKIP for _, action, _ in final) and len(final) == 5
+    assert [p["final"] for p in search["plans"]] == [False] * (len(search["plans"]) - 1) + [True]
+    assert all(e["tone"] == "skip" for e in search["plans"][-1]["edges"])
+    opened = [d for d in search["dots"] if d["opened"] is not None]
+    assert len(opened) == len(trace) == int(view["runs"][-1]["nodes"]) == 114
+    assert 175 <= len(search["dots"]) <= 185  # "about 180 drawn" (D112)
+    assert all(d["made"] <= d["opened"] for d in opened)
+    assert [c["opened"] for c in search["counts"]] == sorted(c["opened"] for c in search["counts"])
+    assert search["counts"][search["last"]]["opened"] == 114
+    # The steps of the scroll are cut over the longest run, the one with no guess.
+    assert search["last"] == (114 - 1) * service.CODE_SEARCH_STEPS // 184
+    # Each node on the ring of its evening, tonight in the centre.
+    rings = [0.0] + [r["r"] for r in search["rings"]]
+    for d in search["dots"]:
+        assert round((d["x"] ** 2 + d["y"] ** 2) ** 0.5) in {round(r) for r in rings}
+    page = web.get("/how").text
+    assert page.count('class="code-gdot ') == len(search["dots"])
+    assert page.count('class="code-odot ') == len(opened)
+    assert page.count('<g class="code-plan ') == len(search["plans"])
+    assert page.count(" code-final") == 1
+    assert search["guided"] in page and search["blind"] in page
+
+
+def test_the_value_table_fills_sweep_by_sweep(view):
+    """The towers' heights at each stop are the table after that many sweeps: all 0,
+    then 1 everywhere (one review), rising to the settled table; never falling."""
+    stops = view["sweep_stops"]
+    expected = [*service.CODE_SWEEP_STOPS, view["sweeps"]]
+    assert [s["sweep"] for s in stops] == expected == [0, 1, 2, 3, 4, 6, 10, 51]
+    sweeps = service._code_solved()["sweeps"]
+    assert len(sweeps) == view["sweeps"]
+    # "A sweep gives every cell its cheapest review: 1 for the review ..." from 0.
+    first = sweeps[0]
+    assert set(first.ravel().tolist()) == {0.0, 1.0}  # 1 everywhere, 0 where the target is already met
+    assert float(first[:, 0].max()) == 1.0
+    assert stops[-1]["change"] == view["residual"]  # "no cell moves by more than {e}"
+    assert [s["change"] for s in stops] == ["", "1", "1", "1", "0.88", "0.48", "0.09", "9e-10"]  # D112's text
+    for row in view["table"]:
+        for cell in row["cells"]:
+            heights = cell["zq"]
+            assert len(heights) == 8 and heights[0] == 0 and heights[-1] == cell["z"]
+            assert heights == sorted(heights)
+
+
+def test_the_scenes_that_run_have_their_steps_and_stand_still_without_motion(web, view):
+    """Each pinned scene lists its steps; without scroll-driven animations or with
+    motion off, the figure is complete and the steps are a list; with them, the track
+    and its timeline exist only in the motion block. The replanning strip's CSS holds
+    the page's numbers."""
+    page = web.get("/how").text
+    for scene, steps in (("bits", 4), ("value", 4), ("search", 5), ("rolling", 4)):
+        part = page.split(f'id="{scene}"', 1)[1].split("</section>", 1)[0]
+        assert '<div class="code-pin' in part
+        caps = re.findall(r'<li class="cap(\d)of(\d)">', part)
+        assert [int(a) for a, _ in caps] == list(range(1, steps + 1)) and {int(b) for _, b in caps} == {steps}
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    opening = "@supports (animation-timeline: view()) {\n  @media (prefers-reduced-motion: no-preference) {\n"
+    start = css.index(opening + '    :root:not([data-motion="reduce"]) .scroll-fig')
+    end = css.index("\n}\n", start)
+    block, outside = css[start:end], css[:start] + css[end:]
+    assert "view-timeline: --pin block" in block and "position: sticky" in block
+    assert "--pin" not in outside and "position: sticky; top: var(--topbar); height" not in outside
+    for k in (4, 5):
+        assert all(f".cap{i}of{k} {{ animation-range:" in block for i in range(1, k + 1))
+    ranges = (f".eb{s} {{ animation-range: contain {4 * s}% contain {4 * s + 4}%; }}" for s in range(25))
+    assert all(r in block for r in ranges)
+    # Without motion: the last best plan and the last readout only, the steps a list.
+    for rule in (
+        ".code-plan { display: none; }",
+        ".code-plan.code-final { display: inline; }",
+        ".code-readout .code-was { display: none; }",
+        ".code-cover { fill: var(--surface); display: none; }",
+    ):
+        assert rule in outside, rule
+    assert all(f".q{i}z{z} {{ --q{i}: {z}; }}" in css for i in range(8) for z in range(21))
+    # The strip: 21 days, a window of 5, 17 plans (16 moves of a day).
+    assert (view["exam_days"], view["day_count"], view["replans"]) == ("21", 5, 17)
+    assert "repeat(21, minmax(0, 1fr)) minmax(0, 3fr)" in css and "width: calc(100% * 5 / 24)" in css
+    assert "translateX(320%)" in css and "steps(17, jump-none)" in block
+    assert not re.search(r"@keyframes code-[a-z-]+ \{[^@]*infinite", css)
+
+
+def test_the_technical_pages_are_solid_not_glass(web):
+    """The owner's report (AUDIT 94): see-through panes made the figures hard to follow.
+    The code and science pages keep the sky, and their panels are solid."""
+    assert '<main class="site code-page tech">' in web.get("/how").text
+    assert '<main class="site tech">' in web.get("/science").text
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    rule = re.search(r"body\[data-sky\] main\.tech :is\(\.card, fieldset, \.stat, \.tile\) \{([^}]*)\}", css)
+    assert rule and "background: var(--surface)" in rule[1] and "backdrop-filter: none" in rule[1]

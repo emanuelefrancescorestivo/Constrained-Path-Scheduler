@@ -4,12 +4,16 @@
    one worked example, scene by scene, each figure drawing itself as the page is
    scrolled (CSS scroll-driven animations, `.scroll-fig` and its stages `.st1`..`.st5`;
    elsewhere, and under reduced motion, every figure is simply there). The page wears
-   the app's sky and glass, the two topics the app's first two course colours, the exam
-   its red. Every number is computed by service.code_view from the planner's own code:
-   the timetable as bits, FSRS-4.5, value iteration (SSP-MMC), the heuristics, AO*, and
-   the exhaustive solve that checks them. SVG text is 12 units or more. #}
+   the app's sky, the two topics the app's first two course colours, the exam its red,
+   its figures on solid panels (D112, `main.tech`). Four scenes run as they are scrolled
+   through (D112, `.code-pin`): the week's bits set mask by mask, the value table
+   filling sweep by sweep, AO* opening node after node, the window of replanning moving
+   on. Every number is computed by service.code_view from the planner's own code: the
+   timetable as bits, FSRS-4.5, value iteration (SSP-MMC) and its sweeps, the
+   heuristics, AO* and its trace, and the exhaustive solve that checks them. SVG text
+   is 12 units or more. #}
 {% block title %}{{ _("How the code works") }} · {{ _("Study plan") }}{% endblock %}
-{% block site_class %} code-page{% endblock %}
+{% block site_class %} code-page tech{% endblock %}
 {% block main %}
 {% set h = how %}
 {% set base = "/p/" ~ token if token else "" %}
@@ -30,7 +34,7 @@
     <p class="code-question">{{ _("Which one gets tonight's block, if either?") }}</p>
   </div>
   <nav class="code-steps" aria-label="{{ _('The steps') }}">
-    {% for id, word in (("bits", _("Bits")), ("memory", _("Memory")), ("score", _("Score")), ("value", _("Value")), ("andor", _("AND/OR")), ("heuristic", _("Guess")), ("checked", _("Check")), ("rolling", _("Replan")), ("rules", _("Rules"))) %}
+    {% for id, word in (("bits", _("Bits")), ("memory", _("Memory")), ("score", _("Score")), ("value", _("Value")), ("andor", _("AND/OR")), ("search", _("Node by node")), ("heuristic", _("Guess")), ("checked", _("Check")), ("rolling", _("Replan")), ("rules", _("Rules"))) %}
     <a href="#{{ id }}"><span class="sci-step">{{ loop.index }}</span>{{ word }}</a>
     {% endfor %}
   </nav>
@@ -38,7 +42,7 @@
 </header>
 
 {# 1. The calendar is a number (timegrid.py) #}
-<section class="code-scene" id="bits">
+<section class="code-scene code-scene-pin" id="bits">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">1</span><code>timegrid.py</code></p>
     <h2>{{ _("A week is one number") }}</h2>
@@ -46,10 +50,13 @@
     <p>{{ _("Each half hour is one bit: 1 when it is taken (sleep, classes), 0 when it is free. {days} days are {n} bits; {busy} are taken, {free} are free.", days=h.day_count, n=h.slots, busy=h.busy_slots, free=h.free_slots) }}</p>
     <p>{{ _("Whether a stretch of time is free is one AND with a mask, however long the stretch. Free time is then cut into study blocks of {hours} hours, here at most one an evening.", hours=h.block_hours) }}</p>
   </div>
-  {# The week as the code builds it (D111): the sleep mask and the classes mask, then the
-     blocks cut from what is left, three layers that fall into one calendar as the figure
-     scrolls into view. Flat, the three layers are simply the calendar. #}
-  <figure class="card code-fig scroll-fig code-stack-fig">
+  {# The week as the code builds it (D111, run as it is scrolled since D112): every bit
+     0, then the sleep mask's bits set, then the classes', each layer apart in depth,
+     then the blocks cut from what is still 0, and the three layers fall into one
+     calendar. Flat, the three layers are simply the calendar. #}
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card code-fig code-stack-fig">
     <div class="code-stack">
     <svg class="code-chart code-layer code-layer-base" viewBox="0 0 330 244" role="img" aria-label="{{ _('{days} days of half-hour slots: taken, free, and the study blocks cut from what is free', days=h.day_count) }}">
       <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
@@ -57,25 +64,33 @@
       {% for d in h.days %}{% set x0 = 32 + d.day * 59 %}
       <text class="code-tick" x="{{ x0 + 25 }}" y="20" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
       <rect class="cal-col" x="{{ x0 }}" y="32" width="40" height="192" rx="7"></rect>
-      {% for r in d.runs if r.kind == "sleep" %}<rect class="ev-sleep" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% endfor %}
-      <g class="st2">{% for bit in d.bits %}<rect class="bit{{ bit }}" x="{{ x0 + 44 }}" y="{{ 32 + loop.index0 * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}</g>
+      {% for bit in d.bits %}<rect class="bit0" x="{{ x0 + 44 }}" y="{{ 32 + loop.index0 * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}
       {% endfor %}
+      <g class="lay-sleep">{% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "sleep" %}<rect class="ev-sleep" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% endfor %}{% for s in d.set if s.kind == "sleep" %}{% for k in s.slots %}<rect class="bit1" x="{{ x0 + 44 }}" y="{{ 32 + k * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
       <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("sleep") }}</text>
     </svg>
     <svg class="code-chart code-layer code-layer-classes" viewBox="0 0 330 244" aria-hidden="true">
       <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
-      {% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "classes" %}<rect class="ev-classes" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect><rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endfor %}{% endfor %}
+      <g class="lay-classes">{% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "classes" %}<rect class="ev-classes" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect><rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endfor %}{% for s in d.set if s.kind == "classes" %}{% for k in s.slots %}<rect class="bit1" x="{{ x0 + 44 }}" y="{{ 32 + k * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
       <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("classes") }}</text>
     </svg>
     <svg class="code-chart code-layer code-layer-study" viewBox="0 0 330 244" aria-hidden="true">
       <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
-      {% for b in h.blocks %}<rect class="ev-study" x="{{ 33 + b.day * 59 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ h.block_slots * 4 - 1 }}" rx="5"></rect>{% endfor %}
+      <g class="lay-study">{% for b in h.blocks %}<rect class="ev-study" x="{{ 33 + b.day * 59 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ h.block_slots * 4 - 1 }}" rx="5"></rect>{% endfor %}</g>
       <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("a study block") }}</text>
     </svg>
     </div>
-    <p class="code-bits st4"><span class="code-label">{{ _("Day 1") }}</span>{% for g in h.days[0].groups %}<code>{{ g }}</code>{% endfor %}</p>
+    <p class="code-bits"><span class="code-label">{{ _("Day 1") }}</span>{% for g in h.days[0].groups %}<code>{{ g }}</code>{% endfor %}</p>
     <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span><span><i class="code-key bit1"></i>{{ _("a bit set: taken") }}</span></figcaption>
   </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("{n} bits, one per half hour, every one 0: the week starts empty.", n=h.slots) }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Sleep sets its bits, from {a} to {b}: one OR with its mask.", a=h.sleep.from, b=h.sleep.to) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes set theirs, from {a} to {b} on weekdays: another OR.", a=h.classes.from, b=h.classes.to) }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("Every bit still 0 is free. {k} free in a row make a study block, here one an evening.", k=h.block_slots) }}</span></li>
+  </ol>
+  </div>
+  </div>
 </section>
 
 {# 2. A topic is two numbers (memory.py, FSRS-4.5) #}
@@ -132,7 +147,7 @@
 </section>
 
 {# 4. Value iteration (ssp.py) #}
-<section class="code-scene" id="value">
+<section class="code-scene code-scene-pin" id="value">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">4</span><code>ssp.py</code></p>
     <h2>{{ _("What reaching the target costs") }}</h2>
@@ -141,18 +156,33 @@
     <p>{{ _("Value iteration over every memory state: review at recall r, succeed with probability r, or fail. Here it converged in {n} sweeps, to within {e}.", n=h.sweeps, e=h.residual) }}</p>
     <p>{{ _("Read optimistically between grid points, it is a lower bound: no plan does better. That makes it a safe guide for the search: here {a} + {b} = {sum} reviews at least.", a=h.h_topics[0].value, b=h.h_topics[1].value, sum=h.h_sum) }}</p>
   </div>
-  <figure class="card code-fig scroll-fig">
-    {# The same numbers as a landscape (D111): a tower per cell, its height the value,
-       turning slowly as the page scrolls; the table under it says each number. #}
+  {# The same numbers as a landscape (D111): a tower per cell, its height the value. As
+     the scene is scrolled through (D112) the towers grow through the sweeps of value
+     iteration, from 0 to the settled table, `--q<stop>` each tower's height at a stop;
+     the readout says which sweep and the largest change in the whole table then. #}
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card code-fig">
     <div class="code-land" aria-hidden="true">
       <div class="code-land-plane">
-        {% for row in h.table | reverse %}{% set k = loop.index %}{% for c in row.cells %}
-        <div class="code-tower code-v{{ c.shade }} tz{{ c.z }} st{{ k }}{% for t in c.topics %} on-{{ t.color }}{% endfor %}"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">{{ c.value }}</i></div>
+        {% for row in h.table | reverse %}{% for c in row.cells %}
+        <div class="code-tower code-v{{ c.shade }} tz{{ c.z }}{% for z in c.zq %} q{{ loop.index0 }}z{{ z }}{% endfor %}{% for t in c.topics %} on-{{ t.color }}{% endfor %}"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">{{ c.value }}</i></div>
         {% endfor %}{% endfor %}
         <span class="code-axis code-axis-s">{{ _("stability") }} →</span>
         <span class="code-axis code-axis-d">{{ _("difficulty") }} →</span>
       </div>
     </div>
+    <p class="code-readout">{% for s in h.sweep_stops %}<span class="code-at qs{{ loop.index0 }}{% if not loop.last %} code-was{% endif %}">{{ _("sweep") }} <b>{{ s.sweep }}</b>{% if s.change %} · {{ _("largest change") }} <b>{{ s.change }}</b>{% endif %}</span>{% endfor %}</p>
+  </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Every cell starts at 0, as if no review were needed.") }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("A sweep gives every cell its cheapest review: 1 for the review, plus what its two futures cost, weighted by their chances.") }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Sweep after sweep, the costs spread back from the target: the shakiest, hardest topics climb highest.") }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {n} sweeps no cell moves by more than {e}: the table has settled.", n=h.sweeps, e=h.residual | replace("-", "‑")) }}</span></li>
+  </ol>
+  </div>
+  </div>
+  <figure class="card code-fig scroll-fig code-after">
     <table class="code-table" aria-label="{{ _('Expected reviews to reach the target, by difficulty and stability') }}">
       <thead><tr><th scope="col">D \ S</th>{% for c in h.columns %}<th scope="col">{{ _("{n} d", n=c) }}</th>{% endfor %}</tr></thead>
       <tbody>{% for row in h.table %}<tr class="st{{ loop.index }}"><th scope="row">{{ row.difficulty }}</th>{% for c in row.cells %}<td class="code-v{{ c.shade }}">{{ c.value }}{% for t in c.topics %}<span class="dot {{ t.color }}" title="{{ t.topic }}"></span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}</tbody>
@@ -195,10 +225,62 @@
   </figure>
 </section>
 
-{# 6. The heuristic decides how much is explored (plan.py) #}
-<section class="code-scene" id="heuristic">
+{# 6. The search as it ran (plan.py, AO* with a trace, D112). A disc: tonight in the
+   centre, a ring per evening, the end of the window outside; each node the search
+   opened, and each its best plan reached, under the node that first produced it, in
+   the colour of the choice that led there (a course's colour, grey for a block left
+   free; dashed when the review was forgotten). As the scene is scrolled through, the
+   nodes appear as they were produced and fill as they were opened, the best plan of the
+   moment is drawn thick, and the root's estimate climbs to the optimum, with the
+   planner's guess and with none. #}
+{% set s = h.search %}
+<section class="code-scene code-scene-pin" id="search">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">6</span><code>plan.py</code></p>
+    <h2>{{ _("The search, node by node") }}</h2>
+    <p class="code-big"><b>{{ h.runs[-1].nodes }}</b><span>{{ _("nodes opened to find the best plan") }}</span></p>
+    <p>{{ _("AO* keeps the best partial plan it has found so far and opens one of its unopened nodes at a time. Opening a node lays out every choice there and every future of each; the estimates above it are then corrected.") }}</p>
+  </div>
+  <div class="code-pin code-pin-long">
+  <div class="code-pin-stage">
+  <figure class="card code-fig">
+    <div class="code-disc-wrap">
+    <svg class="code-disc" viewBox="-182 -182 364 364" role="img" aria-label="{{ _('The nodes AO* opened, evening by evening out from tonight in the centre, and the best plan it found') }}">
+      {% for r in s.rings %}<circle class="code-ringline" r="{{ r.r }}"></circle>{% endfor %}
+      {% for e in s.edges %}<line class="code-tedge t-{{ e.tone }} eb{{ e.made }}{% if e.lapse %} lapse{% endif %}" x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}"></line>{% endfor %}
+      {% for p in s.plans %}<g class="code-plan eb{{ p.step }}{% if p.final %} code-final{% endif %}">{% for e in p.edges %}<line class="code-pedge t-{{ e.tone }}{% if e.lapse %} lapse{% endif %}" x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}"></line>{% endfor %}</g>{% endfor %}
+      {% for d in s.dots %}<circle class="code-gdot t-{{ d.tone }} eb{{ d.made }}" cx="{{ d.x }}" cy="{{ d.y }}" r="2.6"></circle>{% if d.opened is not none %}<circle class="code-odot t-{{ d.tone }} eb{{ d.opened }}" cx="{{ d.x }}" cy="{{ d.y }}" r="{{ 5 if d.tone == 'root' else 3 }}"></circle>{% endif %}{% endfor %}
+    </svg>
+    </div>
+    <svg class="code-climb" viewBox="0 0 330 124" role="img" aria-label="{{ _('The estimate at the root as nodes are opened, with the planner\'s guess and with none, up to the optimum') }}">
+      <line class="sci-axis" x1="20" y1="100" x2="320" y2="100"></line>
+      <polyline class="code-blind" points="{{ s.blind }}"></polyline>
+      <polyline class="code-guided" points="{{ s.guided }}"></polyline>
+      <rect class="code-cover" x="20.5" y="0" width="300" height="99"></rect>
+      <line class="code-opt" x1="20" y1="{{ s.optimum_y }}" x2="320" y2="{{ s.optimum_y }}"></line>
+      <text class="code-small" x="320" y="{{ s.optimum_y - 5 }}" text-anchor="end">{{ _("optimum {v}", v=h.score.total) }}</text>
+      <text class="code-tick" x="20" y="118">0</text>
+      <text class="code-tick" x="170" y="118" text-anchor="middle">{{ _("nodes opened") }}</text>
+      <text class="code-tick" x="320" y="118" text-anchor="end">{{ h.runs[0].nodes }}</text>
+    </svg>
+    <p class="code-readout">{% for c in s.counts[: s.last + 1] %}<span class="code-at eb{{ c.step }}{% if not loop.last %} code-was{% endif %}"><b>{{ c.opened }}</b> {{ _("nodes opened") }}</span>{% endfor %}</p>
+    <figcaption class="sci-key"><span>{{ _("Tonight in the centre, a ring for each evening after it.") }}</span><span><i class="code-key code-pedge"></i>{{ _("the best plan so far") }}</span><span><i class="code-key code-odot"></i>{{ _("opened") }}</span><span><i class="code-key code-gdot"></i>{{ _("seen, not opened") }}</span><span>{% for c in h.curves %}{{ mark(c) }}{{ c.topic }} {% endfor %}</span><span><i class="code-key code-guided"></i>{{ _("with the planner's guess") }}</span><span><i class="code-key code-blind"></i>{{ _("no guess") }}</span></figcaption>
+  </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of5"><span class="sci-step">1</span><span>{{ _("Tonight is the centre. Before anything is opened, the guess says the best plan costs at least {h}.", h=s.start) }}</span></li>
+    <li class="cap2of5"><span class="sci-step">2</span><span>{{ _("It follows the best plan so far to a node it has not opened, and opens it: every choice there, every future of each.") }}</span></li>
+    <li class="cap3of5"><span class="sci-step">3</span><span>{{ _("Each opening corrects the estimates above it. The estimate at the root rises toward the true cost and never passes it.") }}</span></li>
+    <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("It stops when the best plan has nothing left to open: {n} nodes, a score of {v}, the exhaustive optimum. Here, every evening left free.", n=h.runs[-1].nodes, v=h.score.total) }}</span></li>
+    <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("With no guess the same answer takes {n} nodes: the grey line.", n=h.runs[0].nodes) }}</span></li>
+  </ol>
+  </div>
+  </div>
+</section>
+
+{# 7. The heuristic decides how much is explored (plan.py) #}
+<section class="code-scene" id="heuristic">
+  <div class="code-copy">
+    <p class="code-kicker"><span class="sci-step">7</span><code>plan.py</code></p>
     <h2>{{ _("A good guess saves work") }}</h2>
     <p class="code-big"><b>{{ h.runs[-1].nodes }}</b><span>{{ _("nodes opened, against {n} with no guess", n=h.runs[0].nodes) }}</span></p>
     <p>{{ _("AO* expands the most promising node first, by its cost so far plus a guess of what is left. The better the guess, the fewer nodes it opens; as long as the guess never overshoots, the answer stays optimal.") }}</p>
@@ -218,10 +300,10 @@
   </figure>
 </section>
 
-{# 7. Checked, not assumed (tests/test_plan.py) #}
+{# 8. Checked, not assumed (tests/test_plan.py) #}
 <section class="code-scene" id="checked">
   <div class="code-copy">
-    <p class="code-kicker"><span class="sci-step">7</span><code>tests/test_plan.py</code></p>
+    <p class="code-kicker"><span class="sci-step">8</span><code>tests/test_plan.py</code></p>
     <h2>{{ _("Checked, not assumed") }}</h2>
     <p class="code-big"><b>{{ h.overshoots }}</b><span>{{ _("states where the guess overshoots, of {n} checked", n=h.exact.states) }}</span></p>
     <p>{{ _("An exhaustive solve works backwards through every reachable state. At each one the guess stays at or below the true cost, and AO* returns the same optimum after opening a fraction of the nodes.") }}</p>
@@ -234,34 +316,41 @@
   </figure>
 </section>
 
-{# 8. Plan a window, then replan (rolling.py, clock.py) #}
-<section class="code-scene" id="rolling">
+{# 9. Plan a window, then replan (rolling.py, clock.py). The days to the exam, the
+   window planned exactly moving on a day at a time as the scene is scrolled through
+   (D112), the days done behind it; without motion, the first window. #}
+<section class="code-scene code-scene-pin" id="rolling">
   <div class="code-copy">
-    <p class="code-kicker"><span class="sci-step">8</span><code>rolling.py · clock.py</code></p>
+    <p class="code-kicker"><span class="sci-step">9</span><code>rolling.py · clock.py</code></p>
     <h2>{{ _("Plan a little, then plan again") }}</h2>
     <p class="code-big"><b>{{ h.day_count }}</b><span>{{ _("days in view at a time, of {n} to the exam", n=h.exam_days) }}</span></p>
     <p>{{ _("The tree doubles with every review, so a whole semester cannot be searched at once. The planner solves a short window exactly, does its first block, reads what the student reported, and plans again.") }}</p>
     <p>{{ _("What lies past the window is priced by a value that knows the clock: the cost of reaching each course's target before its own exam.") }}</p>
   </div>
-  <figure class="card code-fig scroll-fig">
-    <svg class="code-chart" viewBox="0 0 330 150" role="img" aria-label="{{ _('Three windows in turn, each starting one block later') }}">
-      {% for row in range(3) %}
-      <g class="st{{ row + 1 }}">
-        {% for k in range(8) %}<rect class="{% if k < row %}code-done{% elif k == row %}code-now{% elif k < row + h.day_count %}code-window{% else %}code-later{% endif %}" x="{{ 4 + k * 32 }}" y="{{ 10 + row * 46 }}" width="27" height="24" rx="7"></rect>{% endfor %}
-        <text class="code-small" x="{{ 4 + row * 32 }}" y="{{ 50 + row * 46 }}">{{ _("plan, do one, report") }}</text>
-        <text class="code-tick" x="266" y="{{ 27 + row * 46 }}">…</text>
-        <rect class="code-exam-cell" x="282" y="{{ 10 + row * 46 }}" width="46" height="24" rx="7"></rect><text class="code-exam-on" x="305" y="{{ 26 + row * 46 }}" text-anchor="middle">{{ _("Exam") }}</text>
-      </g>
-      {% endfor %}
-    </svg>
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card code-fig">
+    <div class="code-roll" role="img" aria-label="{{ _('The {n} days to the exam and the {k} planned exactly, moving on a day at a time', n=h.exam_days, k=h.day_count) }}">
+      <div class="code-days">{% for d in range(h.exam_days | int) %}<span></span>{% endfor %}<span class="code-day-exam">{{ _("Exam") }}</span></div>
+      <div class="code-win"></div>
+    </div>
+    <p class="code-roll-scale"><span>{{ _("today") }}</span><span>{{ _n("{n} day", "{n} days", h.exam_days | int) }}</span></p>
     <figcaption class="sci-key"><span><i class="code-key code-done"></i>{{ _("done") }}</span><span><i class="code-key code-now"></i>{{ _("the block done next") }}</span><span><i class="code-key code-window"></i>{{ _("planned exactly") }}</span><span><i class="code-key code-later"></i>{{ _("priced, not planned") }}</span></figcaption>
   </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Plan the next {k} days exactly; what lies past them is priced, not planned.", k=h.day_count) }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Do the first block, then read what the student reported.") }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Move on a day and plan again, from what really happened.") }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("{n} plans later, the exam.", n=h.replans) }}</span></li>
+  </ol>
+  </div>
+  </div>
 </section>
 
-{# 9. What the app runs (assistant.py) #}
+{# 10. What the app runs (assistant.py) #}
 <section class="code-scene" id="rules">
   <div class="code-copy">
-    <p class="code-kicker"><span class="sci-step">9</span><code>assistant.py</code></p>
+    <p class="code-kicker"><span class="sci-step">10</span><code>assistant.py</code></p>
     <h2>{{ _("What the app actually runs") }}</h2>
     <p>{{ _("Behind the rules sits a research planner: a search over every way of filling your free blocks (AO*, on an AND/OR graph), guided by a cost-to-reach-the-target computed by value iteration (as in SSP-MMC, Ye and colleagues, 2022), replanning after each session. On a simulated semester it saves about one session in twenty on its own measure, but it takes about half a minute where the rules take a hundredth of a second, and its reasons cannot be said in a sentence. So the app runs the rules, and the search stays as the reference that checks them.") }}</p>
   </div>

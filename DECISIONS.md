@@ -4138,3 +4138,60 @@ below 1 flattens what is drawn in 3D (`tests/test_how.py` keeps the keyframes so
 reduced, the layers are one calendar, the landscape stands still and the figures are flat.
 Checked in Chromium only, at phone size and 1280px; what a tilting glass card costs a slow
 device was not measured (D93).
+
+## D112. The engine as it runs, on solid panels
+
+*The owner, 2026-11-04, of the 3D code page (D111): "make it like the theme but not exactly
+equal, the liquid glass makes it hard to follow on such technical pages, and please make the
+page animated as you scroll, the 3d too, like as you scroll u see the path of A*, you see how
+things are computed, you see the engine".*
+
+**Chosen.**
+
+1. **Solid panels on the technical pages.** The code page and the science page keep the
+   app's sky, type, course colours and red for exams, but their cards are solid surfaces
+   with a hairline and a soft shadow, not glass (AUDIT 94). The rest of the app keeps D73.
+2. **Four scenes that run as they are scrolled through.** A scene's words come first; then
+   a tall track whose stage stays in view while the track is scrolled, the figure beside
+   (on a phone, above) the step it is at. Each step is one sentence, one at a time:
+   - *The week* (`timegrid.py`): 240 bits, every one 0; sleep sets its bits (one OR with
+     its mask), then classes theirs (another OR), each layer apart in depth; what is still
+     0 is cut into study blocks, and the three layers fall into one calendar.
+   - *Value iteration* (`ssp.py`): the landscape's 25 towers grow through the table's
+     sweeps, at sweeps 0, 1, 2, 3, 4, 6, 10 and the last (51): every cell 0, then 1
+     everywhere (one review), then the costs spreading back from the target, the shakiest,
+     hardest topics highest; a readout says the sweep and the largest change in the whole
+     table then (1, then 0.88 at the fourth, 9e-10 at the last).
+   - *The search* (`plan.py`, a new scene): AO* drawn from its own run. `solve_ao_star`
+     takes an optional trace (each expansion's state, the root's value after it, and the
+     marked solution graph then) and `ssp.solve` the table after each sweep; the search and
+     the solve are the same with or without (`tests/test_how.py`). On a disc, tonight in
+     the centre and a ring for each evening, the 114 nodes the planner's run opened (and
+     the states its best plans reached) sit under the node that first produced them, in
+     the colour of the choice that led there. As the scene scrolls, nodes appear when they
+     are produced and fill when they are opened, the best plan of the moment is drawn
+     thick, and below it the root's estimate climbs to the optimum, 13.22, with the
+     planner's guess (from 4, done at 114) and with none (from 0, done at 184). The steps
+     of the scroll are cut over the longer run, so the guided search ends about 62 % of
+     the way through, and the last step says what no guess costs. The disc lies tilted at
+     first and comes upright as the search ends.
+   - *Replanning* (`rolling.py`): the 21 days to the exam and the window of 5 planned
+     exactly, moving on a day at a time, 17 plans, the days done behind it.
+3. **Every number from the code.** The bits, the sweeps' heights and changes, the trace's
+   nodes, steps, best plans and root values are computed by `service.code_view`, and the
+   tests hold the sentences to them: the estimate at the root never falls and never passes
+   the optimum; the last best plan leaves every evening free; the first sweep puts 1 in
+   every cell short of the target.
+
+**Not chosen.** A script that drives the scenes: the page works without its scripts and
+CSS ties animations to scrolling where the browser can. Every state AO* produced on the
+disc: about 180 drawn already make a dense ring on a phone; the states never opened and
+never on a best plan are left out. A counter that ticks up by itself: a number in the CSS
+would be one the code does not compute; the readouts are the code's numbers, one per step.
+
+**Disclosed.** Where the browser does not tie animations to scrolling, or motion is off,
+each scene is complete (the calendar flat, the settled table, the whole search with its
+last best plan, the first window) and its steps are a numbered list. The replanning strip's
+CSS holds 21 days and a window of 5 (the tests check the page's numbers match). Checked in
+Chromium only, at phone size (iPhone 13) and 1280px, light and dark; not on a real phone,
+nor what the tall tracks cost a slow device.

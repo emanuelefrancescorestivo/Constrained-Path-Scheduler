@@ -1082,3 +1082,10 @@ the 12px floor of D106 (AUDIT 89), which measured HTML text only. Status: fixed;
 around tonight's cheapest choice was 6 units wider than its box on each side, and the
 boxes stand 5 apart, so its edge ran over the neighbouring choice's. Status: fixed; the
 ring follows the box's own sides and runs down around its futures.
+
+**94. The technical pages' glass made their figures hard to follow.** Reported by the owner
+on 2026-11-04, of the code page (D109 to D111): "the liquid glass makes it hard to follow on
+such technical pages". The see-through panes of D73, right for Today's few large things, put
+the sky's colours behind every line, dot and number of a chart that has to be read closely.
+Status: fixed with D112; the code page and the science page keep the sky, their type and
+colours, and set their figures on solid panels, whatever the plan's glass setting.

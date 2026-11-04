@@ -413,12 +413,17 @@ class MemorizationPolicy:
 def solve(
     config: SSPConfig = SSPConfig(),  # noqa: B008 - frozen dataclass, a shared default is safe
     weights: Weights = DEFAULT_WEIGHTS,
+    trace: list[np.ndarray] | None = None,
 ) -> MemorizationPolicy:
     """Value iteration to convergence.
 
     Raises rather than returning an unconverged value function: silently
     reporting numbers from a solver that never converged is the exact failure
     mode this rebuild exists to avoid.
+
+    `trace`, when given, receives a copy of the value table after each sweep (D112:
+    the code page shows the costs spreading back from the target); the solve is the
+    same with or without it.
     """
     weights.validate()
     d_grid = config.difficulty_grid()
@@ -455,6 +460,8 @@ def solve(
         nxt[:, at_goal] = 0.0
         residual = float(np.max(np.abs(nxt - value)))
         value = nxt
+        if trace is not None:
+            trace.append(value.copy())
         if residual < config.tolerance:
             break
     else:
