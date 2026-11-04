@@ -1089,6 +1089,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art.art-focus { background: linear-gradient(160deg, #ff7aa8, #e0347f); color: #c2246a; }
 .art.art-tips { background: linear-gradient(160deg, #ffd24d, #ffa000); color: #b86e00; }
 .art.art-science { background: linear-gradient(160deg, #5cc0ff, #2a6be6); color: #1f56c4; }
+.art.art-code { background: linear-gradient(160deg, #9b8cff, #5a3fd6); color: #4a30c2; }
 .art.art-settings { background: linear-gradient(160deg, #a3a3ad, #62626e); color: #4a4a55; }
 .art.art-calendar { background: linear-gradient(160deg, #ff6f61, #e2352b); color: #e2352b; }
 .art.art-feedback { background: linear-gradient(160deg, #3fd0dc, #128fb0); color: #ff3b6b; }
@@ -3118,6 +3119,30 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
   .code-pin-stage .sci-key { font-size: 0.75rem; gap: 2px 10px; margin-top: 6px; }
   .code-pin-stage .code-readout { margin-top: 4px; }
 }
+/* The science page's scenes (D113): the same stage as the code page's, in its narrower
+   column the figure above the step. A cursor marks the day under a chart; three
+   columns drain, one per topic, in the memory colours; the spacing landscape uses the
+   value table's towers. */
+main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.sci-cursor { display: none; stroke: var(--text); stroke-width: 1.4; stroke-dasharray: 3 3; }
+.sci-fade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+.sci-glasses { display: grid; place-items: center; width: 170px; height: 210px; perspective: 900px; }
+.sci-glasses-plane { display: grid; grid-template-columns: repeat(3, 34px); gap: 12px; transform-style: preserve-3d; transform: rotateX(58deg) rotateZ(-34deg); margin-top: 70px; }
+.sci-glasses .code-tower { width: 34px; height: 34px; --u: 6px; }
+.sci-glasses .code-tower :is(.f-front, .f-back) { width: 34px; }
+.sci-glasses .code-tower :is(.f-left, .f-right) { height: 34px; }
+.code-tower.lvl-review { --bar: var(--mem-review); --bar-ink: var(--mem-ink-review); }
+.code-tower.lvl-good { --bar: var(--mem-good); --bar-ink: var(--mem-ink-good); }
+.code-tower.lvl-strong { --bar: var(--mem-strong); --bar-ink: var(--mem-ink-strong); }
+.code-readout .lvl-key { margin: 0 4px 0 0; }
+@media (max-width: 560px) {
+  .sci-fade { grid-template-columns: minmax(0, 1fr); }
+  .sci-glasses { width: 100%; height: 150px; }
+  .sci-glasses-plane { grid-template-columns: repeat(3, 28px); gap: 10px; margin-top: 46px; }
+  .sci-glasses .code-tower { width: 28px; height: 28px; --u: 4.4px; }
+  .sci-glasses .code-tower :is(.f-front, .f-back) { width: 28px; }
+  .sci-glasses .code-tower :is(.f-left, .f-right) { height: 28px; }
+}
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
 @property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
@@ -3213,7 +3238,7 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top) {
+      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
     }
@@ -3234,7 +3259,7 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
     :root:not([data-motion="reduce"]) .code-pin .code-readout { display: grid; }
     :root:not([data-motion="reduce"]) .code-pin .code-at { grid-area: 1 / 1; opacity: 0; animation-name: code-on; animation-fill-mode: none; }
     :root:not([data-motion="reduce"]) .code-pin .code-at.code-was { display: block; }
-    :root:not([data-motion="reduce"]) .code-pin .code-at:last-child { animation-name: code-show; animation-fill-mode: both; }
+    :root:not([data-motion="reduce"]) .code-pin .code-at:last-child { animation-name: code-on; animation-fill-mode: forwards; }
     /* 1. The week: the three layers apart, each mask setting its bits in turn, then one
        calendar. */
     :root:not([data-motion="reduce"]) .code-pin .code-stack { animation-name: code-pin-explode; }
@@ -3294,6 +3319,14 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
     :root:not([data-motion="reduce"]) .code-pin .eb22 { animation-range: contain 88% contain 92%; }
     :root:not([data-motion="reduce"]) .code-pin .eb23 { animation-range: contain 92% contain 96%; }
     :root:not([data-motion="reduce"]) .code-pin .eb24 { animation-range: contain 96% contain 100%; }
+    /* The science page (D113): the day passes under a chart (the cursor, the curves
+       uncovered up to it), the columns drain at their topics' pace, a self-test
+       appears on its day, and the spacing landscape rises a column at a time. */
+    :root:not([data-motion="reduce"]) .code-pin .sci-cursor { display: inline; animation-name: sci-cursor; }
+    :root:not([data-motion="reduce"]) .code-pin .sci-pop { animation-name: code-show; }
+    :root:not([data-motion="reduce"]) .code-pin .sci-drain { animation-name: sci-drain; }
+    :root:not([data-motion="reduce"]) .code-pin .sci-rise { animation-name: sci-rise; }
+    :root:not([data-motion="reduce"]) .code-pin .sci-drain .f-top { animation-name: none; }
     /* 9. Replanning: the window moves on a day at a time, the done days behind it. */
     :root:not([data-motion="reduce"]) .code-pin .code-win {
       animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
@@ -3333,6 +3366,12 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
   64%, 100% { transform: none; }
 }
 @keyframes code-ink { from { color: transparent; } }
+@keyframes sci-cursor { from { transform: none; } to { transform: translateX(300px); } }
+@keyframes sci-drain {
+  0% { --zq: var(--q0); } 14.29% { --zq: var(--q1); } 28.57% { --zq: var(--q2); } 42.86% { --zq: var(--q3); }
+  57.14% { --zq: var(--q4); } 71.43% { --zq: var(--q5); } 85.71% { --zq: var(--q6); } 100% { --zq: var(--q7); }
+}
+@keyframes sci-rise { from { --zq: 0; } to { --zq: var(--q7); } }
 @keyframes code-uncover { from { transform: none; } to { transform: scaleX(0); } }
 @keyframes code-slide { from { transform: none; } to { transform: translateX(320%); } }
 /* Courses (D86-D88) */

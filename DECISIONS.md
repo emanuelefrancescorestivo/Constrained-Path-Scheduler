@@ -4195,3 +4195,48 @@ last best plan, the first window) and its steps are a numbered list. The replann
 CSS holds 21 days and a window of 5 (the tests check the page's numbers match). Checked in
 Chromium only, at phone size (iPhone 13) and 1280px, light and dark; not on a real phone,
 nor what the tall tracks cost a slow device.
+
+## D113. The science page in motion
+
+*The owner, 2026-11-04, of the science page: "this page needs to be updated with the new 3d
+animated science behind it, and i need to have access in the same way via the settings to the
+page 'how the code works'".*
+
+**Chosen.**
+
+1. **Three scenes that run as they are scrolled through**, on the code page's stage (D112):
+   the figure stays in view, the step beside it (below it, in the science page's narrower
+   column), every number computed from FSRS-6, the model the app runs.
+   - *Memory fades, at its own pace.* The days pass under the chart: a cursor moves from
+     today to day 60, the three topics' curves drawn up to it, and three columns beside it,
+     one per topic, drain at their topics' pace (eight stops, in twentieths of full recall).
+     A readout gives each topic's recall on the day it names, whole days: on day 2 the
+     shaky topic is at 90 %, on day 7 the week-long one, while the solid one is at 97 %; on
+     day 60, 59, 71 and 85 %.
+   - *Why the wait matters, as a landscape.* 25 towers in 3D: topics that held 3, 7, 15, 30
+     and 60 days (back to front), each tested when its recall had fallen to 100, 95, 90, 80
+     or 70 % (left to right), as tall as the times longer a successful recall makes it hold.
+     They rise a column at a time. A readout follows the topic that held a week: at once, 7
+     days still; at 95 %, 15 (about twice); at 90 %, where the app asks for a self-test, 23;
+     at 70 %, 60, with 30 % of such recalls failing. Along each row the gain grows; down
+     each column it shrinks: a solid topic gains less from the same wait.
+   - *Kept up, or left alone.* The days pass under the chart again: the tested topic and the
+     same topic alone drawn up to the day, each self-test appearing on its day (2, 10, 35),
+     a readout of the tested topic's recall and how long it holds against the topic alone;
+     it ends holding 74 days, alone at 59 %.
+2. **How the code works under You**, the row after the science page's, with a picture of
+   its own (a search tree, the best plan drawn thick).
+3. **The last readout switches on** when its step comes, here and on the code page, rather
+   than fading in over the step.
+
+**Not chosen.** Topics of 1 and 2 days in the landscape: FSRS-6 treats a review within the same
+day apart (its short-term stability), which such a topic reaches at 95 % and 90 %, and the
+landscape would show a step that is the model's rule, not the spacing effect. The spacing line
+chart of D89 for one topic: the landscape shows the same curve for five topics, and the rows
+under it keep that topic's numbers.
+
+**Disclosed.** Where the browser does not tie animations to scrolling, or motion is off, each
+scene is complete (the whole chart, the columns and readout at day 60, the settled landscape)
+and its steps are a list. Checked in Chromium only, at phone size and 1280px. A page error that
+clicking any row under You raises in headless Chromium ("Transition was aborted", a page
+transition skipped) was there before this change and is not fixed here.

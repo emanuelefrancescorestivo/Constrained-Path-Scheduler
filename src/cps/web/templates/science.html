@@ -3,7 +3,10 @@
    it with its maths, and the research it rests on. Every number is computed by
    service.science_view from the model the app runs; every study cited is a checked
    entry of docs/REFERENCES.md. Charts are SVG drawn here, in the memory colours, on
-   solid panels (D112, `main.tech`: a technical page keeps the sky, not the glass). #}
+   solid panels (D112, `main.tech`: a technical page keeps the sky, not the glass).
+   Three scenes run as they are scrolled through (D113, the code page's `.code-pin`):
+   memory fading at three paces, the spacing effect as a landscape in 3D, and one topic
+   kept up against the same topic left alone. #}
 {% block title %}{{ _("The science behind it") }} · {{ _("Study plan") }}{% endblock %}
 {% block site_class %} tech{% endblock %}
 {% block main %}
@@ -24,8 +27,18 @@
 <section class="section science-block" id="forgetting">
   <h2>{{ _("Memory fades, at its own pace") }}</h2>
   <p>{{ _("Each topic has a stability: the number of days until your chance of recalling it falls to 90 %. A shaky topic fades in days, a solid one holds for weeks.") }}</p>
-  <figure class="card sci-figure scroll-fig">
+  {# D113: run as it is scrolled through (the code page's `.code-pin`): the days pass
+     under the chart, the curves drawn up to the day, three columns beside it draining
+     at their topics' pace, and a readout of each topic's recall that day. Without
+     motion, the whole chart, the columns at day {{ s.days }} and that day's readout. #}
+  {% set f = s.fade %}
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card sci-figure">
+    <div class="sci-fade">
     <svg class="sci-chart" viewBox="-34 -8 350 134" role="img" aria-label="{{ _('Chance of recall over {days} days for topics with a stability of 2, 7 and 30 days', days=s.days) }}">
+      {% for c in s.curves %}<polyline class="sci-line lvl-{{ c.level }}" points="{{ c.points }}"></polyline>{% endfor %}
+      <rect class="code-cover" x="0.5" y="-8" width="300" height="108"></rect>
       <line class="sci-grid" x1="0" y1="10" x2="300" y2="10"></line>
       <line class="sci-grid" x1="0" y1="50" x2="300" y2="50"></line>
       <line class="sci-axis" x1="0" y1="100" x2="300" y2="100"></line>
@@ -35,10 +48,23 @@
       <text class="sci-tick" x="0" y="116">{{ _("today") }}</text>
       <text class="sci-tick" x="150" y="116" text-anchor="middle">{{ _n("{n} day", "{n} days", 30) }}</text>
       <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _n("{n} day", "{n} days", s.days) }}</text>
-      {% for c in s.curves %}<polyline class="sci-line lvl-{{ c.level }} st-draw st{{ loop.index }}" pathLength="1" points="{{ c.points }}"></polyline>{% endfor %}
+      <line class="sci-cursor" x1="0" y1="-6" x2="0" y2="100"></line>
     </svg>
+    <div class="sci-glasses" aria-hidden="true"><div class="sci-glasses-plane">
+      {% for c in f.columns %}<div class="code-tower sci-drain lvl-{{ c.level }} tz{{ c.z }}{% for z in c.zq %} q{{ loop.index0 }}z{{ z }}{% endfor %}"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">{{ _("{n} d", n=c.stability) }}</i></div>{% endfor %}
+    </div></div>
+    </div>
+    <p class="code-readout">{% for r in f.readouts %}<span class="code-at eb{{ r.step }}{% if not loop.last %} code-was{% endif %}">{{ _("Day {n}", n=r.day) }}{% for c in f.columns %} · <i class="lvl-key lvl-{{ c.level }}"></i><b>{{ r.recall[loop.index0] }} %</b>{% endfor %}</span>{% endfor %}</p>
     <figcaption class="sci-key">{% for c in s.curves %}<span><i class="lvl-key lvl-{{ c.level }}"></i>{{ _("stability {n} days: {r} % after a month", n=c.stability, r=c.at_30) }}</span>{% endfor %}</figcaption>
   </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Three topics, each just recalled: a shaky one, one that holds a week, a solid one.") }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("The shaky one is at 90 % on day {n}: time for a self-test.", n=f.shaky_at_90) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("The week-long one reaches 90 % on day 7; the solid one is still at {r} %.", r=f.solid_at_week) }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {d} days: {a} %, {b} % and {c} %. Each fades at its own pace.", d=s.days, a=f.end[0], b=f.end[1], c=f.end[2]) }}</span></li>
+  </ol>
+  </div>
+  </div>
   <p>{{ _("A topic with a stability of 7 days is at {a} % after a week, {b} % after two weeks and {c} % after a month.", a=s.week[7], b=s.week[14], c=s.week[30]) }}</p>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("The maths") }}</p>
@@ -51,18 +77,32 @@
 <section class="section science-block" id="spacing">
   <h2>{{ _("Why the wait matters") }}</h2>
   <p>{{ _("A successful recall makes a memory last longer, and how much depends on when it happens. Take a topic that holds {n} days:", n=s.spacing_from) }}</p>
-  <figure class="card sci-figure scroll-fig">
-    <svg class="sci-chart" viewBox="-34 -8 350 134" role="img" aria-label="{{ _('Stability after a successful recall, against the days waited since the last one') }}">
-      <line class="sci-axis" x1="0" y1="100" x2="300" y2="100"></line>
-      <text class="sci-tick" x="-6" y="13" text-anchor="end">{{ _("{n} d", n=s.spacing_top) }}</text>
-      <text class="sci-tick" x="-6" y="103" text-anchor="end">0</text>
-      <text class="sci-tick" x="0" y="116">{{ _("at once") }}</text>
-      <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _("after {n} days", n=30) }}</text>
-      <polyline class="sci-line sci-accent st-draw st1" pathLength="1" points="{{ s.spacing_points }}"></polyline>
-      {% for m in s.spacing_marks %}<circle class="sci-dot st-pop st{{ loop.index + 1 }}" cx="{{ m.x }}" cy="{{ m.y }}" r="3.5"></circle>{% endfor %}
-    </svg>
-    <figcaption class="sci-key"><span>{{ _("Stability after the recall, in days, against the days waited") }}</span></figcaption>
+  {# D113: the spacing effect as a landscape, in 3D: a tower for each topic (a row,
+     the shakiest at the back) and each recall it was tested at (a column, left to
+     right the longer wait), as tall as the times longer a successful recall makes it
+     hold. The columns rise one by one as the scene is scrolled through, a readout
+     following the topic that held a week. #}
+  {% set l = s.land %}
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card sci-figure">
+    <div class="code-land sci-land" aria-hidden="true"><div class="code-land-plane">
+      {% for row in l.rows %}{% for c in row.cells %}<div class="code-tower sci-rise code-v{{ c.shade }} tz{{ c.z }} q7z{{ c.z }} cap{{ c.column + 1 }}of5"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">×{{ c.times }}</i></div>{% endfor %}{% endfor %}
+      <span class="code-axis code-axis-s">{{ _("tested later") }} →</span>
+      <span class="code-axis code-axis-d">{{ _("shakier") }} →</span>
+    </div></div>
+    <p class="code-readout">{% for c in l.columns %}<span class="code-at cap{{ loop.index }}of5{% if not loop.last %} code-was{% endif %}">{{ _("Tested at {r} %: a topic that held {s} days then holds {a} days, ×{t}; {k} % of such recalls fail.", r=c.recall, s=l.follows, a=c.after, t=c.times, k=c.risk) }}</span>{% endfor %}</p>
+    <figcaption class="sci-key"><span>{{ _("Each tower: how many times longer a topic holds after a successful recall. Back to front, topics that held {list} days; left to right, tested at {recalls} % recall.", list=l.stabilities | join(", "), recalls=l.columns | map(attribute="recall") | join(", ")) }}</span></figcaption>
   </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of5"><span class="sci-step">1</span><span>{{ _("Tested again at once, a topic gains nothing.") }}</span></li>
+    <li class="cap2of5"><span class="sci-step">2</span><span>{{ _("A little later, the same recall makes it hold about twice as long.") }}</span></li>
+    <li class="cap3of5"><span class="sci-step">3</span><span>{{ _("At 90 %, where the app asks for a self-test, a topic that held a week holds {a} days.", a=l.columns[2].after) }}</span></li>
+    <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("The longer the wait, the more it gains, and the more often the recall fails.") }}</span></li>
+    <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("A solid topic gains less from the same wait: the front rows stay lower. That is the spacing effect.") }}</span></li>
+  </ol>
+  </div>
+  </div>
   <ul class="card list sci-rows scroll-fig">
     <li class="st1"><span class="grow">{{ _("Recalled again at once") }}</span><b>{{ _("{n} days", n=s.spacing[0]) }}</b></li>
     <li class="st2"><span class="grow">{{ _("After {d} days, at {r} % recall", d=5, r=s.spacing_recall[5]) }}</span><b>{{ _("{n} days", n=s.spacing[5]) }}</b></li>
@@ -70,9 +110,17 @@
     <li class="st4"><span class="grow">{{ _("After {d} days, at {r} % recall", d=30, r=s.spacing_recall[30]) }}</span><b>{{ _("{n} days", n=s.spacing[30]) }}</b></li>
   </ul>
   <p>{{ _("Cramming a topic right after studying it adds almost nothing. The harder a recall that still succeeds, the more it adds; wait too long, though, and you may not recall it at all. So the app asks for a self-test when a topic's recall falls to {n} %.", n=s.target) }}</p>
+  {# D113: kept up against left alone, run as it is scrolled through: the days pass,
+     both lines drawn up to the day, each self-test appearing on its day, a readout of
+     the tested topic's recall and how long it holds against the same topic alone. #}
   {% set k = s.kept %}
-  <figure class="card sci-figure scroll-fig" id="kept">
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <figure class="card sci-figure" id="kept">
     <svg class="sci-chart" viewBox="-34 -8 350 134" role="img" aria-label="{{ _('Chance of recall over {days} days for one topic, tested each time it falls to {n} %, and the same topic left alone', days=s.days, n=k.target) }}">
+      <polyline class="sci-line sci-alone" points="{{ k.alone }}"></polyline>
+      <polyline class="sci-line lvl-good" points="{{ k.points }}"></polyline>
+      <rect class="code-cover" x="0.5" y="-8" width="300" height="108"></rect>
       <line class="sci-grid" x1="0" y1="{{ k.target_y }}" x2="300" y2="{{ k.target_y }}"></line>
       <line class="sci-grid" x1="0" y1="50" x2="300" y2="50"></line>
       <line class="sci-axis" x1="0" y1="100" x2="300" y2="100"></line>
@@ -81,12 +129,20 @@
       <text class="sci-tick" x="-6" y="103" text-anchor="end">0 %</text>
       <text class="sci-tick" x="0" y="116">{{ _("today") }}</text>
       <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _n("{n} day", "{n} days", s.days) }}</text>
-      <polyline class="sci-line sci-alone st-draw st1" pathLength="1" points="{{ k.alone }}"></polyline>
-      <polyline class="sci-line lvl-good st-draw st2" pathLength="1" points="{{ k.points }}"></polyline>
-      {% for m in k.marks %}<circle class="sci-dot st-pop st{{ [loop.index + 2, 5] | min }}" cx="{{ m.x }}" cy="{{ m.y }}" r="3.5"></circle>{% endfor %}
+      {% for m in k.marks %}<circle class="sci-dot sci-pop eb{{ k.steps[loop.index0] }}" cx="{{ m.x }}" cy="{{ m.y }}" r="3.5"></circle>{% endfor %}
+      <line class="sci-cursor" x1="0" y1="-6" x2="0" y2="100"></line>
     </svg>
+    <p class="code-readout">{% for r in k.readouts %}<span class="code-at eb{{ r.step }}{% if not loop.last %} code-was{% endif %}">{{ _("Day {n}", n=r.day) }} · <i class="lvl-key lvl-good"></i>{{ _("tested: {r} %, holds {h} days", r=r.recall, h=r.holds) }} · <i class="lvl-key sci-alone-key"></i>{{ _("alone: {r} %", r=r.alone) }}</span>{% endfor %}</p>
     <figcaption class="sci-key"><span><i class="lvl-key lvl-good"></i>{{ _("tested at {n} %: on days {days}", n=k.target, days=k.days | join(", ")) }}</span><span><i class="lvl-key sci-alone-key"></i>{{ _("left alone: {r} % after {d} days", r=k.alone_end, d=s.days) }}</span></figcaption>
   </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("A topic that holds {a} days, left alone, fades: the grey line.", a=k["from"]) }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Tested when it falls to {n} %, it comes back, and fades more slowly.", n=k.target) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Each gap is longer than the last: tests on days {days}.", days=k.days | join(", ")) }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {d} days it holds {b} days; left alone, it would be at {r} %.", d=s.days, b=k.last, r=k.alone_end) }}</span></li>
+  </ol>
+  </div>
+  </div>
   <p>{{ _("A topic that held {a} days, tested each time it falls to {n} %, is tested {k} times in {d} days, each gap longer than the last, and ends holding {b} days. Left alone, it is at {r} %.", a=k["from"], n=k.target, k=k.reviews, d=s.days, b=k.last, r=k.alone_end) }}</p>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("The maths") }}</p>

@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The science page in motion (DECISIONS.md D113): three of its figures run while they are
+  scrolled through, a step at a time, from FSRS-6's numbers: three topics' recall day by
+  day under a moving day, with a draining column for each; the spacing effect as a 3D
+  landscape of how much longer a topic holds, tested at each recall, rising a column at a
+  time; and one topic kept up by self-tests against the same topic left alone. How the
+  code works is now under You, beside the science.
+
 - The engine as it runs (DECISIONS.md D112): four scenes of the code page run while they
   are scrolled through, a step at a time: the week's bits set mask by mask, the value
   table's towers growing sweep by sweep, AO* opening node after node on a disc with its

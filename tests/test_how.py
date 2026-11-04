@@ -142,7 +142,7 @@ def test_the_science_page_shows_a_topic_kept_up_and_left_alone(web):
     assert float(kept["last"]) > 2 * 30  # it ends holding months, not days
     page = web.get("/science").text
     assert 'id="kept"' in page and kept["alone"] in page and kept["points"] in page
-    assert page.count('class="sci-dot st-pop') == len(kept["marks"]) + 4  # with the spacing chart's four
+    assert page.count('class="sci-dot sci-pop eb') == len(kept["marks"])  # each test on its step (D113)
 
 
 def test_figures_draw_themselves_only_where_motion_is_wanted():
@@ -368,3 +368,84 @@ def test_the_technical_pages_are_solid_not_glass(web):
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     rule = re.search(r"body\[data-sky\] main\.tech :is\(\.card, fieldset, \.stat, \.tile\) \{([^}]*)\}", css)
     assert rule and "background: var(--surface)" in rule[1] and "backdrop-filter: none" in rule[1]
+
+
+# --------------------------------------------------------------------------- #
+# D113: the science page in motion
+# --------------------------------------------------------------------------- #
+
+
+def test_the_science_scenes_say_what_the_model_says():
+    """Each sentence of the science page's scrolled scenes, held to FSRS-6's numbers."""
+    view = service.science_view()
+    fade, land, kept = view["fade"], view["land"], view["kept"]
+    # Memory fading: each column drains, never fills; the readouts walk the days.
+    for column in fade["columns"]:
+        assert column["zq"][0] == 20 and column["zq"] == sorted(column["zq"], reverse=True)
+    days = [r["day"] for r in fade["readouts"]]
+    assert days == sorted(days) and days[-1] == view["days"] == 60 and len(days) == service.SCIENCE_STEPS
+    on = {r["day"]: r["recall"] for r in fade["readouts"]}
+    assert fade["shaky_at_90"] == "2" and on[2][0] == 90  # "the shaky one is at 90 % on day 2"
+    assert on[7][1] == 90 and on[7][2] == fade["solid_at_week"] == 97  # "the week-long one ... day 7"
+    assert on[60] == fade["end"] == [59, 71, 85]  # "after 60 days: 59 %, 71 % and 85 %"
+    # The spacing effect: a later test gains more (along a row); a solid topic gains
+    # less from the same wait (down a column); at once, nothing.
+    times = land["times"]
+    for s in service.SCIENCE_LAND_STABILITIES:
+        row = [times[(s, r)] for r in service.SCIENCE_LAND_RECALLS]
+        assert row[0] == pytest.approx(1.0, abs=1e-9) and row == sorted(row)
+    for r in service.SCIENCE_LAND_RECALLS[1:]:
+        column = [times[(s, r)] for s in service.SCIENCE_LAND_STABILITIES]
+        assert column == sorted(column, reverse=True)  # "the front rows stay lower"
+    week = {c["recall"]: c for c in land["columns"]}
+    assert 1.8 <= times[(7.0, 0.95)] <= 2.4  # "about twice as long"
+    assert week[90]["after"] == "23" and week[100]["after"] == "7" and week[70]["risk"] == 30
+    assert week[95]["after"] == "15" and week[70]["after"] == "60"  # D113's text
+    assert kept["days"] == [2, 10, 35] and kept["last"] == "74" and kept["alone_end"] == 59
+    assert [c["risk"] for c in land["columns"]] == sorted(c["risk"] for c in land["columns"])
+    # Kept up: never below the target between tests, held longer after each one; the
+    # topic alone only fades; the last step is the page's ending.
+    steps = kept["readouts"]
+    assert all(r["recall"] >= kept["target"] for r in steps)
+    holds = [float(r["holds"]) for r in steps]
+    assert (
+        holds == sorted(holds)
+        and steps[-1]["holds"] == kept["last"]
+        and steps[-1]["alone"] == kept["alone_end"]
+    )
+    alone = [r["alone"] for r in steps]
+    assert alone == sorted(alone, reverse=True)
+    assert kept["steps"] == sorted(kept["steps"]) and len(kept["steps"]) == kept["reviews"]
+
+
+def test_the_science_page_runs_as_it_is_scrolled_and_stands_still_without(web):
+    page = web.get("/science").text
+    assert len(re.findall(r'<div class="code-pin[ "]', page)) == 3
+    assert page.count('class="code-tower sci-drain ') == 3 and page.count('class="code-tower sci-rise ') == 25
+    for scene, steps in (("forgetting", 4), ("spacing", 5)):
+        part = page.split(f'id="{scene}"', 1)[1]
+        caps = re.findall(r'<li class="cap(\d)of(\d)">', part.split("</ol>", 1)[0])
+        assert [int(a) for a, _ in caps] == list(range(1, steps + 1))
+    assert page.count('class="sci-cursor"') == 2 and page.count('class="code-cover"') == 2
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    opening = "@supports (animation-timeline: view()) {\n  @media (prefers-reduced-motion: no-preference) {\n"
+    start = css.index(opening + '    :root:not([data-motion="reduce"]) .scroll-fig')
+    end = css.index("\n}\n", start)
+    block, outside = css[start:end], css[:start] + css[end:]
+    for rule in ("animation-name: sci-cursor", "animation-name: sci-drain", "animation-name: sci-rise"):
+        assert rule in block and rule not in outside
+    assert ".sci-cursor { display: none;" in outside  # no cursor without motion
+    drain = re.search(r"@keyframes sci-drain \{(.*?)\n\}", css, re.S)
+    assert drain and "opacity" not in drain[1] and drain[1].count("--zq") == 8
+
+
+def test_how_the_code_works_is_under_you_beside_the_science(web):
+    files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
+    start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+    token = start.headers["location"].split("/")[2]
+    you = web.get(f"/p/{token}/you").text
+    science = you.index(f'href="/p/{token}/science"')
+    how = you.index(f'href="/p/{token}/how"')
+    assert science < how and 'class="art art-code"' in you[how:]
+    assert web.get(f"/p/{token}/how").status_code == 200
