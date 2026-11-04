@@ -4240,3 +4240,92 @@ scene is complete (the whole chart, the columns and readout at day 60, the settl
 and its steps are a list. Checked in Chromium only, at phone size and 1280px. A page error that
 clicking any row under You raises in headless Chromium ("Transition was aborted", a page
 transition skipped) was there before this change and is not fixed here.
+
+## D114. The technical pages in plain words, asked by the student
+
+*The owner, 2026-11-04, of the code and science pages: "it needs to be explained also with a
+more accessible language alongside the technical one, with some student role play similar and
+metaphors to understand, maybe also the animations could help with that". Of the three
+proposals put to him, the second (a plain layer over the technical one, on both pages). The
+student was first a drawing of the owner, at his wish; seen, he chose instead "the avatar that
+the student creates" (D115).*
+
+**Chosen.**
+
+1. **A conversation opens each part.** The student asks what a student would ("How does the app
+   even see my week?"), Spark answers with a picture from everyday life, and one line, *Where
+   the picture stops*, says where the picture is no longer true. On the code page the
+   technical text follows under *Under the hood*, unchanged. The code page's pictures are all
+   of a trip, as its opening one is (a navigation app for your memory): light switches for the
+   week, a phone's battery for a topic, a golf score for the plan's score, ripples from a stone
+   at the goal for value iteration, a loaded coin for each review, a walk through a new city
+   for AO*, the distance as the crow flies for the guess, doing a sum the long way for the
+   exhaustive check, headlights for replanning, a cook's quick recipe against a slow one for
+   the rules. The science page's: three leaking glasses for forgetting, the gym for the
+   spacing effect, watering a plant for self-tests, riding a bike for testing against
+   rereading, a to-do list for the rules. Every number an answer says is the page's own
+   (184 corners with no guess, 114 with the best one; after 51 sweeps the water is still),
+   checked by a test.
+2. **Each step of a scene run while scrolled through says it plainly first**, then exactly,
+   smaller, under it ("Sleep flips its switches on." over "Sleep sets its bits, from 23:00 to
+   07:00: one OR with its mask.").
+3. **The pictures are drawn into the figures**: Day 1 as 48 switches that flip on with sleep,
+   then with classes; a battery on each node of tonight's review, its size the topic's
+   stability (full when recalled, small when forgotten); the golf card's words beside the
+   score's terms; three ripples spreading from the goal across the value landscape's floor
+   while it fills; each outcome a coin that flips as it comes in; the crow's line against a
+   winding road over the guesses' bars; a car on the window of replanning, its beam the days
+   planned exactly; too light, just right, too heavy on the spacing landscape's floor, each
+   with its column; a drop of water at each self-test. Under reduced motion each is simply
+   there, complete.
+4. **The student is the reader**: their own avatar (D115), named "You" in the bubble; a
+   silhouette on the public pages and before they make one. Hidden from screen readers, the
+   bubble naming who speaks.
+
+**Not chosen.** A separate page in plain words: it would have doubled the pages and parted the
+picture from the figure it explains. A switch between plain and technical: it hides one
+reader's text from the other, and a page that works without its scripts cannot remember the
+choice. Spark moving while it answers: its motion is for the places it brings a tip (D63),
+not a page being read (D93). A fixed character (first a drawing of the owner): the owner preferred
+the reader's own avatar (D115); the drawing and the photographs it was made from are not in the
+repository.
+
+**Disclosed.** The pictures are the owner's to review, as the tips' wording is (D62); the
+Italian was not written by a native speaker (D34). Each picture is a likeness, and the line
+under it says where it fails: a switch cannot tell a tired hour from a fresh one, memory does
+not show its charge, the penalty's size is a choice in the code, a session left unreported
+counts as done. Checked in Chromium only, at phone size and 1280px, with motion and without.
+
+## D115. The student's own avatar
+
+*The owner, 2026-11-04, of the student drawn after him in the chats of D114: "i don't like the
+[character] let it be the avatar that the student creates".*
+
+**Chosen.**
+
+1. **An avatar maker under You** (`/p/<plan>/avatar`, a card at the top of You): six skin
+   tones, seven hair styles (short, swept, long, curly, a bun, shaved, a headscarf), eight
+   colours for the hair or the headscarf, a moustache or a beard, round or square glasses, and
+   a top in one of the seven course colours. Drawn in Spark's manner, soft shapes and no
+   outlines (`_avatar.html`).
+2. **The preview follows each choice with no script.** It draws every part at once, and CSS
+   shows the ones whose radio is checked, in the colours checked (`.av-maker:has(...)`); Save
+   keeps it. Where `:has` is missing, the preview shows the avatar as saved, and changes after
+   Save. Every colour is a class (`skin-*`, `col-*`, `top-*`), so there is no style attribute;
+   a test keeps the preview's colours the same as the avatar's.
+3. **Kept as the names chosen** in the plan's options (`service.AVATAR_PARTS`): nothing is
+   uploaded. A name this version does not draw falls back to where the maker starts.
+4. **It asks the questions on the science and code pages** (D114), named "You"; a plain
+   silhouette before it is made, and on the public pages.
+
+**Not chosen.** A photo: a drawing keeps the pages light and says nothing a student did not
+choose. Generating an avatar from a photo: a model and an upload for a picture 48 pixels wide.
+More parts (eyes, noses, ages, body shapes): seven groups already cover hair, skin, face and
+dress, and each part costs a drawing and two translations. The avatar in Community instead of
+the initial on a colour: other students would see it, which this change did not ask for; it is
+shown on the student's own pages only.
+
+**Disclosed.** Six skin tones and seven styles are a choice, not every person; the headscarf
+takes the hair's colour. Checked in Chromium only, at phone size and 1280px, light and dark,
+with the preview and, without scripts, by saving.
+

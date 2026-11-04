@@ -96,7 +96,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("GET", r"/weekly(/[^/]+)?", "weekly"),
     ("GET", r"/coach", "coach"),
     ("GET", r"/science", "science"),
-    ("GET", r"/you", "you"),
+    ("GET", r"/(you|avatar)", "you"),  # the avatar is made from You (D115)
     ("GET", r"/settings(/[a-z]+)?", "settings"),
     ("GET", r"/feed", "connect"),
     ("GET", r"/routine", "routine"),
@@ -127,6 +127,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("POST", r"/fit", "fit"),
     ("POST", r"/(reminders|push(/.*)?)", "reminders"),
     ("POST", r"/(appearance|motion|glass|language)", "appearance"),
+    ("POST", r"/avatar", "you"),
     ("POST", r"/semester", "semester"),
     ("POST", r"/feedback", "feedback"),
 )

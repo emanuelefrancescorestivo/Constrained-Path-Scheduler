@@ -117,7 +117,8 @@ def test_the_page_opens_for_anyone_and_inside_a_plan(web, view):
     # Ten scenes: four run while scrolled through (D112), the rest draw themselves.
     assert text.count('class="code-scene') == 10
     assert len(re.findall(r'<div class="code-pin[ "]', text)) == 4
-    assert len(re.findall(r'class="[^"]*\bscroll-fig\b', text)) == 7
+    # The figures that draw themselves; the chats of D114 come in the same way.
+    assert len(re.findall(r'class="(?!chat)[^"]*\bscroll-fig\b', text)) == 7
     assert 'href="/science"' in text
     assert "Comment marche le code" in web.get("/how?lang=fr").text
     assert "Come funziona il codice" in web.get("/how?lang=it").text
@@ -142,7 +143,8 @@ def test_the_science_page_shows_a_topic_kept_up_and_left_alone(web):
     assert float(kept["last"]) > 2 * 30  # it ends holding months, not days
     page = web.get("/science").text
     assert 'id="kept"' in page and kept["alone"] in page and kept["points"] in page
-    assert page.count('class="sci-dot sci-pop eb') == len(kept["marks"])  # each test on its step (D113)
+    # Each test on its step (D113), drawn as a drop of water (D114).
+    assert page.count('class="sci-drop sci-pop eb') == len(kept["marks"])
 
 
 def test_figures_draw_themselves_only_where_motion_is_wanted():
@@ -449,3 +451,95 @@ def test_how_the_code_works_is_under_you_beside_the_science(web):
     how = you.index(f'href="/p/{token}/how"')
     assert science < how and 'class="art art-code"' in you[how:]
     assert web.get(f"/p/{token}/how").status_code == 200
+
+
+def test_each_part_opens_in_plain_words_then_the_real_thing(web):
+    """D114: the student asks what a student would, Spark answers with a picture from
+    everyday life, a line says where the picture stops; on the code page the technical
+    text follows under its label, and every step of a scene run while scrolled through
+    says it plainly first, then exactly."""
+    how, science = web.get("/how").text, web.get("/science").text
+    hero, *scenes = how.split('<section class="code-scene')
+    assert hero.count('class="chat scroll-fig"') == 1 and len(scenes) == 10
+    for scene in scenes:
+        copy = scene.split('<div class="code-copy">', 1)[1]
+        copy = re.split(r'<div class="code-pin|<figure', copy, maxsplit=1)[0]
+        assert copy.count('class="chat scroll-fig"') == 1
+        chat, limit, under = (copy.index(s) for s in ('class="chat ', '"metaphor-limit"', '"code-under"'))
+        assert chat < limit < under < copy.rindex("<p")
+    parts = science.split('<section class="section science-block"')
+    assert parts[0].count('class="chat scroll-fig"') == 1  # the opening question
+    assert science.count('class="chat scroll-fig"') == 6 and science.count('"metaphor-limit"') == 5
+    for page, count in ((how, 17), (science, 13)):
+        steps = re.findall(r'<li class="cap\dof\d"><span class="sci-step">\d</span>(.*?)</li>', page, re.S)
+        assert len(steps) == count
+        for step in steps:
+            assert step.index('class="cap-plain"') < step.index('class="cap-tech"')
+    assert "Sous le capot" in web.get("/how?lang=fr").text
+    assert "Dove l&#39;immagine si ferma" in web.get("/science?lang=it").text
+
+
+def test_the_pictures_numbers_are_the_examples_own(web, view):
+    """Every number a plain line says is the worked example's, as the technical text's
+    are (CLAUDE.md, invariant 4)."""
+    how = web.get("/how").text.replace("\u00a0", " ")
+    hero = how.split('<section class="code-scene', 1)[0]
+    assert f"an exam in {view['exam_days']} days, {len(view['blocks'])} free evenings" in hero
+    scene = {re.search(r'id="(\w+)"', s)[1]: s for s in how.split('<section class="code-scene')[1:]}
+    assert f"After {view['sweeps']} sweeps the water is still" in scene["value"]
+    assert f"After {view['sweeps']} sweeps nothing moves any more" in scene["value"]
+    nodes, blind, states = view["runs"][-1]["nodes"], view["runs"][0]["nodes"], view["exact"]["states"]
+    assert f"{nodes} corners here, of {states} in the whole city" in scene["search"]
+    assert f"the same plan takes {blind} corners" in scene["search"]
+    assert f"{blind} corners with no guess, {nodes} with the best one" in scene["heuristic"]
+    optimum = view["exact"]["value"]
+    long_way = f"all {states} states, one by one, and both ways land on the same score, {optimum}"
+    assert long_way in scene["checked"]
+    assert f"at {view['review']['recall']} % recall, a review would buy less" in scene["andor"]
+    assert f"costs {view['penalty']} penalty strokes" in scene["score"]
+    assert f"plans the {view['day_count']} days in its lights" in scene["rolling"]
+    # Day 1 as switches: one a slot, on where its bit is 1.
+    day = view["days"][0]
+    switches = re.findall(r'<i class="sw( sw-(?:sleep|class))?"><b></b></i>', scene["bits"])
+    assert len(switches) == len(day["bits"])
+    assert [bool(s) for s in switches] == [b == "1" for b in day["bits"]]
+    # The batteries: the recalled review's the largest, the forgotten one's the smallest.
+    charge = view["review"]["charge"]
+    assert charge["recalled"] == 100 and 0 < charge["forgot"] < charge["now"] < 100
+    science = web.get("/science").text.replace("\u00a0", " ")
+    kept = service.science_view()["kept"]
+    assert f"here on days {', '.join(map(str, kept['days']))}" in science
+    assert f"the same plant is at {kept['alone_end']} %" in science
+
+
+def test_the_one_who_asks_is_the_reader_and_each_page_keeps_its_ids_apart(web):
+    """The student in the chats is the reader (D115): on the public pages, with no plan,
+    a silhouette; the drawing has no image, no style attribute and no script."""
+    source = (ROOT / "src/cps/web/templates/_avatar.html").read_text(encoding="utf-8")
+    for absent in ("<image", "data:", "style=", "<script", "<foreignObject", "http"):
+        assert absent not in source
+    assert not (ROOT / "src/cps/web/templates/_student.html").exists()
+    for path in ("/how", "/science"):
+        page = web.get(path).text
+        ids = re.findall(r'\sid="([^"]+)"', page)
+        assert len(ids) == len(set(ids))
+        chats = page.count('class="chat scroll-fig"')
+        assert page.count('<svg class="av-face av-ghost" viewBox="0 0 120 120" aria-hidden="true"') == chats
+        assert "Emanuele" not in page
+
+
+def test_the_pictures_move_only_with_motion_and_never_loop():
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    opening = "@supports (animation-timeline: view()) {\n  @media (prefers-reduced-motion: no-preference) {\n"
+    start = css.index(opening + '    :root:not([data-motion="reduce"]) .scroll-fig')
+    end = css.index("\n}\n", start)
+    block, outside = css[start:end], css[:start] + css[end:]
+    for rule in ("animation-name: sw-on", "animation-name: code-ripple", "animation-name: code-coin"):
+        assert rule in block and rule not in outside
+    assert ".code-ripple { display: none;" in outside  # no ripples without motion
+    for name in ("sw-on", "sw-knob", "code-ripple", "code-coin"):
+        frames = re.search(rf"@keyframes {name} \{{(.*?)\n\}}|@keyframes {name} \{{(.*?)\}} *\}}", css, re.S)
+        assert frames
+    assert ".chat .mascot, .chat .mascot * { animation: none !important; }" in outside
+    assert not re.search(r"\.(?:sw|code-ripple|code-coin|chat)[^{}]*\{[^{}]*infinite", css)
