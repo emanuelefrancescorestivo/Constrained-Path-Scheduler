@@ -1069,3 +1069,10 @@ carried its choice on a button, so none was hit. Status: fixed; the values are r
 first. Also found then: the demo's classmates were meant to give kudos only to others'
 posts, but the check compared a handle with a plan's token and never matched; it now
 compares tokens.
+
+**92. The science page's chart labels were 8.4px on a phone.** Found on 2026-11-04 while
+building the code page (D109), by measuring each SVG label's drawn size in Chromium at
+the iPhone 13's width: a chart's text is sized in the chart's own units and scales with
+it, so the 9-unit labels of D89's charts (90 %, today, 60 days) came out at 8.4px, under
+the 12px floor of D106 (AUDIT 89), which measured HTML text only. Status: fixed; under
+560px the labels are 13 units, about 12px.

@@ -4015,3 +4015,60 @@ session.
 not on a real phone nor with a screen reader; the reactions' pictures are the device's
 emoji. That studying alongside others helps is not shown here: whether Join is used, and
 whether it brings more sessions, is for the pilot (D15, D96).
+
+## D109. How the code works, and the science page drawn as it scrolls
+
+*The owner, 2026-11-04, sharing the project with fellow students of AI: "can we make just
+like we made 'how the science behind it works' a page that as you scroll is animated that
+shows how the code works? how the heuristic, the score, the A* happen? and can you also
+animate the how the science behind it works? that way we can also put the animations in
+the pitch".*
+
+**Chosen.**
+
+1. **A page, `/how` (and `/p/<plan>/how`), that runs the research planner on demo.py's
+   worked example as it is drawn**: two topics (Analysis, S = 2 and D = 7; Algebra, S = 4
+   and D = 5), an exam in 21 days, a student's five weekdays with one 1.5-hour block an
+   evening. Nine scenes, each a few sentences beside a figure, each naming its module:
+   the week as one integer, a bit per half hour (`timegrid`); a topic as two numbers and
+   what tonight's review does to it, recalled or forgotten (`memory`, FSRS-4.5, the
+   planner's model); the score, blocks used plus reviews still owed plus a penalty per
+   topic not ready; value iteration's table of the cost to reach the target and why it
+   is a lower bound (`ssp`); tonight's AND/OR choices with each future's expected cost,
+   the lowest circled; the nodes AO* opens with each of the four guesses; the exhaustive
+   check (3,906 states, the same optimum, the guess never above the true cost); the
+   receding horizon; and the rules the app actually runs, with the sentence the science
+   page already says about why. The solve takes about a second and a half, once per
+   process (`service._code_solved`); the words are formatted per request, in the reader's
+   language (`service.code_view`).
+2. **Its sentences claim only what the numbers say, and a test holds them to it**
+   (`tests/test_how.py`). The example's optimum is to leave the whole week free: five
+   evenings cannot bring either topic to a stability of 21 days even if every one went
+   to it (11.7 and 17.3), so the penalty is paid either way, and a review at 96 % recall
+   saves less than the block it costs. The page says so, rather than showing a busier
+   example: a longer window does spend blocks, but its exhaustive check grows several
+   times over with each evening added, too slow to run as a page is drawn. If the example changes so that a sentence no longer
+   holds, the test fails.
+3. **Figures that draw themselves as the page scrolls**, on this page and the science
+   page: each figure is a view timeline (`.scroll-fig`), its parts come in one after the
+   other (`.st1` to `.st5`), a curve or an edge is drawn (`.st-draw`, its length set to
+   1), a bar grows, a mark appears. CSS only, and only where the browser ties animations
+   to scrolling and motion is wanted: elsewhere, with reduced motion, or with the plan's
+   Motion: Reduced, every figure is simply complete. Scrolling back runs it backwards;
+   nothing loops (D93). The science page gains a chart: a topic tested each time it falls
+   to 90 %, three times in 60 days at longer and longer gaps, against the same topic left
+   alone (59 % after 60 days), from FSRS-6 as the app runs it.
+4. **For the pitch**, the scenes are recorded as short clips by scrolling the page in a
+   headless browser; the clips are not in the repository.
+
+**Found on the way** (AUDIT 92): the science page's chart labels were 8.4px on a phone.
+
+**Not chosen.** An animation library or a script: the page must work without its scripts,
+and CSS scroll timelines need none. Animating the search live, node by node: the numbers
+would be the same, and a page that computes while it is read costs a slow device (D93).
+A bigger example: above.
+
+**Disclosed.** Scroll-driven animations need Chrome or Edge 115+ or Safari 26; elsewhere
+the figures are still. Checked in Chromium only, at phone size and 1280px. The example is
+small on purpose; the planner's real cost and gain are those of
+`benchmarks/rule_vs_planner.py` (AUDIT 36), and the page says the app runs the rules.

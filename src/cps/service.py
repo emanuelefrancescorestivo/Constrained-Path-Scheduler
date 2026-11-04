@@ -10871,4 +10871,282 @@ def science_view() -> dict:
         "own_after": fitting.MIN_REVIEWS,
         "credit_hours": f"{_syllabus.CREDIT_HOURS[0]}–{_syllabus.CREDIT_HOURS[1]}",
         "sources": [SCIENCE_SOURCES[k] for k in SCIENCE_KEYS],
+        "kept": _kept_up(model),
+    }
+
+
+SCIENCE_KEPT_FROM = 2.0  # the topic the "reviews keep it up" chart follows (days of stability)
+
+
+def _kept_up(model: Model) -> dict:
+    """D109: one topic's recall over the science page's span, reviewed each time it
+    falls to the app's target, every review a success: the sawtooth spacing makes,
+    computed by the model the product runs."""
+    target = flashcards.RETENTION
+    state = MemoryState(stability=SCIENCE_KEPT_FROM, difficulty=5.0)
+    t, last, points, reviews = 0.0, 0.0, [(0.0, 1.0)], []
+    while True:
+        due = last + model.interval(state.stability, target)
+        step = 0.25
+        while t + step < min(due, SCIENCE_DAYS):
+            t += step
+            points.append((t, model.retrievability(t - last, state.stability)))
+        if due >= SCIENCE_DAYS:
+            points.append((float(SCIENCE_DAYS), model.retrievability(SCIENCE_DAYS - last, state.stability)))
+            break
+        points += [(due, target), (due, 1.0)]
+        reviews.append({"day": due, "before": state.stability})
+        state = model.review(state, due - last, Grade.GOOD)
+        t = last = due
+    alone = [(float(t), model.retrievability(float(t), SCIENCE_KEPT_FROM)) for t in range(SCIENCE_DAYS + 1)]
+    return {
+        "from": format_number(SCIENCE_KEPT_FROM, 0),
+        "points": _curve(points, SCIENCE_DAYS, 1.0),
+        "alone": _curve(alone, SCIENCE_DAYS, 1.0),
+        "alone_end": round(100 * alone[-1][1]),
+        "target": round(100 * target),
+        "marks": [
+            {"x": round(300 * r["day"] / SCIENCE_DAYS, 1), "y": round(100 - 100 * target, 1)} for r in reviews
+        ],
+        "reviews": len(reviews),
+        "days": [round(r["day"]) for r in reviews],
+        "last": format_number(state.stability, 0),
+        "target_y": round(100 - 100 * target, 1),
+    }
+
+
+# -- How the code works (D109) ---------------------------------------------------------
+
+# The worked example the page runs, demo.py's part 3: two topics, an exam 21 days away,
+# a student's working week of five days, one 1.5-hour block an evening. Small enough to
+# solve exhaustively as the page is drawn, so every number on it is the code's own.
+CODE_DAYS = 5
+CODE_EXAM_DAYS = 21.0
+CODE_TOPICS = (("Analysis", 2.0, 7.0), ("Algebra", 4.0, 5.0))  # name, stability, difficulty
+CODE_HEURISTICS = ("zero", "closed", "ssp", "capacity")
+CODE_TABLE_STABILITIES = (1.0, 2.0, 4.0, 8.0, 16.0)  # the value table's columns (days)
+CODE_BLOCK_SLOTS = 3  # a study block: three half hours, plan.Instance.build's default
+
+
+@functools.cache
+def _code_solved() -> dict:
+    """The worked example solved, once per process (about a second and a half): raw
+    numbers, formatted per request in the reader's language by `code_view`."""
+    from . import plan as _plan
+    from . import ssp as _ssp
+    from .memory import review as _review
+    from .memory import stability_for_interval
+    from .timegrid import TimeGrid
+
+    weekdays = [d for d in range(CODE_DAYS) if d % 7 < 5]
+    grid = TimeGrid(days=CODE_DAYS).block_daily(23, 7).block_daily(8, 18, days=weekdays)
+    target = stability_for_interval(CODE_EXAM_DAYS, 0.9)
+    topics = [(name, MemoryState(stability, difficulty)) for name, stability, difficulty in CODE_TOPICS]
+    policy = _ssp.solve(_ssp.SSPConfig.for_heuristic(target))
+    instance = _plan.Instance.build(
+        grid, topics, target, policy, block_slots=CODE_BLOCK_SLOTS, max_blocks_per_day=1
+    )
+    exact = _plan.solve_exact(instance)
+    heuristics = {
+        "zero": _plan.zero_heuristic,
+        "closed": _plan.closed_form_heuristic,
+        "ssp": _plan.ssp_heuristic,
+        "capacity": _plan.capacity_heuristic,
+    }
+    runs = []
+    for key in CODE_HEURISTICS:
+        solution = _plan.solve_ao_star(instance, heuristics[key])
+        runs.append((key, heuristics[key](instance, instance.initial), solution.nodes, solution.value))
+    # Admissible: the heuristic the planner uses never above the true cost, at every
+    # reachable state, not only at the root (CLAUDE.md, invariant 2).
+    used = heuristics["capacity"]
+    over = max(used(instance, state) - value for state, value in exact.values.items())
+
+    def value_of(state: _plan.PlanState) -> float:
+        return exact.values.get(state, instance.terminal_cost(state))
+
+    root = instance.initial
+    choices = []
+    for action in instance.actions(root):
+        cost, outcomes = instance.successors(root, action)
+        rows = [
+            (
+                p,
+                value_of(child),
+                used(instance, child),
+                child.topics[action].stability if action != _plan.SKIP else None,
+            )
+            for p, child in outcomes
+        ]
+        q = cost + sum(p * value_of(child) for p, child in outcomes)
+        choices.append((instance.topics[action] if action != _plan.SKIP else "", cost, q, rows))
+    # How far each topic could get in the window at best: every block on it, every
+    # recall a success (demo.py part 4). Short of the target, its penalty is paid
+    # whatever the plan does.
+    reach = []
+    for name, memory in topics:
+        state, last = memory, 0.0
+        for block in instance.blocks:
+            state = _review(state, block.start_day - last, Grade.GOOD)
+            last = block.start_day
+        reach.append((name, state.stability))
+    return {
+        "grid": grid,
+        "target": target,
+        "topics": topics,
+        "policy": policy,
+        "instance": instance,
+        "exact": (exact.value, exact.nodes),
+        "runs": runs,
+        "admissible": over <= 1e-9,
+        "choices": choices,
+        "reach": reach,
+    }
+
+
+def code_view() -> dict:
+    """The page that shows how the research planner works (D109), from its own code:
+    the calendar as a bitmask (`timegrid`), a topic's memory state and what a review
+    does to it (`memory`, FSRS-4.5, the planner's model), the cost to reach the target
+    computed by value iteration (`ssp`, SSP-MMC), four heuristics and AO* on the
+    AND/OR graph (`plan`), checked against an exhaustive solve at every reachable
+    state."""
+    from fractions import Fraction
+
+    from .memory import DECAY, FACTOR
+    from .memory import review as _review
+
+    solved = _code_solved()
+    grid, policy, instance, topics = solved["grid"], solved["policy"], solved["instance"], solved["topics"]
+    most = max(nodes for _, _, nodes, _ in solved["runs"])
+    exact_value, exact_states = solved["exact"]
+    runs = [
+        {
+            "key": key,
+            "h": format_number(h, 3),
+            "nodes": format_number(nodes, 0),
+            "value": format_number(value, 5),
+            "optimal": abs(value - exact_value) < 1e-9,
+            "width": round(100 * nodes / most),
+        }
+        for key, h, nodes, value in solved["runs"]
+    ]
+
+    # The calendar: one bit per half hour, set when busy; the blocks cut from what is free.
+    per_day = grid.slots_per_day
+    days: list[dict[str, Any]] = []
+    for day in range(CODE_DAYS):
+        bits = "".join("1" if not grid.is_free(day * per_day + k, 1) else "0" for k in range(per_day))
+        days.append({"day": day, "bits": bits, "groups": [bits[i : i + 8] for i in range(0, per_day, 8)]})
+    blocks = []
+    for b in instance.blocks:
+        at = b.slot - b.day * per_day
+        blocks.append({"day": b.day, "slot": at, "hour": f"{at // 2:02d}:{30 * (at % 2):02d}"})
+
+    # The root of the AND/OR graph: tonight's block, its choices, each with its outcomes,
+    # valued by the exhaustive solve.
+    choices = [
+        {
+            "topic": name,
+            "cost": format_number(cost, 0),
+            "q": format_number(q, 2),
+            "q_raw": q,
+            "outcomes": [
+                {
+                    "p": round(100 * p),
+                    "value": format_number(value, 2),
+                    "h": format_number(h, 2),
+                    "stability": format_number(stability, 1) if stability is not None else "",
+                }
+                for p, value, h, stability in rows
+            ],
+        }
+        for name, cost, q, rows in solved["choices"]
+    ]
+    best = min(choices, key=lambda c: c["q_raw"])
+    for c in choices:
+        c["best"] = c is best
+
+    # Memory: each topic's recall over the days to the exam if nothing is done, and what
+    # tonight's review does to the first topic, recalled or forgotten.
+    curves = []
+    for (name, memory), level in zip(topics, ("review", "good"), strict=True):
+        points = [
+            (t / 4, retrievability(t / 4, memory.stability)) for t in range(int(4 * CODE_EXAM_DAYS) + 1)
+        ]
+        curves.append(
+            {
+                "topic": name,
+                "stability": format_number(memory.stability, 0),
+                "difficulty": format_number(memory.difficulty, 0),
+                "level": level,
+                "points": _curve(points, CODE_EXAM_DAYS, 1.0),
+                "at_exam": round(100 * retrievability(CODE_EXAM_DAYS, memory.stability)),
+            }
+        )
+    first = topics[0][1]
+    delay = instance.blocks[0].start_day
+    recalled = _review(first, delay, Grade.GOOD)
+    forgot = _review(first, delay, Grade.AGAIN)
+
+    # The value table V*(D, S): expected reviews to reach the target, a few rows and
+    # columns of the solved grid, each cell shaded by its value.
+    d_grid, s_grid = policy.difficulty_grid, policy.stability_grid
+    rows_at = [i for i in range(len(d_grid)) if i % max(1, len(d_grid) // 5) == 0][:5]
+    # Columns at stabilities from a day to about two weeks, each the grid's nearest.
+    cols_at = sorted({int(np.argmin(np.abs(s_grid - wanted))) for wanted in CODE_TABLE_STABILITIES})
+    top = max(float(policy.expected_cost[i, j]) for i in rows_at for j in cols_at) or 1.0
+    table = [
+        {
+            "difficulty": format_number(float(d_grid[i]), 1),
+            "cells": [
+                {
+                    "value": format_number(float(policy.expected_cost[i, j]), 1),
+                    "shade": min(4, int(5 * float(policy.expected_cost[i, j]) / (top + 1e-9))),
+                }
+                for j in cols_at
+            ],
+        }
+        for i in rows_at
+    ]
+    h_topics = [(name, policy.expected_reviews(m.difficulty, m.stability)) for name, m in topics]
+    factor = Fraction(FACTOR).limit_denominator(100)
+    return {
+        "days": days,
+        "slot_minutes": 24 * 60 // per_day,
+        "slots": CODE_DAYS * per_day,
+        "busy_slots": sum(d["bits"].count("1") for d in days),
+        "free_slots": sum(d["bits"].count("0") for d in days),
+        "blocks": blocks,
+        "block_hours": format_number(CODE_BLOCK_SLOTS * 24 / per_day, 1),
+        "block_slots": CODE_BLOCK_SLOTS,
+        "day_count": CODE_DAYS,
+        "exam_days": format_number(CODE_EXAM_DAYS, 0),
+        "target": format_number(solved["target"], 0),
+        "decay": format_number(DECAY, 1),
+        "factor": f"{factor.numerator}/{factor.denominator}",
+        "curves": curves,
+        "review": {
+            "topic": topics[0][0],
+            "delay": format_number(delay, 2),
+            "recall": round(100 * retrievability(delay, first.stability)),
+            "lapse": 100 - round(100 * retrievability(delay, first.stability)),
+            "recalled": format_number(recalled.stability, 1),
+            "forgot": format_number(forgot.stability, 1),
+        },
+        "penalty": format_number(instance.lateness_penalty, 0),
+        "sweeps": policy.sweeps,
+        "residual": f"{policy.residual:.0e}",
+        "table": table,
+        "columns": [format_number(float(s_grid[j]), 0) for j in cols_at],
+        "h_topics": [{"topic": name, "value": format_number(v, 3)} for name, v in h_topics],
+        "h_sum": format_number(sum(v for _, v in h_topics), 3),
+        "runs": runs,
+        "exact": {"value": format_number(exact_value, 5), "states": format_number(exact_states, 0)},
+        "admissible": solved["admissible"],
+        "reach": [{"topic": name, "stability": format_number(v, 1)} for name, v in solved["reach"]],
+        "reachable": any(v >= solved["target"] for _, v in solved["reach"]),
+        "choices": choices,
+        "best": best["topic"],
+        "best_q": best["q"],
     }

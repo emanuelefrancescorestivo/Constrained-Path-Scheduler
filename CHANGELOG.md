@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How the code works (DECISIONS.md D109): a page, `/how`, that runs the research
+  planner on demo.py's worked example as it is drawn (the week as bits, a review's two
+  futures, the score, value iteration, the AND/OR choices, each heuristic's nodes, the
+  exhaustive check, replanning, the rules the app runs), its figures drawing themselves as
+  the page scrolls; the science page's figures do the same, with a new chart of a topic
+  kept up by self-tests against the same topic left alone.
+
 - Studying now and a session's reactions (DECISIONS.md D108): while a student's focus
   timer runs, the people who follow them see it atop Community, with Join to start their
   own 25 minutes (off until the student says yes, on the profile or in the first run); a
