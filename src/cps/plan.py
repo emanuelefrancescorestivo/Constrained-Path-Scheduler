@@ -668,11 +668,24 @@ def evaluate_exact_dynamics(instance: Instance, solution: Solution) -> float:
     return rec(instance.initial, instance.initial)
 
 
+@dataclass(frozen=True, slots=True)
+class Expansion:
+    """One step of AO*, recorded when a trace is asked for (D112): the tip it opened,
+    the root's value after the revision that followed, and the marked solution graph
+    at that moment as (parent, action, child) edges. A record of the search, for the
+    page that shows it working; the search reads none of it."""
+
+    state: PlanState
+    root_value: float
+    marked: tuple[tuple[PlanState, int, PlanState], ...]
+
+
 def solve_ao_star(
     instance: Instance,
     heuristic: Heuristic = ssp_heuristic,
     max_expansions: int = 2_000_000,
     weight: float = 1.0,
+    trace: list[Expansion] | None = None,
 ) -> Solution:
     """AO* on the acyclic AND/OR graph induced by the calendar.
 
@@ -684,6 +697,9 @@ def solve_ao_star(
 
     With an admissible heuristic the value returned is exactly optimal, which
     `tests/test_plan.py` checks against `solve_exact` rather than assuming.
+
+    `trace`, when given, receives one `Expansion` per expansion, in order; the
+    search is the same with or without it (tests/test_how.py checks).
     """
     if weight < 1.0:
         raise ValueError("weight must be >= 1; below 1 the search loses its guarantee")
@@ -763,9 +779,28 @@ def solve_ao_star(
             if (current.value, current.solved) != before:
                 for parent in current.parents:
                     pending[parent.state] = parent
+        if trace is not None:
+            trace.append(Expansion(tip.state, root.value, _marked_edges(root)))
 
     policy = {n.state: n.best_action for n in nodes.values() if n.expanded}
     return Solution(value=root.value, nodes=expansions, policy=policy)
+
+
+def _marked_edges(root: _Node) -> tuple[tuple[PlanState, int, PlanState], ...]:
+    """The current best partial solution graph below `root`: from each expanded node,
+    its marked action to every outcome, down to the tips (for `Expansion` only)."""
+    edges: list[tuple[PlanState, int, PlanState]] = []
+    seen: set[PlanState] = set()
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.state in seen or not node.expanded:
+            continue
+        seen.add(node.state)
+        for _, child in node.children[node.best_action][1]:
+            edges.append((node.state, node.best_action, child.state))
+            stack.append(child)
+    return tuple(edges)
 
 
 def capacity_heuristic(instance: Instance, state: PlanState) -> float:

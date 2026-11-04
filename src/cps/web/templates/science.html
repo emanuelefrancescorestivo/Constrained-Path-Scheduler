@@ -2,8 +2,10 @@
 {# The science behind the engine (D89): how a plan is made, the memory model under
    it with its maths, and the research it rests on. Every number is computed by
    service.science_view from the model the app runs; every study cited is a checked
-   entry of docs/REFERENCES.md. Charts are SVG drawn here, in the memory colours. #}
+   entry of docs/REFERENCES.md. Charts are SVG drawn here, in the memory colours, on
+   solid panels (D112, `main.tech`: a technical page keeps the sky, not the glass). #}
 {% block title %}{{ _("The science behind it") }} · {{ _("Study plan") }}{% endblock %}
+{% block site_class %} tech{% endblock %}
 {% block main %}
 {% set s = science %}
 {% if token %}<p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>{% else %}<p class="back"><a href="/">{{ _("Study plan") }}</a></p>{% endif %}

@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The engine as it runs (DECISIONS.md D112): four scenes of the code page run while they
+  are scrolled through, a step at a time: the week's bits set mask by mask, the value
+  table's towers growing sweep by sweep, AO* opening node after node on a disc with its
+  best plan of the moment and the root's estimate climbing to the optimum (a new scene,
+  from the search's own trace), and replanning's window moving on day by day. The code and
+  science pages set their figures on solid panels instead of glass (AUDIT 94).
+
 - The code page in 3D (DECISIONS.md D111): the week's three layers (sleep, classes,
   study blocks) float apart and fall into one calendar as the page scrolls; the value
   table stands as a landscape of towers that rise while it turns; every figure rises

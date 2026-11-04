@@ -3047,6 +3047,106 @@ main.site.code-page { max-width: 64rem; }
 }
 .code-stats { perspective: 900px; }
 
+/* The engine as it runs (D112). The technical pages keep the app's sky, type and
+   colours but not its glass: a figure to be read sits on a solid panel (the owner's
+   report: see-through panes made them hard to follow; AUDIT 94). */
+body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
+  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+  border: 1px solid var(--line); box-shadow: 0 1px 2px rgb(0 0 0 / 5%), 0 10px 28px rgb(0 0 0 / 7%);
+}
+/* A scene that runs while it is scrolled through: its words first, then a stage that
+   stays in view (below, where scrolling drives animations) with the figure and the
+   step it is at. Elsewhere the figure is complete and the steps are a list. */
+.code-scene-pin { display: block; }
+.code-scene-pin > .code-copy { max-width: 42rem; }
+.code-pin-stage { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px 36px; align-items: center; margin-top: 18px; }
+.code-caps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.code-caps > li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; font-size: 1.02rem; line-height: 1.5; }
+.code-caps > li .sci-step { margin-top: 1px; }
+.code-caps b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.code-readout { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 0; font-size: 0.9rem; color: var(--muted); }
+.code-readout b { color: var(--text); font-family: var(--font-display); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.code-readout .code-was { display: none; }
+.code-after { margin-top: 18px; }
+@media (max-width: 860px) {
+  .code-pin-stage { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+/* The search as a disc: tonight in the centre, a ring per evening, each node under the
+   one that first produced it; the best plan so far drawn thick. */
+.code-disc-wrap { perspective: 1000px; }
+.code-disc { display: block; width: 100%; max-width: 400px; max-height: min(44svh, 400px); margin: 0 auto; overflow: visible; }
+.code-ringline { fill: none; stroke: var(--line-strong); stroke-width: 0.8; stroke-dasharray: 2 3; }
+.t-skip { --tc: var(--muted); }
+.t-c0 { --tc: var(--c0); }
+.t-c1 { --tc: var(--c1); }
+.t-root { --tc: var(--accent); }
+.code-tedge { stroke: color-mix(in srgb, var(--tc) 50%, transparent); stroke-width: 1; }
+.code-gdot { fill: var(--surface); stroke: var(--tc); stroke-width: 1.2; }
+.code-odot { fill: var(--tc); }
+.code-pedge { stroke: var(--tc); stroke-width: 3.4; stroke-linecap: round; }
+.code-pedge.t-skip { --tc: var(--accent); }
+:is(.code-tedge, .code-pedge).lapse { stroke-dasharray: 3 2.5; }
+.code-plan { display: none; }
+.code-plan.code-final { display: inline; }
+.code-climb { display: block; width: 100%; height: auto; max-height: 21svh; margin-top: 6px; overflow: visible; }
+.code-guided { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
+.code-blind { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; }
+.code-opt { stroke: var(--text); stroke-width: 1.1; stroke-dasharray: 4 3; }
+.code-cover { fill: var(--surface); display: none; }
+.code-key.code-guided { background: var(--accent); height: 3px; vertical-align: 3px; }
+.code-key.code-blind { background: var(--muted); height: 2px; vertical-align: 3px; }
+.code-key.code-pedge { background: var(--accent); height: 4px; vertical-align: 3px; }
+.code-key.code-odot { background: var(--muted); border-radius: 50%; width: 9px; height: 9px; }
+.code-key.code-gdot { border: 1.5px solid var(--muted); border-radius: 50%; width: 9px; height: 9px; }
+/* Replanning: the days to the exam, the window planned exactly sliding along them (21
+   days and a window of 5: tests/test_how.py holds the page's numbers to these). */
+.code-roll { position: relative; overflow: hidden; border-radius: 9px; }
+.code-days { display: grid; grid-template-columns: repeat(21, minmax(0, 1fr)) minmax(0, 3fr); height: 56px; }
+.code-days > span { border: 2px solid var(--surface); border-radius: 8px; background: var(--fill-3); }
+.code-days > .code-day-exam { display: grid; place-items: center; background: var(--danger-soft); color: var(--danger-text); font-size: 0.75rem; font-weight: 700; }
+.code-win { position: absolute; left: 0; top: 0; height: 56px; width: calc(100% * 5 / 24); border-radius: 9px; background: color-mix(in srgb, var(--accent) 26%, transparent); box-shadow: inset 0 0 0 2px var(--accent); }
+.code-win::after { content: ""; position: absolute; left: 4px; top: 4px; bottom: 4px; width: calc(20% - 6px); border-radius: 6px; background: var(--accent); }
+.code-win::before { content: ""; position: absolute; top: 4px; bottom: 4px; right: calc(100% + 4px); width: 320%; border-radius: 6px; background: color-mix(in srgb, var(--ok) 45%, transparent); }
+.code-roll-scale { display: flex; justify-content: space-between; margin: 6px 0 0; font-size: 0.75rem; color: var(--muted); }
+/* On a phone the stage must hold the figure and its step in one screen. */
+@media (max-width: 560px) {
+  .code-stack-fig { --xs: 0.62; --l1: 40px; --l2: 80px; }
+  .code-disc { max-height: 34svh; }
+  .code-climb { max-height: 19svh; }
+  .code-climb :is(.code-tick, .code-small) { font-size: 13px; }
+  .code-caps > li { font-size: 0.95rem; line-height: 1.42; }
+  .code-pin-stage .sci-key { font-size: 0.75rem; gap: 2px 10px; margin-top: 6px; }
+  .code-pin-stage .code-readout { margin-top: 4px; }
+}
+/* The value table's towers at each sweep the landscape grows through: --q<stop> is a
+   tower's height then, in twentieths (D112). */
+@property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
+.q0z0 { --q0: 0; } .q0z1 { --q0: 1; } .q0z2 { --q0: 2; } .q0z3 { --q0: 3; } .q0z4 { --q0: 4; } .q0z5 { --q0: 5; } .q0z6 { --q0: 6; }
+.q0z7 { --q0: 7; } .q0z8 { --q0: 8; } .q0z9 { --q0: 9; } .q0z10 { --q0: 10; } .q0z11 { --q0: 11; } .q0z12 { --q0: 12; }
+.q0z13 { --q0: 13; } .q0z14 { --q0: 14; } .q0z15 { --q0: 15; } .q0z16 { --q0: 16; } .q0z17 { --q0: 17; } .q0z18 { --q0: 18; }
+.q0z19 { --q0: 19; } .q0z20 { --q0: 20; }
+.q1z0 { --q1: 0; } .q1z1 { --q1: 1; } .q1z2 { --q1: 2; } .q1z3 { --q1: 3; } .q1z4 { --q1: 4; } .q1z5 { --q1: 5; } .q1z6 { --q1: 6; }
+.q1z7 { --q1: 7; } .q1z8 { --q1: 8; } .q1z9 { --q1: 9; } .q1z10 { --q1: 10; } .q1z11 { --q1: 11; } .q1z12 { --q1: 12; } .q1z13 { --q1: 13; }
+.q1z14 { --q1: 14; } .q1z15 { --q1: 15; } .q1z16 { --q1: 16; } .q1z17 { --q1: 17; } .q1z18 { --q1: 18; } .q1z19 { --q1: 19; } .q1z20 { --q1: 20; }
+.q2z0 { --q2: 0; } .q2z1 { --q2: 1; } .q2z2 { --q2: 2; } .q2z3 { --q2: 3; } .q2z4 { --q2: 4; } .q2z5 { --q2: 5; } .q2z6 { --q2: 6; }
+.q2z7 { --q2: 7; } .q2z8 { --q2: 8; } .q2z9 { --q2: 9; } .q2z10 { --q2: 10; } .q2z11 { --q2: 11; } .q2z12 { --q2: 12; } .q2z13 { --q2: 13; }
+.q2z14 { --q2: 14; } .q2z15 { --q2: 15; } .q2z16 { --q2: 16; } .q2z17 { --q2: 17; } .q2z18 { --q2: 18; } .q2z19 { --q2: 19; } .q2z20 { --q2: 20; }
+.q3z0 { --q3: 0; } .q3z1 { --q3: 1; } .q3z2 { --q3: 2; } .q3z3 { --q3: 3; } .q3z4 { --q3: 4; } .q3z5 { --q3: 5; } .q3z6 { --q3: 6; }
+.q3z7 { --q3: 7; } .q3z8 { --q3: 8; } .q3z9 { --q3: 9; } .q3z10 { --q3: 10; } .q3z11 { --q3: 11; } .q3z12 { --q3: 12; } .q3z13 { --q3: 13; }
+.q3z14 { --q3: 14; } .q3z15 { --q3: 15; } .q3z16 { --q3: 16; } .q3z17 { --q3: 17; } .q3z18 { --q3: 18; } .q3z19 { --q3: 19; } .q3z20 { --q3: 20; }
+.q4z0 { --q4: 0; } .q4z1 { --q4: 1; } .q4z2 { --q4: 2; } .q4z3 { --q4: 3; } .q4z4 { --q4: 4; } .q4z5 { --q4: 5; } .q4z6 { --q4: 6; }
+.q4z7 { --q4: 7; } .q4z8 { --q4: 8; } .q4z9 { --q4: 9; } .q4z10 { --q4: 10; } .q4z11 { --q4: 11; } .q4z12 { --q4: 12; } .q4z13 { --q4: 13; }
+.q4z14 { --q4: 14; } .q4z15 { --q4: 15; } .q4z16 { --q4: 16; } .q4z17 { --q4: 17; } .q4z18 { --q4: 18; } .q4z19 { --q4: 19; } .q4z20 { --q4: 20; }
+.q5z0 { --q5: 0; } .q5z1 { --q5: 1; } .q5z2 { --q5: 2; } .q5z3 { --q5: 3; } .q5z4 { --q5: 4; } .q5z5 { --q5: 5; } .q5z6 { --q5: 6; }
+.q5z7 { --q5: 7; } .q5z8 { --q5: 8; } .q5z9 { --q5: 9; } .q5z10 { --q5: 10; } .q5z11 { --q5: 11; } .q5z12 { --q5: 12; } .q5z13 { --q5: 13; }
+.q5z14 { --q5: 14; } .q5z15 { --q5: 15; } .q5z16 { --q5: 16; } .q5z17 { --q5: 17; } .q5z18 { --q5: 18; } .q5z19 { --q5: 19; } .q5z20 { --q5: 20; }
+.q6z0 { --q6: 0; } .q6z1 { --q6: 1; } .q6z2 { --q6: 2; } .q6z3 { --q6: 3; } .q6z4 { --q6: 4; } .q6z5 { --q6: 5; } .q6z6 { --q6: 6; }
+.q6z7 { --q6: 7; } .q6z8 { --q6: 8; } .q6z9 { --q6: 9; } .q6z10 { --q6: 10; } .q6z11 { --q6: 11; } .q6z12 { --q6: 12; } .q6z13 { --q6: 13; }
+.q6z14 { --q6: 14; } .q6z15 { --q6: 15; } .q6z16 { --q6: 16; } .q6z17 { --q6: 17; } .q6z18 { --q6: 18; } .q6z19 { --q6: 19; } .q6z20 { --q6: 20; }
+.q7z0 { --q7: 0; } .q7z1 { --q7: 1; } .q7z2 { --q7: 2; } .q7z3 { --q7: 3; } .q7z4 { --q7: 4; } .q7z5 { --q7: 5; } .q7z6 { --q7: 6; }
+.q7z7 { --q7: 7; } .q7z8 { --q7: 8; } .q7z9 { --q7: 9; } .q7z10 { --q7: 10; } .q7z11 { --q7: 11; } .q7z12 { --q7: 12; } .q7z13 { --q7: 13; }
+.q7z14 { --q7: 14; } .q7z15 { --q7: 15; } .q7z16 { --q7: 16; } .q7z17 { --q7: 17; } .q7z18 { --q7: 18; } .q7z19 { --q7: 19; } .q7z20 { --q7: 20; }
+
 /* How far down the page: a hairline of the accent under the top bar, filled by
    scrolling (below); without scroll timelines there is none. */
 .code-progress { display: none; }
@@ -3093,30 +3193,110 @@ main.site.code-page { max-width: 64rem; }
     :root:not([data-motion="reduce"]) .scroll-fig.code-fig, :root:not([data-motion="reduce"]) .sci-figure.scroll-fig {
       animation: code-tilt linear both; animation-timeline: view(); animation-range: entry 0% cover 42%;
     }
-    /* The week's three layers apart, the sheet of each showing, then one calendar. */
-    :root:not([data-motion="reduce"]) .code-stack-fig .code-stack {
-      animation: code-explode linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
-    }
-    :root:not([data-motion="reduce"]) .code-stack-fig .code-layer-classes {
-      animation: code-lift-1 linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
-    }
-    :root:not([data-motion="reduce"]) .code-stack-fig .code-layer-study {
-      animation: code-lift-2 linear both; animation-timeline: --fig; animation-range: cover 6% cover 46%;
-    }
-    :root:not([data-motion="reduce"]) .code-stack-fig :is(.code-sheet, .code-layer-name) {
-      animation: code-unsheet linear both; animation-timeline: --fig; animation-range: cover 30% cover 46%;
-    }
-    /* The landscape: the towers rise, back rows first, as the plane turns. */
-    :root:not([data-motion="reduce"]) .scroll-fig .code-tower { animation-name: code-rise; }
-    :root:not([data-motion="reduce"]) .scroll-fig .code-land-plane {
-      animation: code-turn linear both; animation-timeline: --fig; animation-range: cover 0% cover 70%;
-    }
     /* What was checked: each tile turns over. */
     :root:not([data-motion="reduce"]) .scroll-fig.code-stats > p { animation-name: code-flip; }
     :root:not([data-motion="reduce"]) .code-progress {
       display: block; position: fixed; z-index: 29; top: var(--topbar); left: 0; right: 0; height: 3px;
       background: var(--accent); transform-origin: 0 50%;
       animation: code-bar linear both; animation-timeline: scroll(root);
+    }
+    /* The engine as it runs (D112): a pinned scene is a tall track whose stage stays in
+       view while the track is scrolled through; everything in it follows the track's
+       timeline, --pin, from 0 % (the stage arrives) to 100 % (it leaves). Longhands
+       only: a later `animation` shorthand would reset the ranges set by class. */
+    :root:not([data-motion="reduce"]) .code-pin { view-timeline: --pin block; view-timeline-inset: var(--topbar) 0px; height: 300vh; }
+    :root:not([data-motion="reduce"]) .code-pin.code-pin-long { height: 440vh; }
+    :root:not([data-motion="reduce"]) .code-pin-stage {
+      position: sticky; top: var(--topbar); height: calc(100svh - var(--topbar)); margin-top: 0; align-content: safe center;
+    }
+    /* In :where(), so that it weighs nothing: each step's own range (by class) wins. */
+    :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
+      .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
+      .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
+      .code-cover, .code-win, .f-top) {
+      animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
+      animation-timeline: --pin; animation-range: contain 0% contain 100%;
+    }
+    /* The steps: one at a time, in the same place. */
+    :root:not([data-motion="reduce"]) .code-pin .code-caps > li { grid-area: 1 / 1; animation-name: code-cap; }
+    :root:not([data-motion="reduce"]) .code-pin .code-caps > li:first-child { animation-name: code-cap-first; }
+    :root:not([data-motion="reduce"]) .code-pin .code-caps > li:last-child { animation-name: code-cap-last; }
+    :root:not([data-motion="reduce"]) .code-pin .cap1of4 { animation-range: contain 0% contain 25%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap2of4 { animation-range: contain 25% contain 50%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap3of4 { animation-range: contain 50% contain 75%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap4of4 { animation-range: contain 75% contain 100%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap1of5 { animation-range: contain 0% contain 20%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap2of5 { animation-range: contain 20% contain 40%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap3of5 { animation-range: contain 40% contain 60%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap4of5 { animation-range: contain 60% contain 80%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap5of5 { animation-range: contain 80% contain 100%; }
+    /* A readout: the one for the moment, in the same place; the last one stays. */
+    :root:not([data-motion="reduce"]) .code-pin .code-readout { display: grid; }
+    :root:not([data-motion="reduce"]) .code-pin .code-at { grid-area: 1 / 1; opacity: 0; animation-name: code-on; animation-fill-mode: none; }
+    :root:not([data-motion="reduce"]) .code-pin .code-at.code-was { display: block; }
+    :root:not([data-motion="reduce"]) .code-pin .code-at:last-child { animation-name: code-show; animation-fill-mode: both; }
+    /* 1. The week: the three layers apart, each mask setting its bits in turn, then one
+       calendar. */
+    :root:not([data-motion="reduce"]) .code-pin .code-stack { animation-name: code-pin-explode; }
+    :root:not([data-motion="reduce"]) .code-pin .code-layer-classes { animation-name: code-pin-lift-1; }
+    :root:not([data-motion="reduce"]) .code-pin .code-layer-study { animation-name: code-pin-lift-2; }
+    :root:not([data-motion="reduce"]) .code-pin .code-sheet { animation-name: code-pin-sheet; }
+    :root:not([data-motion="reduce"]) .code-pin .code-layer-name { animation-name: code-pin-name; }
+    :root:not([data-motion="reduce"]) .code-pin :is(.lay-sleep, .lay-classes, .lay-study, .code-bits) { animation-name: code-show; }
+    :root:not([data-motion="reduce"]) .code-pin .lay-sleep { animation-range: contain 22% contain 32%; }
+    :root:not([data-motion="reduce"]) .code-pin .lay-classes { animation-range: contain 47% contain 57%; }
+    :root:not([data-motion="reduce"]) .code-pin .lay-study { animation-range: contain 70% contain 78%; }
+    :root:not([data-motion="reduce"]) .code-pin .code-bits { animation-range: contain 88% contain 96%; }
+    /* 4. Value iteration: the towers grow through the table's sweeps as the plane turns;
+       their height, not their opacity, moves (opacity would flatten them). */
+    :root:not([data-motion="reduce"]) .code-pin .code-tower { --h: calc(var(--zq) * var(--u)); animation-name: code-sweep; }
+    :root:not([data-motion="reduce"]) .code-pin .code-land-plane { animation-name: code-pin-turn; }
+    /* A tower says its number once the table has settled. */
+    :root:not([data-motion="reduce"]) .code-pin .f-top { animation-name: code-ink; animation-range: contain 76% contain 82%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs0 { animation-name: code-on; animation-fill-mode: none; animation-range: contain 0% contain 27%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs1 { animation-range: contain 27% contain 36%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs2 { animation-range: contain 36% contain 43.5%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs3 { animation-range: contain 43.5% contain 50.5%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs4 { animation-range: contain 50.5% contain 57.5%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs5 { animation-range: contain 57.5% contain 65.5%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs6 { animation-range: contain 65.5% contain 76%; }
+    :root:not([data-motion="reduce"]) .code-pin .qs7 { animation-range: contain 76% contain 77%; }
+    /* 6. The search: the disc comes upright as the search ends; each node appears when
+       the node above it is opened and fills when it is opened itself; the best plan so
+       far is the one of the moment; the root's estimate is drawn as the scroll goes. */
+    :root:not([data-motion="reduce"]) .code-pin .code-disc { animation-name: code-disc; }
+    :root:not([data-motion="reduce"]) .code-pin :is(line.code-tedge, circle.code-gdot, circle.code-odot) { animation-name: code-show; }
+    :root:not([data-motion="reduce"]) .code-pin .code-plan { display: inline; opacity: 0; animation-name: code-on; animation-fill-mode: none; }
+    :root:not([data-motion="reduce"]) .code-pin .code-plan.code-final { animation-name: code-show; animation-fill-mode: both; }
+    :root:not([data-motion="reduce"]) .code-pin .code-cover { display: inline; transform-box: fill-box; transform-origin: 100% 50%; animation-name: code-uncover; }
+    :root:not([data-motion="reduce"]) .code-pin .eb0 { animation-range: contain 0% contain 4%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb1 { animation-range: contain 4% contain 8%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb2 { animation-range: contain 8% contain 12%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb3 { animation-range: contain 12% contain 16%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb4 { animation-range: contain 16% contain 20%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb5 { animation-range: contain 20% contain 24%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb6 { animation-range: contain 24% contain 28%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb7 { animation-range: contain 28% contain 32%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb8 { animation-range: contain 32% contain 36%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb9 { animation-range: contain 36% contain 40%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb10 { animation-range: contain 40% contain 44%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb11 { animation-range: contain 44% contain 48%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb12 { animation-range: contain 48% contain 52%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb13 { animation-range: contain 52% contain 56%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb14 { animation-range: contain 56% contain 60%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb15 { animation-range: contain 60% contain 64%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb16 { animation-range: contain 64% contain 68%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb17 { animation-range: contain 68% contain 72%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb18 { animation-range: contain 72% contain 76%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb19 { animation-range: contain 76% contain 80%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb20 { animation-range: contain 80% contain 84%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb21 { animation-range: contain 84% contain 88%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb22 { animation-range: contain 88% contain 92%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb23 { animation-range: contain 92% contain 96%; }
+    :root:not([data-motion="reduce"]) .code-pin .eb24 { animation-range: contain 96% contain 100%; }
+    /* 9. Replanning: the window moves on a day at a time, the done days behind it. */
+    :root:not([data-motion="reduce"]) .code-pin .code-win {
+      animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
     }
   }
 }
@@ -3128,13 +3308,33 @@ main.site.code-page { max-width: 64rem; }
   from { transform: perspective(1400px) rotateX(26deg) translateY(36px) scale(0.94); opacity: 0.35; }
   to { transform: none; opacity: 1; }
 }
-@keyframes code-explode { from { transform: rotateX(54deg) rotateZ(-24deg) scale(0.78); } to { transform: none; } }
-@keyframes code-lift-1 { from { transform: translateZ(70px); } to { transform: none; } }
-@keyframes code-lift-2 { from { transform: translateZ(140px); } to { transform: none; } }
-@keyframes code-unsheet { from { opacity: 0.42; } to { opacity: 0; } }
-@keyframes code-rise { from { transform: scaleZ(0.02); } to { transform: none; } }
-@keyframes code-turn { from { transform: rotateX(64deg) rotateZ(-12deg); } to { transform: rotateX(56deg) rotateZ(-38deg); } }
 @keyframes code-flip { from { transform: rotateY(-80deg); opacity: 0; } to { transform: none; opacity: 1; } }
+/* D112: the pinned scenes' keyframes, in percent of the scene's track. */
+@keyframes code-show { from { opacity: 0; } to { opacity: 1; } }
+@keyframes code-on { from { opacity: 1; } to { opacity: 1; } }
+@keyframes code-cap-first { 0%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes code-cap {
+  0% { opacity: 0; transform: translateY(12px); } 20%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+@keyframes code-cap-last { 0% { opacity: 0; transform: translateY(12px); } 20%, 100% { opacity: 1; transform: none; } }
+@keyframes code-pin-explode { 0%, 74% { transform: rotateX(54deg) rotateZ(-24deg) scale(var(--xs, 0.78)); } 94%, 100% { transform: none; } }
+@keyframes code-pin-lift-1 { 0%, 74% { transform: translateZ(var(--l1, 70px)); } 94%, 100% { transform: none; } }
+@keyframes code-pin-lift-2 { 0%, 74% { transform: translateZ(var(--l2, 140px)); } 94%, 100% { transform: none; } }
+@keyframes code-pin-sheet { 0%, 76% { opacity: 0.42; } 92%, 100% { opacity: 0; } }
+@keyframes code-pin-name { 0%, 76% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes code-sweep {
+  0%, 22% { --zq: var(--q0); } 32% { --zq: var(--q1); } 40% { --zq: var(--q2); } 47% { --zq: var(--q3); }
+  54% { --zq: var(--q4); } 61% { --zq: var(--q5); } 70% { --zq: var(--q6); } 82%, 100% { --zq: var(--q7); }
+}
+@keyframes code-pin-turn { from { transform: rotateX(60deg) rotateZ(-20deg); } to { transform: rotateX(56deg) rotateZ(-44deg); } }
+@keyframes code-disc {
+  0% { transform: rotateX(52deg) rotateZ(-40deg) scale(0.92); } 40% { transform: rotateX(30deg) rotateZ(-14deg) scale(0.96); }
+  64%, 100% { transform: none; }
+}
+@keyframes code-ink { from { color: transparent; } }
+@keyframes code-uncover { from { transform: none; } to { transform: scaleX(0); } }
+@keyframes code-slide { from { transform: none; } to { transform: translateX(320%); } }
 /* Courses (D86-D88) */
 .course-rows > li { align-items: center; padding: 12px 0; }
 .course-row { display: grid; gap: 5px; }

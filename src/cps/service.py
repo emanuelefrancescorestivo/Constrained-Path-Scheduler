@@ -10926,12 +10926,20 @@ CODE_TOPICS = (("Analysis", 2.0, 7.0), ("Algebra", 4.0, 5.0))  # name, stability
 CODE_HEURISTICS = ("zero", "closed", "ssp", "capacity")
 CODE_TABLE_STABILITIES = (1.0, 2.0, 4.0, 8.0, 16.0)  # the value table's columns (days)
 CODE_BLOCK_SLOTS = 3  # a study block: three half hours, plan.Instance.build's default
+CODE_SLEEP = (23, 7)  # hours taken by sleep, every day
+CODE_CLASSES = (8, 18)  # hours taken by classes, on weekdays
+# D112: the value table as it fills, at these sweeps and the last (8 stops, one style
+# class each: the landscape's towers grow through them as the page is scrolled).
+CODE_SWEEP_STOPS = (0, 1, 2, 3, 4, 6, 10)
+# D112: the search drawn as it runs, its expansions in this many steps of the scroll.
+CODE_SEARCH_STEPS = 25
 
 
 @functools.cache
 def _code_solved() -> dict:
-    """The worked example solved, once per process (about a second and a half): raw
-    numbers, formatted per request in the reader's language by `code_view`."""
+    """The worked example solved, once per process (a few seconds): raw numbers, with
+    the traces of value iteration and of each AO* run (D112), formatted per request in
+    the reader's language by `code_view`."""
     from . import plan as _plan
     from . import ssp as _ssp
     from .memory import review as _review
@@ -10939,11 +10947,13 @@ def _code_solved() -> dict:
     from .timegrid import TimeGrid
 
     weekdays = [d for d in range(CODE_DAYS) if d % 7 < 5]
-    sleep = TimeGrid(days=CODE_DAYS).block_daily(23, 7)  # what is taken by sleep, the rest by classes
-    grid = sleep.block_daily(8, 18, days=weekdays)
+    sleep = TimeGrid(days=CODE_DAYS).block_daily(*CODE_SLEEP)  # what is taken by sleep, the rest by classes
+    grid = sleep.block_daily(*CODE_CLASSES, days=weekdays)
     target = stability_for_interval(CODE_EXAM_DAYS, 0.9)
     topics = [(name, MemoryState(stability, difficulty)) for name, stability, difficulty in CODE_TOPICS]
-    policy = _ssp.solve(_ssp.SSPConfig.for_heuristic(target))
+    # The value table after every sweep (D112), for the landscape that fills as it scrolls.
+    sweeps: list[np.ndarray] = []
+    policy = _ssp.solve(_ssp.SSPConfig.for_heuristic(target), trace=sweeps)
     instance = _plan.Instance.build(
         grid, topics, target, policy, block_slots=CODE_BLOCK_SLOTS, max_blocks_per_day=1
     )
@@ -10955,8 +10965,11 @@ def _code_solved() -> dict:
         "capacity": _plan.capacity_heuristic,
     }
     runs = []
+    traces: dict[str, list[_plan.Expansion]] = {}
     for key in CODE_HEURISTICS:
-        solution = _plan.solve_ao_star(instance, heuristics[key])
+        # Each run's expansions in order (D112): the page draws the search as it ran.
+        traces[key] = []
+        solution = _plan.solve_ao_star(instance, heuristics[key], trace=traces[key])
         runs.append((key, heuristics[key](instance, instance.initial), solution.nodes, solution.value))
     # Admissible: the heuristic the planner uses never above the true cost, at every
     # reachable state, not only at the root (CLAUDE.md, invariant 2).
@@ -11013,6 +11026,185 @@ def _code_solved() -> dict:
         "admissible": over <= 1e-9,
         "choices": choices,
         "reach": reach,
+        "sweeps": sweeps,
+        "traces": traces,
+        "heuristics": heuristics,
+    }
+
+
+def _code_sweeps(solved: dict, rows_at: list[int], cols_at: list[int]) -> dict:
+    """D112: the value table filling, sweep by sweep: the sampled cells' tower heights
+    at each stop (twentieths of the final table's largest sampled value, one style class
+    per stop and height), and the largest change anywhere in the table at that sweep."""
+    sweeps = solved["sweeps"]
+    final = sweeps[-1]
+    top = max(float(final[i, j]) for i in rows_at for j in cols_at) or 1.0
+    stops = [s for s in CODE_SWEEP_STOPS if s < len(sweeps)] + [len(sweeps)]
+    zero = np.zeros_like(final)
+
+    def table_at(sweep: int) -> np.ndarray:
+        return zero if sweep == 0 else sweeps[sweep - 1]
+
+    def change_at(sweep: int) -> str:
+        if sweep == 0:
+            return ""
+        change = float(np.max(np.abs(table_at(sweep) - table_at(sweep - 1))))
+        return format_number(change, 2) if change >= 0.01 else f"{change:.0e}"
+
+    heights = {
+        (i, j): [max(0, round(20 * float(table_at(s)[i, j]) / top)) for s in stops]
+        for i in rows_at
+        for j in cols_at
+    }
+    return {
+        "stops": [{"sweep": s, "change": change_at(s)} for s in stops],
+        "heights": heights,
+    }
+
+
+def _is_lapse(instance: Any, state: Any, action: int, child: Any) -> bool:
+    """Whether `child` is the forgotten outcome of reviewing in `state` (a review has two
+    outcomes, recalled then forgotten; leaving the block free has one)."""
+    _, outcomes = instance.successors(state, action)
+    return len(outcomes) == 2 and outcomes[1][1] == child
+
+
+def _code_search(solved: dict) -> dict:
+    """D112: AO* drawn as it ran, from its trace. Each state the search opened, and each
+    one its marked solution graph reached, sits on a ring per evening (tonight in the
+    centre), placed under the state that first produced it; the angle each gets is in
+    proportion to what grows beneath it. The expansions are cut into
+    `CODE_SEARCH_STEPS` steps of the scroll over the longest run (the one with no
+    guess); at the end of each step, the best plan so far (the marked graph). And the
+    root's value after each expansion, for the guess the planner uses and for none:
+    a lower bound that rises until it meets the optimum."""
+    from . import plan as _plan
+
+    instance = solved["instance"]
+    trace = solved["traces"]["capacity"]
+    longest = max(len(t) for t in solved["traces"].values())
+    steps = CODE_SEARCH_STEPS
+
+    def step_of(expansion: int) -> int:  # expansion counts from 1
+        return min(steps - 1, (expansion - 1) * steps // longest)
+
+    shown = {e.state for e in trace} | {edge[2] for e in trace for edge in e.marked}
+    root = instance.initial
+    opened_at = {e.state: k for k, e in enumerate(trace, start=1)}
+    parent: dict[Any, tuple[Any, int, int]] = {}
+    kids: dict[Any, list[Any]] = {root: []}
+    for e in trace:
+        for action in instance.actions(e.state):
+            _, outcomes = instance.successors(e.state, action)
+            for k, (_, child) in enumerate(outcomes):
+                if child in shown and child not in parent and child != root:
+                    parent[child] = (e.state, action, k)
+                    kids.setdefault(e.state, []).append(child)
+                    kids.setdefault(child, [])
+
+    leaves: dict[Any, int] = {}
+
+    def count(node: Any) -> int:
+        leaves[node] = max(1, sum(count(c) for c in kids.get(node, [])))
+        return leaves[node]
+
+    count(root)
+    rings = (0.0, 38.0, 72.0, 104.0, 134.0, 162.0)
+    place: dict[Any, tuple[float, float]] = {}
+
+    def lay(node: Any, start: float, span: float) -> None:
+        angle = start + span / 2
+        radius = rings[min(node.block_index, len(rings) - 1)]
+        place[node] = (round(radius * math.cos(angle), 1), round(radius * math.sin(angle), 1))
+        at = start
+        for c in kids.get(node, []):
+            share = span * leaves[c] / leaves[node]
+            lay(c, at, share)
+            at += share
+
+    lay(root, -math.pi / 2 - math.pi, 2 * math.pi)
+
+    def tone(action: int) -> str:
+        return "skip" if action == _plan.SKIP else f"c{action}"
+
+    dots, edges = [], []
+    for node, (x, y) in place.items():
+        made = step_of(opened_at[parent[node][0]]) if node in parent else 0
+        opened = opened_at.get(node)
+        dots.append(
+            {
+                "x": x,
+                "y": y,
+                "made": made,
+                "opened": step_of(opened) if opened else None,
+                "tone": tone(parent[node][1]) if node in parent else "root",
+            }
+        )
+        if node in parent:
+            above, action, k = parent[node]
+            px, py = place[above]
+            edges.append(
+                {"x1": px, "y1": py, "x2": x, "y2": y, "made": made, "tone": tone(action), "lapse": k == 1}
+            )
+    # The marked graph at the end of each step, until the search is done.
+    last = step_of(len(trace))
+    plans = []
+    for s in range(last + 1):
+        within = [k for k in range(1, len(trace) + 1) if step_of(k) == s]
+        if not within:
+            continue
+        marked = trace[within[-1] - 1].marked
+        plans.append(
+            {
+                "step": s,
+                "final": s == last,
+                "edges": [
+                    {
+                        "x1": place[a][0],
+                        "y1": place[a][1],
+                        "x2": place[b][0],
+                        "y2": place[b][1],
+                        "tone": tone(action),
+                        "lapse": _is_lapse(instance, a, action, b),
+                    }
+                    for a, action, b in marked
+                ],
+            }
+        )
+    # The root's value as the search runs, for the planner's guess and for none: x by
+    # expansion over the longest run, y by value up to the next whole number past the
+    # optimum, drawn as steps.
+    optimum = solved["exact"][0]
+    ceiling = math.floor(optimum) + 1
+
+    def line(key: str) -> str:
+        values = [solved["heuristics"][key](instance, root)] + [e.root_value for e in solved["traces"][key]]
+        points, before = [], None
+        for k, v in enumerate(values):
+            x = round(20 + 300 * k / longest, 1)
+            y = round(100 - 88 * v / ceiling, 1)
+            if before is not None:
+                points.append(f"{x},{before}")
+            points.append(f"{x},{y}")
+            before = y
+        return " ".join(points)
+
+    counts = [
+        {"step": s, "opened": sum(1 for k in range(1, len(trace) + 1) if step_of(k) <= s)}
+        for s in range(steps)
+    ]
+    return {
+        "dots": dots,
+        "edges": edges,
+        "plans": plans,
+        "rings": [{"r": r, "n": k + 1} for k, r in enumerate(rings) if k],
+        "guided": line("capacity"),
+        "blind": line("zero"),
+        "optimum_y": round(100 - 88 * optimum / ceiling, 1),
+        "done_x": round(20 + 300 * len(trace) / longest, 1),
+        "counts": counts,
+        "last": last,
+        "start": format_number(solved["heuristics"]["capacity"](instance, root), 2),
     }
 
 
@@ -11073,6 +11265,9 @@ def code_view() -> dict:
     for b in instance.blocks:
         at = b.slot - b.day * per_day
         blocks.append({"day": b.day, "slot": at, "hour": f"{at // 2:02d}:{30 * (at % 2):02d}"})
+    # The bits each mask sets, slot by slot (D112: sleep's, then classes' by an OR).
+    for d in days:
+        d["set"] = [{"kind": r["kind"], "slots": list(range(r["start"], r["end"]))} for r in d["runs"]]
 
     # The root of the AND/OR graph: tonight's block, its choices, each with its outcomes,
     # valued by the exhaustive solve.
@@ -11132,6 +11327,7 @@ def code_view() -> dict:
     # Columns at stabilities from a day to about two weeks, each the grid's nearest.
     cols_at = sorted({int(np.argmin(np.abs(s_grid - wanted))) for wanted in CODE_TABLE_STABILITIES})
     top = max(float(policy.expected_cost[i, j]) for i in rows_at for j in cols_at) or 1.0
+    filling = _code_sweeps(solved, rows_at, cols_at)
     table: list[dict[str, Any]] = [
         {
             "difficulty": format_number(float(d_grid[i]), 1),
@@ -11142,6 +11338,8 @@ def code_view() -> dict:
                     # The tower's height in the 3D landscape (D111): twentieths of the
                     # table's largest value, one style class each (no inline style).
                     "z": max(1, round(20 * float(policy.expected_cost[i, j]) / top)),
+                    # Its height at each of the sweeps the landscape grows through (D112).
+                    "zq": filling["heights"][(i, j)],
                 }
                 for j in cols_at
             ],
@@ -11212,4 +11410,10 @@ def code_view() -> dict:
         "choices": choices,
         "best": best["topic"],
         "best_q": best["q"],
+        # D112: the scenes that run as the page is scrolled.
+        "sleep": {"from": f"{CODE_SLEEP[0]:02d}:00", "to": f"{CODE_SLEEP[1]:02d}:00"},
+        "classes": {"from": f"{CODE_CLASSES[0]:02d}:00", "to": f"{CODE_CLASSES[1]:02d}:00"},
+        "sweep_stops": filling["stops"],
+        "search": _code_search(solved),
+        "replans": int(CODE_EXAM_DAYS) - CODE_DAYS + 1,
     }
