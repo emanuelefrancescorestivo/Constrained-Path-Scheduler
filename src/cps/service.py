@@ -11373,6 +11373,11 @@ def code_view() -> dict:
     # The bits each mask sets, slot by slot (D112: sleep's, then classes' by an OR).
     for d in days:
         d["set"] = [{"kind": r["kind"], "slots": list(range(r["start"], r["end"]))} for r in d["runs"]]
+        # Each slot as a light switch (D114): on for sleep or classes, off when free.
+        kinds = ["free"] * per_day
+        for r in d["runs"]:
+            kinds[r["start"] : r["end"]] = [r["kind"]] * (r["end"] - r["start"])
+        d["kinds"] = kinds
 
     # The root of the AND/OR graph: tonight's block, its choices, each with its outcomes,
     # valued by the exhaustive solve.
@@ -11483,6 +11488,15 @@ def code_view() -> dict:
             "lapse": 100 - round(100 * retrievability(delay, first.stability)),
             "recalled": format_number(recalled.stability, 1),
             "forgot": format_number(forgot.stability, 1),
+            # Each stability as a battery's size (D114), in hundredths of the largest.
+            "charge": {
+                key: round(100 * value / max(first.stability, recalled.stability, forgot.stability))
+                for key, value in (
+                    ("now", first.stability),
+                    ("recalled", recalled.stability),
+                    ("forgot", forgot.stability),
+                )
+            },
         },
         "penalty": format_number(instance.lateness_penalty, 0),
         "sweeps": policy.sweeps,

@@ -4240,3 +4240,59 @@ scene is complete (the whole chart, the columns and readout at day 60, the settl
 and its steps are a list. Checked in Chromium only, at phone size and 1280px. A page error that
 clicking any row under You raises in headless Chromium ("Transition was aborted", a page
 transition skipped) was there before this change and is not fixed here.
+
+## D114. The technical pages in plain words, asked by Emanuele
+
+*The owner, 2026-11-04, of the code and science pages: "it needs to be explained also with a
+more accessible language alongside the technical one, with some student role play similar and
+metaphors to understand, maybe also the animations could help with that". Of the three
+proposals put to him, the second (a plain layer over the technical one, on both pages), with
+the student named Emanuele and drawn after him: "he looks like me because i am the owner with
+you of this app".*
+
+**Chosen.**
+
+1. **A conversation opens each part.** Emanuele asks what a student would ("How does the app
+   even see my week?"), Spark answers with a picture from everyday life, and one line, *Where
+   the picture stops*, says where the picture is no longer true. On the code page the
+   technical text follows under *Under the hood*, unchanged. The code page's pictures are all
+   of a trip, as its opening one is (a navigation app for your memory): light switches for the
+   week, a phone's battery for a topic, a golf score for the plan's score, ripples from a stone
+   at the goal for value iteration, a loaded coin for each review, a walk through a new city
+   for AO*, the distance as the crow flies for the guess, doing a sum the long way for the
+   exhaustive check, headlights for replanning, a cook's quick recipe against a slow one for
+   the rules. The science page's: three leaking glasses for forgetting, the gym for the
+   spacing effect, watering a plant for self-tests, riding a bike for testing against
+   rereading, a to-do list for the rules. Every number an answer says is the page's own
+   (184 corners with no guess, 114 with the best one; after 51 sweeps the water is still),
+   checked by a test.
+2. **Each step of a scene run while scrolled through says it plainly first**, then exactly,
+   smaller, under it ("Sleep flips its switches on." over "Sleep sets its bits, from 23:00 to
+   07:00: one OR with its mask.").
+3. **The pictures are drawn into the figures**: Day 1 as 48 switches that flip on with sleep,
+   then with classes; a battery on each node of tonight's review, its size the topic's
+   stability (full when recalled, small when forgotten); the golf card's words beside the
+   score's terms; three ripples spreading from the goal across the value landscape's floor
+   while it fills; each outcome a coin that flips as it comes in; the crow's line against a
+   winding road over the guesses' bars; a car on the window of replanning, its beam the days
+   planned exactly; too light, just right, too heavy on the spacing landscape's floor, each
+   with its column; a drop of water at each self-test. Under reduced motion each is simply
+   there, complete.
+4. **Emanuele is a drawing** (`_student.html`): soft shapes in Spark's manner, made after the
+   owner's photographs at his wish (swept dark-brown hair, thick brows, a moustache, a cream
+   fleece over a brown T-shirt). The photographs are not in the repository nor the app; the
+   drawing has no image, no style attribute and no script (a test checks), and it is hidden
+   from screen readers, the bubble naming who speaks.
+
+**Not chosen.** A separate page in plain words: it would have doubled the pages and parted the
+picture from the figure it explains. A switch between plain and technical: it hides one
+reader's text from the other, and a page that works without its scripts cannot remember the
+choice. Spark moving while it answers: its motion is for the places it brings a tip (D63),
+not a page being read (D93). A photograph, or a caricature beyond the owner's features: a
+drawing in the app's own style was asked for.
+
+**Disclosed.** The pictures are the owner's to review, as the tips' wording is (D62); the
+Italian was not written by a native speaker (D34). Each picture is a likeness, and the line
+under it says where it fails: a switch cannot tell a tired hour from a fresh one, memory does
+not show its charge, the penalty's size is a choice in the code, a session left unreported
+counts as done. Checked in Chromium only, at phone size and 1280px, with motion and without.

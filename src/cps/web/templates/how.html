@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_ring.html" import ring %}
+{% from "_explain.html" import chat, limit, under %}
 {# How the code works (D109, in the app's own look since D110): the research planner on
    one worked example, scene by scene, each figure drawing itself as the page is
    scrolled (CSS scroll-driven animations, `.scroll-fig` and its stages `.st1`..`.st5`;
@@ -11,13 +12,16 @@
    on. Every number is computed by service.code_view from the planner's own code: the
    timetable as bits, FSRS-4.5, value iteration (SSP-MMC) and its sweeps, the
    heuristics, AO* and its trace, and the exhaustive solve that checks them. SVG text
-   is 12 units or more. #}
+   is 12 units or more. Each scene opens in plain words (D114): Emanuele asks, Spark
+   answers with a picture from a trip by car or on foot, a line says where the picture
+   stops; each step of a pinned scene says it plainly, then technically. #}
 {% block title %}{{ _("How the code works") }} · {{ _("Study plan") }}{% endblock %}
 {% block site_class %} code-page tech{% endblock %}
 {% block main %}
 {% set h = how %}
 {% set base = "/p/" ~ token if token else "" %}
 {% set analysis, algebra = h.curves[0], h.curves[1] %}
+{% macro battery(pct) %}<svg class="code-battery" viewBox="0 0 26 12" width="26" height="12" aria-hidden="true"><rect class="cell" x="1" y="1" width="21" height="10" rx="2.5"></rect><rect class="nub" x="23" y="4" width="2" height="4" rx="1"></rect><rect class="charge" x="3" y="3" width="{{ [1, 17 * pct / 100] | max | round(1) }}" height="6" rx="1.2"></rect></svg>{% endmacro %}
 {% macro mark(c) %}<span class="dot {{ c.color }}" aria-hidden="true"></span>{% endmacro %}
 <div class="code-progress" aria-hidden="true"></div>
 <p class="back"><a href="{{ base }}/science">{{ _("The science behind it") }}</a></p>
@@ -26,6 +30,7 @@
   <p class="kicker">{{ _("For the curious") }}</p>
   <h1>{{ _("How the code works") }}</h1>
   <p class="lede">{{ _("The search behind a study plan, step by step, on one small example this page solves as it is drawn: {a} and {b}, an exam in {n} days, a study block on each of {k} evenings.", a=analysis.topic, b=algebra.topic, n=h.exam_days, k=h.blocks | length) }}</p>
+  {{ chat(_("{a} and {b}, an exam in {n} days, {k} free evenings. How does anything decide what I study tonight?", a=analysis.topic, b=algebra.topic, n=h.exam_days, k=h.blocks | length), _("Think of a navigation app, but for your memory. You tell it where you need to be: every topic solid on exam day. It knows the roads, your free evenings, and the traffic, how fast you forget, and it looks for the cheapest way there. Each section below starts with a picture like this one, then shows the real thing."), "hero") }}
   <div class="card code-tonight">
     <p class="code-tonight-head"><span class="code-pill">{{ _("Tonight at {h}", h=h.blocks[0].hour) }}</span><span class="code-exam">{{ _("Exam in {n} days", n=h.exam_days) }}</span></p>
     <ul class="code-courses">
@@ -46,6 +51,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">1</span><code>timegrid.py</code></p>
     <h2>{{ _("A week is one number") }}</h2>
+    {{ chat(_("How does the app even see my week?"), _("As a row of light switches, one for every half hour: on when the time is taken, off when it is free. Sleep flips its switches on, classes flip theirs, and whatever is still off is yours to study in. The whole week fits in one long number."), "bits") }}
+    {{ limit(_("A switch is on or off; an evening is not. The app cannot tell a tired free hour from a fresh one, unless you tell it when you study best.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.slots }}</b><span>{{ _("bits for {d} days, {f} of them free", d=h.day_count, f=h.free_slots) }}</span></p>
     <p>{{ _("Each half hour is one bit: 1 when it is taken (sleep, classes), 0 when it is free. {days} days are {n} bits; {busy} are taken, {free} are free.", days=h.day_count, n=h.slots, busy=h.busy_slots, free=h.free_slots) }}</p>
     <p>{{ _("Whether a stretch of time is free is one AND with a mask, however long the stretch. Free time is then cut into study blocks of {hours} hours, here at most one an evening.", hours=h.block_hours) }}</p>
@@ -80,14 +88,15 @@
       <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("a study block") }}</text>
     </svg>
     </div>
+    <p class="code-switches" aria-hidden="true"><span class="code-label">{{ _("Day 1 as switches") }}</span>{% for g in h.days[0].kinds | batch(8) %}<span class="sw-group">{% for k in g %}<i class="sw{% if k == 'sleep' %} sw-sleep{% elif k == 'classes' %} sw-class{% endif %}"><b></b></i>{% endfor %}</span>{% endfor %}</p>
     <p class="code-bits"><span class="code-label">{{ _("Day 1") }}</span>{% for g in h.days[0].groups %}<code>{{ g }}</code>{% endfor %}</p>
-    <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span><span><i class="code-key bit1"></i>{{ _("a bit set: taken") }}</span></figcaption>
+    <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span><span><i class="code-key bit1"></i>{{ _("a bit set: taken") }}</span><span><i class="sw sw-key"><b></b></i>{{ _("a switch on: taken") }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("{n} bits, one per half hour, every one 0: the week starts empty.", n=h.slots) }}</span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Sleep sets its bits, from {a} to {b}: one OR with its mask.", a=h.sleep.from, b=h.sleep.to) }}</span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes set theirs, from {a} to {b} on weekdays: another OR.", a=h.classes.from, b=h.classes.to) }}</span></li>
-    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("Every bit still 0 is free. {k} free in a row make a study block, here one an evening.", k=h.block_slots) }}</span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("All the switches off: an empty week.") }}</span><small class="cap-tech">{{ _("{n} bits, one per half hour, every one 0: the week starts empty.", n=h.slots) }}</small></span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("Sleep flips its switches on.") }}</span><small class="cap-tech">{{ _("Sleep sets its bits, from {a} to {b}: one OR with its mask.", a=h.sleep.from, b=h.sleep.to) }}</small></span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("Classes flip theirs.") }}</span><small class="cap-tech">{{ _("Classes set theirs, from {a} to {b} on weekdays: another OR.", a=h.classes.from, b=h.classes.to) }}</small></span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("Whatever is still off is free; a long enough stretch of it becomes a study block.") }}</span><small class="cap-tech">{{ _("Every bit still 0 is free. {k} free in a row make a study block, here one an evening.", k=h.block_slots) }}</small></span></li>
   </ol>
   </div>
   </div>
@@ -98,6 +107,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">2</span><code>memory.py</code></p>
     <h2>{{ _("A topic is two numbers") }}</h2>
+    {{ chat(_("What does the app know about a topic like {topic}?", topic=analysis.topic), _("Two numbers, like a phone's battery. Your chance of recalling the topic is the charge, and it drains: fast at first, then more slowly. Stability is how many days the charge stays above 90 %, {s} for {topic}; difficulty is how hard it is to charge. A review recharges it, and leaves a bigger battery if you recall, a smaller one if you forget.", s=analysis.stability, topic=analysis.topic), "memory") }}
+    {{ limit(_("A battery shows its charge; memory does not. Both numbers are the model's estimate from average students, not a reading of your brain.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.review.recall }} %</b><span>{{ _("the chance {topic} is recalled tonight", topic=h.review.topic) }}</span></p>
     <p>{{ _("Its stability S, the days until recall falls to 90 %, and its difficulty D, from 1 to 10. Recall then fades as R(t) = (1 + f · t ⁄ S) to the power {d}, with f = {f}.", d=h.decay, f=h.factor) }}</p>
     <p>{{ _("To be at 90 % on exam day, {n} days away, a topic needs a stability of {s} days. Neither is there yet.", n=h.exam_days, s=h.target) }}</p>
@@ -114,13 +126,13 @@
       {% for c in h.curves %}<polyline class="code-curve {{ c.color }} st-draw st{{ loop.index }}" pathLength="1" points="{{ c.points }}"></polyline>
       <g class="st{{ loop.index + 2 }}"><circle class="code-cdot {{ c.color }}" cx="300" cy="{{ c.end_y }}" r="4.5"></circle><text class="code-small code-num" x="308" y="{{ c.end_y + 4 }}">{{ c.at_exam }} %</text></g>{% endfor %}
     </svg>
-    <figcaption class="sci-key">{% for c in h.curves %}<span>{{ mark(c) }}{{ _("{topic}: S = {s}, D = {d}, {r} % on exam day", topic=c.topic, s=c.stability, d=c.difficulty, r=c.at_exam) }}</span>{% endfor %}</figcaption>
+    <figcaption class="sci-key">{% for c in h.curves %}<span>{{ mark(c) }}{{ _("{topic}: S = {s}, D = {d}, {r} % on exam day", topic=c.topic, s=c.stability, d=c.difficulty, r=c.at_exam) }}</span>{% endfor %}<span>{{ battery(100) }}{{ _("the battery's size: how long the topic holds") }}</span></figcaption>
     {% set r = h.review %}
     <div class="code-fork">
-      <p class="code-node st3">{{ mark(analysis) }}{{ _("Review {topic} tonight, at {p} % recall", topic=r.topic, p=r.recall) }}</p>
+      <p class="code-node st3">{{ mark(analysis) }}{{ _("Review {topic} tonight, at {p} % recall", topic=r.topic, p=r.recall) }}{{ battery(r.charge.now) }}</p>
       <div class="code-branches">
-        <p class="code-node code-good st4"><span class="code-glyph" aria-hidden="true">✓</span>{{ _("recalled ({p} %): S becomes {s}", p=r.recall, s=r.recalled) }}</p>
-        <p class="code-node code-bad st5"><span class="code-glyph" aria-hidden="true">✗</span>{{ _("forgotten ({p} %): S falls to {s}", p=r.lapse, s=r.forgot) }}</p>
+        <p class="code-node code-good st4"><span class="code-glyph" aria-hidden="true">✓</span>{{ _("recalled ({p} %): S becomes {s}", p=r.recall, s=r.recalled) }}{{ battery(r.charge.recalled) }}</p>
+        <p class="code-node code-bad st5"><span class="code-glyph" aria-hidden="true">✗</span>{{ _("forgotten ({p} %): S falls to {s}", p=r.lapse, s=r.forgot) }}{{ battery(r.charge.forgot) }}</p>
       </div>
     </div>
   </figure>
@@ -131,6 +143,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">3</span><code>plan.py</code></p>
     <h2>{{ _("The score of a plan") }}</h2>
+    {{ chat(_("How does it tell a good plan from a bad one?"), _("Like a golf score, where lower is better. Each study block is a stroke played, the reviews still owed after these days are the strokes left to the hole, and a topic not ready costs {n} penalty strokes, more than all the blocks in the window, so being ready always comes first.", n=h.penalty), "score") }}
+    {{ limit(_("In golf everyone agrees on the rules; here the size of the penalty is a choice made in the code, not a fact about learning.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.score.total }}</b><span>{{ _("the best plan's score; lower is better") }}</span></p>
     <p>{{ _("Lower is better. A review can fail, so a plan is a policy, what to do next given what happened, and its score is an expected value.") }}</p>
     <p>{{ _("The first two terms alone would let a plan put everything off; the penalty stops that. It is as many blocks as the window holds, {n} here, so being ready counts for more than any block saved.", n=h.penalty) }}</p>
@@ -138,10 +153,10 @@
   <figure class="card code-fig scroll-fig">
     <p class="tile-label st1">{{ _("Every evening left free") }}</p>
     <ol class="list code-sum">
-      <li class="st1"><span class="code-op"></span><span class="grow">{{ _("blocks used") }}<small>{{ _("each study block costs 1") }}</small></span><b>{{ h.score.blocks }}</b></li>
-      <li class="st2"><span class="code-op">+</span><span class="grow">{{ _("reviews still needed") }}<small>{{ _("after the window, from value iteration") }}</small></span><b>{{ h.score.owed }}</b></li>
-      <li class="st3"><span class="code-op">+</span><span class="grow">{{ _("{n} × topics not ready", n=h.penalty) }}<small>{{ _n("{n} topic not ready at the end of the window", "{n} topics not ready at the end of the window", h.score.unready) }}</small></span><b>{{ h.score.penalties }}</b></li>
-      <li class="st4 code-total"><span class="code-op">=</span><span class="grow">{{ _("the score") }}</span><b>{{ h.score.total }}</b></li>
+      <li class="st1"><span class="code-op"></span><span class="grow">{{ _("blocks used") }}<small>{{ _("each study block costs 1") }}</small><em class="code-golf">{{ _("in golf: strokes played") }}</em></span><b>{{ h.score.blocks }}</b></li>
+      <li class="st2"><span class="code-op">+</span><span class="grow">{{ _("reviews still needed") }}<small>{{ _("after the window, from value iteration") }}</small><em class="code-golf">{{ _("in golf: strokes left to the hole") }}</em></span><b>{{ h.score.owed }}</b></li>
+      <li class="st3"><span class="code-op">+</span><span class="grow">{{ _("{n} × topics not ready", n=h.penalty) }}<small>{{ _n("{n} topic not ready at the end of the window", "{n} topics not ready at the end of the window", h.score.unready) }}</small><em class="code-golf">{{ _("in golf: penalty strokes") }}</em></span><b>{{ h.score.penalties }}</b></li>
+      <li class="st4 code-total"><span class="code-op">=</span><span class="grow">{{ _("the score") }}<em class="code-golf">{{ _("in golf: the card") }}</em></span><b>{{ h.score.total }}</b></li>
     </ol>
   </figure>
 </section>
@@ -151,6 +166,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">4</span><code>ssp.py</code></p>
     <h2>{{ _("What reaching the target costs") }}</h2>
+    {{ chat(_("How can it know what a topic will cost me before I have studied it?"), _("Picture a stone dropped into a pond, right at the goal. Ripples spread out from it, one sweep at a time, and each tells the places further out how far they are from the goal. After {n} sweeps the water is still: every memory state, shaky or solid, easy or hard, knows how many reviews it is from the target.", n=h.sweeps), "value") }}
+    {{ limit(_("Ripples spread evenly; these costs do not. They come from the memory model, so they are only as right as its forgetting curve.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.sweeps }}</b><span>{{ _("sweeps until the values settle") }}</span></p>
     <p class="formula"><var>V</var>(<var>D</var>, <var>S</var>) = min<sub><var>r</var></sub> [ 1 + <var>r</var> · <var>V</var>(<var>D</var>′, <var>S</var>′) + (1 − <var>r</var>) · <var>V</var>(<var>D</var>″, <var>S</var>″) ]</p>
     <p>{{ _("Value iteration over every memory state: review at recall r, succeed with probability r, or fail. Here it converged in {n} sweeps, to within {e}.", n=h.sweeps, e=h.residual) }}</p>
@@ -168,6 +186,7 @@
         {% for row in h.table | reverse %}{% for c in row.cells %}
         <div class="code-tower code-v{{ c.shade }} tz{{ c.z }}{% for z in c.zq %} q{{ loop.index0 }}z{{ z }}{% endfor %}{% for t in c.topics %} on-{{ t.color }}{% endfor %}"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">{{ c.value }}</i></div>
         {% endfor %}{% endfor %}
+        <i class="code-ripple r1"></i><i class="code-ripple r2"></i><i class="code-ripple r3"></i><span class="code-axis code-goal">{{ _("the goal") }}</span>
         <span class="code-axis code-axis-s">{{ _("stability") }} →</span>
         <span class="code-axis code-axis-d">{{ _("difficulty") }} →</span>
       </div>
@@ -175,10 +194,10 @@
     <p class="code-readout">{% for s in h.sweep_stops %}<span class="code-at qs{{ loop.index0 }}{% if not loop.last %} code-was{% endif %}">{{ _("sweep") }} <b>{{ s.sweep }}</b>{% if s.change %} · {{ _("largest change") }} <b>{{ s.change }}</b>{% endif %}</span>{% endfor %}</p>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Every cell starts at 0, as if no review were needed.") }}</span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("A sweep gives every cell its cheapest review: 1 for the review, plus what its two futures cost, weighted by their chances.") }}</span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Sweep after sweep, the costs spread back from the target: the shakiest, hardest topics climb highest.") }}</span></li>
-    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {n} sweeps no cell moves by more than {e}: the table has settled.", n=h.sweeps, e=h.residual | replace("-", "‑")) }}</span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("Before the first sweep, every state thinks it is already there.") }}</span><small class="cap-tech">{{ _("Every cell starts at 0, as if no review were needed.") }}</small></span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("A sweep: each state looks one review ahead, at its two possible futures.") }}</span><small class="cap-tech">{{ _("A sweep gives every cell its cheapest review: 1 for the review, plus what its two futures cost, weighted by their chances.") }}</small></span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("The cost ripples out from the goal: shaky, hard topics end up highest.") }}</span><small class="cap-tech">{{ _("Sweep after sweep, the costs spread back from the target: the shakiest, hardest topics climb highest.") }}</small></span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("After {n} sweeps nothing moves any more: the map of costs is finished.", n=h.sweeps) }}</span><small class="cap-tech">{{ _("After {n} sweeps no cell moves by more than {e}: the table has settled.", n=h.sweeps, e=h.residual | replace("-", "‑")) }}</small></span></li>
   </ol>
   </div>
   </div>
@@ -196,6 +215,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">5</span><code>plan.py</code></p>
     <h2>{{ _("Two futures for every choice") }}</h2>
+    {{ chat(_("Why not just study the topic I am most likely to forget?"), _("Because every review is a toss of a loaded coin: heads you recall and the topic gets stronger, tails you forget and it gets weaker. The planner weighs both sides of every coin. Sometimes the best move is to wait: tonight, at {p} % recall, a review would buy less than the evening it costs.", p=h.review.recall), "andor") }}
+    {{ limit(_("A real coin has no memory; this one is loaded by how well you know the topic, and the loading is the model's guess.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.futures }}</b><span>{{ _("futures from tonight's {n} choices", n=h.choices | length) }}</span></p>
     <p>{{ _("Tonight's block: study one topic, or leave it free. A review leads to two futures, recalled or forgotten, so the search space is an AND/OR graph. A* would follow one path, as if memory never failed; AO* looks for the best policy.") }}</p>
     <p>{{ _("Each choice is worth its cost plus its futures, weighted by their chances. Here the best is to leave tonight free, {q}: at {p} % recall, a review now saves less than the block it costs. The search finds spacing on its own.", q=h.best_q, p=h.review.recall) }}</p>
@@ -213,8 +235,8 @@
       {% for o in c.outcomes %}{% set ox = x if n == 1 else x - 26 + 52 * loop.index0 %}{% set lapse = n > 1 and loop.index0 == 1 %}
       <line class="code-edge code-chance st-draw st3" pathLength="1" x1="{{ x }}" y1="116" x2="{{ ox }}" y2="156"></line>
       <g class="st3"><text class="code-small" x="{{ (x + ox) / 2 + (8 if ox >= x else -8) }}" y="140" text-anchor="{{ 'start' if ox >= x else 'end' }}">{{ o.p }} %</text>
-        <circle class="code-outcome{% if lapse %} code-lapse{% endif %}" cx="{{ ox }}" cy="166" r="9"></circle>
-        {% if lapse %}<path class="code-mark" d="M{{ ox - 3.5 }} 162.5l7 7M{{ ox + 3.5 }} 162.5l-7 7"></path>{% else %}<path class="code-mark" d="M{{ ox - 4 }} 166.5l2.8 2.8 5.2-5.6"></path>{% endif %}
+        <g class="code-coin st4"><circle class="code-outcome{% if lapse %} code-lapse{% endif %}" cx="{{ ox }}" cy="166" r="9"></circle>
+        {% if lapse %}<path class="code-mark" d="M{{ ox - 3.5 }} 162.5l7 7M{{ ox + 3.5 }} 162.5l-7 7"></path>{% else %}<path class="code-mark" d="M{{ ox - 4 }} 166.5l2.8 2.8 5.2-5.6"></path>{% endif %}</g>
         <text class="code-small" x="{{ ox }}" y="194" text-anchor="middle">{{ o.value }}</text></g>
       {% endfor %}
       <text class="code-q{% if c.best %} code-q-best{% endif %} st4" x="{{ x }}" y="226" text-anchor="middle">{{ c.q }}</text>
@@ -238,6 +260,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">6</span><code>plan.py</code></p>
     <h2>{{ _("The search, node by node") }}</h2>
+    {{ chat(_("There must be millions of possible plans. Does it really try them all?"), _("No. It explores the way you would a new city: it keeps the most promising route so far, walks only to the next corner of that route, looks around, and corrects its idea of the trip. Routes that are clearly worse are never walked: {n} corners here, of {m} in the whole city.", n=h.runs[-1].nodes, m=h.exact.states), "search") }}
+    {{ limit(_("A city stays put while you walk; here every corner splits in two, recalled or forgotten, so the map grows as fast as it is explored.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.runs[-1].nodes }}</b><span>{{ _("nodes opened to find the best plan") }}</span></p>
     <p>{{ _("AO* keeps the best partial plan it has found so far and opens one of its unopened nodes at a time. Opening a node lays out every choice there and every future of each; the estimates above it are then corrected.") }}</p>
   </div>
@@ -267,11 +292,11 @@
     <figcaption class="sci-key"><span>{{ _("Tonight in the centre, a ring for each evening after it.") }}</span><span><i class="code-key code-pedge"></i>{{ _("the best plan so far") }}</span><span><i class="code-key code-odot"></i>{{ _("opened") }}</span><span><i class="code-key code-gdot"></i>{{ _("seen, not opened") }}</span><span>{% for c in h.curves %}{{ mark(c) }}{{ c.topic }} {% endfor %}</span><span><i class="code-key code-guided"></i>{{ _("with the planner's guess") }}</span><span><i class="code-key code-blind"></i>{{ _("no guess") }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of5"><span class="sci-step">1</span><span>{{ _("Tonight is the centre. Before anything is opened, the guess says the best plan costs at least {h}.", h=s.start) }}</span></li>
-    <li class="cap2of5"><span class="sci-step">2</span><span>{{ _("It follows the best plan so far to a node it has not opened, and opens it: every choice there, every future of each.") }}</span></li>
-    <li class="cap3of5"><span class="sci-step">3</span><span>{{ _("Each opening corrects the estimates above it. The estimate at the root rises toward the true cost and never passes it.") }}</span></li>
-    <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("It stops when the best plan has nothing left to open: {n} nodes, a score of {v}, the exhaustive optimum. Here, every evening left free.", n=h.runs[-1].nodes, v=h.score.total) }}</span></li>
-    <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("With no guess the same answer takes {n} nodes: the grey line.", n=h.runs[0].nodes) }}</span></li>
+    <li class="cap1of5"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("Tonight is the centre. Before walking anywhere, the guess gives a first idea of the trip.") }}</span><small class="cap-tech">{{ _("Tonight is the centre. Before anything is opened, the guess says the best plan costs at least {h}.", h=s.start) }}</small></span></li>
+    <li class="cap2of5"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("Walk to the next corner on the best route so far, and look down every street from there.") }}</span><small class="cap-tech">{{ _("It follows the best plan so far to a node it has not opened, and opens it: every choice there, every future of each.") }}</small></span></li>
+    <li class="cap3of5"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("Each look corrects the idea of the trip: it only rises toward the true cost, never past it.") }}</span><small class="cap-tech">{{ _("Each opening corrects the estimates above it. The estimate at the root rises toward the true cost and never passes it.") }}</small></span></li>
+    <li class="cap4of5"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("Nothing left to look at on the best route: that route is the plan.") }}</span><small class="cap-tech">{{ _("It stops when the best plan has nothing left to open: {n} nodes, a score of {v}, the exhaustive optimum. Here, every evening left free.", n=h.runs[-1].nodes, v=h.score.total) }}</small></span></li>
+    <li class="cap5of5"><span class="sci-step">5</span><span><span class="cap-plain">{{ _("With no guess at all, the same plan takes {n} corners.", n=h.runs[0].nodes) }}</span><small class="cap-tech">{{ _("With no guess the same answer takes {n} nodes: the grey line.", n=h.runs[0].nodes) }}</small></span></li>
   </ol>
   </div>
   </div>
@@ -282,11 +307,23 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">7</span><code>plan.py</code></p>
     <h2>{{ _("A good guess saves work") }}</h2>
+    {{ chat(_("Why does a better guess make it faster?"), _("It is like judging a trip by the distance as the crow flies. The road is never shorter than that, so a route that is too long even as the crow flies can be dropped without walking it. The closer the guess comes to the road, the less there is to explore: {a} corners with no guess, {b} with the best one.", a=h.runs[0].nodes, b=h.runs[-1].nodes), "heuristic") }}
+    {{ limit(_("The crow's line works because it never overestimates. A guess that overshot even once could drop the best plan; the next section checks that this one never does.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.runs[-1].nodes }}</b><span>{{ _("nodes opened, against {n} with no guess", n=h.runs[0].nodes) }}</span></p>
     <p>{{ _("AO* expands the most promising node first, by its cost so far plus a guess of what is left. The better the guess, the fewer nodes it opens; as long as the guess never overshoots, the answer stays optimal.") }}</p>
   </div>
   <figure class="card code-fig scroll-fig">
     {% set names = {"zero": _("no guess"), "closed": _("a closed form"), "ssp": _("value iteration"), "capacity": _("value iteration and the calendar")} %}
+    <svg class="code-chart code-map" viewBox="0 0 330 112" aria-hidden="true">
+      <path class="code-road st-draw st2" pathLength="1" d="M24 58C40 94 100 102 140 84S210 66 236 86 296 74 304 30"></path>
+      <line class="code-crow st1" x1="24" y1="58" x2="304" y2="30"></line>
+      <circle class="code-pin-dot" cx="24" cy="58" r="6"></circle>
+      <line class="code-pole" x1="304" y1="30" x2="304" y2="4"></line>
+      <path class="code-flag" d="M304 4l15 6-15 6Z"></path>
+      <text class="code-small st1" x="130" y="38" text-anchor="middle">{{ _("as the crow flies") }}</text>
+      <text class="code-small st2" x="150" y="108" text-anchor="middle">{{ _("the road: never shorter") }}</text>
+    </svg>
     <svg class="code-chart" viewBox="0 0 330 {{ 50 * h.runs | length }}" role="img" aria-label="{{ _('Nodes AO* expands with each guess') }}">
       {% for r in h.runs %}{% set y = 50 * loop.index0 %}
       <g class="st{{ loop.index }}"><text class="code-text" x="0" y="{{ y + 15 }}">{{ names[r.key] }}</text>
@@ -305,6 +342,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">8</span><code>tests/test_plan.py</code></p>
     <h2>{{ _("Checked, not assumed") }}</h2>
+    {{ chat(_("How do you know the shortcut did not miss anything?"), _("The way you would check a quick trick for sums: do it the long way too. Here the long way goes through all {m} states, one by one, and both ways land on the same score, {v}.", m=h.exact.states, v=h.exact.value), "checked") }}
+    {{ limit(_("The long way is possible on a small example like this one. A whole semester is too big for it, so there the tests check smaller cases.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.overshoots }}</b><span>{{ _("states where the guess overshoots, of {n} checked", n=h.exact.states) }}</span></p>
     <p>{{ _("An exhaustive solve works backwards through every reachable state. At each one the guess stays at or below the true cost, and AO* returns the same optimum after opening a fraction of the nodes.") }}</p>
   </div>
@@ -323,6 +363,9 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">9</span><code>rolling.py · clock.py</code></p>
     <h2>{{ _("Plan a little, then plan again") }}</h2>
+    {{ chat(_("Why does my plan change from one day to the next?"), _("It is like driving at night. The headlights show the next stretch clearly; beyond them you only know roughly where the road goes. The planner plans the {k} days in its lights exactly, drives one evening, reads what really happened in your report, and looks again.", k=h.day_count), "rolling") }}
+    {{ limit(_("Headlights see the road for themselves; the planner only knows what you report, and a session left unreported counts as done as planned.")) }}
+    {{ under() }}
     <p class="code-big"><b>{{ h.day_count }}</b><span>{{ _("days in view at a time, of {n} to the exam", n=h.exam_days) }}</span></p>
     <p>{{ _("The tree doubles with every review, so a whole semester cannot be searched at once. The planner solves a short window exactly, does its first block, reads what the student reported, and plans again.") }}</p>
     <p>{{ _("What lies past the window is priced by a value that knows the clock: the cost of reaching each course's target before its own exam.") }}</p>
@@ -332,16 +375,16 @@
   <figure class="card code-fig">
     <div class="code-roll" role="img" aria-label="{{ _('The {n} days to the exam and the {k} planned exactly, moving on a day at a time', n=h.exam_days, k=h.day_count) }}">
       <div class="code-days">{% for d in range(h.exam_days | int) %}<span></span>{% endfor %}<span class="code-day-exam">{{ _("Exam") }}</span></div>
-      <div class="code-win"></div>
+      <div class="code-win"><svg class="code-car" viewBox="0 0 16 12" aria-hidden="true"><path d="M1.5 8.5V6.2L4 2.5h7.5L14.5 6.2V8.5Z"></path><circle cx="4.6" cy="9.2" r="1.9"></circle><circle cx="11.4" cy="9.2" r="1.9"></circle></svg></div>
     </div>
     <p class="code-roll-scale"><span>{{ _("today") }}</span><span>{{ _n("{n} day", "{n} days", h.exam_days | int) }}</span></p>
-    <figcaption class="sci-key"><span><i class="code-key code-done"></i>{{ _("done") }}</span><span><i class="code-key code-now"></i>{{ _("the block done next") }}</span><span><i class="code-key code-window"></i>{{ _("planned exactly") }}</span><span><i class="code-key code-later"></i>{{ _("priced, not planned") }}</span></figcaption>
+    <figcaption class="sci-key"><span><i class="code-key code-done"></i>{{ _("done") }}</span><span><i class="code-key code-now"></i>{{ _("the block done next") }}</span><span><i class="code-key code-window"></i>{{ _("planned exactly") }}</span><span><i class="code-key code-later"></i>{{ _("priced, not planned") }}</span><span>{{ _("the window: the headlights' reach") }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Plan the next {k} days exactly; what lies past them is priced, not planned.", k=h.day_count) }}</span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Do the first block, then read what the student reported.") }}</span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Move on a day and plan again, from what really happened.") }}</span></li>
-    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("{n} plans later, the exam.", n=h.replans) }}</span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("The headlights reach {k} days: those are planned exactly, the road past them only roughly.", k=h.day_count) }}</span><small class="cap-tech">{{ _("Plan the next {k} days exactly; what lies past them is priced, not planned.", k=h.day_count) }}</small></span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("Drive one evening, then read what you reported.") }}</span><small class="cap-tech">{{ _("Do the first block, then read what the student reported.") }}</small></span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("Move on a day: the lights now reach a day further.") }}</span><small class="cap-tech">{{ _("Move on a day and plan again, from what really happened.") }}</small></span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("After {n} looks at the road, the exam.", n=h.replans) }}</span><small class="cap-tech">{{ _("{n} plans later, the exam.", n=h.replans) }}</small></span></li>
   </ol>
   </div>
   </div>
@@ -352,9 +395,13 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">10</span><code>assistant.py</code></p>
     <h2>{{ _("What the app actually runs") }}</h2>
+    {{ chat(_("So is this search what plans my evenings?"), _("Not directly. Think of a cook who checks a quick everyday recipe against a slow, careful one. The app cooks with five simple rules, ready in a hundredth of a second; the search takes about half a minute and is the yardstick they are measured against. On a simulated semester it saves about one session in twenty."), "rules") }}
+    {{ limit(_("A recipe gives the same dish every time; the rules and the search do not always pick the same evening, and on its own measure the search does a little better.")) }}
+    {{ under() }}
     <p>{{ _("Behind the rules sits a research planner: a search over every way of filling your free blocks (AO*, on an AND/OR graph), guided by a cost-to-reach-the-target computed by value iteration (as in SSP-MMC, Ye and colleagues, 2022), replanning after each session. On a simulated semester it saves about one session in twenty on its own measure, but it takes about half a minute where the rules take a hundredth of a second, and its reasons cannot be said in a sentence. So the app runs the rules, and the search stays as the reference that checks them.") }}</p>
   </div>
   <figure class="card code-fig scroll-fig">
+    <p class="tile-label st1">{{ _("The everyday recipe") }}</p>
     <ol class="list sci-rules">
       <li class="st1"><span class="sci-step">1</span><span class="grow">{{ _("A deadline getting close.") }}</span></li>
       <li class="st2"><span class="sci-step">2</span><span class="grow">{{ _("Exam practice.") }}</span></li>

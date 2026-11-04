@@ -3143,6 +3143,66 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   .sci-glasses .code-tower :is(.f-front, .f-back) { width: 28px; }
   .sci-glasses .code-tower :is(.f-left, .f-right) { height: 28px; }
 }
+/* The plain layer (D114): Emanuele asks, Spark answers with a picture from everyday
+   life, a line says where the picture stops; each step of a scene in plain words, its
+   technical sentence under it. */
+.chat { display: grid; gap: 10px; margin: 14px 0 16px; }
+.chat-row { display: flex; align-items: flex-end; gap: 10px; }
+.chat-answer { justify-content: flex-end; }
+.chat .student, .chat .mascot { flex: none; width: 48px; height: 48px; }
+.chat .mascot, .chat .mascot * { animation: none !important; }
+.student-bg { fill: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+.chat-bubble { margin: 0; max-width: 34rem; padding: 10px 14px; border-radius: 18px; font-size: 1rem; line-height: 1.45; }
+.chat-ask .chat-bubble { background: var(--fill-3); border-bottom-left-radius: 6px; }
+.chat-answer .chat-bubble { background: var(--accent-soft); color: var(--text); border-bottom-right-radius: 6px; }
+.chat-who { display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; color: var(--muted); margin-bottom: 2px; }
+.chat-answer .chat-who { color: var(--accent-ink); }
+.metaphor-limit { margin: 0 0 14px; font-size: 0.86rem; color: var(--muted); }
+.metaphor-limit b { color: var(--text); font-weight: 650; margin-right: 4px; }
+.code-under { margin: 16px 0 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.cap-plain { display: block; font-weight: 600; }
+.cap-tech { display: block; margin-top: 3px; font-size: 0.82rem; line-height: 1.4; color: var(--muted); }
+/* The metaphors drawn into the scenes (D114): Day 1 as switches, a battery for each
+   future of a review, a coin at each outcome, ripples spreading from the goal, the
+   crow's line against the road, a car's headlights for replanning, a gym's labels
+   over the spacing landscape, a drop of water at each self-test. */
+.code-switches { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 12px 0 0; }
+.sw-group { display: inline-flex; gap: 2px; }
+.code-switches .code-label { margin-right: 6px; }
+.sw { position: relative; display: inline-block; width: 13px; height: 8px; border-radius: 4px; background: var(--fill-3); box-shadow: inset 0 0 0 1px var(--line); }
+.sw > b { position: absolute; top: 1px; left: 1px; width: 6px; height: 6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 0.5px var(--line-strong); }
+.sw.sw-sleep, .sw.sw-class, .sw.sw-key { background: color-mix(in srgb, var(--text) 62%, transparent); }
+.sw.sw-sleep > b, .sw.sw-class > b, .sw.sw-key > b { transform: translateX(5px); }
+.code-battery { display: inline-block; flex: none; vertical-align: -2px; margin-left: 8px; color: var(--muted); }
+.code-good .code-battery { color: var(--ok); }
+.code-bad .code-battery { color: var(--danger-text); }
+.sci-key .code-battery { margin: 0 6px 0 0; }
+.code-battery rect.cell { fill: none; stroke: currentColor; stroke-width: 1.4; }
+.code-battery rect.charge { fill: currentColor; }
+.code-battery rect.nub { fill: currentColor; }
+.code-crow { stroke: var(--muted); stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+.code-road { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.code-pin-dot { fill: var(--accent); }
+.code-flag { fill: var(--danger-text); }
+.code-car { position: absolute; left: calc(10% - 8px); top: 50%; width: 18px; height: 14px; transform: translateY(-50%); z-index: 1; fill: #fff; }
+.code-golf { display: block; font-size: 0.75rem; font-style: normal; color: var(--accent-ink); }
+.code-map { margin-bottom: 10px; }
+.code-win { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--accent) 8%, transparent)); }
+/* The gym's three weights, on the landscape's floor under their columns. */
+.sci-gym { bottom: -46px; transform: translateX(-50%); font-weight: 700; }
+.sci-gym-1 { left: 10%; }
+.sci-gym-2 { left: 50%; color: var(--accent-ink); }
+.sci-gym-3 { left: 90%; color: var(--danger-text); }
+.code-goal { left: 100%; top: 100%; margin: 10px 0 0 -20px; color: var(--accent-ink); font-weight: 700; }
+.code-pole { stroke: var(--text); stroke-width: 1.6; }
+.sci-key .sw { margin-right: 6px; }
+.sci-drop { fill: #3a8dde; }
+.sci-drop-key { display: inline-block; margin-right: 6px; vertical-align: -2px; }
+.code-ripple { display: none; position: absolute; left: 100%; top: 100%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%; border: 2px solid var(--accent); pointer-events: none; }
+@media (max-width: 560px) {
+  .chat .student, .chat .mascot { width: 40px; height: 40px; }
+  .chat-bubble { font-size: 0.95rem; }
+}
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
 @property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
@@ -3238,7 +3298,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop) {
+      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .sw, .sw > b, .code-ripple, .sci-gym) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
     }
@@ -3327,6 +3387,19 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .sci-drain { animation-name: sci-drain; }
     :root:not([data-motion="reduce"]) .code-pin .sci-rise { animation-name: sci-rise; }
     :root:not([data-motion="reduce"]) .code-pin .sci-drain .f-top { animation-name: none; }
+    /* The metaphors in motion (D114): Day 1's switches flip on with sleep, then with
+       classes; ripples spread from the goal while the value table fills; each coin
+       flips twice as its outcome comes in. */
+    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-class) { animation-name: sw-on; }
+    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-class) > b { animation-name: sw-knob; }
+    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-sleep > b) { animation-range: contain 22% contain 32%; }
+    :root:not([data-motion="reduce"]) .code-pin :is(.sw-class, .sw-class > b) { animation-range: contain 47% contain 57%; }
+    :root:not([data-motion="reduce"]) .code-pin .code-ripple { display: block; animation-name: code-ripple; }
+    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r1 { animation-range: contain 26% contain 52%; }
+    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r2 { animation-range: contain 36% contain 62%; }
+    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r3 { animation-range: contain 46% contain 72%; }
+    :root:not([data-motion="reduce"]) .code-pin .sci-gym { animation-name: code-show; }
+    :root:not([data-motion="reduce"]) .scroll-fig .code-coin { transform-box: fill-box; transform-origin: 50% 50%; animation-name: code-coin; }
     /* 9. Replanning: the window moves on a day at a time, the done days behind it. */
     :root:not([data-motion="reduce"]) .code-pin .code-win {
       animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
@@ -3372,6 +3445,13 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   57.14% { --zq: var(--q4); } 71.43% { --zq: var(--q5); } 85.71% { --zq: var(--q6); } 100% { --zq: var(--q7); }
 }
 @keyframes sci-rise { from { --zq: 0; } to { --zq: var(--q7); } }
+@keyframes sw-on { from { background: var(--fill-3); } }
+@keyframes sw-knob { from { transform: none; } }
+@keyframes code-ripple { from { transform: scale(0.05); opacity: 0.9; } to { transform: scale(1); opacity: 0; } }
+@keyframes code-coin {
+  0% { transform: scaleX(1); } 25% { transform: scaleX(0.06); } 50% { transform: scaleX(1); }
+  75% { transform: scaleX(0.06); } 100% { transform: none; }
+}
 @keyframes code-uncover { from { transform: none; } to { transform: scaleX(0); } }
 @keyframes code-slide { from { transform: none; } to { transform: translateX(320%); } }
 /* Courses (D86-D88) */
