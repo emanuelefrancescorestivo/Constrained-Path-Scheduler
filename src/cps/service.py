@@ -10766,6 +10766,17 @@ def course_view(
 SCIENCE_DAYS = 60  # the forgetting curves' span
 SCIENCE_STABILITIES = (2.0, 7.0, 30.0)  # three topics: shaky, a week, a month
 SCIENCE_SPACING = 5.0  # the topic whose next review the spacing chart follows (days)
+# D113: the scenes that run as the science page is scrolled through. Their readouts
+# change once per step of the scroll; the draining columns pass through 8 stops.
+SCIENCE_STEPS = 25
+SCIENCE_STOPS = 8
+# The spacing effect as a landscape: topics that held this many days (rows, the
+# shakiest at the back), tested when their recall had fallen to these (columns). From
+# 3 days up: FSRS-6 treats a review within the same day apart (its short-term
+# stability), which a topic of 1 or 2 days reaches at 95 % and 90 %.
+SCIENCE_LAND_STABILITIES = (3.0, 7.0, 15.0, 30.0, 60.0)
+SCIENCE_LAND_RECALLS = (1.0, 0.95, 0.9, 0.8, 0.7)
+SCIENCE_LAND_FOLLOWS = 7.0  # the topic the landscape's readout follows: one that held a week
 
 
 def _curve(points: Sequence[tuple[float, float]], days: float, top: float, height: float = 100.0) -> str:
@@ -10844,9 +10855,6 @@ def science_view() -> dict:
     week = 7.0
     recall_week = {d: round(100 * model.retrievability(float(d), week)) for d in (7, 14, 30)}
     state = MemoryState(stability=SCIENCE_SPACING, difficulty=5.0)
-    gaps = range(0, 31)
-    grown = [(g, model.review(state, float(g), Grade.GOOD).stability) for g in gaps]
-    top = max(s for _, s in grown) * 1.1
     spacing = {g: round(model.review(state, float(g), Grade.GOOD).stability, 1) for g in (0, 5, 15, 30)}
     return {
         "curves": curves,
@@ -10858,13 +10866,6 @@ def science_view() -> dict:
         "spacing_recall": {
             g: round(100 * model.retrievability(float(g), SCIENCE_SPACING)) for g in (0, 5, 15, 30)
         },
-        "spacing_points": _curve(grown, 30, top),
-        "spacing_top": format_number(top, 0),
-        "spacing_marks": [
-            {"x": round(300 * g / 30, 1), "y": round(100 - 100 * s / top, 1), "gap": g}
-            for g, s in grown
-            if g in (0, 5, 15, 30)
-        ],
         "target": round(100 * flashcards.RETENTION),
         "new_per_day": flashcards.NEW_PER_DAY,
         "again_minutes": round(flashcards.RELEARN / timedelta(minutes=1)),
@@ -10872,6 +10873,90 @@ def science_view() -> dict:
         "credit_hours": f"{_syllabus.CREDIT_HOURS[0]}–{_syllabus.CREDIT_HOURS[1]}",
         "sources": [SCIENCE_SOURCES[k] for k in SCIENCE_KEYS],
         "kept": _kept_up(model),
+        # D113: the scenes that run as the page is scrolled through.
+        "fade": _science_fade(model),
+        "land": _science_land(model),
+    }
+
+
+def _science_step_day(step: int) -> int:
+    """The day the science page's scrolled scenes stand at, at the end of a step: a
+    whole day, the one the readout names and computes."""
+    return round(SCIENCE_DAYS * (step + 1) / SCIENCE_STEPS)
+
+
+def _science_fade(model: Model) -> dict:
+    """D113: the three topics of the forgetting curves as columns draining at their own
+    pace while a day passes under the chart: each column's height at the eight stops
+    (twentieths of full recall), and every topic's recall at the end of each step."""
+    stops = [SCIENCE_DAYS * k / (SCIENCE_STOPS - 1) for k in range(SCIENCE_STOPS)]
+    columns = []
+    for stability, level in zip(SCIENCE_STABILITIES, ("review", "good", "strong"), strict=True):
+        heights = [round(20 * model.retrievability(day, stability)) for day in stops]
+        columns.append(
+            {"stability": format_number(stability, 0), "level": level, "zq": heights, "z": heights[-1]}
+        )
+    readouts = []
+    for step in range(SCIENCE_STEPS):
+        day = float(_science_step_day(step))
+        recall = [round(100 * model.retrievability(day, s)) for s in SCIENCE_STABILITIES]
+        readouts.append({"step": step, "day": round(day), "recall": recall})
+    shaky = SCIENCE_STABILITIES[0]
+    return {
+        "columns": columns,
+        "readouts": readouts,
+        # "The shaky one is at 90 % on day {n}": its stability, by definition of it.
+        "shaky_at_90": format_number(model.interval(shaky, 0.9), 0),
+        # "the solid one is still at {r} %" on day 7
+        "solid_at_week": round(100 * model.retrievability(7.0, SCIENCE_STABILITIES[-1])),
+        "end": [round(100 * model.retrievability(float(SCIENCE_DAYS), s)) for s in SCIENCE_STABILITIES],
+    }
+
+
+def _science_land(model: Model) -> dict:
+    """D113: the spacing effect as a landscape. For each topic (a row) and each recall
+    it was tested at (a column, the wait it took to fall there), how many times longer
+    a successful recall makes it hold: one tower each, as tall as that (twentieths of
+    the largest), rising column by column as the page is scrolled through."""
+    cells = {}
+    for stability in SCIENCE_LAND_STABILITIES:
+        for recall in SCIENCE_LAND_RECALLS:
+            wait = model.interval(stability, recall) if recall < 1.0 else 0.0
+            after = model.review(MemoryState(stability=stability, difficulty=5.0), wait, Grade.GOOD).stability
+            cells[(stability, recall)] = (wait, after)
+    top = max(after / stability for (stability, _), (_, after) in cells.items())
+    rows = [
+        {
+            "stability": format_number(stability, 0),
+            "cells": [
+                {
+                    "column": k,
+                    "times": format_number(cells[(stability, recall)][1] / stability, 1),
+                    "z": max(1, round(20 * cells[(stability, recall)][1] / stability / top)),
+                    "shade": min(4, int(5 * cells[(stability, recall)][1] / stability / (top + 1e-9))),
+                }
+                for k, recall in enumerate(SCIENCE_LAND_RECALLS)
+            ],
+        }
+        for stability in SCIENCE_LAND_STABILITIES
+    ]
+    follows = SCIENCE_LAND_FOLLOWS
+    columns = [
+        {
+            "recall": round(100 * recall),
+            "wait": format_number(cells[(follows, recall)][0], 0),
+            "after": format_number(cells[(follows, recall)][1], 0),
+            "times": format_number(cells[(follows, recall)][1] / follows, 1),
+            "risk": round(100 * (1 - recall)),
+        }
+        for recall in SCIENCE_LAND_RECALLS
+    ]
+    return {
+        "rows": rows,
+        "columns": columns,
+        "follows": format_number(follows, 0),
+        "times": {(s, r): after / s for (s, r), (_, after) in cells.items()},
+        "stabilities": [format_number(s, 0) for s in SCIENCE_LAND_STABILITIES],
     }
 
 
@@ -10885,6 +10970,7 @@ def _kept_up(model: Model) -> dict:
     target = flashcards.RETENTION
     state = MemoryState(stability=SCIENCE_KEPT_FROM, difficulty=5.0)
     t, last, points, reviews = 0.0, 0.0, [(0.0, 1.0)], []
+    held = [(0.0, SCIENCE_KEPT_FROM)]  # from which day the topic held how long (D113)
     while True:
         due = last + model.interval(state.stability, target)
         step = 0.25
@@ -10897,6 +10983,7 @@ def _kept_up(model: Model) -> dict:
         points += [(due, target), (due, 1.0)]
         reviews.append({"day": due, "before": state.stability})
         state = model.review(state, due - last, Grade.GOOD)
+        held.append((due, state.stability))
         t = last = due
     alone = [(float(t), model.retrievability(float(t), SCIENCE_KEPT_FROM)) for t in range(SCIENCE_DAYS + 1)]
     return {
@@ -10912,6 +10999,24 @@ def _kept_up(model: Model) -> dict:
         "days": [round(r["day"]) for r in reviews],
         "last": format_number(state.stability, 0),
         "target_y": round(100 - 100 * target, 1),
+        # D113: the step of the scroll at which each test comes, and at the end of each
+        # step the tested topic's recall and how long it holds, against the same topic
+        # left alone.
+        "steps": [min(SCIENCE_STEPS - 1, int(SCIENCE_STEPS * r["day"] / SCIENCE_DAYS)) for r in reviews],
+        "readouts": [_kept_at(model, held, step) for step in range(SCIENCE_STEPS)],
+    }
+
+
+def _kept_at(model: Model, held: list[tuple[float, float]], step: int) -> dict:
+    """The tested topic at the end of a step of the science page's scroll (D113)."""
+    day = float(_science_step_day(step))
+    since, stability = max((h for h in held if h[0] <= day + 1e-9), key=lambda h: h[0])
+    return {
+        "step": step,
+        "day": round(day),
+        "recall": round(100 * model.retrievability(day - since, stability)),
+        "holds": format_number(stability, 0),
+        "alone": round(100 * model.retrievability(day, SCIENCE_KEPT_FROM)),
     }
 
 
