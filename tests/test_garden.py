@@ -264,3 +264,19 @@ def test_the_garden_moves_only_with_motion_and_stands_still_without():
         assert "style=" not in source and all(" src=" in tag for tag in scripts)
         own = ['<script type="module" src="{{ asset(\'garden.js\') }}">']
         assert scripts == (own if name == "garden.html" else [])
+
+
+def test_the_plant_follows_the_theme_and_its_light_the_memory():
+    """D119, the owner's choice: a rosette when the page is light, a plant of light when it
+    is dark. Each glows as brightly as its topic is remembered, the light fading as the
+    water falls and when it wilts; the flat drawing's pool of light follows --zq too."""
+    js = (STATIC / "garden.js").read_text(encoding="utf-8")
+    assert "const kit = isDark() ? GLOW : ROSETTE;" in js
+    assert "shine = clamp((s.w - 0.5) / 0.5) * (1 - s.wilt)" in js  # the rosette's
+    assert "shine = clamp((s.w - 0.45) / 0.55) * (1 - 0.7 * s.wilt)" in js  # the plant of light's
+    assert "const w = clamp(z / 20)" in js  # the water is the server's, in twentieths
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert re.search(r"\.gd-f-pool \{[^}]*opacity: clamp\(0, calc\(\(var\(--zq\) - 10\) / 10", css)
+    flat = (TEMPLATES / "_garden.html").read_text(encoding="utf-8")
+    drooping = flat.count('class="gd-leaf gd-lr"') + flat.count('class="gd-leaf gd-ll"')
+    assert drooping >= 10  # the leaves that droop to either side

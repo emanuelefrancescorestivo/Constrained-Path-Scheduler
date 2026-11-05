@@ -4454,6 +4454,9 @@ owner asked for in D116.
 graphics chip, a phone, Safari or Firefox. What it costs a slow device was not measured. The
 garden is a likeness, as D116 says; the roots' scale and the flowers' colours are choices.
 
+**Later (D119).** The owner chose new plants from six designs: a glowing succulent rosette in a
+light theme, a plant of light in a dark one.
+
 ## D118. The explaining pages scroll as stories
 
 *The owner, 2026-11-05, of How it works, the science page and How the code works on a laptop:
@@ -4496,3 +4499,38 @@ two paragraphs, too tall for a phone's stage.
 with it reduced. The lit step is the one whose part of the scene is running, not exactly the one
 in the middle of the window: they drift apart by up to a step's height where a scene's words are
 long.
+
+## D119. How it works: a glowing rosette by day, a plant of light by night
+
+*The owner, 2026-11-05, of D117's hyacinths: "the plants are ugly, make 6 propositions of design
+and ill pick the best". Six live previews were put to him on one page (a money plant in a glass
+globe, low-poly facets, a clay sprout, a succulent rosette, a bonsai on a rock, a plant that glows
+in the dark), each with sliders for the days since a revision and for the roots, and a week played
+out. His choice: "rosette for light and night glow for dark, but maybe the rosette should have the
+glowing feature too so that it is more visible how it withers".*
+
+**Chosen.**
+
+1. **The plant follows the theme.** In a light theme a topic is a succulent rosette in a shallow
+   glass bowl on pebbles, its forty leaves in the golden-angle spiral; in a dark theme, a plant of
+   light in a jar of glowing water, tendrils with glowing tips. Water is still how much is
+   remembered, roots how long it lasts; the server's numbers are unchanged (D116, D117).
+2. **The rosette glows while it is remembered**, as the owner asked, so that withering shows: its
+   leaves lit from within, a mint rim, a pool of light on the water under it. As the water falls,
+   the glow fades, the leaves thin, droop and turn from mint to brown, the outer ones first; a
+   wilted plant (chapter 5's forgotten one) loses its light at once. On a light page added light
+   vanishes into the white, so the rosette's glow is laid over the page rather than added to it.
+   The plant of light dims and curls as it is forgotten.
+3. **In flower on exam day**: arching stalks of coral bells, as an echeveria flowers; the plant of
+   light's tips swell and brighten.
+4. **Three bowls in a triangle**, the middle one in front, so that low, wide bowls fill the
+   picture; two side by side. The jars stay in a row.
+5. **The flat drawing** (no WebGL, no script) is the rosette in its bowl, in both themes: its water
+   falls with `--zq`, its leaves droop to either side and brown, its pool of light fades.
+
+**Not chosen.** The other four designs. One plant for both themes: the owner wanted each theme's
+best. A glow added to the light page (as the dark design's is): it does not show on white.
+
+**Disclosed.** The rosette's glow and colours, and the flowers, are choices of taste. Checked in
+Chromium only, with software rendering, at 1280px and 390px, light and dark, with motion and
+without, and without a script.

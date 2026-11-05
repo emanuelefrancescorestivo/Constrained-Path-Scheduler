@@ -1,56 +1,64 @@
-{# How it works (D116, D117): the garden's pieces. A topic is a hyacinth in a glass: the
-   water in the glass is how much the student remembers, the roots how long it lasts.
+{# How it works (D116, D117, D119): the garden's pieces. A topic is a plant in water: the
+   water is how much the student remembers, the roots how long it lasts.
 
-   Each scene is drawn twice from the same numbers. `garden.js` draws it in WebGL
-   (glasses and bulbs turned from a profile, stems and roots swept along curves, leaves
-   as curved ribbons, buds and flowers as spheres) from `data-scene`. Under it, a flat
-   drawing in SVG of the same glasses, from the same profiles, is what a reader sees
-   without WebGL or without a script; its water, leaves and roots follow `--zq` (a `gzN`
-   class when still, the stops `q0zN`..`q7zN` a scene runs through as it is scrolled)
-   and the roots' length `--rt` (from `--rf` when they grow), as D116's did. No style
-   attribute anywhere; decoration only, the words beside it say what it shows. #}
+   Each scene is drawn twice from the same numbers. `garden.js` draws it in WebGL from
+   `data-scene`: in a light theme a succulent rosette in a glass bowl, glowing from within
+   while it is remembered; in a dark theme a plant of light in a jar of glowing water.
+   Under it, a flat drawing in SVG of the rosette in its bowl is what a reader sees
+   without WebGL or without a script; its water, leaves, roots and pool of light follow
+   `--zq` (a `gzN` class when still, the stops `q0zN`..`q7zN` a scene runs through as it
+   is scrolled) and the roots' length `--rt` (from `--rf` when they grow), as D116's did.
+   No style attribute anywhere; decoration only, the words beside it say what it shows. #}
 
-{# The shapes, once a page: every flat glass uses them. Paths from garden.js's profiles
-   (a glass 112 units tall in a box of 120 x 240), as cubic curves. #}
+{# The shapes, once a page: every flat bowl uses them (a box of 160 x 110). The leaves'
+   paths are already turned about the rosette's centre (80, 60). #}
 {% macro defs() -%}
 <svg class="gd-defs" width="0" height="0" aria-hidden="true" focusable="false">
   <defs>
     <linearGradient id="gd-sheen" x1="0" x2="1" y1="0" y2="0"><stop class="gd-s1" offset="0"></stop><stop class="gd-s2" offset="0.16"></stop><stop class="gd-s3" offset="0.42"></stop><stop class="gd-s4" offset="0.62"></stop><stop class="gd-s2" offset="0.86"></stop><stop class="gd-s1" offset="1"></stop></linearGradient>
     <linearGradient id="gd-deep" x1="0" x2="0" y1="0" y2="1"><stop class="gd-w1" offset="0"></stop><stop class="gd-w2" offset="1"></stop></linearGradient>
-    <radialGradient id="gd-onion" cx="0.36" cy="0.3" r="0.8"><stop class="gd-b1" offset="0"></stop><stop class="gd-b2" offset="1"></stop></radialGradient>
     <radialGradient id="gd-wood" cx="0.5" cy="0.4" r="0.6"><stop class="gd-t1" offset="0"></stop><stop class="gd-t2" offset="1"></stop></radialGradient>
-    <path id="gd-glass" d="M60 234C63 234 73.9 234.3 77.9 234C81.9 233.7 82.4 233.6 84.1 232.4C85.8 231.3 86.8 230 88 227.3C89.2 224.6 90.4 220 91.1 216.1C91.9 212.2 92.6 208.1 92.5 203.8C92.4 199.5 91.7 194.6 90.5 190.3C89.2 186 87.1 181.9 84.9 178C82.6 174.1 79.1 170 77 166.8C75 163.6 73.4 161.1 72.5 158.7C71.7 156.4 71.6 155 72.1 152.8C72.6 150.6 74 148 75.7 145.5C77.3 143 80.4 140.3 82 137.7C83.5 135.1 84.3 132.3 84.9 129.8C85.5 127.4 85.4 124.1 85.5 122.9L34.5 122.9C34.6 124.1 34.5 127.4 35.1 129.8C35.7 132.3 36.5 135.1 38 137.7C39.6 140.3 42.7 143 44.3 145.5C46 148 47.4 150.6 47.9 152.8C48.4 155 48.3 156.4 47.5 158.7C46.6 161.1 45 163.6 43 166.8C40.9 170 37.4 174.1 35.1 178C32.9 181.9 30.8 186 29.5 190.3C28.3 194.6 27.6 199.5 27.5 203.8C27.4 208.1 28.1 212.2 28.9 216.1C29.6 220 30.8 224.6 32 227.3C33.2 230 34.2 231.3 35.9 232.4C37.6 233.6 38.1 233.7 42.1 234C46.1 234.3 57 234 60 234Z"></path>
-    <clipPath id="gd-in"><path d="M60 230.1C62.8 230.1 73.1 230.3 76.8 230.1C80.5 229.9 80.8 229.9 82.4 229C84 228 85.2 226.7 86.4 224.5C87.6 222.2 88.8 219 89.6 215.5C90.3 212.1 91 208 90.9 203.8C90.8 199.6 90.2 194.6 88.9 190.3C87.6 186 85.5 181.9 83.3 178C81.1 174.1 77.6 170 75.6 166.8C73.5 163.6 71.9 161.1 71.1 158.7C70.3 156.4 70.7 153.8 70.6 152.8L49.4 152.8C49.3 153.8 49.7 156.4 48.9 158.7C48.1 161.1 46.5 163.6 44.4 166.8C42.4 170 38.9 174.1 36.7 178C34.5 181.9 32.4 186 31.1 190.3C29.8 194.6 29.2 199.6 29.1 203.8C29 208 29.7 212.1 30.4 215.5C31.2 219 32.4 222.2 33.6 224.5C34.8 226.7 36 228 37.6 229C39.2 229.9 39.5 229.9 43.2 230.1C46.9 230.3 57.2 230.1 60 230.1Z"></path></clipPath>
-    <path id="gd-bulb" d="M60 154.5C61.1 154.3 64.6 154.6 66.7 153.7C68.9 152.8 71.3 151.1 72.9 148.9C74.4 146.7 75.6 143.3 75.9 140.5C76.2 137.7 75.5 134.5 74.6 132.1C73.6 129.7 71.8 127.7 70.1 125.9C68.4 124.1 66.2 122.7 64.5 121.4C62.8 120.2 60.7 119.1 60 118.6C59.3 119.1 57.2 120.2 55.5 121.4C53.8 122.7 51.6 124.1 49.9 125.9C48.2 127.7 46.4 129.7 45.4 132.1C44.5 134.5 43.8 137.7 44.1 140.5C44.4 143.3 45.6 146.7 47.1 148.9C48.7 151.1 51.1 152.8 53.3 153.7C55.4 154.6 58.9 154.3 60 154.5Z"></path>
-    <path id="gd-root-lines" vector-effect="non-scaling-stroke" d="M62.1 153.9C62.1 155.8 61.4 161.3 61.9 165C62.3 168.7 63 172.4 64.7 176.1C66.3 179.8 69.9 183.5 71.6 187.2C73.3 190.9 74.3 194.6 74.9 198.3C75.5 202 75.6 205.7 75 209.4C74.5 213.1 72.2 218.6 71.6 220.4M57.8 153.9C57.7 156 58.1 162.1 57.4 166.1C56.8 170.2 55.1 174.3 53.8 178.4C52.4 182.4 51.2 186.5 49.2 190.6C47.2 194.7 43.5 198.7 41.8 202.8C40.1 206.9 39 211 39.2 215C39.3 219.1 42 225.2 42.5 227.3M61.3 153.9C61.1 155.8 60.6 161.4 60.3 165.1C60 168.8 58.5 172.5 59.5 176.2C60.6 180 63.3 183.7 66.6 187.4C70 191.1 77.5 194.8 79.7 198.6C81.9 202.3 81.7 206 79.8 209.7C77.8 213.4 69.9 219 67.9 220.9M61.4 153.9C61.5 155.9 61.6 161.8 61.8 165.7C62.1 169.6 63.3 173.5 62.8 177.5C62.4 181.4 59.6 185.3 59.2 189.2C58.7 193.2 58.5 197.1 60.3 201C62.1 204.9 67.8 208.9 69.9 212.8C72.1 216.7 72.8 222.6 73.4 224.6M57.8 153.9C57.8 155.8 58.2 161.6 57.7 165.5C57.1 169.3 56.5 173.2 54.5 177C52.5 180.9 48.9 184.7 45.6 188.6C42.4 192.4 36.9 196.3 35 200.1C33.1 204 33.8 207.8 34.3 211.7C34.8 215.5 37.5 221.3 38.1 223.2M62.2 153.9C62.3 155.9 61.7 161.7 62.5 165.6C63.4 169.4 65.4 173.3 67.2 177.2C69 181.1 72.2 185 73.5 188.9C74.9 192.7 74.3 196.6 75.1 200.5C75.9 204.4 77.9 208.3 78.3 212.2C78.6 216 77.5 221.9 77.4 223.8M58.1 153.9C58.1 155.9 58.2 161.8 58.1 165.8C58 169.7 57.5 173.7 57.4 177.6C57.2 181.6 58.9 185.5 57 189.5C55 193.5 49.1 197.4 45.8 201.4C42.4 205.3 37.9 209.3 37.1 213.2C36.3 217.2 40.3 223.1 40.9 225.1"></path>
-    <path id="gd-leaf-l1" d="M53.9 124.1C53.2 122.3 51.1 116.9 49.8 113.3C48.5 109.8 47.5 106.3 46.3 102.9C45 99.5 43.9 96.2 42.5 92.9C41.1 89.6 39.7 86.4 38 83.2C36.4 80 34.5 77.1 32.4 73.9C30.3 70.8 27.2 66.3 25.4 64.4C23.7 62.5 22.6 62.9 22 62.6L25.4 64.4C27.4 65.1 33.5 66.7 36.9 68.8C40.4 70.9 43.5 74 46.2 77.1C48.9 80.3 51.3 83.9 53.2 87.6C55.1 91.2 56.6 95.2 57.7 99.1C58.8 103.1 59.5 107.2 59.7 111.2C60 115.2 59.4 121.3 59.4 123.3Z"></path>
-    <path id="gd-leaf-l2" d="M54.5 123.8C54.1 122.3 52.8 117.7 52.1 114.7C51.4 111.7 50.9 108.7 50.4 105.8C49.9 102.8 49.4 99.9 48.9 96.9C48.5 94 48 91 47.4 88.1C46.9 85.1 46.2 82.2 45.6 79.2C45 76.1 44.5 71.7 43.9 69.7C43.3 67.7 42.5 67.5 42.3 67.1L43.9 69.7C45 70.9 48.7 74.3 50.5 77C52.4 79.6 53.8 82.6 55 85.6C56.3 88.6 57.3 91.7 58.1 94.9C58.9 98 59.4 101.2 59.8 104.4C60.1 107.6 60.2 110.8 60 114C59.9 117.2 59 122 58.8 123.6Z"></path>
-    <path id="gd-leaf-r1" d="M60.6 123.2C60.6 121.3 60.1 115.4 60.4 111.5C60.8 107.6 61.5 103.7 62.6 99.9C63.7 96.1 65.1 92.3 67 88.7C68.8 85.2 71.1 81.7 73.7 78.7C76.3 75.7 79.3 72.6 82.7 70.6C86 68.5 91.4 67.2 93.8 66.2C96.2 65.1 96.5 64.7 97 64.3L93.8 66.2C92.7 67.7 89.3 72.5 87.3 75.6C85.4 78.7 83.6 81.6 82 84.7C80.4 87.8 79 90.9 77.7 94.1C76.3 97.3 75.2 100.5 73.9 103.8C72.7 107.1 71.6 110.4 70.3 113.8C69 117.2 66.8 122.4 66.1 124.1Z"></path>
-    <path id="gd-leaf-r2" d="M61.3 123.6C61.1 121.9 60.2 117 60 113.7C59.9 110.4 60 107 60.3 103.7C60.7 100.4 61.2 97 62.1 93.8C62.9 90.5 64 87.2 65.3 84.1C66.6 81 68.1 77.9 70.1 75.2C72 72.5 75.6 69.5 77 67.8C78.5 66.1 78.5 65.5 78.8 65.1L77 67.8C76.7 69.4 75.5 74.3 74.8 77.5C74.1 80.6 73.3 83.6 72.6 86.6C72 89.7 71.5 92.7 70.9 95.8C70.4 98.8 69.9 101.9 69.4 105C68.8 108.1 68.4 111.2 67.7 114.3C67.1 117.4 65.8 122.2 65.4 123.8Z"></path>
-    <g id="gd-buds"><circle cx="57.1" cy="104.3" r="3.8"></circle><circle cx="62.9" cy="102" r="3.7"></circle><circle cx="57.2" cy="99.7" r="3.6"></circle><circle cx="62.8" cy="97.4" r="3.5"></circle><circle cx="57.2" cy="95.1" r="3.4"></circle><circle cx="62.7" cy="92.8" r="3.3"></circle><circle cx="57.3" cy="90.5" r="3.2"></circle><circle cx="62.6" cy="88.2" r="3.1"></circle><circle cx="57.4" cy="85.9" r="3"></circle><circle cx="62.5" cy="83.6" r="2.9"></circle><circle cx="57.5" cy="81.3" r="2.8"></circle><circle cx="62.4" cy="79" r="2.7"></circle><circle cx="57.6" cy="76.7" r="2.6"></circle><circle cx="62.4" cy="74.4" r="2.5"></circle></g>
-    <g id="gd-bells"><circle cx="54.6" cy="104.3" r="6"></circle><circle cx="65.4" cy="102" r="5.9"></circle><circle cx="54.8" cy="98.7" r="5.7"></circle><circle cx="65.2" cy="96.4" r="5.6"></circle><circle cx="55" cy="93.1" r="5.4"></circle><circle cx="65" cy="90.8" r="5.2"></circle><circle cx="55.3" cy="87.5" r="5"></circle><circle cx="64.8" cy="85.2" r="4.8"></circle><circle cx="55.6" cy="81.9" r="4.6"></circle><circle cx="64.5" cy="79.6" r="4.4"></circle><circle cx="56" cy="76.3" r="4.1"></circle><circle cx="63.9" cy="74" r="3.9"></circle><circle cx="60" cy="71" r="3.6"></circle></g>
+    <radialGradient id="gd-pool" cx="0.5" cy="0.5" r="0.5"><stop class="gd-p1" offset="0"></stop><stop class="gd-p2" offset="1"></stop></radialGradient>
+    <path id="gd-bowl" d="M8 46C10 66 24 92 50 97L110 97C136 92 150 66 152 46Z"></path>
+    <clipPath id="gd-in"><path d="M11 47C13 66 26 90 51 94.5L109 94.5C134 90 147 66 149 47Z"></path></clipPath>
+    <g id="gd-stones"><circle cx="40" cy="88" r="5"></circle><circle cx="51" cy="91" r="4.5"></circle><circle cx="62" cy="89" r="5.5"></circle><circle cx="74" cy="92" r="4.5"></circle><circle cx="86" cy="90" r="5.5"></circle><circle cx="98" cy="92" r="4.5"></circle><circle cx="109" cy="89" r="5"></circle><circle cx="120" cy="87" r="4.5"></circle><circle cx="57" cy="84" r="4"></circle><circle cx="80" cy="85" r="4.5"></circle><circle cx="103" cy="84" r="4"></circle></g>
+    <path id="gd-root-lines" vector-effect="non-scaling-stroke" d="M76.7 66C72.3 76 62.4 80 58 92M78.5 66C76.5 76 72 82 70 94M80 66C80 76 80 83 80 95M81.8 66C84.2 76 89.6 82 92 94M83.6 66C88.4 76 99.2 79 104 91M75.5 66C69.5 76 56 74 50 86M84.8 66C91.2 76 105.6 74 112 86"></path>
+    <path id="gd-b1" d="M80 60C78.7 53.9 81.8 44.7 89.4 40.6C90 48.1 85.5 56.6 80 60Z"></path>
+    <path id="gd-b2" d="M80 60C74.2 57.6 68.3 49.9 69.2 41.3C75.7 45.1 80.2 53.6 80 60Z"></path>
+    <path id="gd-b3" d="M80 60C77.1 55.4 76.9 46.8 81.9 41.2C84.6 47.2 83.5 55.5 80 60Z"></path>
+    <path id="gd-b4" d="M80 60C75.9 56.3 73.4 48.2 76.7 41.4C80.9 46.4 82.1 54.8 80 60Z"></path>
+    <path id="gd-b5" d="M80 60C81.3 52.7 88.8 43.9 99 42.8C96.3 51.3 87.5 58.6 80 60Z"></path>
+    <path id="gd-b6" d="M80 60C72.6 60 62.6 54.1 59.7 44.2C68.6 45.5 77.3 52.8 80 60Z"></path>
+    <path id="gd-f1" d="M80 60C84.6 52.7 96.5 46.6 107.9 49.8C101.2 57.7 88.7 61.8 80 60Z"></path>
+    <path id="gd-f2" d="M80 60C72 63.2 58.8 61.2 51.4 51.9C61.5 49.4 74 53.4 80 60Z"></path>
+    <path id="gd-f3" d="M80 60C87.5 55 101.4 54.2 111 62.1C101.2 66.9 87.5 65.4 80 60Z"></path>
+    <path id="gd-f4" d="M80 60C73.7 66.4 60.3 70.2 49.2 64.4C57.8 57.7 71.5 56.3 80 60Z"></path>
+    <path id="gd-f5" d="M80 60C79.8 53.4 84.7 44.3 93.5 41.4C92.6 49.4 86.3 57.4 80 60Z"></path>
+    <path id="gd-f6" d="M80 60C73.5 58.6 65.9 51.6 65.2 42.4C72.7 45.2 79 53.2 80 60Z"></path>
+    <path id="gd-f7" d="M80 60C77 56.4 75.8 49.2 79.4 43.8C82.4 48.6 82.4 55.8 80 60Z"></path>
+    <g id="gd-bells"><path class="gd-stalk" d="M80 52C83 40 92 28 106 21"></path><circle cx="95" cy="29" r="3"></circle><circle cx="99" cy="26" r="3"></circle><circle cx="103" cy="23.5" r="2.8"></circle><circle cx="107" cy="21.5" r="2.6"></circle><circle cx="110.5" cy="21" r="2.3"></circle></g>
   </defs>
 </svg>
 {%- endmacro %}
 
-{# One glass, flat. `p` is a pot (below); `i` its place on the shelf, for its flower's
-   colour. #}
+{# One bowl, flat. `p` is a pot (below); `i` its place on the shelf. #}
 {% macro flat(p, i, flower) -%}
-<svg class="gd-flat-pot" viewBox="0 0 120 240" aria-hidden="true" focusable="false">
-  <ellipse class="gd-f-shadow" cx="60" cy="234" rx="38" ry="4.5"></ellipse>
-  <use class="gd-f-back" href="#gd-glass"></use>
-  <g clip-path="url(#gd-in)"><g class="gd-f-water"><rect x="20" y="160" width="80" height="80"></rect><ellipse cx="60" cy="160" rx="42" ry="3.2"></ellipse></g></g>
+<svg class="gd-flat-pot" viewBox="0 0 160 110" aria-hidden="true" focusable="false">
+  <ellipse class="gd-f-coaster" cx="80" cy="100" rx="76" ry="8"></ellipse>
+  <use class="gd-f-back" href="#gd-bowl"></use>
+  <use class="gd-f-stones" href="#gd-stones"></use>
   <use class="gd-roots" href="#gd-root-lines"></use>
-  <use class="gd-leaf gd-l2" href="#gd-leaf-l2"></use><use class="gd-leaf gd-r2" href="#gd-leaf-r2"></use>
-  <g class="gd-sway"><path class="gd-stem" d="M60 126V72"></path><use class="gd-buds" href="#gd-buds"></use>{% if flower %}<use class="gd-flower gd-fl{{ i % 3 }} st-pop st3" href="#gd-bells"></use>{% endif %}</g>
-  <use class="gd-leaf gd-l1" href="#gd-leaf-l1"></use><use class="gd-leaf gd-r1" href="#gd-leaf-r1"></use>
-  <use class="gd-f-bulb" href="#gd-bulb"></use>
-  <use class="gd-f-glass" href="#gd-glass"></use>
-  {% if p.get("drop") %}<path class="gd-drop" d="M80 30c2.6 4.4 5.2 7 5.2 10a5.2 5.2 0 0 1-10.4 0c0-3 2.6-5.6 5.2-10z"></path>{% endif %}
+  <g clip-path="url(#gd-in)"><g class="gd-f-water"><rect x="0" y="58" width="160" height="50"></rect><ellipse cx="80" cy="58" rx="72" ry="5"></ellipse><ellipse class="gd-f-pool" cx="80" cy="58" rx="46" ry="5.5"></ellipse></g></g>
+  <use class="gd-leaf gd-lr" href="#gd-b1"></use><use class="gd-leaf gd-ll" href="#gd-b2"></use><use class="gd-leaf gd-lc" href="#gd-b3"></use><use class="gd-leaf gd-lc" href="#gd-b4"></use><use class="gd-leaf gd-lr" href="#gd-b5"></use><use class="gd-leaf gd-ll" href="#gd-b6"></use>
+  {% if flower %}<use class="gd-flower gd-fl{{ i % 3 }} st-pop st3" href="#gd-bells"></use>{% endif %}
+  <use class="gd-leaf gd-lr" href="#gd-f1"></use><use class="gd-leaf gd-ll" href="#gd-f2"></use><use class="gd-leaf gd-lr" href="#gd-f3"></use><use class="gd-leaf gd-ll" href="#gd-f4"></use><use class="gd-leaf gd-lr" href="#gd-f5"></use><use class="gd-leaf gd-ll" href="#gd-f6"></use><use class="gd-leaf gd-lc" href="#gd-f7"></use>
+  <use class="gd-f-glass" href="#gd-bowl"></use>
+  <ellipse class="gd-f-rim" cx="80" cy="46" rx="72" ry="6.5"></ellipse>
+  {% if p.get("drop") %}<path class="gd-drop" d="M118 8c2.6 4.4 5.2 7 5.2 10a5.2 5.2 0 0 1-10.4 0c0-3 2.6-5.6 5.2-10z"></path>{% endif %}
 </svg>
 {%- endmacro %}
 
-{# A shelf of glasses: in 3D where WebGL runs, flat otherwise, and their names under it.
+{# A shelf of bowls: in 3D where WebGL runs, flat otherwise, and their names under it.
    Each pot a dict:
      w       its water, in twentieths: a number, or the scene's eight stops (a list)
      roots   its roots' length, in twentieths of the glass's depth (service's scale)

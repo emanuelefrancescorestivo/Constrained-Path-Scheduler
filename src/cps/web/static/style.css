@@ -3287,21 +3287,22 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
 .you-me .av-face { width: 56px; height: 56px; flex: none; }
 .you-me small { display: block; color: var(--muted); }
-/* How it works, the garden (D116, D117): a topic is a hyacinth in a glass. garden.js
-   draws each scene in WebGL on a canvas over a flat drawing of the same glasses, and
-   shows the canvas (`.gd-3d`) once it has drawn; without WebGL or a script the flat one
-   stays. In it the water's height is `--zq` (twentieths of full): `gzN` when still, the
-   scene's eight stops when it runs. The leaves droop and pale as it falls; a wilted
-   plant droops more (`--wilt`). The roots are scaled to their length, `--rt` (and from
-   `--rf` when they grow or shrink). */
+/* How it works, the garden (D116, D117, D119): a topic is a plant in water. garden.js
+   draws each scene in WebGL (a glowing rosette when light, a plant of light when dark) on
+   a canvas over a flat drawing of the rosette in its bowl, and shows the canvas (`.gd-3d`)
+   once it has drawn; without WebGL or a script the flat one stays. In it the water's
+   height is `--zq` (twentieths of full): `gzN` when still, the scene's eight stops when it
+   runs. The leaves droop and brown and the pool of light fades as it falls; a wilted plant
+   droops more (`--wilt`). The roots are scaled to their length, `--rt` (and from `--rf`
+   when they grow or shrink). */
 @property --wilt { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
 .garden-page {
-  --gd-leaf: #3ea56b; --gd-dry: #c4ad5e; --gd-root: #d9ccb0; --gd-stem: #2f8a56; --gd-bud: #84bd66;
+  --gd-leaf: #5cc3a6; --gd-dry: #9c7f66; --gd-root: #e3d8c0; --gd-stone: #d9d6d2; --gd-pool-1: rgb(60 230 180 / 70%); --gd-pool-2: rgb(60 230 180 / 0%);
   --gd-glass-line: rgb(60 110 130 / 38%); --gd-glass-tint: rgb(190 230 240 / 16%);
   --gd-sheen-1: rgb(255 255 255 / 70%); --gd-sheen-2: rgb(220 240 248 / 26%); --gd-sheen-3: rgb(255 255 255 / 0%); --gd-sheen-4: rgb(255 255 255 / 34%);
-  --gd-water-1: rgb(120 190 250 / 62%); --gd-water-2: rgb(40 120 220 / 62%);
-  --gd-bulb-1: #ecd8c6; --gd-bulb-2: #9a6a78; --gd-wood-1: #d9b48c; --gd-wood-2: #a87850;
-  --gd-fl0: #6b73f2; --gd-fl1: #f576ad; --gd-fl2: #fccb5c;
+  --gd-water-1: rgb(120 190 250 / 55%); --gd-water-2: rgb(40 120 220 / 55%);
+  --gd-wood-1: #d9b48c; --gd-wood-2: #a87850;
+  --gd-fl0: #f4775a; --gd-fl1: #f59a5a; --gd-fl2: #f6b35c;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .garden-page {
@@ -3328,40 +3329,36 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .gd-s1 { stop-color: var(--gd-sheen-1); } .gd-s2 { stop-color: var(--gd-sheen-2); }
 .gd-s3 { stop-color: var(--gd-sheen-3); } .gd-s4 { stop-color: var(--gd-sheen-4); }
 .gd-w1 { stop-color: var(--gd-water-1); } .gd-w2 { stop-color: var(--gd-water-2); }
-.gd-b1 { stop-color: var(--gd-bulb-1); } .gd-b2 { stop-color: var(--gd-bulb-2); }
+.gd-p1 { stop-color: var(--gd-pool-1); } .gd-p2 { stop-color: var(--gd-pool-2); }
 .gd-t1 { stop-color: var(--gd-wood-1); } .gd-t2 { stop-color: var(--gd-wood-2); }
 /* A scene: the canvas over the flat drawing, the same box for both. */
 .gd-scene { position: relative; height: 300px; }
 .gd-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; }
 .gd-3d .gd-canvas { opacity: 1; }
 .gd-3d .gd-flat { visibility: hidden; }
-.gd-flat { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-end; gap: clamp(2px, 2.4vw, 22px); padding-bottom: 12px; }
-.gd-flat::before {
-  content: ""; position: absolute; left: 50%; bottom: 2px; height: 40px; width: min(96%, 170px); translate: -50% 0;
-  border-radius: 50%; background: radial-gradient(ellipse at 50% 40%, var(--gd-wood-1), var(--gd-wood-2));
-  box-shadow: 0 10px 22px rgb(0 0 0 / 16%), inset 0 -5px 0 rgb(0 0 0 / 14%);
-}
-.gd-n2 .gd-flat::before { width: min(96%, 330px); }
-.gd-n3 .gd-flat::before { width: min(96%, 470px); }
-.gd-pot { position: relative; height: 100%; aspect-ratio: 1 / 2; min-width: 0; }
-.gd-flat-pot { display: block; width: 100%; height: 100%; overflow: visible; --droop: calc((20 - var(--zq)) * 5deg + var(--wilt)); }
-.gd-f-shadow { fill: rgb(0 0 0 / 16%); }
+.gd-flat { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; gap: clamp(2px, 1.6vw, 14px); }
+.gd-pot { position: relative; width: min(32%, 250px); aspect-ratio: 16 / 11; min-width: 0; }
+.gd-n1 .gd-pot { width: min(72%, 340px); }
+.gd-n2 .gd-pot { width: min(47%, 300px); }
+/* A bowl: its water, its leaves fanned about the rosette's centre (80, 60), drooping as
+   the water falls (the right side down to the right, the left to the left) and turning
+   from mint to brown; the pool of light under the rosette fades with them. */
+.gd-flat-pot { display: block; width: 100%; height: 100%; overflow: visible; --droop: calc((20 - var(--zq)) * 3.5deg + var(--wilt)); }
+.gd-f-coaster { fill: url(#gd-wood); }
 .gd-f-back { fill: var(--gd-glass-tint); }
-.gd-f-water { fill: url(#gd-deep); transform: translateY(calc((20 - var(--zq)) * 3.1px)); }
+.gd-f-stones { fill: var(--gd-stone); }
+.gd-f-water { fill: url(#gd-deep); transform: translateY(calc((20 - var(--zq)) * 1.5px)); }
 .gd-f-water ellipse { fill: var(--gd-water-1); }
-.gd-f-glass { fill: url(#gd-sheen); stroke: var(--gd-glass-line); stroke-width: 1.3; }
-.gd-f-bulb { fill: url(#gd-onion); }
-.gd-roots { fill: none; stroke: var(--gd-root); stroke-width: 1.8; stroke-linecap: round; transform-origin: 60px 154px; transform: scaleY(var(--rt, 1)); }
-.gd-stem { fill: none; stroke: var(--gd-stem); stroke-width: 3.6; stroke-linecap: round; }
-.gd-buds { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 12%), 100%), var(--gd-bud)); }
-.gd-flower { stroke: rgb(255 255 255 / 55%); stroke-width: 0.8; }
-.gd-fl0 { fill: var(--gd-fl0); } .gd-fl1 { fill: var(--gd-fl1); } .gd-fl2 { fill: var(--gd-fl2); }
-.gd-leaf { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 13% + var(--wilt) / 1deg * 1.5%), 100%), var(--gd-leaf)); }
-.gd-sway { transform-origin: 60px 126px; transform: rotate(calc(var(--droop) / 2.5)); }
-.gd-l1 { transform-origin: 56.6px 124px; transform: rotate(calc(-1 * var(--droop))); }
-.gd-l2 { transform-origin: 56.6px 124px; transform: rotate(calc(-0.8 * var(--droop))); }
-.gd-r1 { transform-origin: 63.4px 124px; transform: rotate(var(--droop)); }
-.gd-r2 { transform-origin: 63.4px 124px; transform: rotate(calc(0.8 * var(--droop))); }
+.gd-f-water .gd-f-pool { fill: url(#gd-pool); opacity: clamp(0, calc((var(--zq) - 10) / 10 - var(--wilt) / 40deg), 1); }
+.gd-f-glass { fill: url(#gd-sheen); stroke: var(--gd-glass-line); stroke-width: 1.1; }
+.gd-f-rim { fill: none; stroke: var(--gd-glass-line); stroke-width: 1.1; }
+.gd-roots { fill: none; stroke: var(--gd-root); stroke-width: 1.6; stroke-linecap: round; transform-origin: 80px 66px; transform: scaleY(var(--rt, 1)); }
+.gd-flower { fill: var(--gd-fl0); }
+.gd-flower .gd-stalk { fill: none; stroke: #8a9a6a; stroke-width: 1.6; stroke-linecap: round; }
+.gd-fl1 { fill: var(--gd-fl1); } .gd-fl2 { fill: var(--gd-fl2); }
+.gd-leaf { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 11% + var(--wilt) / 1deg * 1.6%), 100%), var(--gd-leaf)); stroke: rgb(0 0 0 / 8%); stroke-width: 0.5; }
+.gd-lr { transform-origin: 80px 60px; transform: rotate(var(--droop)); }
+.gd-ll { transform-origin: 80px 60px; transform: rotate(calc(-1 * var(--droop))); }
 .gd-wilt { --wilt: 38deg; }
 .gd-drop { fill: var(--gd-water-1); opacity: 0; }
 .gd-names { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; }
