@@ -3073,6 +3073,27 @@ body[data-sky] main.tech :is(.card, fieldset, .stat, .tile) {
 @media (max-width: 860px) {
   .code-pin-stage { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
+/* D118: on a laptop a pinned scene is a story in two columns: its words and then its
+   steps on the left, its picture on the right, wider than the page's text. Where
+   scrolling drives animations (below) the picture stays in view while the steps go by,
+   each lit as the picture reaches it; elsewhere the two columns simply stand still.
+   The track and the stage give their pieces to the story's grid (display: contents).
+   On a phone the story is a column and the stage is pinned as before. */
+@media (min-width: 861px) {
+  .code-story {
+    display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr);
+    grid-template-areas: "copy fig" "caps fig"; grid-template-rows: auto 1fr; gap: 18px 48px; align-items: start;
+    width: min(74rem, calc(100vw - 72px)); margin-inline: calc((100% - min(74rem, calc(100vw - 72px))) / 2);
+  }
+  .code-story .code-pin, .code-story .code-pin-stage { display: contents; }
+  .code-story .code-copy { grid-area: copy; min-width: 0; }
+  .code-story .code-pin-stage > figure { grid-area: fig; margin: 0; min-width: 0; }
+  .code-story .code-caps { grid-area: caps; }
+  .code-story .code-caps > li { font-size: 1.1rem; line-height: 1.5; }
+  .code-story .gd-scene { height: min(56svh, 520px); }
+  .code-story .code-disc { max-height: min(62svh, 560px); max-width: 560px; }
+  .code-story .code-land { zoom: 1.25; }
+}
 /* The search as a disc: tonight in the centre, a ring per evening, each node under the
    one that first produced it; the best plan so far drawn thick. */
 .code-disc-wrap { perspective: 1000px; }
@@ -3401,6 +3422,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .garden-page .code-pin-stage > .code-copy h2 { margin-top: 2px; }
 .garden-page .code-pin-stage > figure { grid-area: fig; align-self: center; }
 .garden-page .code-pin-stage > .code-caps { grid-area: caps; }
+.garden-page .code-story .code-pin-stage > figure { align-self: start; }
 .garden-page .gd-chapter { margin: 56px 0; }
 @media (max-width: 860px) {
   .garden-page .code-pin-stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "fig" "caps"; gap: 10px; }
@@ -3506,6 +3528,16 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
        only: a later `animation` shorthand would reset the ranges set by class. */
     :root:not([data-motion="reduce"]) .code-pin { view-timeline: --pin block; view-timeline-inset: var(--topbar) 0px; height: 300vh; }
     :root:not([data-motion="reduce"]) .code-pin.code-pin-long { height: 440vh; }
+    /* D118: on a laptop the story is the track; its picture stays in view while the
+       steps, spaced down the left column, go by; the step the picture is at is lit. */
+    @media (min-width: 861px) {
+      :root:not([data-motion="reduce"]) .code-story { view-timeline: --pin block; view-timeline-inset: var(--topbar) 0px; }
+      :root:not([data-motion="reduce"]) .code-story .code-pin { view-timeline: none; height: auto; }
+      :root:not([data-motion="reduce"]) .code-story .code-pin-stage > figure {
+        position: sticky; top: calc(var(--topbar) + 7svh);
+      }
+      :root:not([data-motion="reduce"]) .code-story .code-caps { gap: 0; padding-bottom: 30svh; }
+    }
     :root:not([data-motion="reduce"]) .code-pin-stage {
       position: sticky; top: var(--topbar); height: calc(100svh - var(--topbar)); margin-top: 0; align-content: safe center;
     }
@@ -3522,6 +3554,14 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li { grid-area: 1 / 1; animation-name: code-cap; }
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li:first-child { animation-name: code-cap-first; }
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li:last-child { animation-name: code-cap-last; }
+    @media (min-width: 861px) {
+      :root:not([data-motion="reduce"]) .code-story .code-caps > li {
+        grid-area: auto; min-height: 24svh; align-content: start; animation-name: code-step;
+      }
+      :root:not([data-motion="reduce"]) .code-story-long .code-caps > li { min-height: 36svh; }
+      :root:not([data-motion="reduce"]) .code-story .code-caps > li:first-child { animation-name: code-step-first; }
+      :root:not([data-motion="reduce"]) .code-story .code-caps > li:last-child { animation-name: code-step-last; }
+    }
     :root:not([data-motion="reduce"]) .code-pin .cap1of3 { animation-range: contain 0% contain 33.3%; }
     :root:not([data-motion="reduce"]) .code-pin .cap2of3 { animation-range: contain 33.3% contain 66.7%; }
     :root:not([data-motion="reduce"]) .code-pin .cap3of3 { animation-range: contain 66.7% contain 100%; }
@@ -3650,6 +3690,10 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   100% { opacity: 0; transform: translateY(-10px); }
 }
 @keyframes code-cap-last { 0% { opacity: 0; transform: translateY(12px); } 20%, 100% { opacity: 1; transform: none; } }
+/* D118: a step in a laptop's story, lit while the picture is at it. */
+@keyframes code-step { 0%, 100% { opacity: 0.42; } 18%, 82% { opacity: 1; } }
+@keyframes code-step-first { 0%, 82% { opacity: 1; } 100% { opacity: 0.42; } }
+@keyframes code-step-last { 0% { opacity: 0.42; } 18%, 100% { opacity: 1; } }
 @keyframes code-pin-explode { 0%, 74% { transform: rotateX(54deg) rotateZ(-24deg) scale(var(--xs, 0.78)); } 94%, 100% { transform: none; } }
 @keyframes code-pin-lift-1 { 0%, 74% { transform: translateZ(var(--l1, 70px)); } 94%, 100% { transform: none; } }
 @keyframes code-pin-lift-2 { 0%, 74% { transform: translateZ(var(--l2, 140px)); } 94%, 100% { transform: none; } }

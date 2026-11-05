@@ -1097,3 +1097,11 @@ kept each chapter's heading and lines above the track, as the code page does wit
 figures: at 1280px the heading stood at the top of the screen, the glasses near the middle, and
 the step alone at the right. Status: fixed with D117; the words are in the stage, beside the
 picture, the step under them (`tests/test_garden.py` holds the page's structure).
+
+**96. The explaining pages left most of a laptop's screen empty while scrolling.** Reported by the
+owner on 2026-11-05: "when u scroll on the laptop everything is far from eachother". Measured with
+`benchmarks/scroll_flow.mjs` at 1440 × 900: 38 % to 46 % of each screen empty on average, and at a
+third to over half of the positions more than half of it; a pinned scene (D112) showed a small
+figure centred in a window-tall stage, its words already scrolled away. Status: fixed with D118;
+on a laptop each pinned scene is a story in two columns (10 % to 13 % empty, no position more than
+half empty; `tests/test_flow.py` holds the structure).

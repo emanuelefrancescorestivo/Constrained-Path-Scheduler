@@ -29,8 +29,11 @@
 </div>
 
 <section class="section science-block" id="forgetting">
+  <div class="code-story">
+  <div class="code-copy">
   <h2>{{ _("Memory fades, at its own pace") }}</h2>
   <p>{{ _("Each topic has a stability: the number of days until your chance of recalling it falls to 90 %. A shaky topic fades in days, a solid one holds for weeks.") }}</p>
+  </div>
   {# D113: run as it is scrolled through (the code page's `.code-pin`): the days pass
      under the chart, the curves drawn up to the day, three columns beside it draining
      at their topics' pace, and a readout of each topic's recall that day. Without
@@ -69,6 +72,7 @@
   </ol>
   </div>
   </div>
+  </div>
   <p>{{ _("A topic with a stability of 7 days is at {a} % after a week, {b} % after two weeks and {c} % after a month.", a=s.week[7], b=s.week[14], c=s.week[30]) }}</p>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("The maths") }}</p>
@@ -79,8 +83,11 @@
 </section>
 
 <section class="section science-block" id="spacing">
+  <div class="code-story">
+  <div class="code-copy">
   <h2>{{ _("Why the wait matters") }}</h2>
   <p>{{ _("A successful recall makes a memory last longer, and how much depends on when it happens. Take a topic that holds {n} days:", n=s.spacing_from) }}</p>
+  </div>
   {# D113: the spacing effect as a landscape, in 3D: a tower for each topic (a row,
      the shakiest at the back) and each recall it was tested at (a column, left to
      right the longer wait), as tall as the times longer a successful recall makes it
@@ -107,13 +114,17 @@
   </ol>
   </div>
   </div>
+  </div>
   <ul class="card list sci-rows scroll-fig">
     <li class="st1"><span class="grow">{{ _("Recalled again at once") }}</span><b>{{ _("{n} days", n=s.spacing[0]) }}</b></li>
     <li class="st2"><span class="grow">{{ _("After {d} days, at {r} % recall", d=5, r=s.spacing_recall[5]) }}</span><b>{{ _("{n} days", n=s.spacing[5]) }}</b></li>
     <li class="st3"><span class="grow">{{ _("After {d} days, at {r} % recall", d=15, r=s.spacing_recall[15]) }}</span><b>{{ _("{n} days", n=s.spacing[15]) }}</b></li>
     <li class="st4"><span class="grow">{{ _("After {d} days, at {r} % recall", d=30, r=s.spacing_recall[30]) }}</span><b>{{ _("{n} days", n=s.spacing[30]) }}</b></li>
   </ul>
+  <div class="code-story">
+  <div class="code-copy">
   <p>{{ _("Cramming a topic right after studying it adds almost nothing. The harder a recall that still succeeds, the more it adds; wait too long, though, and you may not recall it at all. So the app asks for a self-test when a topic's recall falls to {n} %.", n=s.target) }}</p>
+  </div>
   {# D113: kept up against left alone, run as it is scrolled through: the days pass,
      both lines drawn up to the day, each self-test appearing on its day, a readout of
      the tested topic's recall and how long it holds against the same topic alone. #}
@@ -145,6 +156,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Each gap is longer than the last: tests on days {days}.", days=k.days | join(", ")) }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {d} days it holds {b} days; left alone, it would be at {r} %.", d=s.days, b=k.last, r=k.alone_end) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   <p>{{ _("A topic that held {a} days, tested each time it falls to {n} %, is tested {k} times in {d} days, each gap longer than the last, and ends holding {b} days. Left alone, it is at {r} %.", a=k["from"], n=k.target, k=k.reviews, d=s.days, b=k.last, r=k.alone_end) }}</p>

@@ -455,7 +455,8 @@ class Scene {
   constructor(el) {
     this.el = el;
     this.spec = JSON.parse(el.dataset.scene);
-    this.track = el.closest(".code-pin");
+    this.pin = el.closest(".code-pin");
+    this.story = el.closest(".code-story");
     this.fig = el.closest(".scroll-fig") || el;
     this.shown = 0;
     this.visible = false;
@@ -467,8 +468,11 @@ class Scene {
     const s = this.spec;
     if (!moving || s.t === "still") return s.rest ?? 1;
     const vh = innerHeight;
-    if (s.t === "pin" && this.track) {
-      const r = this.track.getBoundingClientRect();
+    // The track is the pinned stage's, or on a laptop the whole story's (D118), as the
+    // stylesheet's --pin timeline is.
+    const track = this.pin && getComputedStyle(this.pin).display === "contents" ? this.story : this.pin;
+    if (s.t === "pin" && track) {
+      const r = track.getBoundingClientRect();
       return clamp((topbar - r.top) / Math.max(1, r.height - (vh - topbar)));
     }
     const r = this.fig.getBoundingClientRect();
