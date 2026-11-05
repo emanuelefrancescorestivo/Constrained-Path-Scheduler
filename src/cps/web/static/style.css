@@ -3266,15 +3266,34 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
 .you-me .av-face { width: 56px; height: 56px; flex: none; }
 .you-me small { display: block; color: var(--muted); }
-/* How it works, the garden (D116): a topic is a plant in a glass pot. The pot and its
-   water are boxes in CSS 3D; the plant and its roots a sprite that faces the reader,
-   turned back by the shelf's own angle (`--turn`). The water's height is `--zq`
-   (twentieths of full): `gzN` when still, the scene's eight stops when it runs. The
-   leaves droop and pale as it falls; a wilted plant droops more (`--wilt`). The roots
-   are scaled to their length, `--rt` (and from `--rf` when they grow). */
-@property --turn { syntax: "<angle>"; inherits: true; initial-value: -30deg; }
+/* How it works, the garden (D116, D117): a topic is a hyacinth in a glass. garden.js
+   draws each scene in WebGL on a canvas over a flat drawing of the same glasses, and
+   shows the canvas (`.gd-3d`) once it has drawn; without WebGL or a script the flat one
+   stays. In it the water's height is `--zq` (twentieths of full): `gzN` when still, the
+   scene's eight stops when it runs. The leaves droop and pale as it falls; a wilted
+   plant droops more (`--wilt`). The roots are scaled to their length, `--rt` (and from
+   `--rf` when they grow or shrink). */
 @property --wilt { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
-.garden-page { --gd-glass: color-mix(in srgb, var(--surface) 28%, transparent); --gd-edge: color-mix(in srgb, var(--text) 24%, transparent); --gd-water: rgb(58 141 222 / 40%); --gd-water-top: rgb(132 194 248 / 70%); --gd-wood: color-mix(in srgb, #c89b6d 60%, var(--surface)); --gd-leaf: #3ea56b; --gd-dry: #b9a65a; --gd-root: #8a4f24; }
+.garden-page {
+  --gd-leaf: #3ea56b; --gd-dry: #c4ad5e; --gd-root: #d9ccb0; --gd-stem: #2f8a56; --gd-bud: #84bd66;
+  --gd-glass-line: rgb(60 110 130 / 38%); --gd-glass-tint: rgb(190 230 240 / 16%);
+  --gd-sheen-1: rgb(255 255 255 / 70%); --gd-sheen-2: rgb(220 240 248 / 26%); --gd-sheen-3: rgb(255 255 255 / 0%); --gd-sheen-4: rgb(255 255 255 / 34%);
+  --gd-water-1: rgb(120 190 250 / 62%); --gd-water-2: rgb(40 120 220 / 62%);
+  --gd-bulb-1: #ecd8c6; --gd-bulb-2: #9a6a78; --gd-wood-1: #d9b48c; --gd-wood-2: #a87850;
+  --gd-fl0: #6b73f2; --gd-fl1: #f576ad; --gd-fl2: #fccb5c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .garden-page {
+    --gd-glass-line: rgb(200 235 250 / 40%); --gd-glass-tint: rgb(190 230 250 / 8%);
+    --gd-sheen-1: rgb(255 255 255 / 42%); --gd-sheen-2: rgb(200 230 250 / 14%); --gd-sheen-4: rgb(255 255 255 / 22%);
+    --gd-root: #e6dcc4; --gd-wood-1: #b8916a; --gd-wood-2: #7c5a3c;
+  }
+}
+:root[data-theme="dark"] .garden-page {
+  --gd-glass-line: rgb(200 235 250 / 40%); --gd-glass-tint: rgb(190 230 250 / 8%);
+  --gd-sheen-1: rgb(255 255 255 / 42%); --gd-sheen-2: rgb(200 230 250 / 14%); --gd-sheen-4: rgb(255 255 255 / 22%);
+  --gd-root: #e6dcc4; --gd-wood-1: #b8916a; --gd-wood-2: #7c5a3c;
+}
 .gz0 { --zq: 0; } .gz1 { --zq: 1; } .gz2 { --zq: 2; } .gz3 { --zq: 3; } .gz4 { --zq: 4; } .gz5 { --zq: 5; } .gz6 { --zq: 6; }
 .gz7 { --zq: 7; } .gz8 { --zq: 8; } .gz9 { --zq: 9; } .gz10 { --zq: 10; } .gz11 { --zq: 11; } .gz12 { --zq: 12; } .gz13 { --zq: 13; }
 .gz14 { --zq: 14; } .gz15 { --zq: 15; } .gz16 { --zq: 16; } .gz17 { --zq: 17; } .gz18 { --zq: 18; } .gz19 { --zq: 19; } .gz20 { --zq: 20; }
@@ -3284,52 +3303,61 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .rt0 { --rt: 0.04; } .rt1 { --rt: 0.05; } .rt2 { --rt: 0.10; } .rt3 { --rt: 0.15; } .rt4 { --rt: 0.20; } .rt5 { --rt: 0.25; } .rt6 { --rt: 0.30; }
 .rt7 { --rt: 0.35; } .rt8 { --rt: 0.40; } .rt9 { --rt: 0.45; } .rt10 { --rt: 0.50; } .rt11 { --rt: 0.55; } .rt12 { --rt: 0.60; } .rt13 { --rt: 0.65; }
 .rt14 { --rt: 0.70; } .rt15 { --rt: 0.75; } .rt16 { --rt: 0.80; } .rt17 { --rt: 0.85; } .rt18 { --rt: 0.90; } .rt19 { --rt: 0.95; } .rt20 { --rt: 1.00; }
-.gd-scene { display: grid; place-items: center; height: 270px; perspective: 1000px; perspective-origin: 50% 10%; overflow: visible; }
-.gd-shelf { --turn: -30deg; display: flex; gap: 40px; padding: 22px 26px; margin-top: 56px; border-radius: 14px; background: var(--gd-wood); transform-style: preserve-3d; transform: rotateX(60deg) rotateZ(var(--turn)); }
-.gd-pair .gd-shelf { gap: 76px; }
-.gd-pot { --ph: 64px; --u: 2.9px; position: relative; flex: none; width: 56px; height: 56px; transform-style: preserve-3d; }
-.gd-g { position: absolute; display: block; background: var(--gd-glass); border: 1px solid var(--gd-edge); }
-.gd-front { left: 0; bottom: 0; width: 56px; height: var(--ph); transform-origin: bottom; transform: rotateX(-90deg); }
-.gd-back { left: 0; top: 0; width: 56px; height: var(--ph); transform-origin: top; transform: rotateX(90deg); }
-.gd-left { top: 0; left: 0; width: var(--ph); height: 56px; transform-origin: left; transform: rotateY(-90deg); }
-.gd-right { top: 0; right: 0; width: var(--ph); height: 56px; transform-origin: right; transform: rotateY(90deg); }
-.gd-water { position: absolute; inset: 4px; transform-style: preserve-3d; --h: calc(var(--zq) * var(--u)); }
-.gd-water > i { position: absolute; display: block; background: var(--gd-water); }
-.gd-water .w-front { left: 0; bottom: 0; width: 100%; height: var(--h); transform-origin: bottom; transform: rotateX(-90deg); }
-.gd-water .w-back { left: 0; top: 0; width: 100%; height: var(--h); transform-origin: top; transform: rotateX(90deg); }
-.gd-water .w-left { top: 0; left: 0; width: var(--h); height: 100%; transform-origin: left; transform: rotateY(-90deg); }
-.gd-water .w-right { top: 0; right: 0; width: var(--h); height: 100%; transform-origin: right; transform: rotateY(90deg); }
-.gd-water .w-top { inset: 0; transform: translateZ(var(--h)); background: var(--gd-water-top); }
-.gd-billboard { position: absolute; left: 50%; bottom: 50%; width: 60px; height: 140px; margin-left: -30px; transform-origin: 50% 100%; transform: rotateZ(calc(-1 * var(--turn))) rotateX(-60deg); pointer-events: none; }
-.gd-sprite { display: block; width: 60px; height: 140px; overflow: visible; --droop: calc((20 - var(--zq)) * 7deg + var(--wilt)); }
-.gd-roots { transform-box: fill-box; transform-origin: 50% 0; transform: scaleY(var(--rt, 1)); }
-.gd-roots path { fill: none; stroke: var(--gd-root); stroke-width: 3.2; stroke-linecap: round; }
-.gd-stem { fill: none; stroke: var(--gd-leaf); stroke-width: 3.4; stroke-linecap: round; }
-.gd-leaf { fill: var(--gd-leaf); }
-.gd-leaf path { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 13% + var(--wilt) / 1deg * 1.5%), 100%), var(--gd-leaf)); }
-.gd-sway { transform-box: view-box; transform-origin: 30px 88px; transform: rotate(calc(var(--droop) / 3)); }
-.gd-leaf-l { transform-box: view-box; transform-origin: 30px 62px; transform: rotate(calc(-1 * var(--droop))); }
-.gd-leaf-r { transform-box: view-box; transform-origin: 30px 49px; transform: rotate(var(--droop)); }
-.gd-leaf-t { transform-box: view-box; transform-origin: 30px 33px; transform: rotate(calc(var(--droop) * 0.8)); }
+.gd-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.gd-s1 { stop-color: var(--gd-sheen-1); } .gd-s2 { stop-color: var(--gd-sheen-2); }
+.gd-s3 { stop-color: var(--gd-sheen-3); } .gd-s4 { stop-color: var(--gd-sheen-4); }
+.gd-w1 { stop-color: var(--gd-water-1); } .gd-w2 { stop-color: var(--gd-water-2); }
+.gd-b1 { stop-color: var(--gd-bulb-1); } .gd-b2 { stop-color: var(--gd-bulb-2); }
+.gd-t1 { stop-color: var(--gd-wood-1); } .gd-t2 { stop-color: var(--gd-wood-2); }
+/* A scene: the canvas over the flat drawing, the same box for both. */
+.gd-scene { position: relative; height: 300px; }
+.gd-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; }
+.gd-3d .gd-canvas { opacity: 1; }
+.gd-3d .gd-flat { visibility: hidden; }
+.gd-flat { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-end; gap: clamp(2px, 2.4vw, 22px); padding-bottom: 12px; }
+.gd-flat::before {
+  content: ""; position: absolute; left: 50%; bottom: 2px; height: 40px; width: min(96%, 170px); translate: -50% 0;
+  border-radius: 50%; background: radial-gradient(ellipse at 50% 40%, var(--gd-wood-1), var(--gd-wood-2));
+  box-shadow: 0 10px 22px rgb(0 0 0 / 16%), inset 0 -5px 0 rgb(0 0 0 / 14%);
+}
+.gd-n2 .gd-flat::before { width: min(96%, 330px); }
+.gd-n3 .gd-flat::before { width: min(96%, 470px); }
+.gd-pot { position: relative; height: 100%; aspect-ratio: 1 / 2; min-width: 0; }
+.gd-flat-pot { display: block; width: 100%; height: 100%; overflow: visible; --droop: calc((20 - var(--zq)) * 5deg + var(--wilt)); }
+.gd-f-shadow { fill: rgb(0 0 0 / 16%); }
+.gd-f-back { fill: var(--gd-glass-tint); }
+.gd-f-water { fill: url(#gd-deep); transform: translateY(calc((20 - var(--zq)) * 3.1px)); }
+.gd-f-water ellipse { fill: var(--gd-water-1); }
+.gd-f-glass { fill: url(#gd-sheen); stroke: var(--gd-glass-line); stroke-width: 1.3; }
+.gd-f-bulb { fill: url(#gd-onion); }
+.gd-roots { fill: none; stroke: var(--gd-root); stroke-width: 1.8; stroke-linecap: round; transform-origin: 60px 154px; transform: scaleY(var(--rt, 1)); }
+.gd-stem { fill: none; stroke: var(--gd-stem); stroke-width: 3.6; stroke-linecap: round; }
+.gd-buds { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 12%), 100%), var(--gd-bud)); }
+.gd-flower { stroke: rgb(255 255 255 / 55%); stroke-width: 0.8; }
+.gd-fl0 { fill: var(--gd-fl0); } .gd-fl1 { fill: var(--gd-fl1); } .gd-fl2 { fill: var(--gd-fl2); }
+.gd-leaf { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 13% + var(--wilt) / 1deg * 1.5%), 100%), var(--gd-leaf)); }
+.gd-sway { transform-origin: 60px 126px; transform: rotate(calc(var(--droop) / 2.5)); }
+.gd-l1 { transform-origin: 56.6px 124px; transform: rotate(calc(-1 * var(--droop))); }
+.gd-l2 { transform-origin: 56.6px 124px; transform: rotate(calc(-0.8 * var(--droop))); }
+.gd-r1 { transform-origin: 63.4px 124px; transform: rotate(var(--droop)); }
+.gd-r2 { transform-origin: 63.4px 124px; transform: rotate(calc(0.8 * var(--droop))); }
 .gd-wilt { --wilt: 38deg; }
-.gd-flower circle { fill: #ff8fb8; }
-.gd-flower .gd-heart { fill: #ffd66b; }
-.gd-drop { fill: var(--gd-water-top); opacity: 0; }
+.gd-drop { fill: var(--gd-water-1); opacity: 0; }
 .gd-names { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; }
 .gd-names li { display: grid; justify-items: center; text-align: center; min-width: 76px; }
 .gd-names b { font-size: 0.92rem; }
 .gd-names small { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.gd-hero-scene { height: 250px; }
+.gd-hero-scene { height: 340px; }
 .gd-hero .chat { max-width: 40rem; }
-.gd-solo { height: 250px; }
-.gd-mini { height: 190px; }
-.gd-mini .gd-shelf { gap: 30px; margin-top: 46px; transform: rotateX(60deg) rotateZ(var(--turn)) scale(0.74); }
+.gd-solo { height: 320px; }
+.gd-mini { height: 200px; }
 .gd-week-drop { fill: #fff; opacity: 0.92; }
 .gd-start { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 6px 0 14px; color: inherit; text-decoration: none; }
 .gd-start small { display: block; color: var(--muted); }
 /* The tap after a session: a phone's card, in depth. */
 .gd-tap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 18px; align-items: center; perspective: 800px; }
 .gd-tap > .gd-names { grid-column: 2; }
+.gd-tap > .gd-scene { width: 100%; }
 .gd-phone { width: 150px; border-radius: 22px; padding: 14px 12px; display: grid; gap: 10px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 16%), inset 0 0 0 1px var(--line); transform: rotateY(14deg) rotateX(4deg); }
 .gd-phone-q { margin: 0; font-weight: 700; text-align: center; }
 .gd-phone-a { display: grid; gap: 8px; margin: 0; }
@@ -3362,16 +3390,33 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .gd-verdict { font-weight: 650; margin: 0; }
 .gd-recap { margin-top: 8px; }
 .gd-more { margin-top: 8px; }
+.gd-bloom { height: 340px; }
+/* D117: a chapter's words are in its stage, beside the picture, its steps under them; on
+   a narrow screen the words, the picture, then the step. */
+.garden-page .code-pin-stage {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.3fr); grid-template-areas: "copy fig" "caps fig";
+  gap: 14px 40px; align-items: start; margin-top: 0;
+}
+.garden-page .code-pin-stage > .code-copy { grid-area: copy; align-self: end; }
+.garden-page .code-pin-stage > .code-copy h2 { margin-top: 2px; }
+.garden-page .code-pin-stage > figure { grid-area: fig; align-self: center; }
+.garden-page .code-pin-stage > .code-caps { grid-area: caps; }
+.garden-page .gd-chapter { margin: 56px 0; }
+@media (max-width: 860px) {
+  .garden-page .code-pin-stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "fig" "caps"; gap: 10px; }
+}
 @media (max-width: 560px) {
-  .gd-scene { height: 230px; }
-  .gd-shelf { gap: 24px; padding: 16px 18px; }
-  .gd-pair .gd-shelf { gap: 54px; }
+  .gd-scene { height: 240px; }
+  .garden-page .code-pin-stage .gd-scene { height: clamp(170px, 30svh, 240px); }
+  .garden-page .code-pin-stage > .code-copy h2 { font-size: 1.32rem; margin-bottom: 4px; }
+  .garden-page .code-pin-stage > .code-copy p { font-size: 0.95rem; line-height: 1.45; margin: 0; }
   .gd-picks { grid-template-columns: minmax(0, 1fr); }
   .gd-opts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .gd-pick + label { padding: 0 6px; font-size: 0.78rem; }
-  .gd-tap { grid-template-columns: minmax(0, 1fr); justify-items: center; }
-  .gd-tap > .gd-names { grid-column: 1; }
-  .gd-phone { width: 200px; }
+  .gd-tap { gap: 8px 6px; }
+  .gd-phone { width: 112px; padding: 10px 8px; gap: 6px; border-radius: 18px; font-size: 0.8rem; }
+  .gd-phone-a { gap: 6px; }
+  .gd-phone-a span { padding: 7px 4px; border-radius: 10px; }
 }
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
@@ -3468,7 +3513,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-shelf, .gd-pot, .gd-roots, .gd-drop,
+      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-pot, .gd-roots, .gd-drop,
       .gd-phone, .gd-phone-a span) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
@@ -3561,13 +3606,13 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .sci-drain { animation-name: sci-drain; }
     :root:not([data-motion="reduce"]) .code-pin .sci-rise { animation-name: sci-rise; }
     :root:not([data-motion="reduce"]) .code-pin .sci-drain .f-top { animation-name: none; }
-    /* How it works (D116): the shelf turns as each scene runs, the pots drain through their
-       stops (sci-drain), a drop falls on a pot as it is watered, roots grow or shrink,
-       the forgotten plant wilts, the phone's card comes forward and each answer lights. */
-    :root:not([data-motion="reduce"]) .code-pin .gd-shelf { animation-name: gd-turn; }
+    /* How it works (D116, D117), the flat drawing (garden.js draws the same in WebGL,
+       with these ranges in each scene's data): the glasses drain through their stops
+       (sci-drain), a drop falls on a glass as it is watered, roots grow or shrink, the
+       forgotten plant wilts, the phone's card comes forward and each answer lights. */
     :root:not([data-motion="reduce"]) .code-pin .gd-drop { animation-name: gd-drop; }
-    :root:not([data-motion="reduce"]) .code-pin .gd-drop-soon { animation-range: contain 25% contain 36%; }
-    :root:not([data-motion="reduce"]) .code-pin .gd-drop-just { animation-range: contain 60% contain 72%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-soon .gd-drop { animation-range: contain 25% contain 36%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-just .gd-drop { animation-range: contain 60% contain 72%; }
     :root:not([data-motion="reduce"]) .code-pin .gd-grow .gd-roots { animation-name: gd-roots; animation-range: contain 60% contain 72%; }
     :root:not([data-motion="reduce"]) .code-pin .gd-yes-pot .gd-roots { animation-range: contain 36% contain 58%; }
     :root:not([data-motion="reduce"]) .code-pin .gd-no-pot .gd-roots { animation-range: contain 70% contain 90%; }
@@ -3576,14 +3621,10 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .gd-phone-a span { animation-name: gd-press; }
     :root:not([data-motion="reduce"]) .code-pin .gd-phone-a .gd-yes { animation-range: contain 34% contain 62%; }
     :root:not([data-motion="reduce"]) .code-pin .gd-phone-a .gd-no { animation-range: contain 67% contain 95%; }
-    /* Chapter 1's pot drains as its figure passes; the opening shelf turns as it leaves. */
+    /* Chapter 1's glass drains as its figure passes. */
     :root:not([data-motion="reduce"]) .scroll-fig .gd-pot.sci-drain {
       animation-name: sci-drain; animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --fig; animation-range: cover 18% cover 62%;
-    }
-    :root:not([data-motion="reduce"]) .gd-hero-scene .gd-shelf {
-      animation-name: gd-turn; animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
-      animation-timeline: view(); animation-range: exit 0% exit 100%;
     }
     /* 9. Replanning: the window moves on a day at a time, the done days behind it. */
     :root:not([data-motion="reduce"]) .code-pin .code-win {
@@ -3630,7 +3671,6 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   57.14% { --zq: var(--q4); } 71.43% { --zq: var(--q5); } 85.71% { --zq: var(--q6); } 100% { --zq: var(--q7); }
 }
 @keyframes sci-rise { from { --zq: 0; } to { --zq: var(--q7); } }
-@keyframes gd-turn { from { --turn: -20deg; } to { --turn: -42deg; } }
 @keyframes gd-drop { 0% { opacity: 0; transform: translateY(-24px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(70px); } }
 @keyframes gd-roots { from { transform: scaleY(var(--rf, 1)); } to { transform: scaleY(var(--rt, 1)); } }
 @keyframes gd-wilt { from { --wilt: 0deg; } to { --wilt: 38deg; } }

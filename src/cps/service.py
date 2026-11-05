@@ -11081,11 +11081,20 @@ GARDEN_TOPICS: tuple[tuple[str, str, float, int], ...] = (
 )
 GARDEN_EVENINGS = 5
 GARDEN_REST = "rest"
+# D117: a plant's roots are as long as its topic holds, on one scale for the whole page:
+# a month reaches the bottom of the glass.
+GARDEN_ROOTS_DAYS = 30.0
 
 
 def _garden_z(recall: float) -> int:
-    """A pot's water, in twentieths of full: the height its 3D column is drawn at."""
+    """A pot's water, in twentieths of full: the height the glass is filled to."""
     return max(0, min(20, round(20 * recall)))
+
+
+def _garden_roots(stability: float) -> int:
+    """A plant's roots, in twentieths of the glass's depth: how long its topic holds,
+    against a month (D117). At least a stub, so that a plant always has roots."""
+    return max(1, min(20, round(20 * stability / GARDEN_ROOTS_DAYS)))
 
 
 def _garden_week(model: Model, plan: Sequence[str]) -> dict:
@@ -11103,7 +11112,15 @@ def _garden_week(model: Model, plan: Sequence[str]) -> dict:
     for key, name, _stability, _ago in GARDEN_TOPICS:
         state, last = states[key]
         recall = model.retrievability(exam - last, state.stability)
-        plants.append({"key": key, "name": name, "recall": round(100 * recall), "z": _garden_z(recall)})
+        plants.append(
+            {
+                "key": key,
+                "name": name,
+                "recall": round(100 * recall),
+                "z": _garden_z(recall),
+                "roots": _garden_roots(state.stability),
+            }
+        )
     return {
         "plan": list(plan),
         "plants": plants,
@@ -11167,18 +11184,19 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
         "grown": format_number(just, 0),
         "soon_end": round(100 * model.retrievability(end, soon)),
         "just_end": round(100 * model.retrievability(end - wait, just)),
-        # The roots before watering, in twentieths of their grown length: they grow from here.
-        "roots_from": max(1, round(20 * GARDEN_WEEK / just)),
+        # The roots before watering and after (D117's scale): they grow from one to the other.
+        "roots_from": _garden_roots(GARDEN_WEEK),
+        "roots_to": _garden_roots(just),
         "soon_at": GARDEN_SOON_AT,
         "just_at": GARDEN_JUST_AT,
     }
+    app = _garden_week(model, _garden_app_plan(model))
     played = None
     if picks is not None:
         allowed = {key for key, _, _, _ in GARDEN_TOPICS} | {GARDEN_REST}
         if len(picks) != GARDEN_EVENINGS or any(p not in allowed for p in picks):
             raise InvalidInput(_("choose a topic, or Rest, for each evening"))
         yours = _garden_week(model, picks)
-        app = _garden_week(model, _garden_app_plan(model))
         if yours["lowest"] < round(100 * target):
             verdict = "drooped"
         elif yours["used"] > app["used"]:
@@ -11207,6 +11225,14 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
             day: [round(100 * model.retrievability(float(day), s)) for s in SCIENCE_STABILITIES]
             for day in (14, 30)
         },
+        # Chapter 2's roots, each as long as its topic holds (D117): the solid one's, a
+        # month, reach the bottom of its glass.
+        "pace_roots": [_garden_roots(s) for s in SCIENCE_STABILITIES],
+        "one_roots": _garden_roots(shaky),
+        # The opening shelf: the game's three topics as they stand on Monday; the last
+        # scene: the same three on exam day after the app's week, in flower.
+        "start": [{"key": key, "roots": _garden_roots(s)} for key, _, s, _ in GARDEN_TOPICS],
+        "exam": app["plants"],
         "days": SCIENCE_DAYS,
         "spacing": spacing,
         "topics": [{"key": key, "name": name} for key, name, _, _ in GARDEN_TOPICS],
@@ -11217,8 +11243,9 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
             "grown_days": round(just),
             "shrunk": format_number(forgot, 0),
             "shrunk_days": max(1, round(forgot)),
-            "roots_from": max(1, round(20 * GARDEN_WEEK / just)),
-            "roots_shrunk": max(1, round(20 * forgot / just)),
+            "roots_from": _garden_roots(GARDEN_WEEK),
+            "roots_to": _garden_roots(just),
+            "roots_shrunk": _garden_roots(forgot),
         },
     }
 
