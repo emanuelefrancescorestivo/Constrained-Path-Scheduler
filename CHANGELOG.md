@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- New plants in How it works (DECISIONS.md D119): in a light theme each topic is a succulent
+  rosette in a glass bowl that glows from within while you remember it, and dulls, droops and
+  browns as you forget; in a dark theme, a plant of light whose glow dims and whose tendrils curl.
+  On exam day the rosettes flower.
+
 - Smoother scrolling on a laptop (DECISIONS.md D118): on How it works, the science page and How
   the code works, each animated scene now reads as a story in two columns, its words and steps on
   the left and its picture on the right, held in view while the steps go by and lit in turn. The

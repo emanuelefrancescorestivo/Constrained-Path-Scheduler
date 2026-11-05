@@ -1,29 +1,35 @@
-// How it works (D117): the garden in WebGL. Each `.gd-scene[data-scene]` carries the
+// How it works (D117, D119): the garden in WebGL. Each `.gd-scene[data-scene]` carries the
 // server's numbers for its plants (the water at each stop of the scene, the roots'
 // length, when a drop falls, when a plant wilts or flowers) and a flat drawing of
 // them; where WebGL runs, this draws the same plants in 3D over the flat one.
 //
-// A topic is a hyacinth in a glass: the water is how much is remembered, the roots
-// how long it lasts. The glasses, the bulbs and the table are surfaces of revolution
-// (a profile turned about its axis), the stems and roots tubes swept along curves,
-// the leaves curved ribbons, the buds and flowers spheres. One small shader lights
-// them: a sky and a ground, a key light, glass by its angle to the eye (Fresnel).
+// A topic is a plant in water: the water is how much is remembered, the roots how long
+// it lasts. In a light theme it is a succulent rosette in a glass bowl, its leaves in
+// the golden-angle spiral, lit from within while it is remembered (a glowing rim, a
+// pool of light on the water) and dull, thin and brown as it is forgotten. In a dark
+// theme it is a plant that glows in the dark, as brightly as it is remembered, its
+// tendrils curling and its light dimming as it is forgotten (the owner's choice, D119).
+// Bowls, jars and bases are surfaces of revolution; leaves, stems and roots are swept
+// along curves; pebbles, buds and lights are spheres. One small shader lights them.
 //
 // A frame is drawn only when something changed: the page scrolled, a scene came into
 // view, the page was resized or its theme changed. A scene eases to where the page is
-// and stops (D93: nothing runs while the page is still). With reduced motion, or
-// where the browser does not tie animations to scrolling, each scene is drawn once,
-// complete, as its flat drawing is. Layout only: every number is the server's.
+// and stops (D93: nothing runs while the page is still). With reduced motion, or where
+// the browser does not tie animations to scrolling, each scene is drawn once, complete,
+// as its flat drawing is. Layout only: every number is the server's.
 
 const root = document.documentElement;
 const scenes = [...document.querySelectorAll(".gd-scene[data-scene]")];
+const PI = Math.PI;
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => t * t * (3 - 2 * t);
 const span = (p, r) => (r ? clamp((p - r[0]) / (r[1] - r[0])) : 1);
 const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit = (a) => {
@@ -31,62 +37,28 @@ const unit = (a) => {
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 const hash = (n) => {
-  const x = Math.sin(n * 12.9898) * 43758.5453;
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
+const once = (f) => {
+  let v;
+  return () => (v ??= f());
+};
 
-// ---------------------------------------------------------------- the shapes
-// Profiles are [radius, height] pairs, a glass one unit tall. The glass is a hyacinth
-// glass: a round bowl for the water, a narrow neck, a cup that holds the bulb.
-const GLASS = [
-  [0.0, 0.0], [0.16, 0.0], [0.215, 0.014], [0.25, 0.06], [0.278, 0.16], [0.29, 0.27],
-  [0.272, 0.39], [0.222, 0.5], [0.152, 0.6], [0.112, 0.672], [0.108, 0.725], [0.14, 0.79],
-  [0.196, 0.86], [0.222, 0.93], [0.228, 0.992],
-];
-// The inside of the bowl and neck, where the water is: the glass less its thickness.
-const INSIDE = [
-  [0.0, 0.035], [0.15, 0.035], [0.2, 0.045], [0.236, 0.085], [0.264, 0.165], [0.276, 0.27],
-  [0.258, 0.39], [0.208, 0.5], [0.139, 0.6], [0.099, 0.672], [0.095, 0.725],
-];
-const BULB = [
-  [0.0, -0.125], [0.06, -0.118], [0.115, -0.075], [0.142, 0.0], [0.128, 0.075], [0.085, 0.13],
-  [0.045, 0.17], [0.03, 0.2], [0.0, 0.215],
-];
-const BULB_AT = 0.835;
-const DROP = [[0.0, -1.0], [0.55, -0.85], [0.95, -0.35], [0.85, 0.25], [0.45, 0.85], [0.0, 1.7]];
-const LOW = 0.04; // the water's height when empty, and its range up the glass
-const HIGH = 0.66;
-const ROOT_TOP = 0.715;
-const ROOT_DEPTH = 0.66;
-
-// Catmull-Rom through the points: a smooth curve, `per` samples a segment.
+// ---------------------------------------------------------------- shapes
 function spline(pts, per) {
   const out = [];
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
     for (let s = 0; s < per; s++) {
       const t = s / per, t2 = t * t, t3 = t2 * t;
-      out.push([0, 1].map((d) => 0.5 * (2 * p1[d] + (p2[d] - p0[d]) * t
-        + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3)));
+      out.push(p1.map((_, d) => 0.5 * (2 * p1[d] + (p2[d] - p0[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2
+        + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3)));
     }
   }
   out.push(pts[pts.length - 1].slice());
   return out;
 }
-
-const INSIDE_CURVE = spline(INSIDE, 8);
-function insideAt(y) {
-  const c = INSIDE_CURVE;
-  if (y <= c[1][1]) return c[1][0];
-  for (let i = 1; i < c.length; i++) {
-    if (c[i][1] >= y) {
-      const t = (y - c[i - 1][1]) / Math.max(1e-6, c[i][1] - c[i - 1][1]);
-      return lerp(c[i - 1][0], c[i][0], t);
-    }
-  }
-  return c[c.length - 1][0];
-}
-const levelOf = (zq) => LOW + (clamp(zq, 0, 20) / 20) * (HIGH - LOW);
 
 class Geo {
   constructor() {
@@ -99,7 +71,6 @@ class Geo {
   vert(p, n, c) {
     this.v.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2]);
   }
-  // A grid of (rows + 1) x (cols + 1) vertices from `base`, as triangles.
   grid(base, rows, cols) {
     for (let j = 0; j < rows; j++) {
       for (let k = 0; k < cols; k++) {
@@ -108,28 +79,42 @@ class Geo {
       }
     }
   }
+  append(h) {
+    const base = this.n;
+    for (const x of h.v) this.v.push(x);
+    for (const k of h.i) this.i.push(k + base);
+  }
+  // A grid of points (rows of cols + 1, each row closed round), its normals from neighbours.
+  static fromGrid(pts, cols, colour) {
+    const g = new Geo(), rows = pts.length / (cols + 1) - 1;
+    const at = (j, k) => pts[clamp(j, 0, rows) * (cols + 1) + ((k + cols) % cols)];
+    for (let j = 0; j <= rows; j++) {
+      for (let k = 0; k <= cols; k++) {
+        const du = sub(at(j, k + 1), at(j, k - 1)), dv = sub(at(j + 1, k), at(j - 1, k));
+        g.vert(pts[j * (cols + 1) + k], unit(cross(du, dv)), colour(j / rows, k / cols));
+      }
+    }
+    g.grid(0, rows, cols);
+    return g;
+  }
 }
 
-// A profile turned about the vertical axis; `at` moves it, `col` is a colour or a
-// colour along the profile (0 at its start, 1 at its end).
-function lathe(g, prof, seg, col, at = [0, 0, 0], scale = 1) {
+// A profile of [radius, height] turned about the vertical axis.
+function lathe(g, prof, seg, col) {
   const base = g.n, m = prof.length;
   for (let j = 0; j < m; j++) {
     const a = prof[Math.max(0, j - 1)], b = prof[Math.min(m - 1, j + 1)];
-    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-    const nr = (b[1] - a[1]) / l, ny = -(b[0] - a[0]) / l;
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nr = (b[1] - a[1]) / l, ny = -(b[0] - a[0]) / l;
     for (let k = 0; k <= seg; k++) {
-      const t = (k / seg) * Math.PI * 2, cs = Math.cos(t), sn = Math.sin(t);
-      const r = prof[j][0] * scale;
-      const c = typeof col === "function" ? col(j / (m - 1), t) : col;
-      g.vert([at[0] + r * cs, at[1] + prof[j][1] * scale, at[2] + r * sn], [nr * cs, ny, nr * sn], c);
+      const t = (k / seg) * PI * 2, cs = Math.cos(t), sn = Math.sin(t), r = prof[j][0];
+      const p = [r * cs, prof[j][1], r * sn];
+      g.vert(p, [nr * cs, ny, nr * sn], typeof col === "function" ? col(j / (m - 1), p) : col);
     }
   }
   g.grid(base, m - 1, seg);
 }
 
-// A tube along a curve, its radius at each point; the frame carried along the curve
-// so that the tube does not twist.
+// A tube along a curve, its frame carried along so that it does not twist.
 function tube(g, pts, rads, sides, col) {
   const n = pts.length;
   if (n < 2) return;
@@ -140,167 +125,237 @@ function tube(g, pts, rads, sides, col) {
     t = unit(sub(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]));
     const d = dot(nn, t);
     nn = unit([nn[0] - t[0] * d, nn[1] - t[1] * d, nn[2] - t[2] * d]);
-    const bb = cross(t, nn);
-    const c = typeof col === "function" ? col(i / (n - 1)) : col;
+    const bb = cross(t, nn), c = typeof col === "function" ? col(i / (n - 1)) : col;
     for (let k = 0; k <= sides; k++) {
-      const a = (k / sides) * Math.PI * 2, cs = Math.cos(a), sn = Math.sin(a);
-      const dir = [nn[0] * cs + bb[0] * sn, nn[1] * cs + bb[1] * sn, nn[2] * cs + bb[2] * sn];
-      const r = rads[i];
-      g.vert([pts[i][0] + dir[0] * r, pts[i][1] + dir[1] * r, pts[i][2] + dir[2] * r], dir, c);
+      const a = (k / sides) * PI * 2, dir = add(mul3(nn, Math.cos(a)), mul3(bb, Math.sin(a)));
+      g.vert(add(pts[i], mul3(dir, rads[i])), dir, c);
     }
   }
   g.grid(base, n - 1, sides);
 }
 
-// A sphere, stretched to (rx, ry, rz), from a unit sphere made once (a finer one for the
-// buds, a coarser one for the petals, which are small).
 const unitSphere = (lat, lon) => {
   const v = [];
   for (let j = 0; j <= lat; j++) {
-    const th = (j / lat) * Math.PI, y = -Math.cos(th), r = Math.sin(th);
+    const th = (j / lat) * PI, y = -Math.cos(th), r = Math.sin(th);
     for (let k = 0; k <= lon; k++) {
-      const a = (k / lon) * Math.PI * 2;
+      const a = (k / lon) * PI * 2;
       v.push([r * Math.cos(a), y, r * Math.sin(a)]);
     }
   }
   return { v, lat, lon };
 };
-const SPHERE = unitSphere(8, 12);
-const PETAL = unitSphere(5, 8);
-function sphere(g, at, rx, ry, rz, col) {
-  const base = g.n;
-  for (const p of SPHERE.v) {
-    g.vert([at[0] + p[0] * rx, at[1] + p[1] * ry, at[2] + p[2] * rz], unit([p[0] / rx, p[1] / ry, p[2] / rz]), col);
-  }
-  g.grid(base, SPHERE.lat, SPHERE.lon);
-}
-// An ellipsoid along three perpendicular axes (each a direction times a half-length).
-function ellipsoid(g, at, ex, ey, ez, col, tmpl = PETAL) {
+const SPHERE = unitSphere(10, 14), SMALL = unitSphere(6, 9);
+// An ellipsoid along three axes (each a direction times a half-length).
+function ellipsoid(g, at, ex, ey, ez, col, tmpl = SPHERE) {
   const base = g.n, lx = dot(ex, ex), ly = dot(ey, ey), lz = dot(ez, ez);
-  for (const p of tmpl.v) {
-    g.vert(
-      [at[0] + ex[0] * p[0] + ey[0] * p[1] + ez[0] * p[2], at[1] + ex[1] * p[0] + ey[1] * p[1] + ez[1] * p[2],
-        at[2] + ex[2] * p[0] + ey[2] * p[1] + ez[2] * p[2]],
-      unit([ex[0] * p[0] / lx + ey[0] * p[1] / ly + ez[0] * p[2] / lz, ex[1] * p[0] / lx + ey[1] * p[1] / ly
-        + ez[1] * p[2] / lz, ex[2] * p[0] / lx + ey[2] * p[1] / ly + ez[2] * p[2] / lz]),
-      col,
-    );
+  for (const q of tmpl.v) {
+    g.vert(add(at, add(add(mul3(ex, q[0]), mul3(ey, q[1])), mul3(ez, q[2]))),
+      unit(add(add(mul3(ex, q[0] / lx), mul3(ey, q[1] / ly)), mul3(ez, q[2] / lz))),
+      typeof col === "function" ? col(q) : col);
   }
   g.grid(base, tmpl.lat, tmpl.lon);
 }
-const scaled = (v, k) => [v[0] * k, v[1] * k, v[2] * k];
-
-// A leaf: a ribbon along a curve that leaves the bulb nearly upright and bends out and
-// down along its length; `bend` is how far it has turned at the tip. Its edges rise a
-// little, as a hyacinth's leaf is a shallow channel.
-function leaf(g, o, ang, len, wid, tilt, bend, fold, cBase, cTip) {
-  const d = [Math.cos(ang), 0, Math.sin(ang)];
-  const side = [-d[2], 0, d[0]];
-  const rows = 18, cols = 4, base = g.n;
-  let p = o.slice();
-  for (let i = 0; i <= rows; i++) {
-    const s = i / rows, th = tilt + bend * (0.35 * s + 0.65 * s * s);
-    const t = [Math.sin(th) * d[0], Math.cos(th), Math.sin(th) * d[2]];
-    const up = unit(cross(side, t));
-    const w = wid * Math.pow(Math.sin(Math.PI * Math.min(1, 0.07 + s * 0.93)), 0.6) * (1 - 0.25 * s);
-    const c = mix3(cBase, cTip, s);
-    for (let j = 0; j <= cols; j++) {
-      const v = -1 + (2 * j) / cols, lift = fold * w * v * v, slope = 2 * fold * v;
-      g.vert(
-        [p[0] + side[0] * v * w + up[0] * lift, p[1] + up[1] * lift, p[2] + side[2] * v * w + up[2] * lift],
-        unit([up[0] - side[0] * slope, up[1], up[2] - side[2] * slope]),
-        c,
-      );
-    }
-    p = [p[0] + (t[0] * len) / rows, p[1] + (t[1] * len) / rows, p[2] + (t[2] * len) / rows];
+const ball = (g, at, r, col, tmpl) => ellipsoid(g, at, [r, 0, 0], [0, r, 0], [0, 0, r], col, tmpl);
+const ring = (r0, y0, rr, k = 12) => {
+  const out = [];
+  for (let i = 0; i <= k; i++) {
+    const a = (i / k) * PI * 2 - PI / 2;
+    out.push([r0 + Math.cos(a) * rr, y0 + Math.sin(a) * rr]);
   }
-  g.grid(base, rows, cols);
-}
-
-// ---------------------------------------------------------------- the plant
-// One plant at one moment: `thirst` 0 (full) to 1 (dry), `wilt` 0 to 1, `roots` the
-// share of their full length, `bloom` 0 (green buds) to 1 (in flower).
-function plant(state, seed, pal) {
-  const g = new Geo(), under = new Geo();
-  const { thirst, wilt, roots, bloom } = state;
-  const droop = thirst + 0.8 * wilt;
-  const dry = clamp(thirst * 2.4 + wilt * 0.8);
-  const deep = mix3(pal.leafDeep, pal.dryDeep, dry), tip = mix3(pal.leaf, pal.dry, dry);
-  // Leaves, around the bulb's top at the golden angle.
-  for (let i = 0; i < 7; i++) {
-    const ang = seed * 1.7 + i * 2.39996;
-    const len = 0.64 + 0.3 * hash(seed * 7 + i);
-    const tilt = 0.14 + 0.16 * hash(seed + i * 3) + droop * 0.4;
-    const bend = 0.75 + 0.5 * hash(seed * 3 + i) + droop * 2.3;
-    const o = [Math.cos(ang) * 0.035, BULB_AT + 0.17, Math.sin(ang) * 0.035];
-    leaf(g, o, ang, len, 0.078 + 0.016 * hash(i + seed), tilt, bend, 0.32 * (1 - 0.6 * droop), deep, tip);
+  return out;
+};
+const insideOf = (prof) => (y) => {
+  for (let i = 1; i < prof.length; i++) {
+    if (prof[i][1] >= y) return lerp(prof[i - 1][0], prof[i][0], (y - prof[i - 1][1]) / Math.max(1e-6, prof[i][1] - prof[i - 1][1]));
   }
-  // The flower stalk, bowing as the plant dries, longer as it flowers; along its top,
-  // green buds that open into star-shaped flowers, six petals each.
-  const sa = seed * 2.3 + 0.6, sd = [Math.cos(sa), 0, Math.sin(sa)];
-  const stem = [], rads = [], ups = [];
-  let p = [0, BULB_AT + 0.13, 0];
-  const hs = 0.44 + 0.3 * bloom - 0.08 * droop;
-  for (let i = 0; i <= 16; i++) {
-    const s = i / 16, th = droop * 1.3 * s * s;
-    const t = [Math.sin(th) * sd[0], Math.cos(th), Math.sin(th) * sd[2]];
-    stem.push(p);
-    ups.push(t);
-    rads.push(lerp(0.024, 0.016, s));
-    p = [p[0] + (t[0] * hs) / 16, p[1] + (t[1] * hs) / 16, p[2] + (t[2] * hs) / 16];
-  }
-  tube(g, stem, rads, 7, (s) => mix3(deep, tip, s));
-  const flower = pal.flowers[seed % pal.flowers.length];
-  const budCol = mix3(pal.bud, tip, dry), n = 34;
-  for (let k = 0; k < n; k++) {
-    const s = 0.4 + (0.6 * k) / (n - 1), at = stem[Math.round(s * 16)], up = ups[Math.round(s * 16)];
-    const a = k * 2.39996 + seed, taper = 1 - 0.45 * (s - 0.4) / 0.6;
-    // Out from the stalk, a little upward; u and v span the flower's face.
-    const o = unit([Math.cos(a), 0.35, Math.sin(a)]);
-    const u = unit(cross(o, up)), v = cross(o, u);
-    const open = smooth(clamp(bloom * 1.3 - (s - 0.4) * 0.5));
-    const r = lerp(0.022, 0.068, open) * taper;
-    const c = mix3(budCol, flower, open);
-    const off = 0.02 + r * 0.55;
-    const at2 = [at[0] + o[0] * off, at[1] + o[1] * off, at[2] + o[2] * off];
-    if (open < 0.08) {
-      sphere(g, at2, r * 0.85, r, r * 0.85, c);
-      continue;
-    }
-    for (let q = 0; q < 6; q++) {
-      const th = (q / 6) * Math.PI * 2 + k;
-      const d = [u[0] * Math.cos(th) + v[0] * Math.sin(th), u[1] * Math.cos(th) + v[1] * Math.sin(th),
-        u[2] * Math.cos(th) + v[2] * Math.sin(th)];
-      const side = cross(o, d), len = r * 0.62;
-      const c0 = [at2[0] + d[0] * len * 0.9 - o[0] * r * 0.1, at2[1] + d[1] * len * 0.9 - o[1] * r * 0.1,
-        at2[2] + d[2] * len * 0.9 - o[2] * r * 0.1];
-      ellipsoid(g, c0, scaled(d, len), scaled(side, r * 0.3), scaled(o, r * 0.14), mix3(c, [1, 1, 1], 0.12 * (q % 2)));
-    }
-    sphere(g, at2, r * 0.3, r * 0.3, r * 0.3, mix3(c, [1, 0.95, 0.7], 0.55));
-  }
-  // Roots: from the bulb's base down through the neck, spreading in the bowl.
-  const length = clamp(roots, 0.03, 1);
-  for (let i = 0; i < 11; i++) {
-    const a0 = i * 2.39996 + seed * 0.7, spread = 0.45 + 0.5 * hash(i * 5 + seed);
-    const pts = [], rr = [], steps = Math.max(3, Math.round(24 * length));
-    for (let k = 0; k <= steps; k++) {
-      const u = (length * k) / steps, y = ROOT_TOP - u * ROOT_DEPTH * (0.9 + 0.1 * hash(i + 2 * seed));
-      const room = insideAt(y) - 0.018;
-      const r = Math.min(room, 0.02 + room * spread * smooth(clamp((u - 0.1) / 0.55)));
-      const a = a0 + 0.45 * Math.sin(u * 7 + i * 1.3);
-      pts.push([r * Math.cos(a), y, r * Math.sin(a)]);
-      rr.push(0.0105 * (1 - 0.7 * (k / steps)) + 0.002);
-    }
-    tube(under, pts, rr, 6, (s) => mix3(pal.root, pal.rootTip, s));
-  }
-  return { shoot: g, roots: under };
-}
-
-function staticGeo(builder) {
+  return prof[prof.length - 1][0];
+};
+const DISC = once(() => {
   const g = new Geo();
-  builder(g);
+  lathe(g, [[1, 0], [0, 0]], 48, [1, 1, 1]);
   return g;
-}
+});
+const DROP = once(() => {
+  const g = new Geo();
+  for (const q of SMALL.v) {
+    const k = 1 - 0.6 * Math.max(0, q[1]);
+    g.vert([q[0] * k, q[1] * 1.4, q[2] * k], unit(q), [1, 1, 1]);
+  }
+  g.grid(0, SMALL.lat, SMALL.lon);
+  return g;
+});
+
+// ---------------------------------------------------------------- the two plants
+// A pot's state: w (water, 0 to 1), droop (0 fresh to 1 parched, a wilt added), wilt,
+// roots (0 to 1), bloom (0 to 1), drop (a drop falling, 0 to 1), ripple.
+const ROSETTE = (() => {
+  const BOWL = spline([[0, 0.03], [0.3, 0.03], [0.47, 0.06], [0.56, 0.15], [0.59, 0.3]], 6);
+  const IN = spline([[0, 0.045], [0.29, 0.045], [0.455, 0.075], [0.545, 0.16], [0.575, 0.29]], 6);
+  const inR = insideOf(IN);
+  const statics = once(() => {
+    const glass = new Geo(), water = new Geo(), coaster = new Geo(), pebbles = new Geo();
+    lathe(glass, BOWL, 72, [1, 1, 1]);
+    lathe(glass, ring(0.584, 0.3, 0.012), 72, [1, 1, 1]);
+    lathe(water, IN, 64, [1, 1, 1]);
+    lathe(coaster, spline([[0, -0.05], [0.56, -0.05], [0.6, -0.03], [0.6, 0], [0.57, 0.025], [0, 0.025]], 4), 72,
+      (t, p) => mix3([0.78, 0.62, 0.46], [0.68, 0.52, 0.38], 0.5 + 0.5 * Math.sin(Math.hypot(p[0], p[2]) * 60)));
+    const stones = [[0.95, 0.94, 0.92], [0.8, 0.79, 0.77], [0.88, 0.84, 0.78], [0.68, 0.68, 0.7]];
+    for (let i = 0; i < 90; i++) {
+      const layer = i < 55 ? 0 : 1, rr = (layer ? 0.4 : 0.5) * Math.sqrt(hash(i * 3.3)), a = i * 2.39996;
+      const r = 0.03 + 0.02 * hash(i * 7.1), y = 0.045 + r * 0.8 + layer * 0.05 + 0.02 * hash(i * 1.7);
+      if (rr + r > inR(y) - 0.01) continue;
+      ellipsoid(pebbles, [Math.cos(a) * rr, y, Math.sin(a) * rr], [r, 0, 0], [0, r * 0.7, 0], [0, 0, r * 0.85], stones[i % 4], SMALL);
+    }
+    return { glass, water, coaster, pebbles };
+  });
+  // One fleshy leaf: a pod along `dir`, fat near its tip, pointed.
+  function pod(g, base, dir, L, W, T, colour) {
+    const side = unit(cross(dir, [0, 1, 0])), up = unit(cross(side, dir)), rows = 9, cols = 12, pts = [];
+    for (let j = 0; j <= rows; j++) {
+      const s = j / rows, prof = Math.pow(Math.sin(PI * Math.min(1, 0.02 + s * 0.98)), 0.55) * (0.7 + 0.55 * s);
+      const c = add(base, add(mul3(dir, L * s), mul3(up, 0.18 * L * s * s)));
+      for (let k = 0; k <= cols; k++) {
+        const a = (k / cols) * PI * 2, sn = Math.sin(a);
+        pts.push(add(c, add(mul3(side, Math.cos(a) * W * 0.5 * prof), mul3(up, sn * T * 0.5 * prof * (sn > 0 ? 0.55 : 1)))));
+      }
+    }
+    g.append(Geo.fromGrid(pts, cols, (s) => colour(s)));
+  }
+  return {
+    pitch: 0.52, reach: 0.62, y0: -0.05, y1: 0.5, y1Bloom: 0.9,
+    // Low, wide bowls: two side by side, three in a triangle, the middle one in front,
+    // so that the picture is not a thin strip.
+    layout: (n) => (n === 3 ? [[-0.68, -0.4], [0, 0.48], [0.68, -0.4]] : n === 2 ? [[-0.64, 0], [0.64, 0]] : [[0, 0]]),
+    lights: { sky: [0.72, 0.74, 0.8], ground: [0.46, 0.42, 0.4], light: [0.6, 0.57, 0.53] },
+    statics, inR,
+    plant(s, seed) {
+      const d = s.droop, leaves = new Geo(), roots = new Geo(), N = 40, base = [0, 0.19, 0];
+      for (let i = 0; i < N; i++) {
+        const t = i / (N - 1), a = i * 2.39996 + seed;
+        const L = lerp(0.3, 0.075, Math.pow(t, 0.75)), W = lerp(0.13, 0.05, t), T = lerp(0.05, 0.034, t) * (1 - 0.45 * d);
+        const elev = lerp(0.1, 1.25, Math.pow(t, 0.9)) - d * 0.5 * (1 - t);
+        const dir = [Math.cos(a) * Math.cos(elev), Math.sin(elev), Math.sin(a) * Math.cos(elev)];
+        const brown = clamp(clamp(1 - t * 2.2) * d + s.wilt * 0.6);
+        pod(leaves, add(base, mul3(dir, 0.02 + 0.02 * (1 - t))), dir, L, W, T, (u) => {
+          const body = mix3(mix3([0.42, 0.8, 0.7], [0.6, 0.52, 0.44], d), [0.5, 0.38, 0.28], brown);
+          return mix3(body, mix3([0.98, 0.52, 0.66], [0.56, 0.36, 0.3], d), smooth(clamp((u - 0.72) / 0.28)));
+        });
+      }
+      // In flower: arching stalks of coral bells, as an echeveria flowers.
+      if (s.bloom > 0.01) {
+        for (let f = 0; f < 3; f++) {
+          const a = seed * 2.1 + f * 2.2, h = [Math.cos(a), 0, Math.sin(a)], stalk = [], tall = 0.36 + 0.1 * hash(f + seed);
+          for (let k = 0; k <= 12; k++) {
+            const u = k / 12;
+            stalk.push(add([0, 0.2 + u * tall * s.bloom, 0], mul3(h, (0.05 + Math.sin(u * 1.5) * 0.2) * s.bloom)));
+          }
+          tube(leaves, stalk, stalk.map((_, k) => lerp(0.017, 0.01, k / 12)), 6, (u) => mix3([0.5, 0.6, 0.42], [0.86, 0.5, 0.4], u));
+          for (let k = 0; k < 6; k++) {
+            const q = stalk[6 + k], r = 0.042 * s.bloom * (1 - 0.08 * k);
+            ellipsoid(leaves, add(q, [0, -r * 0.7, 0]), [r, 0, 0], [0, r * 1.2, 0], [0, 0, r],
+              (v) => mix3([0.98, 0.42, 0.3], [1, 0.84, 0.4], 0.5 - 0.5 * v[1]), SMALL);
+          }
+        }
+      }
+      const reach = 0.1 + 0.9 * s.roots;
+      for (let i = 0; i < 9; i++) {
+        const a0 = i * 2.39996 + seed, pts = [], steps = Math.max(3, Math.round(14 * reach));
+        for (let k = 0; k <= steps; k++) {
+          const u = (k / steps) * reach, y = Math.max(0.055, 0.17 - u * 0.2), r = Math.min(inR(y) - 0.03, 0.03 + u * 0.42);
+          const a = a0 + 0.4 * Math.sin(u * 6 + i);
+          pts.push([r * Math.cos(a), y, r * Math.sin(a)]);
+        }
+        tube(roots, pts, pts.map(() => 0.006), 5, [0.95, 0.92, 0.84]);
+      }
+      return { leaves, roots };
+    },
+    // What to draw of one pot, around its plant, in the pot's own space.
+    parts(s, plant) {
+      const st = statics(), level = 0.05 + s.w * 0.15, shine = clamp((s.w - 0.5) / 0.5) * (1 - s.wilt);
+      return {
+        solid: [
+          { geo: st.coaster, mat: [0.12, 20, 0.15, 0] }, { geo: st.pebbles, mat: [0.35, 34, 0.15, 0] },
+          { geo: plant.leaves, mat: [0.3, 30, 0.15 + 0.5 * shine, 0.04 + 0.16 * shine], glow: mix3([0.8, 0.74, 0.66], [0.3, 1, 0.82], shine) },
+          { geo: plant.roots, mat: [0.25, 30, 0.2, 0.2 * shine], glow: [0.6, 1, 0.9] },
+        ],
+        shadows: [{ y: 0.026, r: 0.56, a: 0.2 }],
+        glass: { geo: st.glass, tint: [0.84, 0.94, 0.96, 0.04], mat: [0, 0, 0.5, 0] },
+        water: { body: st.water, through: [plant.roots, st.pebbles], tint: [0.3, 0.62, 0.95, 0.4], topTint: [0.52, 0.8, 1, 0.45], level, r: inR(level) - 0.004 },
+        lights: [{ y: level + 0.003, r: 0.52, col: [0.16, 0.86, 0.68], a: 0.55 * shine }, { y: level + 0.005, r: 0.26, col: [0.6, 1, 0.88], a: 0.6 * shine }],
+        drop: [0.32, 0.05, 0.75, level],
+      };
+    },
+  };
+})();
+
+const GLOW = (() => {
+  const JAR = spline([[0, 0.04], [0.22, 0.04], [0.27, 0.08], [0.285, 0.18], [0.285, 0.8], [0.29, 0.85]], 5);
+  const IN = spline([[0, 0.06], [0.21, 0.06], [0.255, 0.1], [0.27, 0.18], [0.27, 0.82]], 5);
+  const inR = insideOf(IN);
+  const statics = once(() => {
+    const glass = new Geo(), water = new Geo(), stand = new Geo();
+    lathe(glass, JAR, 64, [1, 1, 1]);
+    lathe(glass, ring(0.29, 0.85, 0.01), 64, [1, 1, 1]);
+    lathe(water, IN, 56, [1, 1, 1]);
+    lathe(stand, spline([[0, -0.06], [0.4, -0.06], [0.44, -0.03], [0.42, 0.04], [0, 0.04]], 4), 64, [0.12, 0.13, 0.18]);
+    return { glass, water, stand };
+  });
+  return {
+    pitch: 0.18, reach: 0.46, y0: -0.06, y1: 1.42, y1Bloom: 1.5,
+    layout: (n) => Array.from({ length: n }, (_, i) => [(i - (n - 1) / 2) * 0.98, 0]),
+    lights: { sky: [0.24, 0.27, 0.42], ground: [0.06, 0.06, 0.1], light: [0.3, 0.32, 0.45] },
+    statics, inR,
+    plant(s, seed) {
+      const d = s.droop, glow = new Geo(), core = new Geo(), roots = new Geo(), halos = [];
+      const shine = clamp((s.w - 0.45) / 0.55) * (1 - 0.7 * s.wilt), big = 1 + 0.8 * s.bloom;
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.39996 + seed, h = [Math.cos(a), 0, Math.sin(a)], pts = [];
+        const len = 0.42 + 0.18 * hash(i + seed), curl = 1 + d * 2 + 0.4 * hash(i + 2);
+        let p = [0, 0.86, 0];
+        for (let k = 0; k <= 22; k++) {
+          const th = 0.15 + curl * Math.pow(k / 22, 1.7);
+          pts.push(p);
+          p = add(p, mul3(add(mul3(h, Math.sin(th)), [0, Math.cos(th), 0]), len / 22));
+        }
+        const col = (u) => mix3(mix3([0.2, 0.95, 0.9], [0.85, 0.35, 1], u), [0.35, 0.3, 0.5], d);
+        tube(core, pts, pts.map((_, k) => lerp(0.014, 0.005, k / 22)), 6, (u) => mul3(col(u), 0.6));
+        tube(glow, pts, pts.map((_, k) => lerp(0.03, 0.012, k / 22)), 6, col);
+        const tip = pts[pts.length - 1];
+        ball(core, tip, 0.028 * big, mix3([1, 0.75, 1], [0.4, 0.35, 0.5], d));
+        halos.push({ p: tip, r: 0.13 * big, col: [...mix3([0.75, 0.4, 1], [0.3, 0.25, 0.4], d), 0.9 * shine + 0.1] });
+      }
+      ball(core, [0, 0.88, 0], 0.05 * big, [0.6, 1, 0.95]);
+      halos.push({ p: [0, 0.9, 0], r: 0.22 * big, col: [0.3, 1, 0.9, 0.8 * shine + 0.1] });
+      const reach = 0.12 + 0.88 * s.roots;
+      for (let i = 0; i < 12; i++) {
+        const a0 = i * 2.39996 + seed, pts = [], steps = Math.max(4, Math.round(24 * reach));
+        for (let k = 0; k <= steps; k++) {
+          const u = (k / steps) * reach, y = 0.84 - u * 0.74, r = Math.min(inR(y) - 0.03, 0.01 + 0.2 * smooth(clamp(u * 1.2)) * (0.4 + 0.6 * hash(i)));
+          const a = a0 + 0.7 * Math.sin(u * 8 + i);
+          pts.push([r * Math.cos(a), y, r * Math.sin(a)]);
+        }
+        tube(roots, pts, pts.map(() => 0.006), 4, [0.25, 0.9, 0.75]);
+      }
+      return { glow, core, roots, halos, shine };
+    },
+    parts(s, plant) {
+      const st = statics(), shine = plant.shine, level = 0.08 + s.w * 0.7, halos = plant.halos.slice();
+      for (let i = 0; i < 18; i++) {
+        const y = 0.08 + hash(i * 2.2) * (level - 0.1), rr = Math.sqrt(hash(i * 5.1)) * (inR(y) - 0.04), a = i * 2.39996;
+        halos.push({ p: [Math.cos(a) * rr, y, Math.sin(a) * rr], r: 0.035, col: [0.4, 1, 0.85, 0.7 * shine] });
+      }
+      return {
+        solid: [{ geo: st.stand, mat: [0.9, 80, 0.3, 0] }, { geo: plant.core, mat: [0, 10, 0.2, 0.9] }],
+        glass: { geo: st.glass, tint: [0.4, 0.85, 1, 0.02], mat: [0, 0, 0.35, 0.6] },
+        water: { body: st.water, through: [], tint: [0.08, 0.5 * (0.3 + 0.7 * shine), 0.48 * (0.3 + 0.7 * shine), 0.42], topTint: [0.2, 0.9, 0.85, 0.5], level, r: inR(level) - 0.004, glow: 0.6 * shine + 0.1 },
+        glow: [{ geo: plant.glow, tint: [1, 1, 1, 0.55 * (0.25 + 0.75 * shine)] }, { geo: plant.roots, tint: [1, 1, 1, 0.7 * (0.3 + 0.7 * shine)] }],
+        halos,
+        drop: [0.12, 0.04, 1.4, 0.86],
+      };
+    },
+  };
+})();
 
 // ---------------------------------------------------------------- matrices
 function perspective(fovy, aspect, near, far) {
@@ -309,10 +364,9 @@ function perspective(fovy, aspect, near, far) {
 }
 function lookAt(eye, at) {
   const z = unit(sub(eye, at)), x = unit(cross([0, 1, 0], z)), y = cross(z, x);
-  return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0,
-    -dot(x, eye), -dot(y, eye), -dot(z, eye), 1];
+  return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, eye), -dot(y, eye), -dot(z, eye), 1];
 }
-function mul(a, b) {
+function mat(a, b) {
   const o = new Array(16);
   for (let c = 0; c < 4; c++) {
     for (let r = 0; r < 4; r++) {
@@ -321,12 +375,12 @@ function mul(a, b) {
   }
   return o;
 }
-// Scaled by (sx, sy, sz), set at (x, y, z), and the whole turned by `turn` about the
-// vertical axis, as a thing standing on a turntable.
-function place(turn, x, y, z, sx = 1, sy = sx, sz = sx) {
+// A pot at (x, z) on the table, the whole table turned by `turn` about the vertical axis.
+function potModel(turn, x, z = 0) {
   const c = Math.cos(turn), s = Math.sin(turn);
-  return [c * sx, 0, -s * sx, 0, 0, sy, 0, 0, s * sz, 0, c * sz, 0, c * x + s * z, y, -s * x + c * z, 1];
+  return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, c * x + s * z, 0, -s * x + c * z, 1];
 }
+const scaleAt = (sx, y, sz = sx, x = 0, z = 0) => [sx, 0, 0, 0, 0, 1, 0, 0, 0, 0, sz, 0, x, y, z, 1];
 
 // ---------------------------------------------------------------- the shader
 const VS = `
@@ -347,98 +401,73 @@ precision mediump float;
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying vec3 vL;
 uniform vec3 uEye; uniform vec3 uKey; uniform vec3 uFill;
 uniform vec3 uSky; uniform vec3 uGround; uniform vec3 uLight;
-uniform vec4 uTint; uniform float uMode; uniform float uSide; uniform float uLevel; uniform vec2 uRipple;
+uniform vec4 uTint; uniform vec4 uMat; uniform float uMode; uniform float uSide; uniform float uLevel;
+uniform vec3 uRipple; uniform vec3 uGlow;
 void main() {
-  vec3 N = normalize(vN);
-  vec3 V = normalize(uEye - vW);
-  vec3 col; float a = 1.0;
+  vec3 N = normalize(vN), V = normalize(uEye - vW);
   if (uMode < 0.5) {
-    // Leaves, stems, roots, bulbs, buds: matte, lit on either face.
+    // Leaves, stems, roots, stones: lit on either face, a rim, a light from within.
     if (dot(N, V) < 0.0) N = -N;
     vec3 base = vC * uTint.rgb;
-    float wrap = max((dot(N, uKey) + 0.35) / 1.35, 0.0);
+    float wrap = max((dot(N, uKey) + 0.4) / 1.4, 0.0);
     vec3 hemi = mix(uGround, uSky, N.y * 0.5 + 0.5);
-    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 36.0) * 0.22;
-    float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.22;
-    col = base * (hemi + wrap * uLight) + sp + rim * uSky;
-    a = uTint.a;
-    gl_FragColor = vec4(col * a, a);
-    return;
+    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), max(uMat.y, 1.0)) * uMat.x;
+    float rim = pow(1.0 - max(dot(N, V), 0.0), 2.6) * uMat.z;
+    vec3 rimCol = length(uGlow) > 0.0 ? uGlow : mix(uSky, base, 0.4);
+    vec3 col = base * (hemi + wrap * uLight) + sp + rim * rimCol + base * uMat.w;
+    gl_FragColor = vec4(col * uTint.a, uTint.a);
   } else if (uMode < 1.5) {
-    // Glass: drawn twice, the far side first (uSide -1), then the near (uSide 1).
+    // Glass: drawn twice, its far side (uSide -1) and then its near side.
     float f = dot(N, V);
     if (f * uSide < 0.0) discard;
     if (uSide < 0.0) N = -N;
     float fr = pow(1.0 - abs(f), 2.2);
     vec3 R = reflect(-V, N);
-    float band = smoothstep(0.18, 0.26, R.x) * (1.0 - smoothstep(0.34, 0.44, R.x)) * smoothstep(-0.2, 0.35, R.y);
-    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 90.0) * 1.4 + pow(max(dot(N, normalize(uFill + V)), 0.0), 24.0) * 0.3;
-    float hi = sp + band * (uSide > 0.0 ? 0.55 : 0.18);
-    a = clamp(uTint.a + fr * 0.5, 0.0, 1.0);
-    col = uTint.rgb * mix(uGround, uSky, N.y * 0.5 + 0.5) * a + vec3(hi);
+    float band = smoothstep(0.16, 0.24, R.x) * (1.0 - smoothstep(0.32, 0.42, R.x)) * smoothstep(-0.2, 0.35, R.y);
+    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 90.0) * 1.3 + pow(max(dot(N, normalize(uFill + V)), 0.0), 26.0) * 0.3;
+    float hi = sp + band * (uSide > 0.0 ? 0.5 : 0.15);
+    float a = clamp(uTint.a + fr * uMat.z, 0.0, 1.0);
+    vec3 col = uTint.rgb * mix(uGround, uSky, N.y * 0.5 + 0.5) * a + vec3(hi) + uTint.rgb * fr * uMat.w;
     gl_FragColor = vec4(col, clamp(a + hi * 0.6, 0.0, 1.0));
-    return;
   } else if (uMode < 2.5) {
-    // The water in the bowl, up to its level.
+    // The water, up to its level; it may glow.
     if (vL.y > uLevel) discard;
     if (dot(N, V) < 0.0) discard;
     float fr = pow(1.0 - dot(N, V), 2.0);
-    float depth = clamp((uLevel - vL.y) * 2.2, 0.0, 1.0);
-    vec3 base = mix(uTint.rgb * 1.1, uTint.rgb * 0.72, depth);
-    a = uTint.a + fr * 0.3;
+    float depth = clamp((uLevel - vL.y) * 2.5, 0.0, 1.0);
+    vec3 base = mix(uTint.rgb * 1.1, uTint.rgb * 0.7, depth);
+    float a = uTint.a + fr * 0.3;
     float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 60.0) * 0.6;
-    col = base * a + sp;
-    gl_FragColor = vec4(col, clamp(a + sp * 0.4, 0.0, 1.0));
-    return;
+    gl_FragColor = vec4(base * a + sp + base * uMat.w, clamp(a + sp * 0.4, 0.0, 1.0) * (1.0 - step(0.5, uMat.w) * 0.6));
   } else if (uMode < 3.5) {
-    // The water's surface: a disc, rippling where a drop has just fallen.
-    float d = length(vL.xz);
-    float x = d - uRipple.x;
-    float wave = uRipple.y * cos(x * 48.0) * exp(-abs(x) * 9.0);
+    // The water's surface, rippling where a drop has just fallen.
+    float d = length(vL.xz), x = d - uRipple.x;
+    float wave = uRipple.y * cos(x * 40.0) * exp(-abs(x) * 8.0);
     vec3 n = normalize(vec3(0.0, 1.0, 0.0) + vec3(vL.x, 0.0, vL.z) / max(d, 0.001) * wave * 0.9);
-    N = normalize((vec4(n, 0.0)).xyz);
-    float edge = smoothstep(0.72, 1.0, d);
-    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 70.0) * 1.1 + abs(wave) * 0.25;
-    a = clamp(uTint.a + edge * 0.25, 0.0, 1.0);
-    col = mix(uTint.rgb * 1.08, uTint.rgb * 0.85, edge) * a + sp;
-    gl_FragColor = vec4(col, clamp(a + sp * 0.3, 0.0, 1.0));
-    return;
+    float edge = smoothstep(0.75, 1.0, d);
+    float sp = pow(max(dot(n, normalize(uKey + V)), 0.0), 70.0) * 1.1 + abs(wave) * 0.25;
+    float a = clamp(uTint.a + edge * 0.2, 0.0, 1.0);
+    vec3 col = mix(uTint.rgb * 1.08, uTint.rgb * 0.85, edge) * a + sp + uTint.rgb * uMat.w;
+    gl_FragColor = vec4(col, clamp(a + sp * 0.3, 0.0, 1.0) * (1.0 - step(0.5, uMat.w) * 0.5));
   } else if (uMode < 4.5) {
-    // The table: wood, its rings around the centre.
-    float r = length(vL.xz);
-    float wav = sin(atan(vL.z, vL.x) * 5.0 + r * 7.0) * 0.35 + sin(atan(vL.z, vL.x) * 2.0) * 0.5;
-    float ring = smoothstep(0.6, 1.0, 0.5 + 0.5 * sin(r * 30.0 + wav));
-    vec3 base = mix(uTint.rgb, uTint.rgb * 0.92, ring) * mix(0.94, 1.04, smoothstep(0.0, 1.0, r)) * vC;
-    float lit = max(dot(N, uKey), 0.0);
-    vec3 hemi = mix(uGround, uSky, N.y * 0.5 + 0.5);
-    float sp = pow(max(dot(N, normalize(uKey + V)), 0.0), 28.0) * 0.12;
-    col = base * (hemi + lit * uLight) + sp;
-  } else {
-    // A soft shadow on the table or under it.
     float d = length(vL.xz);
-    a = pow(1.0 - smoothstep(0.0, 1.0, d), 1.6) * uTint.a;
-    gl_FragColor = vec4(0.0, 0.0, 0.0, a);
-    return;
+    gl_FragColor = vec4(0.0, 0.0, 0.0, pow(1.0 - smoothstep(0.0, 1.0, d), 1.6) * uTint.a);
+  } else if (uMode < 5.5) {
+    // A glow, added to what is behind it.
+    float fr = pow(1.0 - abs(dot(N, V)), 1.5);
+    gl_FragColor = vec4(vC * uTint.rgb * (0.55 + fr * 0.9) * uTint.a, 0.0);
+  } else if (uMode < 6.5) {
+    // A halo of light facing the camera, added.
+    float d = length(vC.xy);
+    float a = exp(-d * d * 3.5) * (1.0 - smoothstep(0.85, 1.0, d)) * uTint.a;
+    gl_FragColor = vec4(uTint.rgb * a, 0.0);
+  } else {
+    // A pool of light on the water, laid over it (it shows on a light page too).
+    float d = length(vL.xz);
+    float a = pow(1.0 - smoothstep(0.0, 1.0, d), 2.0) * uTint.a;
+    gl_FragColor = vec4(uTint.rgb * a, a);
   }
-  gl_FragColor = vec4(col, a);
 }`;
-
-const PALETTES = {
-  light: {
-    sky: [0.66, 0.69, 0.74], ground: [0.42, 0.39, 0.36], light: [0.62, 0.6, 0.56],
-    glass: [0.8, 0.92, 0.96, 0.05], water: [0.24, 0.58, 0.98, 0.42], top: [0.5, 0.78, 1.0, 0.55],
-    wood: [0.8, 0.62, 0.44], shadow: 0.26, ground_shadow: 0.2,
-  },
-  dark: {
-    sky: [0.5, 0.55, 0.66], ground: [0.22, 0.21, 0.25], light: [0.6, 0.58, 0.56],
-    glass: [0.84, 0.94, 1.0, 0.07], water: [0.3, 0.62, 1.0, 0.44], top: [0.52, 0.8, 1.0, 0.56],
-    wood: [0.72, 0.55, 0.39], shadow: 0.5, ground_shadow: 0.45,
-  },
-  leaf: [0.27, 0.66, 0.38], leafDeep: [0.12, 0.42, 0.24], dry: [0.78, 0.68, 0.38], dryDeep: [0.55, 0.45, 0.25],
-  root: [0.96, 0.93, 0.85], rootTip: [0.99, 0.98, 0.94], bud: [0.52, 0.74, 0.4],
-  bulb: [0.6, 0.42, 0.48], bulbTop: [0.88, 0.76, 0.66],
-  flowers: [[0.42, 0.45, 0.95], [0.97, 0.46, 0.68], [0.99, 0.8, 0.36]],
-};
 const isDark = () => root.dataset.theme === "dark"
   || (root.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
 
@@ -520,104 +549,68 @@ class Scene {
     this.prog = prog;
     this.loc = {};
     for (const name of ["aPos", "aNrm", "aCol"]) this.loc[name] = gl.getAttribLocation(prog, name);
-    for (const name of ["uModel", "uView", "uEye", "uKey", "uFill", "uSky", "uGround", "uLight", "uTint", "uMode",
-      "uSide", "uLevel", "uRipple"]) this.loc[name] = gl.getUniformLocation(prog, name);
-
-    const pots = this.spec.pots;
-    const n = pots.length, gap = n === 3 ? 0.8 : 0.92;
-    this.xs = pots.map((_, i) => (i - (n - 1) / 2) * gap);
-    this.table = (gap * (n - 1)) / 2 + 0.44;
-    const R = this.table;
-    this.meshes = {
-      glass: this.mesh(staticGeo((g) => {
-        lathe(g, spline(GLASS, 6), 56, [1, 1, 1]);
-        const lip = [];
-        for (let k = 0; k <= 12; k++) {
-          const a = (k / 12) * Math.PI * 2 - Math.PI / 2;
-          lip.push([0.222 + Math.cos(a) * 0.009, 0.992 + Math.sin(a) * 0.009]);
-        }
-        lathe(g, lip, 56, [1, 1, 1]);
-      })),
-      water: this.mesh(staticGeo((g) => lathe(g, INSIDE_CURVE, 48, [1, 1, 1]))),
-      disc: this.mesh(staticGeo((g) => lathe(g, [[1, 0], [0, 0]], 48, [1, 1, 1]))),
-      bulb: this.mesh(staticGeo((g) => lathe(g, spline(BULB, 5), 40, (t, a) => mix3(
-        mix3(PALETTES.bulb, PALETTES.bulbTop, smooth(t)), PALETTES.bulbTop, 0.35 * Math.pow(0.5 + 0.5 * Math.cos(a * 7), 6),
-      ), [0, BULB_AT, 0]))),
-      table: this.mesh(staticGeo((g) => lathe(g, spline([[0, -0.092], [R - 0.06, -0.092], [R - 0.014, -0.08],
-        [R, -0.046], [R - 0.012, -0.014], [R - 0.06, 0], [0, 0]], 5), 72, [1, 1, 1]))),
-      drop: this.mesh(staticGeo((g) => lathe(g, spline(DROP, 4), 16, [1, 1, 1]))),
-      shade: this.mesh(staticGeo((g) => lathe(g, [[1, 0], [0, 0]], 32, [0, 0, 0]))),
-    };
-    this.plants = pots.map(() => ({ shoot: this.mesh(null, true), roots: this.mesh(null, true), key: "" }));
+    for (const name of ["uModel", "uView", "uEye", "uKey", "uFill", "uSky", "uGround", "uLight", "uTint", "uMat", "uMode",
+      "uSide", "uLevel", "uRipple", "uGlow"]) this.loc[name] = gl.getUniformLocation(prog, name);
+    this.uint = !!(gl.getExtension && (gl instanceof WebGLRenderingContext ? gl.getExtension("OES_element_index_uint") : true));
+    this.buffers = new Map();
+    this.scratch = { vbo: gl.createBuffer(), ibo: gl.createBuffer() };
+    this.plants = this.spec.pots.map(() => ({ key: "", made: null }));
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0, 0, 0, 0);
     this.ready = true;
     return true;
   }
 
-  mesh(geo, dynamic = false) {
+  // A shape's buffers, made once; a plant's are let go when it is made again.
+  buffer(geo) {
+    let b = this.buffers.get(geo);
+    if (b) return b;
     const gl = this.gl;
-    const m = { vbo: gl.createBuffer(), ibo: gl.createBuffer(), count: 0, dynamic };
-    if (geo) this.fill(m, geo);
-    return m;
+    b = { vbo: gl.createBuffer(), ibo: gl.createBuffer() };
+    this.upload(b, geo, gl.STATIC_DRAW);
+    this.buffers.set(geo, b);
+    return b;
   }
-
-  fill(m, geo) {
-    const gl = this.gl, usage = m.dynamic ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW;
-    gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
+  upload(b, geo, usage) {
+    const gl = this.gl, big = geo.n > 65535 && this.uint;
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.vbo);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geo.v), usage);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ibo);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(geo.i), usage);
-    m.count = geo.i.length;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, big ? new Uint32Array(geo.i) : new Uint16Array(geo.i), usage);
+    b.count = geo.i.length;
+    b.type = big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+  }
+  release(geos) {
+    for (const geo of geos) {
+      const b = this.buffers.get(geo);
+      if (!b) continue;
+      this.gl.deleteBuffer(b.vbo);
+      this.gl.deleteBuffer(b.ibo);
+      this.buffers.delete(geo);
+    }
   }
 
-  draw(m, model, mode, tint, extra = {}) {
-    const gl = this.gl, L = this.loc;
-    gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ibo);
+  draw(geo, model, mode, tint, opts = {}) {
+    if (!geo || !geo.i.length) return;
+    const gl = this.gl, L = this.loc, b = opts.scratch ? this.scratch : this.buffer(geo);
+    if (opts.scratch) this.upload(b, geo, gl.STREAM_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.vbo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.ibo);
     gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 36, 0);
     gl.vertexAttribPointer(L.aNrm, 3, gl.FLOAT, false, 36, 12);
     gl.vertexAttribPointer(L.aCol, 3, gl.FLOAT, false, 36, 24);
     gl.uniformMatrix4fv(L.uModel, false, model);
     gl.uniform1f(L.uMode, mode);
     gl.uniform4f(L.uTint, tint[0], tint[1], tint[2], tint[3] ?? 1);
-    gl.uniform1f(L.uSide, extra.side ?? 1);
-    gl.uniform1f(L.uLevel, extra.level ?? 9);
-    gl.uniform2f(L.uRipple, ...(extra.ripple ?? [0, 0]));
-    gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_SHORT, 0);
-  }
-
-  // The camera: a little above the table, as close as it can be with the whole table
-  // and every plant's top in the frame, whichever way the table has turned. Found by
-  // projecting that outline and moving the camera until it fits, once for each shape
-  // of canvas.
-  camera(aspect) {
-    if (this.cam && this.cam.aspect === aspect) return this.cam;
-    const fy = (24 * Math.PI) / 180, el = 0.2, R = this.table;
-    const reach = Math.max(...this.xs.map(Math.abs)) + 0.42;
-    const top = this.spec.pots.some((pot) => pot.bloom) ? 1.8 : 1.66;
-    const outline = [];
-    for (let k = 0; k < 32; k++) {
-      const a = (k / 32) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-      outline.push([c * R, 0, s * R], [c * R, -0.095, s * R], [c * reach, top, s * reach]);
-    }
-    const proj = perspective(fy, aspect, 0.1, 60);
-    let dist = 6, ty = 0.75, eye, view;
-    for (let it = 0; it < 8; it++) {
-      eye = [0, ty + Math.sin(el) * dist, Math.cos(el) * dist];
-      view = mul(proj, lookAt(eye, [0, ty, 0]));
-      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-      for (const q of outline) {
-        const cw = view[3] * q[0] + view[7] * q[1] + view[11] * q[2] + view[15];
-        const x = (view[0] * q[0] + view[4] * q[1] + view[8] * q[2] + view[12]) / cw;
-        const y = (view[1] * q[0] + view[5] * q[1] + view[9] * q[2] + view[13]) / cw;
-        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-      }
-      ty += ((y0 + y1) / 2) * dist * Math.tan(fy / 2);
-      dist *= Math.max((x1 - x0) / 2, (y1 - y0) / 2) / 0.92;
-    }
-    this.cam = { aspect, eye, view };
-    return this.cam;
+    const m = opts.mat || [0.25, 40, 0.25, 0];
+    gl.uniform4f(L.uMat, m[0], m[1], m[2], m[3]);
+    gl.uniform1f(L.uSide, opts.side ?? 1);
+    gl.uniform1f(L.uLevel, opts.level ?? 99);
+    const r = opts.ripple || [0, 0, 1];
+    gl.uniform3f(L.uRipple, r[0], r[1], r[2]);
+    const g = opts.glow || [0, 0, 0];
+    gl.uniform3f(L.uGlow, g[0], g[1], g[2]);
+    gl.drawElements(gl.TRIANGLES, b.count, b.type, 0);
   }
 
   // Each plant's state at progress p, from the server's numbers.
@@ -627,17 +620,51 @@ class Scene {
       const q = p * (z.length - 1), i = Math.min(z.length - 2, Math.floor(q));
       z = lerp(z[i], z[i + 1], q - i);
     }
-    const grow = pot.ra ? smooth(span(p, pot.ra)) : 1;
-    const roots = lerp(pot.rf ?? pot.rt ?? 20, pot.rt ?? 20, grow) / 20;
+    const w = clamp(z / 20), grow = pot.ra ? smooth(span(p, pot.ra)) : 1;
     const wilt = pot.wilt ? smooth(span(p, pot.wilt)) : 0;
-    const bloom = Array.isArray(pot.bloom) ? smooth(span(p, pot.bloom)) : pot.bloom ?? 0;
-    const drop = pot.drop ? span(p, pot.drop) : 0;
-    return { z, thirst: (20 - z) / 20, roots, wilt, bloom, drop };
+    return {
+      w, wilt, droop: clamp((1 - w) * 2.2 + wilt * 0.8),
+      roots: lerp(pot.rf ?? pot.rt ?? 20, pot.rt ?? 20, grow) / 20,
+      bloom: Array.isArray(pot.bloom) ? smooth(span(p, pot.bloom)) : pot.bloom ?? 0,
+      drop: pot.drop ? span(p, pot.drop) : 0,
+    };
+  }
+
+  // The camera: a little above the table, as close as it can be with every pot whole
+  // whichever way the table has turned; found by projecting that outline, once for
+  // each shape of canvas and each plant.
+  camera(kit, aspect, bloom) {
+    const key = `${aspect.toFixed(3)}|${kit === GLOW}|${bloom}`;
+    if (this.cam && this.cam.key === key) return this.cam;
+    const fy = (24 * PI) / 180, el = kit.pitch, n = this.spec.pots.length;
+    const reach = Math.max(...kit.layout(n).map(([x, z]) => Math.hypot(x, z))) + kit.reach;
+    const top = bloom ? kit.y1Bloom : kit.y1, outline = [];
+    for (let k = 0; k < 32; k++) {
+      const a = (k / 32) * PI * 2;
+      outline.push([Math.cos(a) * reach, kit.y0, Math.sin(a) * reach], [Math.cos(a) * reach * 0.92, top, Math.sin(a) * reach * 0.92]);
+    }
+    const proj = perspective(fy, aspect, 0.05, 80);
+    let dist = 6, ty = (kit.y0 + top) / 2, eye, view;
+    for (let it = 0; it < 10; it++) {
+      eye = [0, ty + Math.sin(el) * dist, Math.cos(el) * dist];
+      view = mat(proj, lookAt(eye, [0, ty, 0]));
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (const q of outline) {
+        const w = view[3] * q[0] + view[7] * q[1] + view[11] * q[2] + view[15];
+        const x = (view[0] * q[0] + view[4] * q[1] + view[8] * q[2] + view[12]) / w;
+        const y = (view[1] * q[0] + view[5] * q[1] + view[9] * q[2] + view[13]) / w;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      }
+      ty += ((y0 + y1) / 2) * dist * Math.tan(fy / 2);
+      dist *= Math.max((x1 - x0) / 2, (y1 - y0) / 2) / 0.92;
+    }
+    this.cam = { key, eye, view };
+    return this.cam;
   }
 
   render() {
     if (!this.ready) return;
-    const gl = this.gl, canvas = this.canvas, L = this.loc;
+    const gl = this.gl, canvas = this.canvas, L = this.loc, spec = this.spec;
     const dpr = Math.min(devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
     if (canvas.width !== w || canvas.height !== h) {
@@ -649,65 +676,90 @@ class Scene {
     gl.useProgram(this.prog);
     for (const name of ["aPos", "aNrm", "aCol"]) gl.enableVertexAttribArray(L[name]);
 
-    const pal = isDark() ? PALETTES.dark : PALETTES.light;
-    const p = this.shown, spec = this.spec;
-    const turn = ((spec.turn ? lerp(spec.turn[0], spec.turn[1], p) : -12) * Math.PI) / 180;
-
-    const { eye, view } = this.camera(w / h);
+    // The plant of the theme: a glowing rosette when light, a plant of light when dark.
+    const kit = isDark() ? GLOW : ROSETTE;
+    if (this.kit !== kit) {
+      for (const pl of this.plants) if (pl.made) this.release(Object.values(pl.made).filter((x) => x instanceof Geo));
+      this.plants.forEach((pl) => { pl.key = ""; pl.made = null; });
+      this.kit = kit;
+    }
+    const p = this.shown, n = spec.pots.length;
+    const turn = ((spec.turn ? lerp(spec.turn[0], spec.turn[1], p) : -12) * PI) / 180;
+    const at = kit.layout(n);
+    const states = spec.pots.map((pot) => this.stateAt(pot, p));
+    const { eye, view } = this.camera(kit, w / h, spec.pots.some((pot) => pot.bloom));
     gl.uniformMatrix4fv(L.uView, false, view);
     gl.uniform3fv(L.uEye, eye);
     gl.uniform3fv(L.uKey, unit([-0.5, 0.85, 0.6]));
     gl.uniform3fv(L.uFill, unit([0.75, 0.25, -0.35]));
-    gl.uniform3fv(L.uSky, pal.sky);
-    gl.uniform3fv(L.uGround, pal.ground);
-    gl.uniform3fv(L.uLight, pal.light);
+    gl.uniform3fv(L.uSky, kit.lights.sky);
+    gl.uniform3fv(L.uGround, kit.lights.ground);
+    gl.uniform3fv(L.uLight, kit.lights.light);
 
-    const states = spec.pots.map((pot) => this.stateAt(pot, p));
-    const models = this.xs.map((x) => place(turn, x, 0, 0));
-
-    // Opaque: the table, the bulbs, the plants.
-    gl.disable(gl.BLEND);
-    gl.depthMask(true);
-    this.draw(this.meshes.table, place(turn, 0, 0, 0), 4, pal.wood);
-    states.forEach((st, i) => {
-      const key = [st.thirst, st.roots, st.wilt, st.bloom].map((v) => v.toFixed(3)).join();
+    const pots = states.map((st, i) => {
       const pl = this.plants[i];
+      const key = [st.droop, st.wilt, st.roots, st.bloom].map((v) => v.toFixed(3)).join();
       if (pl.key !== key) {
-        const made = plant(st, i + (spec.seed ?? 0), PALETTES);
-        this.fill(pl.shoot, made.shoot);
-        this.fill(pl.roots, made.roots);
+        if (pl.made) this.release(Object.values(pl.made).filter((x) => x instanceof Geo));
+        pl.made = kit.plant(st, i * 1.7 + (spec.seed ?? 0));
         pl.key = key;
       }
-      this.draw(this.meshes.bulb, models[i], 0, [1, 1, 1]);
-      this.draw(pl.shoot, models[i], 0, [1, 1, 1]);
-      this.draw(pl.roots, models[i], 0, [1, 1, 1]);
+      const model = potModel(turn, at[i][0], at[i][1]);
+      return { st, model, depth: model[14], parts: kit.parts(st, pl.made) };
     });
 
-    // See-through, the farthest glass first: shadows, then each glass's far side, its
-    // water, a falling drop, and its near side.
+    // Opaque first; then the see-through, the farthest pot first; then what glows.
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    for (const pt of pots) for (const o of pt.parts.solid) this.draw(o.geo, pt.model, 0, [1, 1, 1, 1], { mat: o.mat, glow: o.glow });
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false);
-    this.draw(this.meshes.shade, place(turn, 0, -0.094, 0, this.table * 1.22, 1, this.table * 1.22), 5, [0, 0, 0, pal.ground_shadow]);
-    models.forEach((m) => this.draw(this.meshes.shade, mul(m, place(0, 0, 0.003, 0, 0.42)), 5, [0, 0, 0, pal.shadow]));
-    // Farthest first: a glass's depth toward the camera is -sin(turn) x.
-    const order = this.xs.map((x, i) => i).sort((a, b) => Math.sin(turn) * (this.xs[b] - this.xs[a]));
-    for (const i of order) {
-      const m = models[i], st = states[i], level = levelOf(st.z);
-      this.draw(this.meshes.glass, m, 1, pal.glass, { side: -1 });
-      this.draw(this.meshes.water, m, 2, pal.water, { level });
+    for (const pt of pots) {
+      for (const s of pt.parts.shadows || []) this.draw(DISC(), mat(pt.model, scaleAt(s.r, s.y)), 4, [0, 0, 0, s.a]);
+    }
+    // Farthest first: a pot's depth toward the camera is its z in the world.
+    const order = pots.slice().sort((a, b) => a.depth - b.depth);
+    for (const pt of order) {
+      const { parts, model, st } = pt, wt = parts.water;
+      this.draw(parts.glass.geo, model, 1, parts.glass.tint, { side: -1, mat: parts.glass.mat });
+      this.draw(wt.body, model, 2, wt.tint, { level: wt.level, mat: [0, 0, 0, wt.glow || 0] });
       gl.depthFunc(gl.LEQUAL);
-      this.draw(this.plants[i].roots, m, 0, [1, 1, 1, 0.55]);
+      for (const g of wt.through) this.draw(g, model, 0, [1, 1, 1, 0.55]);
       gl.depthFunc(gl.LESS);
-      const falling = st.drop > 0 && st.drop < 0.55;
-      const ripple = st.drop >= 0.5 && st.drop < 1 ? [(st.drop - 0.5) / 0.5 * 0.9, 0.9 * (1 - (st.drop - 0.5) / 0.5)] : [0, 0];
-      const r = insideAt(level) - 0.002;
-      this.draw(this.meshes.disc, mul(m, place(0, 0, level, 0, r, 1, r)), 3, pal.top, { ripple });
-      if (falling) {
-        const y = lerp(1.75, 0.98, Math.pow(st.drop / 0.55, 2));
-        this.draw(this.meshes.drop, mul(m, place(0, 0.17, y, 0.04, 0.05)), 2, pal.top, { level: 9 });
+      const ripple = st.drop >= 0.5 && st.drop < 1 ? [((st.drop - 0.5) / 0.5) * 0.9, 0.9 * (1 - (st.drop - 0.5) / 0.5), 1] : [0, 0, 1];
+      this.draw(DISC(), mat(model, scaleAt(wt.r, wt.level)), 3, wt.topTint, { ripple, mat: [0, 0, 0, wt.glow || 0] });
+      for (const l of parts.lights || []) this.draw(DISC(), mat(model, scaleAt(l.r, l.y)), 7, [...l.col, l.a]);
+      if (st.drop > 0 && st.drop < 0.55) {
+        const [dx, dz, top, bottom] = parts.drop, y = lerp(top, bottom, Math.pow(st.drop / 0.55, 2));
+        this.draw(DROP(), mat(model, [0.028, 0, 0, 0, 0, 0.028, 0, 0, 0, 0, 0.028, 0, dx, y, dz, 1]), 2, [0.5, 0.78, 1, 0.6]);
       }
-      this.draw(this.meshes.glass, m, 1, pal.glass, { side: 1 });
+      this.draw(parts.glass.geo, model, 1, parts.glass.tint, { side: 1, mat: parts.glass.mat });
+    }
+    gl.blendFunc(gl.ONE, gl.ONE);
+    for (const pt of pots) for (const o of pt.parts.glow || []) this.draw(o.geo, pt.model, 5, o.tint);
+    const halos = pots.flatMap((pt) => (pt.parts.halos || []).map((hl) => ({ ...hl, model: pt.model })));
+    if (halos.length) {
+      // Camera-facing squares, made in the world's space each frame, in one buffer.
+      const right = unit([view[0], view[4], view[8]]), up = unit([view[1], view[5], view[9]]), g = new Geo();
+      for (const hl of halos) {
+        const m = hl.model, c = [m[0] * hl.p[0] + m[8] * hl.p[2] + m[12], hl.p[1], m[2] * hl.p[0] + m[10] * hl.p[2] + m[14]];
+        const base = g.n;
+        for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.vert(add(c, add(mul3(right, a * hl.r), mul3(up, b * hl.r))), [0, 0, 1], [a, b, 0]);
+        g.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+      // Each halo its own tint: drawn in runs of the same colour.
+      let start = 0;
+      while (start < halos.length) {
+        let end = start + 1;
+        const c = halos[start].col;
+        while (end < halos.length && halos[end].col.every((v, k) => v === c[k])) end++;
+        const part = new Geo();
+        part.v = g.v.slice(start * 36, end * 36);
+        for (let q = 0; q < end - start; q++) part.i.push(q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3);
+        this.draw(part, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], 6, c, { scratch: true });
+        start = end;
+      }
     }
     gl.depthMask(true);
     if (!this.el.classList.contains("gd-3d")) this.el.classList.add("gd-3d");
