@@ -55,6 +55,7 @@ PARTS: tuple[tuple[str, str], ...] = (
     ("tips", "Tips"),
     ("weekly", "The weekly note"),
     ("coach", "The coach"),
+    ("garden", "How it works"),  # D116
     ("science", "The science behind it"),
     ("you", "You"),
     ("settings", "Settings"),
@@ -95,6 +96,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("GET", r"/tips", "tips"),
     ("GET", r"/weekly(/[^/]+)?", "weekly"),
     ("GET", r"/coach", "coach"),
+    ("GET", r"/garden", "garden"),
     ("GET", r"/science", "science"),
     ("GET", r"/(you|avatar)", "you"),  # the avatar is made from You (D115)
     ("GET", r"/settings(/[a-z]+)?", "settings"),

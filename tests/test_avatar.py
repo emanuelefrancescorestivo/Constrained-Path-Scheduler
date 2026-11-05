@@ -1,5 +1,5 @@
 """The student's own avatar (D115): made from parts on its page, kept as their names,
-and the one who asks the questions on the science and code pages (D114)."""
+and the student who asks in How it works (D116)."""
 
 import re
 from datetime import UTC, datetime
@@ -66,7 +66,7 @@ def test_an_avatar_is_its_parts_names_and_nothing_else():
     assert service.avatar_of(old)["glasses"] == "none" and service.avatar_of(old)["hair"] == "curly"
 
 
-def test_the_student_makes_it_and_then_it_asks_the_questions(web, token):
+def test_the_student_makes_it_and_then_it_is_them_in_how_it_works(web, token):
     you = web.get(f"/p/{token}/you").text
     assert "Make your avatar" in you and f'href="/p/{token}/avatar"' in you and "av-ghost" in you
     maker = web.get(f"/p/{token}/avatar").text
@@ -79,25 +79,23 @@ def test_the_student_makes_it_and_then_it_asks_the_questions(web, token):
     # The preview draws every part, for the radios to choose from without a script.
     for style in service.AVATAR_PARTS["hair"]:
         assert f"hs-{style}" in maker
-    assert web.get(f"/p/{token}/how").text.count("av-ghost") >= 11  # not made yet
+    assert web.get(f"/p/{token}/garden").text.count("av-ghost") >= 1  # not made yet
     saved = web.post(f"/p/{token}/avatar", data=MINE, follow_redirects=False)
     assert saved.status_code == 303 and saved.headers["location"] == f"/p/{token}/avatar?saved=1"
-    assert "now asks the questions" in web.get(f"/p/{token}/avatar?saved=1").text
+    assert "now the student in How it works" in web.get(f"/p/{token}/avatar?saved=1").text
     assert "Your avatar" in web.get(f"/p/{token}/you").text
+    page = web.get(f"/p/{token}/garden").text
+    chats = page.count('class="chat scroll-fig"')
+    drawn = page.count('class="av-face av skin-s5 col-auburn top-c3"')
+    assert chats == 1 and drawn == chats and "av-ghost" not in page
+    assert "hs-curly" in page and "fh-beard" in page and "gl-round" in page
+    assert 'class="avo hs-long av-hair"' not in page
+    # The technical pages are for the curious again (D116): no chat, no avatar.
     for path in ("how", "science"):
-        page = web.get(f"/p/{token}/{path}").text
-        chats = page.count('class="chat scroll-fig"')
-        drawn = page.count('class="av-face av skin-s5 col-auburn top-c3"')
-        assert chats and drawn == chats and "av-ghost" not in page
-        assert (
-            "hs-curly" in page
-            and "fh-beard" in page
-            and "gl-round" in page
-            and 'class="avo hs-long av-hair"' not in page
-        )
+        assert "chat scroll-fig" not in web.get(f"/p/{token}/{path}").text
     refused = web.post(f"/p/{token}/avatar", data={**MINE, "top": "gold"}, follow_redirects=False)
     assert refused.status_code == 400
-    assert 'class="av-face av skin-s5 col-auburn top-c3"' in web.get(f"/p/{token}/how").text  # kept as it was
+    assert 'class="av-face av skin-s5 col-auburn top-c3"' in web.get(f"/p/{token}/garden").text  # kept
     assert web.get("/p/not-a-plan/avatar").status_code == 404
 
 

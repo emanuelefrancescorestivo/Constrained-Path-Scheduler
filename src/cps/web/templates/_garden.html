@@ -1,0 +1,43 @@
+{# How it works (D116): the garden's pieces, in CSS 3D. A topic is a plant in a glass
+   pot; the water in the pot is how much the student remembers, the roots how long it
+   lasts. The pot and its water are boxes (faces in preserve-3d); the plant with its
+   roots is a flat sprite that always faces the reader, turned back by the shelf's own
+   angle (`--turn`). The water's height is `--zq` (twentieths of full): a `gzN` class
+   when still, or the eight stops `q0zN`..`q7zN` that a scene runs through as it is
+   scrolled. The leaves droop and pale as `--zq` falls. No style attribute anywhere;
+   decoration only, the words beside it say what it shows. #}
+{% macro sprite(flower=false, drop="") -%}
+<svg class="gd-sprite" viewBox="0 0 60 150" aria-hidden="true" focusable="false">
+  <g class="gd-roots"><path d="M30 86V142M30 96C26 104 22 113 20 126M30 96C34 104 38 113 40 126M30 112C27 118 25.5 125 25 134M30 112C33 118 34.5 125 35 134"></path></g>
+  <g class="gd-sway">
+    <path class="gd-stem" d="M30 88V30"></path>
+    <g class="gd-leaf gd-leaf-l"><path d="M30 62C22 53 10 53 2 59 10 67 22 67 30 62Z"></path></g>
+    <g class="gd-leaf gd-leaf-r"><path d="M30 49C38 40 50 40 58 46 50 54 38 54 30 49Z"></path></g>
+    <g class="gd-leaf gd-leaf-t"><path d="M30 33C25 25 26.5 15 31 9 36.5 16 35.5 26 30 33Z"></path></g>
+    {% if flower %}<g class="gd-flower st-pop st3"><circle cx="30" cy="20" r="8"></circle><circle class="gd-heart" cx="30" cy="20" r="3.4"></circle></g>{% endif %}
+  </g>
+  {% if drop %}<path class="gd-drop {{ drop }}" d="M30 0C33 5 36 8 36 12A6 6 0 0 1 24 12C24 8 27 5 30 0Z"></path>{% endif %}
+</svg>
+{%- endmacro %}
+
+{# One pot. `water` is its height (a number) or its eight stops (a list); `extra` adds
+   classes (sci-drain to run the stops, roots' rfN / rtN, gd-grow, gd-wilt). #}
+{% macro pot(water, extra="", flower=false, drop="") -%}
+{% set stops = water if water is iterable else [water] %}
+<div class="gd-pot gz{{ stops[-1] }}{% if stops | length > 1 %}{% for z in stops %} q{{ loop.index0 }}z{{ z }}{% endfor %}{% endif %}{% if extra %} {{ extra }}{% endif %}">
+  <i class="gd-g gd-back"></i><i class="gd-g gd-left"></i>
+  <span class="gd-water"><i class="w-back"></i><i class="w-left"></i><i class="w-front"></i><i class="w-right"></i><i class="w-top"></i></span>
+  <span class="gd-billboard">{{ sprite(flower, drop) }}</span>
+  <i class="gd-g gd-front"></i><i class="gd-g gd-right"></i>
+</div>
+{%- endmacro %}
+
+{# A shelf of pots in 3D, and their names under it, flat. Each pot a dict: `w` (its
+   water), and optionally `extra`, `name`, `small`, `drop` (the class of a drop of water
+   that falls on it, when the scene waters it). #}
+{% macro shelf(pots, cls="", flower=false, label="") -%}
+<div class="gd-scene {{ cls }}"{% if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true"{% endif %}>
+  <div class="gd-shelf">{% for p in pots %}{{ pot(p.w, p.get("extra", ""), flower, p.get("drop", "")) }}{% endfor %}</div>
+</div>
+{% if pots[0].get("name") %}<ul class="gd-names">{% for p in pots %}<li><b>{{ p.name }}</b>{% if p.get("small") %}<small>{{ p.small }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}

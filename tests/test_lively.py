@@ -65,7 +65,7 @@ def test_each_place_under_you_has_its_own_picture(web):
     token = _start(web)
     you = web.get(f"/p/{token}/you").text
     rows = re.findall(r'<li><a href="(/p/[^"]+)"><span class="art art-([a-z]+)" aria-hidden="true"><svg', you)
-    assert len(rows) == 10 and len({name for _, name in rows}) == 10  # How the code works since D113
+    assert len(rows) == 11 and len({name for _, name in rows}) == 11  # How it works since D116
     art = (WEB / "templates" / "_art.html").read_text()
     assert "style=" not in art and "<script" not in art  # the Content-Security-Policy allows neither
     assert all(f'name == "{name}"' in art for _, name in rows)

@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How it works (DECISIONS.md D116): a page for everyone that tells the study plan as a garden,
+  in one story scrolled like time and drawn in 3D: glass pots whose water drains as you forget,
+  plants that droop, roots that grow when a topic is revised just in time, the week's free
+  evenings, and the tap after each session. In its fourth chapter a game: plan five evenings,
+  then see your garden on exam day beside the app's. It is first under You and in every page's
+  footer; the science and code pages are technical again and point to it.
+
 - Your avatar (DECISIONS.md D115): under You, a student makes their own avatar from skin
   tones, hair styles and colours (a headscarf among them), a moustache or a beard, glasses
   and a top in a course colour, the preview following each choice with no script. It asks

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_explain.html" import chat, limit with context %}
+{% from "_art.html" import art %}
 {# The science behind the engine (D89): how a plan is made, the memory model under
    it with its maths, and the research it rests on. Every number is computed by
    service.science_view from the model the app runs; every study cited is a checked
@@ -7,22 +7,21 @@
    solid panels (D112, `main.tech`: a technical page keeps the sky, not the glass).
    Three scenes run as they are scrolled through (D113, the code page's `.code-pin`):
    memory fading at three paces, the spacing effect as a landscape in 3D, and one topic
-   kept up against the same topic left alone. Each part opens in plain words (D114):
-   the student (the reader's own avatar, D115) asks, Spark answers with a picture from everyday life (glasses that leak,
-   the gym, a plant, a bike, a to-do list), a line says where the picture stops; each
-   step of a scene says it plainly, then exactly. #}
+   kept up against the same topic left alone. #}
 {% block title %}{{ _("The science behind it") }} · {{ _("Study plan") }}{% endblock %}
 {% block site_class %} tech{% endblock %}
 {% block main %}
 {% set s = science %}
+{% set base = "/p/" ~ token if token else "" %}
 {% if token %}<p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>{% else %}<p class="back"><a href="/">{{ _("Study plan") }}</a></p>{% endif %}
 <div class="page-title science-head">
-  <p class="kicker">{{ _("How it works") }}</p>
+  <p class="kicker">{{ _("For the curious") }}</p>
   <h1>{{ _("The science behind it") }}</h1>
   <p class="lede">{{ _("How the app decides when you study, the memory model under it, and the research it rests on. Every number on this page is computed by the app's own model as the page is drawn.") }}</p>
-  {{ chat(_("Why should I trust an app to tell me when to study?"), _("Not blindly. It does three things you can check: it predicts how much you still remember, it plans self-tests around your week, and it learns from the tap you give after each session. This page shows how, with the numbers the app itself computes."), "intro") }}
 </div>
 
+{# New here (D116): the plain page first. #}
+<a class="card gd-start" href="{{ base }}/garden">{{ art("garden") }}<span class="grow"><b>{{ _("New here? Start with How it works") }}</b><small>{{ _("Five ideas in two minutes, told as a garden") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
 <div class="science-three scroll-fig">
   <article class="card st1"><span class="sci-step">1</span><h2>{{ _("It predicts") }}</h2><p>{{ _("For every topic of every course, how likely you are to remember it today, and on exam day.") }}</p></article>
   <article class="card st2"><span class="sci-step">2</span><h2>{{ _("It plans") }}</h2><p>{{ _("It fills your free time around your classes with short self-tests, at the moment each topic starts to fade.") }}</p></article>
@@ -30,15 +29,13 @@
 </div>
 
 <section class="section science-block" id="forgetting">
-  {% set f = s.fade %}
   <h2>{{ _("Memory fades, at its own pace") }}</h2>
-  {{ chat(_("Why do I forget some things in days and keep others for weeks?"), _("Picture each topic as a glass of water with a leak. The water is your chance of recalling it. A shaky topic has a big leak and is down to 90 % in {n} days; a solid one barely drips for weeks. Stability measures the leak: the days before the glass is down to 90 %.", n=f.shaky_at_90), "forgetting") }}
-  {{ limit(_("A leaking glass loses water at a steady pace; memory drains fast at first, then more slowly, and each leak's size is the model's estimate for an average learner.")) }}
   <p>{{ _("Each topic has a stability: the number of days until your chance of recalling it falls to 90 %. A shaky topic fades in days, a solid one holds for weeks.") }}</p>
   {# D113: run as it is scrolled through (the code page's `.code-pin`): the days pass
      under the chart, the curves drawn up to the day, three columns beside it draining
      at their topics' pace, and a readout of each topic's recall that day. Without
      motion, the whole chart, the columns at day {{ s.days }} and that day's readout. #}
+  {% set f = s.fade %}
   <div class="code-pin">
   <div class="code-pin-stage">
   <figure class="card sci-figure">
@@ -62,13 +59,13 @@
     </div></div>
     </div>
     <p class="code-readout">{% for r in f.readouts %}<span class="code-at eb{{ r.step }}{% if not loop.last %} code-was{% endif %}">{{ _("Day {n}", n=r.day) }}{% for c in f.columns %} · <i class="lvl-key lvl-{{ c.level }}"></i><b>{{ r.recall[loop.index0] }} %</b>{% endfor %}</span>{% endfor %}</p>
-    <figcaption class="sci-key">{% for c in s.curves %}<span><i class="lvl-key lvl-{{ c.level }}"></i>{{ _("stability {n} days: {r} % after a month", n=c.stability, r=c.at_30) }}</span>{% endfor %}<span>{{ _("Beside the chart, the three glasses: each one's water is its recall that day.") }}</span></figcaption>
+    <figcaption class="sci-key">{% for c in s.curves %}<span><i class="lvl-key lvl-{{ c.level }}"></i>{{ _("stability {n} days: {r} % after a month", n=c.stability, r=c.at_30) }}</span>{% endfor %}</figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("Three glasses, each just filled: a shaky topic, one that holds a week, a solid one.") }}</span><small class="cap-tech">{{ _("Three topics, each just recalled: a shaky one, one that holds a week, a solid one.") }}</small></span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("The shaky one is already down to 90 %: time to top it up.") }}</span><small class="cap-tech">{{ _("The shaky one is at 90 % on day {n}: time for a self-test.", n=f.shaky_at_90) }}</small></span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("The week-long one reaches 90 % on day 7; the solid one has hardly moved.") }}</span><small class="cap-tech">{{ _("The week-long one reaches 90 % on day 7; the solid one is still at {r} %.", r=f.solid_at_week) }}</small></span></li>
-    <li class="cap4of4"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("Each glass drains at its own pace.") }}</span><small class="cap-tech">{{ _("After {d} days: {a} %, {b} % and {c} %. Each fades at its own pace.", d=s.days, a=f.end[0], b=f.end[1], c=f.end[2]) }}</small></span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Three topics, each just recalled: a shaky one, one that holds a week, a solid one.") }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("The shaky one is at 90 % on day {n}: time for a self-test.", n=f.shaky_at_90) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("The week-long one reaches 90 % on day 7; the solid one is still at {r} %.", r=f.solid_at_week) }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {d} days: {a} %, {b} % and {c} %. Each fades at its own pace.", d=s.days, a=f.end[0], b=f.end[1], c=f.end[2]) }}</span></li>
   </ol>
   </div>
   </div>
@@ -83,8 +80,6 @@
 
 <section class="section science-block" id="spacing">
   <h2>{{ _("Why the wait matters") }}</h2>
-  {{ chat(_("If I go over a topic right after studying it, does that not help most?"), _("Think of the gym. A weight that is too light builds nothing, one that is too heavy you drop, and the one you can only just lift builds the most. A recall works the same way: right after studying it is too easy and adds almost nothing; at {n} %, where the app asks for a self-test, it is hard enough to build, and it still usually succeeds.", n=s.target), "spacing") }}
-  {{ limit(_("In the gym you can see the weight; here how heavy a recall is, is the model's estimate of your chance of making it.")) }}
   <p>{{ _("A successful recall makes a memory last longer, and how much depends on when it happens. Take a topic that holds {n} days:", n=s.spacing_from) }}</p>
   {# D113: the spacing effect as a landscape, in 3D: a tower for each topic (a row,
      the shakiest at the back) and each recall it was tested at (a column, left to
@@ -98,18 +93,17 @@
     <div class="code-land sci-land" aria-hidden="true"><div class="code-land-plane">
       {% for row in l.rows %}{% for c in row.cells %}<div class="code-tower sci-rise code-v{{ c.shade }} tz{{ c.z }} q7z{{ c.z }} cap{{ c.column + 1 }}of5"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top">×{{ c.times }}</i></div>{% endfor %}{% endfor %}
       <span class="code-axis code-axis-s">{{ _("tested later") }} →</span>
-      <span class="code-axis sci-gym sci-gym-1 cap1of5">{{ _("too light") }}</span><span class="code-axis sci-gym sci-gym-2 cap3of5">{{ _("just right") }}</span><span class="code-axis sci-gym sci-gym-3 cap5of5">{{ _("too heavy") }}</span>
       <span class="code-axis code-axis-d">{{ _("shakier") }} →</span>
     </div></div>
     <p class="code-readout">{% for c in l.columns %}<span class="code-at cap{{ loop.index }}of5{% if not loop.last %} code-was{% endif %}">{{ _("Tested at {r} %: a topic that held {s} days then holds {a} days, ×{t}; {k} % of such recalls fail.", r=c.recall, s=l.follows, a=c.after, t=c.times, k=c.risk) }}</span>{% endfor %}</p>
     <figcaption class="sci-key"><span>{{ _("Each tower: how many times longer a topic holds after a successful recall. Back to front, topics that held {list} days; left to right, tested at {recalls} % recall.", list=l.stabilities | join(", "), recalls=l.columns | map(attribute="recall") | join(", ")) }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of5"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("Too light: tested again at once, it builds nothing.") }}</span><small class="cap-tech">{{ _("Tested again at once, a topic gains nothing.") }}</small></span></li>
-    <li class="cap2of5"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("A little heavier: a short wait, and it holds about twice as long.") }}</span><small class="cap-tech">{{ _("A little later, the same recall makes it hold about twice as long.") }}</small></span></li>
-    <li class="cap3of5"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("Just right: at 90 %, a topic that held a week now holds {a} days.", a=l.columns[2].after) }}</span><small class="cap-tech">{{ _("At 90 %, where the app asks for a self-test, a topic that held a week holds {a} days.", a=l.columns[2].after) }}</small></span></li>
-    <li class="cap4of5"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("Heavier still: more strength, but more lifts dropped.") }}</span><small class="cap-tech">{{ _("The longer the wait, the more it gains, and the more often the recall fails.") }}</small></span></li>
-    <li class="cap5of5"><span class="sci-step">5</span><span><span class="cap-plain">{{ _("A strong topic gains less from the same weight.") }}</span><small class="cap-tech">{{ _("A solid topic gains less from the same wait: the front rows stay lower. That is the spacing effect.") }}</small></span></li>
+    <li class="cap1of5"><span class="sci-step">1</span><span>{{ _("Tested again at once, a topic gains nothing.") }}</span></li>
+    <li class="cap2of5"><span class="sci-step">2</span><span>{{ _("A little later, the same recall makes it hold about twice as long.") }}</span></li>
+    <li class="cap3of5"><span class="sci-step">3</span><span>{{ _("At 90 %, where the app asks for a self-test, a topic that held a week holds {a} days.", a=l.columns[2].after) }}</span></li>
+    <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("The longer the wait, the more it gains, and the more often the recall fails.") }}</span></li>
+    <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("A solid topic gains less from the same wait: the front rows stay lower. That is the spacing effect.") }}</span></li>
   </ol>
   </div>
   </div>
@@ -124,8 +118,6 @@
      both lines drawn up to the day, each self-test appearing on its day, a readout of
      the tested topic's recall and how long it holds against the same topic alone. #}
   {% set k = s.kept %}
-  {{ chat(_("So how often should I test myself on one topic?"), _("Like watering a plant: each time it starts to droop, at {n} %, you water it, and each time its roots grow deeper, so the next watering can wait longer: here on days {days}. Left alone, the same plant is at {r} % after {d} days.", n=k.target, days=k.days | join(", "), r=k.alone_end, d=s.days), "kept") }}
-  {{ limit(_("A plant shows when it droops; a topic does not. The moment to test is the model's estimate, and the one-tap report after each session corrects it.")) }}
   <div class="code-pin">
   <div class="code-pin-stage">
   <figure class="card sci-figure" id="kept">
@@ -141,17 +133,17 @@
       <text class="sci-tick" x="-6" y="103" text-anchor="end">0 %</text>
       <text class="sci-tick" x="0" y="116">{{ _("today") }}</text>
       <text class="sci-tick" x="300" y="116" text-anchor="end">{{ _n("{n} day", "{n} days", s.days) }}</text>
-      {% for m in k.marks %}<path class="sci-drop sci-pop eb{{ k.steps[loop.index0] }}" d="M{{ m.x }} {{ m.y - 7 }}C{{ m.x + 1.5 }} {{ m.y - 3.5 }} {{ m.x + 4 }} {{ m.y - 1.5 }} {{ m.x + 4 }} {{ m.y + 1 }}A4 4 0 0 1 {{ m.x - 4 }} {{ m.y + 1 }}C{{ m.x - 4 }} {{ m.y - 1.5 }} {{ m.x - 1.5 }} {{ m.y - 3.5 }} {{ m.x }} {{ m.y - 7 }}Z"></path>{% endfor %}
+      {% for m in k.marks %}<circle class="sci-dot sci-pop eb{{ k.steps[loop.index0] }}" cx="{{ m.x }}" cy="{{ m.y }}" r="3.5"></circle>{% endfor %}
       <line class="sci-cursor" x1="0" y1="-6" x2="0" y2="100"></line>
     </svg>
     <p class="code-readout">{% for r in k.readouts %}<span class="code-at eb{{ r.step }}{% if not loop.last %} code-was{% endif %}">{{ _("Day {n}", n=r.day) }} · <i class="lvl-key lvl-good"></i>{{ _("tested: {r} %, holds {h} days", r=r.recall, h=r.holds) }} · <i class="lvl-key sci-alone-key"></i>{{ _("alone: {r} %", r=r.alone) }}</span>{% endfor %}</p>
-    <figcaption class="sci-key"><span><i class="lvl-key lvl-good"></i>{{ _("tested at {n} %: on days {days}", n=k.target, days=k.days | join(", ")) }}</span><span><i class="lvl-key sci-alone-key"></i>{{ _("left alone: {r} % after {d} days", r=k.alone_end, d=s.days) }}</span><span><svg class="sci-drop-key" viewBox="-5 -8 10 14" width="10" height="14" aria-hidden="true"><path class="sci-drop" d="M0 -7C1.5 -3.5 4 -1.5 4 1A4 4 0 0 1 -4 1C-4 -1.5 -1.5 -3.5 0 -7Z"></path></svg>{{ _("a self-test: the plant watered") }}</span></figcaption>
+    <figcaption class="sci-key"><span><i class="lvl-key lvl-good"></i>{{ _("tested at {n} %: on days {days}", n=k.target, days=k.days | join(", ")) }}</span><span><i class="lvl-key sci-alone-key"></i>{{ _("left alone: {r} % after {d} days", r=k.alone_end, d=s.days) }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span><span class="cap-plain">{{ _("Left alone, the plant wilts: the grey line.") }}</span><small class="cap-tech">{{ _("A topic that holds {a} days, left alone, fades: the grey line.", a=k["from"]) }}</small></span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span><span class="cap-plain">{{ _("Watered each time it droops to {n} %, it perks up and droops more slowly.", n=k.target) }}</span><small class="cap-tech">{{ _("Tested when it falls to {n} %, it comes back, and fades more slowly.", n=k.target) }}</small></span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span><span class="cap-plain">{{ _("Each watering can wait longer than the last.") }}</span><small class="cap-tech">{{ _("Each gap is longer than the last: tests on days {days}.", days=k.days | join(", ")) }}</small></span></li>
-    <li class="cap4of4"><span class="sci-step">4</span><span><span class="cap-plain">{{ _("After {d} days its roots run deep; the plant left alone is at {r} %.", d=s.days, r=k.alone_end) }}</span><small class="cap-tech">{{ _("After {d} days it holds {b} days; left alone, it would be at {r} %.", d=s.days, b=k.last, r=k.alone_end) }}</small></span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("A topic that holds {a} days, left alone, fades: the grey line.", a=k["from"]) }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("Tested when it falls to {n} %, it comes back, and fades more slowly.", n=k.target) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Each gap is longer than the last: tests on days {days}.", days=k.days | join(", ")) }}</span></li>
+    <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {d} days it holds {b} days; left alone, it would be at {r} %.", d=s.days, b=k.last, r=k.alone_end) }}</span></li>
   </ol>
   </div>
   </div>
@@ -166,8 +158,6 @@
 
 <section class="section science-block" id="testing">
   <h2>{{ _("Testing beats rereading") }}</h2>
-  {{ chat(_("Why a self-test, and not just reading my notes again?"), _("Reading your notes again is like watching someone else ride a bike: it all looks familiar. A self-test is getting on the bike yourself: harder, wobbly at first, and it is what the exam will ask of you."), "testing") }}
-  {{ limit(_("Once you can ride a bike, it stays; a recall from a test still fades, which is why the tests are spaced out.")) }}
   <p>{{ _("Every study session the app plans is a self-test: recall first, without your notes, then check what you missed. Flashcards work the same way.") }}</p>
   <ul class="card list sci-rows sci-evidence scroll-fig">
     <li class="st1"><span class="sci-tag">{{ _("Review of studies") }}</span><span class="grow">{{ _("Of ten common study techniques, practice testing and spacing were the two rated of high utility; rereading and highlighting were rated low.") }} <small>Dunlosky {{ _("and colleagues") }}, 2013</small></span></li>
@@ -180,8 +170,6 @@
 
 <section class="section science-block" id="engine">
   <h2>{{ _("How your week is planned") }}</h2>
-  {{ chat(_("Who decides what goes in my free evening?"), _("Five rules, gone through in order like a to-do list at the start of each evening: anything due soon first, then exam practice, then the topic fading fastest, then working ahead; and if nothing needs the evening, it stays yours."), "engine") }}
-  {{ limit(_("A to-do list stays as you wrote it; this one is redone after every report, so tomorrow's order can change.")) }}
   <p>{{ _("Your limits come first: your classes, your weekly hours, your days off, your sleep, sport and work. Then each free block goes to the first of these that needs it:") }}</p>
   <ol class="card list sci-rules scroll-fig">
     <li class="st1"><span class="sci-step">1</span><span class="grow"><b>{{ _("A deadline getting close.") }}</b> {{ _("Earliest deadline first, which meets every deadline the calendar allows.") }}</span></li>

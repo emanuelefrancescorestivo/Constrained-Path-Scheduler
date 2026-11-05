@@ -11060,6 +11060,169 @@ def _kept_at(model: Model, held: list[tuple[float, float]], step: int) -> dict:
     }
 
 
+# -- How it works, the garden (D116) ------------------------------------------------------
+
+# The plain page, for everyone: a topic is a plant, the water in its pot is how much the
+# student remembers, its roots how long that lasts. Every number it shows is computed
+# here by the model the product runs (FSRS-6, D52), as the science page's are.
+GARDEN_STOPS = SCIENCE_STOPS  # a scene's eight stops, as the science page's columns (D113)
+GARDEN_ONE_DAYS = 7.0  # chapter 1: one shaky topic's pot over a week
+GARDEN_WEEK = 7.0  # chapters 3 and 5: a topic that holds a week
+# Chapter 3's eight stops, in days: both pots full; the first watered at once (stop 2);
+# a week passes; the second watered as it droops (stop 5); another week.
+GARDEN_SPACING_DAYS = (0.0, 0.0, 0.0, 3.5, 7.0, 7.0, 10.5, 14.0)
+GARDEN_SOON_AT, GARDEN_JUST_AT = 2, 5  # the stops at which each pot is watered
+# The game (chapter 4): three topics, each with how long it holds and how many days ago
+# it was last revised before Monday; five free evenings; the exam on Saturday.
+GARDEN_TOPICS: tuple[tuple[str, str, float, int], ...] = (
+    ("t0", "Analysis", 2.0, 1),
+    ("t1", "Algebra", 4.0, 2),
+    ("t2", "Physics", 8.0, 3),
+)
+GARDEN_EVENINGS = 5
+GARDEN_REST = "rest"
+
+
+def _garden_z(recall: float) -> int:
+    """A pot's water, in twentieths of full: the height its 3D column is drawn at."""
+    return max(0, min(20, round(20 * recall)))
+
+
+def _garden_week(model: Model, plan: Sequence[str]) -> dict:
+    """The garden on exam morning after a week's plan: one topic revised each evening,
+    or none ("rest"), every revision a success."""
+    states = {
+        key: (MemoryState(stability=s, difficulty=5.0), -float(ago)) for key, _, s, ago in GARDEN_TOPICS
+    }
+    for day, key in enumerate(plan, start=1):
+        if key in states:
+            state, last = states[key]
+            states[key] = (model.review(state, day - last, Grade.GOOD), float(day))
+    exam = GARDEN_EVENINGS + 1
+    plants: list[dict[str, Any]] = []
+    for key, name, _stability, _ago in GARDEN_TOPICS:
+        state, last = states[key]
+        recall = model.retrievability(exam - last, state.stability)
+        plants.append({"key": key, "name": name, "recall": round(100 * recall), "z": _garden_z(recall)})
+    return {
+        "plan": list(plan),
+        "plants": plants,
+        "lowest": min(p["recall"] for p in plants),
+        "used": sum(1 for key in plan if key != GARDEN_REST),
+    }
+
+
+def _garden_app_plan(model: Model) -> list[str]:
+    """The app's rule for self-tests (assistant.py, the science page's third rule): each
+    evening the topic that has faded furthest, once it is down to the target; otherwise
+    the evening stays free."""
+    target = flashcards.RETENTION
+    states = {
+        key: (MemoryState(stability=s, difficulty=5.0), -float(ago)) for key, _, s, ago in GARDEN_TOPICS
+    }
+    plan = []
+    for day in range(1, GARDEN_EVENINGS + 1):
+        recall = {k: model.retrievability(day - last, st.stability) for k, (st, last) in states.items()}
+        key = min(recall, key=lambda k: recall[k])
+        if recall[key] <= target:
+            state, last = states[key]
+            states[key] = (model.review(state, day - last, Grade.GOOD), float(day))
+            plan.append(key)
+        else:
+            plan.append(GARDEN_REST)
+    return plan
+
+
+def garden_view(picks: Sequence[str] | None = None) -> dict:
+    """How it works (D116): the garden story's numbers, and the game's two weeks when
+    the student has played it (`picks`: a topic key or "rest" for each evening)."""
+    model = FSRS_6
+    target = flashcards.RETENTION
+    shaky = SCIENCE_STABILITIES[0]
+    one = [
+        _garden_z(model.retrievability(GARDEN_ONE_DAYS * k / (GARDEN_STOPS - 1), shaky))
+        for k in range(GARDEN_STOPS)
+    ]
+    # Chapter 3: the same plant, watered at once and as it droops, on one shared clock.
+    state = MemoryState(stability=GARDEN_WEEK, difficulty=5.0)
+    soon = model.review(state, 0.0, Grade.GOOD).stability
+    wait = model.interval(GARDEN_WEEK, target)
+    just = model.review(state, wait, Grade.GOOD).stability
+    forgot = model.review(state, wait, Grade.AGAIN).stability
+    soon_water = [_garden_z(model.retrievability(d, soon)) for d in GARDEN_SPACING_DAYS]
+    just_water = [
+        _garden_z(
+            model.retrievability(d, GARDEN_WEEK)
+            if k < GARDEN_JUST_AT
+            else model.retrievability(d - wait, just)
+        )
+        for k, d in enumerate(GARDEN_SPACING_DAYS)
+    ]
+    end = GARDEN_SPACING_DAYS[-1]
+    spacing = {
+        "soon": soon_water,
+        "just": just_water,
+        "holds": format_number(GARDEN_WEEK, 0),
+        "wait": format_number(wait, 0),
+        "grown": format_number(just, 0),
+        "soon_end": round(100 * model.retrievability(end, soon)),
+        "just_end": round(100 * model.retrievability(end - wait, just)),
+        # The roots before watering, in twentieths of their grown length: they grow from here.
+        "roots_from": max(1, round(20 * GARDEN_WEEK / just)),
+        "soon_at": GARDEN_SOON_AT,
+        "just_at": GARDEN_JUST_AT,
+    }
+    played = None
+    if picks is not None:
+        allowed = {key for key, _, _, _ in GARDEN_TOPICS} | {GARDEN_REST}
+        if len(picks) != GARDEN_EVENINGS or any(p not in allowed for p in picks):
+            raise InvalidInput(_("choose a topic, or Rest, for each evening"))
+        yours = _garden_week(model, picks)
+        app = _garden_week(model, _garden_app_plan(model))
+        if yours["lowest"] < round(100 * target):
+            verdict = "drooped"
+        elif yours["used"] > app["used"]:
+            verdict = "more"
+        else:
+            verdict = "same"
+        played = {"yours": yours, "app": app, "verdict": verdict}
+    # Chapter 4: the week of the code page's worked example (D109), its layers.
+    code = code_view()
+    week = {
+        "days": [{"day": d["day"], "runs": d["runs"]} for d in code["days"]],
+        "blocks": code["blocks"],
+        "block_slots": code["block_slots"],
+        "day_count": code["day_count"],
+        "free": len(code["blocks"]),
+    }
+    return {
+        "week": week,
+        "target": round(100 * target),
+        "one": one,
+        "one_days": format_number(GARDEN_ONE_DAYS, 0),
+        "fade": _science_fade(model),
+        # Chapter 2's steps, on the readout's clock: each topic's water after two weeks
+        # and after a month (the scene's quarters of its two months).
+        "pace": {
+            day: [round(100 * model.retrievability(float(day), s)) for s in SCIENCE_STABILITIES]
+            for day in (14, 30)
+        },
+        "days": SCIENCE_DAYS,
+        "spacing": spacing,
+        "topics": [{"key": key, "name": name} for key, name, _, _ in GARDEN_TOPICS],
+        "evenings": GARDEN_EVENINGS,
+        "game": played,
+        "report": {
+            "grown": format_number(just, 0),
+            "grown_days": round(just),
+            "shrunk": format_number(forgot, 0),
+            "shrunk_days": max(1, round(forgot)),
+            "roots_from": max(1, round(20 * GARDEN_WEEK / just)),
+            "roots_shrunk": max(1, round(20 * forgot / just)),
+        },
+    }
+
+
 # -- How the code works (D109) ---------------------------------------------------------
 
 # The worked example the page runs, demo.py's part 3: two topics, an exam 21 days away,
@@ -11413,11 +11576,6 @@ def code_view() -> dict:
     # The bits each mask sets, slot by slot (D112: sleep's, then classes' by an OR).
     for d in days:
         d["set"] = [{"kind": r["kind"], "slots": list(range(r["start"], r["end"]))} for r in d["runs"]]
-        # Each slot as a light switch (D114): on for sleep or classes, off when free.
-        kinds = ["free"] * per_day
-        for r in d["runs"]:
-            kinds[r["start"] : r["end"]] = [r["kind"]] * (r["end"] - r["start"])
-        d["kinds"] = kinds
 
     # The root of the AND/OR graph: tonight's block, its choices, each with its outcomes,
     # valued by the exhaustive solve.
@@ -11528,15 +11686,6 @@ def code_view() -> dict:
             "lapse": 100 - round(100 * retrievability(delay, first.stability)),
             "recalled": format_number(recalled.stability, 1),
             "forgot": format_number(forgot.stability, 1),
-            # Each stability as a battery's size (D114), in hundredths of the largest.
-            "charge": {
-                key: round(100 * value / max(first.stability, recalled.stability, forgot.stability))
-                for key, value in (
-                    ("now", first.stability),
-                    ("recalled", recalled.stability),
-                    ("forgot", forgot.stability),
-                )
-            },
         },
         "penalty": format_number(instance.lateness_penalty, 0),
         "sweeps": policy.sweeps,
