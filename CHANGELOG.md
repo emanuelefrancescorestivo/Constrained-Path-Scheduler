@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How it works in 3D (DECISIONS.md D117): each topic is now a hyacinth in a round glass, drawn
+  in WebGL: curved glasses, water that falls as you forget, bulbs, leaves that droop and yellow,
+  roots that hang in the water and grow when a topic is revised just in time, drops that ripple
+  the water, and flowers on exam day, on a wooden table that turns as you scroll. Each chapter's
+  words now sit beside its picture. Without WebGL or a script, a flat drawing of the same glasses.
+
 - How it works (DECISIONS.md D116): a page for everyone that tells the study plan as a garden,
   in one story scrolled like time and drawn in 3D: glass pots whose water drains as you forget,
   plants that droop, roots that grow when a topic is revised just in time, the week's free

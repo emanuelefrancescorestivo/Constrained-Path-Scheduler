@@ -4395,3 +4395,61 @@ were not written by a native speaker. Checked in Chromium only, at phone size an
 and dark, with motion and with it reduced, and the game without a script; what the 3D costs a
 slow device was not measured.
 
+**Later (D117).** The owner found the boxes crude and the pinned chapters badly laid out; the
+pots are hyacinths in round glasses drawn in WebGL, over a flat drawing, and each chapter's words
+stand beside its picture.
+
+## D117. How it works in WebGL: hyacinths in glasses
+
+*The owner, 2026-11-05, of D116's chapter 2 on the live demo: "formatting is weird, i dont want
+cubes i want some polygons spheres curves i want the graphics and animations to be excellent".*
+
+**What was wrong.** The pots of D116 were boxes: CSS 3D draws only flat rectangles, so a glass,
+its water and its shelf could only be cubes. And each pinned chapter (D112's stage, as tall as
+the screen, its figure centred) kept its words above the track, so the heading sat at the top of
+the screen, the picture far below it and the step at the right (AUDIT 95).
+
+**Chosen.**
+
+1. **WebGL, drawn by the page's own script** (`static/garden.js`, no library). A topic is a
+   hyacinth in a hyacinth glass, the glass that holds a bulb above water: the water is how much
+   is remembered, as before, and the roots, which hang in the water, how long it lasts. The
+   glasses, bulbs and the round wooden table are surfaces of revolution (a profile turned about
+   its axis); stems and roots are tubes swept along curves; leaves are curved ribbons with a
+   shallow channel; buds and flowers are spheres, each flower six petals round a heart. One small
+   shader lights them: a sky and a ground, a key light, glass by its angle to the eye (Fresnel)
+   with a window's reflection, the water darker with depth and its surface rippling where a drop
+   falls, the table's rings. The glasses are drawn back to front, each far side, its water, its
+   roots again through the water, then its near side.
+2. **The same story, moving the same way.** As the page is scrolled the table turns, the water
+   falls through the scene's stops, leaves droop and yellow as it falls, a drop falls and ripples
+   the water when a glass is watered, roots grow or shrink, the forgotten plant wilts, and on exam
+   day the flower stalks lengthen and open. Each scene's numbers come from the server in its
+   `data-scene` (the water at each stop, the roots, the parts of the scene in which a drop falls,
+   roots grow or a plant wilts), so the script only draws them; `tests/test_garden.py` checks
+   them against `service.garden_view` and against the stylesheet's ranges.
+3. **Roots on one scale for the page**: a topic's roots are as long as it holds, against a month
+   (the bottom of the glass): shaky, fine and solid 1, 5 and 20 twentieths; watered just in time,
+   from 5 to 16. The opening shelf is the game's three topics as they stand on Monday, and exam
+   day is the same three after the app's week (water 19, 19, 20; roots 5, 10, 18): the roots that
+   grew are the week's work.
+4. **Drawn only when something changed.** A frame is drawn when the page scrolls, a scene comes
+   into view, the page is resized or its theme changes; a scene eases to where the page is and
+   stops (D93). A scene's context is made when it first nears the screen. With reduced motion, or
+   where scrolling does not drive animations, each scene is drawn once, complete.
+5. **A flat drawing under it**, in SVG from the same profiles: curved glasses, water that falls
+   with `--zq` as before, leaves that droop, roots, buds and flowers. It is what a reader sees
+   without WebGL or without a script, or if the browser takes the context back.
+6. **The words beside the picture.** Each pinned chapter's heading and lines are in its stage,
+   the picture beside them and the step under them; under 860px, the words, the picture, then the
+   step, in one screen.
+
+**Not chosen.** Curves in CSS 3D (a glass of dozens of planes, every one a layer to composite,
+and no glass, highlight or water surface). A 3D library such as three.js: a dependency, for the
+maintainer to decide, and far more than six shapes need. Flat SVG alone: no depth, which the
+owner asked for in D116.
+
+**Disclosed.** Checked in Chromium only, with software rendering (SwiftShader), at phone size and
+1280px, light and dark, with motion and with it reduced, and without a script; not on a real
+graphics chip, a phone, Safari or Firefox. What it costs a slow device was not measured. The
+garden is a likeness, as D116 says; the roots' scale and the flowers' colours are choices.

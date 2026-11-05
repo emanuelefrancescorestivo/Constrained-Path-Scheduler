@@ -1089,3 +1089,11 @@ such technical pages". The see-through panes of D73, right for Today's few large
 the sky's colours behind every line, dot and number of a chart that has to be read closely.
 Status: fixed with D112; the code page and the science page keep the sky, their type and
 colours, and set their figures on solid panels, whatever the plan's glass setting.
+
+**95. How it works' pinned chapters set their words far from their picture.** Reported by the
+owner on 2026-11-05 from the live demo, with a picture of chapter 2: "formatting is weird". The
+pinned stage of D112 is as tall as the screen and centres what it holds, and How it works (D116)
+kept each chapter's heading and lines above the track, as the code page does with longer
+figures: at 1280px the heading stood at the top of the screen, the glasses near the middle, and
+the step alone at the right. Status: fixed with D117; the words are in the stage, beside the
+picture, the step under them (`tests/test_garden.py` holds the page's structure).
