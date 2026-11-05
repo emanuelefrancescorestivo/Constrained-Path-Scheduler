@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Smoother scrolling on a laptop (DECISIONS.md D118): on How it works, the science page and How
+  the code works, each animated scene now reads as a story in two columns, its words and steps on
+  the left and its picture on the right, held in view while the steps go by and lit in turn. The
+  pages are over a third shorter, and far less of each screen is empty. Phones keep the pinned scenes.
+
 - How it works in 3D (DECISIONS.md D117): each topic is now a hyacinth in a round glass, drawn
   in WebGL: curved glasses, water that falls as you forget, bulbs, leaves that droop and yellow,
   roots that hang in the water and grow when a topic is revised just in time, drops that ripple

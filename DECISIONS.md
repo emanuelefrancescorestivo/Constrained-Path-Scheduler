@@ -4453,3 +4453,46 @@ owner asked for in D116.
 1280px, light and dark, with motion and with it reduced, and without a script; not on a real
 graphics chip, a phone, Safari or Firefox. What it costs a slow device was not measured. The
 garden is a likeness, as D116 says; the roots' scale and the flowers' colours are choices.
+
+## D118. The explaining pages scroll as stories
+
+*The owner, 2026-11-05, of How it works, the science page and How the code works on a laptop:
+"when u scroll on the laptop everything is far from eachother wheres i want some smooth flow of
+everything".*
+
+**What was wrong.** A pinned scene (D112) was a track three screens tall whose stage, as tall
+as the window, held a figure about half the page's width, centred, with one step under it; the
+chapter's words had scrolled away above it. On a laptop most of every screen was sky: measured
+by `benchmarks/scroll_flow.mjs` at 1440 × 900, 46 % of How it works' screen was empty on
+average, 40 % of the science page's and 38 % of the code page's, and at 57 %, 37 % and 31 % of
+the positions more than half of it (AUDIT 96).
+
+**Chosen: on a laptop each pinned scene is a story in two columns.** Its words and then its
+steps go down the left column; its picture, in the right one and wider than the page's text,
+stays in view while the steps go by, and the step the picture is at is lit, the others faded.
+The story is the scroll timeline (`--pin`); the track and the stage hand their pieces to its
+grid (`display: contents`), so the templates only gained a wrapper (`.code-story`), with each
+scene's opening words moved into it on the code and science pages. Without scroll timelines or
+with motion reduced, the same two columns stand still, every step listed. The garden's WebGL
+follows the same timeline. Measured again at 1440 × 900:
+
+| page | screens | empty, mean | positions more than half empty | tallest empty band |
+|---|---|---|---|---|
+| How it works | 15.5 → 8.9 | 46 % → 11 % | 57 % → 0 % | 505 → 196px |
+| The science behind it | 13.7 → 8.8 | 40 % → 10 % | 37 % → 0 % | 278 → 276px |
+| How the code works | 19.4 → 12.2 | 38 % → 13 % | 31 % → 0 % | 439 → 368px |
+
+At 1280 × 800, empty on average: 39 % → 11 %, 35 % → 9 % and 35 % → 16 %. **Phones keep the pinned stage**: in one narrow column a
+picture beside its steps does not fit, and the stage already holds the picture and its step in
+one screen. Their figures move from run to run (the garden's positions more than half empty were
+5 % to 28 % in four runs of the same page), as each position is measured while pictures settle.
+
+**Not chosen.** Shorter tracks alone: less scrolling, the same empty screens. A taller figure
+filling the stage: most charts are wide and short, and would have floated in white. Moving every
+chapter's words into the stage, as D117 did for the garden: the code page's run to a formula and
+two paragraphs, too tall for a phone's stage.
+
+**Disclosed.** Checked in Chromium only, at 1440 × 900, 1280 × 800 and 390 × 844, with motion and
+with it reduced. The lit step is the one whose part of the scene is running, not exactly the one
+in the middle of the window: they drift apart by up to a step's height where a scene's words are
+long.

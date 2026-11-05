@@ -55,6 +55,7 @@
    months, run as the scene is scrolled through. #}
 {% set f = g.fade %}
 <section class="code-scene code-scene-pin gd-chapter" id="pace">
+  <div class="code-story">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -78,12 +79,14 @@
   </ol>
   </div>
   </div>
+  </div>
 </section>
 
 {# 3. Water it as it starts to droop: the same plant watered at once and as it droops,
    on one clock; the second's roots grow when it is watered. #}
 {% set s = g.spacing %}
 <section class="code-scene code-scene-pin gd-chapter" id="time">
+  <div class="code-story">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -105,6 +108,7 @@
   </ol>
   </div>
   </div>
+  </div>
   {{ limit(_("Wait too long and the plant wilts: you forgot, and its roots start short again.")) }}
 </section>
 
@@ -112,6 +116,7 @@
    (D111, D112), then the game. #}
 {% set w = g.week %}
 <section class="code-scene code-scene-pin gd-chapter" id="evenings">
+  <div class="code-story">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -150,6 +155,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes take the days.") }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("What is left: {n} free evenings. Each one can water one plant.", n=w.free) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
 
@@ -192,6 +198,7 @@
    forgotten, they shrink and the topic comes back soon. #}
 {% set rp = g.report %}
 <section class="code-scene code-scene-pin gd-chapter" id="morning">
+  <div class="code-story">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -214,6 +221,7 @@
     <li class="cap2of3"><span class="sci-step">2</span><span>{{ _("Remembered: the roots grow to {n} days. The next watering moves further away.", n=rp.grown) }}</span></li>
     <li class="cap3of3"><span class="sci-step">3</span><span>{{ _n("Forgot: the plant wilts, and its roots shrink to {n} day. It comes back soon.", "Forgot: the plant wilts, and its roots shrink to {n} days. It comes back soon.", rp.shrunk_days) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   {{ limit(_("If you don't tap, the app has to guess how it went.")) }}

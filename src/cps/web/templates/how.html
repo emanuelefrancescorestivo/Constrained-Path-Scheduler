@@ -46,6 +46,7 @@
 
 {# 1. The calendar is a number (timegrid.py) #}
 <section class="code-scene code-scene-pin" id="bits">
+  <div class="code-story">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">1</span><code>timegrid.py</code></p>
     <h2>{{ _("A week is one number") }}</h2>
@@ -92,6 +93,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes set theirs, from {a} to {b} on weekdays: another OR.", a=h.classes.from, b=h.classes.to) }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("Every bit still 0 is free. {k} free in a row make a study block, here one an evening.", k=h.block_slots) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
 </section>
@@ -151,6 +153,7 @@
 
 {# 4. Value iteration (ssp.py) #}
 <section class="code-scene code-scene-pin" id="value">
+  <div class="code-story">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">4</span><code>ssp.py</code></p>
     <h2>{{ _("What reaching the target costs") }}</h2>
@@ -183,6 +186,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Sweep after sweep, the costs spread back from the target: the shakiest, hardest topics climb highest.") }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("After {n} sweeps no cell moves by more than {e}: the table has settled.", n=h.sweeps, e=h.residual | replace("-", "‑")) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   <figure class="card code-fig scroll-fig code-after">
@@ -238,6 +242,7 @@
    planner's guess and with none. #}
 {% set s = h.search %}
 <section class="code-scene code-scene-pin" id="search">
+  <div class="code-story code-story-long">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">6</span><code>plan.py</code></p>
     <h2>{{ _("The search, node by node") }}</h2>
@@ -276,6 +281,7 @@
     <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("It stops when the best plan has nothing left to open: {n} nodes, a score of {v}, the exhaustive optimum. Here, every evening left free.", n=h.runs[-1].nodes, v=h.score.total) }}</span></li>
     <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("With no guess the same answer takes {n} nodes: the grey line.", n=h.runs[0].nodes) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
 </section>
@@ -323,6 +329,7 @@
    window planned exactly moving on a day at a time as the scene is scrolled through
    (D112), the days done behind it; without motion, the first window. #}
 <section class="code-scene code-scene-pin" id="rolling">
+  <div class="code-story">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">9</span><code>rolling.py · clock.py</code></p>
     <h2>{{ _("Plan a little, then plan again") }}</h2>
@@ -346,6 +353,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Move on a day and plan again, from what really happened.") }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("{n} plans later, the exam.", n=h.replans) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
 </section>
