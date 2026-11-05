@@ -1090,6 +1090,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art.art-tips { background: linear-gradient(160deg, #ffd24d, #ffa000); color: #b86e00; }
 .art.art-science { background: linear-gradient(160deg, #5cc0ff, #2a6be6); color: #1f56c4; }
 .art.art-code { background: linear-gradient(160deg, #9b8cff, #5a3fd6); color: #4a30c2; }
+.art.art-garden { background: linear-gradient(160deg, #6fdc9a, #23a067); color: #1b7f50; }
 .art.art-settings { background: linear-gradient(160deg, #a3a3ad, #62626e); color: #4a4a55; }
 .art.art-calendar { background: linear-gradient(160deg, #ff6f61, #e2352b); color: #e2352b; }
 .art.art-feedback { background: linear-gradient(160deg, #3fd0dc, #128fb0); color: #ff3b6b; }
@@ -3143,9 +3144,8 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   .sci-glasses .code-tower :is(.f-front, .f-back) { width: 28px; }
   .sci-glasses .code-tower :is(.f-left, .f-right) { height: 28px; }
 }
-/* The plain layer (D114): the student (their own avatar, D115) asks, Spark answers with a picture from everyday
-   life, a line says where the picture stops; each step of a scene in plain words, its
-   technical sentence under it. */
+/* A conversation (D114, kept for How it works, D116): the student, their own avatar (D115),
+   asks; Spark answers; a line says where the picture stops being true. */
 .chat { display: grid; gap: 10px; margin: 14px 0 16px; }
 .chat-row { display: flex; align-items: flex-end; gap: 10px; }
 .chat-answer { justify-content: flex-end; }
@@ -3158,46 +3158,6 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .chat-answer .chat-who { color: var(--accent-ink); }
 .metaphor-limit { margin: 0 0 14px; font-size: 0.86rem; color: var(--muted); }
 .metaphor-limit b { color: var(--text); font-weight: 650; margin-right: 4px; }
-.code-under { margin: 16px 0 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.cap-plain { display: block; font-weight: 600; }
-.cap-tech { display: block; margin-top: 3px; font-size: 0.82rem; line-height: 1.4; color: var(--muted); }
-/* The metaphors drawn into the scenes (D114): Day 1 as switches, a battery for each
-   future of a review, a coin at each outcome, ripples spreading from the goal, the
-   crow's line against the road, a car's headlights for replanning, a gym's labels
-   over the spacing landscape, a drop of water at each self-test. */
-.code-switches { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 12px 0 0; }
-.sw-group { display: inline-flex; gap: 2px; }
-.code-switches .code-label { margin-right: 6px; }
-.sw { position: relative; display: inline-block; width: 13px; height: 8px; border-radius: 4px; background: var(--fill-3); box-shadow: inset 0 0 0 1px var(--line); }
-.sw > b { position: absolute; top: 1px; left: 1px; width: 6px; height: 6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 0.5px var(--line-strong); }
-.sw.sw-sleep, .sw.sw-class, .sw.sw-key { background: color-mix(in srgb, var(--text) 62%, transparent); }
-.sw.sw-sleep > b, .sw.sw-class > b, .sw.sw-key > b { transform: translateX(5px); }
-.code-battery { display: inline-block; flex: none; vertical-align: -2px; margin-left: 8px; color: var(--muted); }
-.code-good .code-battery { color: var(--ok); }
-.code-bad .code-battery { color: var(--danger-text); }
-.sci-key .code-battery { margin: 0 6px 0 0; }
-.code-battery rect.cell { fill: none; stroke: currentColor; stroke-width: 1.4; }
-.code-battery rect.charge { fill: currentColor; }
-.code-battery rect.nub { fill: currentColor; }
-.code-crow { stroke: var(--muted); stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
-.code-road { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.code-pin-dot { fill: var(--accent); }
-.code-flag { fill: var(--danger-text); }
-.code-car { position: absolute; left: calc(10% - 8px); top: 50%; width: 18px; height: 14px; transform: translateY(-50%); z-index: 1; fill: #fff; }
-.code-golf { display: block; font-size: 0.75rem; font-style: normal; color: var(--accent-ink); }
-.code-map { margin-bottom: 10px; }
-.code-win { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--accent) 8%, transparent)); }
-/* The gym's three weights, on the landscape's floor under their columns. */
-.sci-gym { bottom: -46px; transform: translateX(-50%); font-weight: 700; }
-.sci-gym-1 { left: 10%; }
-.sci-gym-2 { left: 50%; color: var(--accent-ink); }
-.sci-gym-3 { left: 90%; color: var(--danger-text); }
-.code-goal { left: 100%; top: 100%; margin: 10px 0 0 -20px; color: var(--accent-ink); font-weight: 700; }
-.code-pole { stroke: var(--text); stroke-width: 1.6; }
-.sci-key .sw { margin-right: 6px; }
-.sci-drop { fill: #3a8dde; }
-.sci-drop-key { display: inline-block; margin-right: 6px; vertical-align: -2px; }
-.code-ripple { display: none; position: absolute; left: 100%; top: 100%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%; border: 2px solid var(--accent); pointer-events: none; }
 @media (max-width: 560px) {
   .chat .av-face, .chat .mascot { width: 40px; height: 40px; }
   .chat-bubble { font-size: 0.95rem; }
@@ -3306,6 +3266,113 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
 .you-me .av-face { width: 56px; height: 56px; flex: none; }
 .you-me small { display: block; color: var(--muted); }
+/* How it works, the garden (D116): a topic is a plant in a glass pot. The pot and its
+   water are boxes in CSS 3D; the plant and its roots a sprite that faces the reader,
+   turned back by the shelf's own angle (`--turn`). The water's height is `--zq`
+   (twentieths of full): `gzN` when still, the scene's eight stops when it runs. The
+   leaves droop and pale as it falls; a wilted plant droops more (`--wilt`). The roots
+   are scaled to their length, `--rt` (and from `--rf` when they grow). */
+@property --turn { syntax: "<angle>"; inherits: true; initial-value: -30deg; }
+@property --wilt { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+.garden-page { --gd-glass: color-mix(in srgb, var(--surface) 28%, transparent); --gd-edge: color-mix(in srgb, var(--text) 24%, transparent); --gd-water: rgb(58 141 222 / 40%); --gd-water-top: rgb(132 194 248 / 70%); --gd-wood: color-mix(in srgb, #c89b6d 60%, var(--surface)); --gd-leaf: #3ea56b; --gd-dry: #b9a65a; --gd-root: #8a4f24; }
+.gz0 { --zq: 0; } .gz1 { --zq: 1; } .gz2 { --zq: 2; } .gz3 { --zq: 3; } .gz4 { --zq: 4; } .gz5 { --zq: 5; } .gz6 { --zq: 6; }
+.gz7 { --zq: 7; } .gz8 { --zq: 8; } .gz9 { --zq: 9; } .gz10 { --zq: 10; } .gz11 { --zq: 11; } .gz12 { --zq: 12; } .gz13 { --zq: 13; }
+.gz14 { --zq: 14; } .gz15 { --zq: 15; } .gz16 { --zq: 16; } .gz17 { --zq: 17; } .gz18 { --zq: 18; } .gz19 { --zq: 19; } .gz20 { --zq: 20; }
+.rf0 { --rf: 0.04; } .rf1 { --rf: 0.05; } .rf2 { --rf: 0.10; } .rf3 { --rf: 0.15; } .rf4 { --rf: 0.20; } .rf5 { --rf: 0.25; } .rf6 { --rf: 0.30; }
+.rf7 { --rf: 0.35; } .rf8 { --rf: 0.40; } .rf9 { --rf: 0.45; } .rf10 { --rf: 0.50; } .rf11 { --rf: 0.55; } .rf12 { --rf: 0.60; } .rf13 { --rf: 0.65; }
+.rf14 { --rf: 0.70; } .rf15 { --rf: 0.75; } .rf16 { --rf: 0.80; } .rf17 { --rf: 0.85; } .rf18 { --rf: 0.90; } .rf19 { --rf: 0.95; } .rf20 { --rf: 1.00; }
+.rt0 { --rt: 0.04; } .rt1 { --rt: 0.05; } .rt2 { --rt: 0.10; } .rt3 { --rt: 0.15; } .rt4 { --rt: 0.20; } .rt5 { --rt: 0.25; } .rt6 { --rt: 0.30; }
+.rt7 { --rt: 0.35; } .rt8 { --rt: 0.40; } .rt9 { --rt: 0.45; } .rt10 { --rt: 0.50; } .rt11 { --rt: 0.55; } .rt12 { --rt: 0.60; } .rt13 { --rt: 0.65; }
+.rt14 { --rt: 0.70; } .rt15 { --rt: 0.75; } .rt16 { --rt: 0.80; } .rt17 { --rt: 0.85; } .rt18 { --rt: 0.90; } .rt19 { --rt: 0.95; } .rt20 { --rt: 1.00; }
+.gd-scene { display: grid; place-items: center; height: 270px; perspective: 1000px; perspective-origin: 50% 10%; overflow: visible; }
+.gd-shelf { --turn: -30deg; display: flex; gap: 40px; padding: 22px 26px; margin-top: 56px; border-radius: 14px; background: var(--gd-wood); transform-style: preserve-3d; transform: rotateX(60deg) rotateZ(var(--turn)); }
+.gd-pair .gd-shelf { gap: 76px; }
+.gd-pot { --ph: 64px; --u: 2.9px; position: relative; flex: none; width: 56px; height: 56px; transform-style: preserve-3d; }
+.gd-g { position: absolute; display: block; background: var(--gd-glass); border: 1px solid var(--gd-edge); }
+.gd-front { left: 0; bottom: 0; width: 56px; height: var(--ph); transform-origin: bottom; transform: rotateX(-90deg); }
+.gd-back { left: 0; top: 0; width: 56px; height: var(--ph); transform-origin: top; transform: rotateX(90deg); }
+.gd-left { top: 0; left: 0; width: var(--ph); height: 56px; transform-origin: left; transform: rotateY(-90deg); }
+.gd-right { top: 0; right: 0; width: var(--ph); height: 56px; transform-origin: right; transform: rotateY(90deg); }
+.gd-water { position: absolute; inset: 4px; transform-style: preserve-3d; --h: calc(var(--zq) * var(--u)); }
+.gd-water > i { position: absolute; display: block; background: var(--gd-water); }
+.gd-water .w-front { left: 0; bottom: 0; width: 100%; height: var(--h); transform-origin: bottom; transform: rotateX(-90deg); }
+.gd-water .w-back { left: 0; top: 0; width: 100%; height: var(--h); transform-origin: top; transform: rotateX(90deg); }
+.gd-water .w-left { top: 0; left: 0; width: var(--h); height: 100%; transform-origin: left; transform: rotateY(-90deg); }
+.gd-water .w-right { top: 0; right: 0; width: var(--h); height: 100%; transform-origin: right; transform: rotateY(90deg); }
+.gd-water .w-top { inset: 0; transform: translateZ(var(--h)); background: var(--gd-water-top); }
+.gd-billboard { position: absolute; left: 50%; bottom: 50%; width: 60px; height: 140px; margin-left: -30px; transform-origin: 50% 100%; transform: rotateZ(calc(-1 * var(--turn))) rotateX(-60deg); pointer-events: none; }
+.gd-sprite { display: block; width: 60px; height: 140px; overflow: visible; --droop: calc((20 - var(--zq)) * 7deg + var(--wilt)); }
+.gd-roots { transform-box: fill-box; transform-origin: 50% 0; transform: scaleY(var(--rt, 1)); }
+.gd-roots path { fill: none; stroke: var(--gd-root); stroke-width: 3.2; stroke-linecap: round; }
+.gd-stem { fill: none; stroke: var(--gd-leaf); stroke-width: 3.4; stroke-linecap: round; }
+.gd-leaf { fill: var(--gd-leaf); }
+.gd-leaf path { fill: color-mix(in srgb, var(--gd-dry) clamp(0%, calc((20 - var(--zq)) * 13% + var(--wilt) / 1deg * 1.5%), 100%), var(--gd-leaf)); }
+.gd-sway { transform-box: view-box; transform-origin: 30px 88px; transform: rotate(calc(var(--droop) / 3)); }
+.gd-leaf-l { transform-box: view-box; transform-origin: 30px 62px; transform: rotate(calc(-1 * var(--droop))); }
+.gd-leaf-r { transform-box: view-box; transform-origin: 30px 49px; transform: rotate(var(--droop)); }
+.gd-leaf-t { transform-box: view-box; transform-origin: 30px 33px; transform: rotate(calc(var(--droop) * 0.8)); }
+.gd-wilt { --wilt: 38deg; }
+.gd-flower circle { fill: #ff8fb8; }
+.gd-flower .gd-heart { fill: #ffd66b; }
+.gd-drop { fill: var(--gd-water-top); opacity: 0; }
+.gd-names { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; }
+.gd-names li { display: grid; justify-items: center; text-align: center; min-width: 76px; }
+.gd-names b { font-size: 0.92rem; }
+.gd-names small { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.gd-hero-scene { height: 250px; }
+.gd-hero .chat { max-width: 40rem; }
+.gd-solo { height: 250px; }
+.gd-mini { height: 190px; }
+.gd-mini .gd-shelf { gap: 30px; margin-top: 46px; transform: rotateX(60deg) rotateZ(var(--turn)) scale(0.74); }
+.gd-week-drop { fill: #fff; opacity: 0.92; }
+.gd-start { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 6px 0 14px; color: inherit; text-decoration: none; }
+.gd-start small { display: block; color: var(--muted); }
+/* The tap after a session: a phone's card, in depth. */
+.gd-tap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 18px; align-items: center; perspective: 800px; }
+.gd-tap > .gd-names { grid-column: 2; }
+.gd-phone { width: 150px; border-radius: 22px; padding: 14px 12px; display: grid; gap: 10px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 16%), inset 0 0 0 1px var(--line); transform: rotateY(14deg) rotateX(4deg); }
+.gd-phone-q { margin: 0; font-weight: 700; text-align: center; }
+.gd-phone-a { display: grid; gap: 8px; margin: 0; }
+.gd-phone-a span { display: block; text-align: center; border-radius: 12px; padding: 9px 6px; font-weight: 650; background: var(--fill-3); }
+.gd-phone .gd-yes { color: var(--ok); }
+.gd-phone .gd-no { color: var(--danger-text); }
+/* The game: an evening a column, each topic a choice; the two weeks side by side. */
+.gd-game { display: grid; gap: 12px; margin-top: 28px; padding: 18px; }
+.gd-game h3 { margin: 0; font-size: 1.3rem; }
+.gd-picks { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.gd-evening { border: 0; margin: 0; padding: 0; min-width: 0; }
+.gd-evening legend { font-weight: 700; font-size: 0.85rem; color: var(--muted); padding: 0; margin-bottom: 6px; }
+.gd-opts { display: grid; gap: 6px; }
+.gd-pick { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.gd-pick + label { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px; border-radius: 12px; background: var(--fill-3); font-size: 0.84rem; font-weight: 600; cursor: pointer; overflow: hidden; }
+.gd-pick:checked + label { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 2px var(--accent); }
+.gd-pick:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gd-go { grid-column: 1 / -1; margin: 4px 0 0; }
+.gd-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+.gd-t0 { background: var(--c0); }
+.gd-t1 { background: var(--c1); }
+.gd-t2 { background: var(--c2); }
+.gd-rest { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.gd-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.gd-result { display: grid; gap: 6px; padding: 12px; border-radius: 16px; background: var(--fill-3); min-width: 0; }
+.gd-result h4 { margin: 0; }
+.gd-plan, .gd-score { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font-size: 0.85rem; color: var(--muted); }
+.gd-plan span { display: inline-flex; align-items: center; gap: 5px; }
+.gd-score b { color: var(--text); font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.gd-verdict { font-weight: 650; margin: 0; }
+.gd-recap { margin-top: 8px; }
+.gd-more { margin-top: 8px; }
+@media (max-width: 560px) {
+  .gd-scene { height: 230px; }
+  .gd-shelf { gap: 24px; padding: 16px 18px; }
+  .gd-pair .gd-shelf { gap: 54px; }
+  .gd-picks { grid-template-columns: minmax(0, 1fr); }
+  .gd-opts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .gd-pick + label { padding: 0 6px; font-size: 0.78rem; }
+  .gd-tap { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .gd-tap > .gd-names { grid-column: 1; }
+  .gd-phone { width: 200px; }
+}
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
 @property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
@@ -3401,7 +3468,8 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .sw, .sw > b, .code-ripple, .sci-gym) {
+      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-shelf, .gd-pot, .gd-roots, .gd-drop,
+      .gd-phone, .gd-phone-a span) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
     }
@@ -3409,6 +3477,9 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li { grid-area: 1 / 1; animation-name: code-cap; }
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li:first-child { animation-name: code-cap-first; }
     :root:not([data-motion="reduce"]) .code-pin .code-caps > li:last-child { animation-name: code-cap-last; }
+    :root:not([data-motion="reduce"]) .code-pin .cap1of3 { animation-range: contain 0% contain 33.3%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap2of3 { animation-range: contain 33.3% contain 66.7%; }
+    :root:not([data-motion="reduce"]) .code-pin .cap3of3 { animation-range: contain 66.7% contain 100%; }
     :root:not([data-motion="reduce"]) .code-pin .cap1of4 { animation-range: contain 0% contain 25%; }
     :root:not([data-motion="reduce"]) .code-pin .cap2of4 { animation-range: contain 25% contain 50%; }
     :root:not([data-motion="reduce"]) .code-pin .cap3of4 { animation-range: contain 50% contain 75%; }
@@ -3490,19 +3561,30 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .sci-drain { animation-name: sci-drain; }
     :root:not([data-motion="reduce"]) .code-pin .sci-rise { animation-name: sci-rise; }
     :root:not([data-motion="reduce"]) .code-pin .sci-drain .f-top { animation-name: none; }
-    /* The metaphors in motion (D114): Day 1's switches flip on with sleep, then with
-       classes; ripples spread from the goal while the value table fills; each coin
-       flips twice as its outcome comes in. */
-    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-class) { animation-name: sw-on; }
-    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-class) > b { animation-name: sw-knob; }
-    :root:not([data-motion="reduce"]) .code-pin :is(.sw-sleep, .sw-sleep > b) { animation-range: contain 22% contain 32%; }
-    :root:not([data-motion="reduce"]) .code-pin :is(.sw-class, .sw-class > b) { animation-range: contain 47% contain 57%; }
-    :root:not([data-motion="reduce"]) .code-pin .code-ripple { display: block; animation-name: code-ripple; }
-    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r1 { animation-range: contain 26% contain 52%; }
-    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r2 { animation-range: contain 36% contain 62%; }
-    :root:not([data-motion="reduce"]) .code-pin .code-ripple.r3 { animation-range: contain 46% contain 72%; }
-    :root:not([data-motion="reduce"]) .code-pin .sci-gym { animation-name: code-show; }
-    :root:not([data-motion="reduce"]) .scroll-fig .code-coin { transform-box: fill-box; transform-origin: 50% 50%; animation-name: code-coin; }
+    /* How it works (D116): the shelf turns as each scene runs, the pots drain through their
+       stops (sci-drain), a drop falls on a pot as it is watered, roots grow or shrink,
+       the forgotten plant wilts, the phone's card comes forward and each answer lights. */
+    :root:not([data-motion="reduce"]) .code-pin .gd-shelf { animation-name: gd-turn; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-drop { animation-name: gd-drop; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-drop-soon { animation-range: contain 25% contain 36%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-drop-just { animation-range: contain 60% contain 72%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-grow .gd-roots { animation-name: gd-roots; animation-range: contain 60% contain 72%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-yes-pot .gd-roots { animation-range: contain 36% contain 58%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-no-pot .gd-roots { animation-range: contain 70% contain 90%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-wilt { animation-name: gd-wilt; animation-range: contain 70% contain 84%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-phone { animation-name: gd-phone; animation-range: contain 0% contain 30%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-phone-a span { animation-name: gd-press; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-phone-a .gd-yes { animation-range: contain 34% contain 62%; }
+    :root:not([data-motion="reduce"]) .code-pin .gd-phone-a .gd-no { animation-range: contain 67% contain 95%; }
+    /* Chapter 1's pot drains as its figure passes; the opening shelf turns as it leaves. */
+    :root:not([data-motion="reduce"]) .scroll-fig .gd-pot.sci-drain {
+      animation-name: sci-drain; animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
+      animation-timeline: --fig; animation-range: cover 18% cover 62%;
+    }
+    :root:not([data-motion="reduce"]) .gd-hero-scene .gd-shelf {
+      animation-name: gd-turn; animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
+      animation-timeline: view(); animation-range: exit 0% exit 100%;
+    }
     /* 9. Replanning: the window moves on a day at a time, the done days behind it. */
     :root:not([data-motion="reduce"]) .code-pin .code-win {
       animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
@@ -3548,13 +3630,12 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   57.14% { --zq: var(--q4); } 71.43% { --zq: var(--q5); } 85.71% { --zq: var(--q6); } 100% { --zq: var(--q7); }
 }
 @keyframes sci-rise { from { --zq: 0; } to { --zq: var(--q7); } }
-@keyframes sw-on { from { background: var(--fill-3); } }
-@keyframes sw-knob { from { transform: none; } }
-@keyframes code-ripple { from { transform: scale(0.05); opacity: 0.9; } to { transform: scale(1); opacity: 0; } }
-@keyframes code-coin {
-  0% { transform: scaleX(1); } 25% { transform: scaleX(0.06); } 50% { transform: scaleX(1); }
-  75% { transform: scaleX(0.06); } 100% { transform: none; }
-}
+@keyframes gd-turn { from { --turn: -20deg; } to { --turn: -42deg; } }
+@keyframes gd-drop { 0% { opacity: 0; transform: translateY(-24px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(70px); } }
+@keyframes gd-roots { from { transform: scaleY(var(--rf, 1)); } to { transform: scaleY(var(--rt, 1)); } }
+@keyframes gd-wilt { from { --wilt: 0deg; } to { --wilt: 38deg; } }
+@keyframes gd-phone { from { transform: rotateY(38deg) rotateX(16deg) translateZ(-60px); } to { transform: rotateY(14deg) rotateX(4deg); } }
+@keyframes gd-press { 0%, 100% { background: var(--fill-3); transform: none; } 30%, 75% { background: var(--accent-soft); transform: scale(1.06); } }
 @keyframes code-uncover { from { transform: none; } to { transform: scaleX(0); } }
 @keyframes code-slide { from { transform: none; } to { transform: translateX(320%); } }
 /* Courses (D86-D88) */

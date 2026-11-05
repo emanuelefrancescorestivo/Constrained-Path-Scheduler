@@ -4296,6 +4296,10 @@ under it says where it fails: a switch cannot tell a tired hour from a fresh one
 not show its charge, the penalty's size is a choice in the code, a session left unreported
 counts as done. Checked in Chromium only, at phone size and 1280px, with motion and without.
 
+**Later (D116).** The owner found the pictures still hard to follow; the conversations, the
+sixteen pictures and the plain captions left the code and science pages for a page of their own,
+How it works, told in one picture.
+
 ## D115. The student's own avatar
 
 *The owner, 2026-11-04, of the student drawn after him in the chats of D114: "i don't like the
@@ -4328,4 +4332,66 @@ shown on the student's own pages only.
 **Disclosed.** Six skin tones and seven styles are a choice, not every person; the headscarf
 takes the hair's colour. Checked in Chromium only, at phone size and 1280px, light and dark,
 with the preview and, without scripts, by saving.
+
+**Later (D116).** The avatar is now the student in How it works; the code and science pages no
+longer carry a conversation.
+
+
+## D116. How it works: a garden, in one story
+
+*The owner, 2026-11-05, of D114's plain words: "even i struggle to understand the explanation,
+it needs to be understood by 1st years and by non-experts in the domain, and that is what the
+animations should help with too, propose different animation and explanation plans so we can
+choose together". Four ways were put to him on a page with working mock-ups (one story, a game,
+three ideas, a comic), with one picture for everything (a garden, a phone battery, a real
+example) and how the pages fit (two pages, a switch, layers as before). His choice: "A, with B's
+game in chapter 4, the garden, two pages. but also make 3d animations so it's cooler and more
+engaging".*
+
+**Why the plain words of D114 were hard.** Sixteen different pictures, one per section, each a
+world to learn before its idea; the code's order, not the student's questions; the animations
+still showing the engine while the words described a battery; and long answers.
+
+**Chosen.**
+
+1. **A page for everyone, How it works** (`/garden`, `/p/<plan>/garden`): one story, one picture.
+   A topic is a plant in a glass pot; the water is how much you remember; the roots, how long
+   that lasts. Five chapters, in the order a student asks: every topic is a plant (the water goes
+   down: forgetting); each plant dries at its own pace (three topics over two months); water it
+   as it starts to droop (the same plant watered at once keeps roots of 7 days and is at 85 % two
+   weeks later; watered as it droops at 90 %, its roots grow to 23 days and it is at 96 % a week
+   after); you only have a few free evenings (the code page's week, its layers falling into one);
+   every morning it looks again (remembered, the roots grow to 23 days; forgotten, they shrink to
+   1 and the topic comes back soon). Then exam day, the five ideas again, and the two technical
+   pages for the curious. Every number from FSRS-6 (`service.garden_view`).
+2. **3D, in CSS**: glass pots whose water is a box that drains as the page is scrolled, plants
+   that always face the reader and droop and pale as the water falls, roots that grow or shrink,
+   a drop that falls as a pot is watered, a shelf that turns, the week's layers (D111) and the
+   tap's card in depth. Without motion every scene is complete, its steps a list.
+3. **The game, in chapter 4**: five free evenings, three topics, the exam on Saturday. The
+   student picks a topic or Rest for each evening; the server answers with both gardens on exam
+   day, theirs and the app's (its rule: the driest topic once it is down to 90 %, else the evening
+   stays free). Scored on two things, the lowest plant and the evenings used, because the rule
+   is not the way to the highest number: in this example it keeps every plant at 93 % or more
+   with 3 evenings, while revising every evening reaches 98 % with all 5; the page says which
+   happened. A form, so it works without a script.
+4. **Two pages.** How it works is first under You, in every page's footer, and at the top of the
+   science and code pages ("New here? Start with How it works"). Those two are technical again:
+   D114's conversations, pictures and plain captions are gone from them. The student's avatar
+   (D115) is the one who asks, at the top of How it works.
+5. **Written short**: one picture for the page, sentences of 15 words or fewer, 45 words a step at
+   most; `tests/test_garden.py` counts them. The page is counted as its own part of the app (D96),
+   the fortieth.
+
+**Not chosen.** The game alone (B): it needs a script, and teaches ideas 2 to 4 only. Three cards
+(C): too little depth. A comic (D): a drawing per panel in three languages. A battery: it explains
+revising at the right time badly. Layers on the technical pages: they kept two readers on one
+page.
+
+**Disclosed.** The garden is a likeness: a plant shows thirst, a memory does not, and the water is
+the model's estimate with average weights; each chapter's last line says where its picture stops.
+The game's three topics are made up and every revision in it succeeds. The French and Italian
+were not written by a native speaker. Checked in Chromium only, at phone size and 1280px, light
+and dark, with motion and with it reduced, and the game without a script; what the 3D costs a
+slow device was not measured.
 

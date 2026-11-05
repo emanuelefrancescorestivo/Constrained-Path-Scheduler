@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_avatar.html" import face %}
 {# The avatar maker (D115): a student makes the avatar that asks the questions on the
-   science and code pages (D114). One part at a time, each a row of choices; the preview
+   How it works (D116). One part at a time, each a row of choices; the preview
    above follows every choice through CSS alone (`.av-maker:has(...)`), so the page needs
    no script, and Save keeps it. Where `:has` is missing, the preview shows what was
    saved, and changes after Save. #}
@@ -10,9 +10,9 @@
 <p class="back"><a href="/p/{{ token }}/you">{{ _("You") }}</a></p>
 <div class="page-title">
   <h1>{{ _("Your avatar") }}</h1>
-  <p class="lede">{{ _("Make the student who asks the questions on the science and code pages: you.") }}</p>
+  <p class="lede">{{ _("Make the student in How it works: you.") }}</p>
 </div>
-{% if saved %}<p class="notice notice-ok" role="status">{{ _("Saved. Your avatar now asks the questions on the science and code pages.") }} <a href="/p/{{ token }}/science">{{ _("See it there") }} ›</a></p>{% endif %}
+{% if saved %}<p class="notice notice-ok" role="status">{{ _("Saved. Your avatar is now the student in How it works.") }} <a href="/p/{{ token }}/garden">{{ _("See it there") }} ›</a></p>{% endif %}
 {% set words = {
   "short": _("Short"), "swept": _("Swept"), "long": _("Long"), "curly": _("Curly"), "bun": _("Bun"),
   "shaved": _("Shaved"), "scarf": _("Headscarf"),

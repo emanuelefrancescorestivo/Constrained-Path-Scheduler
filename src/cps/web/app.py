@@ -1049,16 +1049,37 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/science", response_class=HTMLResponse)
     def plan_science(request: Request, token: str) -> HTMLResponse:
+        if load(token) is None:
+            return missing(request)
+        return page(request, "science.html", token=token, science=service.science_view())
+
+    # -- How it works (D116): the garden, for everyone; its game answered here ----------
+
+    def garden_page(request: Request, token: str | None, subscription: Any = None) -> HTMLResponse:
+        picks = [request.query_params.get(f"e{i}") for i in range(1, service.GARDEN_EVENINGS + 1)]
+        played = [p or "" for p in picks] if any(picks) else None
+        error = None
+        try:
+            view = service.garden_view(played)
+        except service.ServiceError as problem:
+            view, error, played = service.garden_view(None), str(problem), None
+        context: dict[str, Any] = {"story": view, "picks": played, "error": error}
+        if token:
+            context.update(token=token, my_avatar=service.avatar_of(subscription))
+        else:
+            context.update(dusk)
+        return page(request, "garden.html", 400 if error else 200, **context)
+
+    @app.get("/garden", response_class=HTMLResponse)
+    def garden(request: Request) -> HTMLResponse:
+        return garden_page(request, None)
+
+    @app.get("/p/{token}/garden", response_class=HTMLResponse)
+    def plan_garden(request: Request, token: str) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return page(
-            request,
-            "science.html",
-            token=token,
-            science=service.science_view(),
-            my_avatar=service.avatar_of(subscription),  # the one who asks (D114, D115)
-        )
+        return garden_page(request, token, subscription)
 
     # -- how the code works (D109): the research planner on a worked example ----------
 
@@ -1068,16 +1089,9 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/how", response_class=HTMLResponse)
     def plan_how(request: Request, token: str) -> HTMLResponse:
-        subscription = load(token)
-        if subscription is None:
+        if load(token) is None:
             return missing(request)
-        return page(
-            request,
-            "how.html",
-            token=token,
-            how=service.code_view(),
-            my_avatar=service.avatar_of(subscription),  # the one who asks (D114, D115)
-        )
+        return page(request, "how.html", token=token, how=service.code_view())
 
     # -- the student's avatar (D115) ----------------------------------------------------
 
