@@ -198,14 +198,14 @@ def test_the_calendar_drawn_is_the_bits(view):
 
 
 def test_the_pages_wear_the_apps_look(web, view):
-    """The public pages under the dusk sky, the topics in the first two course colours,
-    the exam in red; a plan's page keeps the plan's own sky."""
+    """The topics in the first two course colours, the exam in red. The dusk sky of D110
+    is gone since D120: the explaining pages are read on the app's plain grey."""
     page = web.get("/how").text
-    assert 'data-sky="evening"' in page and 'href="/sky/320.css"' in page
+    assert "data-sky" not in page and "/sky/" not in page
     assert 'class="dot c0"' in page and 'class="dot c1"' in page
     assert 'class="code-exam"' in page and 'class="code-exam-line"' in page
     assert 'class="code-progress"' in page
-    assert 'data-sky="evening"' in web.get("/science").text
+    assert "data-sky" not in web.get("/science").text
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     assert ".code-progress { display: none; }" in css  # a bar only where scrolling fills it
     assert "animation-timeline: scroll(root);" in css
@@ -362,12 +362,20 @@ def test_the_scenes_that_run_have_their_steps_and_stand_still_without_motion(web
 
 def test_the_technical_pages_are_solid_not_glass(web):
     """The owner's report (AUDIT 94): see-through panes made the figures hard to follow.
-    The code and science pages keep the sky, and their panels are solid."""
-    assert '<main class="site code-page tech">' in web.get("/how").text
-    assert '<main class="site tech">' in web.get("/science").text
+    Since D120 the code and science pages have no sky at all, so no glass rule (each
+    is under `body[data-sky]`) reaches their panels, and their bars are solid."""
+    mains = (
+        ("/how", '<main class="site code-page read tech">'),
+        ("/science", '<main class="site read tech">'),
+    )
+    for path, main in mains:
+        page = web.get(path).text
+        assert main in page and "data-sky" not in page and 'class=" reading"' in page
     css = (STATIC / "style.css").read_text(encoding="utf-8")
-    rule = re.search(r"body\[data-sky\] main\.tech :is\(\.card, fieldset, \.stat, \.tile\) \{([^}]*)\}", css)
-    assert rule and "background: var(--surface)" in rule[1] and "backdrop-filter: none" in rule[1]
+    glass = re.findall(r"^([^{}\n]*)\{[^}]*backdrop-filter: blur", css, flags=re.M)
+    assert not [rule for rule in glass if "reading" in rule or "main.tech" in rule]
+    bars = re.search(r"body\.reading \.topbar, body\.reading \.tabbar \{([^}]*)\}", css)
+    assert bars and "background: var(--bg)" in bars[1] and "backdrop-filter: none" in bars[1]
 
 
 # --------------------------------------------------------------------------- #

@@ -4111,6 +4111,9 @@ they run on time, not on scrolling, so a recorded clip would speed them up.
 reader's sun, as a plan's does (D76). Checked in Chromium only, light and dark, at phone
 size and 1280px.
 
+**Later (D120).** The owner asked for the glass to go from the pages that explain: they are now
+on the app's plain grey, without the sky, the public ones and a plan's alike.
+
 ## D111. The code page in three dimensions
 
 *The owner, 2026-11-04, of the restyled code page (D110): "nice make it 3d now".*
@@ -4500,6 +4503,11 @@ with it reduced. The lit step is the one whose part of the scene is running, not
 in the middle of the window: they drift apart by up to a step's height where a scene's words are
 long.
 
+**Later (D120).** The owner found the text sparse and the formatting uneven: on a laptop each
+pinned scene is now one panel held in view, its words and all its steps on the left (the current
+one lit, none faded), its figure filling the right; the three pages share one layout without the
+sky or the glass.
+
 ## D119. How it works: a glowing rosette by day, a plant of light by night
 
 *The owner, 2026-11-05, of D117's hyacinths: "the plants are ugly, make 6 propositions of design
@@ -4534,3 +4542,97 @@ best. A glow added to the light page (as the dark design's is): it does not show
 **Disclosed.** The rosette's glow and colours, and the flowers, are choices of taste. Checked in
 Chromium only, with software rendering, at 1280px and 390px, light and dark, with motion and
 without, and without a script.
+
+## D120. The explaining pages, read: no glass, one layout
+
+*The owner, 2026-11-05, after D118 and D119 went live: "the formatting is not homogeneous, the
+text is sparse and there is too much void from the laptop page, something is off so use again the
+7 laws of UX UI to make it easilydigestible, starting from removing liquid glass from those pages
+that explain".*
+
+**What was wrong.**
+
+1. **Glass.** How it works, the science page and How the code works wore the app's sky (dusk on the
+   public pages, D110; the plan's own on a plan's) under translucent bars. Their panels had been
+   solid since D112 (AUDIT 94), but the page behind them and the bars were still sky and glass.
+2. **Not homogeneous.** Three widths (the science page's text at 46rem, the code page at 64rem,
+   D118's stories breaking out to 74rem), three different openings, the science page's sections in
+   one column where the other pages had two, chapter numbers on two pages of three.
+3. **Sparse.** D118 spread a scene's steps down a tall column, a quarter to a third of a window
+   apart, with only the current one lit and the others faded to 42 %. At 1440 × 900 a screen
+   showed on average 51 readable words on How it works, 184 on the science page and 123 on the code
+   page. D118's measure counted a row as filled by a faded line, so it had scored this well
+   (AUDIT 97).
+
+**Chosen, by seven laws of UX.** The laws are Jon Yablonski's *Laws of UX* and the Gestalt
+principles it collects. No source agrees on which seven; these are the seven that bear on a page
+that is read.
+
+1. **Prägnanz (simplicity): no sky and no glass.** The three pages are on the app's plain grey
+   (`--bg`) with solid panels and solid bars, on a plan's pages too (`sky` set to nothing in
+   `web/app.py`, `body.reading`). Their accent is the app's own blue, not the moment's.
+2. **Similarity: one layout for all three.** One width (74rem), one grid (words 5, figure 7, 56px
+   apart), one type scale (body text 18px on a laptop, headings up to 2.25rem). Every chapter is
+   numbered, and each opening is the same: a kicker, the title, one line, the chapters, then the
+   figure beside them. The science page gained its numbers and its list of chapters, using its own
+   headings, so no new sentences.
+3. **Jakob's law: laid out as articles and documentation are.** Words on the left, the figure on
+   the right, both from the top. The words stay beside a taller figure as it goes by.
+4. **Proximity.** A scene's words, steps and figure are in one place. A paragraph that follows a
+   scene sits beside its evidence: the science page's note on FSRS-6 next to the maths, the
+   research next to the formula, the code page's sentence next to its table.
+5. **Common region.** Each pinned scene is one panel, as tall as the window under the bar, and its
+   figure's card fills the whole right column.
+6. **Miller's law.** A scene's three to five steps are read together as one list, not one at a
+   time three screens apart.
+7. **Von Restorff effect.** The step the figure is at is the only one lit, in the text's colour on
+   the accent's tint. The others stay readable in the muted grey (4.8:1), not faded.
+
+**How.**
+
+- The templates gained one wrapper: `.code-panel`, inside each `.code-story`.
+- On a laptop the panel is the grid: the words, then the steps, on the left, the figure on the
+  right. The track and the stage that a phone pins give their pieces to it (`display: contents`).
+- Where scrolling drives animations, the story is the track (180vh, 260vh for AO*'s 114 nodes)
+  and its panel is held in view. Elsewhere, and with motion reduced, the panel simply stands.
+- Every other part of the pages is a row (`.code-scene`, `.code-row`) of the same two columns.
+- A laptop's window is shorter than its screen. Under 860px tall a panel's words are set a size
+  smaller, so that the longest (the code page's value iteration, the science page's spacing) fit:
+  checked by script at windows of 1440 × 789, 1280 × 689, 1366 × 657 and 1280 × 640. Under 640px
+  the panels do not pin.
+- Phones keep D112's pinned stage, on the plain grey.
+
+**Measured** by `benchmarks/scroll_flow.mjs`, which since D120 also reports the share of the
+window's area that content covers and the words readable on a screen, at 1440 × 900:
+
+| page | screens | empty, mean | tallest empty band | area covered | words read |
+|---|---|---|---|---|---|
+| How it works | 8.9 → 10.5 | 10 % → 14 % | 196 → 198px | 46 % → 44 % | 51 → 77 |
+| The science behind it | 8.8 → 9.8 | 10 % → 14 % | 276 → 151px | 39 % → 49 % | 184 → 224 |
+| How the code works | 12.2 → 13.8 | 13 % → 15 % | 368 → 167px | 42 % → 49 % | 123 → 178 |
+
+At 1280 × 800, words read: 48 → 79, 175 → 214, 117 → 170; area covered: 52 % → 51 %, 46 % → 54 %,
+48 % → 54 %. No position is more than half empty on a laptop, before or after. At 390 × 844 the
+pages are as before, within the run-to-run noise D118 noted.
+
+**Not chosen.**
+
+- D118's column of steps, unfaded: the steps then still stand screens apart.
+- The steps under the figure, in the right column (tried first): on How it works the left column
+  held only a chapter's two lines, and 25 % to 32 % of a screen was empty.
+- Each panel centred in the window (tried): blank bands above and below; 21 % to 24 % empty.
+- Every chapter's words in the stage, as D117 did for the garden: too tall for a phone's stage
+  (D118's reason).
+
+**Disclosed.**
+
+- The pages are longer on a laptop (How it works 8.9 → 10.5 screens, the science page 8.8 → 9.8,
+  the code page 12.2 → 13.8): each pinned scene holds the window for about four fifths of a screen
+  of scrolling.
+- The mean empty share rose from 10 % to 13 % to 14 % to 15 %. The faded steps D118 spread down a
+  column covered rows without being read; the white margin under each panel now does not cover
+  them.
+- Checked in Chromium only: at 1440 × 900, 1280 × 800 and 390 × 844, with the four window sizes
+  above for fit; light and dark; with motion, with it reduced, and without a script.
+- The seven laws are a lens chosen here, not a measure. Whether students read further is for the
+  pilot.

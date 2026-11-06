@@ -11,11 +11,15 @@
    glowing rosette when light, a plant of light when dark) over a flat drawing of the
    rosette (`_garden.html`); its scenes run as they are scrolled
    (`.code-pin`, `.scroll-fig`, as the code and science pages'), each chapter's words in
-   the stage beside its picture, and every scene is complete without motion. The game is a form the server answers, so it
+   the stage beside its picture, and every scene is complete without motion. D120: on
+   the app's plain grey, without the sky or the glass, every part a row of two columns
+   on a laptop as on the other two explaining pages (words left, picture right, a
+   pinned chapter's steps under its picture). The game is a form the server answers, so it
    works without a script. Every number is computed by service.garden_view from FSRS-6,
    the model the app runs. The technical pages stay for the curious. #}
 {% block title %}{{ _("How it works") }} · {{ _("Study plan") }}{% endblock %}
-{% block site_class %} code-page garden-page tech{% endblock %}
+{% block body_class %} reading{% endblock %}
+{% block site_class %} code-page garden-page read tech{% endblock %}
 {% block head %}<script type="module" src="{{ asset('garden.js') }}"></script>{% endblock %}
 {% block main %}
 {% set g = story %}
@@ -26,17 +30,21 @@
 {% if token %}<p class="back"><a href="/p/{{ token }}/you">{{ _("You") }}</a></p>{% endif %}
 
 <header class="code-hero gd-hero">
+  <div class="code-copy">
   <p class="kicker">{{ _("How it works") }}</p>
   <h1>{{ _("Your study plan is a garden") }}</h1>
   <p class="lede">{{ _("Five ideas, two minutes. Scroll, and the days go by.") }}</p>
-  {% set opening = [] %}{% for t in g.start %}{% set _ok = opening.append({"w": 20, "roots": t.roots}) %}{% endfor %}
-  {{ shelf(opening, "gd-hero-scene scroll-fig", label=_("Three plants on a shelf, each in a glass pot of water"), motion={"t": "exit", "turn": [-16, 34], "rest": 0}) }}
-  {{ chat(_("How does the app decide what I study tonight?"), _("Think of each topic as a plant. My job is to help you water the right one."), "hero") }}
   <nav class="code-steps" aria-label="{{ _('The chapters') }}">
     {% for id, word in (("plant", _("A plant")), ("pace", _("Its own pace")), ("time", _("Just in time")), ("evenings", _("Your evenings")), ("morning", _("Every morning"))) %}
     <a href="#{{ id }}"><span class="sci-step">{{ loop.index }}</span>{{ word }}</a>
     {% endfor %}
   </nav>
+  {{ chat(_("How does the app decide what I study tonight?"), _("Think of each topic as a plant. My job is to help you water the right one."), "hero") }}
+  </div>
+  {% set opening = [] %}{% for t in g.start %}{% set _ok = opening.append({"w": 20, "roots": t.roots}) %}{% endfor %}
+  <div class="code-side">
+  {{ shelf(opening, "gd-hero-scene scroll-fig", label=_("Three plants on a shelf, each in a glass pot of water"), motion={"t": "exit", "turn": [-16, 34], "rest": 0}) }}
+  </div>
 </header>
 
 {# 1. Every topic is a plant: one pot, drying over a week as the figure scrolls by. #}
@@ -57,6 +65,7 @@
 {% set f = g.fade %}
 <section class="code-scene code-scene-pin gd-chapter" id="pace">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -81,6 +90,7 @@
   </div>
   </div>
   </div>
+  </div>
 </section>
 
 {# 3. Water it as it starts to droop: the same plant watered at once and as it droops,
@@ -88,6 +98,7 @@
 {% set s = g.spacing %}
 <section class="code-scene code-scene-pin gd-chapter" id="time">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -110,6 +121,7 @@
   </div>
   </div>
   </div>
+  </div>
   {{ limit(_("Wait too long and the plant wilts: you forgot, and its roots start short again.")) }}
 </section>
 
@@ -118,6 +130,7 @@
 {% set w = g.week %}
 <section class="code-scene code-scene-pin gd-chapter" id="evenings">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -156,6 +169,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes take the days.") }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("What is left: {n} free evenings. Each one can water one plant.", n=w.free) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   </div>
@@ -200,6 +214,7 @@
 {% set rp = g.report %}
 <section class="code-scene code-scene-pin gd-chapter" id="morning">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
@@ -225,31 +240,39 @@
   </div>
   </div>
   </div>
+  </div>
   {{ limit(_("If you don't tap, the app has to guess how it went.")) }}
 </section>
 
 {# Exam day: every plant fresh, in flower; what to remember; where the details are. #}
-<section class="code-scene code-scene-pin gd-chapter gd-end" id="exam">
+<section class="code-scene gd-chapter gd-end" id="exam">
   <div class="code-copy">
     <h2>{{ _("Exam day") }}</h2>
     <p>{{ _("Every plant got water just before it drooped, in your free evenings. That is the whole idea.") }}</p>
+    <ol class="card list gd-recap">
+      <li><span class="sci-step">1</span><span class="grow">{{ _("You forget, each topic at its own pace.") }}</span></li>
+      <li><span class="sci-step">2</span><span class="grow">{{ _("Revise just before you forget: it then lasts longer.") }}</span></li>
+      <li><span class="sci-step">3</span><span class="grow">{{ _("Your free evenings are few. Each one waters one plant.") }}</span></li>
+      <li><span class="sci-step">4</span><span class="grow">{{ _("Deadlines first, then the plant about to droop.") }}</span></li>
+      <li><span class="sci-step">5</span><span class="grow">{{ _("One tap after each session, and the plan looks again.") }}</span></li>
+    </ol>
   </div>
   <figure class="card code-fig gd-fig scroll-fig">
     {% set bloom = [] %}{% for p in g.exam %}{% set _ok = bloom.append({"w": p.z, "roots": p.roots}) %}{% endfor %}
     {{ shelf(bloom, "gd-bloom", flower=true, label=_("Three plants in flower"), motion={"t": "cover", "r": [0.12, 0.42], "turn": [-30, -4]}) }}
   </figure>
-  <ol class="card list gd-recap">
-    <li><span class="sci-step">1</span><span class="grow">{{ _("You forget, each topic at its own pace.") }}</span></li>
-    <li><span class="sci-step">2</span><span class="grow">{{ _("Revise just before you forget: it then lasts longer.") }}</span></li>
-    <li><span class="sci-step">3</span><span class="grow">{{ _("Your free evenings are few. Each one waters one plant.") }}</span></li>
-    <li><span class="sci-step">4</span><span class="grow">{{ _("Deadlines first, then the plant about to droop.") }}</span></li>
-    <li><span class="sci-step">5</span><span class="grow">{{ _("One tap after each session, and the plan looks again.") }}</span></li>
-  </ol>
-  <h3>{{ _("Want the details?") }}</h3>
+</section>
+
+<section class="code-row gd-details">
+  <div class="code-copy">
+  <h2>{{ _("Want the details?") }}</h2>
+  </div>
+  <div class="code-side">
   <ul class="card list you-list gd-more">
     <li><a href="{{ base }}/science"><span class="grow"><b>{{ _("The science behind it") }}</b><small>{{ _("The research, and the memory model's numbers") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
     <li><a href="{{ base }}/how"><span class="grow"><b>{{ _("How the code works") }}</b><small>{{ _("The search behind the plan, for computer science students") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
   </ul>
   {% if token %}<p class="code-end-actions">{% if not my_avatar %}<a class="btn btn-tinted" href="/p/{{ token }}/avatar">{{ _("Make your avatar") }}</a> {% endif %}<a class="btn btn-primary" href="/p/{{ token }}">{{ _("Back to your plan") }}</a></p>{% endif %}
+  </div>
 </section>
 {% endblock %}

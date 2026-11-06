@@ -10,6 +10,12 @@
 // average, the share of positions where more than half the screen is empty, and the
 // tallest empty band seen, in pixels.
 //
+// Since D120, two more, because a row can be "filled" by one short dim line at the edge
+// of a wide window: the share of the window's area that content covers (text by its
+// lines, as the browser lays them out; a figure, card, chart or canvas by its box), and
+// how many words a reader can read on a screen, on average (words in lines whose
+// opacity, all the way up, is at least 60 %).
+//
 // Not part of the Python tests: it needs Node.js and Playwright with Chromium (not a
 // dependency of this project) and a running server.
 //
@@ -58,7 +64,47 @@ function measure() {
       tallest = Math.max(tallest, run);
     }
   }
-  return { empty: empty / (height - top), tallest };
+  // The area: a grid of 8px cells over the window under the top bar.
+  const CELL = 8;
+  const cols = Math.ceil(innerWidth / CELL), lines = Math.ceil((height - top) / CELL);
+  const cells = new Uint8Array(cols * lines);
+  const mark = (r) => {
+    const x0 = Math.max(0, Math.floor(r.left / CELL)), x1 = Math.min(cols, Math.ceil(r.right / CELL));
+    const y0 = Math.max(0, Math.floor((r.top - top) / CELL)), y1 = Math.min(lines, Math.ceil((r.bottom - top) / CELL));
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) cells[y * cols + x] = 1;
+  };
+  const shown = (el) => {
+    let alpha = 1;
+    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.visibility === "hidden" || cs.display === "none") return 0;
+      alpha *= Number(cs.opacity);
+    }
+    return alpha;
+  };
+  let words = 0;
+  for (const el of document.querySelectorAll("main svg, main canvas, main .card, main figure, main .gd-scene")) {
+    const r = el.getBoundingClientRect();
+    if (r.width >= 4 && r.height >= 4 && r.bottom > top && r.top < height && shown(el) >= 0.05) mark(r);
+  }
+  const walker = document.createTreeWalker(document.querySelector("main") || document.body, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent.trim();
+    if (!text || node.parentElement.closest("svg, script, style")) continue;
+    const alpha = shown(node.parentElement);
+    if (alpha < 0.05) continue;
+    range.selectNodeContents(node);
+    let inView = false;
+    for (const r of range.getClientRects()) {
+      if (r.bottom <= top || r.top >= height || r.width < 1) continue;
+      mark(r);
+      inView = true;
+    }
+    if (inView && alpha >= 0.6) words += text.split(/\s+/).length;
+  }
+  const area = cells.reduce((a, c) => a + c, 0) / cells.length;
+  return { empty: empty / (height - top), tallest, area, words };
 }
 
 for (const [width, height] of SIZES) {
@@ -74,11 +120,15 @@ for (const [width, height] of SIZES) {
     }
     const mean = seen.reduce((a, s) => a + s.empty, 0) / seen.length;
     const half = seen.filter((s) => s.empty > 0.5).length / seen.length;
+    const area = seen.reduce((a, s) => a + s.area, 0) / seen.length;
+    const words = seen.reduce((a, s) => a + s.words, 0) / seen.length;
     console.log(
       `${width}×${height} ${path.padEnd(9)} ${(total / height).toFixed(1).padStart(5)} screens`
       + `  empty ${Math.round(100 * mean).toString().padStart(3)} %`
       + `  half-empty positions ${Math.round(100 * half).toString().padStart(3)} %`
-      + `  tallest gap ${Math.max(...seen.map((s) => s.tallest))}px`,
+      + `  tallest gap ${Math.max(...seen.map((s) => s.tallest))}px`
+      + `  area covered ${Math.round(100 * area).toString().padStart(3)} %`
+      + `  words read ${Math.round(words).toString().padStart(4)}`,
     );
     await page.close();
   }

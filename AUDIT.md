@@ -1105,3 +1105,12 @@ third to over half of the positions more than half of it; a pinned scene (D112) 
 figure centred in a window-tall stage, its words already scrolled away. Status: fixed with D118;
 on a laptop each pinned scene is a story in two columns (10 % to 13 % empty, no position more than
 half empty; `tests/test_flow.py` holds the structure).
+
+**97. D118's measure counted faded text as filling the screen.** Reported by the owner on
+2026-11-05, of the pages D118 had changed: "the text is sparse and there is too much void".
+Looking at the screens again showed why the measure had missed it. `benchmarks/scroll_flow.mjs`
+marked a row of the window filled when any visible element covered it. Steps faded to 42 % and
+spaced a quarter of a window apart therefore scored as content, while a screen showed 51 to 184
+readable words. Status: fixed with D120. The benchmark now also reports the share of the window's
+area that content covers (text by its lines) and the words readable on a screen (opacity 60 % or
+more). D120's layout shows 22 % to 51 % more words per screen at 1440 × 900.

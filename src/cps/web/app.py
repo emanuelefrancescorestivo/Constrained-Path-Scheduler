@@ -1037,21 +1037,23 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # -- the science behind the engine (D89): for anyone, and inside a plan ----------
 
-    # The two pages anyone can read without a plan, the science and the code, wear the
-    # app's sky as a plan's pages do (D110): dusk, the hour the code page's worked
-    # example plans for, with the first sprout of the garden. A plan's own pages keep
-    # the plan's sky.
-    dusk: dict[str, Any] = {"sky": "evening", "garden": 1, "sun": sky.step_of(3.2)}
+    # The three explaining pages (How it works, the science, the code) are read, not
+    # used: no sky and no glass behind them, on a plan's pages as on the public ones
+    # (D120, the owner: "starting from removing liquid glass from those pages that
+    # explain"). D110 had dressed the public ones in dusk; `sky` set to nothing also
+    # keeps a plan's page from working out its own. The page is the app's plain grey,
+    # its panels solid, its accent the app's own.
+    plain: dict[str, Any] = {"sky": None}
 
     @app.get("/science", response_class=HTMLResponse)
     def science(request: Request) -> HTMLResponse:
-        return page(request, "science.html", science=service.science_view(), **dusk)
+        return page(request, "science.html", science=service.science_view(), **plain)
 
     @app.get("/p/{token}/science", response_class=HTMLResponse)
     def plan_science(request: Request, token: str) -> HTMLResponse:
         if load(token) is None:
             return missing(request)
-        return page(request, "science.html", token=token, science=service.science_view())
+        return page(request, "science.html", token=token, science=service.science_view(), **plain)
 
     # -- How it works (D116): the garden, for everyone; its game answered here ----------
 
@@ -1063,11 +1065,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             view = service.garden_view(played)
         except service.ServiceError as problem:
             view, error, played = service.garden_view(None), str(problem), None
-        context: dict[str, Any] = {"story": view, "picks": played, "error": error}
+        context: dict[str, Any] = {"story": view, "picks": played, "error": error, **plain}
         if token:
             context.update(token=token, my_avatar=service.avatar_of(subscription))
-        else:
-            context.update(dusk)
         return page(request, "garden.html", 400 if error else 200, **context)
 
     @app.get("/garden", response_class=HTMLResponse)
@@ -1085,13 +1085,13 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/how", response_class=HTMLResponse)
     def how(request: Request) -> HTMLResponse:
-        return page(request, "how.html", how=service.code_view(), **dusk)
+        return page(request, "how.html", how=service.code_view(), **plain)
 
     @app.get("/p/{token}/how", response_class=HTMLResponse)
     def plan_how(request: Request, token: str) -> HTMLResponse:
         if load(token) is None:
             return missing(request)
-        return page(request, "how.html", token=token, how=service.code_view())
+        return page(request, "how.html", token=token, how=service.code_view(), **plain)
 
     # -- the student's avatar (D115) ----------------------------------------------------
 

@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The explaining pages, easier to read (DECISIONS.md D120): How it works, the science page and How
+  the code works lose the sky and the glass for the app's plain grey with solid panels, and share
+  one layout: the words on the left, the picture on the right. On a laptop each animated scene is
+  one panel that stays in view, its words and all its steps together, the current step lit, its
+  picture filling the other half. Up to half as many words again can be read on each screen.
+
 - New plants in How it works (DECISIONS.md D119): in a light theme each topic is a succulent
   rosette in a glass bowl that glows from within while you remember it, and dulls, droops and
   browns as you forget; in a dark theme, a plant of light whose glow dims and whose tendrils curl.
