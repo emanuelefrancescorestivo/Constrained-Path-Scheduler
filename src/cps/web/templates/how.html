@@ -4,9 +4,11 @@
 {# How the code works (D109, in the app's own look since D110): the research planner on
    one worked example, scene by scene, each figure drawing itself as the page is
    scrolled (CSS scroll-driven animations, `.scroll-fig` and its stages `.st1`..`.st5`;
-   elsewhere, and under reduced motion, every figure is simply there). The page wears
-   the app's sky, the two topics the app's first two course colours, the exam its red,
-   its figures on solid panels (D112, `main.tech`). Four scenes run as they are scrolled
+   elsewhere, and under reduced motion, every figure is simply there). The page is on
+   the app's plain grey since D120 (no sky, no glass), the two topics the app's first
+   two course colours, the exam its red, its figures on solid panels (D112, `main.tech`);
+   on a laptop every part is a row of two columns, as on the other two explaining pages,
+   a pinned scene's steps listed under its figure. Four scenes run as they are scrolled
    through (D112, `.code-pin`): the week's bits set mask by mask, the value table
    filling sweep by sweep, AO* opening node after node, the window of replanning moving
    on. Every number is computed by service.code_view from the planner's own code: the
@@ -14,7 +16,8 @@
    heuristics, AO* and its trace, and the exhaustive solve that checks them. SVG text
    is 12 units or more. #}
 {% block title %}{{ _("How the code works") }} · {{ _("Study plan") }}{% endblock %}
-{% block site_class %} code-page tech{% endblock %}
+{% block body_class %} reading{% endblock %}
+{% block site_class %} code-page read tech{% endblock %}
 {% block main %}
 {% set h = how %}
 {% set base = "/p/" ~ token if token else "" %}
@@ -22,13 +25,21 @@
 {% macro mark(c) %}<span class="dot {{ c.color }}" aria-hidden="true"></span>{% endmacro %}
 <div class="code-progress" aria-hidden="true"></div>
 <p class="back"><a href="{{ base }}/science">{{ _("The science behind it") }}</a></p>
-{# New here (D116): the plain page first. #}
-<a class="card gd-start" href="{{ base }}/garden">{{ art("garden") }}<span class="grow"><b>{{ _("New here? Start with How it works") }}</b><small>{{ _("Five ideas in two minutes, told as a garden") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
 
 <header class="code-hero">
+  <div class="code-copy">
   <p class="kicker">{{ _("For the curious") }}</p>
   <h1>{{ _("How the code works") }}</h1>
   <p class="lede">{{ _("The search behind a study plan, step by step, on one small example this page solves as it is drawn: {a} and {b}, an exam in {n} days, a study block on each of {k} evenings.", a=analysis.topic, b=algebra.topic, n=h.exam_days, k=h.blocks | length) }}</p>
+  <nav class="code-steps" aria-label="{{ _('The steps') }}">
+    {% for id, word in (("bits", _("Bits")), ("memory", _("Memory")), ("score", _("Score")), ("value", _("Value")), ("andor", _("AND/OR")), ("search", _("Node by node")), ("heuristic", _("Guess")), ("checked", _("Check")), ("rolling", _("Replan")), ("rules", _("Rules"))) %}
+    <a href="#{{ id }}"><span class="sci-step">{{ loop.index }}</span>{{ word }}</a>
+    {% endfor %}
+  </nav>
+  {# New here (D116): the plain page first. #}
+  <a class="card gd-start" href="{{ base }}/garden">{{ art("garden") }}<span class="grow"><b>{{ _("New here? Start with How it works") }}</b><small>{{ _("Five ideas in two minutes, told as a garden") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
+  </div>
+  <div class="code-side">
   <div class="card code-tonight">
     <p class="code-tonight-head"><span class="code-pill">{{ _("Tonight at {h}", h=h.blocks[0].hour) }}</span><span class="code-exam">{{ _("Exam in {n} days", n=h.exam_days) }}</span></p>
     <ul class="code-courses">
@@ -36,17 +47,14 @@
     </ul>
     <p class="code-question">{{ _("Which one gets tonight's block, if either?") }}</p>
   </div>
-  <nav class="code-steps" aria-label="{{ _('The steps') }}">
-    {% for id, word in (("bits", _("Bits")), ("memory", _("Memory")), ("score", _("Score")), ("value", _("Value")), ("andor", _("AND/OR")), ("search", _("Node by node")), ("heuristic", _("Guess")), ("checked", _("Check")), ("rolling", _("Replan")), ("rules", _("Rules"))) %}
-    <a href="#{{ id }}"><span class="sci-step">{{ loop.index }}</span>{{ word }}</a>
-    {% endfor %}
-  </nav>
   <p class="hint">{{ _("The app itself plans with simple rules; this search is the reference that checks them. Scroll: each figure draws itself.") }}</p>
+  </div>
 </header>
 
 {# 1. The calendar is a number (timegrid.py) #}
 <section class="code-scene code-scene-pin" id="bits">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">1</span><code>timegrid.py</code></p>
     <h2>{{ _("A week is one number") }}</h2>
@@ -93,6 +101,7 @@
     <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("Classes set theirs, from {a} to {b} on weekdays: another OR.", a=h.classes.from, b=h.classes.to) }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("Every bit still 0 is free. {k} free in a row make a study block, here one an evening.", k=h.block_slots) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   </div>
@@ -154,6 +163,7 @@
 {# 4. Value iteration (ssp.py) #}
 <section class="code-scene code-scene-pin" id="value">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">4</span><code>ssp.py</code></p>
     <h2>{{ _("What reaching the target costs") }}</h2>
@@ -189,13 +199,19 @@
   </div>
   </div>
   </div>
-  <figure class="card code-fig scroll-fig code-after">
+  </div>
+  <div class="code-row code-after">
+  <div class="code-copy">
+    <p>{{ _("Expected reviews to reach a stability of {s} days: harder and shakier topics cost more.", s=h.target) }}</p>
+  </div>
+  <figure class="card code-fig scroll-fig">
     <table class="code-table" aria-label="{{ _('Expected reviews to reach the target, by difficulty and stability') }}">
       <thead><tr><th scope="col">D \ S</th>{% for c in h.columns %}<th scope="col">{{ _("{n} d", n=c) }}</th>{% endfor %}</tr></thead>
       <tbody>{% for row in h.table %}<tr class="st{{ loop.index }}"><th scope="row">{{ row.difficulty }}</th>{% for c in row.cells %}<td class="code-v{{ c.shade }}">{{ c.value }}{% for t in c.topics %}<span class="dot {{ t.color }}" title="{{ t.topic }}"></span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}</tbody>
     </table>
-    <figcaption class="sci-key"><span>{{ _("Expected reviews to reach a stability of {s} days: harder and shakier topics cost more.", s=h.target) }}</span><span>{% for c in h.curves %}{{ mark(c) }}{{ c.topic }} {% endfor %}{{ _("where the two topics start") }}</span></figcaption>
+    <figcaption class="sci-key"><span>{% for c in h.curves %}{{ mark(c) }}{{ c.topic }} {% endfor %}{{ _("where the two topics start") }}</span></figcaption>
   </figure>
+  </div>
 </section>
 
 {# 5. AND/OR, not a path (plan.py) #}
@@ -243,6 +259,7 @@
 {% set s = h.search %}
 <section class="code-scene code-scene-pin" id="search">
   <div class="code-story code-story-long">
+  <div class="code-panel">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">6</span><code>plan.py</code></p>
     <h2>{{ _("The search, node by node") }}</h2>
@@ -281,6 +298,7 @@
     <li class="cap4of5"><span class="sci-step">4</span><span>{{ _("It stops when the best plan has nothing left to open: {n} nodes, a score of {v}, the exhaustive optimum. Here, every evening left free.", n=h.runs[-1].nodes, v=h.score.total) }}</span></li>
     <li class="cap5of5"><span class="sci-step">5</span><span>{{ _("With no guess the same answer takes {n} nodes: the grey line.", n=h.runs[0].nodes) }}</span></li>
   </ol>
+  </div>
   </div>
   </div>
   </div>
@@ -330,6 +348,7 @@
    (D112), the days done behind it; without motion, the first window. #}
 <section class="code-scene code-scene-pin" id="rolling">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">9</span><code>rolling.py · clock.py</code></p>
     <h2>{{ _("Plan a little, then plan again") }}</h2>
@@ -356,6 +375,7 @@
   </div>
   </div>
   </div>
+  </div>
 </section>
 
 {# 10. What the app runs (assistant.py) #}
@@ -377,8 +397,12 @@
   </figure>
 </section>
 
-<section class="section science-block" id="read">
+<section class="code-row science-block" id="read">
+  <div class="code-copy">
   <h2>{{ _("Read the code") }}</h2>
+  <p class="hint">{{ _("The worked example is the one demo.py prints; the tests check every heuristic at every reachable state against the exhaustive solve.") }}</p>
+  <p class="code-end-actions"><a class="btn btn-tinted" href="{{ base }}/science">{{ _("The science behind it") }} ›</a>{% if token %} <a class="btn btn-primary" href="/p/{{ token }}">{{ _("Back to your plan") }}</a>{% endif %}</p>
+  </div>
   <ul class="card list sci-rows code-files">
     <li><code>timegrid.py</code><span class="grow">{{ _("the calendar as one integer, a bit per half hour") }}</span></li>
     <li><code>memory.py</code><span class="grow">{{ _("FSRS-4.5 for the search, FSRS-6 for the app: recall, stability, difficulty") }}</span></li>
@@ -388,7 +412,5 @@
     <li><code>rolling.py</code><span class="grow">{{ _("plan a window, do a block, replan") }}</span></li>
     <li><code>assistant.py</code><span class="grow">{{ _("the rules the app runs") }}</span></li>
   </ul>
-  <p class="hint">{{ _("The worked example is the one demo.py prints; the tests check every heuristic at every reachable state against the exhaustive solve.") }}</p>
-  <p class="code-end-actions"><a class="btn btn-tinted" href="{{ base }}/science">{{ _("The science behind it") }} ›</a>{% if token %} <a class="btn btn-primary" href="/p/{{ token }}">{{ _("Back to your plan") }}</a>{% endif %}</p>
 </section>
 {% endblock %}

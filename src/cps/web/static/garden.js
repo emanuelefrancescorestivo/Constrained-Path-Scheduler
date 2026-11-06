@@ -497,8 +497,8 @@ class Scene {
     const s = this.spec;
     if (!moving || s.t === "still") return s.rest ?? 1;
     const vh = innerHeight;
-    // The track is the pinned stage's, or on a laptop the whole story's (D118), as the
-    // stylesheet's --pin timeline is.
+    // The track is the pinned stage's, or on a laptop the whole story's, whose panel
+    // stays in view (D118, D120), as the stylesheet's --pin timeline is.
     const track = this.pin && getComputedStyle(this.pin).display === "contents" ? this.story : this.pin;
     if (s.t === "pin" && track) {
       const r = track.getBoundingClientRect();

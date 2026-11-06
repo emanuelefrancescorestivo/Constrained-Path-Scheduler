@@ -4,35 +4,49 @@
    it with its maths, and the research it rests on. Every number is computed by
    service.science_view from the model the app runs; every study cited is a checked
    entry of docs/REFERENCES.md. Charts are SVG drawn here, in the memory colours, on
-   solid panels (D112, `main.tech`: a technical page keeps the sky, not the glass).
+   solid panels (D112), and since D120 on the app's plain grey, without the sky.
    Three scenes run as they are scrolled through (D113, the code page's `.code-pin`):
    memory fading at three paces, the spacing effect as a landscape in 3D, and one topic
-   kept up against the same topic left alone. #}
+   kept up against the same topic left alone. D120: every part of the page is a row of
+   two columns on a laptop, as on the other two explaining pages: its words on the left
+   (`.code-copy`), its figure or its evidence on the right; a pinned scene's steps are
+   listed under its figure. #}
 {% block title %}{{ _("The science behind it") }} · {{ _("Study plan") }}{% endblock %}
-{% block site_class %} tech{% endblock %}
+{% block body_class %} reading{% endblock %}
+{% block site_class %} read tech{% endblock %}
 {% block main %}
 {% set s = science %}
+{% set k = s.kept %}
 {% set base = "/p/" ~ token if token else "" %}
 {% if token %}<p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>{% else %}<p class="back"><a href="/">{{ _("Study plan") }}</a></p>{% endif %}
-<div class="page-title science-head">
+<header class="code-hero science-head">
+  <div class="code-copy">
   <p class="kicker">{{ _("For the curious") }}</p>
   <h1>{{ _("The science behind it") }}</h1>
   <p class="lede">{{ _("How the app decides when you study, the memory model under it, and the research it rests on. Every number on this page is computed by the app's own model as the page is drawn.") }}</p>
-</div>
+  <nav class="code-steps" aria-label="{{ _('The chapters') }}">
+    {% for id, word in (("forgetting", _("Memory fades, at its own pace")), ("spacing", _("Why the wait matters")), ("testing", _("Testing beats rereading")), ("engine", _("How your week is planned")), ("you", _("Fitted to you, slowly"))) %}
+    <a href="#{{ id }}"><span class="sci-step">{{ loop.index }}</span>{{ word }}</a>
+    {% endfor %}
+  </nav>
+  {# New here (D116): the plain page first. #}
+  <a class="card gd-start" href="{{ base }}/garden">{{ art("garden") }}<span class="grow"><b>{{ _("New here? Start with How it works") }}</b><small>{{ _("Five ideas in two minutes, told as a garden") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
+  </div>
+  <div class="science-three scroll-fig">
+    <article class="card st1"><span class="sci-step">1</span><h2>{{ _("It predicts") }}</h2><p>{{ _("For every topic of every course, how likely you are to remember it today, and on exam day.") }}</p></article>
+    <article class="card st2"><span class="sci-step">2</span><h2>{{ _("It plans") }}</h2><p>{{ _("It fills your free time around your classes with short self-tests, at the moment each topic starts to fade.") }}</p></article>
+    <article class="card st3"><span class="sci-step">3</span><h2>{{ _("It learns") }}</h2><p>{{ _("One tap after each session, and the next plan starts from what really happened.") }}</p></article>
+  </div>
+</header>
 
-{# New here (D116): the plain page first. #}
-<a class="card gd-start" href="{{ base }}/garden">{{ art("garden") }}<span class="grow"><b>{{ _("New here? Start with How it works") }}</b><small>{{ _("Five ideas in two minutes, told as a garden") }}</small></span><span class="chev" aria-hidden="true">›</span></a>
-<div class="science-three scroll-fig">
-  <article class="card st1"><span class="sci-step">1</span><h2>{{ _("It predicts") }}</h2><p>{{ _("For every topic of every course, how likely you are to remember it today, and on exam day.") }}</p></article>
-  <article class="card st2"><span class="sci-step">2</span><h2>{{ _("It plans") }}</h2><p>{{ _("It fills your free time around your classes with short self-tests, at the moment each topic starts to fade.") }}</p></article>
-  <article class="card st3"><span class="sci-step">3</span><h2>{{ _("It learns") }}</h2><p>{{ _("One tap after each session, and the next plan starts from what really happened.") }}</p></article>
-</div>
-
-<section class="section science-block" id="forgetting">
+<section class="code-scene code-scene-pin science-block" id="forgetting">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
+  <p class="code-kicker"><span class="sci-step">1</span></p>
   <h2>{{ _("Memory fades, at its own pace") }}</h2>
   <p>{{ _("Each topic has a stability: the number of days until your chance of recalling it falls to 90 %. A shaky topic fades in days, a solid one holds for weeks.") }}</p>
+  <p>{{ _("A topic with a stability of 7 days is at {a} % after a week, {b} % after two weeks and {c} % after a month.", a=s.week[7], b=s.week[14], c=s.week[30]) }}</p>
   </div>
   {# D113: run as it is scrolled through (the code page's `.code-pin`): the days pass
      under the chart, the curves drawn up to the day, three columns beside it draining
@@ -73,20 +87,32 @@
   </div>
   </div>
   </div>
-  <p>{{ _("A topic with a stability of 7 days is at {a} % after a week, {b} % after two weeks and {c} % after a month.", a=s.week[7], b=s.week[14], c=s.week[30]) }}</p>
+  </div>
+  <div class="code-row">
+  <div class="code-copy">
+    <p>{{ _("This is FSRS-6, an open memory model, with its 21 weights at their published defaults. On a public benchmark of about 350 million reviews it predicts recall better than FSRS-4.5, the version this project began with (log loss 0.3460 against 0.3625; lower is better).") }}</p>
+  </div>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("The maths") }}</p>
     <p class="formula"><var>R</var>(<var>t</var>) = (1 + <var>f</var> · <var>t</var> ⁄ <var>S</var>)<sup>−<var>d</var></sup></p>
     <p>{{ _h("<var>R</var> is the chance of recall, <var>t</var> the days since you last recalled the topic, <var>S</var> its stability. The decay <var>d</var> is {d}, and <var>f</var> is set so that <var>R</var> is exactly 90 % when <var>t</var> = <var>S</var>.", d=s.decay) }}</p>
-    <p class="hint">{{ _("This is FSRS-6, an open memory model, with its 21 weights at their published defaults. On a public benchmark of about 350 million reviews it predicts recall better than FSRS-4.5, the version this project began with (log loss 0.3460 against 0.3625; lower is better).") }}</p>
+  </div>
   </div>
 </section>
 
-<section class="section science-block" id="spacing">
+<section class="code-scene code-scene-pin science-block" id="spacing">
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
+  <p class="code-kicker"><span class="sci-step">2</span></p>
   <h2>{{ _("Why the wait matters") }}</h2>
   <p>{{ _("A successful recall makes a memory last longer, and how much depends on when it happens. Take a topic that holds {n} days:", n=s.spacing_from) }}</p>
+  <ul class="card list sci-rows scroll-fig">
+    <li class="st1"><span class="grow">{{ _("Recalled again at once") }}</span><b>{{ _("{n} days", n=s.spacing[0]) }}</b></li>
+    <li class="st2"><span class="grow">{{ _("After {d} days, at {r} % recall", d=5, r=s.spacing_recall[5]) }}</span><b>{{ _("{n} days", n=s.spacing[5]) }}</b></li>
+    <li class="st3"><span class="grow">{{ _("After {d} days, at {r} % recall", d=15, r=s.spacing_recall[15]) }}</span><b>{{ _("{n} days", n=s.spacing[15]) }}</b></li>
+    <li class="st4"><span class="grow">{{ _("After {d} days, at {r} % recall", d=30, r=s.spacing_recall[30]) }}</span><b>{{ _("{n} days", n=s.spacing[30]) }}</b></li>
+  </ul>
   </div>
   {# D113: the spacing effect as a landscape, in 3D: a tower for each topic (a row,
      the shakiest at the back) and each recall it was tested at (a column, left to
@@ -115,20 +141,16 @@
   </div>
   </div>
   </div>
-  <ul class="card list sci-rows scroll-fig">
-    <li class="st1"><span class="grow">{{ _("Recalled again at once") }}</span><b>{{ _("{n} days", n=s.spacing[0]) }}</b></li>
-    <li class="st2"><span class="grow">{{ _("After {d} days, at {r} % recall", d=5, r=s.spacing_recall[5]) }}</span><b>{{ _("{n} days", n=s.spacing[5]) }}</b></li>
-    <li class="st3"><span class="grow">{{ _("After {d} days, at {r} % recall", d=15, r=s.spacing_recall[15]) }}</span><b>{{ _("{n} days", n=s.spacing[15]) }}</b></li>
-    <li class="st4"><span class="grow">{{ _("After {d} days, at {r} % recall", d=30, r=s.spacing_recall[30]) }}</span><b>{{ _("{n} days", n=s.spacing[30]) }}</b></li>
-  </ul>
+  </div>
   <div class="code-story">
+  <div class="code-panel">
   <div class="code-copy">
   <p>{{ _("Cramming a topic right after studying it adds almost nothing. The harder a recall that still succeeds, the more it adds; wait too long, though, and you may not recall it at all. So the app asks for a self-test when a topic's recall falls to {n} %.", n=s.target) }}</p>
+  <p>{{ _("A topic that held {a} days, tested each time it falls to {n} %, is tested {k} times in {d} days, each gap longer than the last, and ends holding {b} days. Left alone, it is at {r} %.", a=k["from"], n=k.target, k=k.reviews, d=s.days, b=k.last, r=k.alone_end) }}</p>
   </div>
   {# D113: kept up against left alone, run as it is scrolled through: the days pass,
      both lines drawn up to the day, each self-test appearing on its day, a readout of
      the tested topic's recall and how long it holds against the same topic alone. #}
-  {% set k = s.kept %}
   <div class="code-pin">
   <div class="code-pin-stage">
   <figure class="card sci-figure" id="kept">
@@ -159,18 +181,25 @@
   </div>
   </div>
   </div>
-  <p>{{ _("A topic that held {a} days, tested each time it falls to {n} %, is tested {k} times in {d} days, each gap longer than the last, and ends holding {b} days. Left alone, it is at {r} %.", a=k["from"], n=k.target, k=k.reviews, d=s.days, b=k.last, r=k.alone_end) }}</p>
+  </div>
+  <div class="code-row">
+  <div class="code-copy">
+    <p class="sci-research">{{ _("The research: in 317 experiments, the gap between reviews that gave the best memory grew with how long the memory had to last (Cepeda and colleagues, 2006). In a study of more than 1,350 people, the best gap was about 20 to 40 % of the time to a test a week away, and 5 to 10 % of a year away (Cepeda and colleagues, 2008).") }}</p>
+  </div>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("The maths") }}</p>
     <p class="formula"><var>S</var>′ = <var>S</var> · (1 + <var>a</var> · (11 − <var>D</var>) · <var>S</var><sup>−<var>b</var></sup> · (<var>e</var><sup><var>c</var>(1 − <var>R</var>)</sup> − 1))</p>
     <p>{{ _h("After a successful recall the stability <var>S</var> grows. The gain is larger for an easier topic (lower difficulty <var>D</var>), smaller for one already solid (the <var>S</var><sup>−<var>b</var></sup>), and larger the lower your recall <var>R</var> was when you made it (the last term, which is zero at <var>R</var> = 100 %): that is the spacing effect, written as a formula.") }}</p>
   </div>
-  <p class="sci-research">{{ _("The research: in 317 experiments, the gap between reviews that gave the best memory grew with how long the memory had to last (Cepeda and colleagues, 2006). In a study of more than 1,350 people, the best gap was about 20 to 40 % of the time to a test a week away, and 5 to 10 % of a year away (Cepeda and colleagues, 2008).") }}</p>
+  </div>
 </section>
 
-<section class="section science-block" id="testing">
+<section class="code-row science-block" id="testing">
+  <div class="code-copy">
+  <p class="code-kicker"><span class="sci-step">3</span></p>
   <h2>{{ _("Testing beats rereading") }}</h2>
   <p>{{ _("Every study session the app plans is a self-test: recall first, without your notes, then check what you missed. Flashcards work the same way.") }}</p>
+  </div>
   <ul class="card list sci-rows sci-evidence scroll-fig">
     <li class="st1"><span class="sci-tag">{{ _("Review of studies") }}</span><span class="grow">{{ _("Of ten common study techniques, practice testing and spacing were the two rated of high utility; rereading and highlighting were rated low.") }} <small>Dunlosky {{ _("and colleagues") }}, 2013</small></span></li>
     <li class="st2"><span class="sci-tag">{{ _("Meta-analysis") }}</span><span class="grow">{{ _("Practice tests helped learning more than restudying did.") }} <small>Adesope {{ _("and colleagues") }}, 2017</small></span></li>
@@ -180,9 +209,14 @@
   </ul>
 </section>
 
-<section class="section science-block" id="engine">
+<section class="code-row science-block" id="engine">
+  <div class="code-copy">
+  <p class="code-kicker"><span class="sci-step">4</span></p>
   <h2>{{ _("How your week is planned") }}</h2>
   <p>{{ _("Your limits come first: your classes, your weekly hours, your days off, your sleep, sport and work. Then each free block goes to the first of these that needs it:") }}</p>
+  <p>{{ _("A session you move stays where you put it, and the rest of the plan works around it. Each one-tap report replays the topic's memory with what really happened.") }}</p>
+  </div>
+  <div class="code-side">
   <ol class="card list sci-rules scroll-fig">
     <li class="st1"><span class="sci-step">1</span><span class="grow"><b>{{ _("A deadline getting close.") }}</b> {{ _("Earliest deadline first, which meets every deadline the calendar allows.") }}</span></li>
     <li class="st2"><span class="sci-step">2</span><span class="grow"><b>{{ _("Exam practice.") }}</b> {{ _("Past papers in the last days before each exam; exams in the same week take turns.") }}</span></li>
@@ -190,16 +224,19 @@
     <li class="st4"><span class="sci-step">4</span><span class="grow"><b>{{ _("Working ahead") }}</b> {{ _("on the next task.") }}</span></li>
     <li class="st5"><span class="sci-step">5</span><span class="grow"><b>{{ _("Free time.") }}</b> {{ _("A plan that fills every hour is a plan nobody follows.") }}</span></li>
   </ol>
-  <p>{{ _("A session you move stays where you put it, and the rest of the plan works around it. Each one-tap report replays the topic's memory with what really happened.") }}</p>
   <div class="card sci-maths">
     <p class="tile-label">{{ _("Checked against a search") }}</p>
     <p>{{ _("Behind the rules sits a research planner: a search over every way of filling your free blocks (AO*, on an AND/OR graph), guided by a cost-to-reach-the-target computed by value iteration (as in SSP-MMC, Ye and colleagues, 2022), replanning after each session. On a simulated semester it saves about one session in twenty on its own measure, but it takes about half a minute where the rules take a hundredth of a second, and its reasons cannot be said in a sentence. So the app runs the rules, and the search stays as the reference that checks them.") }}</p>
     <p><a href="{% if token %}/p/{{ token }}{% endif %}/how">{{ _("How the code works, step by step") }} ›</a></p>
   </div>
+  </div>
 </section>
 
-<section class="section science-block" id="you">
+<section class="code-row science-block" id="you">
+  <div class="code-copy">
+  <p class="code-kicker"><span class="sci-step">5</span></p>
   <h2>{{ _("Fitted to you, slowly") }}</h2>
+  </div>
   <ul class="card list sci-rows">
     <li><span class="grow">{{ _("Your flashcards follow the average memory until you have given {n} answers on later days; then the model's weights are fitted to your own answers.", n=s.own_after) }}</span></li>
     <li><span class="grow">{{ _("At most {n} new cards a day, and a card you forget comes back {m} minutes later.", n=s.new_per_day, m=s.again_minutes) }}</span></li>
@@ -207,18 +244,22 @@
   </ul>
 </section>
 
-<section class="section science-block" id="limits">
+<section class="code-row science-block" id="limits">
+  <div class="code-copy">
   <h2>{{ _("What we do not know yet") }}</h2>
+  </div>
   <div class="card">
     <p>{{ _("Every recall on this page is a model's estimate, with weights fitted on other people's reviews: it describes an average learner, not you. Whether the app raises grades has not been measured; that is what a pilot with students is for. The studies above measured study techniques, not this app.") }}</p>
   </div>
 </section>
 
-<section class="section science-block" id="sources">
+<section class="code-row science-block" id="sources">
+  <div class="code-copy">
   <h2>{{ _("Sources") }}</h2>
+  <p class="hint">{{ _("Each source was read at the source, not from a summary; what was checked in each is listed in the project's references.") }}</p>
+  </div>
   <ol class="card list sci-sources">
     {% for src in s.sources %}<li><span class="grow"><a href="{{ src.url }}" rel="noopener noreferrer" target="_blank">{{ src.cite }}</a><br><small>{{ src.venue }} · {{ _("read at the source on {day}", day=src.checked.isoformat()) }}</small></span></li>{% endfor %}
   </ol>
-  <p class="hint">{{ _("Each source was read at the source, not from a summary; what was checked in each is listed in the project's references.") }}</p>
 </section>
 {% endblock %}
