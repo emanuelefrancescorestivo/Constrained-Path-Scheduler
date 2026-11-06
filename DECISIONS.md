@@ -4636,3 +4636,106 @@ pages are as before, within the run-to-run noise D118 noted.
   above for fit; light and dark; with motion, with it reduced, and without a script.
 - The seven laws are a lens chosen here, not a measure. Whether students read further is for the
   pilot.
+
+## D121. How it works for the whole screen, cramming told honestly, a month to plan
+
+*The owner, after D120 went live: "the whole 3d thing is ugly, it clearly should employ the whole
+screen but you keep it like a mobile version even from a laptop. make two different versions. for
+the laptop make use of the whole available space, make it interactive, propose ideas, anyone needs
+to understand what that is about, the text also is very AI, curate the text a bit better and make
+it more natural". Three proposals for the laptop followed as a page to try (A, a story that fills
+the screen; B, a month to plan; C, a week against the app). Of B's and C's scoring the owner said
+"one can easily say that cramming works best" (AUDIT 98), then chose "A+B".*
+
+**What was wrong.**
+
+1. **A phone's page on a laptop.** D120's panel gave the plants seven twelfths of a 74rem column, in
+   a card 540px tall at most, and said nothing on them: the reader had to find the number in the
+   step on the left.
+2. **Words written to a rule.** D116's sentences were of 15 words or fewer, one idea each. They read
+   as a list ("The water in its pot is how much you remember. Day by day, the water goes down. That
+   is forgetting."), and the owner read them as written by a machine.
+3. **A game cramming won.** D116's week counted every revision as a success and scored a plan only
+   by its weakest topic on exam day (AUDIT 98).
+
+**Chosen.**
+
+1. **The laptop's story (A).** How it works is wider than the other two explaining pages (100rem;
+   the words a third, the plants two thirds). Every chapter is pinned, so each holds the window as
+   it is scrolled through, its plants filling the right two thirds. Over each plant, a label: how
+   much of the topic is remembered (red under 90 %) and a line under it (how long it lasts, or when
+   it is due); in the corner, the day it is (Day 0 since the lecture, Day 19 without revising, Exam
+   day). Along the bottom of the window, the seven chapters, the one in view filled as far as it
+   has gone by. The labels and days are the server's words, set as text in an SVG over the canvas
+   (garden.js sets no style), from each scene's numbers at 25 stops (`GARDEN_FINE`) beside the
+   eight the flat drawing has. On a large, wide figure three bowls stand in a row, each label clear
+   of the others' plants; the camera frames the bowls themselves wherever the scene turns them.
+   Phones keep D112's pinned stage and its steps one at a time, with the labels' numbers.
+2. **Words as a person says them.** Every sentence was written again, up to 25 words, a chapter's
+   paragraph up to 60 (`tests/test_garden.py` holds both). The chapters are named by what a
+   student would ask: Forgetting, Its own pace, Timing, Cramming, Your evenings, Telling it, Plan a
+   month. The title: "Your courses are plants. Your memory is the water."
+3. **Cramming, told honestly.** A new chapter, "Cramming works, for a day": the same new topic
+   crammed the night before an exam on day 28, or revised whenever it dips to 90 %, each through
+   the exam and a month on. A revision works only as often as the topic is still remembered then
+   (its recall is that chance): it is then a success (grade Good), otherwise a lapse (Again). Each
+   revision splits the topic's future in two; the expected recall is followed through the month,
+   the futures whose memory ends alike merged (`service._expected_memory`). Crammed, the topic is
+   at 96 % on exam day against 91 % for the spaced one; it spent 25 days below 90 % before it,
+   against 4, after two revisions; the cram, after 27 days untouched, works 68 % of the time; a
+   month after the exam, 80 % against 85 %. The chapter says the first number as plainly as the
+   others, and that the app plans exam practice in the last days too.
+4. **A month to plan (B).** D116's week game gives way to a month: three made-up courses (new and
+   found hard, new, known fairly well), a revision ticked on any evening from day 1 to 27, the exam
+   on day 28. The server answers with each course's memory through the month as a line, the chance
+   each ticked revision works, the plants on the day under a slider (or Play), and the plan scored
+   three ways against the app's rule (each evening the course that has faded most, once it is down
+   to 90 %): the weakest course on exam day, the days below 90 % before it (all three added up), and
+   the weakest a month later, with the revisions each took. What the comparison says comes first:
+   the best cram (one course an evening in the last three, the hardest last) wins exam day, 94 %
+   against 91 %, and the page says so, then that its courses spent 63 days below 90 % (the app's
+   plan: 11) and stand at 74 % a month later (83 %). Ticking every course every evening wins all
+   three, with 81 revisions against the app's 6, and the page counts them. The app's plan revises
+   on days 2, 6 and 15, 3 and 12, and 13. A GET form, so it works without a script; with one, a
+   tick asks for the month again (`?part=month`) and garden.js puts its lanes, scores and plants in
+   place, keeping the focus and writing the plan in the address.
+
+**Measured** by `benchmarks/scroll_flow.mjs` at 1440 × 900, How it works against D120's:
+
+| | screens | empty, mean | tallest empty band | area covered | words read |
+|---|---|---|---|---|---|
+| How it works | 10.5 → 15.4 | 14 % → 15 % | 198 → 207px | 44 % → 58 % | 77 → 135 |
+
+At 1280 × 800: 16.0 screens, 58 % of the area covered (51 % before), 144 words read (79). The page
+is half as long again: two more chapters pinned (Forgetting, which was a row, and Cramming) and the
+month to plan. On a phone (390 × 844) it is 23.6 screens long, 35 % empty on average and 8 % of the
+positions more than half empty, its tallest empty band 482px: each pinned chapter is a track three
+windows tall there (D112), and there are six. The science and code pages are unchanged (225 and
+178 words read at 1440 × 900).
+
+**Not chosen.**
+
+- C, a week against the app (the third proposal): five evenings cannot show what spacing buys,
+  and in the real app the last days before an exam go to exam practice, which the memory model
+  does not count. The month shows the same choice over the time it takes.
+- Scoring exam day alone, or every revision as a success: that made cramming look best (AUDIT 98).
+- The full screen without the words beside it (A as first proposed, the words over the plants):
+  on a laptop's wide window the plants need two thirds of it, and the words stay readable beside
+  them in the layout D120 gave the three pages.
+- Telling one student's luck (a random success or failure for each revision): a reader would see
+  a different month each time for the same plan; the expected value is the same every time.
+
+**Disclosed.**
+
+- The courses are made up, and the app's plan in the month is its self-test rule alone, without
+  the exam practice the real app also plans in the last days. Exam practice is not in the memory
+  model (D46).
+- The expected value merges futures whose stability and difficulty round alike (to a fortieth of
+  a log-day, a quarter of a difficulty point); it is the model's estimate with average weights.
+- The month's verdict ranks the plans by rules written here (the weakest course; the days below
+  90 % added up), which are choices.
+- Checked in Chromium only, with software rendering: at 1440 × 900, 1366 × 657 and 390 × 844,
+  light and dark, with motion, with it reduced (the panels stand, the scenes at rest, the slider
+  still works) and without a script (the month is a form). Not on a real phone, Safari or Firefox.
+  The month's labels can still touch at some widths in a dark theme, where the jars are narrow.
+- The wording is the owner's to review; the Italian was not written by a native speaker.

@@ -333,12 +333,12 @@ small, .muted { color: var(--muted); }
 label, .label { display: block; font-weight: 600; font-size: 0.87rem; margin: 14px 0 6px; }
 label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; margin: 10px 14px 0 0; }
 input, select, textarea { font: inherit; color: var(--text); }
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea {
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), select, textarea {
   width: 100%; min-height: 44px; padding: 10px 13px;
   background: var(--fill-4); border: 0; border-radius: var(--radius-sm);
   -webkit-appearance: none; appearance: none;
 }
-.card input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .card select, fieldset input:not([type="checkbox"]):not([type="radio"]), fieldset select {
+.card input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), .card select, fieldset input:not([type="checkbox"]):not([type="radio"]), fieldset select {
   /* The colour only: the shorthand would also wipe a select's chevron (D57). */
   background-color: var(--surface-2);
 }
@@ -3101,7 +3101,6 @@ main.site.read { max-width: 74rem; }
 .read .code-side > .card, .read .code-side > p { margin: 0; }
 .read .code-caps > li { font-size: 1rem; line-height: 1.45; }
 @media (min-width: 861px) { .read .code-caps > li { font-size: 1.0625rem; } }
-.read .gd-game { margin-top: 32px; }
 @media (max-width: 860px) {
   .read :is(.code-scene, .code-row) { padding: 32px 0; }
   .read .code-hero { padding-bottom: 8px; }
@@ -3137,6 +3136,22 @@ main.site.read { max-width: 74rem; }
   .read .code-panel .code-climb { max-height: 14svh; }
   .read .code-panel .code-land { zoom: 1.2; }
   .read .code-panel :is(.code-days, .code-win) { height: 104px; }
+}
+/* D121: How it works uses the laptop's whole width: its rows wider than the other two
+   pages', the plants two thirds of each; the month across the page, the garden beside
+   its words, the lanes and the scores under them at full width. */
+@media (min-width: 861px) {
+  main.site.read.garden-page { max-width: 100rem; }
+  main.site.read.garden-page { --read-cols: minmax(0, 4fr) minmax(0, 8fr); }
+  .read .gd-month { grid-template-areas: "copy stage" "lanes lanes" "score score"; row-gap: 24px; }
+  .read .gd-month > .code-copy { grid-area: copy; position: static; align-self: center; }
+  .read .gd-month > .gd-month-form { display: contents; }
+  .read .gd-month .gd-month-stage { grid-area: stage; }
+  .read .gd-month .gd-lanes { grid-area: lanes; }
+  .read .gd-month .gd-month-score { grid-area: score; }
+  .gd-lanes-in { min-width: 0; }
+  .gd-score { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .gd-month-scene { height: 360px; }
 }
 /* A laptop's window is often shorter than its screen (1366 × 768 leaves about 650px):
    there a panel's words are set a size smaller, so that the longest (the code page's
@@ -3441,30 +3456,74 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .gd-phone-a span { display: block; text-align: center; border-radius: 12px; padding: 9px 6px; font-weight: 650; background: var(--fill-3); }
 .gd-phone .gd-yes { color: var(--ok); }
 .gd-phone .gd-no { color: var(--danger-text); }
-/* The game: an evening a column, each topic a choice; the two weeks side by side. */
-.gd-game { display: grid; gap: 12px; margin-top: 28px; padding: 18px; }
-.gd-game h3 { margin: 0; font-size: 1.3rem; }
-.gd-picks { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.gd-evening { border: 0; margin: 0; padding: 0; min-width: 0; }
-.gd-evening legend { font-weight: 700; font-size: 0.85rem; color: var(--muted); padding: 0; margin-bottom: 6px; }
-.gd-opts { display: grid; gap: 6px; }
-.gd-pick { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.gd-pick + label { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px; border-radius: 12px; background: var(--fill-3); font-size: 0.84rem; font-weight: 600; cursor: pointer; overflow: hidden; }
-.gd-pick:checked + label { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 2px var(--accent); }
-.gd-pick:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
-.gd-go { grid-column: 1 / -1; margin: 4px 0 0; }
-.gd-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
-.gd-t0 { background: var(--c0); }
-.gd-t1 { background: var(--c1); }
-.gd-t2 { background: var(--c2); }
-.gd-rest { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
-.gd-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-.gd-result { display: grid; gap: 6px; padding: 12px; border-radius: 16px; background: var(--fill-3); min-width: 0; }
-.gd-result h4 { margin: 0; }
-.gd-plan, .gd-score { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font-size: 0.85rem; color: var(--muted); }
-.gd-plan span { display: inline-flex; align-items: center; gap: 5px; }
-.gd-score b { color: var(--text); font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.gd-verdict { font-weight: 650; margin: 0; }
+/* D121: the labels over the plants (garden.js sets their words and places them, in an
+   SVG over the canvas) and the day a scene is at; both only over the 3D. */
+.gd-tags { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; display: none; }
+.gd-3d .gd-tags { display: block; }
+.gd-tag text { paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.gd-tag-big { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; fill: var(--text); font-variant-numeric: tabular-nums; }
+.gd-tag-small { font-size: 13px; font-weight: 600; fill: var(--muted); }
+.gd-low .gd-tag-big { fill: var(--danger-text); }
+.gd-badge { position: absolute; top: 2px; left: 4px; margin: 0; display: none; pointer-events: none; }
+.gd-3d .gd-badge { display: grid; }
+.gd-badge b { font-family: var(--font-display); font-size: clamp(1.4rem, 2.2vw, 2.1rem); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.gd-badge span { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+/* The chapters along the bottom of a laptop's window, the one in view filled as it goes
+   by (garden.js shows it where the scenes run). */
+.gd-timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;
+  padding: 6px max(32px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(32px, env(safe-area-inset-left, 0px));
+  background: var(--bg); box-shadow: 0 -1px 0 var(--line); }
+.gd-timeline[hidden] { display: none; }
+.gd-timeline a { display: grid; gap: 6px; align-content: center; min-height: 44px; min-width: 0; color: var(--muted); font-size: 0.8rem; font-weight: 650; text-decoration: none; }
+.gd-timeline a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gd-timeline a.on { color: var(--text); }
+.gd-timeline svg { display: block; width: 100%; height: 4px; }
+.gd-tl-track { fill: var(--fill-3); }
+.gd-tl-fill { fill: var(--accent); }
+/* The month the student plans: the garden on the day under the slider; a lane a course,
+   its memory over the month and a cell for each evening; the scores and what they say. */
+.gd-month-form { display: grid; gap: 18px; min-width: 0; }
+.gd-month-stage { display: grid; gap: 8px; padding: 12px 14px; margin: 0; min-width: 0; }
+.gd-month-scene { height: 330px; }
+.gd-month-scene .gd-badge { top: auto; bottom: 0; }
+.gd-month-play { display: flex; align-items: center; gap: 14px; margin: 0; }
+.gd-month-play[hidden] { display: none; }
+.gd-month-day { flex: 1 1 auto; min-width: 0; height: 44px; margin: 0; accent-color: var(--accent); }
+.gd-lanes { overflow-x: auto; min-width: 0; }
+.gd-lanes-in { display: grid; gap: 12px; min-width: calc(28 * 2.75rem); }
+.gd-days, .gd-cells { display: grid; grid-template-columns: repeat(28, minmax(0, 1fr)); }
+.gd-days { margin: 0; color: var(--muted); font-size: 0.75rem; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.gd-exam-day { color: var(--danger-text); }
+.gd-lane { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 2px; background: none; border-radius: 0; }
+.gd-lane legend { padding: 0; margin: 0 0 2px; font-size: 0.95rem; }
+.gd-lane legend small { color: var(--muted); font-size: 0.8rem; font-weight: 500; margin-left: 4px; }
+.gd-c0 { --lane: var(--c0); }
+.gd-c1 { --lane: var(--c1); }
+.gd-c2 { --lane: var(--c2); }
+.gd-lane-line { display: block; width: 100%; height: 64px; overflow: visible; }
+.gd-lane-path { fill: none; stroke: var(--lane); stroke-width: 2.5px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.gd-lane-target { stroke: var(--line-strong); stroke-width: 1px; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.gd-lane-exam { stroke: var(--danger); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.gd-cell { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; min-height: 44px; padding-top: 6px; border-radius: 8px; cursor: pointer; }
+.gd-cell:hover { background: var(--fill-4); }
+.gd-cell input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.gd-cell::before { content: ""; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.gd-cell:has(input:checked)::before { background: var(--lane); box-shadow: none; }
+.gd-cell:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gd-cell small { font-size: 0.75rem; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gd-month-score { display: grid; gap: 14px; min-width: 0; }
+.gd-month-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.gd-score { display: grid; gap: 14px; align-items: start; }
+.gd-score .notice { margin: 0; }
+.gd-score-table { width: 100%; margin: 0; padding: 4px 14px; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.gd-score-table :is(th, td) { padding: 9px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+.gd-score-table tbody tr:last-child > * { border-bottom: 0; }
+.gd-score-table thead :is(th, td) { font-size: 0.85rem; color: var(--muted); font-weight: 650; white-space: nowrap; }
+.gd-score-table th[scope="row"] { text-align: left; font-weight: 500; }
+.gd-score-table .gd-better { color: var(--ok); font-weight: 750; }
+.gd-verdict p { margin: 0 0 8px; font-size: 1.0625rem; line-height: 1.5; }
+.gd-verdict p:first-child { font-weight: 650; }
+.gd-verdict p:last-child { margin-bottom: 0; }
 .gd-recap { margin-top: 8px; }
 .gd-more { margin-top: 8px; }
 .gd-bloom { height: 340px; }
@@ -3473,6 +3532,9 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
    steps under it). */
 .garden-page .code-pin-stage > .code-copy h2 { margin-top: 2px; }
 @media (max-width: 860px) {
+  .gd-tag-small, .gd-badge span { display: none; }
+  .gd-tag-big { font-size: 18px; }
+  .gd-badge b { font-size: 1.15rem; }
   .garden-page .code-pin-stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "fig" "caps"; gap: 10px; margin-top: 0; }
   .garden-page .code-pin-stage > .code-copy { grid-area: copy; }
   .garden-page .code-pin-stage > figure { grid-area: fig; }
@@ -3483,9 +3545,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   .garden-page .code-pin-stage .gd-scene { height: clamp(170px, 30svh, 240px); }
   .garden-page .code-pin-stage > .code-copy h2 { font-size: 1.32rem; margin-bottom: 4px; }
   .garden-page .code-pin-stage > .code-copy p { font-size: 0.95rem; line-height: 1.45; margin: 0; }
-  .gd-picks { grid-template-columns: minmax(0, 1fr); }
-  .gd-opts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .gd-pick + label { padding: 0 6px; font-size: 0.78rem; }
+  .gd-month-scene { height: 250px; }
   .gd-tap { gap: 8px 6px; }
   .gd-phone { width: 112px; padding: 10px 8px; gap: 6px; border-radius: 18px; font-size: 0.8rem; }
   .gd-phone-a { gap: 6px; }
@@ -3599,6 +3659,10 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     }
     @media (min-width: 861px) and (max-height: 860px) {
       :root:not([data-motion="reduce"]) .read .code-panel { padding: 14px 0; }
+    }
+    /* D121: room at the bottom of How it works' panels for the line of its chapters. */
+    @media (min-width: 861px) and (min-height: 640px) {
+      :root:not([data-motion="reduce"]) .garden-page .code-panel { padding-bottom: 68px; }
     }
     /* Too short a window to hold a panel: the rows stand still, their figures run as
        the story goes by. */

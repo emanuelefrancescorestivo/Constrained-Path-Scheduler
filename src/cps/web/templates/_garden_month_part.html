@@ -1,0 +1,77 @@
+{% from "_garden.html" import shelf %}
+{# D121: the month the student plans, on How it works, for everyone (B of the laptop
+   proposals; D116's week game gave way to it after the owner's "one can easily say that
+   cramming works best"). Three made-up courses, four weeks, the exam on day 28: a tick on
+   a day is a revision of that course that evening. service.garden_month_view answers
+   with each course's memory through the month as the app's model sees it, a revision
+   working only as often as the course is still remembered then (each tick shows that
+   chance), and the plan scored three ways against the app's: the weakest course on exam
+   day, the days spent below the target before it, and a month later. Cramming wins the
+   first when it does, and the page says so.
+
+   A GET form, so it works without a script; with one, garden.js asks for this part
+   again (`part=month`) whenever a tick changes and puts its lanes, its scores and its
+   plants in place. The plants under the slider are the garden on the day it is set to;
+   without a script they stand on exam day. #}
+{% set m = month %}
+{% set base = "/p/" ~ token if token else "" %}
+<section class="code-row gd-month" id="month">
+  <div class="code-copy">
+    <p class="code-kicker">{{ _("Try it") }}</p>
+    <h2>{{ _("Plan a month yourself") }}</h2>
+    <p>{{ _("Three courses, four weeks, an exam at the end. Tick a day to revise that course on it, and see how your plan scores against the app's.") }}</p>
+    <p class="hint">{{ _("Each line is how much of a course you'd remember, day by day; the dotted one is {t} %. A revision only sticks as often as you still remember the course then, and each tick shows that chance.", t=m.target) }}</p>
+  </div>
+  <form class="gd-month-form" method="get" action="{{ base }}/garden#month">
+    <input type="hidden" name="month" value="1">
+    {% set pots = [] %}{% for course in m.courses %}{% set _ok = pots.append({"w": course.z, "zf": course.zf, "rtf": course.rtf, "drops": course.drops, "tags": course.tags, "roots": course.roots, "name": course.name, "small": course.note}) %}{% endfor %}
+    <div class="card gd-month-stage">
+      {{ shelf(pots, "gd-month-scene", label=_("Three courses as plants on exam day, after your plan"), motion={"t": "cursor", "rest": 1}, badge=m.badge, sid="gd-month-scene") }}
+      <p class="gd-month-play" hidden>
+        <button class="btn btn-tinted gd-play" type="button" data-play="{{ _('Play the month') }}" data-pause="{{ _('Pause') }}">{{ _("Play the month") }}</button>
+        <input class="gd-month-day" type="range" min="0" max="1000" step="1" value="1000" aria-label="{{ _('Day of the month') }}" data-for="gd-month-scene">
+      </p>
+    </div>
+    <div class="gd-lanes">
+      <div class="gd-lanes-in">
+        <p class="gd-days" aria-hidden="true">{% for d in range(1, m.days) %}<span>{{ d }}</span>{% endfor %}<span class="gd-exam-day">{{ _("Exam") }}</span></p>
+        {% for course in m.courses %}
+        <fieldset class="gd-lane gd-c{{ course.index }}">
+          <legend><b>{{ course.name }}</b> <small>{{ course.note }}</small></legend>
+          <svg class="gd-lane-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line class="gd-lane-target" x1="0" y1="{{ m.target_y }}" x2="100" y2="{{ m.target_y }}"></line>
+            <line class="gd-lane-exam" x1="{{ m.exam_x }}" y1="0" x2="{{ m.exam_x }}" y2="100"></line>
+            <path class="gd-lane-path" d="{{ course.path }}"></path>
+          </svg>
+          <div class="gd-cells">
+            {% for cell in course.cells %}
+            <label class="gd-cell{% if cell.on %} on{% endif %}"><input type="checkbox" name="r" value="{{ cell.tick }}" id="gd-{{ cell.tick }}"{% if cell.on %} checked{% endif %}><span class="sr-only">{{ _("{course}, day {n}", course=course.name, n=cell.day) }}</span>{% if cell.on %}<small>{{ cell.chance }}&nbsp;%</small>{% endif %}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="gd-month-score">
+      <p class="gd-month-actions">
+        <button class="btn btn-primary" type="submit">{{ _("Score my plan") }}</button>
+        <button class="btn btn-tinted" type="submit" name="plan" value="app">{{ _("The app's plan") }}</button>
+        <button class="btn btn-tinted" type="submit" name="plan" value="cram">{{ _("Cram at the end") }}</button>
+        <button class="btn btn-plain" type="submit" name="plan" value="clear">{{ _("Clear") }}</button>
+      </p>
+      <div class="gd-score" role="status">
+        {% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
+        <table class="card gd-score-table">
+          <thead><tr><td></td><th scope="col">{{ _("Your plan") }}</th><th scope="col">{{ _("The app's") }}</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">{{ _("Weakest course on exam day") }}</th><td{% if m.lowest.exam > m.app.exam %} class="gd-better"{% endif %}>{{ m.lowest.exam }}&nbsp;%</td><td{% if m.app.exam > m.lowest.exam %} class="gd-better"{% endif %}>{{ m.app.exam }}&nbsp;%</td></tr>
+            <tr><th scope="row">{{ _("Days below {t} % before the exam, all three added up", t=m.target) }}</th><td{% if m.lowest.shaky < m.app.shaky %} class="gd-better"{% endif %}>{{ m.lowest.shaky }}</td><td{% if m.app.shaky < m.lowest.shaky %} class="gd-better"{% endif %}>{{ m.app.shaky }}</td></tr>
+            <tr><th scope="row">{{ _("Weakest course a month later") }}</th><td{% if m.lowest.later > m.app.later %} class="gd-better"{% endif %}>{{ m.lowest.later }}&nbsp;%</td><td{% if m.app.later > m.lowest.later %} class="gd-better"{% endif %}>{{ m.app.later }}&nbsp;%</td></tr>
+            <tr><th scope="row">{{ _("Revisions") }}</th><td>{{ m.count }}</td><td>{{ m.app_count }}</td></tr>
+          </tbody>
+        </table>
+        <div class="gd-verdict">{% for line in m.verdict %}<p>{{ line }}</p>{% endfor %}</div>
+      </div>
+    </div>
+  </form>
+</section>

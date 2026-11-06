@@ -7,6 +7,14 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How it works, for the whole screen and for students (DECISIONS.md D121): on a laptop each
+  chapter fills the window, its plants large and labelled as they change (how much you remember,
+  how long it lasts) with the day it is, and a line of the chapters along the bottom. A new
+  chapter says honestly that cramming works for the next day, and what it costs. The week game
+  gives way to a month you plan yourself: tick the evenings you would revise three courses, play
+  the month, and see your plan scored against the app's on exam day, on the days spent below 90 %
+  and a month later. The words are written again, as a person would say them.
+
 - The explaining pages, easier to read (DECISIONS.md D120): How it works, the science page and How
   the code works lose the sky and the glass for the app's plain grey with solid panels, and share
   one layout: the words on the left, the picture on the right. On a laptop each animated scene is

@@ -1,8 +1,9 @@
-"""How it works (D116, D117): the plain page, a garden told as one story scrolled like
-time, with a game where the free evenings come in. Its numbers are the memory model's,
-its sentences short; its glasses are drawn in WebGL from the scene's data, over a flat
-drawing that stands still without motion; and the technical pages are for the curious
-again."""
+"""How it works (D116, D117, D121): the plain page, a garden told as one story scrolled
+like time, and a month the student plans. Its numbers are the memory model's, its
+sentences written as a person says them; its glasses are drawn in WebGL from the scene's
+data, labelled as they change, over a flat drawing that stands still without motion; the
+month is scored three ways against the app's, so that cramming wins what it wins; and
+the technical pages are for the curious again."""
 
 import html
 import json
@@ -45,8 +46,11 @@ def test_the_story_says_what_the_model_says():
     """Every number the story tells comes from FSRS-6, the model the app runs."""
     view = service.garden_view()
     model, target = FSRS_6, flashcards.RETENTION
-    # Chapter 1: one pot drying, never refilling.
+    # Chapter 1: one pot drying, never refilling; at the target on the day the app would
+    # revise it (D121's steps).
     assert view["one"][0] == 20 and view["one"] == sorted(view["one"], reverse=True) and view["one"][-1] < 20
+    assert view["one_due"] == round(model.interval(2.0, target))
+    assert (view["one_due"], view["one_due_recall"], view["one_end"]) == (2, 90, 79)
     # Chapter 2: two weeks and a month, each topic at its own pace, the shakiest lowest.
     for day, recalls in view["pace"].items():
         assert recalls == sorted(recalls)
@@ -68,9 +72,9 @@ def test_the_story_says_what_the_model_says():
     r = view["report"]
     assert r["grown"] == s["grown"] and r["shrunk_days"] < 7 < r["grown_days"]
     assert r["roots_shrunk"] < r["roots_from"] < r["roots_to"] < 20
-    # The opening shelf and exam day: the game's three topics, on Monday and after the
-    # app's week; every root longer on exam day, every glass at its exam-day water.
-    app = service.garden_view(service._garden_app_plan(model))["game"]["app"]["plants"]
+    # The opening shelf and exam day: three topics, on Monday and after the app's week;
+    # every root longer on exam day, every glass at its exam-day water.
+    app = service._garden_week(model, service._garden_app_plan(model))["plants"]
     assert view["exam"] == app
     assert all(e["roots"] > t["roots"] for t, e in zip(view["start"], view["exam"], strict=True))
     # The numbers DECISIONS.md D117 quotes.
@@ -82,26 +86,84 @@ def test_the_story_says_what_the_model_says():
     assert view["week"]["free"] == len(view["week"]["blocks"]) == view["evenings"] == 5
 
 
-def test_the_game_scores_both_weeks_honestly():
-    """The app's week follows its rule; your week is scored the same way, on the lowest
-    plant on exam day and the evenings it took."""
-    app = service._garden_app_plan(FSRS_6)
-    assert app == ["t0", "t1", "rest", "rest", "t2"]  # the driest first, once it is down to 90 %
-    same = service.garden_view(app)["game"]
-    assert same["verdict"] == "same" and same["yours"] == same["app"] and same["app"]["used"] == 3
-    assert same["app"]["lowest"] >= round(100 * flashcards.RETENTION)
-    drooped = service.garden_view(["t0"] * 5)["game"]
-    assert (
-        drooped["verdict"] == "drooped" and drooped["yours"]["lowest"] < 90 and drooped["yours"]["used"] == 5
-    )
-    assert (same["app"]["lowest"], drooped["yours"]["lowest"]) == (93, 85)  # as D116 says
-    every = service.garden_view(["t0", "t1", "t2", "t0", "t1"])["game"]
-    assert every["yours"]["lowest"] == 98
-    # Revising every evening reaches more, with every evening: the page says so.
-    assert every["verdict"] == "more" and every["yours"]["lowest"] > every["app"]["lowest"]
-    for bad in (["t0"] * 4, ["t0", "t1", "t2", "t9", "rest"], ["", "", "", "", ""]):
+def test_cramming_wins_the_next_day_and_loses_the_rest():
+    """D121, the owner: "one can easily say that cramming works best". The cramming
+    chapter counts that a revision may not work (its chance is the recall then) and
+    scores both ways three times: exam day, the days below the target before it, and a
+    month on. Cramming wins the first, and the chapter says so."""
+    model, target = FSRS_6, flashcards.RETENTION
+    c = service.garden_view()["cram"]
+    crammed, spaced = c["pots"]
+    assert crammed["exam"] > spaced["exam"] >= round(100 * target)  # cramming wins exam day
+    assert crammed["later"] < spaced["later"]  # and loses a month on
+    assert c["shaky"][0] > c["shaky"][1]  # and the month before it
+    # Its chance: the recall of a new topic after 27 days untouched.
+    fresh = model.initial_state(Grade.GOOD)
+    assert c["chance"] == round(100 * model.retrievability(27.0, fresh.stability))
+    # The numbers DECISIONS.md D121 quotes.
+    assert (crammed["exam"], spaced["exam"], crammed["later"], spaced["later"]) == (96, 91, 80, 85)
+    assert (c["shaky"], c["chance"], c["revisions"]) == ([25, 4], 68, 2)
+    # Each step holds what it says: the spaced revisions in the first half, the cram in
+    # the third quarter, the exam where the last begins.
+    assert all(d[1] <= 0.5 for d in spaced["drops"]) and len(spaced["drops"]) == c["revisions"]
+    assert [0.5 <= d[0] < d[1] <= c["split"] for d in crammed["drops"]] == [True]
+    assert [b[1] for b in c["badge"] if b[0] == c["split"]] == ["Exam day"]
+
+
+def test_the_month_is_scored_three_ways_against_the_apps():
+    """D121: the month the student plans. The app's plan follows its rule; any plan is
+    scored on the weakest course on exam day, the days below the target before it and a
+    month later, each revision working only as often as the course is remembered then."""
+    model, target = FSRS_6, flashcards.RETENTION
+    app = service.garden_month_view()
+    assert app["is_app"] and app["count"] == app["app_count"] == 6 and len(app["verdict"]) == 1
+    assert service._garden_month_app() == ((2, 6, 15), (3, 12), (13,))  # as D121 says
+    assert (app["app"]["exam"], app["app"]["shaky"], app["app"]["later"]) == (91, 11, 83)
+    # The app's rule: each evening the course that has faded most, once it is down to the
+    # target; so each of its revisions comes when its course is at or just under it.
+    chances = [cell["chance"] for course in app["courses"] for cell in course["cells"] if cell["on"]]
+    assert len(chances) == 6 and all(85 <= c <= round(100 * target) for c in chances)
+    # A course's first revision: its chance is its recall that evening.
+    hard = service._garden_month_starts(model)[0]
+    first = model.retrievability(service._month_evening(2), hard.stability)
+    assert app["courses"][0]["cells"][1]["chance"] == round(100 * first)
+    # The best cram, one course an evening, the hardest last: it wins exam day, and the
+    # page says so before what it costs.
+    cram = service.garden_month_view(preset="cram")
+    assert [[d["day"] for d in c["cells"] if d["on"]] for c in cram["courses"]] == [[27], [26], [25]]
+    assert (cram["lowest"]["exam"], cram["lowest"]["shaky"], cram["lowest"]["later"]) == (94, 63, 74)
+    assert cram["verdict"][0].startswith("You win exam day") and "next day" in cram["verdict"][1]
+    assert "63 days below 90" in cram["verdict"][2] and "74" in cram["verdict"][3]
+    # More revisions win more, and the page counts them.
+    every = service.garden_month_view([f"{c}-{d}" for c in range(3) for d in range(1, 28)])
+    assert every["lowest"]["exam"] > app["app"]["exam"] and every["count"] == 81
+    assert every["lowest"]["shaky"] < app["app"]["shaky"] and every["lowest"]["later"] > app["app"]["later"]
+    assert "81 revisions" in every["verdict"][-1]
+    # Nothing ticked: every course left alone, the app ahead on all three.
+    clear = service.garden_month_view(preset="clear")
+    assert clear["count"] == 0 and clear["lowest"]["exam"] < app["app"]["exam"]
+    assert service.garden_month_view([])["count"] == 0
+    for ticks, preset in ((["0-28"], None), (["3-1"], None), (["0-0"], None), (["x"], None), ([], "nope")):
         with pytest.raises(service.InvalidInput):
-            service.garden_view(bad)
+            service.garden_month_view(ticks, preset)
+
+
+def test_every_label_says_its_number_and_warns_below_the_target():
+    """D121: the laptop's labels are the server's: from a point of the scene on, a number,
+    a line under it, and whether it is below the target (drawn as a warning)."""
+    view, month = service.garden_view(), service.garden_month_view(preset="cram")
+    fine = view["fine"]
+    lists = [fine["one"]["tags"], *(p["tags"] for p in fine["pace"]["pots"])]
+    lists += [p["tags"] for p in fine["time"]["pots"]] + [p["tags"] for p in view["cram"]["pots"]]
+    lists += [c["tags"] for c in month["courses"]]
+    for tags in lists:
+        assert [t[0] for t in tags] == sorted(t[0] for t in tags) and tags[0][0] == 0.0
+        for progress, big, small, low in tags:
+            number = int(big.split(" ")[0])
+            assert 0 <= progress <= 1 and small and low == (number < 90)
+    for badge in (fine["one"]["badge"], view["cram"]["badge"], month["badge"]):
+        assert all(len(b) == 3 and b[1] for b in badge)
+    assert month["badge"][0][1] == "Day 1" and month["badge"][-1][1] == "Exam day"
 
 
 def _sentences(text: str) -> list[str]:
@@ -109,46 +171,51 @@ def _sentences(text: str) -> list[str]:
 
 
 def test_the_story_is_told_in_short_sentences():
-    """The writing rule of the proposal (D116): sentences of 15 words or fewer, steps of
-    45 words or fewer, so a first-year reads the page without stopping."""
+    """The writing rule: D116's sentences of 15 words or fewer read as written by a
+    machine (the owner, D121), so they are written again as a person says them, in
+    sentences of up to 25 words and paragraphs of up to 60."""
     source = (TEMPLATES / "garden.html").read_text(encoding="utf-8")
+    source += (TEMPLATES / "_garden_month_part.html").read_text(encoding="utf-8")
     strings = re.findall(r'_n?\(\s*"((?:[^"\\]|\\.)*)"(?:\s*,\s*"((?:[^"\\]|\\.)*)")?', source)
     texts = [t for pair in strings for t in pair if t]
     assert len(texts) > 60
     for text in texts:
         words = re.findall(r"[\w{}'’]+", text)
-        assert len(words) <= 45, text
+        assert len(words) <= 60, text
         for sentence in _sentences(text):
-            assert len(re.findall(r"[\w{}'’]+", sentence)) <= 15, sentence
+            assert len(re.findall(r"[\w{}'’]+", sentence)) <= 25, sentence
 
 
 def test_the_page_opens_for_anyone_and_inside_a_plan(web, token):
     page = web.get("/garden").text
-    assert page.count('class="code-scene') == 6 and len(re.findall(r'<div class="code-pin[ "]', page)) == 4
-    for chapter in ("plant", "pace", "time", "evenings", "morning", "exam"):
+    assert page.count('class="code-scene') == 7 and len(re.findall(r'<div class="code-pin[ "]', page)) == 6
+    for chapter in ("plant", "pace", "time", "cram", "evenings", "morning", "exam", "month"):
         assert f'id="{chapter}"' in page
     # A pinned chapter's words are in its stage, before its picture (D117, AUDIT 95).
-    for chapter in ("pace", "time", "evenings", "morning"):
+    for chapter in ("plant", "pace", "time", "cram", "evenings", "morning"):
         part = page.split(f'id="{chapter}"', 1)[1]
         assert part.index('class="code-pin-stage"') < part.index('class="code-copy"') < part.index("<figure")
     assert page.count('class="chat scroll-fig"') == 1 and "av-ghost" in page  # the reader, not made yet
-    # The game: a form the server answers, five evenings of four choices.
-    assert re.search(r'<form class="gd-picks" method="get" action="/garden#game">', page)
-    assert page.count('class="gd-evening"') == 5 and page.count('class="gd-pick" type="radio"') == 20
-    played = web.get("/garden?e1=t0&e2=t0&e3=t0&e4=t0&e5=t0")
-    assert (
-        played.status_code == 200 and "fell below 90" in played.text and played.text.count("gd-result") >= 2
-    )
-    refused = web.get("/garden?e1=t0&e2=nope")
-    assert (
-        refused.status_code == 400 and 'class="notice"' in refused.text and 'gd-result"' not in refused.text
-    )
+    # The month (D121): a form the server answers, three courses of 27 evenings, the
+    # app's plan ticked until the student changes it; the chapters' line for a laptop.
+    assert re.search(r'<form class="gd-month-form" method="get" action="/garden#month">', page)
+    assert page.count('type="checkbox" name="r"') == 81 and page.count(" checked>") == 6
+    assert '<nav class="gd-timeline"' in page and page.count("data-chapter=") == 7
+    played = web.get("/garden?month=1&r=0-27&r=1-26&r=2-25")
+    assert played.status_code == 200 and "You win exam day" in played.text and "63 days below" in played.text
+    assert played.text.count(" checked>") == 3
+    part = web.get("/garden?month=1&r=0-27&part=month")
+    assert part.status_code == 200 and '<section class="code-row gd-month" id="month">' in part.text
+    assert "<html" not in part.text and part.text.count('type="checkbox" name="r"') == 81
+    assert web.get("/garden?month=1").text.count(" checked>") == 0  # nothing ticked is a plan too
+    refused = web.get("/garden?r=0-99")
+    assert refused.status_code == 400 and 'class="notice"' in refused.text
     inside = web.get(f"/p/{token}/garden")
-    assert inside.status_code == 200 and f'action="/p/{token}/garden#game"' in inside.text
+    assert inside.status_code == 200 and f'action="/p/{token}/garden#month"' in inside.text
     assert f'href="/p/{token}/science"' in inside.text and f'href="/p/{token}/how"' in inside.text
     assert web.get("/p/not-a-plan/garden").status_code == 404
-    assert "Ton plan de révision est un jardin" in web.get("/garden?lang=fr").text
-    assert "Il tuo piano di studio è un giardino" in web.get("/garden?lang=it").text
+    assert "Tes cours sont des plantes" in web.get("/garden?lang=fr").text
+    assert "I tuoi corsi sono piante" in web.get("/garden?lang=it").text
 
 
 def test_the_plain_page_is_first_and_the_technical_pages_are_technical(web, token):
@@ -176,33 +243,50 @@ def test_each_scene_carries_the_numbers_it_draws(web):
     view = service.garden_view()
     page = web.get("/garden").text
     assert '<script type="module" src="/static/garden.js">' in page or "/garden.js" in page
-    hero, one, pace, time, morning, exam = _scenes(page)
-    assert (hero["t"], one["t"], pace["t"], time["t"], morning["t"], exam["t"]) == (
+    hero, one, pace, time, cram, morning, exam, month = _scenes(page)
+    assert [x["t"] for x in (hero, one, pace, time, cram, morning, exam, month)] == [
         "exit",
+        "pin",
+        "pin",
+        "pin",
+        "pin",
+        "pin",
         "cover",
-        "pin",
-        "pin",
-        "pin",
-        "cover",
-    )
+        "cursor",
+    ]
     assert [p["rt"] for p in hero["pots"]] == [t["roots"] for t in view["start"]]
+    fine = view["fine"]
     assert one["pots"][0]["z"] == view["one"] and one["pots"][0]["rt"] == view["one_roots"]
+    # D121: the laptop's finer stops, labels and day, beside the flat drawing's eight.
+    assert one["pots"][0]["zf"] == fine["one"]["zf"] and len(fine["one"]["zf"]) == service.GARDEN_FINE
+    assert one["pots"][0]["tags"] == fine["one"]["tags"] and one["badge"] == fine["one"]["badge"]
     columns = view["fade"]["columns"]
     assert [p["z"] for p in pace["pots"]] == [c["zq"] for c in columns]
+    assert [p["zf"] for p in pace["pots"]] == [p["zf"] for p in fine["pace"]["pots"]]
     assert [p["rt"] for p in pace["pots"]] == view["pace_roots"]
     s, r = view["spacing"], view["report"]
     soon, just = time["pots"]
     assert (soon["z"], just["z"]) == (s["soon"], s["just"])
     assert soon["rt"] == s["roots_from"] and (just["rf"], just["rt"]) == (s["roots_from"], s["roots_to"])
+    assert (just["rtf"][0], just["rtf"][-1]) == (s["roots_from"], s["roots_to"])
     # Each glass is watered in the step that says so: the second step, then the third.
     assert soon["drop"] == [0.25, 0.36] and just["drop"] == just["ra"] == [0.6, 0.72]
     assert 0.25 <= soon["drop"][0] < soon["drop"][1] <= 0.5 <= just["drop"][0] < just["drop"][1] <= 0.75
+    assert [p["z"] for p in cram["pots"]] == [p["w"] for p in view["cram"]["pots"]]
+    assert [p["drops"] for p in cram["pots"]] == [p["drops"] for p in view["cram"]["pots"]]
+    assert cram["badge"] == view["cram"]["badge"]
     yes, no = morning["pots"]
     assert (yes["rf"], yes["rt"]) == (r["roots_from"], r["roots_to"])
     assert (no["rf"], no["rt"]) == (r["roots_from"], r["roots_shrunk"])
+    assert (yes["tags"], no["tags"]) == (fine["morning"]["yes"], fine["morning"]["no"])
     assert yes["ra"][0] >= 1 / 3 and yes["ra"][1] <= 2 / 3 and no["wilt"][0] >= 2 / 3 and no["ra"][0] >= 2 / 3
     assert [p["z"] for p in exam["pots"]] == [p["z"] for p in view["exam"]]
     assert all(p["bloom"] == [0, 1] for p in exam["pots"]) and not any(p["bloom"] for p in pace["pots"])
+    # The month: the garden under the slider, standing on exam day without a script.
+    planned = service.garden_month_view()
+    assert month["rest"] == 1 and month["badge"] == planned["badge"]
+    drawn = [(p["z"], p["rt"], p["zf"]) for p in month["pots"]]
+    assert drawn == [(c["z"], c["roots"], c["zf"]) for c in planned["courses"]]
     # The flat drawing's ranges, in the stylesheet, are the same.
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     for selector, (a, b) in (
@@ -215,20 +299,13 @@ def test_each_scene_carries_the_numbers_it_draws(web):
     ):
         rule = re.search(re.escape(selector) + r" \{[^}]*animation-range: contain (\d+)% contain (\d+)%", css)
         assert rule and (int(rule[1]), int(rule[2])) == (round(100 * a), round(100 * b)), selector
-    # The game's two shelves, still, each glass at its exam-day water and roots.
-    played = web.get("/garden?e1=t0&e2=t0&e3=t0&e4=t0&e5=t0").text
-    game = service.garden_view(["t0"] * 5)["game"]
-    yours, apps = _scenes(played)[4:6]  # chapter 4 comes before chapter 5
-    assert yours["t"] == apps["t"] == "still"
-    for drawn, week in ((yours, game["yours"]), (apps, game["app"])):
-        assert [(p["z"], p["rt"]) for p in drawn["pots"]] == [(p["z"], p["roots"]) for p in week["plants"]]
 
 
 def test_the_3d_draws_only_when_something_changed():
     """D93 and D117: the WebGL draws a frame when the page scrolled, a scene came into
     view, the page was resized or its theme changed, and eases to where the page is and
-    stops; with reduced motion it draws each scene once. It sets no style and says no
-    words (the flat drawing and the page's text say what it shows)."""
+    stops; with reduced motion it draws each scene once. It sets no style and has no
+    words of its own: D121's labels and days are the server's, from the scene's data."""
     js = (STATIC / "garden.js").read_text(encoding="utf-8")
     assert "setInterval" not in js and "setTimeout" not in js and ".style" not in js
     assert js.count("requestAnimationFrame(tick)") == 2  # on a wake, and again only while easing
@@ -237,6 +314,10 @@ def test_the_3d_draws_only_when_something_changed():
     assert 'CSS.supports("animation-timeline: view()")' in js
     assert 'addEventListener("scroll", wake, { passive: true })' in js and "if (moving)" in js
     assert not re.search(r"\bt\(\s*[\"']", js)  # no sentence for the reader
+    # D121: the month's Play goes a frame at a time and stops at exam day or on a tap; a
+    # tick asks the server for the month again.
+    assert "playing = requestAnimationFrame(play)" in js and "if (next >= 1) return stop();" in js
+    assert "fetch(`${url}?${query}&part=month`" in js
 
 
 def test_the_garden_moves_only_with_motion_and_stands_still_without():

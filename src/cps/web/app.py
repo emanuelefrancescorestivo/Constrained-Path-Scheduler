@@ -1055,20 +1055,27 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return page(request, "science.html", token=token, science=service.science_view(), **plain)
 
-    # -- How it works (D116): the garden, for everyone; its game answered here ----------
+    # -- How it works (D116): the garden, for everyone; the month planned answered here --
 
     def garden_page(request: Request, token: str | None, subscription: Any = None) -> HTMLResponse:
-        picks = [request.query_params.get(f"e{i}") for i in range(1, service.GARDEN_EVENINGS + 1)]
-        played = [p or "" for p in picks] if any(picks) else None
+        # D121: the month the student plans is a form this page answers: the days ticked
+        # ("r", "<course>-<day>", any number) or one of the plan buttons ("plan"). With
+        # `part=month` the answer is the planner alone, for the page's script to put in
+        # place; without a script the whole page comes back, at the planner.
+        ticks = [str(t) for t in request.query_params.getlist("r")][: 3 * service.GARDEN_MONTH_DAYS]
+        preset = request.query_params.get("plan") or None
+        asked = bool(ticks) or preset is not None or "month" in request.query_params
         error = None
         try:
-            view = service.garden_view(played)
+            month = service.garden_month_view(ticks if asked else None, preset)
         except service.ServiceError as problem:
-            view, error, played = service.garden_view(None), str(problem), None
-        context: dict[str, Any] = {"story": view, "picks": played, "error": error, **plain}
+            month, error = service.garden_month_view(), str(problem)
+        context: dict[str, Any] = {"month": month, "error": error, **plain}
         if token:
             context.update(token=token, my_avatar=service.avatar_of(subscription))
-        return page(request, "garden.html", 400 if error else 200, **context)
+        if request.query_params.get("part") == "month":
+            return page(request, "_garden_month_part.html", 400 if error else 200, **context)
+        return page(request, "garden.html", 400 if error else 200, story=service.garden_view(), **context)
 
     @app.get("/garden", response_class=HTMLResponse)
     def garden(request: Request) -> HTMLResponse:
