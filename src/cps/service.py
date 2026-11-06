@@ -11456,7 +11456,7 @@ def _science_city(model: Model, kept: dict, land: dict) -> dict:
     evenings = (
         (_("Mon"), _("a street"), _("fading"), 2, "mo-k-forget"),
         (_("Tue"), _("an essay"), _("due Wed"), 0, "mo-k-deadline"),
-        (_("Wed"), _("a free"), _("evening"), 4, "mo-k-free"),
+        (_("Wed"), _("nothing"), _("due"), 4, "mo-k-free"),
         (_("Thu"), _("a past"), _("paper"), 1, "mo-k-exam"),
         (_("Fri"), _("the next"), _("task"), 3, "mo-k-ahead"),
     )

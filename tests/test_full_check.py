@@ -225,8 +225,8 @@ def test_one_main_heading_no_level_skipped_and_no_id_twice(tmp_path, path):
 def test_no_text_under_12px():
     small = []
     for line in CSS.read_text().splitlines():
-        if ".climb-plot text" in line or ".sci-tick" in line:
-            continue  # inside a drawing, which scales its text with it
+        if ".climb-plot text" in line or ".sci-tick" in line or ".mo-figure " in line:
+            continue  # inside a drawing, which scales its text with it (a phone's sizes below are 12+)
         if ".tabbar a" in line and re.search(r"\{ font-size: 0\.6(875|25)rem", line):
             continue  # the tab bar on phones under 376px and 341px: "Communauté" must fit (AUDIT 69)
         for value, unit in re.findall(r"font-size:\s*([0-9.]+)(rem|px)\b", line):

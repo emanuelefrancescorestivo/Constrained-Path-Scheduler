@@ -3554,35 +3554,35 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .mo-dot, .mo-step { fill: var(--accent); stroke: var(--surface); stroke-width: 2px; }
 .mo-other { fill: var(--busy); stroke: var(--surface); stroke-width: 1px; }
 .lvl-key.mo-other-key { background: var(--busy); border-radius: 50%; }
-.mo-label { fill: var(--text); font-size: 9px; font-weight: 600; }
-.mo-small { fill: var(--muted); font-size: 8px; }
-.mo-lost { fill: var(--danger-text); font-size: 8px; font-weight: 650; }
-.mo-badge { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
-.mo-end, .mo-times { fill: var(--text); font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; }
+/* Text inside a drawing scales with it (as .sci-tick, AUDIT 92): these sizes are units of
+   the figure's box, about 1.8 px each on a laptop; on a phone, below, 12 units or more. */
+.mo-figure .mo-label { fill: var(--text); font-size: 9px; font-weight: 600; }
+.mo-figure .mo-small { fill: var(--muted); font-size: 8px; }
+.mo-figure .mo-lost { fill: var(--danger-text); font-size: 8px; font-weight: 650; }
+.mo-figure .mo-badge { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
+.mo-figure :is(.mo-end, .mo-times) { fill: var(--text); font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .mo-card { stroke: var(--line); stroke-width: 1px; }
 .mo-low { fill: var(--fill-3); }
 .mo-high { fill: color-mix(in srgb, var(--mem-good) 22%, var(--surface)); }
-.mo-rating { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
+.mo-figure .mo-rating { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
 .mo-k-deadline { fill: var(--danger-soft); }
 .mo-k-exam { fill: var(--accent-soft); }
 .mo-k-forget { fill: color-mix(in srgb, var(--mem-good) 24%, var(--surface)); }
 .mo-k-ahead { fill: var(--fill-3); }
 .mo-k-free { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1px; stroke-dasharray: 4 4; }
-.mo-day { fill: var(--muted); font-size: 9px; font-weight: 750; }
-.mo-rank { fill: var(--text); font-size: 11px; font-weight: 800; }
-.mo-label.mo-rule { font-size: 10px; }
+.mo-figure .mo-day { fill: var(--muted); font-size: 9px; font-weight: 750; }
+.mo-figure .mo-rank { fill: var(--text); font-size: 11px; font-weight: 800; }
+.mo-figure .mo-label.mo-rule { font-size: 10px; }
 /* Without motion: the real thing, and two buttons to see the story's picture. */
 .mo-toggle { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
 .mo-toggle[hidden] { display: none; }
 .mo-toggle button { min-height: 40px; border: 0; border-radius: 980px; padding: 6px 14px; background: var(--fill-3); color: var(--text); font: inherit; font-size: 0.9rem; font-weight: 650; cursor: pointer; }
 .mo-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 @media (max-width: 560px) {
-  .mo-label, .mo-day { font-size: 11px; }
-  .mo-small, .mo-lost { font-size: 10px; }
-  .mo-label.mo-rule { font-size: 12px; }
-  .mo-badge { font-size: 15px; }
-  .mo-rating { font-size: 14px; }
-  .mo-end, .mo-times, .mo-rank { font-size: 12px; }
+  .mo-svg :is(.mo-label, .mo-day, .mo-end, .mo-times, .mo-rank) { font-size: 13px; }
+  .mo-svg :is(.mo-small, .mo-lost) { font-size: 12px; }
+  .mo-svg .mo-label.mo-rule { font-size: 13px; }
+  .mo-svg :is(.mo-badge, .mo-rating) { font-size: 15px; }
 }
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
