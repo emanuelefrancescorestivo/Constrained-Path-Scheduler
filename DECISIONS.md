@@ -4740,60 +4740,18 @@ windows tall there (D112), and there are six. The science and code pages are unc
   The month's labels can still touch at some widths in a dark theme, where the jars are narrow.
 - The wording is the owner's to review; the Italian was not written by a native speaker.
 
-## D122. The science page told as a new city, each picture turning into its chart
+## D122. The science page told as a new city (reverted)
 
-*The owner, after D121, asked to make the science and code pages "more accessible … by making them
-interactive and especially … a narrative that relates to university students so that they can
-understand by pure parallalisation of such narrative onto the code and science of the brain". Of
-three stories for the science page (training at the gym, a first month in a new city, a song stuck
-in your head) and three layouts (side by side, one picture that turns into the other, story first
-and the science after), the owner chose "Your first month in a new city" and "One picture that
-turns into the other, everywhere". The code page's story, Google Maps, follows as D123.*
+*D122 told the science page as a student's first month in a new city, each figure a street map
+turning into its chart as it was scrolled (merged in pull request 64). The owner, seeing it live:
+"the plant was more 3d and was better, this route thing is not good... we need to find something
+else". It is reverted whole, so the science page is again D113's and D120's, and the street map
+planned for the code page (D123) was not merged.*
 
-**Chosen.**
-
-1. **The story.** Each course is a new city whose map the brain draws street by street. The
-   chapters are named by the story and keep the science's name above them: Streets you walked once
-   (memory fades, at its own pace), Walk it again as it fades (why the wait matters), Put the phone
-   away (testing beats rereading), Planning the week's walks (how your week is planned), The city
-   learns your pace (fitted to you, slowly), Blank parts of the map (what we do not know yet).
-2. **Every figure turns into its chart.** Each pinned scene starts as the story's picture and
-   becomes the real figure as it is scrolled through:
-   - three routes of a first week (a café found once, the way to the library, home) fade over a week
-     and unroll into the forgetting curves of topics that hold 2, 7 and 30 days;
-   - the library route walked again at five moments, each as thick as how long it then lasts,
-     stands up into the spacing effect's bars, with the sturdier topics' gains as dots (D113's 3D
-     landscape and its draining columns gave way: a picture cannot turn into CSS towers);
-   - two streets, one walked again each time it fades and one never, flatten into their curves;
-   - a phone's blue line and a route found alone, a week on, become the techniques the research
-     rates low and high (Dunlosky and colleagues, 2013, as the page already quoted);
-   - five evenings in the week's order move into the order the app gives them out.
-3. **How.** The service draws each figure as a list of shapes, each in its real state (its
-   attributes) and with the story's states as keyframes over the scene (`_science_city`,
-   `_morph`). static/morph.js reads between the keyframes as the page is scrolled, on the same
-   timeline the steps are lit by, and sets attributes only: numbers eased, a line's points point
-   by point (a street has as many points as the curve it becomes). The stylesheet gives the shapes
-   only their colours and type, so it never overrides what the script moves. Without the script,
-   each figure is its chart. Without motion, or where scrolling does not drive animations, two
-   buttons switch a figure between the story and the real thing at once.
-4. **Numbers.** Every number in either state is the service's: the routes' fading is each topic's
-   recall a week on (79, 90 and 97 %), the curves FSRS-6's, the walks' widths how long the route
-   then lasts (7, 15, 23, 41 and 60 days), the bars the times longer, the kept topic's tests the
-   days D113 found (2, 10 and 35). `tests/test_city.py` holds them, and that the last keyframe of
-   every shape is the state a page without its script shows.
-
-**Not chosen.**
-
-- Side by side: two pictures to read at once; the owner chose the picture that turns.
-- Story first, then the science: the longest page, each story far from its chart.
-- The gym and the song: the gym told the spacing effect best but shared nothing with the code
-  page's map; the song's rhyme and melody make lyrics easier than course material.
-- Keeping D113's 3D: a picture cannot turn into CSS towers; its numbers are in the bars.
-
-**Disclosed.**
-
-- A city is a likeness: a course is not made of streets, and the phone's chapter illustrates the
-  research's rating, it does not measure it.
-- Checked in Chromium only, at 1440 × 900 and 390 × 844, light and dark, with motion and with it
-  reduced; not on a real phone, Safari or Firefox.
-- The wording is the owner's to review; the Italian was not written by a native speaker.
+- What was learnt: a flat map drawn in lines read as a diagram, not a world; the owner prefers
+  the depth and material of How it works' WebGL plants (D117, D119).
+- Next, the owner's choice of three 3D worlds (one garden, the brain, glass and light): the
+  brain, a memory trace as a glowing pathway that dims as it fades and thickens with each recall,
+  first as a live prototype to approve before the pages change.
+- The code is in the history (the merge of pull request 64 and its revert), should a part of it
+  (the picture that turns into the chart, static/morph.js) be wanted again.
