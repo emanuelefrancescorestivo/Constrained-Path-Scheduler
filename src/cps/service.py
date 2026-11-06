@@ -41,6 +41,7 @@ import base64
 import contextlib
 import functools
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -10896,6 +10897,7 @@ def science_view() -> dict:
     recall_week = {d: round(100 * model.retrievability(float(d), week)) for d in (7, 14, 30)}
     state = MemoryState(stability=SCIENCE_SPACING, difficulty=5.0)
     spacing = {g: round(model.review(state, float(g), Grade.GOOD).stability, 1) for g in (0, 5, 15, 30)}
+    kept, land = _kept_up(model), _science_land(model)
     return {
         "curves": curves,
         "days": SCIENCE_DAYS,
@@ -10912,10 +10914,12 @@ def science_view() -> dict:
         "own_after": fitting.MIN_REVIEWS,
         "credit_hours": f"{_syllabus.CREDIT_HOURS[0]}–{_syllabus.CREDIT_HOURS[1]}",
         "sources": [SCIENCE_SOURCES[k] for k in SCIENCE_KEYS],
-        "kept": _kept_up(model),
+        "kept": kept,
         # D113: the scenes that run as the page is scrolled through.
         "fade": _science_fade(model),
-        "land": _science_land(model),
+        "land": land,
+        # D122: the story of a new city, each picture turning into its figure.
+        "city": _science_city(model, kept, land),
     }
 
 
@@ -11057,6 +11061,441 @@ def _kept_at(model: Model, held: list[tuple[float, float]], step: int) -> dict:
         "recall": round(100 * model.retrievability(day - since, stability)),
         "holds": format_number(stability, 0),
         "alone": round(100 * model.retrievability(day, SCIENCE_KEPT_FROM)),
+    }
+
+
+# -- The science page told as a new city, each picture turning into its figure (D122) --
+
+# The owner chose, of three stories, "Your first month in a new city" and, of three
+# layouts, "one picture that turns into the other, everywhere": each figure of the science
+# page is first a picture of the story (streets you walked once, a route walked again,
+# the phone's blue dot, a week of evenings) and turns into the real chart as its scene is
+# scrolled through. Each element of a figure is one shape with two states: the real one
+# as its attributes, which a page without its script shows, and the story's as keyframes
+# over the scene (`data-k`), which static/morph.js reads between. Every number in either
+# state is computed here, as the rest of the page's.
+CITY_POINTS = 61  # points on a street that unrolls into a curve (a day each over 60 days)
+# The charts the story's pictures turn into are taller than the page's others (recall
+# from 0 to 100 % over 160 units, not 100), so that on a laptop they fill their panel.
+CITY_H = 160.0
+
+
+def _taller(points: str, k: float = CITY_H / 100) -> str:
+    """A polyline's points drawn in a 100-tall box, redrawn in a CITY_H-tall one."""
+    return " ".join(f"{x},{float(y) * k:.1f}" for x, y in (p.split(",") for p in points.split()))
+
+
+def _pts(points: Sequence[tuple[float, float]]) -> str:
+    return " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+
+
+def _along(waypoints: Sequence[tuple[float, float]], fractions: Sequence[float]) -> list[tuple[float, float]]:
+    """Points at the given fractions of a route's length, the route through `waypoints`."""
+    legs = [math.dist(a, b) for a, b in itertools.pairwise(waypoints)]
+    total = sum(legs) or 1.0
+    out = []
+    for f in fractions:
+        left = max(0.0, min(1.0, f)) * total
+        for (a, b), leg in zip(itertools.pairwise(waypoints), legs, strict=True):
+            if left <= leg or b == waypoints[-1]:
+                k = left / leg if leg else 0.0
+                out.append((a[0] + (b[0] - a[0]) * min(k, 1.0), a[1] + (b[1] - a[1]) * min(k, 1.0)))
+                break
+            left -= leg
+    return out
+
+
+def _morph(
+    tag: str,
+    cls: str,
+    real: dict[str, Any],
+    story: dict[str, Any] | None = None,
+    turn: tuple[float, float] = (0.5, 0.75),
+    before: Sequence[tuple[float, dict[str, Any]]] = (),
+    text: str = "",
+) -> dict:
+    """One element of a figure that turns from the story into the real thing (D122).
+    `real` is its attributes as the real figure has them; `story`, those that differ in
+    the story's picture, held until the scene reaches turn[0] and turning into the real
+    ones by turn[1]; `before`, changes within the story's picture, (progress, attributes)
+    in order. The keyframes list, at each progress, every attribute that moves."""
+    story = dict(story or {})
+    keys = list(dict.fromkeys([*story, *(k for _, step in before for k in step)]))
+    frames: list[list[Any]] = []
+    if keys:
+        now = {k: story.get(k, real.get(k)) for k in keys}
+        frames.append([0.0, dict(now)])
+        for at, step in before:
+            now.update(step)
+            frames.append([round(at, 3), dict(now)])
+        frames.append([round(turn[0], 3), dict(now)])
+        frames.append([round(turn[1], 3), {k: real.get(k) for k in keys}])
+    return {"tag": tag, "cls": cls, "attrs": real, "k": frames, "text": text}
+
+
+def _story_only(
+    tag: str, cls: str, attrs: dict, turn: tuple[float, float], text: str = "", **kw: Any
+) -> dict:
+    """A part of the story's picture that the real figure does not have: there until the
+    scene turns, then gone (and absent without the script)."""
+    return _morph(tag, cls, {**attrs, "opacity": 0}, {"opacity": 1}, turn=turn, text=text, **kw)
+
+
+def _real_only(tag: str, cls: str, attrs: dict, turn: tuple[float, float], text: str = "") -> dict:
+    """A part of the real figure that the story's picture does not have."""
+    return _morph(tag, cls, {**attrs, "opacity": 1}, {"opacity": 0}, turn=turn, text=text)
+
+
+def _chart_frame(target_y: float, days: int, turn: tuple[float, float], label90: str = "90 %") -> list[dict]:
+    """The real chart's grid, axis and ticks (a 300 × CITY_H box, recall up), appearing as
+    the picture turns into it."""
+    tick, h = "sci-tick", CITY_H
+    return [
+        _real_only("line", "sci-grid", {"x1": 0, "y1": target_y, "x2": 300, "y2": target_y}, turn),
+        _real_only("line", "sci-grid", {"x1": 0, "y1": h / 2, "x2": 300, "y2": h / 2}, turn),
+        _real_only("line", "sci-axis", {"x1": 0, "y1": h, "x2": 300, "y2": h}, turn),
+        _real_only("text", tick, {"x": -6, "y": target_y + 3, "text-anchor": "end"}, turn, label90),
+        _real_only("text", tick, {"x": -6, "y": h / 2 + 3, "text-anchor": "end"}, turn, "50 %"),
+        _real_only("text", tick, {"x": -6, "y": h + 3, "text-anchor": "end"}, turn, "0 %"),
+        _real_only("text", tick, {"x": 0, "y": h + 16}, turn, _("today")),
+        _real_only(
+            "text", tick, {"x": 300, "y": h + 16, "text-anchor": "end"}, turn, _n("{n} day", "{n} days", days)
+        ),
+    ]
+
+
+def _pin(x: float, y: float, label: str, turn: tuple[float, float], dy: float = -8.0) -> list[dict]:
+    return [
+        _story_only("circle", "mo-pin", {"cx": x, "cy": y, "r": 4.5}, turn),
+        _story_only("text", "mo-label", {"x": x, "y": y + dy, "text-anchor": "middle"}, turn, label),
+    ]
+
+
+def _science_city(model: Model, kept: dict, land: dict) -> dict:
+    """D122: the science page's five pictures, each as the shapes it is drawn with."""
+    target = flashcards.RETENTION
+    h = CITY_H
+    ty = round(h * (1 - target), 1)
+    days = SCIENCE_DAYS
+    roads: list[dict[str, Any]] = [
+        *[{"x1": -24, "y1": y, "x2": 316, "y2": y} for y in (20, 80, 140)],
+        *[{"x1": x, "y1": 0, "x2": x, "y2": h} for x in (20, 100, 180, 260)],
+    ]
+
+    # 1. Streets you walked once: three routes fade over a week, then unroll into the
+    # three forgetting curves.
+    turn1 = (0.5, 0.72)
+    routes = (
+        (SCIENCE_STABILITIES[0], "lvl-review", [(100, 140), (100, 80), (140, 80)]),
+        (SCIENCE_STABILITIES[1], "lvl-good", [(20, 140), (20, 80), (180, 80), (180, 20), (260, 20)]),
+        (SCIENCE_STABILITIES[2], "lvl-strong", [(-10, 140), (300, 140)]),
+    )
+    fractions = [i / (CITY_POINTS - 1) for i in range(CITY_POINTS)]
+    one = [_story_only("line", "mo-road", road, turn1) for road in roads]
+    for stability, level, waypoints in routes:
+        street = _along(waypoints, fractions)
+        curve = [(300 * f, h - h * model.retrievability(days * f, stability)) for f in fractions]
+        faded = max(0.25, min(1.0, 0.25 + 0.75 * (model.retrievability(7.0, stability) - 0.6) / 0.4))
+        one.append(
+            _morph(
+                "polyline",
+                f"mo-route {level}",
+                {"points": _pts(curve), "stroke-width": 2.4, "stroke-opacity": 1},
+                {"points": _pts(street), "stroke-width": 5, "stroke-opacity": 1},
+                turn1,
+                before=[(0.08, {"stroke-opacity": 1}), (0.3, {"stroke-opacity": round(faded, 2)})],
+            )
+        )
+        end = curve[-1][1]
+        one.append(
+            _real_only(
+                "text",
+                f"mo-end {level}",
+                {"x": 304, "y": round(end + 3, 1)},
+                turn1,
+                f"{round(100 * model.retrievability(float(days), stability))} %",
+            )
+        )
+    one += (
+        _pin(140, 80, _("café"), turn1)
+        + _pin(260, 20, _("library"), turn1)
+        + _pin(20, 140, _("home"), turn1, dy=14)
+    )
+    # The day it is in the story: day 0, then a week later.
+    one += [
+        _morph(
+            "text",
+            "mo-badge",
+            {"x": -28, "y": 2, "opacity": 0},
+            {"opacity": 1},
+            turn1,
+            before=[(0.18, {"opacity": 1}), (0.2, {"opacity": 0})],
+            text=_("Day {n}", n=0),
+        ),
+        _morph(
+            "text",
+            "mo-badge",
+            {"x": -28, "y": 2, "opacity": 0},
+            {"opacity": 0},
+            turn1,
+            before=[(0.18, {"opacity": 0}), (0.2, {"opacity": 1})],
+            text=_("A week later"),
+        ),
+    ]
+    one = _chart_frame(round(h * 0.1, 1), days, turn1) + one
+
+    # 2. Walk it again as it fades: the library route walked again at five moments,
+    # each as thick as how long it then lasts; stood up, they are the spacing effect's
+    # bars, the other topics' gains as dots beside them.
+    turn2 = (0.62, 0.82)
+    columns = land["columns"]
+    times = land["times"]
+    top = max(times.values())
+    follows = SCIENCE_LAND_FOLLOWS
+    two: list[dict] = []
+    for j, (recall, column) in enumerate(zip(SCIENCE_LAND_RECALLS, columns, strict=True)):
+        cx = 30 + 60 * j
+        gain = times[(follows, recall)]
+        height = 140 * gain / top
+        mini = _along(
+            [(cx - 18, 140), (cx - 18, 88), (cx + 18, 88), (cx + 18, 36)], [i / 8 for i in range(9)]
+        )
+        bar = [(cx, h - height * i / 8) for i in range(9)]
+        width = 2 + 9 * float(column["after"]) / max(float(c["after"]) for c in columns)
+        two.append(
+            _morph(
+                "polyline",
+                "mo-route mo-bar lvl-good",
+                {"points": _pts(bar), "stroke-width": 20},
+                {"points": _pts(mini), "stroke-width": round(width, 1)},
+                turn2,
+            )
+        )
+        # Short enough for a phone: the day it is walked again, and how long it then lasts.
+        two += [
+            _story_only(
+                "text",
+                "mo-label",
+                {"x": cx, "y": h + 12, "text-anchor": "middle"},
+                turn2,
+                _("day {n}", n=column["wait"]),
+            ),
+            _story_only(
+                "text",
+                "mo-small",
+                {"x": cx, "y": h + 24, "text-anchor": "middle"},
+                turn2,
+                _n("{n} day", "{n} days", int(column["after"])),
+            ),
+            _real_only(
+                "text",
+                "sci-tick",
+                {"x": cx, "y": h + 14, "text-anchor": "middle"},
+                turn2,
+                f"{column['recall']} %",
+            ),
+            _real_only(
+                "text",
+                "mo-times",
+                {"x": cx, "y": round(h - height - 6, 1), "text-anchor": "middle"},
+                turn2,
+                f"×{column['times']}",
+            ),
+        ]
+        if column["risk"]:
+            two.append(
+                _story_only(
+                    "text",
+                    "mo-lost",
+                    {"x": cx, "y": 20, "text-anchor": "middle"},
+                    turn2,
+                    _("{n} % lost", n=column["risk"]),
+                )
+            )
+        for k, stability in enumerate(s for s in SCIENCE_LAND_STABILITIES if s != follows):
+            y = h - 140 * times[(stability, recall)] / top
+            two.append(
+                _real_only(
+                    "circle", f"mo-other mo-other{k}", {"cx": cx + 16, "cy": round(y, 1), "r": 2.6}, turn2
+                )
+            )
+    two += [
+        _real_only("line", "sci-axis", {"x1": 0, "y1": h, "x2": 300, "y2": h}, turn2),
+        _real_only(
+            "text", "sci-tick", {"x": 300, "y": h + 28, "text-anchor": "end"}, turn2, _("recall when tested")
+        ),
+    ]
+
+    # 3. Kept up or left alone: two streets, one walked again each time it fades, one
+    # never; flattened, they are the two curves.
+    turn3 = (0.5, 0.72)
+    three: list[dict] = [_story_only("line", "mo-road", road, turn3) for road in roads]
+
+    def flat(points: str, y: float) -> str:
+        return " ".join(f"{p.split(',')[0]},{y}" for p in points.split())
+
+    alone, tested = _taller(kept["alone"]), _taller(kept["points"])
+    three += [
+        _morph(
+            "polyline",
+            "mo-route mo-alone",
+            {"points": alone, "stroke-width": 1.8, "stroke-opacity": 1},
+            {"points": flat(alone, 140), "stroke-width": 5, "stroke-opacity": 1},
+            turn3,
+            before=[(0.1, {"stroke-opacity": 1}), (0.45, {"stroke-opacity": 0.35})],
+        ),
+        _morph(
+            "polyline",
+            "mo-route lvl-good",
+            {"points": tested, "stroke-width": 2.4},
+            {"points": flat(tested, 80), "stroke-width": 5},
+            turn3,
+        ),
+    ]
+    for m, day in zip(kept["marks"], kept["days"], strict=True):
+        at = round(0.1 + 0.35 * day / days, 3)
+        three.append(
+            _morph(
+                "circle",
+                "mo-step",
+                {"cx": m["x"], "cy": round(m["y"] * h / 100, 1), "r": 3.5, "opacity": 1},
+                {"cy": 80, "r": 4.5, "opacity": 0},
+                turn3,
+                before=[(at - 0.02, {"opacity": 0}), (at, {"opacity": 1})],
+            )
+        )
+    three += [
+        _story_only("text", "mo-label", {"x": 4, "y": 68}, turn3, _("walked again each time it fades")),
+        _story_only("text", "mo-label", {"x": 4, "y": 128}, turn3, _("never walked again")),
+        _real_only(
+            "text", "mo-end lvl-good", {"x": 304, "y": 20}, turn3, _("holds {n} days", n=kept["last"])
+        ),
+        _real_only(
+            "text",
+            "mo-end mo-alone",
+            {"x": 304, "y": round(h * (1 - kept["alone_end"] / 100) + 3, 1)},
+            turn3,
+            f"{kept['alone_end']} %",
+        ),
+    ]
+    three = _chart_frame(ty, days, turn3, f"{round(100 * target)} %") + three
+
+    # 4. Put the phone away: a phone's blue line against a route found yourself; a week
+    # on, only the second is left; the two become the techniques the research rates.
+    turn4 = (0.58, 0.8)
+    phone = _along([(52, 150), (52, 100), (108, 100), (108, 48)], [i / 12 for i in range(13)])
+    own = _along([(218, 150), (218, 100), (274, 100), (274, 48)], [i / 12 for i in range(13)])
+    cite = f"Dunlosky {_('and colleagues')}, 2013"
+    four = [
+        _morph(
+            "rect",
+            "mo-card mo-low",
+            {"x": 10, "y": 38, "width": 150, "height": 108, "rx": 14},
+            {"x": 30, "y": 10, "width": 100, "height": 170, "rx": 18},
+            turn4,
+        ),
+        _morph(
+            "rect",
+            "mo-card mo-high",
+            {"x": 170, "y": 38, "width": 150, "height": 108, "rx": 14},
+            {"x": 196, "y": 10, "width": 100, "height": 170, "rx": 6},
+            turn4,
+        ),
+        _morph(
+            "polyline",
+            "mo-route mo-blue",
+            {"points": _pts([(85, 92)] * 13), "stroke-width": 0, "stroke-opacity": 0},
+            {"points": _pts(phone), "stroke-width": 5, "stroke-opacity": 1},
+            turn4,
+            before=[(0.36, {"stroke-opacity": 1}), (0.5, {"stroke-opacity": 0.12})],
+        ),
+        _morph(
+            "polyline",
+            "mo-route lvl-good",
+            {"points": _pts([(245, 92)] * 13), "stroke-width": 0},
+            {"points": _pts(own), "stroke-width": 5},
+            turn4,
+        ),
+        _story_only("circle", "mo-dot", {"cx": 108, "cy": 48, "r": 5}, turn4),
+        _story_only(
+            "text",
+            "mo-label",
+            {"x": 80, "y": 196, "text-anchor": "middle"},
+            turn4,
+            _("following the blue dot"),
+        ),
+        _story_only(
+            "text",
+            "mo-label",
+            {"x": 246, "y": 196, "text-anchor": "middle"},
+            turn4,
+            _("finding the way yourself"),
+        ),
+        _real_only("text", "mo-rating", {"x": 85, "y": 72, "text-anchor": "middle"}, turn4, _("Rated low")),
+        _real_only(
+            "text",
+            "mo-label",
+            {"x": 85, "y": 96, "text-anchor": "middle"},
+            turn4,
+            _("rereading, highlighting"),
+        ),
+        _real_only("text", "mo-rating", {"x": 245, "y": 72, "text-anchor": "middle"}, turn4, _("Rated high")),
+        _real_only(
+            "text",
+            "mo-label",
+            {"x": 245, "y": 96, "text-anchor": "middle"},
+            turn4,
+            _("testing yourself, spacing"),
+        ),
+        _real_only("text", "sci-tick", {"x": 165, "y": 170, "text-anchor": "middle"}, turn4, cite),
+    ]
+
+    # 5. Planning the week's walks: five evenings in the order of the week, and the same
+    # five in the order the app gives them out.
+    turn5 = (0.36, 0.66)
+    evenings = (
+        (_("Mon"), _("a street"), _("fading"), 2, "mo-k-forget"),
+        (_("Tue"), _("an essay"), _("due Wed"), 0, "mo-k-deadline"),
+        (_("Wed"), _("nothing"), _("due"), 4, "mo-k-free"),
+        (_("Thu"), _("a past"), _("paper"), 1, "mo-k-exam"),
+        (_("Fri"), _("the next"), _("task"), 3, "mo-k-ahead"),
+    )
+    rules = (
+        _("A deadline getting close."),
+        _("Exam practice."),
+        _("The topic you are forgetting most."),
+        _("Working ahead"),
+        _("Free time."),
+    )
+    five: list[dict] = []
+    for j, (day, line1, line2, rank, kind) in enumerate(evenings):
+        x = 6 + 64 * j
+        y = 8 + 38 * rank
+        five += [
+            _morph(
+                "rect",
+                f"mo-slot {kind}",
+                {"x": 6, "y": y, "width": 318, "height": 32, "rx": 9},
+                {"x": x, "y": 30, "width": 58, "height": 130, "rx": 12},
+                turn5,
+            ),
+            _story_only("text", "mo-day", {"x": x + 29, "y": 20, "text-anchor": "middle"}, turn5, day),
+            _story_only("text", "mo-label", {"x": x + 29, "y": 92, "text-anchor": "middle"}, turn5, line1),
+            _story_only("text", "mo-label", {"x": x + 29, "y": 105, "text-anchor": "middle"}, turn5, line2),
+            _real_only(
+                "text", "mo-rank", {"x": 22, "y": y + 21, "text-anchor": "middle"}, turn5, str(rank + 1)
+            ),
+            _real_only("text", "mo-label mo-rule", {"x": 40, "y": y + 21}, turn5, rules[rank]),
+        ]
+    return {
+        # The first scene's steps: each place's recall a week on, and how long each holds.
+        "week_recall": [round(100 * model.retrievability(7.0, st)) for st, _, _ in routes],
+        "stabilities": [format_number(st, 0) for st, _, _ in routes],
+        "streets": {"view": "-34 -10 350 196", "shapes": one},
+        "walks": {"view": "-6 0 312 196", "shapes": two},
+        "kept": {"view": "-34 -10 350 196", "shapes": three},
+        "phone": {"view": "0 0 330 204", "shapes": four},
+        "week": {"view": "0 0 330 200", "shapes": five},
     }
 
 
