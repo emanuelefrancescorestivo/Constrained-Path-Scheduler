@@ -141,14 +141,8 @@ def test_the_science_page_shows_a_topic_kept_up_and_left_alone(web):
     assert kept["alone_end"] == round(100 * FSRS_6.retrievability(60.0, 2.0)) < target
     assert float(kept["last"]) > 2 * 30  # it ends holding months, not days
     page = web.get("/science").text
-    # Since D122 a street walked again and one never, flattened into these two curves,
-    # drawn taller; a step on each test's day.
-    assert (
-        'id="kept"' in page
-        and service._taller(kept["alone"]) in page
-        and service._taller(kept["points"]) in page
-    )
-    assert page.count('class="mo-step"') == len(kept["marks"])
+    assert 'id="kept"' in page and kept["alone"] in page and kept["points"] in page
+    assert page.count('class="sci-dot sci-pop eb') == len(kept["marks"])  # each test on its step (D113)
 
 
 def test_figures_draw_themselves_only_where_motion_is_wanted():
@@ -433,18 +427,25 @@ def test_the_science_scenes_say_what_the_model_says():
 
 
 def test_the_science_page_runs_as_it_is_scrolled_and_stands_still_without(web):
-    """D113's scenes, since D122 each a picture of the city story turning into its chart
-    (tests/test_city.py): five pinned stories, their steps one range each; without the
-    script each figure is its chart, without motion two buttons switch it."""
     page = web.get("/science").text
-    assert len(re.findall(r'<div class="code-pin[ "]', page)) == 5
-    for scene, steps in (("forgetting", 4), ("spacing", 5), ("testing", 3), ("engine", 3)):
+    assert len(re.findall(r'<div class="code-pin[ "]', page)) == 3
+    assert page.count('class="code-tower sci-drain ') == 3 and page.count('class="code-tower sci-rise ') == 25
+    for scene, steps in (("forgetting", 4), ("spacing", 5)):
         part = page.split(f'id="{scene}"', 1)[1]
         caps = re.findall(r'<li class="cap(\d)of(\d)">', part.split("</ol>", 1)[0])
         assert [int(a) for a, _ in caps] == list(range(1, steps + 1))
-    assert "sci-cursor" not in page and "code-tower" not in page  # D113's 3D is gone here
+    assert page.count('class="sci-cursor"') == 2 and page.count('class="code-cover"') == 2
     css = (STATIC / "style.css").read_text(encoding="utf-8")
-    assert "@keyframes sci-cursor" not in css and "@keyframes sci-rise" not in css
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    opening = "@supports (animation-timeline: view()) {\n  @media (prefers-reduced-motion: no-preference) {\n"
+    start = css.index(opening + '    :root:not([data-motion="reduce"]) .scroll-fig')
+    end = css.index("\n}\n", start)
+    block, outside = css[start:end], css[:start] + css[end:]
+    for rule in ("animation-name: sci-cursor", "animation-name: sci-drain", "animation-name: sci-rise"):
+        assert rule in block and rule not in outside
+    assert ".sci-cursor { display: none;" in outside  # no cursor without motion
+    drain = re.search(r"@keyframes sci-drain \{(.*?)\n\}", css, re.S)
+    assert drain and "opacity" not in drain[1] and drain[1].count("--zq") == 8
 
 
 def test_how_the_code_works_is_under_you_beside_the_science(web):
