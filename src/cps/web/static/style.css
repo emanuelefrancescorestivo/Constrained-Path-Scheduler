@@ -2842,7 +2842,6 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .sci-line.sci-accent { stroke: var(--accent); }
 .sci-line.sci-alone { stroke: var(--busy); stroke-width: 1.8; }
 .lvl-key.sci-alone-key { background: var(--busy); }
-.sci-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
 .sci-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 0.82rem; color: var(--muted); }
 .sci-maths { margin-top: 12px; }
 .formula { font-family: "Times New Roman", Georgia, serif; font-size: 1.25rem; text-align: center; margin: 6px 0 10px; overflow-x: auto; white-space: nowrap; }
@@ -3216,29 +3215,14 @@ main.site.read { max-width: 74rem; }
   .code-pin-stage .code-readout { margin-top: 4px; }
 }
 /* The science page's scenes (D113): the same stage as the code page's, in its narrower
-   column the figure above the step. A cursor marks the day under a chart; three
-   columns drain, one per topic, in the memory colours; the spacing landscape uses the
-   value table's towers. */
+   column the figure above the step. Since D122 its figures turn from the story's
+   picture into the chart (static/morph.js); D113's cursor, columns and landscape are
+   gone. */
 main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.sci-cursor { display: none; stroke: var(--text); stroke-width: 1.4; stroke-dasharray: 3 3; }
-.sci-fade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
-.sci-glasses { display: grid; place-items: center; width: 170px; height: 210px; perspective: 900px; }
-.sci-glasses-plane { display: grid; grid-template-columns: repeat(3, 34px); gap: 12px; transform-style: preserve-3d; transform: rotateX(58deg) rotateZ(-34deg); margin-top: 70px; }
-.sci-glasses .code-tower { width: 34px; height: 34px; --u: 6px; }
-.sci-glasses .code-tower :is(.f-front, .f-back) { width: 34px; }
-.sci-glasses .code-tower :is(.f-left, .f-right) { height: 34px; }
 .code-tower.lvl-review { --bar: var(--mem-review); --bar-ink: var(--mem-ink-review); }
 .code-tower.lvl-good { --bar: var(--mem-good); --bar-ink: var(--mem-ink-good); }
 .code-tower.lvl-strong { --bar: var(--mem-strong); --bar-ink: var(--mem-ink-strong); }
 .code-readout .lvl-key { margin: 0 4px 0 0; }
-@media (max-width: 560px) {
-  .sci-fade { grid-template-columns: minmax(0, 1fr); }
-  .sci-glasses { width: 100%; height: 150px; }
-  .sci-glasses-plane { grid-template-columns: repeat(3, 28px); gap: 10px; margin-top: 46px; }
-  .sci-glasses .code-tower { width: 28px; height: 28px; --u: 4.4px; }
-  .sci-glasses .code-tower :is(.f-front, .f-back) { width: 28px; }
-  .sci-glasses .code-tower :is(.f-left, .f-right) { height: 28px; }
-}
 /* A conversation (D114, kept for How it works, D116): the student, their own avatar (D115),
    asks; Spark answers; a line says where the picture stops being true. */
 .chat { display: grid; gap: 10px; margin: 14px 0 16px; }
@@ -3551,6 +3535,55 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   .gd-phone-a { gap: 6px; }
   .gd-phone-a span { padding: 7px 4px; border-radius: 10px; }
 }
+/* -- The explaining pages' pictures that turn into the real thing (D122) -------------
+   static/morph.js moves their attributes (a line's points, a shape's place and size, its
+   opacity and stroke width) from the story's picture to the real chart as the scene is
+   scrolled through. The stylesheet gives them only what never moves, their colours and
+   type, so that no rule here overrides an attribute the script sets. */
+.mo-svg { overflow: visible; }
+.mo-figure text { font-family: var(--font-text); }
+.mo-road { stroke: var(--fill-3); stroke-width: 7px; stroke-linecap: round; }
+.mo-route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mo-route.lvl-review { stroke: var(--mem-review); }
+.mo-route.lvl-good { stroke: var(--mem-good); }
+.mo-route.lvl-strong { stroke: var(--mem-strong); }
+.mo-route.mo-alone { stroke: var(--busy); }
+.mo-route.mo-blue { stroke: var(--accent); }
+.mo-route.mo-bar { stroke-linecap: butt; }
+.mo-pin { fill: var(--text); }
+.mo-dot, .mo-step { fill: var(--accent); stroke: var(--surface); stroke-width: 2px; }
+.mo-other { fill: var(--busy); stroke: var(--surface); stroke-width: 1px; }
+.lvl-key.mo-other-key { background: var(--busy); border-radius: 50%; }
+.mo-label { fill: var(--text); font-size: 9px; font-weight: 600; }
+.mo-small { fill: var(--muted); font-size: 8px; }
+.mo-lost { fill: var(--danger-text); font-size: 8px; font-weight: 650; }
+.mo-badge { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
+.mo-end, .mo-times { fill: var(--text); font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.mo-card { stroke: var(--line); stroke-width: 1px; }
+.mo-low { fill: var(--fill-3); }
+.mo-high { fill: color-mix(in srgb, var(--mem-good) 22%, var(--surface)); }
+.mo-rating { fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 800; }
+.mo-k-deadline { fill: var(--danger-soft); }
+.mo-k-exam { fill: var(--accent-soft); }
+.mo-k-forget { fill: color-mix(in srgb, var(--mem-good) 24%, var(--surface)); }
+.mo-k-ahead { fill: var(--fill-3); }
+.mo-k-free { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1px; stroke-dasharray: 4 4; }
+.mo-day { fill: var(--muted); font-size: 9px; font-weight: 750; }
+.mo-rank { fill: var(--text); font-size: 11px; font-weight: 800; }
+.mo-label.mo-rule { font-size: 10px; }
+/* Without motion: the real thing, and two buttons to see the story's picture. */
+.mo-toggle { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+.mo-toggle[hidden] { display: none; }
+.mo-toggle button { min-height: 40px; border: 0; border-radius: 980px; padding: 6px 14px; background: var(--fill-3); color: var(--text); font: inherit; font-size: 0.9rem; font-weight: 650; cursor: pointer; }
+.mo-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+@media (max-width: 560px) {
+  .mo-label, .mo-day { font-size: 11px; }
+  .mo-small, .mo-lost { font-size: 10px; }
+  .mo-label.mo-rule { font-size: 12px; }
+  .mo-badge { font-size: 15px; }
+  .mo-rating { font-size: 14px; }
+  .mo-end, .mo-times, .mo-rank { font-size: 12px; }
+}
 /* The value table's towers at each sweep the landscape grows through: --q<stop> is a
    tower's height then, in twentieths (D112). */
 @property --zq { syntax: "<number>"; inherits: true; initial-value: 0; }
@@ -3677,7 +3710,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-pot, .gd-roots, .gd-drop,
+      .code-cover, .code-win, .f-top, .gd-pot, .gd-roots, .gd-drop,
       .gd-phone, .gd-phone-a span) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
@@ -3768,13 +3801,8 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .eb22 { animation-range: contain 88% contain 92%; }
     :root:not([data-motion="reduce"]) .code-pin .eb23 { animation-range: contain 92% contain 96%; }
     :root:not([data-motion="reduce"]) .code-pin .eb24 { animation-range: contain 96% contain 100%; }
-    /* The science page (D113): the day passes under a chart (the cursor, the curves
-       uncovered up to it), the columns drain at their topics' pace, a self-test
-       appears on its day, and the spacing landscape rises a column at a time. */
-    :root:not([data-motion="reduce"]) .code-pin .sci-cursor { display: inline; animation-name: sci-cursor; }
-    :root:not([data-motion="reduce"]) .code-pin .sci-pop { animation-name: code-show; }
+    /* Columns that drain through eight stops (D113; How it works' flat drawing since D122). */
     :root:not([data-motion="reduce"]) .code-pin .sci-drain { animation-name: sci-drain; }
-    :root:not([data-motion="reduce"]) .code-pin .sci-rise { animation-name: sci-rise; }
     :root:not([data-motion="reduce"]) .code-pin .sci-drain .f-top { animation-name: none; }
     /* How it works (D116, D117), the flat drawing (garden.js draws the same in WebGL,
        with these ranges in each scene's data): the glasses drain through their stops
@@ -3841,12 +3869,10 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
   64%, 100% { transform: none; }
 }
 @keyframes code-ink { from { color: transparent; } }
-@keyframes sci-cursor { from { transform: none; } to { transform: translateX(300px); } }
 @keyframes sci-drain {
   0% { --zq: var(--q0); } 14.29% { --zq: var(--q1); } 28.57% { --zq: var(--q2); } 42.86% { --zq: var(--q3); }
   57.14% { --zq: var(--q4); } 71.43% { --zq: var(--q5); } 85.71% { --zq: var(--q6); } 100% { --zq: var(--q7); }
 }
-@keyframes sci-rise { from { --zq: 0; } to { --zq: var(--q7); } }
 @keyframes gd-drop { 0% { opacity: 0; transform: translateY(-24px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(70px); } }
 @keyframes gd-roots { from { transform: scaleY(var(--rf, 1)); } to { transform: scaleY(var(--rt, 1)); } }
 @keyframes gd-wilt { from { --wilt: 0deg; } to { --wilt: 38deg; } }

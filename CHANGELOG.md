@@ -7,6 +7,13 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The science page as a story (DECISIONS.md D122): each course is a new city whose map your brain
+  draws street by street. Each picture turns into the real chart as you scroll: streets you walked
+  once unroll into forgetting curves, a route walked again at different moments stands up into the
+  spacing effect, the phone's blue dot against a route found yourself becomes what the research
+  says about testing yourself, and a week's evenings line up in the order the app gives them out.
+  With motion turned off, a button switches each picture between the story and the chart.
+
 - How it works, for the whole screen and for students (DECISIONS.md D121): on a laptop each
   chapter fills the window, its plants large and labelled as they change (how much you remember,
   how long it lasts) with the day it is, and a line of the chapters along the bottom. A new
