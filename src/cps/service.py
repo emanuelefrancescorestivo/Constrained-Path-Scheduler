@@ -11072,8 +11072,10 @@ GARDEN_WEEK = 7.0  # chapters 3 and 5: a topic that holds a week
 # a week passes; the second watered as it droops (stop 5); another week.
 GARDEN_SPACING_DAYS = (0.0, 0.0, 0.0, 3.5, 7.0, 7.0, 10.5, 14.0)
 GARDEN_SOON_AT, GARDEN_JUST_AT = 2, 5  # the stops at which each pot is watered
-# The game (chapter 4): three topics, each with how long it holds and how many days ago
-# it was last revised before Monday; five free evenings; the exam on Saturday.
+# Three topics, each with how long it holds and how many days ago it was last revised
+# before Monday; five free evenings; the exam on Saturday. D116's week game used them; the
+# opening shelf and exam day still show them after the app's week (D121's month replaced
+# the game).
 GARDEN_TOPICS: tuple[tuple[str, str, float, int], ...] = (
     ("t0", "Analysis", 2.0, 1),
     ("t1", "Algebra", 4.0, 2),
@@ -11150,9 +11152,10 @@ def _garden_app_plan(model: Model) -> list[str]:
     return plan
 
 
-def garden_view(picks: Sequence[str] | None = None) -> dict:
-    """How it works (D116): the garden story's numbers, and the game's two weeks when
-    the student has played it (`picks`: a topic key or "rest" for each evening)."""
+def garden_view() -> dict:
+    """How it works (D116): the garden story's numbers. D121: the game of D116 gave way to
+    the month the student plans (garden_month_view); each scene also carries its numbers
+    at finer stops, for the laptop's labels, and the cramming chapter is new."""
     model = FSRS_6
     target = flashcards.RETENTION
     shaky = SCIENCE_STABILITIES[0]
@@ -11191,19 +11194,6 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
         "just_at": GARDEN_JUST_AT,
     }
     app = _garden_week(model, _garden_app_plan(model))
-    played = None
-    if picks is not None:
-        allowed = {key for key, _, _, _ in GARDEN_TOPICS} | {GARDEN_REST}
-        if len(picks) != GARDEN_EVENINGS or any(p not in allowed for p in picks):
-            raise InvalidInput(_("choose a topic, or Rest, for each evening"))
-        yours = _garden_week(model, picks)
-        if yours["lowest"] < round(100 * target):
-            verdict = "drooped"
-        elif yours["used"] > app["used"]:
-            verdict = "more"
-        else:
-            verdict = "same"
-        played = {"yours": yours, "app": app, "verdict": verdict}
     # Chapter 4: the week of the code page's worked example (D109), its layers.
     code = code_view()
     week = {
@@ -11218,6 +11208,11 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
         "target": round(100 * target),
         "one": one,
         "one_days": format_number(GARDEN_ONE_DAYS, 0),
+        # D121, chapter 1's steps: the day the shaky topic is down to the target, when the
+        # app would revise it, and where it is after the week.
+        "one_due": round(model.interval(shaky, target)),
+        "one_due_recall": round(100 * model.retrievability(round(model.interval(shaky, target)), shaky)),
+        "one_end": round(100 * model.retrievability(GARDEN_ONE_DAYS, shaky)),
         "fade": _science_fade(model),
         # Chapter 2's steps, on the readout's clock: each topic's water after two weeks
         # and after a month (the scene's quarters of its two months).
@@ -11237,7 +11232,8 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
         "spacing": spacing,
         "topics": [{"key": key, "name": name} for key, name, _, _ in GARDEN_TOPICS],
         "evenings": GARDEN_EVENINGS,
-        "game": played,
+        "fine": _garden_fine(model, shaky, soon, just, wait, forgot, app),
+        "cram": _garden_cram(model),
         "report": {
             "grown": format_number(just, 0),
             "grown_days": round(just),
@@ -11247,6 +11243,519 @@ def garden_view(picks: Sequence[str] | None = None) -> dict:
             "roots_to": _garden_roots(just),
             "roots_shrunk": _garden_roots(forgot),
         },
+    }
+
+
+def _garden_fine(
+    model: Model, shaky: float, soon: float, just: float, wait: float, forgot: float, app: dict
+) -> dict:
+    """D121: the story's numbers at GARDEN_FINE stops of each scene, for the laptop's live
+    labels and its plants: each plant's water (twentieths) and roots at each stop, and the
+    label it wears from each stop on ([progress, big, small]); each scene's day badge."""
+    target = flashcards.RETENTION
+    steps = [_fine_progress(k) for k in range(GARDEN_FINE)]
+    pct = _garden_pct
+
+    def note_fresh(recall: float) -> str:
+        return (
+            _("still fresh")
+            if round(100 * recall) >= round(100 * target)
+            else _("below {t}: time to revise", t=pct(target))
+        )
+
+    # Chapter 1: one topic over its first week.
+    one_days = [GARDEN_ONE_DAYS * p for p in steps]
+    one = {
+        "zf": [round(20 * model.retrievability(d, shaky), 2) for d in one_days],
+        "tags": [
+            _garden_tag(p, model.retrievability(d, shaky), note_fresh(model.retrievability(d, shaky)))
+            for p, d in zip(steps, one_days, strict=True)
+        ],
+        "badge": [
+            [p, _("Day {n}", n=int(d)), _("since the lecture")] for p, d in zip(steps, one_days, strict=True)
+        ],
+    }
+    # Chapter 2: three topics over two months.
+    pace_days = [SCIENCE_DAYS * p for p in steps]
+    pace = {
+        "pots": [
+            {
+                "zf": [round(20 * model.retrievability(d, s), 2) for d in pace_days],
+                "tags": [
+                    _garden_tag(p, model.retrievability(d, s), _("lasts {n} days", n=format_number(s, 0)))
+                    for p, d in zip(steps, pace_days, strict=True)
+                ],
+            }
+            for s in SCIENCE_STABILITIES
+        ],
+        "badge": [
+            [p, _("Day {n}", n=int(d)), _("without revising")] for p, d in zip(steps, pace_days, strict=True)
+        ],
+    }
+    # Chapter 3: the same topic, revised at once or as it droops, on the scene's clock
+    # (its eight stops' days, GARDEN_SPACING_DAYS, read between them).
+    last = GARDEN_STOPS - 1
+    soon_pot: dict[str, list] = {"zf": [], "rtf": [], "tags": []}
+    just_pot: dict[str, list] = {"zf": [], "rtf": [], "tags": []}
+    time_badge = []
+    for p in steps:
+        q = p * last
+        i = min(int(q), last - 1)
+        day = GARDEN_SPACING_DAYS[i] + (GARDEN_SPACING_DAYS[i + 1] - GARDEN_SPACING_DAYS[i]) * (q - i)
+        for pot, at, after, stops in (
+            (soon_pot, 0.0, soon, GARDEN_SOON_AT),
+            (just_pot, wait, just, GARDEN_JUST_AT),
+        ):
+            done = q >= stops
+            recall = model.retrievability(day - at, after) if done else model.retrievability(day, GARDEN_WEEK)
+            holds = after if done else GARDEN_WEEK
+            pot["zf"].append(round(20 * recall, 2))
+            pot["rtf"].append(_garden_roots(holds))
+            small = (
+                _("now lasts {n} days", n=format_number(holds, 0))
+                if done
+                else _("lasts {n} days", n=format_number(GARDEN_WEEK, 0))
+            )
+            pot["tags"].append(_garden_tag(p, recall, small))
+        time_badge.append([p, _("Day {n}", n=int(day)), _("the same topic, twice")])
+    # Chapter 6: the answer after a session; the labels change as the roots do.
+    grown_from, shrunk_from = 0.36, 0.7
+    morning = {
+        "yes": [
+            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
+            [grown_from, _n("{n} day", "{n} days", round(just)), _("so the next revision waits"), False],
+        ],
+        "no": [
+            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
+            [shrunk_from, _n("{n} day", "{n} days", max(1, round(forgot))), _("so it comes back soon"), True],
+        ],
+    }
+    return {
+        "one": one,
+        "pace": pace,
+        "time": {"pots": [soon_pot, just_pot], "badge": time_badge},
+        "morning": morning,
+        # The opening shelf and exam day: one label each.
+        "start": [[_garden_tag(0.0, 1.0, _("just revised"))] for _t in GARDEN_TOPICS],
+        "exam": [[_garden_tag(0.0, plant["recall"] / 100, _("ready"))] for plant in app["plants"]],
+    }
+
+
+# -- How it works on a laptop, and a month to plan (D121) --------------------------------
+
+# D121: on a laptop each scene of How it works labels its plants as the page is scrolled,
+# from the scene's numbers at this many stops (its eight stops stay the flat drawing's).
+GARDEN_FINE = 25
+# The cramming chapter: the same new topic, crammed the night before an exam on day 28 or
+# revised each time it dips to the target; neither is revised after the exam; a month on.
+GARDEN_CRAM_EXAM = 28.0
+GARDEN_CRAM_AFTER = 30.0
+GARDEN_CRAM_SPLIT = 0.75  # the share of the scene before the exam (its first three steps)
+# The month to plan: three made-up courses (a new one found hard, a new one, one known
+# fairly well), a revision ticked on any of days 1 to 27 (each in its evening, half a day
+# in), the exam on day 28; the garden shown at two moments a day under the slider.
+GARDEN_MONTH_DAYS = 28
+GARDEN_MONTH_COURSES: tuple[tuple[str, str], ...] = (("m0", "hard"), ("m1", "new"), ("m2", "known"))
+GARDEN_MONTH_KNOWN = 12.0  # how long the course "known fairly well" holds at the start (days)
+GARDEN_MONTH_SAMPLES = 2
+GARDEN_MONTH_FLOOR = 0.7  # the lanes' bottom: recall from 70 % (bottom) to 100 % (top)
+
+
+def _garden_pct(recall: float) -> str:
+    return f"{round(100 * recall)}\u00a0%"
+
+
+def _garden_tag(progress: float, recall: float, note: str) -> list:
+    """A plant's label from a point of its scene on: its recall, a line under it, and
+    whether the recall is below the target (the label is then drawn as a warning)."""
+    low = round(100 * recall) < round(100 * flashcards.RETENTION)
+    return [progress, _garden_pct(recall), note, low]
+
+
+def _expected_memory(
+    model: Model, state: MemoryState, start: float, times: Sequence[float]
+) -> tuple[list[tuple[float, list[tuple[float, MemoryState]]]], list[float]]:
+    """D121: a topic's memory over time, counting that a revision may not work. The
+    model's recall is the chance of remembering the topic; a revision then works with
+    that chance (grade Good) and otherwise is a lapse (Again: relearned in the session,
+    held only briefly). Each revision splits the topic's future in two; the mixture after
+    each one is kept, the branches whose memory ends alike merged. Returns the mixture
+    from each revision on, and each revision's chance of working."""
+    segments: list[tuple[float, list[tuple[float, MemoryState]]]] = [(start, [(1.0, state)])]
+    chances: list[float] = []
+    for t in sorted(times):
+        at, mix = segments[-1]
+        elapsed = max(t - at, 0.0)
+        merged: dict[tuple[int, int], list[float]] = {}
+        chance = 0.0
+        for weight, memory in mix:
+            recall = model.retrievability(elapsed, memory.stability)
+            chance += weight * recall
+            for grade, share in ((Grade.GOOD, weight * recall), (Grade.AGAIN, weight * (1.0 - recall))):
+                if share < 1e-9:
+                    continue
+                after = model.review(memory, elapsed, grade)
+                key = (round(math.log(after.stability) * 40), round(after.difficulty * 4))
+                slot = merged.setdefault(key, [0.0, 0.0, 0.0])
+                slot[0] += share
+                slot[1] += share * after.stability
+                slot[2] += share * after.difficulty
+        chances.append(chance)
+        segments.append(
+            (t, [(w, MemoryState(stability=s / w, difficulty=d / w)) for w, s, d in merged.values()])
+        )
+    return segments, chances
+
+
+def _expected_at(
+    model: Model, segments: Sequence[tuple[float, list[tuple[float, MemoryState]]]], t: float
+) -> tuple[float, float, float, float]:
+    """The mixture at time t: the expected recall, the expected stability, the time of the
+    last revision, and the chance the topic is below the target then."""
+    at, mix = segments[0]
+    for segment in segments:
+        if segment[0] <= t:
+            at, mix = segment
+    recall = stability = below = 0.0
+    for weight, memory in mix:
+        r = model.retrievability(max(t - at, 0.0), memory.stability)
+        recall += weight * r
+        stability += weight * memory.stability
+        if r < flashcards.RETENTION:
+            below += weight
+    return recall, stability, at, below
+
+
+def _fine_progress(k: int) -> float:
+    return round(k / (GARDEN_FINE - 1), 4)
+
+
+def _garden_cram(model: Model) -> dict:
+    """D121, the cramming chapter: the same new topic crammed the night before the exam,
+    or revised whenever it dips to the target, each through the exam and a month on."""
+    target = flashcards.RETENTION
+    start = model.initial_state(Grade.GOOD)
+    last = GARDEN_CRAM_EXAM - 1.0
+    crammed, cram_chance = _expected_memory(model, start, 0.0, [last])
+    spaced_days: list[float] = []
+    for day in range(1, int(GARDEN_CRAM_EXAM)):
+        trial, _chances = _expected_memory(model, start, 0.0, spaced_days)
+        if _expected_at(model, trial, float(day))[0] <= target:
+            spaced_days.append(float(day))
+    spaced, spaced_chances = _expected_memory(model, start, 0.0, spaced_days)
+    exam, later = GARDEN_CRAM_EXAM, GARDEN_CRAM_EXAM + GARDEN_CRAM_AFTER
+
+    # Three quarters of the scene before the exam, the month after it in the last
+    # quarter: each of the chapter's four steps then holds what it says.
+    def day_at(p: float) -> float:
+        if p <= GARDEN_CRAM_SPLIT:
+            return exam * p / GARDEN_CRAM_SPLIT
+        return exam + GARDEN_CRAM_AFTER * (p - GARDEN_CRAM_SPLIT) / (1 - GARDEN_CRAM_SPLIT)
+
+    def at_day(d: float) -> float:
+        return round(GARDEN_CRAM_SPLIT * d / exam, 4)
+
+    stops = [day_at(k / (GARDEN_STOPS - 1)) for k in range(GARDEN_STOPS)]
+    fine = [day_at(_fine_progress(k)) for k in range(GARDEN_FINE)]
+
+    def pot(segments: list, days: Sequence[float], name: str) -> dict:
+        at_exam = _expected_at(model, segments, exam)[0]
+        tags = []
+        for k, day in enumerate(fine):
+            recall = _expected_at(model, segments, day)[0]
+            note = _("on exam day: {n}", n=_garden_pct(at_exam)) if day >= exam else _("before the exam")
+            tags.append(_garden_tag(_fine_progress(k), recall, note))
+        return {
+            "w": [_garden_z(_expected_at(model, segments, d)[0]) for d in stops],
+            "zf": [round(20 * _expected_at(model, segments, d)[0], 2) for d in fine],
+            "rtf": [_garden_roots(_expected_at(model, segments, d)[1]) for d in fine],
+            "roots": _garden_roots(_expected_at(model, segments, later)[1]),
+            "drops": [[at_day(d - 0.35), at_day(d + 0.45)] for d in days],
+            "name": name,
+            "tags": tags,
+            "exam": round(100 * at_exam),
+            "later": round(100 * _expected_at(model, segments, later)[0]),
+        }
+
+    badge = []
+    for k, when in enumerate(fine):
+        if when < exam:
+            badge.append([_fine_progress(k), _("Day {n}", n=int(when)), _("exam on day {n}", n=int(exam))])
+        elif when < exam + 1:
+            badge.append([_fine_progress(k), _("Exam day"), _("day {n}", n=int(exam))])
+        else:
+            badge.append(
+                [
+                    _fine_progress(k),
+                    _("Day {n}", n=int(when)),
+                    _n("{n} day after the exam", "{n} days after the exam", int(when - exam)),
+                ]
+            )
+    shaky = [
+        round(sum(_expected_at(model, segments, d - 0.02)[3] for d in range(1, int(exam))))
+        for segments in (crammed, spaced)
+    ]
+    return {
+        "pots": [
+            pot(crammed, [last], _("Crammed the night before")),
+            pot(spaced, spaced_days, _("Revised whenever it dipped")),
+        ],
+        "badge": badge,
+        "exam_day": int(exam),
+        "after": int(GARDEN_CRAM_AFTER),
+        "chance": round(100 * cram_chance[0]),
+        "split": GARDEN_CRAM_SPLIT,
+        "revisions": len(spaced_days),
+        "shaky": shaky,
+        "spaced_chances": [round(100 * c) for c in spaced_chances],
+    }
+
+
+def _garden_month_starts(model: Model) -> list[MemoryState]:
+    starts = {
+        "hard": model.initial_state(Grade.HARD),
+        "new": model.initial_state(Grade.GOOD),
+        "known": MemoryState(stability=GARDEN_MONTH_KNOWN, difficulty=5.0),
+    }
+    return [starts[kind] for _, kind in GARDEN_MONTH_COURSES]
+
+
+def _month_evening(day: int) -> float:
+    return day - 0.5
+
+
+def _month_lane_y(recall: float) -> float:
+    """Where a recall is on a course's lane, from 0 (top, 100 %) to 100 (the floor)."""
+    return 100 * min(1.0, max(0.0, (1 - recall) / (1 - GARDEN_MONTH_FLOOR)))
+
+
+@functools.lru_cache(maxsize=1)
+def _garden_month_app() -> tuple[tuple[int, ...], ...]:
+    """The app's rule over the month (assistant.py's self-tests): each evening the course
+    that has faded most, once it is down to the target; otherwise the evening is free."""
+    model, target = FSRS_6, flashcards.RETENTION
+    starts = _garden_month_starts(model)
+    plan: list[list[int]] = [[] for _ in starts]
+    for day in range(1, GARDEN_MONTH_DAYS):
+        recalls = [
+            _expected_at(
+                model,
+                _expected_memory(model, s, 0.0, [_month_evening(d) for d in plan[i]])[0],
+                _month_evening(day),
+            )[0]
+            for i, s in enumerate(starts)
+        ]
+        k = min(range(len(starts)), key=recalls.__getitem__)
+        if recalls[k] <= target:
+            plan[k].append(day)
+    return tuple(tuple(days) for days in plan)
+
+
+def _garden_month_score(model: Model, plan: Sequence[Collection[int]]) -> dict:
+    """A plan scored three ways: each course on exam day, its days below the target
+    (before that evening's revision), and a month after the exam."""
+    exam = GARDEN_MONTH_DAYS - 0.5
+    later = exam + GARDEN_CRAM_AFTER
+    memories = [
+        _expected_memory(model, s, 0.0, [_month_evening(d) for d in sorted(plan[i])])
+        for i, s in enumerate(_garden_month_starts(model))
+    ]
+    return {
+        "memories": memories,
+        "exam": [_expected_at(model, segments, exam)[0] for segments, _chances in memories],
+        "later": [_expected_at(model, segments, later)[0] for segments, _chances in memories],
+        "shaky": [
+            sum(_expected_at(model, segments, d - 0.55)[3] for d in range(1, GARDEN_MONTH_DAYS))
+            for segments, _chances in memories
+        ],
+        "count": sum(len(days) for days in plan),
+    }
+
+
+GARDEN_MONTH_PRESETS = ("app", "cram", "clear")
+
+
+def garden_month_view(ticks: Collection[str] | None = None, preset: str | None = None) -> dict:
+    """D121: the month a student plans on How it works. Three made-up courses; a revision
+    ticked ("<course>-<day>") on any of days 1 to 27; the exam on day 28. Each course's
+    memory through the month as the app's model sees it, counting that a revision may not
+    work; the plan scored three ways (exam day, days below the target, a month later)
+    against the app's own plan; and what the comparison says. No ticks and no preset: the
+    app's plan."""
+    model, target = FSRS_6, flashcards.RETENTION
+    last_day = GARDEN_MONTH_DAYS - 1
+    count = len(GARDEN_MONTH_COURSES)
+    app = [set(days) for days in _garden_month_app()]
+    if preset is not None and preset not in GARDEN_MONTH_PRESETS:
+        raise InvalidInput(_("choose a plan from the buttons"))
+    if preset == "cram":
+        # One course an evening in the last three, the hardest last: the best a cram
+        # can do on exam day with the evenings the story says there are.
+        plan = [{last_day - i} for i in range(count)]
+    elif preset == "clear":
+        plan = [set() for _ in range(count)]
+    elif preset == "app" or ticks is None:
+        plan = [set(days) for days in app]
+    else:
+        plan = [set() for _ in range(count)]
+        for tick in ticks:
+            course, _sep, day = tick.partition("-")
+            if not (course.isdigit() and day.isdigit() and int(course) < count and 1 <= int(day) <= last_day):
+                raise InvalidInput(_("tick a course on a day from 1 to {n}", n=last_day))
+            plan[int(course)].add(int(day))
+    mine, theirs = _garden_month_score(model, plan), _garden_month_score(model, app)
+    exam = GARDEN_MONTH_DAYS - 0.5
+    names = {"m0": _("Analysis"), "m1": _("Algebra"), "m2": _("Physics")}
+    notes = {
+        "hard": _("new this week, and you found it hard"),
+        "new": _("new this week"),
+        "known": _("you know it fairly well"),
+    }
+    times = [s / GARDEN_MONTH_SAMPLES for s in range(GARDEN_MONTH_SAMPLES * (GARDEN_MONTH_DAYS - 1) + 2)]
+    courses = []
+    for i, (key, kind) in enumerate(GARDEN_MONTH_COURSES):
+        segments, chances = mine["memories"][i]
+        days = sorted(plan[i])
+        # The lane: recall from the floor (bottom) to 100 % (top), a quarter day at a time.
+        points = []
+        for q in range(4 * GARDEN_MONTH_DAYS - 1):
+            t = q / 4
+            recall = _expected_at(model, segments, t)[0]
+            points.append(f"{100 * t / GARDEN_MONTH_DAYS:.2f},{_month_lane_y(recall):.2f}")
+        tags = []
+        for t in times:
+            recall, stability, last, _below = _expected_at(model, segments, t)
+            left = round(model.interval(stability, target) - (t - last))
+            note = (
+                _("below {t}: revise it", t=_garden_pct(target))
+                if round(100 * recall) < round(100 * target)
+                else _n(
+                    "below {t} in about {n} day",
+                    "below {t} in about {n} days",
+                    max(1, left),
+                    t=_garden_pct(target),
+                )
+            )
+            tags.append(_garden_tag(round(t / exam, 4), recall, note))
+        state_exam = _expected_at(model, segments, exam)
+        courses.append(
+            {
+                "index": i,
+                "key": key,
+                "name": names[key],
+                "note": notes[kind],
+                "path": "M" + "L".join(points),
+                "cells": [
+                    {
+                        "day": d,
+                        "tick": f"{i}-{d}",
+                        "on": d in plan[i],
+                        "chance": round(100 * chances[days.index(d)]) if d in plan[i] else None,
+                    }
+                    for d in range(1, GARDEN_MONTH_DAYS)
+                ],
+                "exam": round(100 * mine["exam"][i]),
+                "later": round(100 * mine["later"][i]),
+                "shaky": round(mine["shaky"][i]),
+                # The garden under the slider: water and roots at each moment, and its label.
+                "zf": [round(20 * _expected_at(model, segments, t)[0], 2) for t in times],
+                "rtf": [_garden_roots(_expected_at(model, segments, t)[1]) for t in times],
+                "z": _garden_z(state_exam[0]),
+                "roots": _garden_roots(state_exam[1]),
+                "drops": [
+                    [round((_month_evening(d) - 0.35) / exam, 4), round((_month_evening(d) + 0.45) / exam, 4)]
+                    for d in days
+                ],
+                "tags": tags,
+            }
+        )
+    a, b = min(mine["exam"]), min(theirs["exam"])
+    shaky_mine, shaky_app = round(sum(mine["shaky"])), round(sum(theirs["shaky"]))
+    later_mine, later_app = min(mine["later"]), min(theirs["later"])
+    pa, pb, la, lb = round(100 * a), round(100 * b), round(100 * later_mine), round(100 * later_app)
+    is_app = [set(p) for p in plan] == app
+    verdict: list[str] = []
+    if is_app:
+        verdict.append(
+            _(
+                "This is the app's plan: no course stays below {t} for long, "
+                "and all three are ready for the exam.",
+                t=_garden_pct(target),
+            )
+        )
+    else:
+        if pa > pb:
+            verdict.append(
+                _(
+                    "You win exam day: {a} against {b} for the weakest course.",
+                    a=_garden_pct(a),
+                    b=_garden_pct(b),
+                )
+            )
+            if all(days and max(days) >= last_day - 2 for days in plan):
+                verdict.append(_("Revising late does work for the next day."))
+        elif pa < pb:
+            verdict.append(
+                _(
+                    "The app's plan does better on exam day: {b} against your {a}.",
+                    a=_garden_pct(a),
+                    b=_garden_pct(b),
+                )
+            )
+        else:
+            verdict.append(_("Both plans reach {a} on exam day.", a=_garden_pct(a)))
+        if shaky_mine > shaky_app:
+            verdict.append(
+                _n(
+                    "But between them, your courses spend {n} day below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    "But between them, your courses spend {n} days below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    shaky_mine,
+                    t=_garden_pct(target),
+                    m=shaky_app,
+                )
+            )
+        if la != lb:
+            verdict.append(
+                _(
+                    "A month after the exam: {a} against {b}.",
+                    a=_garden_pct(later_mine),
+                    b=_garden_pct(later_app),
+                )
+            )
+        # More revisions are more evenings, which chapter 5 says are few.
+        if mine["count"] > theirs["count"]:
+            verdict.append(
+                _n(
+                    "And it takes {n} revision, against the app's {m}.",
+                    "And it takes {n} revisions, against the app's {m}.",
+                    mine["count"],
+                    m=theirs["count"],
+                )
+            )
+    # The day under the slider: day d runs from d - 1 to d, its evening half-way through.
+    badge = [
+        [round(t / exam, 4), _("Day {n}", n=int(t) + 1), _("exam on day {n}", n=GARDEN_MONTH_DAYS)]
+        if t < exam
+        else [round(t / exam, 4), _("Exam day"), _("day {n}", n=GARDEN_MONTH_DAYS)]
+        for t in times
+    ]
+    return {
+        "days": GARDEN_MONTH_DAYS,
+        "badge": badge,
+        "last_day": last_day,
+        "target": round(100 * target),
+        "courses": courses,
+        "count": mine["count"],
+        "app_count": theirs["count"],
+        "app": {"exam": pb, "shaky": shaky_app, "later": lb},
+        "lowest": {"exam": pa, "shaky": shaky_mine, "later": la},
+        "verdict": verdict,
+        "is_app": is_app,
+        "exam_x": round(100 * exam / GARDEN_MONTH_DAYS, 2),
+        "target_y": round(_month_lane_y(target), 2),
+        "samples": len(times),
     }
 
 

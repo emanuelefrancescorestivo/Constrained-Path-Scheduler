@@ -17,6 +17,15 @@
 // and stops (D93: nothing runs while the page is still). With reduced motion, or where
 // the browser does not tie animations to scrolling, each scene is drawn once, complete,
 // as its flat drawing is. Layout only: every number is the server's.
+//
+// D121, the laptop's story: the server's numbers at finer stops (`zf`, `rtf`, `drops`)
+// make the plants follow the page closely; each plant wears a label over it (its recall
+// and a line under it, `tags`) and the scene the day it is (`badge`), all the server's
+// words, set as text and placed in an SVG over the canvas (no style is set); a line of
+// the chapters at the bottom of a laptop's window fills as each goes by. The month the
+// student plans is a "cursor" scene: the slider under it, or Play, says the day; a tick
+// asks the server for the month again (`part=month`) and puts its lanes, scores and
+// plants in place, the form working as a plain form without a script.
 
 const root = document.documentElement;
 const scenes = [...document.querySelectorAll(".gd-scene[data-scene]")];
@@ -44,6 +53,20 @@ const once = (f) => {
   let v;
   return () => (v ??= f());
 };
+// A value at progress p along a list of evenly spaced stops (or the value itself).
+const along = (v, p) => {
+  if (!Array.isArray(v)) return v;
+  if (v.length < 2) return v[0];
+  const q = clamp(p) * (v.length - 1), i = Math.min(v.length - 2, Math.floor(q));
+  return lerp(v[i], v[i + 1], q - i);
+};
+// The label in force at progress p: the last one whose progress has been reached.
+const latest = (list, p) => {
+  let found = list && list[0];
+  for (const item of list || []) if (item[0] <= p + 1e-6) found = item;
+  return found;
+};
+const SVGNS = "http://www.w3.org/2000/svg";
 
 // ---------------------------------------------------------------- shapes
 function spline(pts, per) {
@@ -226,7 +249,10 @@ const ROSETTE = (() => {
     pitch: 0.52, reach: 0.62, y0: -0.05, y1: 0.5, y1Bloom: 0.9,
     // Low, wide bowls: two side by side, three in a triangle, the middle one in front,
     // so that the picture is not a thin strip.
-    layout: (n) => (n === 3 ? [[-0.68, -0.4], [0, 0.48], [0.68, -0.4]] : n === 2 ? [[-0.64, 0], [0.64, 0]] : [[0, 0]]),
+    // Three bowls in a triangle; in a row where the figure is wide (D121: each label then
+    // stands clear of the others' plants).
+    layout: (n, wide) => (n === 3 ? (wide ? [[-1.32, 0], [0, 0], [1.32, 0]] : [[-0.68, -0.4], [0, 0.48], [0.68, -0.4]])
+      : n === 2 ? [[-0.64, 0], [0.64, 0]] : [[0, 0]]),
     lights: { sky: [0.72, 0.74, 0.8], ground: [0.46, 0.42, 0.4], light: [0.6, 0.57, 0.53] },
     statics, inR,
     plant(s, seed) {
@@ -303,7 +329,7 @@ const GLOW = (() => {
   });
   return {
     pitch: 0.18, reach: 0.46, y0: -0.06, y1: 1.42, y1Bloom: 1.5,
-    layout: (n) => Array.from({ length: n }, (_, i) => [(i - (n - 1) / 2) * 0.98, 0]),
+    layout: (n, wide) => Array.from({ length: n }, (_, i) => [(i - (n - 1) / 2) * (wide ? 1.5 : 0.98), 0]),
     lights: { sky: [0.24, 0.27, 0.42], ground: [0.06, 0.06, 0.1], light: [0.3, 0.32, 0.45] },
     statics, inR,
     plant(s, seed) {
@@ -490,11 +516,82 @@ class Scene {
     this.shown = 0;
     this.visible = false;
     this.ready = false;
+    this.cursor = null;
+  }
+
+  get tagged() {
+    return this.spec.pots.some((pot) => pot.tags);
+  }
+
+  // D121: the labels over the plants (an SVG over the canvas) and the day it is.
+  dress() {
+    this.tags = null;
+    this.badge = null;
+    this.el.querySelector(".gd-tags")?.remove();
+    this.el.querySelector(".gd-badge")?.remove();
+    if (this.tagged) {
+      const svg = document.createElementNS(SVGNS, "svg");
+      svg.setAttribute("class", "gd-tags");
+      svg.setAttribute("aria-hidden", "true");
+      this.tags = this.spec.pots.map((pot) => {
+        const g = document.createElementNS(SVGNS, "g");
+        g.setAttribute("class", "gd-tag");
+        const big = document.createElementNS(SVGNS, "text"), small = document.createElementNS(SVGNS, "text");
+        big.setAttribute("class", "gd-tag-big");
+        small.setAttribute("class", "gd-tag-small");
+        for (const t of [big, small]) t.setAttribute("text-anchor", "middle");
+        big.setAttribute("y", "-22");
+        small.setAttribute("y", "-4");
+        g.append(big, small);
+        svg.append(g);
+        return { g, big, small, list: pot.tags, key: "" };
+      });
+      this.el.append(svg);
+    }
+    if (this.spec.badge) {
+      const p = document.createElement("p"), b = document.createElement("b"), span = document.createElement("span");
+      p.className = "gd-badge";
+      p.setAttribute("aria-hidden", "true");
+      p.append(b, span);
+      this.el.append(p);
+      this.badge = { b, span, key: "" };
+    }
+  }
+
+  // Each label placed over its plant (`spots`, in the canvas's pixels) and its words
+  // set; the day's badge.
+  label(spots, p) {
+    for (const [i, tag] of (this.tags || []).entries()) {
+      const item = latest(tag.list, p);
+      if (!item || !spots[i]) {
+        tag.g.setAttribute("visibility", "hidden");
+        continue;
+      }
+      tag.g.removeAttribute("visibility");
+      tag.g.setAttribute("transform", `translate(${spots[i][0].toFixed(1)} ${Math.max(40, spots[i][1]).toFixed(1)})`);
+      const key = `${item[1]}|${item[2]}|${item[3]}`;
+      if (tag.key !== key) {
+        tag.big.textContent = item[1];
+        tag.small.textContent = item[2] || "";
+        tag.g.classList.toggle("gd-low", !!item[3]);
+        tag.key = key;
+      }
+    }
+    if (this.badge) {
+      const item = latest(this.spec.badge, p);
+      const key = item ? `${item[1]}|${item[2]}` : "";
+      if (this.badge.key !== key) {
+        this.badge.b.textContent = item ? item[1] : "";
+        this.badge.span.textContent = item ? item[2] : "";
+        this.badge.key = key;
+      }
+    }
   }
 
   // Where the page is in this scene's story, 0 to 1, as the stylesheet's timelines say.
   progress() {
     const s = this.spec;
+    if (s.t === "cursor") return this.cursor ?? s.rest ?? 1;
     if (!moving || s.t === "still") return s.rest ?? 1;
     const vh = innerHeight;
     // The track is the pinned stage's, or on a laptop the whole story's, whose panel
@@ -528,6 +625,7 @@ class Scene {
       canvas.remove();
       return false;
     }
+    this.dress();
     return true;
   }
 
@@ -613,35 +711,46 @@ class Scene {
     gl.drawElements(gl.TRIANGLES, b.count, b.type, 0);
   }
 
-  // Each plant's state at progress p, from the server's numbers.
+  // Each plant's state at progress p, from the server's numbers: at its finer stops
+  // where it has them (D121), else at the eight the flat drawing has.
   stateAt(pot, p) {
-    let z = pot.z;
-    if (Array.isArray(z)) {
-      const q = p * (z.length - 1), i = Math.min(z.length - 2, Math.floor(q));
-      z = lerp(z[i], z[i + 1], q - i);
-    }
+    const z = along(pot.zf ?? pot.z, p);
     const w = clamp(z / 20), grow = pot.ra ? smooth(span(p, pot.ra)) : 1;
     const wilt = pot.wilt ? smooth(span(p, pot.wilt)) : 0;
+    let drop = pot.drop ? span(p, pot.drop) : 0;
+    for (const r of pot.drops || []) if (p >= r[0] && p < r[1]) drop = span(p, r);
     return {
       w, wilt, droop: clamp((1 - w) * 2.2 + wilt * 0.8),
-      roots: lerp(pot.rf ?? pot.rt ?? 20, pot.rt ?? 20, grow) / 20,
+      roots: (pot.rtf ? along(pot.rtf, p) : lerp(pot.rf ?? pot.rt ?? 20, pot.rt ?? 20, grow)) / 20,
       bloom: Array.isArray(pot.bloom) ? smooth(span(p, pot.bloom)) : pot.bloom ?? 0,
-      drop: pot.drop ? span(p, pot.drop) : 0,
+      drop,
     };
   }
 
   // The camera: a little above the table, as close as it can be with every pot whole
   // whichever way the table has turned; found by projecting that outline, once for
   // each shape of canvas and each plant.
-  camera(kit, aspect, bloom) {
-    const key = `${aspect.toFixed(3)}|${kit === GLOW}|${bloom}`;
+  camera(kit, aspect, bloom, wide) {
+    const room = this.tagged ? 0.42 : 0;
+    const key = `${aspect.toFixed(3)}|${kit === GLOW}|${bloom}|${room}|${wide}`;
     if (this.cam && this.cam.key === key) return this.cam;
     const fy = (24 * PI) / 180, el = kit.pitch, n = this.spec.pots.length;
-    const reach = Math.max(...kit.layout(n).map(([x, z]) => Math.hypot(x, z))) + kit.reach;
     const top = bloom ? kit.y1Bloom : kit.y1, outline = [];
-    for (let k = 0; k < 32; k++) {
-      const a = (k / 32) * PI * 2;
-      outline.push([Math.cos(a) * reach, kit.y0, Math.sin(a) * reach], [Math.cos(a) * reach * 0.92, top, Math.sin(a) * reach * 0.92]);
+    // D121: room above the plants for their labels, as tall as part of the plant.
+    const above = top + (top - kit.y0) * room;
+    // Each pot's outline wherever the scene turns the table (the pots, not a circle round
+    // them all, so that a row of three fills a wide figure).
+    const turns = this.spec.turn ? [0, 0.25, 0.5, 0.75, 1].map((f) => lerp(this.spec.turn[0], this.spec.turn[1], f)) : [-12];
+    for (const deg of turns) {
+      const t = (deg * PI) / 180, c = Math.cos(t), s = Math.sin(t);
+      for (const [x, z] of kit.layout(n, wide)) {
+        const cx = c * x + s * z, cz = -s * x + c * z;
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * PI * 2, r = kit.reach;
+          outline.push([cx + Math.cos(a) * r, kit.y0, cz + Math.sin(a) * r], [cx + Math.cos(a) * r * 0.92, top, cz + Math.sin(a) * r * 0.92]);
+        }
+        if (room) outline.push([cx, above, cz]);
+      }
     }
     const proj = perspective(fy, aspect, 0.05, 80);
     let dist = 6, ty = (kit.y0 + top) / 2, eye, view;
@@ -658,8 +767,16 @@ class Scene {
       ty += ((y0 + y1) / 2) * dist * Math.tan(fy / 2);
       dist *= Math.max((x1 - x0) / 2, (y1 - y0) / 2) / 0.92;
     }
-    this.cam = { key, eye, view };
+    this.cam = { key, eye, view, top };
     return this.cam;
+  }
+
+  // Where a point of the world falls on the canvas, in CSS pixels.
+  spot(view, q) {
+    const w = view[3] * q[0] + view[7] * q[1] + view[11] * q[2] + view[15];
+    const x = (view[0] * q[0] + view[4] * q[1] + view[8] * q[2] + view[12]) / w;
+    const y = (view[1] * q[0] + view[5] * q[1] + view[9] * q[2] + view[13]) / w;
+    return [((x + 1) / 2) * this.canvas.clientWidth, ((1 - y) / 2) * this.canvas.clientHeight];
   }
 
   render() {
@@ -685,9 +802,11 @@ class Scene {
     }
     const p = this.shown, n = spec.pots.length;
     const turn = ((spec.turn ? lerp(spec.turn[0], spec.turn[1], p) : -12) * PI) / 180;
-    const at = kit.layout(n);
+    // A row of three where the figure is large and wide; a triangle where it is small.
+    const wide = canvas.clientWidth >= 600 && w / h > 1.2;
+    const at = kit.layout(n, wide);
     const states = spec.pots.map((pot) => this.stateAt(pot, p));
-    const { eye, view } = this.camera(kit, w / h, spec.pots.some((pot) => pot.bloom));
+    const { eye, view, top } = this.camera(kit, w / h, spec.pots.some((pot) => pot.bloom), wide);
     gl.uniformMatrix4fv(L.uView, false, view);
     gl.uniform3fv(L.uEye, eye);
     gl.uniform3fv(L.uKey, unit([-0.5, 0.85, 0.6]));
@@ -707,6 +826,7 @@ class Scene {
       const model = potModel(turn, at[i][0], at[i][1]);
       return { st, model, depth: model[14], parts: kit.parts(st, pl.made) };
     });
+    if (this.tags || this.badge) this.label(pots.map((pt) => this.spot(view, [pt.model[12], top, pt.model[14]])), p);
 
     // Opaque first; then the see-through, the farthest pot first; then what glows.
     gl.disable(gl.BLEND);
@@ -766,6 +886,125 @@ class Scene {
   }
 }
 
+// ---------------------------------------------------------------- the chapters' line
+// D121: on a laptop, where the scenes run, the chapters along the bottom of the window,
+// the one in view lit and filled as far as it has gone by.
+const line = document.querySelector(".gd-timeline");
+const wide = matchMedia("(min-width: 861px)");
+function chapters() {
+  if (!line) return;
+  const vh = innerHeight, links = [...line.querySelectorAll("a[data-chapter]")];
+  const parts = links.map((a) => document.getElementById(a.dataset.chapter));
+  const first = parts[0], last = parts[parts.length - 1];
+  const show = moving && wide.matches && !!first && !!last
+    && first.getBoundingClientRect().top < vh * 0.5 && last.getBoundingClientRect().bottom > vh * 0.5;
+  if (line.hidden === show) line.hidden = !show;
+  if (!show) return;
+  links.forEach((a, i) => {
+    const part = parts[i];
+    if (!part) return;
+    const story = part.querySelector(".code-story");
+    const box = part.getBoundingClientRect(), r = (story || part).getBoundingClientRect();
+    const fill = story
+      ? clamp((topbar - r.top) / Math.max(1, r.height - (vh - topbar)))
+      : clamp((vh * 0.5 - r.top) / Math.max(1, r.height));
+    const on = box.top <= vh * 0.5 && box.bottom > vh * 0.5;
+    a.classList.toggle("on", on);
+    if (on) a.setAttribute("aria-current", "step");
+    else a.removeAttribute("aria-current");
+    a.querySelector(".gd-tl-fill")?.setAttribute("width", (100 * fill).toFixed(1));
+  });
+}
+
+// ---------------------------------------------------------------- the month
+// D121: the month the student plans. The slider, or Play, says the day the plants show;
+// a tick, or a button, asks the server for the month again and puts it in place.
+const MONTH_MS = 16000;
+function month(wake) {
+  const form = document.querySelector(".gd-month-form");
+  if (!form) return () => {};
+  const button = form.querySelector(".gd-play"), day = form.querySelector(".gd-month-day");
+  const scene = () => form.querySelector(".gd-scene")?.gdScene;
+  let playing = 0, then = 0, asked = 0;
+  const set = (v) => {
+    const s = scene();
+    if (!s) return;
+    s.cursor = clamp(v);
+    day.value = String(Math.round(1000 * s.cursor));
+    const item = latest(s.spec.badge, s.cursor);
+    if (item) day.setAttribute("aria-valuetext", `${item[1]}, ${item[2]}`);
+    wake();
+  };
+  const stop = () => {
+    if (playing) cancelAnimationFrame(playing);
+    playing = 0;
+    then = 0;
+    button.textContent = button.dataset.play;
+    button.setAttribute("aria-pressed", "false");
+  };
+  const play = (now) => {
+    const s = scene();
+    if (!s) return stop();
+    const next = (s.cursor ?? 1) + (then ? (now - then) / MONTH_MS : 0);
+    then = now;
+    set(Math.min(1, next));
+    if (next >= 1) return stop();
+    playing = requestAnimationFrame(play);
+  };
+  button.addEventListener("click", () => {
+    if (playing) return stop();
+    if ((scene()?.cursor ?? 1) >= 1) set(0);
+    button.textContent = button.dataset.pause;
+    button.setAttribute("aria-pressed", "true");
+    playing = requestAnimationFrame(play);
+  });
+  day.addEventListener("input", () => {
+    if (playing) stop();
+    set(Number(day.value) / 1000);
+  });
+  const refresh = async (submitter) => {
+    const data = submitter && submitter.name ? new FormData(form, submitter) : new FormData(form);
+    const query = new URLSearchParams(data).toString(), url = form.action.split("#")[0];
+    const id = ++asked, focused = form.contains(document.activeElement) ? document.activeElement.id : "";
+    let fresh;
+    try {
+      const answer = await fetch(`${url}?${query}&part=month`, { headers: { Accept: "text/html" } });
+      fresh = new DOMParser().parseFromString(await answer.text(), "text/html").getElementById("month");
+    } catch {
+      fresh = null;
+    }
+    if (id !== asked) return;
+    if (!fresh) return location.assign(`${url}?${query}#month`);
+    form.querySelector(".gd-lanes").replaceWith(document.adoptNode(fresh.querySelector(".gd-lanes")));
+    form.querySelector(".gd-score").replaceChildren(...[...fresh.querySelector(".gd-score").childNodes].map((n) => document.adoptNode(n)));
+    const here = form.querySelector(".gd-scene"), there = fresh.querySelector(".gd-scene");
+    here.dataset.scene = there.dataset.scene;
+    here.querySelector(".gd-flat").replaceWith(document.adoptNode(there.querySelector(".gd-flat")));
+    form.querySelector(".gd-names")?.replaceWith(document.adoptNode(fresh.querySelector(".gd-names")));
+    const s = here.gdScene;
+    if (s) {
+      s.spec = JSON.parse(there.dataset.scene);
+      if (s.ready) s.dress();
+      s.dirty = true;
+    }
+    // The address says the plan now shown (a preset's ticks, not the ones before it).
+    history.replaceState(history.state, "", `${url}?${new URLSearchParams(new FormData(form))}#month`);
+    if (focused) document.getElementById(focused)?.focus({ preventScroll: true });
+    wake();
+  };
+  form.addEventListener("change", (e) => {
+    if (e.target.matches('input[type="checkbox"]')) refresh(null);
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    refresh(e.submitter);
+  });
+  // Its controls, once its plants are drawn in 3D (the flat drawing stands on exam day).
+  return (s) => {
+    if (s.spec.t === "cursor" && form.contains(s.el)) form.querySelector(".gd-month-play").hidden = false;
+  };
+}
+
 // ---------------------------------------------------------------- the page
 function main() {
   if (!scenes.length) return;
@@ -774,6 +1013,7 @@ function main() {
   let frame = 0;
   const tick = () => {
     frame = 0;
+    chapters();
     let again = false;
     for (const s of live) {
       if (!s.visible || !s.ready) continue;
@@ -796,6 +1036,7 @@ function main() {
   const wake = () => {
     if (!frame) frame = requestAnimationFrame(tick);
   };
+  const drawn = month(wake);
   const seen = new IntersectionObserver((entries) => {
     for (const e of entries) {
       const s = e.target.gdScene;
@@ -809,6 +1050,7 @@ function main() {
         }
         s.shown = s.progress();
         live.push(s);
+        drawn(s);
       }
       s.dirty = true;
     }

@@ -1114,3 +1114,13 @@ spaced a quarter of a window apart therefore scored as content, while a screen s
 readable words. Status: fixed with D120. The benchmark now also reports the share of the window's
 area that content covers (text by its lines) and the words readable on a screen (opacity 60 % or
 more). D120's layout shows 22 % to 51 % more words per screen at 1440 × 900.
+
+**98. How it works' game made cramming look best.** Reported by the owner, of the laptop proposals
+made after D120, whose game scored as D116's did: "one can easily say that cramming works best".
+D116's week scored a plan only on the weakest topic on exam day, and counted every revision as a
+success. A revision the night before then always won: it scores well the next morning, and nothing
+measured the days a topic spent forgotten before, a revision that fails after a long gap, or what
+is left a month on. Status: fixed with D121. The game gave way to a month the student plans, scored
+three ways against the app's (exam day, the days below 90 % before it, a month later), each
+revision working only as often as its course is still remembered; a chapter says that cramming
+wins the next day and what it costs (`tests/test_garden.py` holds the numbers).

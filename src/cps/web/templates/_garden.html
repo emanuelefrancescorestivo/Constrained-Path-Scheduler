@@ -68,20 +68,26 @@
              of water falls on it
      css     classes for the flat drawing's motion (its ranges are in style.css)
      name, small   its name and a line under it
+   D121, for the laptop's story: zf and rtf, its water and roots at finer stops (the
+   flat drawing keeps the eight); drops, every range in which a drop falls; tags, the
+   label it wears from each stop on ([progress, big, small]). `badge`, the scene's day
+   ([progress, big, small] too); `sid`, an id, for the slider that drives a "cursor"
+   scene (the month planned).
    `motion` says how the scene runs: "pin" (as its pinned track is scrolled through),
    "cover" (as the figure crosses the screen, in the range `r`), "exit" (as it leaves the
    top), "still"; `turn` is the table's turn from start to end, in degrees; `rest` where
    a scene that does not run is drawn (default the end). #}
-{% macro shelf(pots, cls="", flower=false, label="", motion={"t": "still"}) -%}
+{% macro shelf(pots, cls="", flower=false, label="", motion={"t": "still"}, badge=none, sid="") -%}
 {% set specs = [] %}
 {% for p in pots %}
 {% set _ok = specs.append({
   "z": p.w, "rt": p.get("roots", 20), "rf": p.get("from"), "ra": p.get("grow"),
   "wilt": p.get("wilt"), "drop": p.get("drop"), "bloom": ([0, 1] if flower else 0),
+  "zf": p.get("zf"), "rtf": p.get("rtf"), "drops": p.get("drops"), "tags": p.get("tags"), "name": p.get("name"),
 }) %}
 {% endfor %}
-{% set scene = {"t": motion.t, "r": motion.get("r"), "turn": motion.get("turn"), "rest": motion.get("rest"), "pots": specs} %}
-<div class="gd-scene gd-n{{ pots | length }} {{ cls }}" data-scene='{{ scene | tojson }}'{% if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true"{% endif %}>
+{% set scene = {"t": motion.t, "r": motion.get("r"), "turn": motion.get("turn"), "rest": motion.get("rest"), "badge": badge, "pots": specs} %}
+<div class="gd-scene gd-n{{ pots | length }} {{ cls }}"{% if sid %} id="{{ sid }}"{% endif %} data-scene='{{ scene | tojson }}'{% if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true"{% endif %}>
   <div class="gd-flat">
   {% for p in pots %}{% set stops = p.w if p.w is iterable else [p.w] %}
   <div class="gd-pot gz{{ stops[-1] }}{% if stops | length > 1 %} sci-drain{% for z in stops %} q{{ loop.index0 }}z{{ z }}{% endfor %}{% endif %} rt{{ p.get('roots', 20) }}{% if p.get('from') is not none %} gd-grow rf{{ p.get('from') }}{% endif %}{% if p.get('wilt') %} gd-wilt{% endif %}{% if p.get('css') %} {{ p.css }}{% endif %}">{{ flat(p, loop.index0, flower) }}</div>
