@@ -59,6 +59,15 @@
 {% if view.now %}
 <div class="section-title"><h2>{{ _("Now") }}</h2></div>
 {% with card=view.now, show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
+{% elif view.done %}
+{# Done for today (D125): every session planned today reported, at least one kept.
+   The win is stopping; the next session is named, and nothing asks for more. #}
+<div class="section-title"><h2>{{ _("Done for today") }}</h2></div>
+<div class="card done-today">
+  <p class="done-line"><b>{{ _n("{n} session kept", "{n} sessions kept", view.done.kept) }}</b>{% if view.done.added %} · <b>{{ _n("+{n} memory day", "+{n} memory days", view.done.added) }}</b>{% endif %}</p>
+  <p class="muted">{{ _("That is today's plan. The next session adds more than a second pass tonight would.") }}</p>
+  {% if view.next %}<p class="done-next">{{ _("Next: {when}, {what}.", when=view.next[0].when, what=view.next[0].label) }}</p>{% endif %}
+</div>
 {% elif view.next %}
 <div class="section-title"><h2>{{ _("Up next") }}</h2></div>
 {% with card=view.next[0], show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
@@ -69,6 +78,17 @@
 <p class="next-else"><a href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a></p>
 </div>
 
+{# Just answered (D125): the latest self-test answered today, set against the model's
+   chance, where "How did it go?" stood; it stays three hours. #}
+{% if view.banked and not (view.now and view.now.id == view.banked.id) %}
+<div class="section banked-today" data-vt="b{{ view.banked.id }}">
+  <div class="section-title"><h2>{{ _("Just answered") }}</h2></div>
+  <div class="card {% if view.banked.color is not none %}c{{ view.banked.color }}{% else %}cn{% endif %}">
+    <p class="kicker"><span class="dot"></span>{{ view.banked.label }}{% if view.banked.topic %} · {{ view.banked.topic }}{% endif %}</p>
+    {% from "_banked.html" import banked %}{{ banked(view.banked.memory, view.banked) }}
+  </div>
+</div>
+{% endif %}
 {% set asked = view.unreported | rejectattr("id", "equalto", view.now.id if view.now else "") | list %}
 {% if asked %}
 {# One session at a time (D97): the latest. The ones before it count as done as

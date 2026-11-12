@@ -4368,6 +4368,7 @@ def _session_card(
     sid = session_id(s)
     return {
         "gain": (gains or {}).get(sid),
+        "memory": _memory_words((gains or {}).get(sid), outcomes.get(sid), zone, now),
         "self_test": s.kind in ("review", "first review"),
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
@@ -4396,6 +4397,36 @@ def _session_card(
         "week": _topic_monday(s.topic.removeprefix(f"{s.subject} · "), start.date())
         if s.kind in ("review", "first review") and s.topic
         else None,
+    }
+
+
+# The memory loop's verdict on an answered self-test (D125): the answer set against
+# the model's chance of recalling it, and what it did to the topic's memory. "beaten"
+# is a recall the model gave less than even odds; a second pass on the same day is
+# said to add nothing, as the model's short-term term has it (CLAUDE.md, D125).
+BEATEN_BELOW = 50
+
+
+def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now: datetime) -> dict | None:
+    """What an answered self-test did (D125): None before the answer, for a skipped
+    session, and for anything but a self-test (`gain` carries the model's chance
+    for those alone)."""
+    if not gain or "chance" not in gain or answer not in RECALL_GRADES:
+        return None
+    if answer == "forgot":
+        verdict = "forgot"
+    elif gain["same_day"]:
+        verdict = "same_day"
+    elif gain["chance"] < BEATEN_BELOW:
+        verdict = "beaten"
+    else:
+        verdict = "forecast"
+    return {
+        "verdict": verdict,
+        "chance": gain["chance"],
+        "added": max(0, round(gain["added"])),
+        "holds": format_date(gain["holds"], "short"),
+        "next": _when(datetime.fromisoformat(gain["next"]).astimezone(zone), now) if gain["next"] else None,
     }
 
 
@@ -4922,6 +4953,8 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["to_report"].reverse()
     # The panel asks only about what has not been answered yet.
     view["unreported"] = [c for c in view["to_report"] if not c["reported"]]
+    view["done"] = _day_done(cards, moments, gains, local)
+    view["banked"] = _just_banked(cards, moments, local)
     week_end = local + timedelta(days=7)
     coming = [
         s for s in plan.sessions if local <= datetime.fromisoformat(s.start).astimezone(zone) < week_end
@@ -4945,6 +4978,41 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     said = ("predicted below", "does not reach the target", _("are predicted below"))
     view["warnings"] = [w for w in plan.warnings if not (w.startswith(shown) and any(x in w for x in said))]
     return view
+
+
+BANKED_FOR = timedelta(hours=3)  # how long an answered self-test's result stays on Today
+
+
+def _day_done(
+    cards: Sequence[dict],
+    moments: Sequence[tuple[datetime, datetime]],
+    gains: Mapping[str, dict],
+    local: datetime,
+) -> dict | None:
+    """Done for today (D125): once every session planned today is reported, none is
+    running and at least one was kept, how many were kept and the memory days the
+    day's answered self-tests added (the net, shown when positive). None on a day
+    with nothing planned: there is nothing to be done with."""
+    todays = [c for c, (start, end) in zip(cards, moments, strict=True) if start.date() == local.date()]
+    running = any(start <= local < end for start, end in moments)
+    kept = [c for c in todays if c["reported"] and c["reported"] != "skipped"]
+    if not todays or running or not kept or any(not c["reported"] for c in todays):
+        return None
+    added = sum(gains[c["id"]]["added"] for c in kept if c["memory"] and c["id"] in gains)
+    return {"kept": len(kept), "of": len(todays), "added": max(0, round(added))}
+
+
+def _just_banked(
+    cards: Sequence[dict], moments: Sequence[tuple[datetime, datetime]], local: datetime
+) -> dict | None:
+    """The latest self-test answered today whose session ended within `BANKED_FOR`:
+    its card, with the verdict, for Today to show the moment's result (D125)."""
+    recent = [
+        c
+        for c, (start, end) in zip(cards, moments, strict=True)
+        if c["memory"] and start.date() == local.date() and start <= local and local - end <= BANKED_FOR
+    ]
+    return recent[-1] if recent else None
 
 
 def _exam_rows(plan: PlanReport, now: datetime, colours: Mapping[str, int]) -> list[dict]:
@@ -6499,13 +6567,11 @@ def _month_start(now: datetime) -> str:
 
 
 def front_door(store: str | os.PathLike, subscription: Subscription) -> str:
-    """D102: where the app opens: "community", the feed, for a student with a plan who
-    has joined the study network (a handle); "today" otherwise. A student who has not
-    joined would open on an empty feed and an invitation to choose a handle, and one
-    just through setting up is shown Today and its tour first."""
-    if subscription.plan is None or social.get_profile(_store(store), subscription.token) is None:
-        return "today"
-    return "community"
+    """Where the app opens: "today", the plan (the day's panel beside the calendar),
+    for everyone (D124). D102 had opened on the feed for a student with a handle; the
+    one door, `/p/<plan>/open`, stays, so an installed app and every link to it keep
+    working, and so the choice has one place to change."""
+    return "today"
 
 
 FEED_FIRST = 10  # posts a feed shows at first; "Show more" adds as many (D106)
@@ -8582,6 +8648,10 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
     states = {
         s["name"]: (MemoryState(s["stability"], s["difficulty"]), s["last_review_day"]) for s in plan.specs
     }
+    # Each topic's planned sessions, for "it comes back on …" (D125).
+    coming: dict[str, list[SessionView]] = {}
+    for session in sorted(plan.sessions, key=lambda x: x.start_day):
+        coming.setdefault(session.title, []).append(session)
     out: dict[str, dict] = {}
     for session in sorted(plan.history + plan.sessions, key=lambda x: x.start_day):
         if session.title not in states or session.outcome in _NO_MEMORY:
@@ -8591,9 +8661,21 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
         exam = exam_day[session.title]
         after = model.review(memory, elapsed, _grade(session))
         if session.kind in _REVIEW_KINDS and session.start_day < exam:
+            following = next(
+                (x for x in coming.get(session.title, ()) if x.start_day > session.start_day), None
+            )
             out[session_id(session)] = {
                 "without": _five(model.retrievability(max(exam - last, 0.0), memory.stability)),
                 "with": _five(model.retrievability(max(exam - session.start_day, 0.0), after.stability)),
+                # The memory loop (D125): the chance of recalling it as the session
+                # starts, whether it is a second pass on the same day, the memory
+                # days it adds (stability after less before, as D82 counts them),
+                # the day it then holds 90 % until, and when the topic comes back.
+                "chance": _five(model.retrievability(elapsed, memory.stability)),
+                "same_day": elapsed < 1.0,
+                "added": after.stability - memory.stability,
+                "holds": plan.settings.start + timedelta(days=session.start_day + after.stability),
+                "next": following.start if following else None,
             }
         states[session.title] = (after, session.start_day)
     return out

@@ -1391,6 +1391,16 @@ label.check.check-long input { margin-top: 3px; flex: none; }
 .climb-new { color: var(--text); font-weight: 650; }
 .gain { font-size: 0.85rem; color: var(--muted); margin: 6px 0 0; }
 .gain b { color: var(--text); }
+/* The memory loop (D125): what an answer did, and the day's close. */
+.banked { font-size: 0.9rem; color: var(--text); margin: 8px 0 0; line-height: 1.45; }
+.banked small { color: var(--muted); font-size: 0.8rem; }
+.banked .tip-reason { display: block; color: var(--accent-ink); font-size: 0.82rem; font-weight: 650; margin: 0 0 2px; }
+.banked-beaten { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
+.banked-today .kicker { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.banked-today .kicker .dot { flex: none; }
+.recall-hint { margin: 2px 0 6px; }
+.done-today .done-line { margin: 0 0 6px; font-size: 1.05rem; }
+.done-today .done-next { margin: 8px 0 0; font-weight: 600; }
 
 /* -- phones and narrow windows ------------------------------------------------- */
 @media (max-width: 900px) {
