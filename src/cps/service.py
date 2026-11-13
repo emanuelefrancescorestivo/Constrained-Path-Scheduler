@@ -3311,7 +3311,7 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # question about reminders (D107), then the end of the semester, then the question about
 # counting what is used (D96), then a question that makes the plan fit (D98), then an
 # insight (D80), then a tip the day calls for (D63).
-MESSAGES = ("exam", "outcome", "first", "remind", "semester", "usage", "fit", "insight", "tip")
+MESSAGES = ("exam", "outcome", "repair", "first", "remind", "semester", "usage", "fit", "insight", "tip")
 
 
 FIRST_DAY_MINUTES = 25  # the first day's short session (D106), the timer's shortest goal
@@ -5317,6 +5317,140 @@ def _hours(minutes: int) -> float:
     return round(minutes / 60, 1)
 
 
+# --------------------------------------------------------------------------- #
+# Repair and pause (DECISIONS.md D126): a missed day repaired by a make-up session
+# of focus within two days; a pause that keeps the streak and leaves its days free
+# --------------------------------------------------------------------------- #
+
+REPAIR_MINUTES = 25  # the make-up session's length: the timer's shortest goal
+PAUSE_MOST_DAYS = 90  # the longest pause, from today
+PAUSE_CHOICES = ("today", "monday", "week")  # besides a date: today only, until Monday, a week
+
+
+def pauses_of(preferences: Mapping) -> list[tuple[date, date]]:
+    """The student's pauses, as (first day, last day) pairs, in order."""
+    out = []
+    for p in preferences.get("pauses") or ():
+        try:
+            out.append((date.fromisoformat(p["from"]), date.fromisoformat(p["to"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return sorted(out)
+
+
+def _pause_dicts(pauses: Sequence[tuple[date, date]]) -> list[dict]:
+    return [{"from": a.isoformat(), "to": b.isoformat()} for a, b in pauses]
+
+
+def _pause_view(pause: tuple[date, date] | None) -> dict | None:
+    """A pause as the pages show it: its days, ISO, and its last day in words."""
+    if pause is None:
+        return None
+    return {"from": pause[0].isoformat(), "to": pause[1].isoformat(), "until": format_date(pause[1], "short")}
+
+
+def active_pause(pauses: Sequence[tuple[date, date]], today: date) -> tuple[date, date] | None:
+    return next((p for p in pauses if p[0] <= today <= p[1]), None)
+
+
+def next_pause(pauses: Sequence[tuple[date, date]], today: date) -> tuple[date, date] | None:
+    """The pause set ahead, if any: one begins after today."""
+    return next((p for p in pauses if p[0] > today), None)
+
+
+def pause_until(choice: str, today: date) -> date:
+    """The last day of a pause asked for as "today", "monday" (through Sunday),
+    "week" (seven days) or a day (ISO), from `today`."""
+    if choice == "today":
+        return today
+    if choice == "monday":
+        return today + timedelta(days=6 - today.weekday())
+    if choice == "week":
+        return today + timedelta(days=6)
+    try:
+        last = date.fromisoformat(choice)
+    except ValueError:
+        raise InvalidInput(_("say until when: today, until Monday, a week, or a day")) from None
+    if last < today:
+        raise InvalidInput(_("a pause ends today or later"))
+    if (last - today).days >= PAUSE_MOST_DAYS:
+        raise InvalidInput(_("a pause lasts at most {n} days", n=PAUSE_MOST_DAYS))
+    return last
+
+
+def set_pause(subscription: Subscription, choice: str, *, now: datetime | None = None) -> Subscription:
+    """Pause the streak from today until `choice` says (D126): its days neither
+    extend nor break the streak, and the plan leaves them free. One pause at a
+    time: a pause under way or ahead is replaced; past ones are kept, for the
+    days they explain. The plan is made again at once."""
+    if subscription.plan is None:
+        raise InvalidInput(_("there is no plan to pause yet"))
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    last = pause_until(choice, today)
+    prefs = subscription.options.get("preferences", {})
+    kept = [p for p in pauses_of(prefs) if p[1] < today]
+    prefs = {**prefs, "pauses": _pause_dicts([*kept, (today, last)])}
+    changed = replace(subscription, options={**subscription.options, "preferences": prefs})
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def end_pause(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """Resume: the pause under way ends yesterday (or is dropped, begun today), and
+    one set ahead is dropped. The plan is made again at once."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    prefs = subscription.options.get("preferences", {})
+    pauses = []
+    for a, b in pauses_of(prefs):
+        if b < today:
+            pauses.append((a, b))
+        elif a < today:
+            pauses.append((a, today - timedelta(days=1)))
+    changed = replace(
+        subscription,
+        options={
+            **subscription.options,
+            "preferences": {**prefs, "pauses": _pause_dicts(pauses)},
+        },
+    )
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def repair_offer(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """Today's offer to repair a missed day (D126): the day, how it is named, the
+    make-up session's length and the course to start it on; None when no day of
+    the last two is missed, or the student said "Not now" today."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    if subscription.options.get("repair_later") == today.isoformat():
+        return None
+    view = progress_view(subscription, now, logged=logged_sessions(store, subscription))
+    if not view.get("repair"):
+        return None
+    missed = date.fromisoformat(view["repair"])
+    planned = [s for s in progress_sessions(subscription) if s.start.date() == missed and s.planned]
+    return {
+        "day": missed.isoformat(),
+        "yesterday": (today - missed).days == 1,
+        "label": format_date(missed, "short"),
+        "minutes": REPAIR_MINUTES,
+        "course": planned[0].course if planned else "",
+    }
+
+
+def repair_later(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """ "Not now" on the repair offer: not again today."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    return replace(subscription, options={**subscription.options, "repair_later": today.isoformat()})
+
+
 def progress_view(
     subscription: Subscription, now: datetime | None = None, logged: Sequence[_progress.Session] = ()
 ) -> dict:
@@ -5333,7 +5467,12 @@ def progress_view(
     today = local.date()
     sessions = _progress.merge_logged(progress_sessions(subscription), logged)
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
-    run = _progress.streak(sessions, first, today)
+    # The student's pauses and the missed days they repaired (D126).
+    pauses = pauses_of(subscription.options.get("preferences", {}))
+    paused = _progress.pause_days(pauses)
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, today, paused, repaired)
+    pause = active_pause(pauses, today)
     # The weeks since the plan began, at most twelve; a younger plan shows its weeks
     # to come too, four in all, so it is not a sliver.
     weeks = max(4, min(12, (_progress.monday(today) - _progress.monday(first)).days // 7 + 1))
@@ -5344,6 +5483,12 @@ def progress_view(
     tasks = _task_rows(subscription, plan, now, colours)
     if run.today_done:
         today_line = _("Today counts. See you tomorrow.")
+    elif pause is not None:
+        today_line = (
+            _("Paused today: your streak waits.")
+            if pause[1] == today
+            else _("Paused until {day}: your streak waits.", day=format_date(pause[1], "short"))
+        )
     elif run.today_planned:
         today_line = _n(
             "One session today makes it {n} day in a row.",
@@ -5362,7 +5507,12 @@ def progress_view(
                 "today_planned": run.today_planned,
                 "today_done": run.today_done,
                 "line": today_line,
+                # The pause under way or ahead (D126), and its last day.
+                "pause": _pause_view(pause),
+                "ahead": None if pause is not None else _pause_view(next_pause(pauses, today)),
             },
+            # The missed day a make-up session can still repair (D126), or None.
+            "repair": (repair_day := _progress.repairable(run, today)) and repair_day.isoformat(),
             "week": {
                 "first": _progress.monday(today).isoformat(),
                 "planned": this_week.planned,
@@ -5388,7 +5538,9 @@ def progress_view(
                     }
                     for d in row
                 ]
-                for row in _progress.grid(sessions, first, today, weeks=weeks)
+                for row in _progress.grid(
+                    sessions, first, today, weeks=weeks, paused=paused, repaired=repaired
+                )
             ],
             "since": format_date(_progress.monday(first), "day"),
             "totals": {
@@ -5557,6 +5709,8 @@ format_day = _i18n.format_date
 DAY_WORDS = {
     "studied": "studied",
     "forgiven": "forgiven",
+    "repaired": "repaired",
+    "paused": "paused",
     "missed": "not reported",
     "rest": "rest",
     "today": "today",
@@ -5896,10 +6050,13 @@ def start_focus(
     *,
     sid: str | None = None,
     goal: int = 0,
+    repair: str | None = None,
     now: datetime | None = None,
 ) -> Subscription:
     """Start the timer for `course`, or for the plan's session `sid`, meant to last
-    `goal` minutes (0: no length chosen, D67)."""
+    `goal` minutes (0: no length chosen, D67). `repair` names the missed day this
+    session makes up for (D126): one of the last two days, checked when it is
+    saved."""
     now = now or datetime.now(UTC)
     goal = focus_goal(goal)
     if sid:
@@ -5910,6 +6067,14 @@ def start_focus(
     course = " ".join(str(course or "").split())[: social.LIMITS["course"]]
     if not course:
         raise InvalidInput(_("say what you studied"))
+    if repair:
+        today = now.astimezone(_zone(subscription.options["tz"])).date()
+        try:
+            missed = date.fromisoformat(repair)
+        except ValueError:
+            raise InvalidInput(_("{value} is not a day", value=repr(repair))) from None
+        if not 1 <= (today - missed).days <= _progress.REPAIR_WITHIN:
+            raise InvalidInput(_("a missed day can be repaired the next day or the one after"))
     focus = {
         "course": course,
         "sid": sid or "",
@@ -5918,6 +6083,7 @@ def start_focus(
         "away": 0,
         "interruptions": 0,
         "goal": goal,
+        "repair": repair or "",
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
@@ -5974,6 +6140,7 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "checked": bool(focus["beats"]),
         "timed": True,
         "goal": int(focus.get("goal", 0)),
+        "repair": str(focus.get("repair") or ""),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
     return replace(subscription, options={**options, "focus_draft": draft})
@@ -6148,6 +6315,12 @@ def log_session(
     changed = replace(
         subscription, options={k: v for k, v in subscription.options.items() if k != "focus_draft"}
     )
+    # A make-up session repairs the missed day it was started for (D126), when the
+    # timer measured at least its length: minutes typed in repair nothing (D67).
+    repair = str(draft.get("repair") or "") if timed else ""
+    if repair and int(minutes) >= REPAIR_MINUTES:
+        repairs = {**changed.options.get("repairs", {}), repair: day.isoformat()}
+        changed = replace(changed, options={**changed.options, "repairs": repairs})
     sid = draft.get("sid")
     if sid and subscription.outcomes.get(sid) is None:
         # If the plan has changed since, the diary keeps the session anyway.
@@ -9274,11 +9447,13 @@ def make_schedule(
     now: datetime | None = None,
     pins: Sequence[Mapping] = (),
     model: str = "fsrs-6",
+    pauses: Sequence[Mapping] = (),
 ) -> PlanReport:
     """The student's week, scheduled by the assistant's rules (`cps.assistant`):
     deadlines first when they get close, exam practice before each exam, self-testing
     on the taught material that is fading, work ahead otherwise, and free time
-    when nothing needs it. Within `weekly_hours` a week, never on `rest_days`.
+    when nothing needs it. Within `weekly_hours` a week, never on `rest_days` nor
+    on the days of a pause the student set (D126).
 
     Exam practice is `practice_hours` before every exam, or with None sized by the
     weeks each course was taught (`practice_hours_for`, D46); `practice` gives a
@@ -9372,6 +9547,8 @@ def make_schedule(
             "weights": {str(k): float(v) for k, v in (weights or {}).items() if float(v) != 1.0},
             # The memory model the rules and the forecasts use (D52).
             "model": model,
+            # The student's pauses (D126): their days are left free.
+            "pauses": [dict(p) for p in pauses],
             # What sizing gives each course, kept for the settings page (D46); a
             # partial exam (D61) is sized like an exam, on the weeks taught before it.
             "practice_sized": {
@@ -9456,6 +9633,11 @@ def _assist(
         )
 
     blocks = tuple(b for b in blocks if not overlaps(b))
+    # A pause the student set (D126) leaves its days free: nothing is planned on
+    # them, so nothing can be missed; a session they placed there themselves stays.
+    paused = _progress.pause_days(pauses_of(prefs))
+    if paused:
+        blocks = tuple(b for b in blocks if _local(b.start, zone).date() not in paused)
     model = model_of(settings)
     states = _replay(specs, history, model)
     counted = [h for h in history if h.outcome != "skipped"]

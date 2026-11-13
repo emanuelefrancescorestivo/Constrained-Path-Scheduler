@@ -16,6 +16,10 @@ rules, in one place:
 * Today is **today** until it is studied: it cannot be missed before it is over.
 * The streak counts studied days since the last missed day; rest and forgiven
   days pass it on unchanged.
+* A missed day the student **repaired**, with a make-up session of focus within
+  two days (DECISIONS.md D126), passes the streak on too; so does a day in a
+  **pause** the student set (ill, an exam week, a holiday), on which nothing is
+  planned. A studied day stays studied, pause or not.
 * A focus session the student logged (kind "logged", DECISIONS.md D17) makes its
   day studied, planned or not; it is not part of what the plan planned.
 
@@ -28,7 +32,7 @@ Pure functions of plain values; `service.progress_view` feeds them a plan.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -37,6 +41,9 @@ CONFIRMED = ("done", "struggled", *RECALLED)
 STREAK_GOALS = (3, 7, 14, 30, 60, 100)
 # A full week: at least this many sessions planned, all reported done or hard.
 FULL_WEEK = 3
+# A missed day can be repaired this many days after it (D126): the day after, or
+# the one after that; later, it stands.
+REPAIR_WITHIN = 2
 
 
 @dataclass(frozen=True)
@@ -65,7 +72,7 @@ class Session:
 @dataclass(frozen=True)
 class Day:
     day: date
-    state: str  # studied, missed, forgiven, rest, today, future, before
+    state: str  # studied, missed, forgiven, repaired, paused, rest, today, future, before
     planned: int
     done: int
 
@@ -96,9 +103,18 @@ def _by_day(sessions: Iterable[Session]) -> dict[date, list[Session]]:
     return out
 
 
-def streak(sessions: Sequence[Session], first: date, today: date) -> Streak:
+def streak(
+    sessions: Sequence[Session],
+    first: date,
+    today: date,
+    paused: Collection[date] = (),
+    repaired: Collection[date] = (),
+) -> Streak:
     """Every day from `first` (the plan's start) to `today`, its state, and the
-    streak they make."""
+    streak they make. `paused` are the days of the student's pauses, `repaired`
+    the missed days a make-up session repaired (D126): both pass the streak on.
+    A repaired day is judged before the week's forgiveness, so the forgiveness
+    stays for another day: the student studied for it."""
     days = _by_day(sessions)
     run = best = 0
     forgiven_weeks: set[date] = set()
@@ -112,10 +128,14 @@ def streak(sessions: Sequence[Session], first: date, today: date) -> Streak:
             state = "studied"
             run += 1
             best = max(best, run)
+        elif day in paused:
+            state = "paused"
         elif not planned:
             state = "rest"
         elif day == today:
             state = "today"
+        elif day in repaired:
+            state = "repaired"
         elif monday(day) not in forgiven_weeks:
             forgiven_weeks.add(monday(day))
             state = "forgiven"
@@ -136,12 +156,20 @@ def streak(sessions: Sequence[Session], first: date, today: date) -> Streak:
     )
 
 
-def grid(sessions: Sequence[Session], first: date, today: date, weeks: int = 12) -> list[list[Day]]:
+def grid(
+    sessions: Sequence[Session],
+    first: date,
+    today: date,
+    weeks: int = 12,
+    paused: Collection[date] = (),
+    repaired: Collection[date] = (),
+) -> list[list[Day]]:
     """`weeks` weeks, Monday first, one row per week, oldest first: the last ones up
     to this week, or, for a plan younger than that, its first weeks and the weeks to
     come. Days up to today have their state from `streak`; later ones are "future"
-    (with what is planned); days before the plan are "before"."""
-    known = {d.day: d for d in streak(sessions, first, today).days}
+    (with what is planned) or "paused" (a pause set ahead); days before the plan
+    are "before"."""
+    known = {d.day: d for d in streak(sessions, first, today, paused, repaired).days}
     days = _by_day(sessions)
     start = max(monday(first), monday(today) - timedelta(weeks=weeks - 1))
     rows = []
@@ -153,11 +181,36 @@ def grid(sessions: Sequence[Session], first: date, today: date, weeks: int = 12)
                 row.append(known[day])
             elif day < first:
                 row.append(Day(day, "before", 0, 0))
+            elif day in paused:
+                row.append(Day(day, "paused", 0, 0))
             else:
                 items = [s for s in days.get(day, []) if s.planned]
                 row.append(Day(day, "future", len(items), 0))
         rows.append(row)
     return rows
+
+
+def repairable(run: Streak, today: date) -> date | None:
+    """The missed day a make-up session can still repair (D126): the latest day
+    judged "missed" within `REPAIR_WITHIN` days before `today`, or None. A
+    forgiven day needs no repair, and a day repaired already is not missed."""
+    recent = {d.day: d for d in run.days if today - timedelta(days=REPAIR_WITHIN) <= d.day < today}
+    for back in range(1, REPAIR_WITHIN + 1):
+        day = recent.get(today - timedelta(days=back))
+        if day is not None and day.state == "missed":
+            return day.day
+    return None
+
+
+def pause_days(pauses: Iterable[tuple[date, date]]) -> set[date]:
+    """Every day of the pauses given as (first, last) pairs, both included."""
+    out: set[date] = set()
+    for first, last in pauses:
+        day = first
+        while day <= last:
+            out.add(day)
+            day += timedelta(days=1)
+    return out
 
 
 @dataclass(frozen=True)

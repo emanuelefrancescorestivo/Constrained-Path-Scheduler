@@ -4841,3 +4841,47 @@ lapse or a missed week. Whether the loop keeps students on their plan is for the
 (docs/PRODUCT.md). Checked in Chromium only, at phone size and 1280px. The rest of the doc's
 proposal (repair and pause, a shared goal, the stakes and a curious start, reminders that vary,
 unannounced moments, the semester recap) waits for the owner's next word.
+
+## D126. Repair and pause: a missed day made up by studying, a pause that keeps the streak
+
+*The owner, 2026-11-13: "now build the rest of the loop, repair and pause first". The
+research doc's F: a repairable streak hurts less when it breaks (Silverman and Barasch
+2023, `silverman2023`), Duolingo's Streak Freeze covers a skipped day and Apple's
+watchOS 11 pauses the rings for a day, a week, a month or more without losing the
+streak; repair by studying, never bought, never by an ad.*
+
+**Chosen.**
+
+- *Repair.* A day judged missed (D9: sessions planned, none reported, the week's
+  forgiveness spent) can be repaired the next day or the one after
+  (`progress.REPAIR_WITHIN`): Today's message slot offers it first ("Yesterday was
+  missed. 25 minutes of focus today repair it.", with the course of the missed day's
+  first session; "Not now" puts it away for the day). The card starts the focus timer
+  with the missed day marked (`start_focus(repair=…)`, checked to be one of the last two
+  days); when the session is saved to the diary, timed and at least `REPAIR_MINUTES`
+  (25, the timer's shortest goal) long, the day is recorded repaired
+  (`options["repairs"]`). A repaired day passes the streak on, like a forgiven one, and is
+  judged before the week's forgiveness, so that stays for another day: the student
+  studied for it. Minutes typed into the log repair nothing (D67). A student who did
+  study that day is told to report its session instead: a late report counts on its
+  day (D9).
+- *Pause.* On Progress, under the streak: "Pause the streak", for today, until Monday
+  (through Sunday), a week, or until a day, at most 90 days (`PAUSE_MOST_DAYS`). Its days
+  are "paused": they neither extend nor break the streak, and the plan is made again at
+  once leaving them free (`make_schedule(pauses=…)`, `_assist` drops their blocks; a
+  session the student placed there stays). A studied day stays studied. One pause at a
+  time: a new one replaces one under way or ahead; past ones are kept, for the days they
+  explain. "Resume" ends a pause yesterday. Today's strip says "Paused until Mon 5 Oct:
+  your streak waits." The day grid gains two states, repaired (the forgiven dot in the
+  accent) and paused (hatched), and its hint says what they are.
+
+**Rejected.** Repair by reporting any later session as done (the streak would never
+break: the forgiveness already covers one day a week). Repair bought, with points or an
+ad (D9). An untimed make-up (minutes typed earn nothing, D67). Making the paused days
+busy in the calendar (a pause is about the streak and the plan, not the timetable). A
+pause with no end (90 days is a semester's share; set another after).
+
+**Disclosed.** The 48 hours and the 25 minutes are choices, not measured. A pause moves
+the sessions it displaces to the days after it; near an exam that can mean more in fewer
+days, as a skipped week would. Checked in Chromium only, at phone size and 1280px.
+Whether repairs and pauses keep more students on their plan is for the pilot.

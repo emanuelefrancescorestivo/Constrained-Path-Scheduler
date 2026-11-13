@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Repair and pause (DECISIONS.md D126): a missed day can be repaired the next day or the
+  one after with a make-up session of 25 minutes of focus, offered on Today and recorded
+  when the timed session is saved; and the streak can be paused from Progress, for today,
+  until Monday, a week or until a day (at most 90 days): its days keep the streak as it is,
+  and the plan leaves them free. The day grid shows repaired and paused days.
+
 - The memory loop, first slice (DECISIONS.md D125): an answered self-test is set against the
   model's chance of recalling it ("Recalled, as the model forecast (90 %)"; a recall the model
   gave under even odds is "Against the odds", with the one confetti), with the memory days it
