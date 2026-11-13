@@ -410,8 +410,13 @@ class MemorizationPolicy:
         return sum(self.expected_reviews(st.difficulty, st.stability) for st in states)
 
 
+# A shared default (a frozen dataclass): ruff's B008 forbids a call in a default,
+# and newer ruff finds the noqa for it unused, so the default is named here.
+DEFAULT_CONFIG = SSPConfig()
+
+
 def solve(
-    config: SSPConfig = SSPConfig(),  # noqa: B008 - frozen dataclass, a shared default is safe
+    config: SSPConfig = DEFAULT_CONFIG,
     weights: Weights = DEFAULT_WEIGHTS,
     trace: list[np.ndarray] | None = None,
 ) -> MemorizationPolicy:

@@ -1248,6 +1248,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "exam_helped": list(service.EXAM_HELPED.items()),
             # Asked once, when there is a plan to use (D96).
             "usage_ask": service.usage_ask(store, subscription, now),
+            # A missed day a make-up session can still repair (D126).
+            "repair": service.repair_offer(store, subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1260,6 +1262,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         context["message"] = service.today_message(
             exam=context["exam_questions"],
             outcome=context["exam_outcome"],
+            repair=context["repair"],
             first=context["first_day"],
             remind=service.remind_ask(store, subscription),
             semester=context["semester_over"],
@@ -1327,6 +1330,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "progress.html",
             token=token,
+            today=now.astimezone(ZoneInfo(subscription.options["tz"])).date().isoformat(),
             view=service.progress_view(subscription, now, logged=logged),
             review=service.review_with_ai(
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
@@ -1491,7 +1495,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             sid = str(form.get("sid") or "") or None
             goal = service.focus_goal(form.get("goal"))
             return service.start_focus(
-                current, str(form.get("course") or ""), sid=sid, goal=goal, now=config.clock()
+                current,
+                str(form.get("course") or ""),
+                sid=sid,
+                goal=goal,
+                repair=str(form.get("repair") or "") or None,
+                now=config.clock(),
             )
 
         done = await focus_change(request, token, change, "focus")
@@ -3907,6 +3916,46 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
         return RedirectResponse(f"/p/{token}", 303)
 
+    @app.post("/p/{token}/repair/later")
+    def repair_later(request: Request, token: str) -> Response:
+        """ "Not now" to repairing a missed day (D126): not again today."""
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.repair_later(current, now=config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/p/{token}/pause")
+    async def pause(request: Request, token: str) -> Response:
+        """Pause the streak until a day (D126), or resume (`end`)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        until = " ".join(str(v) for v in form.getlist("until") if str(v).strip()).strip()
+        try:
+            if form.get("end"):
+                service.update_subscription(
+                    store, token, lambda current: service.end_pause(current, now=config.clock())
+                )
+            else:
+                service.update_subscription(
+                    store, token, lambda current: service.set_pause(current, until, now=config.clock())
+                )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        service.log_event(store, token, "pause", "end" if form.get("end") else until)
+        return RedirectResponse(f"/p/{token}/progress?saved=pause", 303)
+
     @app.post("/p/{token}/account/later")
     def account_later(request: Request, token: str) -> Response:
         if load(token) is None:
@@ -4411,7 +4460,7 @@ def _notice(saved: str) -> str | None:
         return service.translate("Thank you. Good luck with the next one.")
     if saved in NETWORK_NOTICES:
         return service.translate(NETWORK_NOTICES[saved])
-    if saved in ("ai", "theme", "usage"):
+    if saved in ("ai", "theme", "usage", "pause"):
         return service.translate("Saved.")
     if saved == "usage-yes":
         return service.translate(
