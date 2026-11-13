@@ -7,6 +7,19 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The memory loop, first slice (DECISIONS.md D125): an answered self-test is set against the
+  model's chance of recalling it ("Recalled, as the model forecast (90 %)"; a recall the model
+  gave under even odds is "Against the odds", with the one confetti), with the memory days it
+  added and the day the topic now holds until; forgetting is said with the day it comes back,
+  and a second pass on the same day is said to add nothing. Today shows the latest answer for
+  three hours ("Just answered") and, once every session planned today is reported, closes on
+  "Done for today" with the sessions kept, the memory days and the next session, asking for
+  nothing more. Before the answer, the card says the forecast shows after it.
+
+- The app opens on Today for everyone again (DECISIONS.md D124), the day's panel beside the
+  calendar, and Today is the first tab; the feed is the fourth. D102 had opened on the feed for
+  a student with a handle.
+
 - How it works, for the whole screen and for students (DECISIONS.md D121): on a laptop each
   chapter fills the window, its plants large and labelled as they change (how much you remember,
   how long it lasts) with the day it is, and a line of the chapters along the bottom. A new

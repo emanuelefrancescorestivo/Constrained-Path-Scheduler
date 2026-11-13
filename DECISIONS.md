@@ -4755,3 +4755,89 @@ planned for the code page (D123) was not merged.*
   first as a live prototype to approve before the pages change.
 - The code is in the history (the merge of pull request 64 and its revert), should a part of it
   (the picture that turns into the chart, static/morph.js) be wanted again.
+
+## D123. The code page as a street map (not merged)
+
+*The code page's companion to D122, AO*'s search drawn as a street map with a "Recalculating"
+banner, was built on a branch and not merged once D122 was reverted. Its number is kept so that
+D122's note, which names it, stays true. The code is on the local branch `d123-street-map`.*
+
+## D124. The app opens on Today again (replaces D102)
+
+*The owner, 2026-11-12: "revert the original landing page to the calendar, then the others".*
+
+**Chosen.** Every student opens on Today, the plan: on a laptop the day's panel beside the
+calendar, on a phone the panel with the Calendar tab next to it. Today is the first tab again
+and the top bar reads Plan, Courses, Community, You, as D97 had them; the feed is the fourth
+tab, one tap away. The one door, `/p/<plan>/open` (D102), stays: `service.front_door` now
+answers "today" for everyone, so an installed app, the demo's Start, signing in and the logo keep
+working, and the choice has one place to change. Offline, the installed app opens on the kept
+Today.
+
+**Rejected.** Opening on the week's calendar itself (on a laptop the plan is the calendar
+already; on a phone the day's panel says what to do now, and the calendar is the next tab).
+Removing the door (every installed app points at it).
+
+**Disclosed.** Checked in Chromium only. A home-screen app added under D102 may keep opening on
+the feed until it is added again (browsers update an installed app's manifest on their own
+schedule).
+
+## D125. The memory loop, first slice: beat the forecast, memory banked, done for today
+
+*The owner, 2026-11-12: "i want to work on a more sophisticated addictive hooking reward system:
+study how to do so and return the references from neuroscience and already existing practices
+from big companies / this must serve the purpose of keeping students motivated and
+self-entertained by studying so that they do not even think about doing anything else". The
+research is the owner's doc "A reward system that keeps students studying" (2026-11-12); its
+first slice was approved: "I approve, let's start building".*
+
+**The line.** Hooked on the plan, not on the app. The app's own memory model says why the goal
+stops at the session: under FSRS-6 with the default weights, a second correct pass on the same
+day multiplies how long a topic lasts by 1.10 at 12 hours, 1.05 at a day, and 1.00 from 2.12
+days on (`memory._short_term6`), while a review 3 days later of a topic lasting 3 days takes it
+to 11.1 days; students already sleep too little; and in a 16-week course a leaderboard and
+badges lowered motivation and exam scores. The references behind each mechanic are in the doc
+and, for the sentences the app says, go through docs/REFERENCES.md before they are quoted: this
+slice quotes none.
+
+**Chosen.** Three mechanics, each on what the plan already computes (D24's forecast, D82's
+memory days):
+
+- *Beat the forecast.* `service.session_gains` carries, for each self-test, the model's chance
+  of recalling the topic as the session starts (rounded to 5, D24), whether it is a second pass
+  on the same day, the memory days it adds (stability after less before, as D82 counts them),
+  the day the topic then holds 90 % until, and when it comes back. The chance is said only
+  after the answer (`_memory_words`): "Recalled, as the model forecast (90 %)"; a recall the
+  model gave under 50 % is "Against the odds", the one moment celebrated (confetti once, D30);
+  "Forgotten at a 90 % chance: good to know now. It comes back Mon 5 Oct 12:30" names no loss;
+  a second pass the same day is "Already safe today: a second pass on the same day adds
+  nothing". Before the answer the card says "Answer first: the model's forecast shows after".
+- *Memory banked.* The same line says "+5 memory days: it now holds until Fri 9 Oct", the day
+  the plan brings the topic back (the planner's own rule), and "A model's estimate".
+- *Done for today.* Once every session planned today is reported, none is running and at least
+  one was kept, Today's next step is "Done for today": the sessions kept, the day's memory days
+  (the net, when positive) and "Next: Fri 9 Oct 08:00, Self-test: Algebra 3". It says "The next
+  session adds more than a second pass tonight would" and asks for nothing more; "Study
+  something else" stays a link. Today also shows the latest answer for three hours ("Just
+  answered"), where "How did it go?" stood, with the session's course colour.
+
+**Why these words.** Positive feedback about competence raised intrinsic motivation where
+rewards promised for doing the task lowered it (Deci, Koestner and Ryan 1999, `deci1999`); the
+surprise is the student's own memory against a forecast, never chance; forgetting is
+information, since a broken streak hurts most when the student blames themselves (Silverman
+and Barasch 2023, `silverman2023`); the chance is shown after the answer so that D55's
+calibration (predicted against reported recall) is not anchored by the prediction.
+
+**Rejected.** The chance before the answer (anchors the self-report and D55). A number for a
+loss on the card (D82's weekly chart keeps the net). Confetti on every close of the day (a
+reward that always comes stops registering; D30 keeps it for achievements). Points, a currency,
+a ranking, bought streak repairs, random prizes (the doc's "What not to build"; D9, D16, D41).
+Changing the focus ladder (D67): the owner's choice stands; the memory line sits beside it.
+
+**Disclosed.** Every figure is the model's estimate with average weights and a guessed starting
+state (D24), said on each card. "Against the odds" at 50 % is a threshold chosen, not measured.
+With a plan that reviews at 90 %, most answers read "as forecast"; the surprises come after a
+lapse or a missed week. Whether the loop keeps students on their plan is for the pilot
+(docs/PRODUCT.md). Checked in Chromium only, at phone size and 1280px. The rest of the doc's
+proposal (repair and pause, a shared goal, the stakes and a curious start, reminders that vary,
+unannounced moments, the semester recap) waits for the owner's next word.

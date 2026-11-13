@@ -1,0 +1,16 @@
+{# What an answered self-test did (D125): `m` is card.memory from service, `card` the
+   session's card. The answer is set against the model's chance of recalling it, and
+   the memory days it added; a recall the model gave less than even odds is the one
+   moment celebrated (confetti once, D30). Forgetting is said as information, never
+   as a loss. Every figure is a model's estimate (D24). #}
+{% macro banked(m, card) %}
+{% if m.verdict == "beaten" %}
+<p class="banked banked-beaten" data-celebrate="beaten-{{ card.id }}"><span class="tip-reason">{{ _("Against the odds") }}</span>{{ _("You recalled this at a {chance} % chance.", chance=m.chance) }} {% if m.added %}{{ _n("+{n} memory day: it now holds until {day}.", "+{n} memory days: it now holds until {day}.", m.added, day=m.holds) }}{% else %}{{ _("It holds until {day}.", day=m.holds) }}{% endif %} <small>{{ _("A model's estimate.") }}</small></p>
+{% elif m.verdict == "forecast" %}
+<p class="banked">{{ _("Recalled, as the model forecast ({chance} %).", chance=m.chance) }} {% if m.added %}{{ _n("+{n} memory day: it now holds until {day}.", "+{n} memory days: it now holds until {day}.", m.added, day=m.holds) }}{% else %}{{ _("It holds until {day}.", day=m.holds) }}{% endif %} <small>{{ _("A model's estimate.") }}</small></p>
+{% elif m.verdict == "same_day" %}
+<p class="banked">{{ _("Already safe today: a second pass on the same day adds nothing.") }} {% if m.next %}{{ _("It comes back {when}.", when=m.next) }}{% else %}{{ _("The plan brings it back.") }}{% endif %} <small>{{ _("A model's estimate.") }}</small></p>
+{% elif m.verdict == "forgot" %}
+<p class="banked">{{ _("Forgotten at a {chance} % chance: good to know now.", chance=m.chance) }} {% if m.next %}{{ _("It comes back {when}.", when=m.next) }}{% else %}{{ _("The plan brings it back.") }}{% endif %} <small>{{ _("A model's estimate.") }}</small></p>
+{% endif %}
+{% endmacro %}
