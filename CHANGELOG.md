@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Studying together (DECISIONS.md D127): ask a classmate on their profile to study
+  together; once they accept, you both see the days in a row you both studied, and whether
+  the other studied today, on Progress and under Today's streak, never how long. A study
+  group's card also shows the memory days its members' reviews added this week.
+
 - Repair and pause (DECISIONS.md D126): a missed day can be repaired the next day or the
   one after with a make-up session of 25 minutes of focus, offered on Today and recorded
   when the timed session is saved; and the streak can be paused from Progress, for today,

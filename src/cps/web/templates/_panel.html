@@ -42,6 +42,8 @@
 {% endif %}
 {% if focus %}<a class="running-focus" href="/p/{{ token }}/focus"><span class="pulse" aria-hidden="true"></span>{{ _("A session is running: {course}. Back to it", course=focus.course) }}</a>{% endif %}
 {% if progress and progress.planned %}{% include "_streak_strip.html" %}{% endif %}
+{# Studying together (D127): each pair's days in a row, under the student's own. #}
+{% if together %}<p class="together-line">{% for p in together %}<a href="/p/{{ token }}/progress#together"><b>@{{ p.handle }}</b> · {{ _n("{n} day together", "{n} days together", p.days) }}{% if p.them_today %} · {{ _("studied today") }}{% endif %}</a>{% if not loop.last %} <span aria-hidden="true">·</span> {% endif %}{% endfor %}</p>{% endif %}
 
 {% if not view.planned %}
 <div class="card">

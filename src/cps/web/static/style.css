@@ -806,6 +806,13 @@ td.d { display: table-cell; padding: 0; }
 .pause-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 0.9rem; margin: 4px 0 0; }
 .pause-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .pause-date input { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+/* Studying together (D127) */
+.together-line { margin: -4px 0 14px; font-size: 0.88rem; color: var(--muted); }
+.together-line a { color: inherit; text-decoration: none; }
+.together-line b { color: var(--text); }
+.together-list li { align-items: center; gap: 12px; }
+.together-who { display: flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; font-weight: 600; min-width: 0; }
+.together-answer { display: flex; gap: 8px; margin-top: 8px; }
 .d-studied.l1 { background: color-mix(in srgb, var(--ok) 45%, var(--surface)); }
 .d-studied.l2 { background: color-mix(in srgb, var(--ok) 72%, var(--surface)); }
 .d-studied.l3 { background: var(--ok); }

@@ -32,7 +32,7 @@ Pure functions of plain values; `service.progress_view` feeds them a plan.
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -200,6 +200,25 @@ def repairable(run: Streak, today: date) -> date | None:
         if day is not None and day.state == "missed":
             return day.day
     return None
+
+
+def together(a: Mapping[date, str], b: Mapping[date, str], first: date, today: date) -> tuple[int, int]:
+    """Two students studying together (D127): the days in a row both studied, from
+    `first` (the day they agreed) to `today`, and the best such run. `a` and `b` are
+    each one's day states, as `streak` judges them in their own time zone. A day
+    either of them missed ends the run; a day both studied adds one; any other day
+    (rest, forgiven, repaired, paused, today, a day one has no plan for) holds it."""
+    run = best = 0
+    day = first
+    while day <= today:
+        sa, sb = a.get(day, "rest"), b.get(day, "rest")
+        if "missed" in (sa, sb):
+            run = 0
+        elif sa == sb == "studied":
+            run += 1
+            best = max(best, run)
+        day += timedelta(days=1)
+    return run, best
 
 
 def pause_days(pauses: Iterable[tuple[date, date]]) -> set[date]:

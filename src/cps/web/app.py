@@ -1250,6 +1250,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "usage_ask": service.usage_ask(store, subscription, now),
             # A missed day a make-up session can still repair (D126).
             "repair": service.repair_offer(store, subscription, now),
+            # Who the student studies together with, and their days in a row (D127).
+            "together": service.together_view(store, subscription, now)["pairs"],
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1332,6 +1334,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             today=now.astimezone(ZoneInfo(subscription.options["tz"])).date().isoformat(),
             view=service.progress_view(subscription, now, logged=logged),
+            together=service.together_view(store, subscription, now),
             review=service.review_with_ai(
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
             )
@@ -1924,6 +1927,34 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await circle_change(
             request, token, lambda: service.answer_follow(store, token, handle, accept), f"/p/{token}/people"
         )
+
+    @app.post("/p/{token}/u/{handle}/together")
+    async def together_ask(request: Request, token: str, handle: str) -> Response:
+        """Ask @handle to study together (D127)."""
+        return await circle_change(
+            request,
+            token,
+            lambda: service.ask_together(store, token, handle, now=config.clock()),
+            f"/p/{token}/u/{handle}",
+        )
+
+    @app.post("/p/{token}/together/{handle}")
+    async def together_answer(request: Request, token: str, handle: str) -> Response:
+        """Accept or decline @handle's ask, or stop studying together (D127)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        answer = str(form.get("answer") or "")
+        try:
+            if answer in ("accept", "decline"):
+                service.answer_together(store, token, handle, answer == "accept", now=config.clock())
+            else:
+                service.end_together(store, token, handle)
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(back(form, token, f"/p/{token}/progress#together"), 303)
 
     @app.post("/p/{token}/followers/{handle}/remove")
     async def remove_follower(request: Request, token: str, handle: str) -> Response:

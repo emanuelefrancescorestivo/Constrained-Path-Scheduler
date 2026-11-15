@@ -6849,6 +6849,9 @@ def person_view(
         "me": person.token == subscription.token,
         "follow_state": social.follow_status(where, subscription.token, person.token),
         "follows_me": social.follow_status(where, person.token, subscription.token) == "accepted",
+        # Studying together (D127): the pair's state, and whether one more fits.
+        "together": together_with(store, subscription.token, person.token),
+        "together_room": len(social.buddies_of(where, subscription.token)) < social.BUDDIES_EACH,
         "notes": dict(zip(("shared", "helpful"), social.notes_recognition(where, person.token), strict=True)),
         "posts": _cards(where, subscription.token, posts, now, zone),
     }
@@ -6875,6 +6878,102 @@ def people_view(store: str | os.PathLike, subscription: Subscription, query: str
 def leave_network(store: str | os.PathLike, token: str) -> None:
     """Leave the network; the diary stays, visible only to the student."""
     social.leave(_store(store), token)
+
+
+# --------------------------------------------------------------------------- #
+# Studying together (DECISIONS.md D127): a pair's days in a row both studied
+# --------------------------------------------------------------------------- #
+
+
+def _day_states(
+    store: str | os.PathLike, subscription: Subscription | None, now: datetime
+) -> tuple[dict[date, str], date | None]:
+    """Every day of a student's plan up to their today, as their streak judges it
+    (D9, D126), in their own time zone, and that today; nothing without a plan."""
+    if subscription is None or subscription.plan is None:
+        return {}, None
+    plan = PlanReport.from_dict(subscription.plan)
+    today = now.astimezone(_zone(plan.settings.tz)).date()
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    first = min([plan.settings.start, *(s.start.date() for s in sessions)])
+    paused = _progress.pause_days(pauses_of(subscription.options.get("preferences", {})))
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, today, paused, repaired)
+    return {d.day: d.state for d in run.days}, today
+
+
+def together_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The student's pairs (D127): with each, the days in a row both studied and
+    whether each studied today; the asks waiting for their answer and the ones they
+    sent. Never anyone's hours or sessions: whether a day was studied is all a pair
+    shares, as a group's members do (D28)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    token = subscription.token
+    mine, my_today = _day_states(store, subscription, now)
+    zone = _zone(subscription.options["tz"])
+    pairs: list[dict] = []
+    waiting: list[dict] = []
+    sent: list[dict] = []
+    every = social.buddies_of(where, token)
+    for pair in every:
+        found = social.get_profile(where, pair.other(token))
+        if found is None:
+            continue
+        if pair.accepted is None:
+            (waiting if pair.asked == token else sent).append(found.public())
+            continue
+        theirs, their_today = _day_states(store, load_subscription(store, found.token), now)
+        start = datetime.fromisoformat(pair.accepted).astimezone(zone).date()
+        run, best = _progress.together(mine, theirs, start, my_today or now.astimezone(zone).date())
+        pairs.append(
+            {
+                **found.public(),
+                "days": run,
+                "best": best,
+                "me_today": my_today is not None and mine.get(my_today) == "studied",
+                "them_today": their_today is not None and theirs.get(their_today) == "studied",
+            }
+        )
+    return {
+        "pairs": pairs,
+        "waiting": waiting,
+        "sent": sent,
+        "room": max(0, social.BUDDIES_EACH - len(every)),
+        "profile": social.get_profile(where, token) is not None,
+    }
+
+
+def ask_together(store: str | os.PathLike, token: str, handle: str, now: datetime | None = None) -> None:
+    _social(lambda: social.ask_buddy(_store(store), token, handle, now=now))
+
+
+def answer_together(
+    store: str | os.PathLike, token: str, handle: str, accept: bool, now: datetime | None = None
+) -> None:
+    where = _store(store)
+    person = social.profile_by_handle(where, handle)
+    if person is None:
+        raise InvalidInput(_("this request is not, or no longer, there"))
+    _social(lambda: social.answer_buddy(where, token, person.token, accept, now=now))
+
+
+def end_together(store: str | os.PathLike, token: str, handle: str) -> None:
+    where = _store(store)
+    person = social.profile_by_handle(where, handle)
+    if person is not None:
+        social.end_buddy(where, token, person.token)
+
+
+def together_with(store: str | os.PathLike, token: str, other: str) -> str | None:
+    """The pair between the student and `other` as the person page shows it:
+    "together", "asked" (the student asked), "asks" (they asked), or None."""
+    pair = social.buddy_between(_store(store), token, other)
+    if pair is None:
+        return None
+    if pair.accepted is not None:
+        return "together"
+    return "asked" if pair.asker == token else "asks"
 
 
 # --------------------------------------------------------------------------- #
@@ -6911,6 +7010,7 @@ def _group_card(
     mondays = _trends.mondays(min(began, today), today, None)
     people = social.members(store, group.id)
     totals = [0.0] * len(mondays)
+    memory = 0  # the memory days the members' reviews added this week (D82, D127)
     shown, hidden = [], 0
     for m in people:
         if m.joined is None:
@@ -6921,6 +7021,9 @@ def _group_card(
             for h, monday in zip(_member_hours(path, m.token, mondays, now), mondays, strict=True)
         ]
         totals = [a + b for a, b in zip(totals, hours, strict=True)]
+        member = load_subscription(path, m.token)
+        learnt = learning_view(path, member, now) if member is not None else None
+        memory += max(0, learnt["added_week"]) if learnt else 0
         if m.token != viewer and social.blocked_between(store, viewer, m.token):
             hidden += 1  # counted in the total, left out of the list (D20)
             continue
@@ -6961,6 +7064,7 @@ def _group_card(
             "percent": min(100, round(100 * this_week / goal)) if goal else 0,
             "met": this_week >= goal,
             "studied": sum(x["studied"] for x in shown),
+            "memory": memory,
         },
         "run": run,
         "members": shown,
