@@ -134,6 +134,17 @@
 {% elif message == "tip" %}
 {# A tip the day calls for (D63), in one line with the spark #}
 {% include "_tip_card.html" %}
+{% elif message == "repair" %}
+{# A missed day repaired by a make-up session (D126): 25 minutes of focus today. #}
+<form method="post" action="/p/{{ token }}/focus/start" class="card nudge-card section repair-card">
+  <input type="hidden" name="course" value="{{ repair.course }}">
+  <input type="hidden" name="goal" value="{{ repair.minutes }}">
+  <input type="hidden" name="repair" value="{{ repair.day }}">
+  <span class="tip-reason">{{ _("Repair your streak") }}</span>
+  <b>{% if repair.yesterday %}{{ _("Yesterday was missed. {n} minutes of focus today repair it.", n=repair.minutes) }}{% else %}{{ _("{day} was missed. {n} minutes of focus today repair it.", day=repair.label, n=repair.minutes) }}{% endif %}</b>
+  <span class="muted">{{ _("If you did study that day, report its session on the calendar instead: a late report counts on its day.") }}</span>
+  <div class="row-end"><button type="submit" formaction="/p/{{ token }}/repair/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
+</form>
 {% elif message == "first" %}
 {% if not spark_line %}{{ first_day_card(first_day) }}{% endif %}
 {% elif message == "remind" %}

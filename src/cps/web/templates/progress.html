@@ -32,6 +32,30 @@
     </div>
   </div>
 </div>
+{# A pause (D126): ill, an exam week, a holiday. Its days keep the streak as it is,
+   and the plan leaves them free. One at a time; Resume ends it. #}
+<div class="pause-row">
+{% if st.pause or st.ahead %}{% set p = st.pause or st.ahead %}
+<form method="post" action="/p/{{ token }}/pause" class="pause-form">
+  <span>{% if st.pause %}{% if st.pause.to == st.pause.from %}{{ _("Paused today") }}{% else %}{{ _("Paused until {day}", day=p.until) }}{% endif %}{% else %}{{ _("A pause is set, until {day}.", day=p.until) }}{% endif %}</span>
+  <button type="submit" name="end" value="1" class="btn btn-sm btn-tinted">{{ _("Resume") }}</button>
+</form>
+{% else %}
+<details class="pause-details">
+  <summary>{{ _("Pause the streak") }}</summary>
+  <form method="post" action="/p/{{ token }}/pause" class="pause-form">
+    <span class="muted">{{ _("Ill, an exam week, a holiday: nothing is planned, and your streak waits.") }}</span>
+    <div class="pause-choices">
+      <button type="submit" name="until" value="today" class="btn btn-sm">{{ _("Today") }}</button>
+      <button type="submit" name="until" value="monday" class="btn btn-sm">{{ _("Until Monday") }}</button>
+      <button type="submit" name="until" value="week" class="btn btn-sm">{{ _("A week") }}</button>
+      <label class="pause-date"><span class="visually-hidden">{{ _("Until a day") }}</span><input type="date" name="until" min="{{ today }}" aria-label="{{ _('Until a day') }}"></label>
+      <button type="submit" class="btn btn-sm btn-tinted">{{ _("Pause until that day") }}</button>
+    </div>
+  </form>
+</details>
+{% endif %}
+</div>
 
 {% if view.exams %}
 <div class="section" id="exams">
@@ -162,10 +186,12 @@
     <p class="day-legend">
       <span><i class="d d-studied l2"></i>{{ _("studied") }}</span>
       <span><i class="d d-forgiven"></i>{{ _("forgiven") }}</span>
+      <span><i class="d d-repaired"></i>{{ _("repaired") }}</span>
+      <span><i class="d d-paused"></i>{{ _("paused") }}</span>
       <span><i class="d d-missed"></i>{{ _("not reported") }}</span>
       <span><i class="d d-rest"></i>{{ _("rest") }}</span>
     </p>
-    <p class="hint">{{ _("One day a week without a report is forgiven, and a day off in your plan never counts against you. Reporting a session late still counts on its day.") }}</p>
+    <p class="hint">{{ _("One day a week without a report is forgiven, and a day off in your plan never counts against you. Reporting a session late still counts on its day.") }} {{ _("A missed day repaired with 25 minutes of focus the next day or the one after, and a day of a pause, never count against you either.") }}</p>
   </div>
 </div>
 

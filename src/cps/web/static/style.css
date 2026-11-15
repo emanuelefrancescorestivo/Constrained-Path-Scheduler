@@ -796,6 +796,16 @@ td.d { display: table-cell; padding: 0; }
 .d-today { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
 .d-forgiven { background: var(--fill-3); }
 .d-forgiven::after { content: ""; position: absolute; inset: 0; margin: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+/* Repair and pause (D126): a repaired day wears the forgiven dot in the accent; a
+   paused day is hatched. */
+.d-repaired { background: var(--fill-3); }
+.d-repaired::after { content: ""; position: absolute; inset: 0; margin: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.d-paused { background: repeating-linear-gradient(135deg, var(--fill-3) 0 3px, transparent 3px 6px); }
+.pause-row { margin: -6px 0 14px; }
+.pause-details > summary { cursor: pointer; color: var(--accent-ink); font-size: 0.9rem; font-weight: 600; padding: 4px 0; }
+.pause-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 0.9rem; margin: 4px 0 0; }
+.pause-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pause-date input { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
 .d-studied.l1 { background: color-mix(in srgb, var(--ok) 45%, var(--surface)); }
 .d-studied.l2 { background: color-mix(in srgb, var(--ok) 72%, var(--surface)); }
 .d-studied.l3 { background: var(--ok); }
