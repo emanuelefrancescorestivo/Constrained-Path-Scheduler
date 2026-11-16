@@ -7,6 +7,21 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The semester recap (DECISIONS.md D131): once every exam is behind, your semester in
+  numbers (sessions, hours, days, best streak, memory days, topics that hold a month, recalls
+  against the odds, days studied together, your exams), to share if you like through your
+  device; it is kept when the next semester starts.
+
+- Unannounced moments (DECISIONS.md D130): when a recall first takes a topic past a month of
+  memory, its card says so beside the garden's flower; the first week in which you recalled
+  every self-test you answered, at least three, is said on Today the week after. Neither is
+  announced or counted down to.
+
+- Reminders that vary (DECISIONS.md D129): a reminder's words change from one session to
+  the next, each a true line from the plan (what to do, a self-test's stakes, that it opens
+  with a question from your cards, which of the day's sessions it is); none comes between
+  going to bed and getting up, and one due then waits until you are up.
+
 - The stakes and a curious start (DECISIONS.md D128): a self-test still to do says its exam
   in so many days and the day the topic stays above 90 % until if it is recalled in this
   session, by the model, on Today, the focus page and while the timer runs. A planned

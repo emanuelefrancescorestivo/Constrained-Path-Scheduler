@@ -1252,6 +1252,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "repair": service.repair_offer(store, subscription, now),
             # Who the student studies together with, and their days in a row (D127).
             "together": service.together_view(store, subscription, now)["pairs"],
+            # A first week with every self-test recalled, said the week after (D130).
+            "recalled": service.recall_week(subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1267,6 +1269,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             repair=context["repair"],
             first=context["first_day"],
             remind=service.remind_ask(store, subscription),
+            recalled=context["recalled"],
             semester=context["semester_over"],
             usage=context["usage_ask"],
             fit=context["fit"],
@@ -4057,6 +4060,27 @@ def create_app(config: Config | None = None) -> FastAPI:
             plan_signed_in(answer, request, token, owner)
         return answer
 
+    @app.get("/p/{token}/recap", response_class=HTMLResponse)
+    def recap(request: Request, token: str) -> HTMLResponse:
+        """The semester in numbers (D131): the one just ended, else the last kept."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        current = service.recap_view(store, subscription, config.clock())
+        kept = service.recaps_of(subscription)
+        shown = current or (kept[0] if kept else None)
+        return page(
+            request,
+            "recap.html",
+            token=token,
+            recap=shown,
+            share=service.recap_share_text(shown) if shown else "",
+            ended=current is not None,
+            earlier=kept[1:] if current is None else kept,
+            tab="progress",
+        )
+
     @app.get("/p/{token}/semester", response_class=HTMLResponse)
     def semester(request: Request, token: str) -> HTMLResponse:
         subscription = load(token)
@@ -4111,6 +4135,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                     draw=draw,
                     now=config.clock(),
                     fetch=config.fetch,
+                    # The semester just ended, kept to be seen again (D131).
+                    recap=service.recap_view(store, current, config.clock()),
                 ),
             )
         except service.ServiceError as error:

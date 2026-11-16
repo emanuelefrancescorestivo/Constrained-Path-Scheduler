@@ -4970,3 +4970,105 @@ after the answer (D125). Far from the exam the line gives a number of days month
 not pressing. The heartbeat of the focus page leaves the stakes out, so it does not replay the
 plan every beat. Checked in Chromium only, at phone size light and dark and at 1280px;
 whether students answer the question or skip it is for the pilot.
+
+## D129. Reminders that vary: one true line in turn, and none between bed and getting up
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's J. Duolingo
+builds its daily reminders from hand-written templates and found that a template the
+learner had not seen recently moved behaviour more than one seen often; choosing and
+varying them raised daily active users by 0.5 % and new-user retention by 2 % over its
+baseline (Yancey and Settles 2020 [ref:yancey2020], a company's study of its own app).*
+
+**Chosen.** A reminder's title stays the course and the time (D38). Its body starts with
+the kind of session and its length, then says one line among those that are true of it:
+the first sentence of what to do (as before); for a self-test, the day a recall now keeps
+the topic above 90 % until, or "until the exam" (D128, "an estimate"); for a self-test of a
+week with cards, "It opens with one question from your cards" (D128); on a day with more
+than one session, "Session 2 of 3 planned today". The line is taken in turn along the
+plan's sessions (`service._reminder_payload`, `_reminder_lines`), so two sessions in a row
+with the same lines to choose from never say the same one. And no reminder is sent between
+going to bed and getting up (D69, `service.awake`): one still due then waits until the
+student is up, within its window (D38); one for a session after bedtime is not sent. The
+reminders' settings say both.
+
+**Rejected.** A bandit that learns which line works (no answers to learn from yet; the
+pilot's measures, D15, would say first whether reminders bring sessions at all). Lines about
+the streak, a classmate who studied ("your turn"), or what is lost by not studying: they
+pressure, and D127 rejected the classmate one already. The card's own question on the lock
+screen (a notification can be read by anyone near the phone). More than one reminder a
+session.
+
+**Disclosed.** Rotation is not what Duolingo measured, which chose templates by their
+results as well as their freshness; whether varied lines bring more sessions here is for
+the pilot. A reminder's line follows the plan as it stands when it is sent. Not tried on a
+real phone (D38); checked through the tests and the settings page in Chromium only.
+
+## D130. Unannounced moments: a topic's first month, and a first week without forgetting
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's H: rare
+moments, never scheduled in advance. In Deci, Koestner and Ryan's meta-analysis of 128
+studies, rewards expected in advance lowered free-choice intrinsic motivation, and positive
+feedback raised it (d = 0.33) [ref:deci1999]. So each moment is feedback on what the
+student did, said once, with nothing counted down to.*
+
+**Chosen.**
+
+- *A topic's first month.* When an answered self-test takes its topic past 30 days of
+  memory for the first time (the stability before it under 30, after it 30 or more, the
+  answer a recall), its card adds "A first for this topic: it now holds more than a month",
+  beside the garden's flower, with confetti once (D30). Never on a forgotten answer, a
+  second pass on the same day, or a topic already past a month (`_memory_words`'s `month`,
+  from `session_gains`, which now carries the stability after the review).
+- *A first week without forgetting.* The first week (Monday to Sunday) in which the student
+  recalled every self-test they answered, at least three, is said on Today the week after:
+  "A first. Last week, you recalled every self-test you answered", with how many and which
+  week (`service.recall_week`, Today's message "recalled", after the first run's messages
+  and before the semester's end). Only the first such week, and only the week after it.
+
+**Rejected.** The doc's "a first week with every topic above 90 %": on the sample semester
+followed exactly as planned (two courses, seven weeks), some topic taught before each week
+was below 90 % at the end of that week (`tests/test_moments.py` pins it), as
+`benchmarks/rule_vs_planner.py` finds that not every topic reaches 90 % at the weekly
+budget; the moment would never come. A bloom that
+grows in the margins' garden with the count of month-long topics (the garden already follows
+the streak, D73; two meanings in one picture). A progress bar or a count toward either
+moment, which would make it announced. A moment for hours studied (D41 has no badge for
+hours).
+
+**Disclosed.** A month is FSRS-6 with average weights after the answer as graded; the
+threshold is a choice. "Recalled" counts Some, Most and All, as the plan does (D125); a
+student who answers Most every time gets the week easily, as the plan assumes they would.
+Checked in Chromium only, at phone size light and dark and at 1280px; whether these moments
+keep anyone studying is for the pilot.
+
+## D131. The semester recap: the semester in numbers, shared by choice, kept at the next start
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's I: after the
+last exam, what the semester built, as Strava's yearly recap does for a year of training (a
+company's practice, no figures behind it here); a card the student may share; the next
+semester starting clean (D36 already keeps the past for the streak and the trends).*
+
+**Chosen.** Once every exam is behind and no deadline is ahead (`semester_over`), Today's
+end-of-semester card leads to `/p/<plan>/recap` ("See your semester in numbers"), and the
+page shows, as tiles: the study sessions kept and their hours, the days studied, the best
+streak, the memory days the semester's reviews added (D82's measure, summed), the topics
+that hold a month or more (D130), the recalls against the odds (D125) and the best run
+studied together (D127) when there are any, and the exams as the student said they went
+(D105) (`service.recap_view`). Every figure is one Progress already shows; the best streak is
+Progress's own (a test checks). Sharing is the student's: the device's share sheet, or the
+text to copy without a script, with the numbers only, never the plan's address or the
+courses' names (`recap_share_text`); nothing is posted for them. Starting the next semester
+keeps the recap (`options["recaps"]`, the last eight), and the page then shows it, with the
+earlier ones listed; the new semester's numbers start from zero.
+
+**Rejected.** A post in Community made for the student (sharing is theirs to choose, D16). An
+image to share (a drawing the server would have to make, for a text that says the same).
+Comparing the semester with classmates' (no rankings, D16). Showing a tile at zero for the
+month-long topics (it would read as a failure; the tile appears from one).
+
+**Disclosed.** Sessions count what was reported or logged, as Progress does: a semester
+followed without reports shows few sessions, and self-tests left unanswered a day after
+they ended add no memory (D44). Memory days and month-long topics are the memory model's
+estimate with average weights, said on the page. Checked in Chromium only, at phone size
+light and dark and at 1280px; the share sheet itself was not tried (headless Chromium has
+none), the copy button was.

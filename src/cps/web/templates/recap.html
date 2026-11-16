@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{# The semester recap (D131): `recap` from service.recap_view (the semester just ended)
+   or the last one kept at the start of the next; `share` its text for the device's
+   share sheet; `earlier` the recaps kept before. Every figure is one Progress shows. #}
+{% block title %}{{ _("Your semester") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("Your semester") }}</h1>
+  {% if recap %}<p>{{ _("{start} to {end}", start=recap["from"], end=recap["to"]) }}</p>{% endif %}
+</div>
+{% if not recap %}
+<div class="card section empty">
+  <b>{{ _("Not yet") }}</b>
+  <p class="muted">{{ _("Your semester's numbers come once every exam is behind you.") }}</p>
+</div>
+{% else %}
+{% macro tile(n, words) %}<p class="recap-tile"><b>{{ n }}</b><small>{{ words }}</small></p>{% endmacro %}
+<section class="recap-grid section" aria-label="{{ _('Your semester in numbers') }}">
+  {{ tile(recap.sessions, _n("study session kept", "study sessions kept", recap.sessions)) }}
+  {{ tile(recap.hours, _n("hour studied", "hours studied", recap.hours)) }}
+  {{ tile(recap.days, _n("day studied", "days studied", recap.days)) }}
+  {{ tile(recap.best_streak, _n("day, your best streak", "days, your best streak", recap.best_streak)) }}
+  {{ tile(recap.memory_days, _n("memory day built", "memory days built", recap.memory_days)) }}
+  {% if recap.month_topics %}{{ tile(recap.month_topics, _n("topic holding a month or more", "topics holding a month or more", recap.month_topics)) }}{% endif %}
+  {% if recap.beaten %}{{ tile(recap.beaten, _n("recall against the odds", "recalls against the odds", recap.beaten)) }}{% endif %}
+  {% if recap.together %}{{ tile(recap.together, _n("day in a row studied together", "days in a row studied together", recap.together)) }}{% endif %}
+</section>
+<p class="hint">{{ _("Memory days and topics are the memory model's estimate with average weights.") }}</p>
+{% if recap.exams %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Your exams") }}</h2><small>{{ _("as you said they went") }}</small></div>
+  <div class="card"><ul class="list">{% for e in recap.exams %}<li><span class="grow"><b>{{ e.course }}</b></span><span class="muted">{{ e.says }}</span></li>{% endfor %}</ul></div>
+</div>
+{% endif %}
+<section class="card section recap-share">
+  <h2>{{ _("Share it, if you like") }}</h2>
+  <p class="hint">{{ _("Only these numbers: never your plan, your courses or your address. Nothing is posted for you.") }}</p>
+  <textarea class="copy recap-text" id="recap-text" rows="5" readonly aria-label="{{ _('Your semester, as text') }}">{{ share }}</textarea>
+  <div class="row-buttons">
+    <button type="button" class="btn btn-primary btn-sm" data-share data-share-text="{{ share }}" hidden>{{ _("Share") }}</button>
+    <button type="button" class="btn btn-sm" data-copy="#recap-text" hidden>{{ _("Copy") }}</button>
+  </div>
+</section>
+{% if ended %}
+<a class="card link-card nudge-card section" href="/p/{{ token }}/semester"><b>{{ _("Start next semester") }}</b><span class="muted">{{ _("A new timetable; this recap is kept, and the new semester starts clean.") }}</span></a>
+{% endif %}
+{% endif %}
+{% if earlier %}
+<div class="section">
+  <div class="section-title"><h2>{{ _("Earlier semesters") }}</h2></div>
+  <div class="card"><ul class="list">{% for r in earlier %}<li><span class="grow"><b>{{ _("{start} to {end}", start=r["from"], end=r["to"]) }}</b><small class="muted">{{ _n("{n} study session", "{n} study sessions", r.sessions) }} · {{ _n("{n} memory day built", "{n} memory days built", r.memory_days) }} · {{ _n("Best streak: {n} day", "Best streak: {n} days", r.best_streak) }}</small></span></li>{% endfor %}</ul></div>
+</div>
+{% endif %}
+{% endblock %}

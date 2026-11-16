@@ -3308,10 +3308,23 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # answer is wanted while it is fresh, D56), then the answer just given beside its
 # forecast (D105), then, on the plan's first day with nothing left to do that day, a
 # first short session (D106), then, once a first run's first session is done, the
-# question about reminders (D107), then the end of the semester, then the question about
+# question about reminders (D107), then a first week without forgetting, the week after it (D130),
+# then the end of the semester, then the question about
 # counting what is used (D96), then a question that makes the plan fit (D98), then an
 # insight (D80), then a tip the day calls for (D63).
-MESSAGES = ("exam", "outcome", "repair", "first", "remind", "semester", "usage", "fit", "insight", "tip")
+MESSAGES = (
+    "exam",
+    "outcome",
+    "repair",
+    "first",
+    "remind",
+    "recalled",
+    "semester",
+    "usage",
+    "fit",
+    "insight",
+    "tip",
+)
 
 
 FIRST_DAY_MINUTES = 25  # the first day's short session (D106), the timer's shortest goal
@@ -3966,27 +3979,112 @@ def _push_subject(contact: str | None, base_url: str | None) -> str:
     return "mailto:study-plan@localhost"
 
 
-def _reminder_payload(subscription: Subscription, session: SessionView) -> dict:
-    """What a reminder says, in the plan's language: the course and the time, the
-    kind of session and its length, and the first sentence of what to do. Tapping
-    it opens the plan."""
+# Reminders that vary (D129). The title stays the course and the time; the body is one
+# of a few true lines, rotated along the plan's sessions, so the same words do not come
+# twice in a row when the same lines apply. In Duolingo's reminders, wording not seen
+# recently moved behaviour more than wording seen often (Yancey and Settles 2020,
+# docs/REFERENCES.md `yancey2020`); here it is a plain rotation, not their bandit, with no
+# answers yet to learn from. No line asks for more than the plan does or speaks of losing
+# a streak, and none is sent between going to bed and getting up (D69).
+def _reminder_lines(
+    subscription: Subscription,
+    session: SessionView,
+    start: datetime,
+    lead: str,
+    *,
+    store: str | os.PathLike | None,
+    plan: PlanReport,
+    gains: Mapping[str, dict],
+) -> list[str]:
+    """The lines a session's reminder may say beside the plan's own: its stakes (a
+    self-test, D128), that it opens with a question from the student's cards, and
+    which of the day's sessions it is."""
+    sid = session_id(session)
+    lines = []
+    gain = gains.get(sid)
+    stakes = _stakes(gain, subscription.outcomes.get(sid), start.date())
+    if stakes and gain:
+        lines.append(
+            _("Recalled now, it stays above 90 % until the exam (an estimate).")
+            if stakes["to_exam"]
+            else _(
+                "Recalled now, it stays above 90 % until {day} (an estimate).",
+                day=format_date(gain["holds"], "short"),
+            )
+        )
+    if store is not None and opening_card(store, subscription, sid, start) is not None:
+        lines.append(_("It opens with one question from your cards."))
+    zone = start.tzinfo
+    today = [
+        s
+        for s in sorted(plan.sessions, key=lambda x: x.start)
+        if datetime.fromisoformat(s.start).astimezone(zone).date() == start.date()
+    ]
+    if len(today) > 1:
+        k = 1 + next(i for i, s in enumerate(today) if session_id(s) == sid)
+        lines.append(_("Session {k} of {n} planned today.", k=k, n=len(today)))
+    return [f"{lead}. {line}" for line in lines]
+
+
+def _reminder_payload(
+    subscription: Subscription,
+    session: SessionView,
+    *,
+    store: str | os.PathLike | None = None,
+    plan: PlanReport | None = None,
+    gains: Mapping[str, dict] | None = None,
+) -> dict:
+    """What a reminder says, in the plan's language: the course and the time, then
+    the kind of session and its length with one line: the first sentence of what to
+    do, or another true line in turn (D129). Tapping it opens the plan."""
     with use(subscription.options.get("lang") or current_language()):
         zone = _zone(subscription.options["tz"])
         start = datetime.fromisoformat(session.start).astimezone(zone)
         end = datetime.fromisoformat(session.end).astimezone(zone)
         minutes = round((end - start) / timedelta(minutes=1))
         what = session.detail.split(". ")[0].strip().rstrip(".")
-        body = f"{_(KIND_LABELS.get(session.kind, session.kind))} · {minutes} min"
+        lead = f"{_(KIND_LABELS.get(session.kind, session.kind))} · {minutes} min"
+        bodies = [f"{lead}. {what}." if what else lead]
+        if plan is not None:
+            bodies += _reminder_lines(
+                subscription, session, start, lead, store=store, plan=plan, gains=gains or {}
+            )
+            ordinal = next(
+                (
+                    i
+                    for i, s in enumerate(sorted(plan.sessions, key=lambda x: x.start))
+                    if session_id(s) == session_id(session)
+                ),
+                0,
+            )
+            body = bodies[ordinal % len(bodies)]
+        else:
+            body = bodies[0]
         return {
             "title": _(
                 "{course} at {time}",
                 course=session.title if session.kind == "task" else session.subject,
                 time=f"{start:%H:%M}",
             ),
-            "body": f"{body}. {what}." if what else body,
+            "body": body,
             "url": f"/p/{subscription.token}",
             "tag": session_id(session),
         }
+
+
+def awake(subscription: Subscription, now: datetime) -> bool:
+    """Whether `now` is between the student's getting up and going to bed (D69): no
+    reminder comes outside it (D129)."""
+    day = day_view(subscription)
+    up = _hours_of(day["wake"], _("Get up"))
+    down = _hours_of(day["bed"], _("Go to bed"))
+    if down <= up:
+        down += 24  # to bed after midnight
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    hour = local.hour + local.minute / 60
+    if hour < up:
+        hour += 24
+    return up <= hour < down
 
 
 def send_due_reminders(
@@ -4013,13 +4111,18 @@ def send_due_reminders(
         lead = reminder_lead(subscription) if subscription is not None else 0
         if subscription is None or subscription.plan is None or not lead:
             continue
-        for session in PlanReport.from_dict(subscription.plan).sessions:
+        if not awake(subscription, now):
+            continue  # never between bed and getting up (D129); still due, it waits till then
+        plan = PlanReport.from_dict(subscription.plan)
+        gains: dict[str, dict] | None = None
+        for session in plan.sessions:
             start = datetime.fromisoformat(session.start)
             if not _reminders.due(start, now, lead) or not _reminders.claim(
                 where, token, session_id(session), now
             ):
                 continue
-            payload = _reminder_payload(subscription, session)
+            gains = session_gains(plan) if gains is None else gains
+            payload = _reminder_payload(subscription, session, store=store, plan=plan, gains=gains)
             for device in _reminders.devices(where, token):
                 status = send(device, payload, key, subject=subject, ttl=int((start - now).total_seconds()))
                 if status in (404, 410):
@@ -4201,12 +4304,15 @@ def start_next_semester(
     draw: bool = False,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    recap: Mapping | None = None,
 ) -> Subscription:
     """The same plan, for a new semester (D36): a new timetable (a link, a file, or
     drawn), its exams found as at the start; the week's settings kept. What was
     studied is kept too (`options["past"]`), so the streak, the weeks, the trends
     and a group's goal go on counting it; and so is everything kept under the plan's
     address: the profile, the people, the groups, the diary and the flashcards.
+
+    `recap` is the semester just ended (D131, `recap_view`), kept with the others.
 
     Put away: the last semester's plan, exams, reports, moved sessions, deadlines
     already done or past, and the classes drawn by hand. Other activities drawn
@@ -4246,6 +4352,10 @@ def start_next_semester(
             "start": local.date().isoformat(),
             "tasks": tasks,
             "past": _archive(subscription, local),
+            # The semester just ended, kept to be seen again (D131).
+            "recaps": [*options.get("recaps", []), dict(recap)][-RECAPS_KEPT:]
+            if recap
+            else list(options.get("recaps", [])),
         },
         plan=None,
         refreshed=None,
@@ -4268,6 +4378,86 @@ def semester_over(subscription: Subscription, now: datetime | None = None) -> bo
         datetime.fromisoformat(t.due) for t in plan.tasks if not t.done
     ]
     return all(moment < now for moment in ahead)
+
+
+# The semester recap (D131): once every exam is behind, the semester in numbers the app
+# already keeps, the student's own, shared only if they choose (the device's share
+# sheet; nothing is posted). Kept when the next semester starts, so it can be seen
+# again; the next semester starts clean (D36).
+RECAPS_KEPT = 8
+
+
+def recap_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """The semester just ended (D131), or None while an exam or a deadline is ahead:
+    sessions kept and their hours, days studied, the memory days its reviews added,
+    the topics that hold a month or more, the self-tests recalled against the odds
+    (D125), the best streak, the best run studied together (D127), and the exams the
+    student said how they went (D105). Every figure is one Progress already shows."""
+    if subscription.plan is None or not semester_over(subscription, now):
+        return None
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    start = plan.settings.start
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    kept = [x for x in sessions if x.confirmed and start <= x.start.date() <= local.date()]
+    model = model_of(plan.settings)
+    _, gains, state = _memory_timeline(plan, model, [_days_after(start, local)])
+    odds = session_gains(plan)
+    beaten = sum(
+        1
+        for x in plan.history
+        if x.kind in ("review", "first review")
+        and x.grade in _GRADES
+        and x.grade != "again"
+        and odds.get(session_id(x), {}).get("chance", 100) < BEATEN_BELOW
+    )
+    first = min([start, *(x.start.date() for x in sessions)])
+    paused = _progress.pause_days(pauses_of(subscription.options.get("preferences", {})))
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, local.date(), paused, repaired)
+    pairs = together_view(store, subscription, now)["pairs"]
+    exams = exam_outcomes(subscription, now)["exams"]
+    minutes = sum(x.minutes for x in kept)
+    return {
+        "from": format_date(start, "day"),
+        "to": format_date(local.date(), "day"),
+        "ended": local.date().isoformat(),
+        "sessions": len(kept),
+        "hours": round(minutes / 60),
+        "days": len({x.start.date() for x in kept}),
+        "memory_days": round(sum(g for _, g in gains if g > 0)),
+        "month_topics": sum(1 for name, (m, _) in state.items() if m.stability >= MONTH_DAYS),
+        "topics": len(plan.specs),
+        "beaten": beaten,
+        "best_streak": run.best,
+        "together": max((p["best"] for p in pairs), default=0),
+        "exams": [{"course": e["course"], "says": e["says"]} for e in exams],
+    }
+
+
+def recaps_of(subscription: Subscription) -> list[dict]:
+    """The recaps kept at the start of each next semester (D131), latest first."""
+    return list(reversed(subscription.options.get("recaps", [])))
+
+
+def recap_share_text(recap: Mapping) -> str:
+    """The recap in a few lines, for the device's share sheet: the numbers only, no
+    plan address, no courses' names (D131)."""
+    lines = [
+        _("My semester, {start} to {end}:", start=recap["from"], end=recap["to"]),
+        _n("{n} study session", "{n} study sessions", recap["sessions"])
+        + ", "
+        + _n("{n} hour", "{n} hours", recap["hours"]),
+        _n("{n} memory day built", "{n} memory days built", recap["memory_days"]),
+        _n("Best streak: {n} day", "Best streak: {n} days", recap["best_streak"]),
+    ]
+    if recap["beaten"]:
+        lines.append(_n("{n} recall against the odds", "{n} recalls against the odds", recap["beaten"]))
+    return "\n".join(lines)
 
 
 # A weekly budget offered from what is kept (DECISIONS.md D47): after this many
@@ -4407,6 +4597,15 @@ def _session_card(
 # said to add nothing, as the model's short-term term has it (CLAUDE.md, D125).
 BEATEN_BELOW = 50
 
+# Unannounced moments (D130): rare, true, never counted down to. A topic that a recall
+# takes past a month of memory for the first time blooms on the answer's card; the
+# first week in which every self-test answered was recalled is said once, the week
+# after. In Deci, Koestner and Ryan's meta-analysis, rewards expected in advance lowered
+# free-choice intrinsic motivation and positive feedback raised it (DECISIONS.md D130),
+# so each of these is feedback on what the student did, and none is announced.
+MONTH_DAYS = 30
+RECALL_WEEK_LEAST = 3  # fewer answers than this make no week worth saying
+
 
 def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now: datetime) -> dict | None:
     """What an answered self-test did (D125): None before the answer, for a skipped
@@ -4422,8 +4621,11 @@ def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now:
         verdict = "beaten"
     else:
         verdict = "forecast"
+    after = gain.get("stability", 0.0)
     return {
         "verdict": verdict,
+        # An unannounced moment (D130): this answer took the topic past a month.
+        "month": verdict in ("beaten", "forecast") and after - gain["added"] < MONTH_DAYS <= after,
         "chance": gain["chance"],
         "added": max(0, round(gain["added"])),
         "holds": format_date(gain["holds"], "short"),
@@ -9039,6 +9241,8 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
                 "next": following.start if following else None,
                 # The exam's day, for the session's stakes (D128).
                 "exam": plan.settings.start + timedelta(days=exam),
+                # How long it then holds, for a topic's first month (D130).
+                "stability": after.stability,
             }
         states[session.title] = (after, session.start_day)
     return out
@@ -10722,6 +10926,33 @@ def _memory_timeline(
             i += 1
         snapshots.append([m.stability for name, (m, _) in state.items() if taught[name] <= end])
     return snapshots, gains, state
+
+
+def recall_week(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """The first week (Monday to Sunday) in which the student recalled every self-test
+    they answered, at least `RECALL_WEEK_LEAST` of them (D130), when that week is the
+    one just past; None otherwise. Said once, the week after; never counted down to."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    this_monday = local.date() - timedelta(days=local.weekday())
+    weeks: dict[date, list[str]] = {}
+    for session in plan.history:
+        if session.kind in ("review", "first review") and session.grade in _GRADES:
+            day = datetime.fromisoformat(session.start).astimezone(zone).date()
+            monday = day - timedelta(days=day.weekday())
+            if monday < this_monday:
+                weeks.setdefault(monday, []).append(session.grade)
+    for monday in sorted(weeks):
+        grades = weeks[monday]
+        if len(grades) >= RECALL_WEEK_LEAST and "again" not in grades:
+            if monday == this_monday - timedelta(days=7):
+                return {"answered": len(grades), "monday": format_date(monday, "day_short")}
+            return None  # the first such week was earlier: said then, not again
+    return None
 
 
 def learning_view(

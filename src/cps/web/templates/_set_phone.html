@@ -1,6 +1,7 @@
 {# One part of the settings, on its own page (D103). #}
 <h2 class="section" id="reminders">{{ _("Reminders") }}</h2>
 <p>{{ _("A notification on your phone before each study session, with what to do in it.") }}</p>
+<p class="hint">{{ _("Their words change from one to the next, and each says only what your plan says. None come between going to bed and getting up.") }}</p>
 <div data-push data-key="{{ reminders.key }}" data-save="/p/{{ token }}/push" data-remove="/p/{{ token }}/push/remove" data-devices="{{ reminders.devices | map(attribute='id') | join(',') }}">
   <p class="hint" data-push-off hidden>{{ _("Not on this device yet.") }}</p>
   <p class="hint" data-push-here hidden>{{ _("On for this device.") }}</p>
