@@ -4060,6 +4060,27 @@ def create_app(config: Config | None = None) -> FastAPI:
             plan_signed_in(answer, request, token, owner)
         return answer
 
+    @app.get("/p/{token}/recap", response_class=HTMLResponse)
+    def recap(request: Request, token: str) -> HTMLResponse:
+        """The semester in numbers (D131): the one just ended, else the last kept."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        current = service.recap_view(store, subscription, config.clock())
+        kept = service.recaps_of(subscription)
+        shown = current or (kept[0] if kept else None)
+        return page(
+            request,
+            "recap.html",
+            token=token,
+            recap=shown,
+            share=service.recap_share_text(shown) if shown else "",
+            ended=current is not None,
+            earlier=kept[1:] if current is None else kept,
+            tab="progress",
+        )
+
     @app.get("/p/{token}/semester", response_class=HTMLResponse)
     def semester(request: Request, token: str) -> HTMLResponse:
         subscription = load(token)
@@ -4114,6 +4135,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                     draw=draw,
                     now=config.clock(),
                     fetch=config.fetch,
+                    # The semester just ended, kept to be seen again (D131).
+                    recap=service.recap_view(store, current, config.clock()),
                 ),
             )
         except service.ServiceError as error:

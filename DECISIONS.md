@@ -5040,3 +5040,35 @@ threshold is a choice. "Recalled" counts Some, Most and All, as the plan does (D
 student who answers Most every time gets the week easily, as the plan assumes they would.
 Checked in Chromium only, at phone size light and dark and at 1280px; whether these moments
 keep anyone studying is for the pilot.
+
+## D131. The semester recap: the semester in numbers, shared by choice, kept at the next start
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's I: after the
+last exam, what the semester built, as Strava's yearly recap does for a year of training (a
+company's practice, no figures behind it here); a card the student may share; the next
+semester starting clean (D36 already keeps the past for the streak and the trends).*
+
+**Chosen.** Once every exam is behind and no deadline is ahead (`semester_over`), Today's
+end-of-semester card leads to `/p/<plan>/recap` ("See your semester in numbers"), and the
+page shows, as tiles: the study sessions kept and their hours, the days studied, the best
+streak, the memory days the semester's reviews added (D82's measure, summed), the topics
+that hold a month or more (D130), the recalls against the odds (D125) and the best run
+studied together (D127) when there are any, and the exams as the student said they went
+(D105) (`service.recap_view`). Every figure is one Progress already shows; the best streak is
+Progress's own (a test checks). Sharing is the student's: the device's share sheet, or the
+text to copy without a script, with the numbers only, never the plan's address or the
+courses' names (`recap_share_text`); nothing is posted for them. Starting the next semester
+keeps the recap (`options["recaps"]`, the last eight), and the page then shows it, with the
+earlier ones listed; the new semester's numbers start from zero.
+
+**Rejected.** A post in Community made for the student (sharing is theirs to choose, D16). An
+image to share (a drawing the server would have to make, for a text that says the same).
+Comparing the semester with classmates' (no rankings, D16). Showing a tile at zero for the
+month-long topics (it would read as a failure; the tile appears from one).
+
+**Disclosed.** Sessions count what was reported or logged, as Progress does: a semester
+followed without reports shows few sessions, and self-tests left unanswered a day after
+they ended add no memory (D44). Memory days and month-long topics are the memory model's
+estimate with average weights, said on the page. Checked in Chromium only, at phone size
+light and dark and at 1280px; the share sheet itself was not tried (headless Chromium has
+none), the copy button was.

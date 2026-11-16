@@ -170,7 +170,8 @@
   <span class="muted">{{ _n("{n} self-test, the week of {day}: none forgotten.", "{n} self-tests, the week of {day}: none forgotten.", recalled.answered, day=recalled.monday) }}</span>
 </a>
 {% elif message == "semester" %}
-<a class="card nudge-card section" href="/p/{{ token }}/semester"><b>{{ _("Exams are over. Start next semester") }}</b><span class="muted">{{ _("A new timetable; your streak, diary, flashcards and people come with you.") }}</span></a>
+{# Exams are over: the semester in numbers first (D131), then the next one. #}
+<a class="card nudge-card section recap-card" href="/p/{{ token }}/recap"><span class="tip-reason">{{ _("Exams are over") }}</span><b>{{ _("See your semester in numbers") }}</b><span class="muted">{{ _("Then start the next one: your streak, diary, flashcards and people come with you.") }}</span></a>
 {% elif message == "exam" %}
 {% set q = exam_questions[0] %}
 {# How an exam went (D56): asked for three weeks after it, one exam at a time; the

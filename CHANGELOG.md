@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The semester recap (DECISIONS.md D131): once every exam is behind, your semester in
+  numbers (sessions, hours, days, best streak, memory days, topics that hold a month, recalls
+  against the odds, days studied together, your exams), to share if you like through your
+  device; it is kept when the next semester starts.
+
 - Unannounced moments (DECISIONS.md D130): when a recall first takes a topic past a month of
   memory, its card says so beside the garden's flower; the first week in which you recalled
   every self-test you answered, at least three, is said on Today the week after. Neither is

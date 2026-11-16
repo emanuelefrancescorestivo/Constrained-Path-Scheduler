@@ -4304,12 +4304,15 @@ def start_next_semester(
     draw: bool = False,
     now: datetime | None = None,
     fetch: Callable[[str], bytes] = fetch_calendar,
+    recap: Mapping | None = None,
 ) -> Subscription:
     """The same plan, for a new semester (D36): a new timetable (a link, a file, or
     drawn), its exams found as at the start; the week's settings kept. What was
     studied is kept too (`options["past"]`), so the streak, the weeks, the trends
     and a group's goal go on counting it; and so is everything kept under the plan's
     address: the profile, the people, the groups, the diary and the flashcards.
+
+    `recap` is the semester just ended (D131, `recap_view`), kept with the others.
 
     Put away: the last semester's plan, exams, reports, moved sessions, deadlines
     already done or past, and the classes drawn by hand. Other activities drawn
@@ -4349,6 +4352,10 @@ def start_next_semester(
             "start": local.date().isoformat(),
             "tasks": tasks,
             "past": _archive(subscription, local),
+            # The semester just ended, kept to be seen again (D131).
+            "recaps": [*options.get("recaps", []), dict(recap)][-RECAPS_KEPT:]
+            if recap
+            else list(options.get("recaps", [])),
         },
         plan=None,
         refreshed=None,
@@ -4371,6 +4378,86 @@ def semester_over(subscription: Subscription, now: datetime | None = None) -> bo
         datetime.fromisoformat(t.due) for t in plan.tasks if not t.done
     ]
     return all(moment < now for moment in ahead)
+
+
+# The semester recap (D131): once every exam is behind, the semester in numbers the app
+# already keeps, the student's own, shared only if they choose (the device's share
+# sheet; nothing is posted). Kept when the next semester starts, so it can be seen
+# again; the next semester starts clean (D36).
+RECAPS_KEPT = 8
+
+
+def recap_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """The semester just ended (D131), or None while an exam or a deadline is ahead:
+    sessions kept and their hours, days studied, the memory days its reviews added,
+    the topics that hold a month or more, the self-tests recalled against the odds
+    (D125), the best streak, the best run studied together (D127), and the exams the
+    student said how they went (D105). Every figure is one Progress already shows."""
+    if subscription.plan is None or not semester_over(subscription, now):
+        return None
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    start = plan.settings.start
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    kept = [x for x in sessions if x.confirmed and start <= x.start.date() <= local.date()]
+    model = model_of(plan.settings)
+    _, gains, state = _memory_timeline(plan, model, [_days_after(start, local)])
+    odds = session_gains(plan)
+    beaten = sum(
+        1
+        for x in plan.history
+        if x.kind in ("review", "first review")
+        and x.grade in _GRADES
+        and x.grade != "again"
+        and odds.get(session_id(x), {}).get("chance", 100) < BEATEN_BELOW
+    )
+    first = min([start, *(x.start.date() for x in sessions)])
+    paused = _progress.pause_days(pauses_of(subscription.options.get("preferences", {})))
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, local.date(), paused, repaired)
+    pairs = together_view(store, subscription, now)["pairs"]
+    exams = exam_outcomes(subscription, now)["exams"]
+    minutes = sum(x.minutes for x in kept)
+    return {
+        "from": format_date(start, "day"),
+        "to": format_date(local.date(), "day"),
+        "ended": local.date().isoformat(),
+        "sessions": len(kept),
+        "hours": round(minutes / 60),
+        "days": len({x.start.date() for x in kept}),
+        "memory_days": round(sum(g for _, g in gains if g > 0)),
+        "month_topics": sum(1 for name, (m, _) in state.items() if m.stability >= MONTH_DAYS),
+        "topics": len(plan.specs),
+        "beaten": beaten,
+        "best_streak": run.best,
+        "together": max((p["best"] for p in pairs), default=0),
+        "exams": [{"course": e["course"], "says": e["says"]} for e in exams],
+    }
+
+
+def recaps_of(subscription: Subscription) -> list[dict]:
+    """The recaps kept at the start of each next semester (D131), latest first."""
+    return list(reversed(subscription.options.get("recaps", [])))
+
+
+def recap_share_text(recap: Mapping) -> str:
+    """The recap in a few lines, for the device's share sheet: the numbers only, no
+    plan address, no courses' names (D131)."""
+    lines = [
+        _("My semester, {start} to {end}:", start=recap["from"], end=recap["to"]),
+        _n("{n} study session", "{n} study sessions", recap["sessions"])
+        + ", "
+        + _n("{n} hour", "{n} hours", recap["hours"]),
+        _n("{n} memory day built", "{n} memory days built", recap["memory_days"]),
+        _n("Best streak: {n} day", "Best streak: {n} days", recap["best_streak"]),
+    ]
+    if recap["beaten"]:
+        lines.append(_n("{n} recall against the odds", "{n} recalls against the odds", recap["beaten"]))
+    return "\n".join(lines)
 
 
 # A weekly budget offered from what is kept (DECISIONS.md D47): after this many
