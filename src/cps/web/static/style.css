@@ -3428,6 +3428,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .av-swatch-skin { background: var(--av-skin); }
 .av-swatch-hair { background: var(--av-hair); }
 .av-swatch-top { background: var(--av-top); }
+.av-swatch-bg { background: var(--av-bg); }
 .av-save { margin: 4px 0 0; }
 .av-save .btn { width: 100%; }
 .you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
@@ -3993,6 +3994,10 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 /* Cards from notes (D84) */
 .card-make { display: block; color: inherit; text-decoration: none; }
 .card-make small { color: var(--muted); }
+/* D134: a file of notes, sent from Flashcards in one step. */
+.card-make-title { margin: 0; font-size: 17px; line-height: 1.3; }
+.notes-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 14px 0 0; }
+.notes-upload input[type="file"] { flex: 1 1 220px; min-width: 0; max-width: 100%; }
 .made-cards > li { padding: 0; }
 .made-card { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; cursor: pointer; }
 .made-card input { margin-top: 3px; flex: none; }
@@ -4236,3 +4241,186 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .run-switch { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 0; cursor: pointer; }
 .run-switch input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
 .run-switch small { display: block; color: var(--muted); }
+
+/* D135: a tip beside what a page is about. The card: the spark, why here, the advice; the
+   research folded under it. The line: one row above the calendar's grid. Both open
+   without a script; nothing in them moves but the spark, which rests with the page. */
+.why-tip .mascot-tip { align-items: flex-start; }
+.why-tip .mascot { width: 52px; height: 52px; flex: none; }
+.why-tip .mascot-words { margin: 0; }
+.why-tip .mascot-words b { font-weight: 600; line-height: 1.35; }
+.why-more { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.why-more > summary, .why-line > summary { cursor: pointer; list-style: none; }
+.why-more > summary::-webkit-details-marker, .why-line > summary::-webkit-details-marker { display: none; }
+.why-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 44px; margin: 0; color: var(--accent-ink); font-size: 0.9rem; font-weight: 600; }
+/* The line keeps the fold's chevron on its right, after the words, and the dot first. */
+.why-line > summary { margin: 0; font-weight: 400; color: inherit; }
+.why-line > summary::before { content: none; }
+.why-line > summary::after { content: "›"; margin-left: auto; color: var(--muted); transition: transform 0.2s ease; }
+.why-line[open] > summary::after { transform: rotate(90deg); }
+.why-strength { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.why-strength.is-strong { background: var(--ok-soft); color: var(--text); }
+.why-strength.is-moderate { background: var(--accent-soft); color: var(--text); }
+.why-body { font-size: 0.92rem; line-height: 1.5; }
+.why-body p { margin: 8px 0; }
+.why-limits, .why-app { color: var(--muted); }
+.why-limits b { color: var(--text); font-weight: 600; }
+.why-sources { margin: 8px 0; padding: 0; list-style: none; font-size: 0.86rem; }
+.why-sources li { margin: 4px 0; }
+.why-links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.88rem; }
+.why-line { margin: 0 0 8px; padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); font-size: 0.9rem; }
+.why-line > summary { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.why-line-words { min-width: 0; color: var(--muted); }
+.why-line-words b { color: var(--text); font-weight: 600; }
+.why-line:not([open]) .why-line-words { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.why-bulb { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+/* Opened, the research scrolls inside the line: the calendar's grid keeps its room. */
+.why-line-body { padding: 4px 0 6px; max-height: min(38vh, 320px); overflow: auto; overscroll-behavior: contain; }
+@media (max-width: 760px) { .why-line { margin: 0 8px 8px; } .why-line-body { max-height: 24vh; } }
+.why-strength-line { margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .why-line > summary::after { transition: none; } }
+:root[data-motion="reduce"] .why-line > summary::after { transition: none; }
+
+/* D136: the sidebar on a laptop, as Notion Calendar's. Fixed under the top bar, the same
+   on every page and left in place while pages change (its own view-transition name, so
+   a page's transition does not move it). From 1100px the top bar's sections give way to
+   it; below, the top bar and the tab bar are the way around. Solid, tinted like the bars:
+   nothing scrolls beneath it (D132). */
+:root { --sidebar: 252px; }
+.sidebar { display: none; }
+@media (min-width: 1100px) {
+  body.has-sidebar { padding-left: var(--sidebar); }
+  body.has-sidebar > .topbar { margin-left: calc(-1 * var(--sidebar)); }
+  body.has-sidebar .topbar .nav { display: none; }
+  body.has-sidebar .sidebar {
+    display: flex; flex-direction: column; gap: 18px;
+    position: fixed; z-index: 20; top: var(--topbar); left: 0; bottom: 0; width: var(--sidebar);
+    padding: 16px 12px 28px; overflow-y: auto; overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+    border-right: 0.5px solid var(--line-strong);
+    view-transition-name: sidebar;
+  }
+}
+.side-title { margin: 0 8px 6px; font-size: 0.8rem; font-weight: 650; letter-spacing: 0.02em; color: var(--muted); }
+.side-title a { color: inherit; }
+.side-title a[aria-current="page"] { color: var(--accent-ink); }
+.mini-month { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.mini-month th { padding: 0 0 4px; font-weight: 600; color: var(--muted); font-size: 0.75rem; }
+.mini-month abbr { text-decoration: none; }
+.mini-month td { padding: 1px 0; text-align: center; }
+.side-day {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; color: var(--text); text-decoration: none !important;
+}
+.side-day:hover { background: var(--fill-3); }
+.side-day.is-out { color: var(--muted); opacity: 0.6; }
+.side-day.is-study::after, .side-day.is-exam::after {
+  content: ""; position: absolute; bottom: 2px; left: 50%; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: var(--accent);
+}
+.side-day.is-exam::after { background: var(--danger); width: 5px; height: 5px; margin-left: -2.5px; }
+.side-day.is-exam { color: var(--danger-text); font-weight: 650; }
+.side-day.is-today { background: var(--danger); color: #fff; font-weight: 700; }
+.side-day.is-today::after { background: #fff; }
+.side-nav { display: flex; flex-direction: column; gap: 1px; }
+.side-nav a, .side-courses li a {
+  display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 8px;
+  color: var(--text); font-size: 0.9rem; text-decoration: none !important;
+}
+.side-nav a:hover, .side-courses li a:hover { background: var(--fill-3); }
+.side-nav a[aria-current="page"], .side-courses li a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.side-nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.side-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.75rem; font-weight: 700; text-align: center; line-height: 18px; }
+.side-courses ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.side-courses li a .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-courses li a small { flex: none; font-size: 0.75rem; color: var(--muted); }
+.side-courses li a small.is-soon { color: var(--danger-text); font-weight: 600; }
+.side-courses .hint, .side-more-courses { margin: 4px 8px; font-size: 0.85rem; }
+
+/* D137: more parts. Colours as before (a class on the avatar, or the radio checked on the
+   maker); each new shape shows on the maker when one of the options it belongs to is
+   checked. Thick brows and dark lenses are the same shapes, drawn heavier. */
+.av.skin-s0 { --av-skin: #fbe8dc; --av-shade: #f0cfba; --av-deep: #d9ab90; }
+.av.skin-s7 { --av-skin: #43291b; --av-shade: #371f13; --av-deep: #24140b; }
+.av.col-red { --av-hair: #b8391c; --av-brow: #7a2410; }
+.av.col-platinum { --av-hair: #eee4cf; --av-brow: #b8a98a; }
+.av.col-green { --av-hair: #4fae7f; --av-brow: #4a3a30; }
+.av.col-purple { --av-hair: #8e6bd8; --av-brow: #4a3a30; }
+.av.top-k0 { --av-top: #3a3d46; }
+.av.top-k1 { --av-top: #f2f1ee; }
+.av.top-k2 { --av-top: #d6bf98; }
+.av.bg-b0 { --av-bg: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.av.bg-b1 { --av-bg: #cfeedf; }
+.av.bg-b2 { --av-bg: #ffd9c7; }
+.av.bg-b3 { --av-bg: #e0d6fb; }
+.av.bg-b4 { --av-bg: #cfe6ff; }
+.av.bg-b5 { --av-bg: #f3e6c4; }
+.av.bg-b6 { --av-bg: #3c4356; }
+.av-maker:has(#av-skin-s0:checked) .av-preview { --av-skin: #fbe8dc; --av-shade: #f0cfba; --av-deep: #d9ab90; }
+.av-maker:has(#av-skin-s7:checked) .av-preview { --av-skin: #43291b; --av-shade: #371f13; --av-deep: #24140b; }
+.av-maker:has(#av-colour-red:checked) .av-preview { --av-hair: #b8391c; --av-brow: #7a2410; }
+.av-maker:has(#av-colour-platinum:checked) .av-preview { --av-hair: #eee4cf; --av-brow: #b8a98a; }
+.av-maker:has(#av-colour-green:checked) .av-preview { --av-hair: #4fae7f; --av-brow: #4a3a30; }
+.av-maker:has(#av-colour-purple:checked) .av-preview { --av-hair: #8e6bd8; --av-brow: #4a3a30; }
+.av-maker:has(#av-top-k0:checked) .av-preview { --av-top: #3a3d46; }
+.av-maker:has(#av-top-k1:checked) .av-preview { --av-top: #f2f1ee; }
+.av-maker:has(#av-top-k2:checked) .av-preview { --av-top: #d6bf98; }
+.av-maker:has(#av-bg-b0:checked) .av-preview { --av-bg: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.av-maker:has(#av-bg-b1:checked) .av-preview { --av-bg: #cfeedf; }
+.av-maker:has(#av-bg-b2:checked) .av-preview { --av-bg: #ffd9c7; }
+.av-maker:has(#av-bg-b3:checked) .av-preview { --av-bg: #e0d6fb; }
+.av-maker:has(#av-bg-b4:checked) .av-preview { --av-bg: #cfe6ff; }
+.av-maker:has(#av-bg-b5:checked) .av-preview { --av-bg: #f3e6c4; }
+.av-maker:has(#av-bg-b6:checked) .av-preview { --av-bg: #3c4356; }
+.av-maker:has(#av-hair-bald:checked) .hs-bald,
+.av-maker:has(#av-hair-afro:checked) .hs-afro,
+.av-maker:has(#av-hair-bob:checked) .hs-bob,
+.av-maker:has(#av-hair-ponytail:checked) .hs-ponytail,
+.av-maker:has(#av-hair-braids:checked) .hs-braids,
+.av-maker:has(#av-eyes-soft:checked) .ey-soft,
+.av-maker:has(#av-eyes-wide:checked) .ey-wide,
+.av-maker:has(#av-eyes-happy:checked) .ey-happy,
+.av-maker:has(#av-eyes-wink:checked) .ey-wink,
+.av-maker:has(#av-brows-soft:checked) .br-soft,
+.av-maker:has(#av-brows-thick:checked) .br-thick,
+.av-maker:has(#av-brows-straight:checked) .br-straight,
+.av-maker:has(#av-brows-raised:checked) .br-raised,
+.av-maker:has(#av-mouth-smile:checked) .mo-smile,
+.av-maker:has(#av-mouth-grin:checked) .mo-grin,
+.av-maker:has(#av-mouth-neutral:checked) .mo-neutral,
+.av-maker:has(#av-face-goatee:checked) .fh-goatee,
+.av-maker:has(#av-face-stubble:checked) .fh-stubble,
+.av-maker:has(#av-glasses-sun:checked) .gl-sun,
+.av-maker:has(#av-head-cap:checked) .hd-cap,
+.av-maker:has(#av-head-beanie:checked) .hd-beanie,
+.av-maker:has(#av-head-headphones:checked) .hd-headphones,
+.av-maker:has(#av-head-flower:checked) .hd-flower,
+.av-maker:has(#av-detail-freckles:checked) .dt-freckles,
+.av-maker:has(#av-detail-earrings:checked) .dt-earrings,
+.av-maker:has(#av-detail-mole:checked) .dt-mole,
+.av-maker:has(#av-outfit-tee:checked) .ot-tee,
+.av-maker:has(#av-outfit-hoodie:checked) .ot-hoodie,
+.av-maker:has(#av-outfit-shirt:checked) .ot-shirt,
+.av-maker:has(#av-outfit-sweater:checked) .ot-sweater { display: inline; }
+.av-bg { fill: var(--av-bg, color-mix(in srgb, var(--accent) 16%, var(--surface))); }
+.av-top-deep { fill: var(--av-top); filter: brightness(0.86); }
+.av-string { fill: none; stroke: rgb(255 255 255 / 75%); stroke-width: 1.6; stroke-linecap: round; }
+.av-shirt { fill: #fbfbf8; stroke: rgb(0 0 0 / 12%); stroke-width: 0.8; stroke-linejoin: round; }
+.av-button { fill: rgb(0 0 0 / 30%); }
+.av-rib { fill: none; stroke: rgb(0 0 0 / 22%); stroke-width: 3; stroke-linecap: round; }
+.av-freckles { fill: var(--av-deep); opacity: 0.55; }
+.av-mole { fill: var(--av-deep); }
+.av-earring { fill: #f2c94c; stroke: #c99a26; stroke-width: 0.8; }
+.av-eye-arc { fill: none; stroke: #3a2418; stroke-width: 2.2; stroke-linecap: round; }
+.av-grin { fill: #7a2e2a; }
+.av-teeth { fill: #fff; }
+.av-hat { fill: var(--av-top); }
+.av-hat-deep { fill: var(--av-top); filter: brightness(0.82); }
+.av-phones { fill: #2c2f36; }
+.av-phones-band { fill: none; stroke: #2c2f36; stroke-width: 4.5; stroke-linecap: round; }
+.av-petal { fill: #f59ac0; }
+.av-flower-heart { fill: #ffd25e; }
+.av-bald { fill: #fff; opacity: 0.22; }
+.av-brows.is-thick .av-brow, .av-maker:has(#av-brows-thick:checked) .av-preview .av-brows .av-brow { stroke-width: 5.6; }
+.av-glasses.is-sun rect, .av-maker:has(#av-glasses-sun:checked) .av-preview .gl-sun rect { fill: #23252b; fill-opacity: 0.9; }
+

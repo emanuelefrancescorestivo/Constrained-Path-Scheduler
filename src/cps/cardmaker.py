@@ -1,8 +1,8 @@
 """
-Flashcards from a student's own text (DECISIONS.md D84): notes typed or pasted, or
-a text note of theirs or of their study group, read by rules into cards the student
-picks from before any is kept. No model, no network, no cost; the same text always
-gives the same cards.
+Flashcards from a student's own text (DECISIONS.md D84): notes typed or pasted, a file of
+notes read as text (`notefiles`, D134), or a text note of theirs or of their study
+group, read by rules into cards the student picks from before any is kept. No model,
+no network, no cost; the same text always gives the same cards.
 
 Why cards from notes: practice testing is one of the two techniques rated of high
 utility in a review of ten [ref:dunlosky2013], and left alone most students reread
@@ -36,7 +36,9 @@ from dataclasses import dataclass
 
 from . import syllabus
 
-MAX_TEXT = 20_000  # characters read at once, as the course topics' box
+# Characters read at once: about 20 pages of notes, a file's (D134) as a pasted text;
+# the rules read a line at a time, so a long text costs little.
+MAX_TEXT = 60_000
 MAX_CARDS = 200  # candidates offered at once: the flashcards' own paste limit
 FRONT_MOST, BACK_MOST = 300, 600  # the flashcards' own limits (cards.LIMITS)
 TERM_WORDS = 8  # a term is a name, not a sentence

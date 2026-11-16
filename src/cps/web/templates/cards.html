@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% block title %}{{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {% set d = draft or {} %}
@@ -27,16 +28,28 @@
 </div>
 {% endif %}
 
-{# D101: a course's materials, one tap away; pasting notes stays. #}
+{# D134: a file of notes first, read on this server for free; then a course's
+   materials (D101); pasting stays. #}
 {% from "_art.html" import art %}
-<div class="card section card-make">
+<div class="card section card-make" id="from-notes">
   <div class="materials-head">{{ art("cards") }}<div class="grow">
-    <b>{{ _("Make cards from a course") }}</b><br>
-    <small>{% if view.from_courses %}{{ _("From its topics and the notes you can open: you pick the cards to keep.") }}{% else %}{{ _("Add a course's topics, or share notes for it, and its cards are one tap away.") }}{% endif %}</small>
+    <h2 class="card-make-title">{{ _("Make cards from your notes") }}</h2>
+    <small>{{ _("Send a PDF, Word, PowerPoint or text file: definitions, questions, lists and words in bold become cards, and you pick the ones to keep. Free, read on this server.") }}</small>
   </div></div>
-  {% if view.from_courses %}<p class="course-chips">{% for c in view.from_courses %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/make?from=course&amp;course={{ c | urlencode }}">{{ c }}</a>{% endfor %}</p>{% endif %}
-  <p class="hint"><a href="/p/{{ token }}/cards/make">{{ _("Or paste your notes") }}</a></p>
+  <form method="post" action="/p/{{ token }}/cards/make" enctype="multipart/form-data" class="notes-upload">
+    <label for="cm-file" class="visually-hidden">{{ _("A file of your notes") }}</label>
+    <input id="cm-file" type="file" name="file" required accept=".pdf,.docx,.pptx,.odt,.odp,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.presentation,text/plain,text/markdown">
+    {% if view.course %}<input type="hidden" name="course" value="{{ view.course }}">{% endif %}
+    <button class="btn btn-primary btn-sm" name="action" value="read">{{ _("Read my notes") }}</button>
+  </form>
+  <p class="hint"><a href="/p/{{ token }}/cards/make{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Or paste your notes") }}</a></p>
+  {% if view.from_courses %}
+  <p class="hint">{{ _("Or from a course: its topics and the notes you can open.") }}</p>
+  <p class="course-chips">{% for c in view.from_courses %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/make?from=course&amp;course={{ c | urlencode }}">{{ c }}</a>{% endfor %}</p>
+  {% endif %}
 </div>
+
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 
 <form method="post" action="/p/{{ token }}/cards" class="card section card-new">
   <h2>{{ _("New card") }}</h2>

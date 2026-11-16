@@ -109,7 +109,7 @@ function lanes(boxes) {
 }
 
 export class Calendar {
-  constructor(root, { token, first, onChanged, toast, onRange, setup = false }) {
+  constructor(root, { token, first, today, onChanged, toast, onRange, setup = false }) {
     this.root = root;
     this.token = token;
     this.first = first;
@@ -121,7 +121,9 @@ export class Calendar {
     // a week by hand shows its week alone.
     this.strip = !setup;
     this.settling = null;
-    this.today = first;
+    // The day the calendar opens on may be a day of the sidebar's month (D136); "Today"
+    // still goes to today.
+    this.today = today || first;
     this.onChanged = onChanged || (() => {});
     this.toast = toast || (() => {});
     this.onRange = onRange || (() => {});

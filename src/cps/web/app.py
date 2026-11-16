@@ -489,6 +489,16 @@ def create_app(config: Config | None = None) -> FastAPI:
                 setup=bool(context.get("setup")),
                 new=bool(context.get("new")),
             )
+        if token and "sidebar" not in context and not (context.get("setup") or context.get("new")):
+            # The laptop's sidebar (D136): the month, the sections, the courses. Shown
+            # by the style sheet from 1100px; if working it out fails, the page shows
+            # without it.
+            try:
+                subscription = subscription or service.load_subscription(store, token)
+                if subscription is not None:
+                    context["sidebar"] = service.sidebar_view(store, subscription, config.clock())
+            except Exception:
+                LOG.exception("could not work out the sidebar")
         if token and "run" not in context:
             # A new student's first run (D107): its steps' bar, Spark's line on Today.
             subscription = subscription or service.load_subscription(store, token)
@@ -1223,13 +1233,17 @@ def create_app(config: Config | None = None) -> FastAPI:
             feeds.refresh(token)
         service.log_visit(store, token, config.clock())
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
+        first = context.pop("first", None) or today.isoformat()
         return page(
             request,
             "plan.html",
             status,
             token=token,
-            first=today.isoformat(),
+            first=first,
+            today_iso=today.isoformat(),
             tab=tab,
+            # D135: planning's tip, on the calendar.
+            why_tip=service.tip_here(subscription, "calendar", config.clock()) if tab == "calendar" else None,
             **panel_context(subscription),
             **context,
         )
@@ -1306,11 +1320,16 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
-    def week(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
+    def week(request: Request, token: str, new: int = 0, saved: str = "", day: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved))
+        # A day of the sidebar's month (D136): the calendar opens on it.
+        try:
+            first = date.fromisoformat(day[:10]).isoformat() if day else None
+        except ValueError:
+            first = None
+        return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved), first=first)
 
     @app.get("/p/{token}/timetable", response_class=HTMLResponse)
     def timetable(request: Request, token: str) -> HTMLResponse:
@@ -1348,6 +1367,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "progress.html",
             token=token,
             today=now.astimezone(ZoneInfo(subscription.options["tz"])).date().isoformat(),
+            why_tip=service.tip_here(subscription, "progress", now),  # D135
             view=service.progress_view(subscription, now, logged=logged),
             together=service.together_view(store, subscription, now),
             review=service.review_with_ai(
@@ -1390,11 +1410,18 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         service.log_visit(store, token, config.clock())
         running = subscription.options.get("focus") or {}
+        focus_now = service.focus_view(subscription, config.clock())
         return page(
             request,
             "focus.html",
             token=token,
-            focus=service.focus_view(subscription, config.clock()),
+            focus=focus_now,
+            # D135: before a session, the tip for it; none while the timer runs.
+            why_tip=None
+            if running
+            else service.tip_here(
+                subscription, "focus", config.clock(), suggested=focus_now.get("suggested")
+            ),
             # The place on the map a session is studied at, or is about to be (D133).
             place=service.place_info(store, running.get("place") if running else place[:20]),
             question=service.opener_view(
@@ -2452,7 +2479,17 @@ def create_app(config: Config | None = None) -> FastAPI:
         request: Request, subscription: service.Subscription, course: str, status: int = 200, **extra: Any
     ) -> HTMLResponse:
         view = service.cards_view(store, subscription, config.clock(), course=course[:80])
-        return page(request, "cards.html", status, token=subscription.token, view=view, tab="cards", **extra)
+        why_tip = service.tip_here(subscription, "cards", config.clock())  # D135
+        return page(
+            request,
+            "cards.html",
+            status,
+            token=subscription.token,
+            view=view,
+            why_tip=why_tip,
+            tab="cards",
+            **extra,
+        )
 
     # -- a course's topics, from its syllabus, shared with classmates (D81) ----------
 
@@ -2678,6 +2715,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             status,
             token=subscription.token,
             view=view,
+            why_tip=service.tip_here(subscription, "course", config.clock(), course=view["course"]),  # D135
             tab="courses",
             exam_row=exam,
             values=values,
@@ -2867,8 +2905,16 @@ def create_app(config: Config | None = None) -> FastAPI:
     ) -> HTMLResponse:
         error = kwargs.pop("error", None)
         view = service.card_maker_view(store, subscription, now=config.clock(), **kwargs)
+        why_tip = service.tip_here(subscription, "make", config.clock())  # D135
         return page(
-            request, "cards_make.html", status, token=subscription.token, view=view, error=error, tab="cards"
+            request,
+            "cards_make.html",
+            status,
+            token=subscription.token,
+            view=view,
+            error=error,
+            why_tip=why_tip,
+            tab="cards",
         )
 
     @app.get("/p/{token}/cards/make", response_class=HTMLResponse)
@@ -2901,13 +2947,30 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
+        if int(request.headers.get("content-length") or 0) > service.NOTES_FILE_MOST + 256 * 1024:
+            message = service.translate("That file is larger than 10 MB: send a chapter at a time.")
+            return cards_make_page(request, subscription, 413, error=message)
         # The cards found travel back with the form: three fields each, at most 200 (D84).
-        # Four with a week of its own (D101).
-        form = await request.form(max_files=0, max_fields=4 * service.CARDS_MADE_MOST + 12)
+        # Four with a week of its own (D101). One file of notes (D134).
+        form = await request.form(max_files=1, max_fields=4 * service.CARDS_MADE_MOST + 12)
         text = str(form.get("text") or "")[: service.CARDS_TEXT_MOST]
         course = str(form.get("course") or "")[:80]
         action = form.get("action")
         from_course = form.get("from") == "course" and bool(course.strip())
+        upload = form.get("file")
+        read_note = None
+        if isinstance(upload, UploadFile) and upload.filename and action != "add":
+            data = await upload.read(service.NOTES_FILE_MOST + 1)
+            await upload.close()
+            try:
+                text, read_note = service.notes_file_text(str(upload.filename), data)
+            except service.ServiceError as error:
+                return cards_make_page(request, subscription, 400, course=course, error=str(error))
+            finally:
+                del data  # the file is not kept (D134)
+            text = text[: service.CARDS_TEXT_MOST]
+            from_course = False
+            service.log_event(store, token, "cardmaker", "file")
         if action == "add":
             try:
                 added = service.add_made_cards(
@@ -2940,6 +3003,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             text=None if from_course else text,
             course=course,
             both=bool(form.get("both")),
+            read_note=read_note,
             use_ai=action == "ai",
             week=str(form.get("week") or "")[:10] if "week" in form else None,
             from_course=from_course,
@@ -2954,7 +3018,16 @@ def create_app(config: Config | None = None) -> FastAPI:
         view = service.card_review_view(
             store, subscription, config.clock(), course=course[:80], week=week[:10]
         )
-        return page(request, "cards_review.html", token=token, view=view, words=CARD_WORDS, tab="cards")
+        why_tip = service.tip_here(subscription, "review", config.clock())  # D135
+        return page(
+            request,
+            "cards_review.html",
+            token=token,
+            view=view,
+            words=CARD_WORDS,
+            why_tip=why_tip,
+            tab="cards",
+        )
 
     @app.post("/p/{token}/cards/{card_id}/answer")
     async def cards_answer(
@@ -3485,6 +3558,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             show_mail=config.show_mail,
             reminders=service.reminders_view(store, subscription),
             tips_on=service.tips_on(subscription),
+            why_tip=service.tip_here(subscription, "week", config.clock()) if part == "week" else None,
             usage=service.usage_answer(store, token),
             **extra,
         )
@@ -4320,6 +4394,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             status,
             token=subscription.token,
             view=service.tasks_view(subscription, config.clock()),
+            why_tip=service.tip_here(subscription, "tasks", config.clock()),  # D135
             tab="tasks",
             **context,
         )

@@ -219,7 +219,8 @@ free instance wakes up.
    (D26). **Groups**: a few friends share one weekly goal in hours; the group sees
    its total and who has studied this week, never one person's hours (D28).
    **Flashcards**: your own cards, each scheduled by the same memory model as the
-   plan and brought back just before you would forget it (D29).
+   plan and brought back just before you would forget it (D29); made from a file of your
+   notes (PDF, Word, PowerPoint, text), read by rules on the server for free (D134).
 7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
 8. **After each session**: its calendar event links to a page that asks how it went.
@@ -418,8 +419,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1347 passed, 17 deselected (slow), 1 xfailed, ~450 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1364 passed, 1 xfailed, 94% coverage
+pytest                                    # 1378 passed, 17 deselected (slow), 1 xfailed, ~450 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1395 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

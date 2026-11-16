@@ -5161,3 +5161,154 @@ who is there. Places are listed within about 28 km of the map's centre, which is
 place, else their time zone's main city (D76), not their university. Checked in Chromium only,
 at phone size light and dark and at 1280px, with tiles loaded through this environment's
 network; not on a real phone, Safari or Firefox.
+
+## D134. Flashcards from a file of notes, read for free on the server
+
+*The owner, 2026-11-16, after trying the demo: "the option to upload notes and get flashcards
+from them must be put even if via a dependency but it's better if it's free".* Notes became
+cards only when pasted as text (D84), or through the model when AI is on (D101), which the
+demo is not; there was no way to send a file.
+
+**Chosen.**
+
+- *A file, one step from Flashcards.* The Flashcards page opens with "Make cards from your
+  notes": a file field and "Read my notes", sent as an ordinary form (no script needed). The
+  page that makes cards takes a file too, above the box for pasted text, and shows the text it
+  read in that box, to change before reading again. The cards are offered as for pasted notes,
+  each picked by the student (D84).
+- *What is read* (`notefiles.py`): PDF (pypdf, already in the `web` extra, D90), Word
+  (.docx), PowerPoint (.pptx), LibreOffice's text and slides (.odt, .odp), Markdown and plain
+  text, told apart by their first bytes. The Office and OpenDocument files are zips of XML,
+  read with Python's own `zipfile` and `ElementTree`: no new dependency, no model, no cost,
+  nothing sent anywhere, the file not kept.
+- *The shapes the rules read are kept.* A heading becomes a Markdown heading, a list item a
+  "- " line, a word in bold `**…**` (so a bold term becomes a blank to fill), a whole short
+  line in bold a heading, as students write them. A slide's title goes over its points, so a
+  slide becomes a list to recall; a deck is read in its own order (the presentation's list,
+  not the files' numbers), without slide numbers, footers or speaker notes; a deck of text
+  boxes placed by hand takes its topmost short box as the title. Word's heading styles are
+  read by their names in English, Italian, French, German, Spanish, Dutch and Polish;
+  LibreOffice's through their parent styles. A PDF's symbol-font bullets become items.
+- *Limits.* 10 MB a file (as a PDF), 25 MB unzipped in all, 300 slides, and the card rules
+  now read 60,000 characters at once instead of 20,000 (about 20 pages; a longer file is cut
+  and the page says so). An XML part with a DOCTYPE is refused (no format here needs one;
+  declared entities are how XML is made to swell, and Python's expat bounds them too). Old
+  binary .doc and .ppt files, photos and other kinds are refused with what to do instead.
+
+**Rejected.** OCR for photos and scans: Tesseract or an ONNX model is a dependency for printed
+text only, and handwriting, which most photographed notes are, needs a model; the AI path
+(Claude Haiku, D101) reads text only too. A free model running on the server: gigabytes on
+disk and seconds a page on the pilot's small server. python-docx and python-pptx: two
+dependencies for what the standard library reads in a few lines. Keeping the file (it would
+be a copy of a student's notes the server does not need).
+
+**Disclosed.** Cards come from rules, so notes written as prose give few: definitions,
+questions, lists and words in bold give most. Tried on files written by the tests and by
+LibreOffice (as .docx, .pptx, .odt, .odp and PDF), not on files saved by Microsoft Office,
+Google Docs, Pages, Notion or a note-taking app. Equations, tables' layout and pictures are
+not read. Checked in Chromium only, at phone size and 1280px.
+
+## D135. The tips where they apply: beside a session, a card, a course, the calendar
+
+*The owner, 2026-11-16, after trying the demo: "the study tips and neuroscience of learning
+should not be hidden like this but rather appear in context, when focusing, when planning,
+etc..."* A tip reached Today only when nothing else needed saying (D97's one message, the
+tip last), Focus showed one about breaks, and the rest waited on the tips page under You.
+
+**Chosen.**
+
+- *One tip a page, beside what the page is about* (`service.tip_here`, `_why.html`): Focus
+  before a session, a self-test's cards, Flashcards, cards from notes, the calendar, the
+  week's settings, a course, Tasks and Progress. Each comes from the tips of D62 and D91 (the
+  science of learning and the brain's tips among them), with the evidence each already
+  carries: the advice, then folded, without a script, what the research found, how strong it
+  is, what it does not show, its checked sources, and a link to its topic on the tips page.
+- *Why here, from the plan.* A line above the advice says only what the plan holds: "This
+  session is a self-test: recall what you can before you look at your notes" when the session
+  about to start is one; "{course}'s exam is on {day}: sleep over the weeks before it counts"
+  from three weeks before an exam; "Your plan comes back to {course} on {days}", the next
+  three days of one course's sessions; a test in a course from its timetable. These come first; otherwise a page's tips take turns day by day, each page at its
+  own offset, so two pages seldom show the same tip on the same day.
+- *Calm.* A card with the spark (D66) on most pages; on the calendar one line above the grid,
+  its research scrolling inside the line when opened, so the grid keeps its room. Tips off
+  (Settings, Look) removes them all; the line and each card link to that switch.
+
+**Rejected.** A tip on every card of a page (more words than the page's own). Showing tips as
+pop-ups or in the tour (they would interrupt what the student came to do). Tying the calendar's
+mix of courses in a day to interleaving (the research mixed kinds of problems within one
+subject, not courses: the course page says that instead). Tips chosen by a model (D65's rules
+stay: a tip may cite only a checked reference).
+
+**Disclosed.** Which tip a page shows is chosen by rules from the plan, not from what a student
+needs; the lines tie research done elsewhere (laboratories, other subjects, other goals) to
+this plan, and each tip's "what it does not show" says how far. Whether students read them
+more here than on the tips page is for the pilot (`log_tips` counts the tips page only).
+Checked in Chromium only, at phone size and 1280px.
+
+## D136. A sidebar on a laptop, as Notion Calendar's
+
+*The owner, 2026-11-16, after trying the demo: "a sidebar like in notion calendar instead of
+navigating by exiting and entering different pages would considerably streamline user
+experience".* On a laptop the top bar held four sections (Plan, Courses, Community, You), and
+Focus, Flashcards, Tasks, Progress, Tips and Settings were a page further, under You.
+
+**Chosen.**
+
+- *One sidebar on every page of a plan* from 1100px (`_sidebar.html`,
+  `service.sidebar_view`), fixed under the top bar, whose four sections give way to it:
+  - this month, from a Monday, each day a link that opens the calendar on that day
+    (`/week?day=`; the calendar's Today button still goes to today), today in red as the
+    calendar draws it, a dot under a day the plan studies, a red dot and red figure on a day
+    with an exam or a test, each day's label saying which;
+  - Today, Calendar, Focus, Flashcards (with the cards waiting), Tasks, Progress;
+  - the courses in their colours, each with the days to its exam, red within two weeks, as
+    Notion Calendar lists calendars;
+  - Community, Who's studying where, Study tips, You, Settings.
+  The section open is marked; the sidebar keeps its place while pages change (its own
+  view-transition name), so moving between sections changes only the page beside it.
+- *Light.* It reads the plan as kept (sessions, exams, tests, course colours) and the count
+  of cards waiting; no replay. If working it out fails, the page shows without it.
+- *A phone keeps the tab bar* (D97), and a window under 1100px the top bar's sections: below
+  that width a sidebar would take a third of the page.
+
+**Rejected.** Opening pages in a panel beside the current one (Notion Calendar's event panel):
+every page would need a second, partial form, and pages must work without their scripts; the
+fixed sidebar removes most of the going back and forth. A month that pages back and forth in
+the sidebar (a script, or a reload for each month; the calendar's Month view does it). The
+sidebar on a phone (a drawer behind a button is a step more than the tab bar).
+
+**Disclosed.** Checked in Chromium only, at 1440 × 900 light and 1280 × 800 dark, with the
+1024px and phone widths falling back; not in Safari or Firefox, nor with a screen reader. The
+course list shows the plan's courses with exams, as Courses does, at most eight.
+
+## D137. More ways to make the avatar
+
+*The owner, 2026-11-16, after trying the demo: "more personalisation options to create the
+avatar".* D115 had six skin tones, seven hair styles in eight colours, a beard or a
+moustache, two pairs of glasses and seven colours of top.
+
+**Chosen** (`service.AVATAR_PARTS`, `_avatar.html`, `avatar.html`):
+
+- skin: eight tones, one lighter and one deeper than D115's ends;
+- hair: twelve styles (an afro, a bob, a ponytail, braids and bald added) in twelve colours
+  (red, platinum, green and purple added);
+- eyes (soft, wide, happy, a wink), eyebrows (soft, straight, thick, raised) and a mouth
+  (a smile, a grin, calm), where D115 drew one of each;
+- facial hair: a goatee and stubble added; glasses: sunglasses added;
+- on the head: a cap, a beanie, headphones or a flower; details: freckles, earrings or a
+  beauty mark;
+- clothes: a T-shirt, a hoodie, a shirt or a sweater, in ten colours (the seven course
+  colours and charcoal, white and sand); a background in seven colours.
+
+Each part is a few shapes in the manner of D115, no outlines; the maker's preview still
+follows every choice through CSS `:has` with no script, each shape tagged with the options
+it belongs to. An avatar saved before keeps its parts and takes each new part's first
+option, which draws it as it was.
+
+**Rejected.** Free colour pickers (a colour field per part: many more combinations nobody
+reads, and colours that fight the app's own). Uploaded pictures (D115: nothing uploaded).
+Hats in their own colours (the clothes' colour keeps the number of choices down).
+
+**Disclosed.** Still a choice of shapes, not every person; the drawings were checked in
+Chromium only, at phone size, in eight combinations and as saved.
+

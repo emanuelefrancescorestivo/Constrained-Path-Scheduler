@@ -38,6 +38,7 @@ const bar = document.getElementById("calendar-bar");
 const calendar = new Calendar(document.getElementById("calendar"), {
   token,
   first: plan.dataset.first,
+  today: plan.dataset.today,
   toast: (text, bad) => toast(text, { bad }),
   onChanged: refreshPanel,
   setup: plan.dataset.setup === "classes",

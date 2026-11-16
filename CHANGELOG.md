@@ -7,6 +7,25 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- More ways to make your avatar (DECISIONS.md D137): eight skin tones, twelve hair styles in
+  twelve colours, eyes, eyebrows and a mouth to choose, more facial hair, sunglasses, something
+  on your head, freckles or earrings, four kinds of clothes in ten colours, and a background.
+
+- A sidebar on a laptop (DECISIONS.md D136), as Notion Calendar's: this month with study
+  days and exams marked, each day opening the calendar on it; every section one click away;
+  your courses in their colours with the days to each exam. It stays in place while pages
+  change; a phone keeps the tab bar.
+
+- Tips where they apply (DECISIONS.md D135): Focus, flashcards, the calendar, a course,
+  Tasks, Progress and your week each show one study tip about what they are about, with why
+  here from your plan (a self-test about to start, an exam close, the days a course comes
+  back) and the research behind it folded under it, sources included.
+
+- Flashcards from a file of notes (DECISIONS.md D134): send a PDF, Word, PowerPoint,
+  LibreOffice or text file from Flashcards, and its definitions, questions, lists, slides and
+  words in bold become cards to pick from. Read on the server for free, nothing sent anywhere,
+  the file not kept; photos and scans are not read.
+
 - The study map (DECISIONS.md D133): Community's map of places to study and who is at each
   now, the people you follow by name and everyone else as a count; Study here or Join moves
   your focus session to a place, and anyone with a handle can add a place by tapping the map.

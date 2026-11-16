@@ -20,13 +20,26 @@
 </svg>
 {%- else -%}
 {% set s = spec or {} %}
-<svg class="av-face av skin-{{ s.skin or 's3' }} col-{{ s.colour or 'dark' }} top-{{ s.top or 'c0' }}{{ extra }}" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+{# D137: a part drawn only when chosen; on the maker every part is drawn, tagged with the
+   classes of the options it belongs to (`hs-*` hair, `ey-*` eyes, `br-*` brows, `mo-*`
+   mouth, `fh-*` facial hair, `gl-*` glasses, `hd-*` head, `dt-*` details, `ot-*`
+   clothes), and the radios decide what shows. #}
+{% set eyes = s.eyes or "soft" %}{% set brows = s.brows or "soft" %}{% set mouth = s.mouth or "smile" %}{% set outfit = s.outfit or "tee" %}
+<svg class="av-face av skin-{{ s.skin or 's3' }} col-{{ s.colour or 'dark' }} top-{{ s.top or 'c0' }} bg-{{ s.bg or 'b0' }}{{ extra }}" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
   <defs><clipPath id="{{ uid }}-round"><circle cx="60" cy="60" r="58"></circle></clipPath></defs>
   <circle class="av-bg" cx="60" cy="60" r="58"></circle>
   <g clip-path="url(#{{ uid }}-round)">
+    {# Behind the head: long hair, a bob, an afro, a ponytail, braids. #}
     {% if every or s.hair in ("long",) %}<path class="avo hs-long av-hair" d="M30 50C28 30 42 15 60 15 78 15 92 30 90 50L93 100C86 106 78 104 74 98L74 72H46V98C42 104 34 106 27 100Z"></path>{% endif %}
+    {% if every or s.hair in ("bob",) %}<path class="avo hs-bob av-hair" d="M28 52C27 32 42 17 60 17 78 17 93 32 92 52L93 80C88 85 82 85 78 81L79 62H41L42 81C38 85 32 85 27 80Z"></path>{% endif %}
+    {% if every or s.hair in ("afro",) %}<path class="avo hs-afro av-hair" d="M24 56C18 46 20 32 28 26 30 16 42 8 54 10 62 4 76 6 82 14 94 14 102 26 98 36 104 44 102 56 94 62 92 50 86 40 76 36 66 34 52 34 42 38 34 44 28 52 26 62Z"></path>{% endif %}
+    {% if every or s.hair in ("ponytail",) %}<path class="avo hs-ponytail av-hair" d="M84 32C98 34 106 48 102 64 100 74 94 82 86 86 90 74 92 62 89 50 88 42 86 37 84 32Z"></path>{% endif %}
+    {% if every or s.hair in ("braids",) %}<g class="avo hs-braids av-hair"><path d="M30 54C26 70 27 88 31 104 34 109 39 108 39 102 36 88 36 72 38 56Z"></path><path d="M90 54C94 70 93 88 89 104 86 109 81 108 81 102 84 88 84 72 82 56Z"></path></g>{% endif %}
     <path class="av-top" d="M14 122C16 100 32 90 60 88 88 90 104 100 106 122Z"></path>
-    <path class="av-collar" d="M48 90 60 103 72 90"></path>
+    {% if every or outfit in ("hoodie",) %}<g class="avo ot-hoodie"><path class="av-top-deep" d="M36 97C34 87 44 82 60 82 76 82 86 87 84 97 78 93 70 91 60 91 50 91 42 93 36 97Z"></path><path class="av-string" d="M55 96V108M65 96V108"></path></g>{% endif %}
+    {% if every or outfit in ("tee",) %}<path class="avo ot-tee av-collar" d="M48 90 60 103 72 90"></path>{% endif %}
+    {% if every or outfit in ("shirt",) %}<g class="avo ot-shirt"><path class="av-shirt" d="M47 89 60 100 55 108 43 95Z"></path><path class="av-shirt" d="M73 89 60 100 65 108 77 95Z"></path><circle class="av-button" cx="60" cy="110" r="1.3"></circle><circle class="av-button" cx="60" cy="117" r="1.3"></circle></g>{% endif %}
+    {% if every or outfit in ("sweater",) %}<path class="avo ot-sweater av-rib" d="M46 90C50 97 70 97 74 90"></path>{% endif %}
     <path class="av-shade" d="M52 76H68V93C66 96 54 96 52 93Z"></path>
     <ellipse class="av-shade" cx="34" cy="58" rx="5.5" ry="8"></ellipse>
     <ellipse class="av-shade" cx="86" cy="58" rx="5.5" ry="8"></ellipse>
@@ -35,26 +48,43 @@
     <ellipse class="av-light" cx="52" cy="40" rx="15" ry="9"></ellipse>
     <ellipse class="av-blush" cx="43" cy="67" rx="5.5" ry="3.4"></ellipse>
     <ellipse class="av-blush" cx="77" cy="67" rx="5.5" ry="3.4"></ellipse>
-    <path class="av-brow" d="M42 46C45.5 43 50.5 42.5 54.5 44"></path>
-    <path class="av-brow" d="M65.5 44C69.5 42.5 74.5 43 78 46"></path>
-    <path class="av-eye" d="M44.5 52.5C46.5 50.6 50.5 50.6 52.5 52.5 50.5 54.2 46.5 54.2 44.5 52.5Z"></path>
-    <path class="av-eye" d="M67.5 52.5C69.5 50.6 73.5 50.6 75.5 52.5 73.5 54.2 69.5 54.2 67.5 52.5Z"></path>
-    <circle class="av-glint" cx="49" cy="52.1" r=".7"></circle>
-    <circle class="av-glint" cx="72" cy="52.1" r=".7"></circle>
+    {% if every or s.detail in ("freckles",) %}<g class="avo dt-freckles av-freckles"><circle cx="40" cy="62" r=".9"></circle><circle cx="44" cy="64" r=".9"></circle><circle cx="41" cy="66.5" r=".9"></circle><circle cx="80" cy="62" r=".9"></circle><circle cx="76" cy="64" r=".9"></circle><circle cx="79" cy="66.5" r=".9"></circle></g>{% endif %}
+    {% if every or s.detail in ("mole",) %}<circle class="avo dt-mole av-mole" cx="71" cy="73" r="1.1"></circle>{% endif %}
+    {% if every or s.detail in ("earrings",) %}<g class="avo dt-earrings av-earring"><circle cx="33" cy="68" r="2.6"></circle><circle cx="87" cy="68" r="2.6"></circle></g>{% endif %}
+    {% if every or brows in ("soft", "thick") %}<g class="avo br-soft br-thick av-brows{% if s.brows == 'thick' and not every %} is-thick{% endif %}"><path class="av-brow" d="M42 46C45.5 43 50.5 42.5 54.5 44"></path><path class="av-brow" d="M65.5 44C69.5 42.5 74.5 43 78 46"></path></g>{% endif %}
+    {% if every or brows in ("straight",) %}<g class="avo br-straight"><path class="av-brow" d="M42.5 45.2H54.5"></path><path class="av-brow" d="M65.5 45.2H77.5"></path></g>{% endif %}
+    {% if every or brows in ("raised",) %}<g class="avo br-raised"><path class="av-brow" d="M42 43C45.5 39 50.5 38.5 54.5 40.5"></path><path class="av-brow" d="M65.5 40.5C69.5 38.5 74.5 39 78 43"></path></g>{% endif %}
+    {% if every or eyes in ("soft", "wink") %}<g class="avo ey-soft ey-wink"><path class="av-eye" d="M44.5 52.5C46.5 50.6 50.5 50.6 52.5 52.5 50.5 54.2 46.5 54.2 44.5 52.5Z"></path><circle class="av-glint" cx="49" cy="52.1" r=".7"></circle></g>{% endif %}
+    {% if every or eyes in ("soft",) %}<g class="avo ey-soft"><path class="av-eye" d="M67.5 52.5C69.5 50.6 73.5 50.6 75.5 52.5 73.5 54.2 69.5 54.2 67.5 52.5Z"></path><circle class="av-glint" cx="72" cy="52.1" r=".7"></circle></g>{% endif %}
+    {% if every or eyes in ("wide",) %}<g class="avo ey-wide"><circle class="av-eye" cx="48.5" cy="52.5" r="3.8"></circle><circle class="av-eye" cx="71.5" cy="52.5" r="3.8"></circle><circle class="av-glint" cx="49.8" cy="51.2" r="1.2"></circle><circle class="av-glint" cx="72.8" cy="51.2" r="1.2"></circle></g>{% endif %}
+    {% if every or eyes in ("happy",) %}<g class="avo ey-happy"><path class="av-eye-arc" d="M44.5 53.5C46.5 50.3 50.5 50.3 52.5 53.5"></path><path class="av-eye-arc" d="M67.5 53.5C69.5 50.3 73.5 50.3 75.5 53.5"></path></g>{% endif %}
+    {% if every or eyes in ("wink",) %}<path class="avo ey-wink av-eye-arc" d="M67.5 53C69.5 54.6 73.5 54.6 75.5 53"></path>{% endif %}
     <path class="av-line" d="M60 56V64C58.4 65.8 58.2 67 59.4 68"></path>
-    <path class="av-mouth" d="M54.5 79C57.5 81.4 62.5 81.4 65.5 79"></path>
+    {% if every or mouth in ("smile",) %}<path class="avo mo-smile av-mouth" d="M54.5 79C57.5 81.4 62.5 81.4 65.5 79"></path>{% endif %}
+    {% if every or mouth in ("grin",) %}<g class="avo mo-grin"><path class="av-grin" d="M53 77.5C56 83.5 64 83.5 67 77.5Z"></path><path class="av-teeth" d="M54.3 78.2H65.7C65.2 79.3 64.6 79.8 64 80H56C55.4 79.8 54.8 79.3 54.3 78.2Z"></path></g>{% endif %}
+    {% if every or mouth in ("neutral",) %}<path class="avo mo-neutral av-mouth" d="M55 79.6H65"></path>{% endif %}
+    {% if every or s.face in ("stubble",) %}<path class="avo fh-stubble av-hair av-stubble" d="M33 60C34 78 45 89 60 89 75 89 86 78 87 60 84 70 78 78 70 81 64 83 56 83 50 81 42 78 36 70 33 60Z"></path>{% endif %}
     {% if every or s.face in ("beard",) %}<path class="avo fh-beard av-hair" d="M33 58C33 74 40 86 50 90 54 92 66 92 70 90 80 86 87 74 87 58 85 66 82 72 77 75 74 80 70 84 60 85 50 84 46 80 43 75 38 72 35 66 33 58Z"></path>{% endif %}
-    {% if every or s.face in ("moustache", "beard") %}<path class="avo fh-moustache fh-beard av-hair" d="M46 75C47 70.5 53 69 60 70.6 67 69 73 70.5 74 75 74.6 76.6 74 77.6 73.2 78 71.8 75.2 67 73.6 60 74 53 73.6 48.2 75.2 46.8 78 46 77.6 45.4 76.6 46 75Z"></path>{% endif %}
+    {% if every or s.face in ("goatee",) %}<path class="avo fh-goatee av-hair" d="M54 83C55 88 57.5 90 60 90 62.5 90 65 88 66 83 63 84.5 57 84.5 54 83Z"></path>{% endif %}
+    {% if every or s.face in ("moustache", "beard", "goatee") %}<path class="avo fh-moustache fh-beard fh-goatee av-hair" d="M46 75C47 70.5 53 69 60 70.6 67 69 73 70.5 74 75 74.6 76.6 74 77.6 73.2 78 71.8 75.2 67 73.6 60 74 53 73.6 48.2 75.2 46.8 78 46 77.6 45.4 76.6 46 75Z"></path>{% endif %}
     {% if every or s.glasses in ("round",) %}<g class="avo gl-round av-glasses"><circle cx="48.5" cy="52.5" r="7.5"></circle><circle cx="71.5" cy="52.5" r="7.5"></circle><path d="M56 52C58 50.5 62 50.5 64 52M41 51 34.5 49.5M79 51 85.5 49.5"></path></g>{% endif %}
-    {% if every or s.glasses in ("square",) %}<g class="avo gl-square av-glasses"><rect x="40" y="46.5" width="17" height="12" rx="3.5"></rect><rect x="63" y="46.5" width="17" height="12" rx="3.5"></rect><path d="M57 51C58.8 49.8 61.2 49.8 63 51M40 50 34.5 49M80 50 85.5 49"></path></g>{% endif %}
-    {% if every or s.hair in ("short", "bun") %}<path class="avo hs-short hs-bun av-hair" d="M33 54C31 36 42 21 60 21 78 21 89 36 87 54 85 44 80 37 72 35 64 38 52 38 44 37 37 42 34 48 33 54Z"></path>{% endif %}
+    {% if every or s.glasses in ("square", "sun") %}<g class="avo gl-square gl-sun av-glasses{% if s.glasses == 'sun' and not every %} is-sun{% endif %}"><rect x="40" y="46.5" width="17" height="12" rx="3.5"></rect><rect x="63" y="46.5" width="17" height="12" rx="3.5"></rect><path d="M57 51C58.8 49.8 61.2 49.8 63 51M40 50 34.5 49M80 50 85.5 49"></path></g>{% endif %}
+    {% if every or s.hair in ("short", "bun", "ponytail") %}<path class="avo hs-short hs-bun hs-ponytail av-hair" d="M33 54C31 36 42 21 60 21 78 21 89 36 87 54 85 44 80 37 72 35 64 38 52 38 44 37 37 42 34 48 33 54Z"></path>{% endif %}
     {% if every or s.hair in ("bun",) %}<circle class="avo hs-bun av-hair" cx="60" cy="14" r="10"></circle>{% endif %}
+    {% if every or s.hair in ("bald",) %}<ellipse class="avo hs-bald av-bald" cx="56" cy="31" rx="11" ry="4" transform="rotate(-8 56 31)"></ellipse>{% endif %}
     {% if every or s.hair in ("shaved",) %}<path class="avo hs-shaved av-hair av-stubble" d="M33 50C32 34 43 23 60 23 77 23 88 34 87 50 84 40 76 33 60 33 44 33 36 40 33 50Z"></path>{% endif %}
     {% if every or s.hair in ("swept",) %}<g class="avo hs-swept"><path class="av-hair" d="M29 56C25 40 27 24 39 14 47 8 58 6 69 7 82 8 92 16 94 29 96 39 93 48 89 56 88 47 85 41 81 37 79 41 75 43 70 42 73 38 72 33 70 30 64 37 54 41 42 42 44 38 44 35 42 33 38 38 34 45 32 56Z"></path><path class="av-hair-deep" d="M58 29C53 35 48 40 44 46 49 42 54 40 59 37 60 34 60 31 58 29Z"></path></g>{% endif %}
-    {% if every or s.hair in ("long",) %}<path class="avo hs-long av-hair" d="M33 56C30 36 42 20 60 20 78 20 90 36 87 56 84 46 78 38 68 34 62 40 50 42 40 46 35 50 34 53 33 56Z"></path>{% endif %}
+    {% if every or s.hair in ("long", "braids") %}<path class="avo hs-long hs-braids av-hair" d="M33 56C30 36 42 20 60 20 78 20 90 36 87 56 84 46 78 38 68 34 62 40 50 42 40 46 35 50 34 53 33 56Z"></path>{% endif %}
+    {% if every or s.hair in ("bob",) %}<path class="avo hs-bob av-hair" d="M33 52C32 35 44 22 60 22 76 22 88 35 87 52 84 47 80 43 74 41 70 44 62 45 54 44 47 43 40 45 33 52Z"></path>{% endif %}
+    {% if every or s.hair in ("afro",) %}<path class="avo hs-afro av-hair" d="M34 43C34 32 45 24 60 24 75 24 86 32 86 43 81 37 72 34 60 34 48 34 39 37 34 43Z"></path>{% endif %}
     {% if every or s.hair in ("curly",) %}<path class="avo hs-curly av-hair" d="M31 54C25 48 27 38 33 35 30 27 37 20 44 22 46 14 56 12 61 17 66 11 76 13 78 21 86 19 92 27 89 34 95 39 92 49 88 54 86 45 80 38 72 37 66 33 58 36 50 34 43 38 36 42 31 54Z"></path>{% endif %}
     {% if every or s.hair in ("scarf",) %}<path class="avo hs-scarf av-hair" d="M34 48C36 32 46 24 60 24 74 24 84 32 86 48 80 40 70 35 60 35 50 35 40 40 34 48Z"></path>{% endif %}
-    {% if every or s.hair in ("short", "swept", "long", "curly", "bun", "scarf") %}<path class="avo hs-short hs-swept hs-long hs-curly hs-bun hs-scarf av-sheen" d="M44 22C50 17 60 15.5 69 18 60 18.5 52 21 46.5 26Z"></path>{% endif %}
+    {% if every or s.hair in ("short", "swept", "long", "curly", "bun", "scarf", "bob", "ponytail", "braids", "afro") %}<path class="avo hs-short hs-swept hs-long hs-curly hs-bun hs-scarf hs-bob hs-ponytail hs-braids hs-afro av-sheen" d="M44 22C50 17 60 15.5 69 18 60 18.5 52 21 46.5 26Z"></path>{% endif %}
+    {# On the head, in the clothes' colour; headphones dark; a flower in the hair. #}
+    {% if every or s.head in ("cap",) %}<g class="avo hd-cap"><path class="av-hat" d="M30 46C30 28 44 17 60 17 76 17 90 28 90 46Z"></path><path class="av-hat-deep" d="M60 43C76 43 92 44 104 49 98 53 80 51 60 50Z"></path><circle class="av-hat-deep" cx="60" cy="18" r="2.4"></circle></g>{% endif %}
+    {% if every or s.head in ("beanie",) %}<g class="avo hd-beanie"><path class="av-hat" d="M30 47C30 27 44 15 60 15 76 15 90 27 90 47Z"></path><path class="av-hat-deep" d="M28 42H92V51C76 48 44 48 28 51Z"></path><circle class="av-hat" cx="60" cy="12" r="6"></circle></g>{% endif %}
+    {% if every or s.head in ("headphones",) %}<g class="avo hd-headphones"><path class="av-phones-band" d="M30 54C29 32 43 17 60 17 77 17 91 32 90 54"></path><rect class="av-phones" x="23" y="47" width="12" height="20" rx="5"></rect><rect class="av-phones" x="85" y="47" width="12" height="20" rx="5"></rect></g>{% endif %}
+    {% if every or s.head in ("flower",) %}<g class="avo hd-flower"><circle class="av-petal" cx="80" cy="24" r="4"></circle><circle class="av-petal" cx="87" cy="27" r="4"></circle><circle class="av-petal" cx="86" cy="34" r="4"></circle><circle class="av-petal" cx="79" cy="34" r="4"></circle><circle class="av-petal" cx="76" cy="28" r="4"></circle><circle class="av-flower-heart" cx="81.6" cy="29.4" r="3"></circle></g>{% endif %}
   </g>
 </svg>
 {%- endif %}

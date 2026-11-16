@@ -68,6 +68,7 @@ from . import inbox as _inbox
 from . import insights as _insights
 from . import learning as _learning
 from . import mail as _mail
+from . import notefiles as _notefiles
 from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
@@ -6149,13 +6150,31 @@ def set_glass(subscription: Subscription, glass: str) -> Subscription:
 # science and code pages (D114). Kept in the plan's options as the names chosen: a
 # drawing of shapes, nothing uploaded. The first of each is where the maker starts,
 # save the skin, which starts in the middle of the six.
+# D137 (the owner: "more personalisation options to create the avatar"): two more skin
+# tones at the ends, five more hair styles and four more colours, eyes, eyebrows and a
+# mouth to choose, two more kinds of facial hair, sunglasses, something on the head,
+# freckles, earrings or a beauty mark, four kinds of clothes in ten colours, and a
+# background. A part added later starts at its first name for an avatar saved before.
 AVATAR_PARTS: dict[str, tuple[str, ...]] = {
-    "skin": ("s1", "s2", "s3", "s4", "s5", "s6"),
-    "hair": ("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
-    "colour": ("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
-    "face": ("none", "moustache", "beard"),
-    "glasses": ("none", "round", "square"),
-    "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6"),
+    "skin": ("s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"),
+    "hair": (
+        *("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
+        *("afro", "bob", "ponytail", "braids", "bald"),
+    ),
+    "colour": (
+        *("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
+        *("red", "platinum", "green", "purple"),
+    ),
+    "eyes": ("soft", "wide", "happy", "wink"),
+    "brows": ("soft", "straight", "thick", "raised"),
+    "mouth": ("smile", "grin", "neutral"),
+    "face": ("none", "moustache", "beard", "goatee", "stubble"),
+    "glasses": ("none", "round", "square", "sun"),
+    "head": ("none", "cap", "beanie", "headphones", "flower"),
+    "detail": ("none", "freckles", "earrings", "mole"),
+    "outfit": ("tee", "hoodie", "shirt", "sweater"),
+    "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6", "k0", "k1", "k2"),
+    "bg": ("b0", "b1", "b2", "b3", "b4", "b5", "b6"),
 }
 AVATAR_START: dict[str, str] = {part: names[0] for part, names in AVATAR_PARTS.items()} | {"skin": "s3"}
 
@@ -6485,6 +6504,7 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
             )
             view["suggested"] = {
                 "id": card["id"],
+                "kind": session.kind if session is not None else "",
                 "title": card["title"],
                 "label": card["label"],
                 "when": card["when"],
@@ -7761,6 +7781,7 @@ def card_maker_view(
     week: str | None = None,
     from_course: bool = False,
     of_week: str | None = None,
+    read_note: str | None = None,
 ) -> dict:
     """The page that makes flashcards from notes (D84): the text (pasted, or a note's),
     and the cards read from it for the student to pick. By rules; by the model too
@@ -7855,6 +7876,9 @@ def card_maker_view(
         "ai_off": _ai.cards_from_env() is not None and not ai_on(subscription),
         "ai_used": used_ai,
         "most": _cardmaker.MAX_CARDS,
+        "most_text": _cardmaker.MAX_TEXT,
+        # A file of notes read (D134): what was left out, if anything.
+        "read_note": read_note,
         # The course's weeks, to file the cards under one (D87): this week by default.
         **choice,
     }
@@ -8684,6 +8708,207 @@ def focus_tip(subscription: Subscription) -> dict | None:
 
 
 BREAK_AFTER = timedelta(minutes=24)
+
+
+# --------------------------------------------------------------------------- #
+# Tips in context (DECISIONS.md D135)
+
+# The pages that show a tip beside what they are about, each its own offset so that two
+# pages seen the same day turn through their tips apart.
+TIP_PLACES = ("focus", "review", "cards", "make", "calendar", "week", "course", "tasks", "progress")
+TIP_EXAM_DAYS = 21  # a course's page speaks of its exam from three weeks before
+
+
+def _days_list(days: Sequence[date]) -> str:
+    """Days as a sentence says them: "Tue 3 Nov", "Tue 3 Nov and Fri 6 Nov"."""
+    words = [format_date(d, "short") for d in days]
+    return (
+        words[0] if len(words) == 1 else _("{first} and {last}", first=", ".join(words[:-1]), last=words[-1])
+    )
+
+
+def _tip_options(
+    subscription: Subscription,
+    place: str,
+    local: datetime,
+    *,
+    course: str = "",
+    suggested: dict | None = None,
+) -> list[tuple[str, str]]:
+    """The tips a page may show, as (tip key, why here) pairs, from what the page is about
+    and the facts the plan holds (D135). The tip says what the research found; the line
+    says only what is true of this plan."""
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan is not None else None
+    zone = local.tzinfo
+
+    def at(stamp: str) -> datetime:
+        return datetime.fromisoformat(stamp).astimezone(zone)
+
+    if place == "focus":
+        out = []
+        if suggested and suggested.get("kind") in ("review", "first review"):
+            out.append(
+                (
+                    "recall-strengthens",
+                    _("This session is a self-test: recall what you can before you look at your notes."),
+                )
+            )
+        out += [
+            ("breaks", _("Before you start: decide when your breaks will be.")),
+            (
+                "if-then",
+                _("Your session has a day and a time; choosing the place too makes it an if-then plan."),
+            ),
+            (
+                "effort-feels",
+                _("If recalling feels harder than rereading, that effort is part of how it works."),
+            ),
+        ]
+        return out
+    if place == "review":
+        return [
+            (
+                "recall-strengthens",
+                _("Say the answer to yourself before you show it: the recall is what strengthens it."),
+            ),
+            (
+                "effort-feels",
+                _("A card you struggle with is not wasted: struggling is not a sign of learning less."),
+            ),
+        ]
+    if place == "cards":
+        return [
+            ("spacing", _("Each card comes back after a gap that grows every time you remember it.")),
+            ("self-test", _("Flashcards are practice tests: one of the two techniques rated most useful.")),
+            ("spacing-cells", _("Why the gaps: spacing shows even in cells, in a laboratory.")),
+        ]
+    if place == "make":
+        return [("self-test", _("Cards made from your notes turn rereading into testing yourself."))]
+    if place == "tasks":
+        return [("if-then", _("Give each task a day and a time: an if-then plan helps it get done."))]
+    if place == "progress":
+        return [
+            ("track", _("Reporting each session, as counted here, is keeping track of what you did.")),
+            ("habit", _("Your streak forgives a missed day: one miss does not undo a habit.")),
+            ("rewards", _("What you see here is progress, not points to collect.")),
+        ]
+    if place == "week":
+        return [
+            ("spacing", _("The same hours spread over more days hold longer than in a few long sittings.")),
+            ("habit", _("A day off does not undo a habit: in the study, missing one day did not matter.")),
+            (
+                "sleep-regular",
+                _("Leave room for sleep: the weeks before an exam counted, not only the night before."),
+            ),
+        ]
+    if plan is None:
+        return []
+    if place == "calendar":
+        out = []
+        ahead = [s for s in plan.sessions if local < at(s.start) < local + timedelta(days=21)]
+        by_course: dict[str, list[date]] = {}
+        for s in sorted(ahead, key=lambda s: s.start):
+            days = by_course.setdefault(s.subject, [])
+            if at(s.start).date() not in days:
+                days.append(at(s.start).date())
+        spaced = next(((c, d[:3]) for c, d in by_course.items() if len(d) >= 3), None)
+        if spaced is not None:
+            out.append(
+                (
+                    "spacing",
+                    _(
+                        "Your plan comes back to {course} on {days}.",
+                        course=spaced[0],
+                        days=_days_list(spaced[1]),
+                    ),
+                )
+            )
+        out += [
+            ("if-then", _("Every session here has a day and a time: an if-then plan, ready made.")),
+            ("choice", _("Drag a session to another time and your plan adapts around it.")),
+        ]
+        return out
+    if place == "course":
+        out = []
+        exam = next((s for s in plan.subjects if s.name == course), None)
+        if exam is not None and local < at(exam.exam) < local + timedelta(days=TIP_EXAM_DAYS):
+            day = format_date(at(exam.exam).date(), "short")
+            out.append(
+                (
+                    "sleep-regular",
+                    _(
+                        "{course}'s exam is on {day}: sleep over the weeks before it counts.",
+                        course=course,
+                        day=day,
+                    ),
+                )
+            )
+        folded = course.casefold()
+        tests = sorted(
+            at(e.start)
+            for e in plan.events
+            if e.source in ("quiz", "mock")
+            and local < at(e.start) < local + timedelta(days=14)
+            and (course_of(e.summary) or short_title(e.summary)).casefold() == folded
+        )
+        if tests:
+            out.append(
+                (
+                    "class-quizzes",
+                    _(
+                        "A test is coming in {course}, {when}: it is study too.",
+                        course=course,
+                        when=_when(tests[0], local),
+                    ),
+                )
+            )
+        out += [
+            (
+                "self-test",
+                _(
+                    "Practise {course} by recalling: its self-tests and cards are practice tests.",
+                    course=course,
+                ),
+            ),
+            (
+                "interleave",
+                _(
+                    "When you practise {course}'s problems, mix their kinds instead of one kind at a time.",
+                    course=course,
+                ),
+            ),
+        ]
+        return out
+    return []
+
+
+def tip_here(
+    subscription: Subscription,
+    place: str,
+    now: datetime | None = None,
+    *,
+    course: str = "",
+    suggested: dict | None = None,
+) -> dict | None:
+    """The tip a page shows beside what it is about (D135): the advice, why here, how
+    strong its evidence is, what it does not show and its sources, each page turning
+    through its tips day by day. The first of a page's moments that only its plan holds
+    (a self-test about to start, an exam close) comes first. None when tips are off or
+    the page has none."""
+    if not tips_on(subscription) or place not in TIP_PLACES:
+        return None
+    now = now or datetime.now(UTC)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    options = _tip_options(subscription, place, local, course=course, suggested=suggested)
+    if not options:
+        return None
+    pinned = {"focus": "recall-strengthens", "course": "sleep-regular"}.get(place)
+    if pinned and options[0][0] == pinned:
+        key, here = options[0]
+    else:
+        key, here = options[(local.date().toordinal() + TIP_PLACES.index(place)) % len(options)]
+    tip = next(t for t in _tips.TIPS if t.key == key)
+    return {**_tip(tip), "here": here, "mood": TIP_MOODS[key], "topic_name": _(_tips.TOPICS[tip.topic])}
 
 
 def _plan_start(subscription: Subscription) -> date:
@@ -10889,6 +11114,42 @@ def pdf_text(data: bytes) -> tuple[str, str | None]:
     return found.text, note
 
 
+# D134: why a file of notes gave no text, said to the student with what to do instead.
+_NOTES_ERRORS = {
+    "large": "That file is larger than 10 MB: send a chapter at a time.",
+    "photo": "Photos of notes are not read yet: only typed text is. Send the PDF or the document instead.",
+    "old_office": "That is an old Word or PowerPoint file: save it as .docx, .pptx or PDF and send it again.",
+    "unknown": "That file is not one the app reads: save it as PDF, Word, PowerPoint or text.",
+    "not_pdf": "That file is not one the app reads: save it as PDF, Word, PowerPoint or text.",
+    "unreadable": "That file could not be read. Open it, copy its text and paste it instead.",
+    "locked": _PDF_ERRORS["locked"],
+    "empty": "That file has no text to read: a scan or handwriting is not read. Paste the text instead.",
+    "missing": _PDF_ERRORS["missing"],
+}
+NOTES_FILE_MOST = _notefiles.MAX_BYTES
+
+
+def notes_file_text(name: str, data: bytes) -> tuple[str, str | None]:
+    """The text of a file of notes a student sends to make flashcards (D134), and a
+    note when only part of it was read; read on this server, the file not kept."""
+    try:
+        found = _notefiles.text(name, data)
+    except _notefiles.NotesError as exc:
+        raise InvalidInput(_(_NOTES_ERRORS.get(exc.reason, _NOTES_ERRORS["unreadable"]))) from exc
+    note = None
+    if found.read < found.parts:
+        if found.kind == "pdf":
+            note = _("Only its first {n} pages were read.", n=found.read)
+        else:
+            note = _("Only its first {n} slides were read.", n=found.read)
+    elif found.cut:
+        note = _(
+            "Long notes: the first {n} characters are read; send the rest as another file.",
+            n=format_number(_notefiles.MAX_CHARS, 0),
+        )
+    return found.text, note
+
+
 def _stems(name: str) -> set[str]:
     words = re.findall(r"[^\W_]+", _syllabus.folded(name))
     return {w[:5] for w in words if w not in _NAME_WORDS}
@@ -11535,6 +11796,92 @@ def _course_notes(store: str | os.PathLike, subscription: Subscription, course: 
             }
         )
     return out
+
+
+# --------------------------------------------------------------------------- #
+# The sidebar on a laptop (DECISIONS.md D136)
+
+SIDEBAR_COURSES = 8  # courses listed; the rest are on Courses
+
+
+def sidebar_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the laptop's sidebar shows on every page of a plan (D136), as Notion
+    Calendar's does: this month, each day marked if the plan studies or has an exam or a
+    test on it, each a link to the calendar on that day; the courses in their colours with
+    the days to their exams; how many cards wait. Light: no replay, only the plan's
+    sessions, exams and tests as kept."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    first = today.replace(day=1)
+    start = first - timedelta(days=first.weekday())
+    following = (first + timedelta(days=32)).replace(day=1)
+    weeks = -(-(following - start).days // 7)
+    end = start + timedelta(days=7 * weeks)
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    study: set[date] = set()
+    exams: dict[date, list[str]] = {}
+    colours: dict[str, int] = {}
+    if plan is not None:
+
+        def day_of(stamp: str) -> date:
+            return datetime.fromisoformat(stamp).astimezone(zone).date()
+
+        for s in plan.history + plan.sessions:
+            d = day_of(s.start)
+            if start <= d < end and s.outcome != "skipped":
+                study.add(d)
+        for subject in plan.subjects:
+            exams.setdefault(day_of(subject.exam), []).append(subject.name)
+        for e in plan.events:
+            if e.source in ("partial", "quiz", "mock"):
+                exams.setdefault(day_of(e.start), []).append(test_label(e.source, e.summary))
+        colours = {name.casefold(): index for name, index in course_colours(plan)}
+    days = []
+    for n in range(7 * weeks):
+        d = start + timedelta(days=n)
+        said = [format_date(d, "long")]
+        if d in exams:
+            said.append(_("exam: {names}", names=", ".join(exams[d])))
+        elif d in study:
+            said.append(_("study planned"))
+        days.append(
+            {
+                "date": d.isoformat(),
+                "day": d.day,
+                "in_month": d.month == first.month,
+                "today": d == today,
+                "study": d in study,
+                "exam": d in exams,
+                "label": " · ".join(said),
+            }
+        )
+    courses = []
+    for index, course in enumerate(topic_courses(subscription)[:SIDEBAR_COURSES]):
+        exam = _exam_of(plan, course, now) if plan is not None else None
+        courses.append(
+            {
+                "index": index,
+                "name": course,
+                "color": colours.get(course.casefold()),
+                "exam": exam["says"] if exam and exam["days"] >= 0 else "",
+                "soon": bool(exam and 0 <= exam["days"] <= 14),
+            }
+        )
+    return {
+        "month": format_date(first, "month"),
+        "weekdays": [
+            {
+                "letter": _i18n.weekday_name(start + timedelta(days=k), short=True)[:1].upper(),
+                "name": _i18n.weekday_name(start + timedelta(days=k)),
+            }
+            for k in range(7)
+        ],
+        "weeks": [days[k : k + 7] for k in range(0, len(days), 7)],
+        "courses": courses,
+        "more_courses": max(0, len(topic_courses(subscription)) - SIDEBAR_COURSES),
+        "cards_due": cards_due(store, subscription, now),
+    }
 
 
 def courses_view(

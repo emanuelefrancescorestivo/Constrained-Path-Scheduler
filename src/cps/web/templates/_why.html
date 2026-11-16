@@ -1,0 +1,36 @@
+{# Tips in context (D135): one tip beside what a page is about. `t` comes from
+   service.tip_here: why here (only what is true of this plan), the advice, and, folded,
+   what the research found, what it does not show, how strong it is and its sources.
+   A fold, not a script: it opens without one. `why` is a card with the spark; `why_line`
+   one line, for the calendar, whose grid needs the room. #}
+{% from "_mascot.html" import mascot %}
+
+{% macro research(t) -%}
+<div class="why-body">
+  <p>{{ t.why }}</p>
+  <p class="why-limits"><b>{{ _("What it does not show") }}</b> {{ t.limits }}</p>
+  {% if t.in_app and t.in_app != t.here %}<p class="why-app">{{ t.in_app }}</p>{% endif %}
+  <ul class="why-sources">{% for s in t.sources %}<li><a href="{{ s.url }}" rel="noopener noreferrer" target="_blank">{{ s.cite }}</a> <span class="muted">· {{ s.venue }}</span></li>{% endfor %}</ul>
+  <p class="why-links"><a href="/p/{{ token }}/tips?topic={{ t.topic }}#tip-{{ t.key }}">{{ _("More on {topic}", topic=t.topic_name) }} ›</a> <a href="/p/{{ token }}/settings/look#tips">{{ _("Turn tips off") }}</a></p>
+</div>
+{%- endmacro %}
+
+{% macro why(t) -%}
+<aside class="card why-tip section" aria-label="{{ _('A study tip') }}" data-why="{{ t.key }}">
+  <div class="mascot-tip">
+    {{ mascot(t.mood, "why-" ~ t.key) }}
+    <p class="mascot-words"><span class="tip-reason">{{ t.here }}</span><b>{{ t.advice }}</b></p>
+  </div>
+  <details class="why-more">
+    <summary>{{ _("What the research found") }} <span class="why-strength is-{{ t.strength }}">{{ t.strength_label }}</span></summary>
+    {{ research(t) }}
+  </details>
+</aside>
+{%- endmacro %}
+
+{% macro why_line(t) -%}
+<details class="why-line" data-why="{{ t.key }}">
+  <summary><span class="why-bulb" aria-hidden="true"></span><span class="why-line-words"><span>{{ t.here }}</span> <b>{{ t.advice }}</b></span></summary>
+  <div class="why-line-body"><p class="why-strength-line"><span class="why-strength is-{{ t.strength }}">{{ t.strength_label }}</span></p>{{ research(t) }}</div>
+</details>
+{%- endmacro %}

@@ -30,6 +30,9 @@ def plan(options: dict) -> service.Subscription:
 
 
 MINE = {"skin": "s5", "hair": "curly", "colour": "auburn", "face": "beard", "glasses": "round", "top": "c3"}
+# D137's parts, each away from where the maker starts.
+MINE |= {"eyes": "happy", "brows": "thick", "mouth": "grin", "head": "cap", "detail": "freckles"}
+MINE |= {"outfit": "hoodie", "bg": "b3"}
 
 
 @pytest.fixture(scope="module")
@@ -86,29 +89,32 @@ def test_the_student_makes_it_and_then_it_is_them_in_how_it_works(web, token):
     assert "Your avatar" in web.get(f"/p/{token}/you").text
     page = web.get(f"/p/{token}/garden").text
     chats = page.count('class="chat scroll-fig"')
-    drawn = page.count('class="av-face av skin-s5 col-auburn top-c3"')
+    drawn = page.count('class="av-face av skin-s5 col-auburn top-c3 bg-b3"')
     assert chats == 1 and drawn == chats and "av-ghost" not in page
     assert "hs-curly" in page and "fh-beard" in page and "gl-round" in page
+    for drawn_part in ("ey-happy", "mo-grin", "hd-cap", "dt-freckles", "ot-hoodie", "is-thick"):
+        assert drawn_part in page, drawn_part
+    assert "ey-wide" not in page and "ot-tee" not in page and "hd-beanie" not in page
     assert 'class="avo hs-long av-hair"' not in page
     # The technical pages are for the curious again (D116): no chat, no avatar.
     for path in ("how", "science"):
         assert "chat scroll-fig" not in web.get(f"/p/{token}/{path}").text
     refused = web.post(f"/p/{token}/avatar", data={**MINE, "top": "gold"}, follow_redirects=False)
     assert refused.status_code == 400
-    assert 'class="av-face av skin-s5 col-auburn top-c3"' in web.get(f"/p/{token}/garden").text  # kept
+    assert 'class="av-face av skin-s5 col-auburn top-c3 bg-b3"' in web.get(f"/p/{token}/garden").text  # kept
     assert web.get("/p/not-a-plan/avatar").status_code == 404
 
 
 def test_the_preview_follows_the_radios_with_the_avatars_own_colours():
     css = (STATIC / "style.css").read_text(encoding="utf-8")
-    word = {"skin": "skin", "col": "colour", "top": "top"}
+    word = {"skin": "skin", "col": "colour", "top": "top", "bg": "bg"}
     own = dict(
-        ((k, v), d) for k, v, d in re.findall(r"^\.av\.(skin|col|top)-([a-z0-9]+) (\{[^}]*\})$", css, re.M)
+        ((k, v), d) for k, v, d in re.findall(r"^\.av\.(skin|col|top|bg)-([a-z0-9]+) (\{[^}]*\})$", css, re.M)
     )
     shown = dict(
         ((k, v), d)
         for k, v, d in re.findall(
-            r"^\.av-maker:has\(#av-(skin|colour|top)-([a-z0-9]+):checked\) \.av-preview (\{[^}]*\})$",
+            r"^\.av-maker:has\(#av-(skin|colour|top|bg)-([a-z0-9]+):checked\) \.av-preview (\{[^}]*\})$",
             css,
             re.M,
         )
@@ -116,8 +122,11 @@ def test_the_preview_follows_the_radios_with_the_avatars_own_colours():
     for short, part in word.items():
         for name in service.AVATAR_PARTS[part]:
             assert own[(short, name)] == shown[(part, name)]  # the same colours both ways
-    # Every style, beard, moustache and pair of glasses shows when its radio is checked.
-    for part, prefix in (("hair", "hs"), ("face", "fh"), ("glasses", "gl")):
+    # Every style, beard, moustache and pair of glasses shows when its radio is checked,
+    # and every eye, brow, mouth, hat, detail and garment of D137.
+    shapes = (("hair", "hs"), ("face", "fh"), ("glasses", "gl"), ("eyes", "ey"), ("brows", "br"))
+    shapes += (("mouth", "mo"), ("head", "hd"), ("detail", "dt"), ("outfit", "ot"))
+    for part, prefix in shapes:
         for name in service.AVATAR_PARTS[part]:
             if name != "none":
                 assert f".av-maker:has(#av-{part}-{name}:checked) .{prefix}-{name}" in css

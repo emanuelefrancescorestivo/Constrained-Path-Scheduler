@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% from "_art.html" import art %}
 {% set m = view.materials %}
 {% block title %}{% if m %}{{ _("Cards from {course}", course=view.course) }}{% else %}{{ _("Cards from your notes") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
@@ -10,10 +11,11 @@
   <p>{{ _("Its topics and the notes you can open, read together. Tick the cards you want to be asked; nothing is added before you choose.") }}</p>
   {% else %}
   <h1>{{ _("Cards from your notes") }}</h1>
-  <p>{{ _("Paste your notes and read them: definitions, questions and their answers, lists and words in bold become cards. Tick the ones you want to be asked; nothing is added before you choose.") }}</p>
+  <p>{{ _("Send a file of your notes or paste them: definitions, questions and their answers, lists and words in bold become cards. Tick the ones you want to be asked; nothing is added before you choose.") }}</p>
   {% endif %}
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if view.read_note %}<p class="notice" role="status">{{ view.read_note }}</p>{% endif %}
 {% if view.note %}<p class="notice" role="status">{{ _("From the notes «{title}».", title=view.note.title) }}</p>{% endif %}
 
 {% if m %}
@@ -82,10 +84,14 @@
 {% if m %}
 <p class="section hint"><a href="/p/{{ token }}/cards/make?course={{ view.course | urlencode }}">{{ _("Or paste notes instead") }}</a></p>
 {% else %}
-<form method="post" action="/p/{{ token }}/cards/make" class="card section cards-make-form">
+<form method="post" action="/p/{{ token }}/cards/make" enctype="multipart/form-data" class="card section cards-make-form">
   <h2>{% if view.read %}{{ _("Change the text") }}{% else %}{{ _("Your notes") }}{% endif %}</h2>
-  <label for="m-text" class="visually-hidden">{{ _("Your notes") }}</label>
-  <textarea id="m-text" name="text" rows="12" maxlength="20000" placeholder="{{ _('Eigenvalue: a number λ such that Av = λv') }}&#10;{{ _('Q: What does the rank-nullity theorem say?') }}&#10;{{ _('A: rank + nullity = number of columns') }}">{{ view.text }}</textarea>
+  {# D134: a file of notes, read on this server; or the text pasted. #}
+  <label for="m-file">{{ _("A file of your notes") }}</label>
+  <input id="m-file" type="file" name="file" accept=".pdf,.docx,.pptx,.odt,.odp,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.presentation,text/plain,text/markdown">
+  <p class="hint">{{ _("PDF, Word, PowerPoint, LibreOffice or text, up to 10 MB. Read on this server, for free; the file is not kept.") }}</p>
+  <label for="m-text">{% if view.read %}{{ _("The text read, to change if you like") }}{% else %}{{ _("Or paste them") }}{% endif %}</label>
+  <textarea id="m-text" name="text" rows="12" maxlength="{{ view.most_text }}" placeholder="{{ _('Eigenvalue: a number λ such that Av = λv') }}&#10;{{ _('Q: What does the rank-nullity theorem say?') }}&#10;{{ _('A: rank + nullity = number of columns') }}">{{ view.text }}</textarea>
   <input type="hidden" name="course" value="{{ view.course }}">
   {% if view.weeks %}<input type="hidden" name="week" value="{{ view.week }}">{% endif %}
   <label class="check check-long"><input type="checkbox" name="both" value="1"{% if view.both %} checked{% endif %}> {{ _("Also the other way round: the definition asks for the term") }}</label>
@@ -96,5 +102,6 @@
   <p class="hint">{% if view.ai_ready %}{{ _("Read by rules on this server. With AI, the text of your notes is sent to the model too, within your AI limits.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
 </form>
 {% endif %}
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% if view.courses %}<datalist id="m-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
 {% endblock %}
