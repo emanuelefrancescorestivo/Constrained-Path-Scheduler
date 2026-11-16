@@ -5072,3 +5072,37 @@ they ended add no memory (D44). Memory days and month-long topics are the memory
 estimate with average weights, said on the page. Checked in Chromium only, at phone size
 light and dark and at 1280px; the share sheet itself was not tried (headless Chromium has
 none), the copy button was.
+
+## D132. Calm glass: tinted by default, nothing on the app's pages moving with the scroll
+
+*The owner, 2026-11-16: "the liquid glass works well but sometimes it makes me nauseous",
+then "do the glass". Apple answered the same complaint about its Liquid Glass with a
+setting in iOS 26.1, Clear or Tinted, the second more opaque. WCAG 2.3.3 (Animation from
+Interactions) names movement that follows scrolling, parallax first, as what brings on
+dizziness and nausea in people with vestibular disorders.*
+
+**Chosen.**
+
+- *Tinted glass by default.* Glass's Automatic setting (D93) now tints the panes: their
+  fill is 74 to 88 % opaque instead of 24 to 56 %, in light and dark, so what passes under
+  the top bar, the tab bar and the cards as a page scrolls barely shows; their edge, light
+  and blur stay. Automatic still turns the glass solid when the device asks for less
+  transparency or blurs too slowly. See-through keeps D73's clear glass; Solid is unchanged.
+  Settings say so.
+- *Nothing on the app's own pages moves with the scroll.* The home and sign-in pages' cards
+  no longer rise into place as they scroll in (D37's `surface`), and pages fade into each
+  other without the small rise they had (D30). Only the explaining pages keep their scenes
+  that run with the scroll (D109, D112, D113), and only with motion on. The top bar's
+  colour still comes in as a page scrolls under it: a colour, nothing that moves.
+- `tests/test_tinted_glass.py` checks the three tinted blocks, that every rule tied to the scroll is
+  an explaining page's (under motion on) or the top bar's colour, and that page transitions
+  only fade.
+
+**Rejected.** Solid by default (the owner likes the glass; tinted keeps it). Removing the
+explaining pages' scenes (they are what those pages are for, and Motion: Reduced already
+stops them). A new setting (three were enough: Automatic changed its meaning).
+
+**Disclosed.** Which effect made the owner feel sick was not isolated: the tint and the
+removed movements are the likely causes, not measured ones. The tint's values are choices
+of taste, checked in Chromium only, at phone size light and dark and at 1280px. Someone who
+chose See-through before keeps it.

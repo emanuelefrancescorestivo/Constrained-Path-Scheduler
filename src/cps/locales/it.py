@@ -1992,7 +1992,7 @@ MESSAGES: dict[str, str] = {
     "Glass": "Vetro",
     "See-through": "Trasparente",
     "Solid": "Opaco",
-    "Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.": "Automatico mantiene le schede trasparenti, a meno che il dispositivo chieda meno trasparenza o sia troppo lento per sfocarle: allora diventano opache. Opaco è il più leggero per un computer o un telefono meno recente.",
+    "Automatic tints the glass, so what scrolls beneath it barely shows, and turns it solid when your device asks for less transparency or blurs too slowly. See-through lets the sky show through every card. Solid is the lightest for an older computer or phone.": "Automatico colora il vetro, così ciò che scorre sotto si vede appena, e lo rende opaco quando il dispositivo chiede meno trasparenza o sfoca troppo lentamente. Trasparente lascia vedere il cielo attraverso ogni scheda. Opaco è il più leggero per un computer o un telefono datato.",
     "choose Automatic, See-through or Solid": "scegli Automatico, Trasparente o Opaco",
     "On Automatic glass, a device too slow to blur the cards remembers it, so its next pages start solid. Only that word is kept, on your device; clearing the site's data forgets it.": "Con il vetro automatico, un dispositivo troppo lento per sfocare le schede se lo ricorda, così le pagine successive si aprono opache. Si conserva solo questa parola, sul tuo dispositivo; cancellare i dati del sito la dimentica.",
     # D94: e-mail accounts

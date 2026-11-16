@@ -6125,9 +6125,10 @@ def set_motion(subscription: Subscription, motion: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "motion": motion})
 
 
-# The glass (D93): "auto" keeps it clear unless the device asks for less transparency
-# or blurs too slowly (motion.js measures it as a page arrives); "clear" always; "solid"
-# never blurs, the lightest for a slow device.
+# The glass (D93, D132): "auto" tints it, more opaque than D73's clear glass, and turns
+# it solid when the device asks for less transparency or blurs too slowly (motion.js
+# measures it as a page arrives); "clear" keeps D73's see-through glass; "solid" never
+# blurs, the lightest for a slow device.
 GLASSES = ("auto", "clear", "solid")
 
 

@@ -2019,7 +2019,7 @@ MESSAGES: dict[str, str] = {
     "Glass": "Verre",
     "See-through": "Transparent",
     "Solid": "Opaque",
-    "Automatic keeps the cards see-through, unless your device asks for less transparency or is too slow to blur them: then they turn solid. Solid is the lightest for an older computer or phone.": "Automatique garde les cartes transparentes, sauf si votre appareil demande moins de transparence ou est trop lent pour les flouter : elles deviennent alors opaques. Opaque est le plus léger pour un ordinateur ou un téléphone plus ancien.",
+    "Automatic tints the glass, so what scrolls beneath it barely shows, and turns it solid when your device asks for less transparency or blurs too slowly. See-through lets the sky show through every card. Solid is the lightest for an older computer or phone.": "Automatique teinte le verre, pour que ce qui défile dessous se voie à peine, et le rend opaque quand ton appareil demande moins de transparence ou floute trop lentement. Transparent laisse voir le ciel à travers chaque carte. Opaque est le plus léger pour un ordinateur ou un téléphone ancien.",
     "choose Automatic, See-through or Solid": "choisis Automatique, Transparent ou Opaque",
     "On Automatic glass, a device too slow to blur the cards remembers it, so its next pages start solid. Only that word is kept, on your device; clearing the site's data forgets it.": "Avec le verre automatique, un appareil trop lent pour flouter les cartes s'en souvient, pour que ses pages suivantes s'ouvrent opaques. Seul ce mot est gardé, sur votre appareil ; effacer les données du site l'oublie.",
     # D94: e-mail accounts

@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1336 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1353 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1339 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1356 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -95,7 +95,7 @@ more than an impressive number.
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface
 guidelines, under calm glass (D73: Bricolage Grotesque and Figtree shipped in `fonts/`
-with their licences, a sky that follows the sun behind a plan's pages (D76), clear glass, a garden in
+with their licences, a sky that follows the sun behind a plan's pages (D76), glass tinted by default (D132; See-through keeps D73's clear glass), a garden in
 `garden/` that grows with the streak), with grouped lists, translucent bars, sheets, switches, the "+"
 in the bar, continuous corners where the browser draws them, D37): `style.css`
 (tokens, light and dark, seven course colours checked for colour-blind separation;
@@ -336,6 +336,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   calendar's sideways strip (D68), with touch emulated.
 - Calm glass (D73) was checked in Chromium only, with phone sizes emulated; browsers
   without backdrop blur show the glass as a translucent fill.
+- Calm glass (D132): which effect made the owner feel sick was not isolated; the tint and the
+  removed movements are the likely causes. Nothing on the app's pages moves with the scroll
+  (`tests/test_tinted_glass.py`); the explaining pages keep their scenes with motion on.
 - What a page costs a device (D93) was measured in headless Chromium on one machine, its
   software rendering standing in for a weak graphics chip, not on a real low-end phone or
   laptop, nor in Safari or Firefox. A page at rest takes 0 to 5 % of a core; the first six
