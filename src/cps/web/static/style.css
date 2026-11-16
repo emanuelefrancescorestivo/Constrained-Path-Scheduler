@@ -2618,12 +2618,11 @@ body:is([data-garden="2"], [data-garden="3"], [data-garden="4"]) .garden .g-flow
 body:is([data-garden="3"], [data-garden="4"]) .garden .g-vine { display: block; }
 body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg"); width: 48px; height: 58px; color: var(--bloom); }
 @media (min-width: 901px) {
-  /* At the window's edges; beside Today's panel, both in its corner above the
-     greeting, where the panel's text does not scroll over them and the calendar
-     does not hide the vine. */
+  /* At the window's edges. D73 set the sprout and the bud in the corner of Today's
+     panel, above the greeting; since D140 Today is the whole page, and they stay at
+     the window's edges as on every other page (the greeting is where they stood).
+     The vine would stand behind the day's list, and the calendar hides it. */
   .garden .g-flower { bottom: 26px; }
-  body:has(.plan) .garden .g-sprout { right: auto; left: 286px; top: calc(var(--topbar) + 12px); }
-  body:has(.plan) .garden .g-flower { left: 328px; bottom: auto; top: calc(var(--topbar) + 22px); width: 34px; height: 42px; }
   body:has(.plan) .garden .g-vine { display: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -4426,3 +4425,76 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .card-make .ai-offer { margin: 14px 0 0; padding: 12px 14px; background: var(--fill-3); box-shadow: none; }
 .ai-offer p { margin: 0; font-size: 0.9rem; }
 
+
+/* -- Today as home (D140) ------------------------------------------------------------
+   Today is the app's home, a page of widgets, the most urgent first; Calendar is the
+   calendar alone. D73 had drawn the day's panel beside the calendar on both, so on a
+   laptop Today and Calendar were one page. One column on a phone in the page's order;
+   two from 720px with the next step across; three from 1100px (the sidebar's width,
+   D136) with the next step on the left and the day's list on the right of the first
+   two rows, the rest packed after them. Each widget is a head (its picture, its name,
+   the section it opens) above its card, as the grouped lists of the rest of the app. */
+.plan[data-tab="today"], .plan[data-tab="calendar"] { grid-template-columns: minmax(0, 1fr); }
+.plan[data-tab="today"] .panel { padding: 22px clamp(16px, 3.2vw, 40px) 40px; }
+.plan[data-tab="today"] .panel > * { max-width: 1160px; margin-inline: auto; }
+.plan[data-tab="calendar"] .board { border-left: 0; }
+.hub { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px 18px; align-items: start; margin-top: 4px; }
+.hub > * { min-width: 0; }
+.hub > .section, .hub > .notice, .hub > .more { margin: 0; }
+.w-wide { grid-column: 1 / -1; }
+.w-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; min-height: 26px; }
+.w-head h2 {
+  margin: 0; font-family: var(--font-text); font-size: 0.8rem; font-weight: 650; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted);
+}
+.w-link { margin-left: auto; font-size: 0.85rem; font-weight: 550; white-space: nowrap; }
+.art.art-xs { width: 24px; height: 24px; border-radius: 7px; }
+.art.art-xs svg { width: 15px; height: 15px; }
+.w .card + .card { margin-top: 10px; }
+.w .strip, .w .cards-due { margin: 0; }
+.w-sub {
+  display: flex; align-items: center; gap: 7px; margin: 14px 0 6px; font-size: 0.78rem; font-weight: 650;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.w-sub:first-child { margin-top: 0; }
+.w .next-else { margin-top: 10px; }
+.w-tip .tip-today { margin: 0; }
+.hub-message > * { margin: 0; }
+
+/* The day at a glance: each item's time, its course's colour as a bar (dotted for a
+   class, as the calendar dashes them), its name; what is over is faint, a line marks
+   now. */
+.day-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.day-item { display: grid; grid-template-columns: 3.1em 4px minmax(0, 1fr); gap: 10px; align-items: stretch; padding: 6px 0; }
+.day-item time { font-size: 0.82rem; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.day-bar { border-radius: 3px; background: var(--cc, var(--busy)); }
+.day-class .day-bar, .day-typed .day-bar { background: repeating-linear-gradient(180deg, var(--cc, var(--busy)) 0 4px, transparent 4px 7px); }
+.day-exam .day-bar, .day-quiz .day-bar, .day-mock .day-bar, .day-partial .day-bar { background: var(--danger); }
+.day-item b { display: block; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.day-item small { display: block; color: var(--muted); font-size: 0.8rem; }
+.day-past { opacity: 0.55; }
+.day-skipped b { text-decoration: line-through; }
+.day-now { height: 0; border-top: 2px solid var(--now); margin: 3px 0 3px 3.1em; position: relative; }
+.day-now::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--now); }
+.day-card .list { margin-top: 2px; }
+
+/* Classmates at a glance. */
+.glance { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.glance li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.glance a { color: var(--text); text-decoration: none; min-width: 0; }
+.glance a:hover b { text-decoration: underline; }
+.glance b { display: block; font-weight: 650; overflow-wrap: anywhere; }
+.glance .glance-says { font-weight: 500; color: var(--muted); }
+.glance small { display: block; color: var(--muted); font-size: 0.8rem; }
+.glance + .w-sub, .glance + .glance { margin-top: 14px; }
+
+@media (min-width: 720px) {
+  .hub { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; }
+  .w-next { grid-column: 1 / -1; }
+}
+@media (min-width: 1100px) {
+  .hub { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .w-next { grid-column: 1 / span 2; grid-row: 1; }
+  .w-day { grid-column: 3; grid-row: 1 / span 2; }
+  .w-friends { grid-column: span 2; }
+}

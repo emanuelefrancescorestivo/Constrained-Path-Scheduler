@@ -5203,6 +5203,115 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     return view
 
 
+# Today as the app's home (D140): the day at a glance and a window on classmates, beside
+# the next step, the week, the cards, the tasks and the exams.
+DAY_LEFT_OUT = ("commute", "lunch")  # the trips and lunch around classes (D42, D69): the calendar has them
+DAY_KINDS = {"class": "Class", "typed": "Busy", "skipped": "Skipped", "exam": "Exam"}
+
+
+def day_agenda(subscription: Subscription, now: datetime | None = None) -> list[dict]:
+    """Today's classes, exams, tests, busy times and study sessions in time order, each
+    over, going on or to come (`state`), a session with how it was reported: Today's
+    list of the day (D140), the calendar one tap away. The trips to campus and lunch
+    are left to the calendar, so the list stays short."""
+    if subscription.plan is None:
+        return []
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    exams = {x.exam for x in plan.subjects}
+
+    def state(start: datetime, end: datetime) -> str:
+        return "past" if end <= local else "now" if start <= local else "later"
+
+    items = []
+    for e in plan.events:
+        start = datetime.fromisoformat(e.start).astimezone(zone)
+        if start.date() != local.date() or e.source in DAY_LEFT_OUT:
+            continue
+        end = datetime.fromisoformat(e.end).astimezone(zone)
+        kind = (
+            "exam"
+            if e.start in exams and e.source != "skipped"
+            else e.source
+            if e.source in ("typed", "skipped", *TEST_KINDS)
+            else "class"
+        )
+        items.append(
+            {
+                "start": f"{start:%H:%M}",
+                "end": f"{end:%H:%M}",
+                "label": e.summary if kind == "exam" else short_title(e.summary),
+                "what": test_label(kind, e.summary) if kind in TEST_KINDS else _(DAY_KINDS[kind]),
+                "kind": kind,
+                "color": colours.get(course_of(e.summary).casefold()),
+                "state": state(start, end),
+                "reported": None,
+            }
+        )
+    for x in plan.history + plan.sessions:
+        start = datetime.fromisoformat(x.start).astimezone(zone)
+        if start.date() != local.date():
+            continue
+        end = datetime.fromisoformat(x.end).astimezone(zone)
+        items.append(
+            {
+                "start": f"{start:%H:%M}",
+                "end": f"{end:%H:%M}",
+                "label": x.title if x.kind == "task" else x.subject,
+                "what": _(KIND_LABELS.get(x.kind, x.kind)),
+                "kind": "study",
+                "color": colours.get(x.subject.casefold()),
+                "state": state(start, end),
+                "reported": subscription.outcomes.get(session_id(x)),
+            }
+        )
+    return sorted(items, key=lambda i: (i["start"], i["end"]))
+
+
+CLASSMATES_POSTS = 2  # the newest posts of people followed on Today (D140)
+
+
+def classmates_glance(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """Today's window on classmates (D140): who of the people followed is studying now
+    (D108) and the newest posts of the people followed, as Community shows them to the
+    student (their own posts left out). None for a student without a handle, or when
+    there is nothing to show: Today keeps no empty window."""
+    where = _store(store)
+    if social.get_profile(where, subscription.token) is None:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    present = studying_now_view(store, subscription, now)[:3]
+    others = [
+        p for p in social.feed_following(where, subscription.token, limit=12) if p.token != subscription.token
+    ][:CLASSMATES_POSTS]
+    posts = []
+    for card in _cards(where, subscription.token, others, now, zone):
+        data = card  # a post's data is spread into its card (social.Post.to_dict)
+        minutes = int(data.get("minutes", 0) or 0)
+        posts.append(
+            {
+                "id": card["id"],
+                "author": card["author"],
+                "says": _("studied {time}", time=duration_words(minutes))
+                if card["kind"] == "session"
+                else _("explained {title}", title=data.get("concept", ""))
+                if card["kind"] == "explain"
+                else _("shared notes"),
+                "course": str(data.get("course", "")),
+                "when": card["when"],
+            }
+        )
+    if not present and not posts:
+        return None
+    return {"now": present, "posts": posts, "join_minutes": JOIN_MINUTES}
+
+
 BANKED_FOR = timedelta(hours=3)  # how long an answered self-test's result stays on Today
 
 

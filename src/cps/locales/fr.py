@@ -3090,4 +3090,9 @@ MESSAGES: dict[str, str] = {
     "Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.": "Envoie un fichier PDF, Word, PowerPoint ou texte : Claude en tire des cartes et vérifie chacune par rapport à tes notes ; tu choisis celles à garder.",
     "Turn on AI": "Activer l'IA",
     "Written by Claude from your notes, then checked against them card by card: still read each before you keep it.": "Écrites par Claude à partir de tes notes, puis vérifiées carte par carte : relis quand même chacune avant de la garder.",
+    # -- Today as home (D140) --
+    "Nothing on the calendar today.": "Rien au calendrier aujourd'hui.",
+    "studied {time}": "a révisé {time}",
+    "explained {title}": "a expliqué {title}",
+    "shared notes": "a partagé des notes",
 }

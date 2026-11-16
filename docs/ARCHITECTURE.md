@@ -105,11 +105,12 @@ an update is written only over the version it was computed from, else computed a
 in use.
 
 **The hosted app.** `web` is a FastAPI application with Jinja2 templates, one
-stylesheet and two script modules. The plan screen puts a panel (what is next, what to
-report, deadlines, exams: HTML from `/p/<token>/panel`) beside the calendar
-(`calendar.js`), which reads `/p/<token>/calendar.json`, saves busy times to
-`/p/<token>/activities`, and moves, unpins or reports a session at
-`/p/<token>/sessions/<id>/…`; each answer is the replanned calendar, and the panel is
+stylesheet and two script modules. Today is a page of widgets (what is next, what to
+report, the day's list, the week, cards, tasks, exams, a tip, classmates: HTML from
+`/p/<token>/panel`, D140); Calendar is the calendar (`calendar.js`), which reads
+`/p/<token>/calendar.json`, saves busy times to `/p/<token>/activities`, and moves,
+unpins or reports a session at `/p/<token>/sessions/<id>/…`; each answer is the
+replanned calendar. A report from Today goes to the same address, and the widgets are
 fetched again. Without scripts, every form still works by full page loads and the
 week is a list (`/p/<token>/agenda`). Tasks have their own page and a new-task sheet on
 every page (the `popover` attribute opens it without a script); forms marked

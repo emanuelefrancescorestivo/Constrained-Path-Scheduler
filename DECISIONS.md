@@ -5378,7 +5378,7 @@ and shown before the owner said "Go".*
   Bricolage Grotesque). A variable font from 200 to 800, its Latin and Latin Extended files
   shipped in `static/fonts` with the SIL Open Font Licence, as D73's were: fetched from Google
   they would give Google every student's address. The first page asks for one font file instead
-  of two (27 KB instead of 20 + 77 KB).
+  of two (`benchmarks/page_weight.py` measures what a first visit downloads).
 - *Lucide's icons* (`web/icons.py`, `static/vendor/lucide`): an open set drawn on one 24-unit
   grid with one stroke width and round ends, so every icon has the same weight; the hand-drawn
   ones had ticks against their box (Tasks) and a gear that read as a sun (Settings). Only the 58
@@ -5399,3 +5399,42 @@ course).
 **Disclosed.** Lucide is third-party artwork under its licence, shipped with it; the owner
 approved adding it. The hues and the face are choices of taste; checked in Chromium only, at
 phone and laptop sizes, light and dark.
+
+## D140. Today as the app's home; Calendar the calendar alone
+
+*The owner, 2026-11-16: "be mindful that as of now from the sidebar the sections 'today' and
+'calendar' are the same. what can we put in today? like the headquarters of the app? students
+like having everything under control, like a tip here, a study session there, a feed window,
+let's say a general menu to then dive into other things, what do you think?" A mockup on a
+laptop and a phone was shown before the owner said "Go: the look, then Today as home".*
+
+**Chosen.**
+
+- *Today is a page of widgets, the most urgent first* (`_panel.html`): the next step with
+  Start focus and its stakes; what needs an answer (how a session went, in one tap, or the
+  self-test just answered); the day's one message (D97, unchanged); the day's list; the week
+  and the streak; the cards waiting; the next tasks; the next exams with their topics on
+  track; a tip; the classmates. Each has a head with its picture (D139), its name and the
+  section it opens. A widget with nothing to say is not drawn; what remains (last week,
+  keeping the plan, a weekly budget, a warm-up, the weekly note, a classmate's topics) folds
+  under "More" as before (D73). One column on a phone in that order; two columns from 720px;
+  three from 1100px, the next step on the left and the day's list on the right.
+- *The day's list* (`service.day_agenda`): today's classes, exams, tests, busy times and
+  sessions in time order, each over, going on or to come, with a line at now and a session's
+  report; the trips to campus and lunch (D42, D69) are left to the calendar.
+- *A window on classmates* (`service.classmates_glance`): who of the people followed is
+  studying now, with Join (D108), and the two newest posts of the people followed, as
+  Community shows them; never the student's own, nothing for a student without a handle,
+  no window when there is nothing in it.
+- *Calendar is the calendar alone, full width* (`plan.html`). D73 to D139 drew the day's
+  panel beside the calendar on both, so on a laptop the two were one page. On a phone they
+  were already two tabs. A report from Today, where there is no calendar, is sent by the
+  page itself and the widgets are fetched again (`app.js`).
+
+**Rejected.** Widgets the student arranges (a choice to make before the layout is known to
+help). A feed on Today (Community is a tab; two posts are a window, not a feed). Keeping the
+day's panel beside the calendar on a wide screen (the two pages would be one again).
+
+**Disclosed.** The tasks, which D73 folded under "More", are a widget again: Today is longer
+than D97 left it, on the owner's word; whether students find their way better is for the
+pilot. Checked in Chromium only, at phone, tablet and laptop sizes, light and dark.

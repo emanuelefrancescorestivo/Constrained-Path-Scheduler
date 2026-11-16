@@ -4,7 +4,10 @@
 {% block head %}<script type="module" src="{{ asset('app.js') }}"></script>{% endblock %}
 {% block body %}
 <div class="plan{% if setup %} setup{% endif %}" data-tab="{{ tab }}" data-token="{{ token }}" data-first="{{ first }}" data-today="{{ today_iso }}"{% if setup %} data-setup="classes"{% endif %}>
-  {% if not setup %}
+  {# D140: Today is the app's home, its widgets without the calendar; Calendar is the
+     calendar alone, full width. D73 to D139 drew the day's panel beside the calendar
+     on both, so on a laptop the two were one page. #}
+  {% if not setup and tab == 'today' %}
   <aside class="panel" aria-label="{{ _('Today') }}">
     {% if reported %}<p class="notice notice-ok" role="status">{{ _("Recorded: {word}. The plan has changed to match.", word=reported) }}</p>{% endif %}
     {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
@@ -27,6 +30,7 @@
     <div id="panel">{% include "_panel.html" %}</div>
   </aside>
   {% endif %}
+  {% if tab != 'today' %}
   <section class="board" aria-label="{{ _('Calendar') }}" data-tour="calendar">
     {% if setup %}
     {# Drawing a week by hand, when there is no timetable file (D32) #}
@@ -76,5 +80,6 @@
       </div>
     </div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}

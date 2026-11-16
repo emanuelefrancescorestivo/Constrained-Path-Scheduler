@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Today as the app's home (DECISIONS.md D140): the next session, what to report, today's
+  classes and sessions, the week and the streak, cards, tasks, exams, a tip and who of your
+  classmates is studying now, each a tap from its section. Calendar is the calendar alone,
+  full width.
+
 - A new look (DECISIONS.md D139), as the owner chose it: one type face, Plus Jakarta Sans;
   every icon from one precise set (Lucide's), the same weight everywhere; each place's picture a
   line icon on a soft tile of its colour instead of a bright drawing. The sky stays.

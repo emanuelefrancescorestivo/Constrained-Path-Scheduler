@@ -1286,6 +1286,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             "together": service.together_view(store, subscription, now)["pairs"],
             # A first week with every self-test recalled, said the week after (D130).
             "recalled": service.recall_week(subscription, now),
+            # Today as the app's home (D140): the day at a glance, and classmates.
+            "day": service.day_agenda(subscription, now),
+            "classmates": service.classmates_glance(store, subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
