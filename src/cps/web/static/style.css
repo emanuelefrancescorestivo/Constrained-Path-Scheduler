@@ -1,7 +1,7 @@
 /* The hosted app's one stylesheet, in the manner of Apple's human interface
    guidelines: grouped lists, translucent bars, capsule controls, sheets. No
-   framework, no script needed to read a page. Two type faces are files of the app
-   (Bricolage Grotesque and Figtree, static/fonts, D73), with the platform's own as
+   framework, no script needed to read a page. One type face is a file of the app
+   (Plus Jakarta Sans, static/fonts, D139; D73 had two), with the platform's own as
    the fallback; a plan's pages sit on a sky of the hour under clear glass, with a
    garden in the margins (the "calm glass" section at the end).
 
@@ -43,6 +43,10 @@
   --ok-soft: rgb(52 199 89 / 14%);
   --now: #ff3b30;
   --busy: #8e8e93;
+  /* The icons' tiles (D139): one hue per place, the icon in it on a soft tile of it. */
+  --t-blue: #2563eb; --t-green: #15803d; --t-orange: #c2410c; --t-purple: #7c3aed; --t-pink: #be185d;
+  --t-amber: #a16207; --t-teal: #0f766e; --t-red: #dc2626; --t-indigo: #4f46e5; --t-grey: #52525b;
+  --t-mix: 13%;
   /* Shape and depth. Where the browser draws continuous corners (corner-shape),
      the radii grow to look the same (the "silk" section near the end, D37). */
   --radius: 14px;
@@ -90,6 +94,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --t-blue: #7aa7ff; --t-green: #4ade80; --t-orange: #fb923c; --t-purple: #b18cff; --t-pink: #f472b6;
+    --t-amber: #facc15; --t-teal: #2dd4bf; --t-red: #f87171; --t-indigo: #a5b4fc; --t-grey: #a1a1aa;
+    --t-mix: 20%;
     --thumb: #5b5f6b;
     --bg: #0e1015;
     --surface: #1a1c23;
@@ -144,6 +151,9 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --t-blue: #7aa7ff; --t-green: #4ade80; --t-orange: #fb923c; --t-purple: #b18cff; --t-pink: #f472b6;
+  --t-amber: #facc15; --t-teal: #2dd4bf; --t-red: #f87171; --t-indigo: #a5b4fc; --t-grey: #a1a1aa;
+  --t-mix: 20%;
   --thumb: #5b5f6b;
   --bg: #0e1015;
   --surface: #1a1c23;
@@ -941,7 +951,7 @@ td.d { display: table-cell; padding: 0; }
 .vis-everyone { background: var(--accent-soft); color: var(--accent-ink); }
 
 .icon-link { display: none; color: var(--accent-ink); border: 0; background: transparent; padding: 0; cursor: pointer; border-radius: 50%; }
-.icon-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.icon-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
 /* -- the network: avatars, feeds, people, comments --------------------------- */
 .avatar {
@@ -971,7 +981,7 @@ td.d { display: table-cell; padding: 0; }
 .join h2 { font-size: 1.35rem; margin: 10px 0 6px; }
 .join > p { color: var(--muted); max-width: 30rem; margin: 0 auto; }
 .join-mark { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); color: var(--accent-ink); }
-.join-mark svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.join-mark svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .join-points { list-style: none; padding: 0; margin: 16px auto 20px; max-width: 26rem; text-align: left; }
 .join-points li { position: relative; padding: 5px 0 5px 26px; font-size: 0.93rem; }
 .join-points li::before {
@@ -998,7 +1008,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   cursor: pointer; text-decoration: none !important;
 }
 .act:hover { background: var(--fill-4); }
-.act svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.act svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .act.given { color: var(--accent-ink); }
 .act.given svg { fill: currentColor; }
 .act-count { font-variant-numeric: tabular-nums; }
@@ -1096,62 +1106,60 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .you-list b { display: block; }
 .you-list small { display: block; color: var(--muted); }
 .you-list .chev { color: var(--muted); font-size: 1.2rem; }
-/* Each place's picture (D99): a tile in its own colour with the thing drawn on it, as
-   the icons of a phone's settings. The deep shade is the drawing's accent. */
+/* Each place's picture (D99): since D139 one of Lucide's line icons in the place's
+   colour on a soft tile of that colour, flat, as a row of the sidebar; D99's white
+   drawings on bright gradients with a shadow were loud beside the calm glass. */
 .art {
-  flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 2px 6px rgb(0 0 0 / 0.14);
+  --hue: var(--t-grey);
+  flex: none; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 11px;
+  color: var(--hue); background: color-mix(in srgb, var(--hue) var(--t-mix), var(--surface));
   transition: transform 0.18s var(--ease-out);
-  forced-color-adjust: none; /* a picture keeps its colours in high-contrast modes */
 }
-.art svg { display: block; width: 44px; height: 44px; }
-:is(.you-list, .tip-topic-list) a:hover .art, :is(.you-list, .tip-topic-list) a:focus-visible .art { transform: translateY(-1px) rotate(-3deg); }
+.art svg { display: block; width: 22px; height: 22px; }
+:is(.you-list, .tip-topic-list) a:hover .art, :is(.you-list, .tip-topic-list) a:focus-visible .art { transform: translateY(-1px); }
 :is(.you-list, .tip-topic-list) a:active .art { transform: scale(0.94); }
 :root[data-motion="reduce"] .art { transition: none; }
 @media (prefers-reduced-motion: reduce) { .art { transition: none; } }
-.art.art-progress { background: linear-gradient(160deg, #42d77d, #0f9f62); color: #0b7a4d; }
-.art.art-cards { background: linear-gradient(160deg, #b388ff, #6f52ef); color: #5a3fd6; }
-.art.art-tasks { background: linear-gradient(160deg, #ffad4a, #ff7417); color: #d65a0a; }
-.art.art-focus { background: linear-gradient(160deg, #ff7aa8, #e0347f); color: #c2246a; }
-.art.art-tips { background: linear-gradient(160deg, #ffd24d, #ffa000); color: #b86e00; }
-.art.art-science { background: linear-gradient(160deg, #5cc0ff, #2a6be6); color: #1f56c4; }
-.art.art-code { background: linear-gradient(160deg, #9b8cff, #5a3fd6); color: #4a30c2; }
-.art.art-garden { background: linear-gradient(160deg, #6fdc9a, #23a067); color: #1b7f50; }
-.art.art-settings { background: linear-gradient(160deg, #a3a3ad, #62626e); color: #4a4a55; }
-.art.art-calendar { background: linear-gradient(160deg, #ff6f61, #e2352b); color: #e2352b; }
-.art.art-feedback { background: linear-gradient(160deg, #3fd0dc, #128fb0); color: #ff3b6b; }
-/* Study tips (D99): its topics, the coach, the weekly note. */
-.art.art-cap { background: linear-gradient(160deg, #7f9bff, #3b52d6); color: #2f45c9; }
-.art.art-brain { background: linear-gradient(160deg, #ff9cc2, #e2467f); color: #c22a64; }
-.art.art-trophy { background: linear-gradient(160deg, #ffc94a, #f08c00); color: #c96f00; }
-.art.art-repeat { background: linear-gradient(160deg, #52dc92, #14a35c); color: #0c7c45; }
-.art.art-hourglass { background: linear-gradient(160deg, #56d8cb, #168f9d); color: #0f7a86; }
-.art.art-moon { background: linear-gradient(160deg, #7a86ff, #2b2f7a); color: #2b2f7a; }
-.art.art-coach { background: linear-gradient(160deg, #be95ff, #7048e8); color: #5a33d6; }
-.art.art-letter { background: linear-gradient(160deg, #ff9670, #e8513a); color: #c93b26; }
-/* D100: Progress and the diary. */
-.art.art-pace { background: linear-gradient(160deg, #8f9bff, #4f5fe8); color: #3b49c9; }
-.art.art-alarm { background: linear-gradient(160deg, #ff9a6b, #f2552c); color: #d23f19; }
-.art.art-target { background: linear-gradient(160deg, #ff7f8f, #e8364f); color: #c9213b; }
-.art.art-daytime { background: linear-gradient(135deg, #63c7ff 0%, #4a7cf0 52%, #2b2f7a 100%); color: #2b2f7a; }
-.art.art-crystal { background: linear-gradient(160deg, #c08bff, #7a3fe0); color: #6a2fd0; }
-.art.art-group { background: linear-gradient(160deg, #46d9a6, #12a07a); color: #0c7c5e; }
-.art.art-paper { background: linear-gradient(160deg, #ff7a7a, #e03b3b); color: #c42a2a; }
-.art.art-exercises { background: linear-gradient(160deg, #ffb85c, #f57c1f); color: #d4650f; }
-.art.art-summary { background: linear-gradient(160deg, #ffd95e, #f5b000); color: #b07a00; }
-.art.art-reading { background: linear-gradient(160deg, #6ec8ff, #2f86e8); color: #1f6cc4; }
-.art.art-lecture { background: linear-gradient(160deg, #9c8bff, #5c45e6); color: #4a33d0; }
-.art.art-project { background: linear-gradient(160deg, #7fa6c8, #46698c); color: #34546f; }
-.art.art-study { background: linear-gradient(160deg, #4fd6c8, #1798a6); color: #0f7a86; }
-/* D103: Settings' rows. */
-.art.art-week { background: linear-gradient(160deg, #57d38c, #18a35a); color: #0f7f45; }
-.art.art-key { background: linear-gradient(160deg, #9aa4b8, #5c6680); color: #48506a; }
-.art.art-bell { background: linear-gradient(160deg, #ffb648, #ff8a00); color: #c25e00; }
-.art.art-palette { background: linear-gradient(160deg, #ff8fd0, #c94fe0); color: #a335c0; }
-.art.art-shield { background: linear-gradient(160deg, #3fc6ff, #1a7fd6); color: #1666b8; }
+.art-progress { --hue: var(--t-green); }
+.art-cards { --hue: var(--t-purple); }
+.art-tasks { --hue: var(--t-orange); }
+.art-focus { --hue: var(--t-blue); }
+.art-tips { --hue: var(--t-amber); }
+.art-science { --hue: var(--t-pink); }
+.art-code { --hue: var(--t-indigo); }
+.art-garden { --hue: var(--t-green); }
+.art-settings { --hue: var(--t-grey); }
+.art-calendar { --hue: var(--t-red); }
+.art-feedback { --hue: var(--t-teal); }
+.art-cap { --hue: var(--t-indigo); }
+.art-brain { --hue: var(--t-pink); }
+.art-trophy { --hue: var(--t-amber); }
+.art-repeat { --hue: var(--t-green); }
+.art-hourglass { --hue: var(--t-teal); }
+.art-moon { --hue: var(--t-indigo); }
+.art-coach { --hue: var(--t-purple); }
+.art-letter { --hue: var(--t-orange); }
+.art-pace { --hue: var(--t-indigo); }
+.art-alarm { --hue: var(--t-orange); }
+.art-target { --hue: var(--t-red); }
+.art-daytime { --hue: var(--t-blue); }
+.art-crystal { --hue: var(--t-purple); }
+.art-group { --hue: var(--t-teal); }
+.art-paper { --hue: var(--t-red); }
+.art-exercises { --hue: var(--t-orange); }
+.art-summary { --hue: var(--t-amber); }
+.art-reading { --hue: var(--t-blue); }
+.art-lecture { --hue: var(--t-purple); }
+.art-project { --hue: var(--t-grey); }
+.art-study { --hue: var(--t-teal); }
+.art-week { --hue: var(--t-green); }
+.art-key { --hue: var(--t-grey); }
+.art-bell { --hue: var(--t-orange); }
+.art-palette { --hue: var(--t-pink); }
+.art-shield { --hue: var(--t-blue); }
 /* A smaller tile beside a card's title. */
-.art.art-sm { width: 34px; height: 34px; border-radius: 10px; }
-.art.art-sm svg { width: 34px; height: 34px; }
+.art.art-sm { width: 32px; height: 32px; border-radius: 9px; }
+.art.art-sm svg { width: 18px; height: 18px; }
 .plant { flex: none; display: inline-block; width: 32px; height: 32px; margin: -6px 0; vertical-align: -8px; forced-color-adjust: none; }
 .spark-top {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
@@ -1177,7 +1185,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent-ink);
 }
-.way-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.way-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ways-note { text-align: center; margin: 12px 8px 0; }
 /* The file field as a place to drop a file: the real input covers it, unseen */
 .drop {
@@ -1454,7 +1462,7 @@ label.check.check-long input { margin-top: 3px; flex: none; }
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     color: var(--muted); text-decoration: none !important; font-size: 0.75rem; font-weight: 500; letter-spacing: 0;
   }
-  .tabbar svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .tabbar svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .tabbar a[aria-current="page"] { color: var(--accent-ink); }
   .tabbar a[aria-current="page"] svg { stroke-width: 2.1; }
   body.has-tabs { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
@@ -1809,7 +1817,7 @@ h2[id] { scroll-margin-top: 72px; }
   display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 4px; border-radius: 50%;
   background: var(--fill-3); color: var(--faint);
 }
-.badge-art svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.badge-art svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .badge-tile.earned .badge-art {
   background: radial-gradient(circle at 30% 25%, color-mix(in srgb, #fff 35%, var(--cc)), var(--cc));
   color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--cc) 35%, transparent);
@@ -2329,7 +2337,8 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 
 /* -- calm glass (D73): two type faces, a sky of the hour, clear glass, a garden ------
    Chosen by the owner on a canvas of options (2026-10-19): clear glass in the manner
-   of Apple's Liquid Glass, Bricolage Grotesque for large type and Figtree for text,
+   of Apple's Liquid Glass, Bricolage Grotesque for large type and Figtree for text
+   (since D139, Plus Jakarta Sans for both, chosen by the owner on 2026-11-16),
    a garden in the margins that grows with the streak, and a sky that follows the
    day and drifts slowly. The fonts are files of this app under the SIL Open Font
    Licence (static/fonts, with the licences): loaded from Google's servers they would
@@ -2340,34 +2349,22 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
    that asks for less transparency gets solid surfaces. */
 
 @font-face {
-  font-family: "Figtree"; font-style: normal; font-weight: 300 900; font-display: swap;
-  src: url("fonts/figtree-latin.woff2") format("woff2");
+  font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Figtree"; font-style: normal; font-weight: 300 900; font-display: swap;
-  src: url("fonts/figtree-latin-ext.woff2") format("woff2");
+  font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: swap;
-  src: url("fonts/bricolage-grotesque-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: swap;
-  src: url("fonts/bricolage-grotesque-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 :root {
-  --font-text: "Figtree", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+  --font-text: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "SF Pro Display",
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Clear glass: a bright edge on top, a faint one below, a soft glow inside. */
   --glass-top: rgb(255 255 255 / 56%);
@@ -2457,7 +2454,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   --glass-field: rgb(255 255 255 / 10%);
 }
 
-/* Type: Figtree for reading, Bricolage Grotesque for what is large. */
+/* Type: Plus Jakarta Sans for everything (D139), tighter and heavier when large. */
 body { letter-spacing: -0.003em; }
 h1, h2, .big, .stat b, .group-total b, .board-bar .range, .focus-timer, .strip-item b { font-family: var(--font-display); }
 h1 { font-weight: 750; letter-spacing: -0.03em; }
@@ -2926,7 +2923,7 @@ body[data-sky] .brand-menu[popover] { background: var(--elevated); -webkit-backd
 .sci-rules > li { align-items: flex-start; gap: 12px; }
 .sci-research { font-size: 0.92rem; color: var(--muted); }
 /* How the code works (D109), in the app's own look (D110): the sky and the glass of a
-   plan's pages, Bricolage for what is large, a big number for each scene as Progress
+   plan's pages, the display type for what is large, a big number for each scene as Progress
    has its tiles, the two topics in the app's first two course colours, the exam in its
    red, the calendar drawn as the Calendar draws it. */
 main.site.code-page { max-width: 64rem; }
@@ -4329,7 +4326,7 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 }
 .side-nav a:hover, .side-courses li a:hover { background: var(--fill-3); }
 .side-nav a[aria-current="page"], .side-courses li a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
-.side-nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.side-nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .side-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.75rem; font-weight: 700; text-align: center; line-height: 18px; }
 .side-courses ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
 .side-courses li a .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

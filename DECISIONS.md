@@ -5360,3 +5360,42 @@ check reduces, but does not remove, cards that are wrong or poorly put; the stud
 each. The notes go to Anthropic in the United States only with the student's yes. The rules'
 cards from a LaTeX PDF keep words run together. Checked in Chromium only.
 
+
+## D139. The look the owner chose: one face, precise icons on soft tiles
+
+*The owner, 2026-11-16: "rework on UX and UI graphics and make it look more like the notion-like
+sidebar we added earlier also in other sections, replacing colourful and nauseous icons with more
+minimalist ones that still catch the eye, and in general let's pick a better font, give me
+choices". Shown seven faces, four kinds of icons and three backgrounds on the app's own screens
+(an artifact, not in the repository), the owner chose "Font: Plus Jakarta Sans · Icons: Line on a
+soft tile · Background: Now", adding: "look for example at the task icon being not precise, we
+need graphics to be spot on, same for the settings one". The icons were drawn again from one set
+and shown before the owner said "Go".*
+
+**Chosen.**
+
+- *One face, Plus Jakarta Sans*, for reading and for what is large (D73 had Figtree and
+  Bricolage Grotesque). A variable font from 200 to 800, its Latin and Latin Extended files
+  shipped in `static/fonts` with the SIL Open Font Licence, as D73's were: fetched from Google
+  they would give Google every student's address. The first page asks for one font file instead
+  of two (27 KB instead of 20 + 77 KB).
+- *Lucide's icons* (`web/icons.py`, `static/vendor/lucide`): an open set drawn on one 24-unit
+  grid with one stroke width and round ends, so every icon has the same weight; the hand-drawn
+  ones had ticks against their box (Tasks) and a gear that read as a sun (Settings). Only the 58
+  icons the app draws are shipped, unchanged from lucide-static 0.460.0, with its licence (ISC;
+  a part from Feather under MIT). The server writes each icon into the page: no request, no
+  script, under the Content-Security-Policy, offline and in print.
+- *Each place's picture a line icon on a soft tile of its colour* (`_art.html`): flat, without
+  D99's gradients and shadows, ten hues chosen for each mode, darker on light and lighter on
+  dark. The sidebar, the tab bar, the "+" and the calendar's arrows, the posts' actions, the
+  badges and the questions about the week use the same set.
+- *The sky stays* (the owner's "Background: Now"), and so does the glass.
+
+**Rejected.** An icon font (a request, and letters before it loads), a sprite read by
+`<use href>` (one more request, an icon missing until it arrives), the whole set of 1,500 files.
+Keeping two faces (the owner chose one). Course colours for the tiles (a place would read as a
+course).
+
+**Disclosed.** Lucide is third-party artwork under its licence, shipped with it; the owner
+approved adding it. The hues and the face are choices of taste; checked in Chromium only, at
+phone and laptop sizes, light and dark.

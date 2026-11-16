@@ -6,7 +6,7 @@
    and the way to take them with one's own plan (this device's, remembered by pwa.js,
    or the link pasted on Courses on another). #}
 <div class="card invitation class-page" data-invite="{{ view.code }}" data-join-path="class">
-  <span class="way-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h6.5a2 2 0 0 1 2 2V19a1.6 1.6 0 0 0-1.6-1.6H4zM20 5.5h-6.5a2 2 0 0 0-2 2V19a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg></span>
+  <span class="way-icon" aria-hidden="true">{{ lucide('book-open') }}</span>
   <h1>{{ _("Your class's program") }}</h1>
   {% if view.university %}<p class="class-where">{{ view.university }}{% if view.programme %} · {{ view.programme }}{% endif %}</p>{% endif %}
   <p>{{ _n("The topics of one course, week by week, ready to take into your own study plan.", "The topics of {n} courses, week by week, ready to take into your own study plan.", view.courses | length) }}</p>

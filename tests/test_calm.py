@@ -92,18 +92,14 @@ def test_the_type_faces_are_the_apps_own_files_with_their_licences(web):
     """Fetched from Google's servers, the fonts would give Google every student's
     address; they are files of the app, under the SIL Open Font Licence."""
     css = web.get("/static/style.css").text
-    for name in (
-        "figtree-latin",
-        "figtree-latin-ext",
-        "bricolage-grotesque-latin",
-        "bricolage-grotesque-latin-ext",
-    ):
+    # One face since D139, Plus Jakarta Sans (D73 had Figtree and Bricolage Grotesque).
+    for name in ("plus-jakarta-sans-latin", "plus-jakarta-sans-latin-ext"):
         # Named next to the stylesheet, so under its versioned name too (D106).
         assert f'url("fonts/{name}.woff2")' in css
         font = web.get(f"/static/fonts/{name}.woff2")
         assert font.status_code == 200 and font.headers["content-type"] == "font/woff2"
         assert font.content[:4] == b"wOF2"
-    for licence in ("OFL-Figtree.txt", "OFL-BricolageGrotesque.txt"):
+    for licence in ("OFL-PlusJakartaSans.txt",):
         assert "SIL Open Font License, Version 1.1" in (STATIC / "fonts" / licence).read_text(
             encoding="utf-8"
         )

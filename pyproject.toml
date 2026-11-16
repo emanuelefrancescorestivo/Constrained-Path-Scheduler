@@ -27,6 +27,8 @@ where = ["src"]
     "templates/*.html", "static/*", "static/icons/*", "static/fonts/*", "static/garden/*",
     # Leaflet 1.9.4, the study map's library, with its licence (D133).
     "static/vendor/leaflet/*", "static/vendor/leaflet/images/*",
+    # Lucide's icons the app draws, with their licence (D139).
+    "static/vendor/lucide/*",
 ]
 # The list of universities and its licence (D39).
 "cps" = ["data/*"]

@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A new look (DECISIONS.md D139), as the owner chose it: one type face, Plus Jakarta Sans;
+  every icon from one precise set (Lucide's), the same weight everywhere; each place's picture a
+  line icon on a soft tile of its colour instead of a bright drawing. The sky stays.
+
 - Cards from notes written by Claude and checked (DECISIONS.md D138): with your yes to AI,
   Claude writes cards from a file of notes the way an exam asks, then checks each against your
   notes and keeps, fixes or drops it; Rules only keeps the notes on the server. The rules read

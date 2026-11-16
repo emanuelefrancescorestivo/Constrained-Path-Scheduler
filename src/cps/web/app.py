@@ -59,7 +59,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon, sky
+from . import charts, forms, icon, icons, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -333,6 +333,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["recall_words"] = RECALL_WORDS
     templates.env.globals["charts"] = charts
     templates.env.globals["familiarity"] = FAMILIARITY
+    # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
+    templates.env.globals["lucide"] = icons.icon
+    templates.env.globals["art_icons"] = icons.ART
+    templates.env.globals["badge_icons"] = icons.GLYPHS
     templates.env.filters["nice_date"] = _nice_date
     templates.env.filters["hours"] = service.format_number
     templates.env.globals["_"] = service.translate

@@ -41,11 +41,11 @@
   </a>
   <div class="note-act" id="acts-{{ p.id }}">
     {% if p.mine %}
-    <span class="act act-static" title="{{ _('Helpful marks') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V10l4.5-7c1.4 0 2.3 1.2 2 2.5L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.2 21H7zM3 10h4v11H3z"/></svg><span class="act-count">{{ p.kudos }}</span><span class="sr-only">{{ _n("{n} helpful mark", "{n} helpful marks", p.kudos) }}</span></span>
+    <span class="act act-static" title="{{ _('Helpful marks') }}">{{ lucide('thumbs-up') }}<span class="act-count">{{ p.kudos }}</span><span class="sr-only">{{ _n("{n} helpful mark", "{n} helpful marks", p.kudos) }}</span></span>
     {% else %}
     <form method="post" action="/p/{{ token }}/post/{{ p.id }}/kudos" data-async data-region="#acts-{{ p.id }}" data-quiet>
       <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
-      <button type="submit" class="act{% if p.kudos_given %} given{% endif %}" aria-pressed="{{ 'true' if p.kudos_given else 'false' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V10l4.5-7c1.4 0 2.3 1.2 2 2.5L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.2 21H7zM3 10h4v11H3z"/></svg><span class="act-word">{{ _("Helpful") }}</span>{% if p.kudos %}<span class="act-count">{{ p.kudos }}</span>{% endif %}</button>
+      <button type="submit" class="act{% if p.kudos_given %} given{% endif %}" aria-pressed="{{ 'true' if p.kudos_given else 'false' }}">{{ lucide('thumbs-up') }}<span class="act-word">{{ _("Helpful") }}</span>{% if p.kudos %}<span class="act-count">{{ p.kudos }}</span>{% endif %}</button>
     </form>
     {% endif %}
   </div>

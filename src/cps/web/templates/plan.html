@@ -62,10 +62,10 @@
         {% if not setup %}<button type="button" data-view="30">{{ _("Month") }}</button>{% endif %}
       </div>
       <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="{{ _('Earlier days') }}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        {{ lucide('chevron-left') }}</button>
       <button type="button" class="btn btn-sm" data-go="today">{{ _("Today") }}</button>
       <button type="button" class="btn btn-sm btn-icon" data-go="forward" aria-label="{{ _('Later days') }}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        {{ lucide('chevron-right') }}</button>
       {% if setup %}<button type="button" class="btn btn-sm btn-tinted" data-go="busy">+ {{ _("Add a class") }}</button>
       {% else %}<button type="button" class="btn btn-sm btn-tinted wide-only" data-go="busy" data-tour="block">{{ _("Block time") }}</button>{% endif %}
     </div>
