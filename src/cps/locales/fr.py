@@ -2879,4 +2879,15 @@ MESSAGES: dict[str, str] = {
     "Study together: you both see the days in a row you both studied, and whether the other studied today. Never how long.": "Réviser ensemble : vous voyez tous les deux les jours d'affilée où vous avez révisé tous les deux, et si l'autre a révisé aujourd'hui. Jamais combien de temps.",
     "studied today": "a révisé aujourd'hui",
     "If you study together with someone, you both see the days in a row you both studied and whether the other studied today; never how long, nor your plan, your courses or your sessions. Either of you can stop it.": "Si tu révises ensemble avec quelqu'un, vous voyez tous les deux les jours d'affilée où vous avez révisé tous les deux et si l'autre a révisé aujourd'hui ; jamais combien de temps, ni ton plan, tes cours ou tes séances. L'un comme l'autre peut y mettre fin.",
+    # The stakes and a curious start (D128)
+    "Exam in {n} day.": "Examen dans {n} jour.",
+    "Exam in {n} days.": "Examen dans {n} jours.",
+    "Exam today.": "Examen aujourd'hui.",
+    "Recalled in this session, it stays above 90 % until then (a model's estimate).": "Retrouvé pendant cette séance, il reste au-dessus de 90 % jusque-là (une estimation du modèle).",
+    "Recalled in this session, it stays above 90 % until {day} (a model's estimate).": "Retrouvé pendant cette séance, il reste au-dessus de 90 % jusqu'au {day} (une estimation du modèle).",
+    "Before your notes": "Avant tes notes",
+    "Think of the answer: it shows when you finish.": "Pense à la réponse : elle s'affiche quand tu termines.",
+    "The question you started with": "La question du début",
+    "Practise this week's cards": "Réviser les cartes de cette semaine",
+    "Skip the question": "Passer la question",
 }
