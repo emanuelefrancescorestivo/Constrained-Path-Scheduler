@@ -1556,7 +1556,7 @@ html:active-view-transition-type(swap)::view-transition-old(root),
 html:active-view-transition-type(swap)::view-transition-new(root) { animation: none; }
 ::view-transition-group(*) { animation-duration: 0.36s; animation-timing-function: var(--ease-out); }
 @keyframes vt-out { to { opacity: 0; } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes vt-in { from { opacity: 0; } }  /* a fade, no rise (D132) */
 @keyframes card-out { to { opacity: 0; transform: translateX(-38%) rotate(-5deg); } }
 @keyframes card-in { from { opacity: 0; transform: translateX(32%) rotate(4deg); } }
 
@@ -2178,16 +2178,9 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   .features li:last-child::after { display: none; }
 }
 
-/* As the page scrolls, what comes into view rises into place (where the browser
-   ties animations to scrolling; elsewhere it is simply there). `translate`, not
-   `transform`, so a card's own lift on hover still works. */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    :root:not([data-motion="reduce"]) :is(.start-head, .home .way, .home .ways-note, .signin, .features li) {
-      animation: surface linear both; animation-timeline: view(); animation-range: entry 0% entry 70%;
-    }
-  }
-}
+/* Nothing on the app's own pages moves as the page scrolls (D132): what came into view
+   used to rise into place, and movement tied to scrolling is what brings on dizziness
+   and nausea (WCAG 2.3.3). Only the explaining pages keep their scenes, with motion on. */
 @keyframes surface { from { opacity: 0; translate: 0 32px; } to { opacity: 1; translate: none; } }
 .lecture-form { margin: 2px 0 0; }
 .lecture-form .btn { margin: 4px 6px 0 0; }
@@ -2428,6 +2421,40 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   --doodle: rgb(222 230 255 / 28%);
   --bloom: rgb(255 140 190 / 45%);
   --bloom-ink: rgb(255 150 198);
+}
+/* Tinted glass, the default (D132): the owner found the clear glass made them
+   nauseous at times, and Apple answered the same complaint about Liquid Glass with a
+   more opaque "Tinted" choice in iOS 26.1. The panes keep their edge and their light;
+   what passes under the bars and the cards as a page scrolls barely shows. "See-through"
+   (data-glass="clear") keeps D73's clear glass; "Solid" drops the blur altogether. */
+:root:not([data-glass="clear"]) {
+  --glass-top: rgb(255 255 255 / 84%);
+  --glass-bottom: rgb(255 255 255 / 74%);
+  --glass-bar: rgb(255 255 255 / 88%);
+  --glass-solid: rgb(255 255 255 / 94%);
+  --glass-board: rgb(255 255 255 / 80%);
+  --glass-board-head: rgb(255 255 255 / 94%);
+  --glass-field: rgb(255 255 255 / 72%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-glass="clear"]) {
+    --glass-top: rgb(30 34 52 / 84%);
+    --glass-bottom: rgb(24 28 44 / 78%);
+    --glass-bar: rgb(20 24 38 / 90%);
+    --glass-solid: rgb(22 25 38 / 95%);
+    --glass-board: rgb(20 23 36 / 84%);
+    --glass-board-head: rgb(20 23 36 / 95%);
+    --glass-field: rgb(255 255 255 / 10%);
+  }
+}
+:root[data-theme="dark"]:not([data-glass="clear"]) {
+  --glass-top: rgb(30 34 52 / 84%);
+  --glass-bottom: rgb(24 28 44 / 78%);
+  --glass-bar: rgb(20 24 38 / 90%);
+  --glass-solid: rgb(22 25 38 / 95%);
+  --glass-board: rgb(20 23 36 / 84%);
+  --glass-board-head: rgb(20 23 36 / 95%);
+  --glass-field: rgb(255 255 255 / 10%);
 }
 
 /* Type: Figtree for reading, Bricolage Grotesque for what is large. */
@@ -4147,6 +4174,29 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 .run-remind p { margin: 8px 0; }
 .run-later { margin: 4px 0 0; }
 .run-done { margin: 0 0 8px; text-align: center; }
+/* The study map (D133): a solid pane (no glass over moving tiles), pins that count */
+.study-map { height: min(58vh, 460px); border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.study-map.leaflet-container { font: inherit; }
+body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.map-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0 0; }
+.map-credit { margin: 6px 0 0; font-size: 0.8rem; }
+/* Leaflet's own sheet loads after this one and sets its markers' display: two classes win. */
+.leaflet-marker-icon.map-pin { display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.9rem; box-shadow: 0 0 0 3px rgb(255 255 255 / 85%), 0 4px 12px rgb(0 0 0 / 25%); }
+.map-pin.is-empty { background: var(--muted); }
+.map-pin.is-me { background: var(--ok); }
+.map-pin.is-draft { background: var(--bloom-ink); }
+.map-pop { display: flex; flex-direction: column; gap: 4px; min-width: 150px; font: inherit; }
+.map-pop form { margin: 4px 0 0; }
+.places-list li { align-items: center; gap: 12px; }
+.places-list .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.places-list li.is-new { background: var(--accent-soft); }
+.place-count { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; }
+.place-count.is-empty { background: var(--line); color: var(--muted); }
+.focus-place { margin: 0; font-size: 0.92rem; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .study-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9); }
+}
+:root[data-theme="dark"] .study-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9); }
 /* The semester recap (D131): its numbers as tiles, two across on a phone */
 .recap-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 @media (min-width: 760px) { .recap-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

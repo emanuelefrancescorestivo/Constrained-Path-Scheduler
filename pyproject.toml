@@ -23,7 +23,11 @@ where = ["src"]
 [tool.setuptools.package-data]
 # The web app's pages, scripts, stylesheet and icons ship with the package; a
 # pattern does not reach into subfolders, so each has its own (AUDIT item 51).
-"cps.web" = ["templates/*.html", "static/*", "static/icons/*", "static/fonts/*", "static/garden/*"]
+"cps.web" = [
+    "templates/*.html", "static/*", "static/icons/*", "static/fonts/*", "static/garden/*",
+    # Leaflet 1.9.4, the study map's library, with its licence (D133).
+    "static/vendor/leaflet/*", "static/vendor/leaflet/images/*",
+]
 # The list of universities and its licence (D39).
 "cps" = ["data/*"]
 

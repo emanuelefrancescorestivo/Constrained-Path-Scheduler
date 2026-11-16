@@ -6125,9 +6125,10 @@ def set_motion(subscription: Subscription, motion: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "motion": motion})
 
 
-# The glass (D93): "auto" keeps it clear unless the device asks for less transparency
-# or blurs too slowly (motion.js measures it as a page arrives); "clear" always; "solid"
-# never blurs, the lightest for a slow device.
+# The glass (D93, D132): "auto" tints it, more opaque than D73's clear glass, and turns
+# it solid when the device asks for less transparency or blurs too slowly (motion.js
+# measures it as a page arrives); "clear" keeps D73's see-through glass; "solid" never
+# blurs, the lightest for a slow device.
 GLASSES = ("auto", "clear", "solid")
 
 
@@ -6274,12 +6275,14 @@ def start_focus(
     goal: int = 0,
     repair: str | None = None,
     opener: str | None = None,
+    place: str | None = None,
     now: datetime | None = None,
 ) -> Subscription:
     """Start the timer for `course`, or for the plan's session `sid`, meant to last
     `goal` minutes (0: no length chosen, D67). `repair` names the missed day this
     session makes up for (D126): one of the last two days, checked when it is
-    saved. `opener` is the card the session opens with (D128, `opening_card`)."""
+    saved. `opener` is the card the session opens with (D128, `opening_card`); `place`
+    the place on the map it is studied at (D133), checked by the caller."""
     now = now or datetime.now(UTC)
     goal = focus_goal(goal)
     if sid:
@@ -6308,9 +6311,12 @@ def start_focus(
         "goal": goal,
         "repair": repair or "",
         "opener": opener or "",
+        "place": place or "",
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
+    if place:
+        options["places_recent"] = _remember_place(options, place)
     return replace(subscription, options={**options, "focus": focus})
 
 
@@ -8147,7 +8153,155 @@ def sync_presence(store: str | os.PathLike, subscription: Subscription, now: dat
     if until <= now:
         social.clear_presence(where, subscription.token)
         return
-    social.mark_present(where, subscription.token, focus["course"], started, until)
+    social.mark_present(
+        where, subscription.token, focus["course"], started, until, place=focus.get("place") or None
+    )
+
+
+# -- the study map (D133) ----------------------------------------------------------------
+# Where students study: public places they add, and, at each, who is there now. The
+# people a student follows show by name, everyone else as a count (the owner's choice,
+# 2026-11-16); only students who said yes to Studying now (D108) are ever at a place,
+# and only at the place they chose for a session. The map is Leaflet over OpenStreetMap's
+# tiles (the owner approved both); its address is given to the page, not written in the
+# script, as the tile policy recommends.
+MAP_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+MAP_TILE_HOST = "https://tile.openstreetmap.org"
+MAP_SPAN = 0.25  # degrees around the map's centre whose places are listed (about 28 km)
+PLACES_RECENT = 5
+
+
+def _remember_place(options: Mapping, place_id: str) -> list[str]:
+    """The places a student studied at, latest first, to offer them again."""
+    return [place_id, *(p for p in options.get("places_recent", []) if p != place_id)][:PLACES_RECENT]
+
+
+def place_info(store: str | os.PathLike, place_id: str | None) -> dict | None:
+    """A place by its id, as the pages name it; None for none or an unknown id."""
+    place = social.get_place(_store(store), place_id)
+    return {"id": place.id, "name": place.name, "lat": place.lat, "lon": place.lon} if place else None
+
+
+def _who_words(named: Sequence[tuple], others: int, me: bool) -> str:
+    """What a place's line says: the people followed by handle, then how many others."""
+    names = ", ".join(f"@{profile.handle}" for profile, _course in named)
+    if me and not names and not others:
+        return _("Just you")
+    if names and others:
+        return _n("{names} and {n} other", "{names} and {n} others", others, names=names)
+    if names:
+        return names
+    if others:
+        return _n("{n} person studying", "{n} people studying", others)
+    return _("Nobody yet")
+
+
+def map_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None, at: str | None = None
+) -> dict:
+    """The study map (D133): its centre (the place `at`, the student's own place now, the
+    last one they studied at, else their time zone's main city), the places around it
+    and wherever someone they follow studies, each with who is there as the student may
+    see it, the busiest first; whether the student can be seen (a handle and Studying
+    now's yes), and the place of their own session, if it has one."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    token = subscription.token
+    focus = subscription.options.get("focus") or {}
+    mine = str(focus.get("place") or "")
+    recent = [
+        p for p in (social.get_place(where, i) for i in subscription.options.get("places_recent", [])) if p
+    ]
+    who = social.who_is_where(where, token, now)
+    anchor = social.get_place(where, at) or social.get_place(where, mine) or (recent[0] if recent else None)
+    if anchor is not None:
+        lat, lon, zoom = anchor.lat, anchor.lon, 15
+    else:
+        lat, lon = _daylight.place(subscription.options["tz"], now)
+        zoom = 13
+    shown = {p.id: p for p in social.places_around(where, lat, lon, MAP_SPAN)}
+    for place in recent:
+        shown.setdefault(place.id, place)
+    for place_id, here in who.items():
+        if (here["named"] or here["me"]) and place_id not in shown:
+            found = social.get_place(where, place_id)
+            if found is not None:
+                shown[found.id] = found
+    rows = []
+    for place in shown.values():
+        here = who.get(place.id, {"named": [], "others": 0, "me": False})
+        count = len(here["named"]) + here["others"] + int(here["me"])
+        rows.append(
+            {
+                "id": place.id,
+                "name": place.name,
+                "lat": place.lat,
+                "lon": place.lon,
+                "count": count,
+                "named": [{"handle": p.handle, "course": course} for p, course in here["named"]],
+                "others": here["others"],
+                "me": here["me"] or place.id == mine,
+                "line": _who_words(here["named"], here["others"], here["me"] or place.id == mine),
+                "distance": (place.lat - lat) ** 2 + ((place.lon - lon) * math.cos(math.radians(lat))) ** 2,
+            }
+        )
+    rows.sort(key=lambda r: (-r["count"], r["distance"]))
+    for r in rows:
+        del r["distance"]
+    return {
+        "center": [round(lat, 5), round(lon, 5)],
+        "zoom": zoom,
+        "places": rows,
+        "studying": sum(r["count"] for r in rows),
+        "mine": mine,
+        "mine_name": next((r["name"] for r in rows if r["id"] == mine), ""),
+        "focusing": bool(focus),
+        "profile": social.get_profile(where, token) is not None,
+        "on": social.studying_now_on(where, token),
+        "tiles": MAP_TILES,
+        "at": at or "",
+    }
+
+
+def choose_place(store: str | os.PathLike, subscription: Subscription, place_id: str) -> Subscription:
+    """The running session's place on the map (D133): seen there by the student's
+    followers, counted by everyone else. It needs Studying now's yes (D108)."""
+    if social.get_place(_store(store), place_id) is None:
+        raise InvalidInput(_("this place is no longer on the map"))
+    if not social.studying_now_on(_store(store), subscription.token):
+        raise InvalidInput(
+            _("turn on Studying now in your profile first: the map shows only those who said yes")
+        )
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    options = {
+        **subscription.options,
+        "focus": {**focus, "place": place_id},
+        "places_recent": _remember_place(subscription.options, place_id),
+    }
+    return replace(subscription, options=options)
+
+
+def leave_place(subscription: Subscription) -> Subscription:
+    """The running session goes on, at no place."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    return replace(subscription, options={**subscription.options, "focus": {**focus, "place": ""}})
+
+
+def add_place(
+    store: str | os.PathLike, subscription: Subscription, form: Mapping[str, str], now: datetime | None = None
+) -> dict:
+    """A public place to study, from its name and the point tapped on the map (D133)."""
+    try:
+        place = social.add_place(
+            _store(store), subscription.token, form.get("name", ""), form.get("lat"), form.get("lon"), now
+        )
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+    return {"id": place.id, "name": place.name}
 
 
 def studying_now_view(

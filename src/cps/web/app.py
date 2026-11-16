@@ -111,6 +111,18 @@ SECURITY_HEADERS = {
     "Cross-Origin-Opener-Policy": "same-origin",
 }
 
+# The study map's page (D133) loads OpenStreetMap's tiles, and may ask the device where
+# it is to centre the map (the answer never leaves the device); every other page keeps
+# SECURITY_HEADERS as they are.
+MAP_HEADERS = {
+    "Content-Security-Policy": SECURITY_HEADERS["Content-Security-Policy"].replace(
+        "img-src 'self'", f"img-src 'self' {service.MAP_TILE_HOST}"
+    ),
+    "Permissions-Policy": SECURITY_HEADERS["Permissions-Policy"].replace(
+        "geolocation=()", "geolocation=(self)"
+    ),
+}
+
 OUTCOME_WORDS = {
     "done": "Done",
     "skipped": "Skipped",
@@ -1372,16 +1384,19 @@ def create_app(config: Config | None = None) -> FastAPI:
     # ------------------------------------------------------------ focus sessions
 
     @app.get("/p/{token}/focus", response_class=HTMLResponse)
-    def focus(request: Request, token: str) -> HTMLResponse:
+    def focus(request: Request, token: str, place: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
+        running = subscription.options.get("focus") or {}
         return page(
             request,
             "focus.html",
             token=token,
             focus=service.focus_view(subscription, config.clock()),
+            # The place on the map a session is studied at, or is about to be (D133).
+            place=service.place_info(store, running.get("place") if running else place[:20]),
             question=service.opener_view(
                 store, subscription, (subscription.options.get("focus") or {}).get("opener")
             ),
@@ -1511,6 +1526,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 repair=str(form.get("repair") or "") or None,
                 # A self-test opens with one of its week's cards (D128).
                 opener=service.opening_card(store, current, sid, config.clock()),
+                # Where, if the student chose a place on the map (D133).
+                place=(service.place_info(store, str(form.get("place") or "")[:20]) or {}).get("id"),
                 now=config.clock(),
             )
 
@@ -1542,6 +1559,72 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus done",
         )
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/log", 303)
+
+    # ------------------------------------------------------------ the study map (D133)
+
+    @app.get("/p/{token}/map", response_class=HTMLResponse)
+    def study_map(request: Request, token: str, at: str = "") -> HTMLResponse:
+        """Who is studying where: the people followed by name, everyone else counted."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        view = service.map_view(store, subscription, config.clock(), at=at[:20] or None)
+        answer = page(request, "map.html", token=token, view=view, tab="community")
+        answer.headers.update(MAP_HEADERS)
+        return answer
+
+    @app.post("/p/{token}/map/place")
+    async def map_add_place(request: Request, token: str) -> Response:
+        """A public place to study, named and tapped on the map."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        try:
+            added = service.add_place(
+                store, subscription, {k: str(v) for k, v in form.items()}, config.clock()
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "place added")
+        return RedirectResponse(f"/p/{token}/map?at={added['id']}#places", 303)
+
+    @app.post("/p/{token}/map/here")
+    async def map_here(request: Request, token: str) -> Response:
+        """Study at a place: the running session moves there; without one, the focus
+        page opens with the place chosen."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=2)
+        place = service.place_info(store, str(form.get("place") or "")[:20])
+        if place is None:
+            return refused(
+                request, token, service.InvalidInput(service.translate("this place is no longer on the map"))
+            )
+        if not subscription.options.get("focus"):
+            return RedirectResponse(f"/p/{token}/focus?place={place['id']}", 303)
+        done = await focus_change(
+            request,
+            token,
+            lambda current, _form: service.choose_place(store, current, place["id"]),
+            "focus place",
+        )
+        return (
+            done
+            if isinstance(done, Response)
+            else RedirectResponse(f"/p/{token}/map?at={place['id']}#places", 303)
+        )
+
+    @app.post("/p/{token}/map/leave")
+    async def map_leave(request: Request, token: str) -> Response:
+        done = await focus_change(
+            request, token, lambda current, _form: service.leave_place(current), "focus place"
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/map#places", 303)
 
     @app.post("/p/{token}/focus/question/skip")
     async def focus_skip_question(request: Request, token: str) -> Response:

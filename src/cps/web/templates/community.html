@@ -31,6 +31,11 @@
 
 {% set nav = view.tab %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
 
+{% if view.tab != "explore" %}
+{# The study map (D133): who is studying where. #}
+<a class="card link-card section map-link" href="/p/{{ token }}/map"><b>{{ _("Who's studying where") }}</b><span class="muted">{{ _("The map of places to study, and who is at each now.") }}</span></a>
+{% endif %}
+
 {% if view.tab != "explore" and view.studying %}
 {# Studying now (D108): who the student follows is focusing, for those who said yes;
    Join starts the student's own timer, on their course of the same name. #}

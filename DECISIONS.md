@@ -5072,3 +5072,92 @@ they ended add no memory (D44). Memory days and month-long topics are the memory
 estimate with average weights, said on the page. Checked in Chromium only, at phone size
 light and dark and at 1280px; the share sheet itself was not tried (headless Chromium has
 none), the copy button was.
+
+## D132. Calm glass: tinted by default, nothing on the app's pages moving with the scroll
+
+*The owner, 2026-11-16: "the liquid glass works well but sometimes it makes me nauseous",
+then "do the glass". Apple answered the same complaint about its Liquid Glass with a
+setting in iOS 26.1, Clear or Tinted, the second more opaque. WCAG 2.3.3 (Animation from
+Interactions) names movement that follows scrolling, parallax first, as what brings on
+dizziness and nausea in people with vestibular disorders.*
+
+**Chosen.**
+
+- *Tinted glass by default.* Glass's Automatic setting (D93) now tints the panes: their
+  fill is 74 to 88 % opaque instead of 24 to 56 %, in light and dark, so what passes under
+  the top bar, the tab bar and the cards as a page scrolls barely shows; their edge, light
+  and blur stay. Automatic still turns the glass solid when the device asks for less
+  transparency or blurs too slowly. See-through keeps D73's clear glass; Solid is unchanged.
+  Settings say so.
+- *Nothing on the app's own pages moves with the scroll.* The home and sign-in pages' cards
+  no longer rise into place as they scroll in (D37's `surface`), and pages fade into each
+  other without the small rise they had (D30). Only the explaining pages keep their scenes
+  that run with the scroll (D109, D112, D113), and only with motion on. The top bar's
+  colour still comes in as a page scrolls under it: a colour, nothing that moves.
+- `tests/test_tinted_glass.py` checks the three tinted blocks, that every rule tied to the scroll is
+  an explaining page's (under motion on) or the top bar's colour, and that page transitions
+  only fade.
+
+**Rejected.** Solid by default (the owner likes the glass; tinted keeps it). Removing the
+explaining pages' scenes (they are what those pages are for, and Motion: Reduced already
+stops them). A new setting (three were enough: Automatic changed its meaning).
+
+**Disclosed.** Which effect made the owner feel sick was not isolated: the tint and the
+removed movements are the likely causes, not measured ones. The tint's values are choices
+of taste, checked in Chromium only, at phone size light and dark and at 1280px. Someone who
+chose See-through before keeps it.
+
+## D133. The study map: who is studying where, the people followed by name, everyone else counted
+
+*The owner, 2026-11-16: "a map of where other people are studying if one wants to join
+them", then "do … the map with dependencies and show only followers names but count other
+people studying there already". The owner approved the two outside pieces this needs: a map
+library and a tile server.*
+
+**Chosen.**
+
+- *Places, not people.* A place to study is public: a name and the point a student tapped
+  on the map, added by anyone with a handle (D16), ten a day at most; the same name within
+  about 50 m is the same place (`social.add_place`). Who added it is kept only for their copy
+  and their deletion; deleting the plan leaves the place, without them (`_FORGET`).
+- *Who is there.* A student is at a place only while their focus timer runs there, only if
+  they chose that place for the session, and only if they said yes to Studying now (D108).
+  On the map, the people a student follows show by handle and course; everyone else is a
+  count; nobody blocked either way is shown or counted (`social.who_is_where`,
+  `service.map_view`). A place's line reads "@bob and 1 other", "2 people studying",
+  "Just you" or "Nobody yet".
+- *Study here, Join.* From the map or its list, a running session moves to the place; without
+  one, the focus page opens with the place chosen, and the session started there carries it
+  (`start_focus(place=…)`, `choose_place`, `leave_place`). The focus page says "At {place}".
+- *The map.* `/p/<plan>/map`, linked from Community and the focus page: Leaflet 1.9.4
+  (BSD 2-Clause, the minified script, its stylesheet, images and licence shipped in
+  `static/vendor/leaflet/`, its integrity checked against npm's record) over OpenStreetMap's
+  standard tiles, under their usage policy: the attribution on the map and below it, a
+  "Report a map problem" link, the tile address given by the page rather than written in the
+  script, only the tiles in view (no prefetch, nothing kept for offline: the service worker
+  ignores other sites), and a referrer on each tile, the site's origin only
+  (`referrerPolicy: "origin"`), so a plan's address never reaches the tile server. Only this
+  page's Content-Security-Policy allows the tile server's images, and only its
+  Permissions-Policy allows the device's position: "Near me" uses it to move the map, and it
+  is never sent. The list of places, with Study here and Join, works without the script;
+  adding a place needs the map. Under reduced motion the map neither glides nor fades
+  (D132), and in dark mode its tiles are drawn dark.
+
+**Rejected.** Students' own positions as dots (where someone is, live, is what a stalker
+wants; a chosen public place says enough to join). Counts only from three people upward (the
+owner chose to count everyone else; a count names nobody). Names for everyone (a classmate
+not followed has not agreed to be named). Reading places from OpenStreetMap's own data (an
+Overpass query from the server, another outside service; students add the places they use).
+A map library that draws vector tiles in WebGL (heavier, and a GPU at work under a page that
+should rest, D93). Caching tiles on the server (the policy discourages it, and it would make
+the server a tile proxy).
+
+**Disclosed.** OpenStreetMap's tile servers see each viewer's internet address and the area
+viewed (the privacy notice says so); they come with no guarantee and may refuse heavy use, in
+which case another tile source is a one-line change in `service.MAP_TILES`. A place's point is
+where a student tapped, not checked against the world; a place named to mislead can be added,
+and there is no reporting of places yet. A count of one at a small place can tell a classmate
+who is there. Places are listed within about 28 km of the map's centre, which is the student's
+place, else their time zone's main city (D76), not their university. Checked in Chromium only,
+at phone size light and dark and at 1280px, with tiles loaded through this environment's
+network; not on a real phone, Safari or Firefox.

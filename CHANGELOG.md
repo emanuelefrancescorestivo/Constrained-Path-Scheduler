@@ -7,6 +7,15 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The study map (DECISIONS.md D133): Community's map of places to study and who is at each
+  now, the people you follow by name and everyone else as a count; Study here or Join moves
+  your focus session to a place, and anyone with a handle can add a place by tapping the map.
+  Leaflet over OpenStreetMap's tiles; "Near me" moves the map without sending your position.
+
+- Calm glass (DECISIONS.md D132): the glass is tinted by default, so what scrolls beneath
+  it barely shows (See-through keeps the clear glass); nothing on the app's pages moves as
+  a page scrolls, and pages fade into each other without moving.
+
 - The semester recap (DECISIONS.md D131): once every exam is behind, your semester in
   numbers (sessions, hours, days, best streak, memory days, topics that hold a month, recalls
   against the odds, days studied together, your exams), to share if you like through your

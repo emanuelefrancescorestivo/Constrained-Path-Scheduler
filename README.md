@@ -418,8 +418,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1336 passed, 17 deselected (slow), 1 xfailed, ~450 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1353 passed, 1 xfailed, 94% coverage
+pytest                                    # 1347 passed, 17 deselected (slow), 1 xfailed, ~450 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1364 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
@@ -442,4 +442,8 @@ the project folder itself in the terminal before creating the environment.
 
 ## Licence
 
-MIT, see `LICENSE`.
+MIT, see `LICENSE`. The app also ships Leaflet 1.9.4 for the study map (BSD 2-Clause,
+`src/cps/web/static/vendor/leaflet/LICENSE`), its two type faces (SIL Open Font Licence,
+`src/cps/web/static/fonts/`) and the list of universities (MIT, `src/cps/data/`). The study
+map's tiles are OpenStreetMap's, © OpenStreetMap contributors
+(https://www.openstreetmap.org/copyright).
