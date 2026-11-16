@@ -4305,7 +4305,7 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .side-title a { color: inherit; }
 .side-title a[aria-current="page"] { color: var(--accent-ink); }
 .mini-month { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.mini-month th { padding: 0 0 4px; font-weight: 600; color: var(--muted); font-size: 0.72rem; }
+.mini-month th { padding: 0 0 4px; font-weight: 600; color: var(--muted); font-size: 0.75rem; }
 .mini-month abbr { text-decoration: none; }
 .mini-month td { padding: 1px 0; text-align: center; }
 .side-day {
@@ -4330,10 +4330,10 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .side-nav a:hover, .side-courses li a:hover { background: var(--fill-3); }
 .side-nav a[aria-current="page"], .side-courses li a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .side-nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.side-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.72rem; font-weight: 700; text-align: center; line-height: 18px; }
+.side-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.75rem; font-weight: 700; text-align: center; line-height: 18px; }
 .side-courses ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
 .side-courses li a .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side-courses li a small { flex: none; font-size: 0.74rem; color: var(--muted); }
+.side-courses li a small { flex: none; font-size: 0.75rem; color: var(--muted); }
 .side-courses li a small.is-soon { color: var(--danger-text); font-weight: 600; }
 .side-courses .hint, .side-more-courses { margin: 4px 8px; font-size: 0.85rem; }
 
