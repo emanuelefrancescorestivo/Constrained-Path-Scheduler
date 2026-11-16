@@ -5002,3 +5002,41 @@ session.
 results as well as their freshness; whether varied lines bring more sessions here is for
 the pilot. A reminder's line follows the plan as it stands when it is sent. Not tried on a
 real phone (D38); checked through the tests and the settings page in Chromium only.
+
+## D130. Unannounced moments: a topic's first month, and a first week without forgetting
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's H: rare
+moments, never scheduled in advance. In Deci, Koestner and Ryan's meta-analysis of 128
+studies, rewards expected in advance lowered free-choice intrinsic motivation, and positive
+feedback raised it (d = 0.33) [ref:deci1999]. So each moment is feedback on what the
+student did, said once, with nothing counted down to.*
+
+**Chosen.**
+
+- *A topic's first month.* When an answered self-test takes its topic past 30 days of
+  memory for the first time (the stability before it under 30, after it 30 or more, the
+  answer a recall), its card adds "A first for this topic: it now holds more than a month",
+  beside the garden's flower, with confetti once (D30). Never on a forgotten answer, a
+  second pass on the same day, or a topic already past a month (`_memory_words`'s `month`,
+  from `session_gains`, which now carries the stability after the review).
+- *A first week without forgetting.* The first week (Monday to Sunday) in which the student
+  recalled every self-test they answered, at least three, is said on Today the week after:
+  "A first. Last week, you recalled every self-test you answered", with how many and which
+  week (`service.recall_week`, Today's message "recalled", after the first run's messages
+  and before the semester's end). Only the first such week, and only the week after it.
+
+**Rejected.** The doc's "a first week with every topic above 90 %": on the sample semester
+followed exactly as planned (two courses, seven weeks), some topic taught before each week
+was below 90 % at the end of that week (`tests/test_moments.py` pins it), as
+`benchmarks/rule_vs_planner.py` finds that not every topic reaches 90 % at the weekly
+budget; the moment would never come. A bloom that
+grows in the margins' garden with the count of month-long topics (the garden already follows
+the streak, D73; two meanings in one picture). A progress bar or a count toward either
+moment, which would make it announced. A moment for hours studied (D41 has no badge for
+hours).
+
+**Disclosed.** A month is FSRS-6 with average weights after the answer as graded; the
+threshold is a choice. "Recalled" counts Some, Most and All, as the plan does (D125); a
+student who answers Most every time gets the week easily, as the plan assumes they would.
+Checked in Chromium only, at phone size light and dark and at 1280px; whether these moments
+keep anyone studying is for the pilot.

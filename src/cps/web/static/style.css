@@ -1422,6 +1422,12 @@ label.check.check-long input { margin-top: 3px; flex: none; }
 .banked small { color: var(--muted); font-size: 0.8rem; }
 .banked .tip-reason { display: block; color: var(--accent-ink); font-size: 0.82rem; font-weight: 650; margin: 0 0 2px; }
 .banked-beaten { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
+/* A topic's first month (D130): the garden's flower beside the line */
+.banked-bloom { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.banked-bloom::before {
+  content: ""; flex: none; width: 22px; height: 26px; background: var(--bloom-ink);
+  -webkit-mask: url("/static/garden/flower.svg") no-repeat center / contain; mask: url("/static/garden/flower.svg") no-repeat center / contain;
+}
 .banked-today .kicker { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .banked-today .kicker .dot { flex: none; }
 .recall-hint { margin: 2px 0 6px; }
@@ -2385,6 +2391,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   --glass-field: rgb(255 255 255 / 55%);
   --doodle: rgb(44 56 108 / 34%);
   --bloom: rgb(232 92 150 / 50%);
+  --bloom-ink: rgb(214 70 135);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -2402,6 +2409,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
     --glass-field: rgb(255 255 255 / 8%);
     --doodle: rgb(222 230 255 / 28%);
     --bloom: rgb(255 140 190 / 45%);
+    --bloom-ink: rgb(255 150 198);
   }
 }
 :root[data-theme="dark"] {
@@ -2419,6 +2427,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   --glass-field: rgb(255 255 255 / 8%);
   --doodle: rgb(222 230 255 / 28%);
   --bloom: rgb(255 140 190 / 45%);
+  --bloom-ink: rgb(255 150 198);
 }
 
 /* Type: Figtree for reading, Bricolage Grotesque for what is large. */

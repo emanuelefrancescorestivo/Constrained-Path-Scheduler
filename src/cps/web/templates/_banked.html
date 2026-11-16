@@ -13,4 +13,6 @@
 {% elif m.verdict == "forgot" %}
 <p class="banked">{{ _("Forgotten at a {chance} % chance: good to know now.", chance=m.chance) }} {% if m.next %}{{ _("It comes back {when}.", when=m.next) }}{% else %}{{ _("The plan brings it back.") }}{% endif %} <small>{{ _("A model's estimate.") }}</small></p>
 {% endif %}
+{# An unannounced moment (D130): this recall took the topic past a month, once. #}
+{% if m.month %}<p class="banked banked-bloom" data-celebrate="month-{{ card.id }}">{{ _("A first for this topic: it now holds more than a month.") }}</p>{% endif %}
 {% endmacro %}

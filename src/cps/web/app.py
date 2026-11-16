@@ -1252,6 +1252,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "repair": service.repair_offer(store, subscription, now),
             # Who the student studies together with, and their days in a row (D127).
             "together": service.together_view(store, subscription, now)["pairs"],
+            # A first week with every self-test recalled, said the week after (D130).
+            "recalled": service.recall_week(subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1267,6 +1269,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             repair=context["repair"],
             first=context["first_day"],
             remind=service.remind_ask(store, subscription),
+            recalled=context["recalled"],
             semester=context["semester_over"],
             usage=context["usage_ask"],
             fit=context["fit"],

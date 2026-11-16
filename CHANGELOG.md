@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Unannounced moments (DECISIONS.md D130): when a recall first takes a topic past a month of
+  memory, its card says so beside the garden's flower; the first week in which you recalled
+  every self-test you answered, at least three, is said on Today the week after. Neither is
+  announced or counted down to.
+
 - Reminders that vary (DECISIONS.md D129): a reminder's words change from one session to
   the next, each a true line from the plan (what to do, a self-test's stakes, that it opens
   with a question from your cards, which of the day's sessions it is); none comes between

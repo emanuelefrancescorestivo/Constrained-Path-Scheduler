@@ -2869,4 +2869,10 @@ MESSAGES: dict[str, str] = {
     "It opens with one question from your cards.": "Comincia con una domanda dalle tue schede.",
     "Session {k} of {n} planned today.": "Sessione {k} delle {n} previste oggi.",
     "Their words change from one to the next, and each says only what your plan says. None come between going to bed and getting up.": "Le loro parole cambiano dall'uno all'altro, e ognuno dice solo ciò che dice il tuo piano. Nessuno arriva tra quando vai a letto e quando ti alzi.",
+    # Unannounced moments (D130)
+    "A first for this topic: it now holds more than a month.": "Una prima volta per questo argomento: ora regge più di un mese.",
+    "A first": "Una prima volta",
+    "Last week, you recalled every self-test you answered.": "La settimana scorsa hai ricordato ogni autotest a cui hai risposto.",
+    "{n} self-test, the week of {day}: none forgotten.": "{n} autotest, la settimana del {day}: nessuno dimenticato.",
+    "{n} self-tests, the week of {day}: none forgotten.": "{n} autotest, la settimana del {day}: nessuno dimenticato.",
 }

@@ -3308,10 +3308,23 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # answer is wanted while it is fresh, D56), then the answer just given beside its
 # forecast (D105), then, on the plan's first day with nothing left to do that day, a
 # first short session (D106), then, once a first run's first session is done, the
-# question about reminders (D107), then the end of the semester, then the question about
+# question about reminders (D107), then a first week without forgetting, the week after it (D130),
+# then the end of the semester, then the question about
 # counting what is used (D96), then a question that makes the plan fit (D98), then an
 # insight (D80), then a tip the day calls for (D63).
-MESSAGES = ("exam", "outcome", "repair", "first", "remind", "semester", "usage", "fit", "insight", "tip")
+MESSAGES = (
+    "exam",
+    "outcome",
+    "repair",
+    "first",
+    "remind",
+    "recalled",
+    "semester",
+    "usage",
+    "fit",
+    "insight",
+    "tip",
+)
 
 
 FIRST_DAY_MINUTES = 25  # the first day's short session (D106), the timer's shortest goal
@@ -4497,6 +4510,15 @@ def _session_card(
 # said to add nothing, as the model's short-term term has it (CLAUDE.md, D125).
 BEATEN_BELOW = 50
 
+# Unannounced moments (D130): rare, true, never counted down to. A topic that a recall
+# takes past a month of memory for the first time blooms on the answer's card; the
+# first week in which every self-test answered was recalled is said once, the week
+# after. In Deci, Koestner and Ryan's meta-analysis, rewards expected in advance lowered
+# free-choice intrinsic motivation and positive feedback raised it (DECISIONS.md D130),
+# so each of these is feedback on what the student did, and none is announced.
+MONTH_DAYS = 30
+RECALL_WEEK_LEAST = 3  # fewer answers than this make no week worth saying
+
 
 def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now: datetime) -> dict | None:
     """What an answered self-test did (D125): None before the answer, for a skipped
@@ -4512,8 +4534,11 @@ def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now:
         verdict = "beaten"
     else:
         verdict = "forecast"
+    after = gain.get("stability", 0.0)
     return {
         "verdict": verdict,
+        # An unannounced moment (D130): this answer took the topic past a month.
+        "month": verdict in ("beaten", "forecast") and after - gain["added"] < MONTH_DAYS <= after,
         "chance": gain["chance"],
         "added": max(0, round(gain["added"])),
         "holds": format_date(gain["holds"], "short"),
@@ -9129,6 +9154,8 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
                 "next": following.start if following else None,
                 # The exam's day, for the session's stakes (D128).
                 "exam": plan.settings.start + timedelta(days=exam),
+                # How long it then holds, for a topic's first month (D130).
+                "stability": after.stability,
             }
         states[session.title] = (after, session.start_day)
     return out
@@ -10812,6 +10839,33 @@ def _memory_timeline(
             i += 1
         snapshots.append([m.stability for name, (m, _) in state.items() if taught[name] <= end])
     return snapshots, gains, state
+
+
+def recall_week(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """The first week (Monday to Sunday) in which the student recalled every self-test
+    they answered, at least `RECALL_WEEK_LEAST` of them (D130), when that week is the
+    one just past; None otherwise. Said once, the week after; never counted down to."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    this_monday = local.date() - timedelta(days=local.weekday())
+    weeks: dict[date, list[str]] = {}
+    for session in plan.history:
+        if session.kind in ("review", "first review") and session.grade in _GRADES:
+            day = datetime.fromisoformat(session.start).astimezone(zone).date()
+            monday = day - timedelta(days=day.weekday())
+            if monday < this_monday:
+                weeks.setdefault(monday, []).append(session.grade)
+    for monday in sorted(weeks):
+        grades = weeks[monday]
+        if len(grades) >= RECALL_WEEK_LEAST and "again" not in grades:
+            if monday == this_monday - timedelta(days=7):
+                return {"answered": len(grades), "monday": format_date(monday, "day_short")}
+            return None  # the first such week was earlier: said then, not again
+    return None
 
 
 def learning_view(
