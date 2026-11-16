@@ -320,6 +320,17 @@ CREATE TABLE IF NOT EXISTS presence (
     started TEXT NOT NULL,
     until   TEXT NOT NULL
 );
+-- The study map (D133): public places to study (a library, a café), added by students,
+-- each a name and a point; who added one is kept only to let them export or forget it.
+CREATE TABLE IF NOT EXISTS places (
+    id       TEXT PRIMARY KEY,
+    name     TEXT NOT NULL,
+    lat      REAL NOT NULL,
+    lon      REAL NOT NULL,
+    added_by TEXT,
+    created  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS places_by_lat ON places (lat);
 -- Studying together (D127): a pair of students, the ask and when it was accepted.
 CREATE TABLE IF NOT EXISTS buddies (
     asker    TEXT NOT NULL,
@@ -352,6 +363,7 @@ _ADDED_COLUMNS = (
     # A reaction to a session (D108); the kudos given before it stay kudos.
     ("kudos", "kind", "TEXT NOT NULL DEFAULT 'kudos'"),
     ("profiles", "studying_now", "INTEGER NOT NULL DEFAULT 0"),  # the yes to Studying now (D108)
+    ("presence", "place", "TEXT"),  # where, if the student chose a place on the map (D133)
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 
@@ -379,6 +391,8 @@ _FORGET = (
     "DELETE FROM comments WHERE token = :t",
     "DELETE FROM kudos WHERE token = :t",
     "DELETE FROM presence WHERE token = :t",
+    # A place a student added stays on the map for others; it no longer names who (D133).
+    "UPDATE places SET added_by = NULL WHERE added_by = :t",
     "DELETE FROM reports WHERE reporter = :t",
     "DELETE FROM follows WHERE follower = :t OR followed = :t",
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
@@ -421,7 +435,9 @@ _EXPORT = {
     "ORDER BY created",
     "comments": "SELECT id, post, created, body, hidden FROM comments WHERE token = :t ORDER BY created",
     "kudos": "SELECT post, kind, created FROM kudos WHERE token = :t ORDER BY created",
-    "studying_now": "SELECT course, started, until FROM presence WHERE token = :t",
+    "studying_now": "SELECT x.course, x.started, x.until, COALESCE(p.name, '') AS place FROM presence x "
+    "LEFT JOIN places p ON p.id = x.place WHERE x.token = :t",
+    "places_added": "SELECT name, lat, lon, created FROM places WHERE added_by = :t ORDER BY created, rowid",
     "follows": "SELECT CASE WHEN f.follower = :t THEN 'you follow' ELSE 'follows you' END AS direction, "
     "COALESCE(p.handle, '') AS handle, f.status, f.created FROM follows f LEFT JOIN profiles p "
     "ON p.token = CASE WHEN f.follower = :t THEN f.followed ELSE f.follower END "

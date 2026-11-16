@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{# The study map (D133): `view` from service.map_view. The list of places works without
+   the page's script; the map is Leaflet over OpenStreetMap's tiles, drawn by map.js. The
+   people the student follows show by name, everyone else as a count; a place shows only
+   where a student chose to study, never where they are. #}
+{% block title %}{{ _("Who's studying where") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
+<script src="{{ asset('vendor/leaflet/leaflet.js') }}" defer></script>
+<script type="module" src="{{ asset('map.js') }}"></script>
+{% endblock %}
+{% block main %}
+<div class="page-title">
+  <h1>{{ _("Who's studying where") }}</h1>
+  <p>{{ _("The people you follow by name, everyone else as a count. Only the place you choose is shown, never where you are.") }}</p>
+</div>
+
+{% if not view.profile %}
+<a class="card link-card nudge-card section" href="/p/{{ token }}/profile"><b>{{ _("Choose a handle to appear on the map") }}</b><span class="muted">{{ _("With a handle you can study at a place and add places.") }}</span></a>
+{% elif not view.on %}
+<a class="card link-card nudge-card section" href="/p/{{ token }}/profile"><b>{{ _("Turn on Studying now to be seen at a place") }}</b><span class="muted">{{ _("The map shows only those who said yes, and only while their focus timer runs.") }}</span></a>
+{% elif view.focusing and view.mine %}
+<div class="card nudge-card section map-mine">
+  <span class="tip-reason">{{ _("Your session") }}</span>
+  <b>{{ _("You're studying at {place}", place=view.mine_name) }}</b>
+  <form method="post" action="/p/{{ token }}/map/leave" class="row-end"><button type="submit" class="btn btn-sm btn-plain">{{ _("Leave this place") }}</button></form>
+</div>
+{% elif view.focusing %}
+<p class="hint section">{{ _("Your session is at no place yet: choose one below, and the people you follow see you there.") }}</p>
+{% endif %}
+
+<div class="study-map section" id="study-map" hidden
+  data-tiles="{{ view.tiles }}" data-lat="{{ view.center[0] }}" data-lon="{{ view.center[1] }}" data-zoom="{{ view.zoom }}"
+  data-at="{{ view.at }}" data-can-add="{{ 1 if view.profile else 0 }}" data-can-study="{{ 1 if view.on else 0 }}"
+  data-action="/p/{{ token }}/map/here"
+  data-words='{{ {"here": _("Study here"), "join": _("Join"), "you": _("You are here"), "attribution": _("© {link} contributors", link="OpenStreetMap")} | tojson }}'
+  data-places='{{ view.places | tojson }}'></div>
+<div class="map-tools" data-map-tools hidden>
+  <button type="button" class="btn btn-sm" data-map-near hidden>{{ _("Near me") }}</button>
+  {% if view.profile %}<span class="hint">{{ _("Tap the map to add a place.") }}</span>{% endif %}
+</div>
+<p class="hint map-credit">{{ _h("Map data © <a href=\"https://www.openstreetmap.org/copyright\" rel=\"noopener noreferrer\" target=\"_blank\">OpenStreetMap</a> contributors · <a href=\"https://www.openstreetmap.org/fixthemap\" rel=\"noopener noreferrer\" target=\"_blank\">Report a map problem</a>") }}</p>
+
+{% if view.profile %}
+<form method="post" action="/p/{{ token }}/map/place" class="card section map-add" id="map-add" hidden>
+  <label for="place-name">{{ _("A place to study, where you tapped") }}</label>
+  <input id="place-name" name="name" maxlength="60" required autocomplete="off" placeholder="{{ _('Library, café, a study room…') }}">
+  <input type="hidden" name="lat" id="place-lat"><input type="hidden" name="lon" id="place-lon">
+  <p class="hint">{{ _("Public places only: everyone using the map sees it, never who added it.") }}</p>
+  <div class="row-end"><button type="button" class="btn btn-sm btn-plain" data-map-cancel>{{ _("Cancel") }}</button><button type="submit" class="btn btn-sm btn-primary">{{ _("Add the place") }}</button></div>
+</form>
+{% endif %}
+
+<section class="section" id="places" aria-labelledby="places-title">
+  <div class="section-title"><h2 id="places-title">{{ _("Places") }}</h2><small>{{ _n("{n} person studying now", "{n} people studying now", view.studying) }}</small></div>
+  {% if view.places %}
+  <div class="card"><ul class="list places-list">
+    {% for pl in view.places %}
+    <li{% if pl.id == view.at %} class="is-new"{% endif %}>
+      <span class="place-count{% if not pl.count %} is-empty{% endif %}" aria-hidden="true">{{ pl.count }}</span>
+      <span class="grow"><b>{{ pl.name }}</b><small class="muted">{{ pl.line }}{% for n in pl.named %}{% if loop.first %} · {% endif %}{{ n.course }}{% if not loop.last %}, {% endif %}{% endfor %}</small></span>
+      {% if pl.me %}<span class="badge badge-accent">{{ _("You are here") }}</span>
+      {% elif view.on %}<form method="post" action="/p/{{ token }}/map/here"><input type="hidden" name="place" value="{{ pl.id }}"><button type="submit" class="btn btn-sm{% if pl.named %} btn-primary{% endif %}">{% if pl.named %}{{ _("Join") }}{% else %}{{ _("Study here") }}{% endif %}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul></div>
+  {% else %}
+  <div class="card empty"><b>{{ _("No places near you yet") }}</b><p class="muted">{{ _("Add the library or the café where you study: tap the map where it is.") }}</p></div>
+  {% endif %}
+  <p class="hint map-noscript">{{ _("Adding a place needs the map, which needs this page's script.") }}</p>
+</section>
+{% endblock %}

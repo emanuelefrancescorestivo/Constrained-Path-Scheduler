@@ -23,7 +23,7 @@ import sqlite3
 import struct
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from . import pdftext, universities
 from .i18n import _
@@ -887,17 +887,20 @@ def set_studying_now(store: Store, token: str, on: bool) -> None:
             db.execute("DELETE FROM presence WHERE token = ?", (token,))
 
 
-def mark_present(store: Store, token: str, course: str, started: datetime, until: datetime) -> bool:
-    """A focus session running: shown to followers if the student said yes; True if so."""
+def mark_present(
+    store: Store, token: str, course: str, started: datetime, until: datetime, place: str | None = None
+) -> bool:
+    """A focus session running: shown to followers if the student said yes; True if so.
+    `place` is where the student chose to be seen on the map (D133), if anywhere."""
     if not studying_now_on(store, token):
         clear_presence(store, token)
         return False
     with store.connection() as db:
         db.execute(
-            "INSERT INTO presence (token, course, started, until) VALUES (?, ?, ?, ?) "
+            "INSERT INTO presence (token, course, started, until, place) VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT (token) DO UPDATE SET course = excluded.course, started = excluded.started, "
-            "until = excluded.until",
-            (token, course[: LIMITS["course"]], _now(started), _now(until)),
+            "until = excluded.until, place = excluded.place",
+            (token, course[: LIMITS["course"]], _now(started), _now(until), place or None),
         )
     return True
 
@@ -933,6 +936,128 @@ def present_followed(
         profile = get_profile(store, token)
         if profile is not None:
             out.append((profile, course, datetime.fromisoformat(started)))
+    return out
+
+
+# The study map (D133): public places to study (a library, a café), added by students,
+# each a name and the point they tapped on the map; the server never learns where a
+# student is, only the place they chose. While a focus session runs at a place, the
+# people who follow the student see them there by name; everyone else only counts them;
+# nobody blocked either way sees or is seen.
+PLACE_NAME = 60
+PLACES_A_DAY = 10
+PLACE_SAME = 0.00045  # degrees, 50 m north to south: a place of the same name this close is that place
+
+
+@dataclass(frozen=True)
+class Place:
+    id: str
+    name: str
+    lat: float
+    lon: float
+
+
+def _point(lat: object, lon: object) -> tuple[float, float]:
+    try:
+        y, x = float(str(lat)), float(str(lon))
+    except ValueError:
+        raise SocialError(_("choose the place on the map")) from None
+    if not (-85.0 <= y <= 85.0 and -180.0 <= x <= 180.0):
+        raise SocialError(_("choose the place on the map"))
+    return round(y, 5), round(x, 5)
+
+
+def add_place(
+    store: Store, token: str, name: str, lat: object, lon: object, now: datetime | None = None
+) -> Place:
+    """A public place to study, or the one of that name already there (within about
+    50 m). It needs a handle, as a post does (D16), and a student adds ten a day at most."""
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    name = " ".join(str(name or "").split())[:PLACE_NAME]
+    if len(name) < 2:
+        raise SocialError(_("give the place a name"))
+    y, x = _point(lat, lon)
+    stamp = _now(now)
+    with store.connection() as db:
+        same = db.execute(
+            "SELECT id, name, lat, lon FROM places WHERE lower(name) = lower(?) "
+            "AND abs(lat - ?) < ? AND abs(lon - ?) < ?",
+            (name, y, PLACE_SAME, x, PLACE_SAME),
+        ).fetchone()
+        if same:
+            return Place(*same)
+        day_ago = _now((now or datetime.now(UTC)) - timedelta(days=1))
+        (added,) = db.execute(
+            "SELECT COUNT(*) FROM places WHERE added_by = ? AND created > ?", (token, day_ago)
+        ).fetchone()
+        if added >= PLACES_A_DAY:
+            raise SocialError(_("that is enough new places for today"))
+        place = Place(_new_id(), name, y, x)
+        db.execute(
+            "INSERT INTO places (id, name, lat, lon, added_by, created) VALUES (?, ?, ?, ?, ?, ?)",
+            (place.id, place.name, place.lat, place.lon, token, stamp),
+        )
+    return place
+
+
+def get_place(store: Store, place_id: str | None) -> Place | None:
+    if not place_id:
+        return None
+    with store.connection() as db:
+        row = db.execute("SELECT id, name, lat, lon FROM places WHERE id = ?", (place_id,)).fetchone()
+    return Place(*row) if row else None
+
+
+def places_around(store: Store, lat: float, lon: float, span: float, limit: int = 200) -> list[Place]:
+    """The places within `span` degrees of a point, the nearest first."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT id, name, lat, lon FROM places WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? "
+            "ORDER BY (lat - ?) * (lat - ?) + (lon - ?) * (lon - ?) LIMIT ?",
+            (lat - span, lat + span, lon - span * 1.5, lon + span * 1.5, lat, lat, lon, lon, limit),
+        ).fetchall()
+    return [Place(*r) for r in rows]
+
+
+def who_is_where(store: Store, viewer: str, now: datetime | None = None) -> dict[str, dict]:
+    """For each place someone studies at now (D133), as `viewer` may see it: the people
+    they follow there by profile and course, how many others, and whether the viewer
+    is there. Only students who said yes to Studying now (D108) are at a place."""
+    stamp = _now(now)
+    with store.connection() as db:
+        db.execute("DELETE FROM presence WHERE until < ?", (stamp,))
+        rows = db.execute(
+            "SELECT x.token, x.course, x.place FROM presence x JOIN profiles p ON p.token = x.token "
+            "AND p.studying_now = 1 WHERE x.place IS NOT NULL ORDER BY x.started DESC"
+        ).fetchall()
+        followed = {
+            r[0]
+            for r in db.execute(
+                "SELECT followed FROM follows WHERE follower = ? AND status = 'accepted'", (viewer,)
+            )
+        }
+        blocked = {
+            r[0]
+            for r in db.execute(
+                "SELECT blocked FROM blocks WHERE blocker = :v "
+                "UNION SELECT blocker FROM blocks WHERE blocked = :v",
+                {"v": viewer},
+            )
+        }
+    out: dict[str, dict] = {}
+    for token, course, place in rows:
+        here = out.setdefault(place, {"named": [], "others": 0, "me": False})
+        if token == viewer:
+            here["me"] = True
+        elif token in blocked:
+            continue
+        elif token in followed:
+            profile = get_profile(store, token)
+            if profile is not None:
+                here["named"].append((profile, course))
+        else:
+            here["others"] += 1
     return out
 
 

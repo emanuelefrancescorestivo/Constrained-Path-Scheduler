@@ -18,6 +18,7 @@
 <section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
   {% if focus.stakes %}<p class="focus-stakes">{{ focus.stakes.words }}</p>{% endif %}
+  {% if place %}<p class="focus-place"><a href="/p/{{ token }}/map?at={{ place.id }}">{{ _("At {place}", place=place.name) }}</a></p>{% endif %}
   {% if question %}
   {# A curious start (D128): one question from the week's cards; the answer comes at the end. #}
   <div class="card focus-question">
@@ -68,6 +69,7 @@
 {% if focus.suggested %}
 <form method="post" action="/p/{{ token }}/focus/start" class="card start-planned" data-tour="focus-start">
   <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
+  {% if place %}<input type="hidden" name="place" value="{{ place.id }}">{% endif %}
   <p class="kicker">{{ _("From your plan") }} · {{ focus.suggested.when }}</p>
   <h2>{{ focus.suggested.label }}</h2>
   {% if focus.suggested.stakes %}<p class="stakes">{{ focus.suggested.stakes.words }}</p>{% endif %}
@@ -76,6 +78,7 @@
 </form>
 {% endif %}
 <form method="post" action="/p/{{ token }}/focus/start" class="card section" data-tour="focus-start">
+  {% if place %}<input type="hidden" name="place" value="{{ place.id }}">{% endif %}
   <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>
   <input id="focus-course" name="course" list="focus-courses" required autocomplete="off" placeholder="{{ _('Course') }}">
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
@@ -83,6 +86,8 @@
   <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
   <p class="hint">{{ _("Rewards come at 30 minutes, at an hour, then every 45 minutes, and when you reach your length; only for time on this page.") }}</p>
 </form>
+{# The study map (D133): the place chosen there comes with the session started here. #}
+<p class="section hint focus-where">{% if place %}{{ _("At {place}", place=place.name) }} · <a href="/p/{{ token }}/focus">{{ _("no place") }}</a>{% else %}<a href="/p/{{ token }}/map">{{ _("Studying somewhere? Choose the place on the map") }}</a>{% endif %}</p>
 <p class="section hint" data-tour="focus-log"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
 {# The same pictures as under You (D99). #}
 <a class="card link-card cards-link with-art" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}" data-tour="focus-cards">
