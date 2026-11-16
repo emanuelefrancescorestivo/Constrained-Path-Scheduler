@@ -1,0 +1,8 @@
+{# D138: the server has the model and the student has not said yes to AI (D12):
+   one tap turns it on, saying what is sent where, and comes back here. #}
+<form method="post" action="/p/{{ token }}/ai" class="card section ai-offer">
+  <input type="hidden" name="on" value="1"><input type="hidden" name="back" value="{{ ai_back or 'make' }}">
+  <b>{{ _("Better cards with AI") }}</b>
+  <p class="muted">{{ _("Claude writes cards from your notes the way a teacher would ask, then checks each against them. Your notes are sent to Anthropic in the United States for this, and nothing else; turn it off in Settings whenever you like.") }}</p>
+  <button type="submit" class="btn btn-sm btn-tinted">{{ _("Turn on AI") }}</button>
+</form>

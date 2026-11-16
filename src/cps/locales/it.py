@@ -3053,4 +3053,14 @@ MESSAGES: dict[str, str] = {
     "Thick": "Folte",
     "Wide": "Spalancati",
     "Wink": "Occhiolino",
+    # D138: cards from notes by Claude, checked
+    "AI is on: cards from your notes are written by Claude, then each is checked against them.": "L'IA è attiva: le carte dai tuoi appunti sono scritte da Claude, poi ciascuna è controllata sugli appunti.",
+    "Better cards with AI": "Carte migliori con l'IA",
+    "Claude could not write cards this time (or your AI limit for today is reached): these come from the rules.": "Questa volta Claude non è riuscito a scrivere carte (o hai raggiunto il limite di IA di oggi): queste vengono dalle regole.",
+    "Claude writes cards from your notes the way a teacher would ask, then checks each against them. Your notes are sent to Anthropic in the United States for this, and nothing else; turn it off in Settings whenever you like.": "Claude scrive carte dai tuoi appunti come le chiederebbe un docente, poi controlla ciascuna sugli appunti. I tuoi appunti vengono inviati ad Anthropic negli Stati Uniti per questo, e nient'altro; disattivala nelle Impostazioni quando vuoi.",
+    "Claude writes the cards from your notes, then checks each against them; their text is sent to Anthropic for this, within your AI limits. Rules only keeps them on this server.": "Claude scrive le carte dai tuoi appunti, poi controlla ciascuna sugli appunti; il loro testo viene inviato ad Anthropic per questo, entro i tuoi limiti di IA. «Solo regole» li tiene su questo server.",
+    "Rules only": "Solo regole",
+    "Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.": "Manda un file PDF, Word, PowerPoint o di testo: Claude ne ricava carte e controlla ciascuna sui tuoi appunti; scegli tu quali tenere.",
+    "Turn on AI": "Attiva l'IA",
+    "Written by Claude from your notes, then checked against them card by card: still read each before you keep it.": "Scritte da Claude dai tuoi appunti, poi controllate carta per carta: rileggi comunque ciascuna prima di tenerla.",
 }

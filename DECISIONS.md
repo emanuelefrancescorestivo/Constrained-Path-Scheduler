@@ -5312,3 +5312,51 @@ Hats in their own colours (the clothes' colour keeps the number of choices down)
 **Disclosed.** Still a choice of shapes, not every person; the drawings were checked in
 Chromium only, at phone size, in eight combinations and as saved.
 
+## D138. Cards from notes written by Claude, checked card by card
+
+*The owner, 2026-11-16, after uploading a lecture's PDF on the demo (AUDIT 99): "the flashcard
+making must be perfected, we can use reasoning ai agents and llms for the purpose, even free cloud
+ones or install a small one with the app, these flashcards are not okay clearly". Asked which, the
+owner chose Claude Haiku over a free cloud model and a small model on the server.*
+
+**Chosen.**
+
+- *Two calls, as an agent would: write, then check* (`ai.cards_prompt`, `ai.check_prompt`,
+  `ai.checked_cards`). The first call writes cards the way an exam asks: each definition,
+  theorem, formula and method, a front that stands alone and names its subject (never
+  "Definition 1.1"), the shortest complete answer, mathematics in Unicode, words a PDF ran
+  together repaired; never a title, a lecture number, an aside or a fact the notes do not state.
+  The second call reads the same notes and the numbered cards and gives each a verdict: keep,
+  fix (with the corrected card) or drop (not stated in the notes, about a title or the layout, a
+  repeat). A card it does not mention is dropped; a check that cannot be read leaves the cards
+  as written, and the page says they were not checked.
+- *The model's cards alone.* Once the model wrote cards, only they are offered (D101 listed the
+  rules' cards under them); the rules are the fallback when the model is off, over the cap or
+  gives nothing, and the page says so. The student still picks each card (D84).
+- *With the student's yes, reading notes is the model's.* "Read my notes" sends them to Claude
+  when AI is on (D12); "Rules only" keeps them on the server. Without the yes, Flashcards and the
+  page that makes cards offer AI in one tap, saying what is sent where, and come back.
+- *The cost.* Claude Haiku 5.5 (D101's cards model): at most 0.023 USD a file of 60,000
+  characters, written and checked, 434 files under the default 10 USD monthly cap
+  (`benchmarks/syllabus_cost.py`); 20 calls a day per student make 10 files. The demo installs
+  the `ai` extra and declares `ANTHROPIC_API_KEY`, typed in Render's dashboard by the owner, with
+  a cap of 5 USD a month for every visitor together.
+- *The rules, the fallback, read lecture notes better* (AUDIT 99): a PDF's lines broken
+  mid-sentence are joined; a phrase with a verb or a pronoun, a lowercase start of three words
+  or more, and a title ("Lecture 08", "Settimana 3") are not terms; a numbered definition,
+  theorem, lemma, proposition or corollary with a name, in the seven languages, becomes
+  "Definition: name" with its statement, which stops at the proof.
+
+**Rejected.** A free cloud model (its account and its data terms for students' notes) and a small
+model on the server (memory and a minute a file on the pilot's server; weaker on mathematics):
+the owner's choice. One call with thinking instead of two (the check, a separate reading of each
+card against the notes, is what the owner asked for and what a student can be told). Fixing
+pypdf's run-together words by guessing from glyph positions (widths are not in the text pypdf
+gives; a wrong guess splits words).
+
+**Disclosed.** The model's cards and the check ran against a fake provider in the tests only:
+no real Claude answer has been tried on real notes yet, which needs the key on a server. The
+check reduces, but does not remove, cards that are wrong or poorly put; the student still reads
+each. The notes go to Anthropic in the United States only with the student's yes. The rules'
+cards from a LaTeX PDF keep words run together. Checked in Chromium only.
+

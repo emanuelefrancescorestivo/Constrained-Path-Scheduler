@@ -36,6 +36,8 @@ class Fake:
 
     def ask(self, system, prompt, schema, max_tokens):
         self.calls.append((system, json.loads(prompt), schema, max_tokens))
+        if schema is ai.CHECK_SCHEMA:  # D138: the check keeps every card it is shown
+            return ai.fake_answer(ai.keep_all(json.loads(prompt)), self.model)
         return ai.fake_answer(self.data, self.model)
 
 
@@ -146,7 +148,9 @@ def test_the_model_writes_cards_filed_under_their_topics_weeks_only_with_ai_on(t
         ("What is an eigenvalue?", third),
         ("What is the rank?", ""),
     ]
-    assert len(view["candidates"]) == 4  # the model's two and the rules' two: no question twice
+    # D138: written, then checked; the model's cards alone, the rules' are the fallback.
+    assert len(model.calls) == 2 and model.calls[1][2] is ai.CHECK_SCHEMA
+    assert len(view["candidates"]) == 2 and view["ai_checked"]
     assert made[0]["week_label"].startswith("Week ")
     # A week's materials ask for that week's topics alone, and file every card there.
     model = Fake({"cards": [{"front": "What is topic 3 about?", "back": "Its notes.", "topic": ""}]})
@@ -239,7 +243,7 @@ def test_the_pages_offer_a_course_s_materials_in_one_tap(tmp_path, people, monke
         written = web.post(
             f"/p/{ada.token}/cards/make", data={"from": "course", "course": "Algebra 3", "action": "ai"}
         ).text
-        assert len(model.calls) == 1 and "What is an eigenvalue?" in written and "Written by AI" in written
+        assert len(model.calls) == 2 and "What is an eigenvalue?" in written and "Written by AI" in written
         third = service.course_materials(tmp_path, ada, "Algebra 3")["topics"][2]["monday"]
         assert f'name="cardweek" value="{third}"' in written
         course = web.get(f"/p/{ada.token}/courses/0").text

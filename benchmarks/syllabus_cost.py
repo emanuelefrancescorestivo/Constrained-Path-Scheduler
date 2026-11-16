@@ -131,6 +131,15 @@ def cards_worst(model: str) -> float:
     return ai.cost(model, len((system + prompt).encode()), ai.CARDS_MAX_TOKENS)
 
 
+def check_worst(model: str) -> float:
+    """D138: the check of the cards written, at most: the same notes, every card at the
+    flashcards' longest, and the check's whole answer."""
+    notes = "x" * cardmaker.MAX_TEXT
+    cards = [("q" * cardmaker.FRONT_MOST, "a" * cardmaker.BACK_MOST)] * ai.CARDS_MOST
+    system, prompt = ai.check_prompt(notes, cards, "English")
+    return ai.cost(model, len((system + prompt).encode()), ai.CHECK_MAX_TOKENS)
+
+
 def cards() -> None:
     print(
         f"\nFlashcards from notes (D84), one call at most"
@@ -140,6 +149,14 @@ def cards() -> None:
         each = cards_worst(model)
         print(
             f"  {model:<20} {each:.4f} USD; {int(ai.DEFAULT_MONTHLY_CAP // each)} calls under the monthly cap"
+        )
+    print(
+        f"\nFlashcards from a file of notes, written and then checked (D138), at most, {ai.CARDS_MOST} cards:"
+    )
+    for model in ai.PRICES:
+        both = cards_worst(model) + check_worst(model)
+        print(
+            f"  {model:<20} {both:.4f} USD; {int(ai.DEFAULT_MONTHLY_CAP // both)} files under the monthly cap"
         )
 
 

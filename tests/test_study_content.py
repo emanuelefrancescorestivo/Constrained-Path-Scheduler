@@ -7,6 +7,7 @@ one of them.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -194,6 +195,8 @@ class _Model:
 
     def ask(self, system, prompt, schema, max_tokens):
         self.asked += 1
+        if schema is ai.CHECK_SCHEMA:  # D138: the check keeps every card it is shown
+            return ai.fake_answer(ai.keep_all(json.loads(prompt)))
         return ai.fake_answer(self.data)
 
 
@@ -204,7 +207,7 @@ def test_the_model_reads_the_notes_only_when_asked_with_ai_on(tmp_path, people):
     assert model.asked == 0 and all(c["kind"] != "ai" for c in view["candidates"])  # AI off
     ada = service.set_ai(ada, True)
     view = service.card_maker_view(tmp_path, ada, text=NOTES, use_ai=True, now=NOW, provider=model)
-    assert model.asked == 1 and view["ai_used"]
+    assert model.asked == 2 and view["ai_used"] and view["ai_checked"]  # written, then checked (D138)
     # D101: a card also says its week, none for a note's cards (the form's week files them).
     assert view["candidates"][0] == {
         "front": "What is the trace?",
@@ -214,10 +217,10 @@ def test_the_model_reads_the_notes_only_when_asked_with_ai_on(tmp_path, people):
         "week": "",
         "week_label": "",
     }
-    assert len(view["candidates"]) == 10  # and the rules' nine
+    assert len(view["candidates"]) == 1  # the model's alone: the rules' nine are the fallback (D138)
     broken = _Model({"cards": []})
     view = service.card_maker_view(tmp_path, ada, text=NOTES, use_ai=True, now=NOW, provider=broken)
-    assert not view["ai_used"] and len(view["candidates"]) == 9
+    assert not view["ai_used"] and view["ai_failed"] and len(view["candidates"]) == 9
 
 
 # -- the pages -------------------------------------------------------------------------------

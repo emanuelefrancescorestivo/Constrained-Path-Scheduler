@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Cards from notes written by Claude and checked (DECISIONS.md D138): with your yes to AI,
+  Claude writes cards from a file of notes the way an exam asks, then checks each against your
+  notes and keeps, fixes or drops it; Rules only keeps the notes on the server. The rules read
+  lecture PDFs better (no titles or sentences as terms, definitions and theorems by name).
+
 - More ways to make your avatar (DECISIONS.md D137): eight skin tones, twelve hair styles in
   twelve colours, eyes, eyebrows and a mouth to choose, more facial hair, sunglasses, something
   on your head, freckles or earrings, four kinds of clothes in ten colours, and a background.

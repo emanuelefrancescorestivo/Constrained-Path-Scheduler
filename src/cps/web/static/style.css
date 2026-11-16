@@ -4424,3 +4424,8 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .av-brows.is-thick .av-brow, .av-maker:has(#av-brows-thick:checked) .av-preview .av-brows .av-brow { stroke-width: 5.6; }
 .av-glasses.is-sun rect, .av-maker:has(#av-glasses-sun:checked) .av-preview .gl-sun rect { fill: #23252b; fill-opacity: 0.9; }
 
+/* D138: turning AI on for cards, inside the cards' own pages. */
+.ai-offer { display: grid; gap: 6px; justify-items: start; }
+.card-make .ai-offer { margin: 14px 0 0; padding: 12px 14px; background: var(--fill-3); box-shadow: none; }
+.ai-offer p { margin: 0; font-size: 0.9rem; }
+
