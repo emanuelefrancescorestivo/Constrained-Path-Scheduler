@@ -1124,3 +1124,18 @@ is left a month on. Status: fixed with D121. The game gave way to a month the st
 three ways against the app's (exam day, the days below 90 % before it, a month later), each
 revision working only as often as its course is still remembered; a chapter says that cramming
 wins the next day and what it costs (`tests/test_garden.py` holds the numbers).
+
+**99. Cards from a real lecture PDF were mostly titles and broken sentences.** Reported by the
+owner on 2026-11-16, after uploading a lecture's notes (D134) on the demo, which has no AI key:
+51 cards, among them the course name with the lecture's title as its answer, sentences split at a
+colon ("Until now every group arrived ready-made" / "Zn, U(n), Sn, Dn. This week…"), and
+"Definition 1.1" with the definition's name as its answer. Three causes: the rules read a line at
+a time and a PDF breaks lines mid-sentence; any short phrase before a colon counted as a term; a
+numbered definition or theorem was split at its number. pypdf also runs words together where a
+LaTeX PDF places them by position ("webuild"), which the rules cannot see. Status: fixed with
+D138. The rules join a PDF's broken lines, refuse phrases with a verb or a pronoun and titles
+as terms, and read a numbered definition or theorem with its name as a card of its statement
+(`tests/test_cards_by_ai.py`). With the student's yes to AI, Claude writes the cards and checks
+each against the notes, repairing run-together words. Run-together words stay in the rules'
+cards.
+

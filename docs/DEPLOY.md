@@ -162,10 +162,18 @@ types is kept for long; the home page asks for made-up details.
 
 If the Blueprint screen has no file path, make the service by hand: New, Web
 Service **(check)**, the repository, then Language Python 3, Branch `main`, Region
-Frankfurt, Instance type Free, Build Command `pip install ".[web]"`, Start Command
+Frankfurt, Instance type Free, Build Command `pip install ".[web,ai]"`, Start Command
 `cps demo --public --host 0.0.0.0 --port $PORT --behind-proxy --store /tmp/cps-demo`,
 Health Check Path `/health` (under Advanced), and an environment variable
 `PYTHON_VERSION` = `3.13`.
+
+**Cards from notes by Claude on the demo (D138).** In the service's Environment page,
+add `ANTHROPIC_API_KEY` with a key from Anthropic's console, and save: the service
+deploys again. A visitor then taps "Turn on AI" on Flashcards, and a file of notes is
+written into cards by Claude Haiku and checked card by card: at most 0.023 USD a file
+(`benchmarks/syllabus_cost.py`), within `CPS_AI_MONTHLY_CAP_USD` (5 dollars a month on
+the demo, every visitor together) and 20 calls a day per student (10 files). Without
+the key, the rules read the notes, as before.
 
 **What to expect.** A free instance sleeps after about fifteen minutes without
 visitors **(check)**; the next visit waits about a minute while it wakes and makes

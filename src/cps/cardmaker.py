@@ -106,6 +106,36 @@ _NOT_TERM_LINES = (
     "remarque rq exemple voir nota esempio vedi ejemplo véase beispiel siehe voorbeeld zie exemplo",
 )
 _NOT_TERMS = frozenset(word for line in _NOT_TERM_LINES for word in line.split())
+# D138: words that make a phrase before a colon a sentence, not a term ("Until now every
+# group arrived ready-made: …", "payoff comes at the end: …"): verbs, pronouns and
+# adverbs, in the languages read. "of", "the" and "and" stay: "Order of an element".
+_PROSE_LINES = (
+    "is are was were be been has have had will would can could should must may might do does did",
+    "comes come came goes went arrive arrived arrives get gets got make makes made",
+    "we you they our your their now until every then also just only very not so because if when while",
+    "est sont était étaient ont sera nous vous maintenant jusqu chaque puis aussi seulement très pas parce",
+    "è sono era erano hanno sarà noi voi ora fino ogni poi anche solo molto perché quando",
+)
+_PROSE_WORDS = frozenset(word for line in _PROSE_LINES for word in line.split())
+# A title, not a card: "Lecture 08", "Week 3", "Chapitre 2", "Lezione 4"…
+_TITLE = re.compile(
+    r"^(?:lecture|lect|lesson|week|chapter|section|unit|part|cours|leçon|semaine|chapitre|séance|"
+    r"lezione|settimana|capitolo|sezione|clase|semana|capítulo|vorlesung|woche|kapitel|college|"
+    r"hoofdstuk|aula|semana)\.?\s*\d",
+    re.IGNORECASE,
+)
+# D138: a numbered definition, theorem or the like, as lecture notes set them: its kind, its
+# name (in brackets, or after a colon) and its statement, which follows.
+_BLOCK = re.compile(
+    r"^(?P<kind>definition|theorem|lemma|proposition|corollary|claim|"
+    r"définition|théorème|lemme|corollaire|definizione|teorema|proposizione|corollario|"
+    r"definición|proposición|corolario|satz|folgerung|stelling|definitie|definição)"
+    r"\s*(?:\d+(?:\.\d+)*)?\s*"
+    r"(?:\((?P<name>[^()]{2,80})\)|[:.–—-]\s*(?P<name2>[^.:]{2,80}?)(?=[.:]|$))?"
+    r"\s*[.:]?\s*(?P<rest>.*)$",
+    re.IGNORECASE,
+)
+_PROOF = re.compile(r"^(?:proof|preuve|démonstration|dimostrazione|prova|demostración|beweis|bewijs)\b", re.I)
 
 
 def _clean(text: str) -> str:
@@ -122,6 +152,13 @@ def _is_term(term: str) -> bool:
     if not 1 <= len(words) <= TERM_WORDS or not any(c.isalpha() for c in term):
         return False
     if term.casefold() in _NOT_TERMS or term.endswith("?"):
+        return False
+    # D138: a phrase with a verb or a pronoun is a sentence; a lowercase start of three
+    # words or more is a sentence carried over from the line before; a title is not a term.
+    folded = [w.strip(".,;()'\"").casefold() for w in words]
+    if len(words) >= 3 and (any(w in _PROSE_WORDS for w in folded) or term[0].islower()):
+        return False
+    if _TITLE.match(term) or _BLOCK.match(term):
         return False
     if syllabus._MARKER.match(term) or syllabus._heading(term) is not None or syllabus._LINK.search(term):
         return False
@@ -177,6 +214,25 @@ def read(text: str) -> list[Candidate]:
         nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
         if not line:
             i += 1
+            continue
+        # D138: a numbered definition or theorem with a name: the name asks for the
+        # statement, which runs to a blank line, the proof or the next block.
+        block = _BLOCK.match(_unmark(line))
+        if block is not None and (block["name"] or block["name2"]):
+            statement = [block["rest"]] if block["rest"].strip() else []
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and not _BLOCK.match(lines[j].strip()):
+                if _PROOF.match(lines[j].strip()) or _HEADING.match(lines[j].strip()):
+                    break
+                statement.append(lines[j].strip())
+                j += 1
+            name = _clean(block["name"] or block["name2"])
+            kind_word = block["kind"][0].upper() + block["kind"][1:].lower()
+            back = _clean(_unmark(" ".join(statement)))
+            if back and len(back.split()) >= 3:
+                card = _card(f"{kind_word}: {name}", back[:BACK_MOST], "definition")
+                out += [card] if card else []
+            i = j
             continue
         # A question and its answer.
         q = _Q.match(line)
@@ -235,7 +291,12 @@ def read(text: str) -> list[Candidate]:
         # an "=" too, and it is not what separates its term.
         found = _definitions(_unmark(line))
         sep = _SEPARATOR.match(_unmark(line)) if not found else None
-        if sep is not None and _is_term(_clean(sep["term"])) and not sep["back"].strip().startswith("//"):
+        if (
+            sep is not None
+            and _is_term(_clean(sep["term"]))
+            and not sep["back"].strip().startswith("//")
+            and not _TITLE.match(sep["back"].strip())
+        ):
             card = _card(sep["term"], sep["back"], "term")
             found = [card] if card else []
         out += found

@@ -15,6 +15,8 @@
   {% endif %}
 </div>
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if view.ai_failed %}<p class="notice" role="status">{{ _("Claude could not write cards this time (or your AI limit for today is reached): these come from the rules.") }}</p>{% endif %}
 {% if view.read_note %}<p class="notice" role="status">{{ view.read_note }}</p>{% endif %}
 {% if view.note %}<p class="notice" role="status">{{ _("From the notes «{title}».", title=view.note.title) }}</p>{% endif %}
 
@@ -62,7 +64,8 @@
     </li>
     {% endfor %}
   </ul>
-  {% if view.ai_used %}<p class="hint">{% if m %}{{ _("The cards marked «Written by AI» come from a model reading the course's materials: check each against them before you keep it.") }}{% else %}{{ _("The cards marked «Written by AI» come from a model reading your notes: check each against them before you keep it.") }}{% endif %}</p>{% endif %}
+  {% if view.ai_used and view.ai_checked %}<p class="hint">{{ _("Written by Claude from your notes, then checked against them card by card: still read each before you keep it.") }}</p>
+  {% elif view.ai_used %}<p class="hint">{% if m %}{{ _("The cards marked «Written by AI» come from a model reading the course's materials: check each against them before you keep it.") }}{% else %}{{ _("The cards marked «Written by AI» come from a model reading your notes: check each against them before you keep it.") }}{% endif %}</p>{% endif %}
   <div class="card section">
     <label for="m-course">{{ _("Course") }}</label>
     <input id="m-course" name="course" required maxlength="80" list="m-courses" autocomplete="off" value="{{ view.course }}">
@@ -97,10 +100,11 @@
   <label class="check check-long"><input type="checkbox" name="both" value="1"{% if view.both %} checked{% endif %}> {{ _("Also the other way round: the definition asks for the term") }}</label>
   <div class="form-actions">
     <button class="btn btn-primary" name="action" value="read">{{ _("Read my notes") }}</button>
-    {% if view.ai_ready %}<button class="btn btn-tinted" name="action" value="ai">{{ _("Read them with AI too") }}</button>{% endif %}
+    {% if view.ai_ready %}<button class="btn btn-plain" name="action" value="rules">{{ _("Rules only") }}</button>{% endif %}
   </div>
-  <p class="hint">{% if view.ai_ready %}{{ _("Read by rules on this server. With AI, the text of your notes is sent to the model too, within your AI limits.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
+  <p class="hint">{% if view.ai_ready %}{{ _("Claude writes the cards from your notes, then checks each against them; their text is sent to Anthropic for this, within your AI limits. Rules only keeps them on this server.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
 </form>
+{% if view.ai_off %}{% include "_ai_offer.html" %}{% endif %}
 {% endif %}
 {% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% if view.courses %}<datalist id="m-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}

@@ -250,6 +250,8 @@ CLASS_NOTICES = {"bad_class": "That is not a class link."}
 CARD_NOTICES = {
     "card_saved": "Saved.",
     "card_deleted": "Deleted.",
+    # D138: AI turned on from a card page.
+    "ai": "AI is on: cards from your notes are written by Claude, then each is checked against them.",
 }
 # The four answers to a card, as its buttons say them (D29).
 CARD_WORDS = {"again": "Again", "hard": "Hard", "good": "Good", "easy": "Easy"}
@@ -2487,6 +2489,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=subscription.token,
             view=view,
             why_tip=why_tip,
+            # D138: who writes cards from notes here: the model (checked) or the rules.
+            ai_cards=service.cards_by_ai(subscription),
+            ai_offer=service.ai_cards_offer(subscription),
             tab="cards",
             **extra,
         )
@@ -2904,6 +2909,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         request: Request, subscription: service.Subscription, status: int = 200, **kwargs: Any
     ) -> HTMLResponse:
         error = kwargs.pop("error", None)
+        notice = kwargs.pop("notice", None)
         view = service.card_maker_view(store, subscription, now=config.clock(), **kwargs)
         why_tip = service.tip_here(subscription, "make", config.clock())  # D135
         return page(
@@ -2913,6 +2919,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=subscription.token,
             view=view,
             error=error,
+            saved=notice,
             why_tip=why_tip,
             tab="cards",
         )
@@ -2925,6 +2932,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         course: str = "",
         week: str | None = None,
         source: str = Query("", alias="from"),
+        saved: str = "",
     ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
@@ -2932,6 +2940,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         return cards_make_page(
             request,
             subscription,
+            notice=service.translate(CARD_NOTICES[saved]) if saved in CARD_NOTICES else None,
             note_id=note[:40],
             course=course[:80],
             week=None if week is None else week[:10],
@@ -3004,7 +3013,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             course=course,
             both=bool(form.get("both")),
             read_note=read_note,
-            use_ai=action == "ai",
+            # D138: with AI on, reading notes is the model's, checked; "rules" keeps them here.
+            use_ai=action == "ai" or (action == "read" and service.cards_by_ai(subscription)),
             week=str(form.get("week") or "")[:10] if "week" in form else None,
             from_course=from_course,
             of_week=str(form.get("of") or "")[:10] or None,
@@ -4520,13 +4530,17 @@ def create_app(config: Config | None = None) -> FastAPI:
     async def ai_setting(request: Request, token: str) -> Response:
         if load(token) is None:
             return missing(request)
-        form = await request.form(max_files=0, max_fields=3)
+        form = await request.form(max_files=0, max_fields=4)
         on = form.get("on") == "1"
         try:
             service.update_subscription(store, token, lambda current: service.set_ai(current, on))
         except service.ServiceError as error:
             return refused(request, token, error)
         service.log_event(store, token, "ai", "on" if on else "off")
+        # D138: turned on from the cards' pages, back where the student was.
+        back = {"cards": "cards", "make": "cards/make"}.get(str(form.get("back") or ""))
+        if back:
+            return RedirectResponse(f"/p/{token}/{back}?saved=ai", 303)
         return RedirectResponse(f"/p/{token}/settings/data?saved=ai#ai", 303)
 
     @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)

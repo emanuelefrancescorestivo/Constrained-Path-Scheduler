@@ -103,12 +103,39 @@ def text(name: str, data: bytes) -> Extracted:
 _PDF_BULLET = re.compile(r"^\s*[\uf000-\uf0ff\u25aa\u25cf\u2023\u2043\u2219]\s*")
 
 
+# D138: a PDF breaks lines where the page ran out of width, in the middle of a sentence.
+# A line is joined to the one before when that one does not end a sentence (or a clause
+# with a colon or semicolon) and this one starts in lower case, or the one before ends
+# with a comma or a hyphen; an item, a heading or a numbered block starts its own line.
+_NEW_LINE = re.compile(r"^\s*(?:[-*•▪◦●■➢►–—·+\uf000-\uf0ff]|\d{1,2}[.)]\s|#)")
+
+
+def _joined(text: str) -> str:
+    out: list[str] = []
+    for line in text.split("\n"):
+        stripped = line.strip()
+        last = out[-1].rstrip() if out else ""
+        if (
+            last
+            and stripped
+            and not _NEW_LINE.match(line)
+            and not last.endswith((".", ":", ";", "?", "!"))
+            and (stripped[0].islower() or last.endswith((",", "-")))
+        ):
+            out[-1] = (
+                last[:-1] + stripped if last.endswith("-") and stripped[0].islower() else f"{last} {stripped}"
+            )
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 def _done(found: str, kind: str, parts: int, read: int, *, indent: bool = True) -> Extracted:
     """The text as the card rules read it: blanks inside a line made one, no more than
     one empty line in a row; a nested item's indent kept, except in a PDF, whose
     leading blanks are the layout's and whose symbol bullets become items."""
     lines = []
-    for line in found.split("\n"):
+    for line in (_joined(found) if not indent else found).split("\n"):
         if not indent:
             line = _PDF_BULLET.sub("- ", line)
         lead = line[: len(line) - len(line.lstrip())].replace("\t", "  ")[:8] if indent else ""

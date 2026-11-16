@@ -34,7 +34,7 @@
 <div class="card section card-make" id="from-notes">
   <div class="materials-head">{{ art("cards") }}<div class="grow">
     <h2 class="card-make-title">{{ _("Make cards from your notes") }}</h2>
-    <small>{{ _("Send a PDF, Word, PowerPoint or text file: definitions, questions, lists and words in bold become cards, and you pick the ones to keep. Free, read on this server.") }}</small>
+    <small>{% if ai_cards %}{{ _("Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.") }}{% else %}{{ _("Send a PDF, Word, PowerPoint or text file: definitions, questions, lists and words in bold become cards, and you pick the ones to keep. Free, read on this server.") }}{% endif %}</small>
   </div></div>
   <form method="post" action="/p/{{ token }}/cards/make" enctype="multipart/form-data" class="notes-upload">
     <label for="cm-file" class="visually-hidden">{{ _("A file of your notes") }}</label>
@@ -43,6 +43,7 @@
     <button class="btn btn-primary btn-sm" name="action" value="read">{{ _("Read my notes") }}</button>
   </form>
   <p class="hint"><a href="/p/{{ token }}/cards/make{% if view.course %}?course={{ view.course | urlencode }}{% endif %}">{{ _("Or paste your notes") }}</a></p>
+  {% if ai_offer %}{% with ai_back = "cards" %}{% include "_ai_offer.html" %}{% endwith %}{% endif %}
   {% if view.from_courses %}
   <p class="hint">{{ _("Or from a course: its topics and the notes you can open.") }}</p>
   <p class="course-chips">{% for c in view.from_courses %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/make?from=course&amp;course={{ c | urlencode }}">{{ c }}</a>{% endfor %}</p>

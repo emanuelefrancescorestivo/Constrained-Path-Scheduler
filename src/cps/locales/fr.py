@@ -3080,4 +3080,14 @@ MESSAGES: dict[str, str] = {
     "Thick": "Épais",
     "Wide": "Grands ouverts",
     "Wink": "Clin d'œil",
+    # D138: cards from notes by Claude, checked
+    "AI is on: cards from your notes are written by Claude, then each is checked against them.": "L'IA est activée : les cartes tirées de tes notes sont écrites par Claude, puis chacune est vérifiée par rapport à elles.",
+    "Better cards with AI": "De meilleures cartes avec l'IA",
+    "Claude could not write cards this time (or your AI limit for today is reached): these come from the rules.": "Claude n'a pas pu écrire de cartes cette fois (ou ta limite d'IA du jour est atteinte) : celles-ci viennent des règles.",
+    "Claude writes cards from your notes the way a teacher would ask, then checks each against them. Your notes are sent to Anthropic in the United States for this, and nothing else; turn it off in Settings whenever you like.": "Claude écrit des cartes à partir de tes notes comme un enseignant poserait les questions, puis vérifie chacune par rapport à elles. Tes notes sont envoyées à Anthropic aux États-Unis pour cela, et rien d'autre ; désactive-la dans les Réglages quand tu veux.",
+    "Claude writes the cards from your notes, then checks each against them; their text is sent to Anthropic for this, within your AI limits. Rules only keeps them on this server.": "Claude écrit les cartes à partir de tes notes, puis vérifie chacune par rapport à elles ; leur texte est envoyé à Anthropic pour cela, dans tes limites d'IA. « Règles seulement » les garde sur ce serveur.",
+    "Rules only": "Règles seulement",
+    "Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.": "Envoie un fichier PDF, Word, PowerPoint ou texte : Claude en tire des cartes et vérifie chacune par rapport à tes notes ; tu choisis celles à garder.",
+    "Turn on AI": "Activer l'IA",
+    "Written by Claude from your notes, then checked against them card by card: still read each before you keep it.": "Écrites par Claude à partir de tes notes, puis vérifiées carte par carte : relis quand même chacune avant de la garder.",
 }

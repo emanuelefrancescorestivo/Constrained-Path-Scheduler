@@ -7767,6 +7767,23 @@ def _note_source(store: str | os.PathLike, subscription: Subscription, note_id: 
     return post if social.may_see(where, subscription.token, post) else None
 
 
+def cards_by_ai(subscription: Subscription) -> bool:
+    """Whether cards from notes are written by the model (D138): the server has it and
+    the student said yes to AI (D12). Otherwise the rules read them."""
+    return _ai.cards_from_env() is not None and ai_on(subscription)
+
+
+def ai_cards_offer(subscription: Subscription) -> bool:
+    """Whether to offer turning AI on for cards (D138): the server has the model and
+    the student has not said yes yet."""
+    return _ai.cards_from_env() is not None and not ai_on(subscription)
+
+
+def _ai_check_chars() -> int:
+    """The notes the check reads: as many as the cards were written from (D138)."""
+    return MATERIALS_MOST
+
+
 def card_maker_view(
     store: str | os.PathLike,
     subscription: Subscription,
@@ -7805,7 +7822,7 @@ def card_maker_view(
     if both:
         found = _cardmaker.both_ways(found)[: _cardmaker.MAX_CARDS]
     candidates = [{"front": c.front, "back": c.back, "kind": c.kind, "week": ""} for c in found]
-    used_ai = False
+    used_ai = checked = ai_failed = False
     source = materials["text"] if materials is not None else text
     model = (provider or _ai.cards_from_env()) if use_ai and ai_on(subscription) and source.strip() else None
     if model is not None:
@@ -7851,12 +7868,34 @@ def card_maker_view(
             )
             written = [(f, b, "") for f, b in (_ai.cards_from_answer(data) if data else [])]
         if written:
+            # D138: each card checked against what it was written from; kept, fixed or
+            # dropped. A check that cannot be read leaves the cards as written, said so.
+            pairs = [(f, b) for f, b, _w in written]
+            system, prompt = _ai.check_prompt(source[: _ai_check_chars()], pairs, language)
+            verdicts = _ai.ask(
+                _store(store),
+                subscription.token,
+                model,
+                "cards-check",
+                system=system,
+                prompt=prompt,
+                schema=_ai.CHECK_SCHEMA,
+                max_tokens=_ai.CHECK_MAX_TOKENS,
+                now=now,
+            )
+            kept_ai = _ai.checked_cards(verdicts, pairs)
+            if kept_ai is not None:
+                checked = True
+                written = [(f, b, written[i][2]) for i, f, b in kept_ai]
+        if written:
             used_ai = True
-            # One card a question: the model's, which has its week, over the rules' (D101).
-            asked = {f.casefold() for f, _b, _w in written}
-            fresh = [{"front": f, "back": b, "kind": "ai", "week": w} for f, b, w in written]
-            kept = [c for c in candidates if c["front"].casefold() not in asked]
-            candidates = (fresh + kept)[: _cardmaker.MAX_CARDS]
+            # D138: the model's cards alone once it wrote some; the rules' are the
+            # fallback, not a second list of lesser cards under them.
+            candidates = [{"front": f, "back": b, "kind": "ai", "week": w} for f, b, w in written][
+                : _cardmaker.MAX_CARDS
+            ]
+        else:
+            ai_failed = True
         log_event(store, subscription.token, "cardmaker", "ai" if used_ai else "rules")
     choice = _week_choice(subscription, course, now, week)
     labels = {o["value"]: o["label"] for o in choice["weeks"]}
@@ -7875,6 +7914,10 @@ def card_maker_view(
         "ai_ready": _ai.cards_from_env() is not None and ai_on(subscription),
         "ai_off": _ai.cards_from_env() is not None and not ai_on(subscription),
         "ai_used": used_ai,
+        # D138: the model's cards checked against the notes; or the model wrote none
+        # (off, over the cap, or no usable answer) and the rules' cards are offered.
+        "ai_checked": checked,
+        "ai_failed": ai_failed,
         "most": _cardmaker.MAX_CARDS,
         "most_text": _cardmaker.MAX_TEXT,
         # A file of notes read (D134): what was left out, if anything.
