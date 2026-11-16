@@ -4369,6 +4369,7 @@ def _session_card(
     return {
         "gain": (gains or {}).get(sid),
         "memory": _memory_words((gains or {}).get(sid), outcomes.get(sid), zone, now),
+        "stakes": _stakes((gains or {}).get(sid), outcomes.get(sid), start.date()),
         "self_test": s.kind in ("review", "first review"),
         "id": sid,
         # The course, or the deadline's name; which week of lectures is in `what`.
@@ -4428,6 +4429,25 @@ def _memory_words(gain: Mapping | None, answer: str | None, zone: ZoneInfo, now:
         "holds": format_date(gain["holds"], "short"),
         "next": _when(datetime.fromisoformat(gain["next"]).astimezone(zone), now) if gain["next"] else None,
     }
+
+
+def _stakes(gain: Mapping | None, answer: str | None, day: date) -> dict | None:
+    """A self-test's stakes before it starts (D128): its exam in so many days, and
+    the day the topic stays above 90 % until if it is recalled in this session, by
+    the model. None once answered or skipped, for a second pass on the same day
+    (which adds nothing, D125) and for anything but a self-test."""
+    if not gain or "exam" not in gain or answer or gain["same_day"]:
+        return None
+    days = max((gain["exam"] - day).days, 0)
+    exam = _n("Exam in {n} day.", "Exam in {n} days.", days) if days else _("Exam today.")
+    if gain["holds"] >= gain["exam"]:
+        holds = _("Recalled in this session, it stays above 90 % until then (a model's estimate).")
+    else:
+        holds = _(
+            "Recalled in this session, it stays above 90 % until {day} (a model's estimate).",
+            day=format_date(gain["holds"], "short"),
+        )
+    return {"days": days, "to_exam": gain["holds"] >= gain["exam"], "words": f"{exam} {holds}"}
 
 
 def _topic_monday(topic: str, before: date) -> str | None:
@@ -6051,12 +6071,13 @@ def start_focus(
     sid: str | None = None,
     goal: int = 0,
     repair: str | None = None,
+    opener: str | None = None,
     now: datetime | None = None,
 ) -> Subscription:
     """Start the timer for `course`, or for the plan's session `sid`, meant to last
     `goal` minutes (0: no length chosen, D67). `repair` names the missed day this
     session makes up for (D126): one of the last two days, checked when it is
-    saved."""
+    saved. `opener` is the card the session opens with (D128, `opening_card`)."""
     now = now or datetime.now(UTC)
     goal = focus_goal(goal)
     if sid:
@@ -6084,6 +6105,7 @@ def start_focus(
         "interruptions": 0,
         "goal": goal,
         "repair": repair or "",
+        "opener": opener or "",
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
@@ -6141,9 +6163,65 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "timed": True,
         "goal": int(focus.get("goal", 0)),
         "repair": str(focus.get("repair") or ""),
+        "opener": str(focus.get("opener") or ""),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
     return replace(subscription, options={**options, "focus_draft": draft})
+
+
+# A curious start (D128): a planned self-test opens with one question from its week's
+# own cards (D87), its answer kept for the end. Curiosity before information helped
+# memory of it a day later (Gruber, Gelman and Ranganath 2014); the question asked
+# is the card the model gives the least chance of recall now among those answered
+# before (the one with most to gain from being asked), else the first written.
+def opening_card(
+    store: str | os.PathLike, subscription: Subscription, sid: str | None, now: datetime | None = None
+) -> str | None:
+    """The card a session `sid` opens with, or None: for anything but a self-test of
+    a week of lectures, and for a week without cards."""
+    if not sid or subscription.plan is None:
+        return None
+    session = find_session(subscription, sid)
+    if session is None or session.kind not in ("review", "first review") or not session.topic:
+        return None
+    now = now or datetime.now(UTC)
+    start = datetime.fromisoformat(session.start).astimezone(_zone(subscription.options["tz"]))
+    week = _topic_monday(session.topic.removeprefix(f"{session.subject} · "), start.date())
+    if week is None:
+        return None
+    kept = _store(store)
+    found = flashcards.of_week(kept, subscription.token, session.subject, week)
+    if not found:
+        return None
+    model = flashcards.model_for(kept, subscription.token)
+
+    def chance(card: flashcards.Card) -> float:
+        state = card.state()
+        if state is None or card.last is None:
+            return 2.0  # never answered: after every card answered before
+        elapsed = max((now - datetime.fromisoformat(card.last)).total_seconds() / 86400, 0.0)
+        return model.retrievability(elapsed, state.stability)
+
+    return min(found, key=chance).id  # the first written among equals
+
+
+def skip_opener(subscription: Subscription) -> Subscription:
+    """The running session's opening question set aside: no answer at the end."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    return replace(subscription, options={**subscription.options, "focus": {**focus, "opener": ""}})
+
+
+def opener_view(store: str | os.PathLike, subscription: Subscription, card_id: str | None) -> dict | None:
+    """The opening question as the pages show it, or None when there is none or the
+    card has since been deleted."""
+    if not card_id:
+        return None
+    card = flashcards.get(_store(store), subscription.token, card_id)
+    if card is None:
+        return None
+    return {"id": card.id, "front": card.front, "back": card.back, "course": card.course, "week": card.week}
 
 
 def cancel_focus(subscription: Subscription) -> Subscription:
@@ -6151,9 +6229,10 @@ def cancel_focus(subscription: Subscription) -> Subscription:
     return replace(subscription, options=options)
 
 
-def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
+def focus_view(subscription: Subscription, now: datetime | None = None, *, brief: bool = False) -> dict:
     """What the focus page shows: the running session, or what can be started
-    (the courses, and the plan's session now or next)."""
+    (the courses, and the plan's session now or next). `brief` leaves out the
+    session's stakes (D128), which replay the plan: for the page's heartbeat."""
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
     focus = subscription.options.get("focus")
@@ -6181,7 +6260,11 @@ def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
             goal=goal,
             goal_words=duration_words(goal) if goal else "",
             rewards=_focus_rewards(goal, max(0, elapsed - focus["away"])),
+            opener=str(focus.get("opener") or ""),
         )
+        if focus.get("sid") and not brief:
+            card = session_card(subscription, focus["sid"], now)
+            view["stakes"] = card["stakes"] if card else None
     elif subscription.plan is not None:
         today = today_view(subscription, now)
         card = today.get("now") or (today.get("next") or [None])[0]
@@ -6199,6 +6282,7 @@ def focus_view(subscription: Subscription, now: datetime | None = None) -> dict:
                 "when": card["when"],
                 # The length offered first: the one nearest the session's own.
                 "goal": min(FOCUS_GOALS, key=lambda g: (abs(g - length), g)),
+                "stakes": card.get("stakes"),
             }
     return view
 
@@ -8953,6 +9037,8 @@ def session_gains(plan: PlanReport) -> dict[str, dict]:
                 "added": after.stability - memory.stability,
                 "holds": plan.settings.start + timedelta(days=session.start_day + after.stability),
                 "next": following.start if following else None,
+                # The exam's day, for the session's stakes (D128).
+                "exam": plan.settings.start + timedelta(days=exam),
             }
         states[session.title] = (after, session.start_day)
     return out

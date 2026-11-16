@@ -52,7 +52,7 @@ def test_a_self_test_carries_the_chance_the_days_added_and_when_it_comes_back(pl
     plan = service.PlanReport.from_dict(sub.plan)
     gains = service.session_gains(plan)
     gain = gains[service.session_id(test)]
-    assert set(gain) == {"without", "with", "chance", "same_day", "added", "holds", "next"}
+    assert set(gain) == {"without", "with", "chance", "same_day", "added", "holds", "next", "exam"}
     assert gain["chance"] % 5 == 0 and 0 <= gain["chance"] <= 100  # rounded to 5, as D24 rounds
     assert gain["added"] > 0 and not gain["same_day"]
     # It then holds 90 % until the day the plan brings it back: the planner's own rule.

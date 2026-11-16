@@ -4925,3 +4925,48 @@ studied, as a group of two gives away its hours (D28); the profile's hint and th
 notice say so. Two time zones far apart judge "today" each in their own. The 22 % is
 Duolingo's figure, not measured here; whether pairs keep students on their plan is for
 the pilot. Checked in Chromium only.
+
+## D128. The stakes and a curious start: what a session keeps, and one question to open it
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's A (the stakes
+before a session: reward anticipation before learning went with better memory a day later,
+Adcock et al. 2006, `adcock2006`) and B (a curious start: information met in a state of
+curiosity was better remembered a day later, Gruber, Gelman and Ranganath 2014,
+`gruber2014`). Both are single laboratory studies, the first with money as the reward, the
+second with trivia questions; how far either carries to a self-test of lectures is not
+known.*
+
+**Chosen.**
+
+- *The stakes.* A self-test still to do says, in one line, its exam in so many days and the
+  day the topic stays above 90 % until if it is recalled in this session: "Exam in 9 days.
+  Recalled in this session, it stays above 90 % until Tue 6 Oct (a model's estimate)" (the
+  case `tests/test_stakes.py` pins), or
+  "until then" when that day is the exam's or later (`service._stakes`, from
+  `session_gains`, which now carries the exam's day). It shows on the session's card (Today,
+  its own page) above Start focus, on the focus page's offer from the plan, and under the
+  course while the timer runs. Only what the plan's forecast says: no loss framed as a
+  threat, no number the model does not give. It goes once the session is answered or
+  skipped, and for a second pass on the same day, which adds nothing (D125).
+- *A curious start.* A planned self-test of a week of lectures opens, when that week has
+  cards (D87), with one of them: "Before your notes", its question, and "Think of the
+  answer: it shows when you finish". The answer is not on the page while the timer runs; it
+  comes on the log page with a link to the week's cards (`service.opening_card`,
+  `opener_view`). The card asked is the one the model gives the least chance of recall now
+  among those answered before (most to gain from being asked), else the first written; a
+  question asked again would be the same card until it is answered in the deck. One tap
+  sets it aside ("Skip the question"), and then nothing comes at the end.
+
+**Rejected.** The chance of recall at the session's start (D125 shows it only after the
+answer, so the student's own report is not anchored). A question for a session without
+cards made up from the syllabus's topic names (there would be no answer to give at the end).
+Grading the opening question as a card review (the student has just studied the topic, so
+the grade would not be a recall); the deck stays the place for that. Counting a skipped
+question against anything.
+
+**Disclosed.** The 90 % day is FSRS-6 with average weights after a recall graded good, as
+the plan assumes; a hard or failed recall keeps it less long, which the memory loop says
+after the answer (D125). Far from the exam the line gives a number of days months away, true but
+not pressing. The heartbeat of the focus page leaves the stakes out, so it does not replay the
+plan every beat. Checked in Chromium only, at phone size light and dark and at 1280px;
+whether students answer the question or skip it is for the pilot.

@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The stakes and a curious start (DECISIONS.md D128): a self-test still to do says its exam
+  in so many days and the day the topic stays above 90 % until if it is recalled in this
+  session, by the model, on Today, the focus page and while the timer runs. A planned
+  self-test of a week with flashcards opens with one of them, "Before your notes"; its answer
+  comes on the log page when the session is done, and the question can be skipped.
+
 - Studying together (DECISIONS.md D127): ask a classmate on their profile to study
   together; once they accept, you both see the days in a row you both studied, and whether
   the other studied today, on Progress and under Today's streak, never how long. A study

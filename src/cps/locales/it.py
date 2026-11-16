@@ -2852,4 +2852,15 @@ MESSAGES: dict[str, str] = {
     "Study together: you both see the days in a row you both studied, and whether the other studied today. Never how long.": "Studiare insieme: vedete entrambi i giorni di fila in cui avete studiato entrambi, e se l'altro ha studiato oggi. Mai quanto.",
     "studied today": "ha studiato oggi",
     "If you study together with someone, you both see the days in a row you both studied and whether the other studied today; never how long, nor your plan, your courses or your sessions. Either of you can stop it.": "Se studi insieme con qualcuno, vedete entrambi i giorni di fila in cui avete studiato entrambi e se l'altro ha studiato oggi; mai quanto, né il tuo piano, i tuoi corsi o le tue sessioni. Ciascuno dei due può smettere.",
+    # The stakes and a curious start (D128)
+    "Exam in {n} day.": "Esame tra {n} giorno.",
+    "Exam in {n} days.": "Esame tra {n} giorni.",
+    "Exam today.": "Esame oggi.",
+    "Recalled in this session, it stays above 90 % until then (a model's estimate).": "Ricordato in questa sessione, resta sopra il 90 % fino ad allora (una stima del modello).",
+    "Recalled in this session, it stays above 90 % until {day} (a model's estimate).": "Ricordato in questa sessione, resta sopra il 90 % fino a {day} (una stima del modello).",
+    "Before your notes": "Prima dei tuoi appunti",
+    "Think of the answer: it shows when you finish.": "Pensa alla risposta: compare quando finisci.",
+    "The question you started with": "La domanda di partenza",
+    "Practise this week's cards": "Ripassa le schede di questa settimana",
+    "Skip the question": "Salta la domanda",
 }

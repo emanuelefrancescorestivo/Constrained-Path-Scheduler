@@ -1379,6 +1379,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus.html",
             token=token,
             focus=service.focus_view(subscription, config.clock()),
+            question=service.opener_view(
+                store, subscription, (subscription.options.get("focus") or {}).get("opener")
+            ),
             cards_due=service.cards_due(store, subscription, config.clock()),
             tip=service.focus_tip(subscription),
             # While the timer runs: who the student follows is studying too (D108).
@@ -1503,6 +1506,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 sid=sid,
                 goal=goal,
                 repair=str(form.get("repair") or "") or None,
+                # A self-test opens with one of its week's cards (D128).
+                opener=service.opening_card(store, current, sid, config.clock()),
                 now=config.clock(),
             )
 
@@ -1522,7 +1527,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse(error.to_dict(), 409)
         if fresh is not None:
             service.sync_presence(store, fresh, config.clock())
-        view = service.focus_view(fresh, config.clock()) if fresh else {}
+        view = service.focus_view(fresh, config.clock(), brief=True) if fresh else {}
         return JSONResponse({k: view.get(k) for k in ("elapsed", "away", "away_minutes", "interruptions")})
 
     @app.post("/p/{token}/focus/finish")
@@ -1534,6 +1539,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus done",
         )
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/log", 303)
+
+    @app.post("/p/{token}/focus/question/skip")
+    async def focus_skip_question(request: Request, token: str) -> Response:
+        """The opening question set aside (D128)."""
+        done = await focus_change(
+            request, token, lambda current, form: service.skip_opener(current), "focus question skipped"
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
 
     @app.post("/p/{token}/focus/cancel")
     async def focus_cancel(request: Request, token: str) -> Response:
@@ -1552,6 +1565,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "log.html",
             token=token,
             draft=service.log_draft(subscription, config.clock()),
+            # The session's opening question, answered now (D128).
+            question=service.opener_view(store, subscription, service.log_draft(subscription).get("opener")),
             profile=service.profile_of(store, token),
             share=service.share_default(subscription),
             first=service.first_session(store, subscription),
@@ -1572,6 +1587,9 @@ def create_app(config: Config | None = None) -> FastAPI:
                 413,
                 token=token,
                 draft=service.log_draft(subscription, config.clock()),
+                question=service.opener_view(
+                    store, subscription, service.log_draft(subscription).get("opener")
+                ),
                 profile=service.profile_of(store, token),
                 share=service.share_default(subscription),
                 first=service.first_session(store, subscription),
@@ -1598,6 +1616,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 400,
                 token=token,
                 draft=draft,
+                question=service.opener_view(store, subscription, draft.get("opener")),
                 profile=service.profile_of(store, token),
                 share=service.share_default(subscription),
                 first=service.first_session(store, subscription),

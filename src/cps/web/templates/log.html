@@ -21,6 +21,15 @@
   {% if first %}<h2>{{ _("How was it?") }}</h2>{% else %}<h1>{{ _("How was it?") }}</h1>{% endif %}
   {% if draft.timed %}<p>{{ _n("{n} minute focused", "{n} minutes focused", draft.minutes | int) }}{% if draft.checked %} · {% if draft.interruptions %}{{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", draft.interruptions | int, minutes=draft.away_minutes) }}{% else %}{{ _("focused the whole time") }}{% endif %}{% else %} · {{ _("timed, focus not checked") }}{% endif %}</p>{% endif %}
 </div>
+{% if question %}
+{# The answer to the question the session opened with (D128). #}
+<div class="card section opener-answer">
+  <p class="kicker">{{ _("The question you started with") }}</p>
+  <p class="flash-front">{{ question.front }}</p>
+  <p class="flash-back">{{ question.back }}</p>
+  {% if question.week %}<p class="hint"><a href="/p/{{ token }}/cards/review?course={{ question.course | urlencode }}&amp;week={{ question.week }}">{{ _("Practise this week's cards") }}</a></p>{% endif %}
+</div>
+{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 <form method="post" action="/p/{{ token }}/log" enctype="multipart/form-data" class="log-form with-photos" id="log-form">
   <div class="card">
