@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Reminders that vary (DECISIONS.md D129): a reminder's words change from one session to
+  the next, each a true line from the plan (what to do, a self-test's stakes, that it opens
+  with a question from your cards, which of the day's sessions it is); none comes between
+  going to bed and getting up, and one due then waits until you are up.
+
 - The stakes and a curious start (DECISIONS.md D128): a self-test still to do says its exam
   in so many days and the day the topic stays above 90 % until if it is recalled in this
   session, by the model, on Today, the focus page and while the timer runs. A planned

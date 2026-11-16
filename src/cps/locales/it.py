@@ -2863,4 +2863,10 @@ MESSAGES: dict[str, str] = {
     "The question you started with": "La domanda di partenza",
     "Practise this week's cards": "Ripassa le schede di questa settimana",
     "Skip the question": "Salta la domanda",
+    # Reminders that vary (D129)
+    "Recalled now, it stays above 90 % until the exam (an estimate).": "Ricordato ora, resta sopra il 90 % fino all'esame (una stima).",
+    "Recalled now, it stays above 90 % until {day} (an estimate).": "Ricordato ora, resta sopra il 90 % fino a {day} (una stima).",
+    "It opens with one question from your cards.": "Comincia con una domanda dalle tue schede.",
+    "Session {k} of {n} planned today.": "Sessione {k} delle {n} previste oggi.",
+    "Their words change from one to the next, and each says only what your plan says. None come between going to bed and getting up.": "Le loro parole cambiano dall'uno all'altro, e ognuno dice solo ciò che dice il tuo piano. Nessuno arriva tra quando vai a letto e quando ti alzi.",
 }

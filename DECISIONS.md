@@ -4970,3 +4970,35 @@ after the answer (D125). Far from the exam the line gives a number of days month
 not pressing. The heartbeat of the focus page leaves the stakes out, so it does not replay the
 plan every beat. Checked in Chromium only, at phone size light and dark and at 1280px;
 whether students answer the question or skip it is for the pilot.
+
+## D129. Reminders that vary: one true line in turn, and none between bed and getting up
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's J. Duolingo
+builds its daily reminders from hand-written templates and found that a template the
+learner had not seen recently moved behaviour more than one seen often; choosing and
+varying them raised daily active users by 0.5 % and new-user retention by 2 % over its
+baseline (Yancey and Settles 2020 [ref:yancey2020], a company's study of its own app).*
+
+**Chosen.** A reminder's title stays the course and the time (D38). Its body starts with
+the kind of session and its length, then says one line among those that are true of it:
+the first sentence of what to do (as before); for a self-test, the day a recall now keeps
+the topic above 90 % until, or "until the exam" (D128, "an estimate"); for a self-test of a
+week with cards, "It opens with one question from your cards" (D128); on a day with more
+than one session, "Session 2 of 3 planned today". The line is taken in turn along the
+plan's sessions (`service._reminder_payload`, `_reminder_lines`), so two sessions in a row
+with the same lines to choose from never say the same one. And no reminder is sent between
+going to bed and getting up (D69, `service.awake`): one still due then waits until the
+student is up, within its window (D38); one for a session after bedtime is not sent. The
+reminders' settings say both.
+
+**Rejected.** A bandit that learns which line works (no answers to learn from yet; the
+pilot's measures, D15, would say first whether reminders bring sessions at all). Lines about
+the streak, a classmate who studied ("your turn"), or what is lost by not studying: they
+pressure, and D127 rejected the classmate one already. The card's own question on the lock
+screen (a notification can be read by anyone near the phone). More than one reminder a
+session.
+
+**Disclosed.** Rotation is not what Duolingo measured, which chose templates by their
+results as well as their freshness; whether varied lines bring more sessions here is for
+the pilot. A reminder's line follows the plan as it stands when it is sent. Not tried on a
+real phone (D38); checked through the tests and the settings page in Chromium only.

@@ -3966,27 +3966,112 @@ def _push_subject(contact: str | None, base_url: str | None) -> str:
     return "mailto:study-plan@localhost"
 
 
-def _reminder_payload(subscription: Subscription, session: SessionView) -> dict:
-    """What a reminder says, in the plan's language: the course and the time, the
-    kind of session and its length, and the first sentence of what to do. Tapping
-    it opens the plan."""
+# Reminders that vary (D129). The title stays the course and the time; the body is one
+# of a few true lines, rotated along the plan's sessions, so the same words do not come
+# twice in a row when the same lines apply. In Duolingo's reminders, wording not seen
+# recently moved behaviour more than wording seen often (Yancey and Settles 2020,
+# docs/REFERENCES.md `yancey2020`); here it is a plain rotation, not their bandit, with no
+# answers yet to learn from. No line asks for more than the plan does or speaks of losing
+# a streak, and none is sent between going to bed and getting up (D69).
+def _reminder_lines(
+    subscription: Subscription,
+    session: SessionView,
+    start: datetime,
+    lead: str,
+    *,
+    store: str | os.PathLike | None,
+    plan: PlanReport,
+    gains: Mapping[str, dict],
+) -> list[str]:
+    """The lines a session's reminder may say beside the plan's own: its stakes (a
+    self-test, D128), that it opens with a question from the student's cards, and
+    which of the day's sessions it is."""
+    sid = session_id(session)
+    lines = []
+    gain = gains.get(sid)
+    stakes = _stakes(gain, subscription.outcomes.get(sid), start.date())
+    if stakes and gain:
+        lines.append(
+            _("Recalled now, it stays above 90 % until the exam (an estimate).")
+            if stakes["to_exam"]
+            else _(
+                "Recalled now, it stays above 90 % until {day} (an estimate).",
+                day=format_date(gain["holds"], "short"),
+            )
+        )
+    if store is not None and opening_card(store, subscription, sid, start) is not None:
+        lines.append(_("It opens with one question from your cards."))
+    zone = start.tzinfo
+    today = [
+        s
+        for s in sorted(plan.sessions, key=lambda x: x.start)
+        if datetime.fromisoformat(s.start).astimezone(zone).date() == start.date()
+    ]
+    if len(today) > 1:
+        k = 1 + next(i for i, s in enumerate(today) if session_id(s) == sid)
+        lines.append(_("Session {k} of {n} planned today.", k=k, n=len(today)))
+    return [f"{lead}. {line}" for line in lines]
+
+
+def _reminder_payload(
+    subscription: Subscription,
+    session: SessionView,
+    *,
+    store: str | os.PathLike | None = None,
+    plan: PlanReport | None = None,
+    gains: Mapping[str, dict] | None = None,
+) -> dict:
+    """What a reminder says, in the plan's language: the course and the time, then
+    the kind of session and its length with one line: the first sentence of what to
+    do, or another true line in turn (D129). Tapping it opens the plan."""
     with use(subscription.options.get("lang") or current_language()):
         zone = _zone(subscription.options["tz"])
         start = datetime.fromisoformat(session.start).astimezone(zone)
         end = datetime.fromisoformat(session.end).astimezone(zone)
         minutes = round((end - start) / timedelta(minutes=1))
         what = session.detail.split(". ")[0].strip().rstrip(".")
-        body = f"{_(KIND_LABELS.get(session.kind, session.kind))} · {minutes} min"
+        lead = f"{_(KIND_LABELS.get(session.kind, session.kind))} · {minutes} min"
+        bodies = [f"{lead}. {what}." if what else lead]
+        if plan is not None:
+            bodies += _reminder_lines(
+                subscription, session, start, lead, store=store, plan=plan, gains=gains or {}
+            )
+            ordinal = next(
+                (
+                    i
+                    for i, s in enumerate(sorted(plan.sessions, key=lambda x: x.start))
+                    if session_id(s) == session_id(session)
+                ),
+                0,
+            )
+            body = bodies[ordinal % len(bodies)]
+        else:
+            body = bodies[0]
         return {
             "title": _(
                 "{course} at {time}",
                 course=session.title if session.kind == "task" else session.subject,
                 time=f"{start:%H:%M}",
             ),
-            "body": f"{body}. {what}." if what else body,
+            "body": body,
             "url": f"/p/{subscription.token}",
             "tag": session_id(session),
         }
+
+
+def awake(subscription: Subscription, now: datetime) -> bool:
+    """Whether `now` is between the student's getting up and going to bed (D69): no
+    reminder comes outside it (D129)."""
+    day = day_view(subscription)
+    up = _hours_of(day["wake"], _("Get up"))
+    down = _hours_of(day["bed"], _("Go to bed"))
+    if down <= up:
+        down += 24  # to bed after midnight
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    hour = local.hour + local.minute / 60
+    if hour < up:
+        hour += 24
+    return up <= hour < down
 
 
 def send_due_reminders(
@@ -4013,13 +4098,18 @@ def send_due_reminders(
         lead = reminder_lead(subscription) if subscription is not None else 0
         if subscription is None or subscription.plan is None or not lead:
             continue
-        for session in PlanReport.from_dict(subscription.plan).sessions:
+        if not awake(subscription, now):
+            continue  # never between bed and getting up (D129); still due, it waits till then
+        plan = PlanReport.from_dict(subscription.plan)
+        gains: dict[str, dict] | None = None
+        for session in plan.sessions:
             start = datetime.fromisoformat(session.start)
             if not _reminders.due(start, now, lead) or not _reminders.claim(
                 where, token, session_id(session), now
             ):
                 continue
-            payload = _reminder_payload(subscription, session)
+            gains = session_gains(plan) if gains is None else gains
+            payload = _reminder_payload(subscription, session, store=store, plan=plan, gains=gains)
             for device in _reminders.devices(where, token):
                 status = send(device, payload, key, subject=subject, ttl=int((start - now).total_seconds()))
                 if status in (404, 410):

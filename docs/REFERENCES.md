@@ -572,6 +572,15 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - status: checked
 - checked against: the abstract in Europe PMC's record of PubMed 16675403 (authors, journal, volume, issue, pages, DOI), 2026-10-22: in event-related fMRI, cues signalled a high- or low-value monetary reward for memorising an upcoming scene; tested 24 hr after the scan, subjects were significantly more likely to remember scenes that followed high-value cues; high-reward cues before remembered scenes activated the ventral tegmental area, nucleus accumbens and hippocampus; greater activation predicted better memory; consistent with reward motivation promoting memory formation through dopamine release in the hippocampus before learning. The full text was not read.
 
+### yancey2020
+- authors: K. P. Yancey; B. Settles
+- title: A sleeping, recovering bandit algorithm for optimizing recurring notifications
+- year: 2020
+- venue: Proceedings of the 26th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD '20), 9 pages
+- doi: 10.1145/3394486.3403351
+- status: checked
+- checked against: the paper's PDF from research.duolingo.com (title, authors, ACM reference format, DOI, abstract and introduction), 2026-11-16: Duolingo's daily practice reminders are built from pools of hand-written templates; "fresh" templates, not recently seen, tend to have more impact on behaviour, so a bandit must also vary the templates a user sees over time; their Recovering Difference Softmax Algorithm optimised millions of daily reminders and led to a 0.5 % increase in total daily active users and a 2 % increase in new user retention over a strong baseline. A company's own study of its own app; the rest of the paper was not read.
+
 ### patall2008
 - authors: E. A. Patall; H. Cooper; J. C. Robinson
 - title: The effects of choice on intrinsic motivation and related outcomes: a meta-analysis of research findings
