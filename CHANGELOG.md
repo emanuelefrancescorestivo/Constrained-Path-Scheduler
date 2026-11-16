@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- More ways to make your avatar (DECISIONS.md D137): eight skin tones, twelve hair styles in
+  twelve colours, eyes, eyebrows and a mouth to choose, more facial hair, sunglasses, something
+  on your head, freckles or earrings, four kinds of clothes in ten colours, and a background.
+
 - A sidebar on a laptop (DECISIONS.md D136), as Notion Calendar's: this month with study
   days and exams marked, each day opening the calendar on it; every section one click away;
   your courses in their colours with the days to each exam. It stays in place while pages

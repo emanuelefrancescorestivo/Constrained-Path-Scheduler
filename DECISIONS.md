@@ -5281,3 +5281,34 @@ sidebar on a phone (a drawer behind a button is a step more than the tab bar).
 1024px and phone widths falling back; not in Safari or Firefox, nor with a screen reader. The
 course list shows the plan's courses with exams, as Courses does, at most eight.
 
+## D137. More ways to make the avatar
+
+*The owner, 2026-11-16, after trying the demo: "more personalisation options to create the
+avatar".* D115 had six skin tones, seven hair styles in eight colours, a beard or a
+moustache, two pairs of glasses and seven colours of top.
+
+**Chosen** (`service.AVATAR_PARTS`, `_avatar.html`, `avatar.html`):
+
+- skin: eight tones, one lighter and one deeper than D115's ends;
+- hair: twelve styles (an afro, a bob, a ponytail, braids and bald added) in twelve colours
+  (red, platinum, green and purple added);
+- eyes (soft, wide, happy, a wink), eyebrows (soft, straight, thick, raised) and a mouth
+  (a smile, a grin, calm), where D115 drew one of each;
+- facial hair: a goatee and stubble added; glasses: sunglasses added;
+- on the head: a cap, a beanie, headphones or a flower; details: freckles, earrings or a
+  beauty mark;
+- clothes: a T-shirt, a hoodie, a shirt or a sweater, in ten colours (the seven course
+  colours and charcoal, white and sand); a background in seven colours.
+
+Each part is a few shapes in the manner of D115, no outlines; the maker's preview still
+follows every choice through CSS `:has` with no script, each shape tagged with the options
+it belongs to. An avatar saved before keeps its parts and takes each new part's first
+option, which draws it as it was.
+
+**Rejected.** Free colour pickers (a colour field per part: many more combinations nobody
+reads, and colours that fight the app's own). Uploaded pictures (D115: nothing uploaded).
+Hats in their own colours (the clothes' colour keeps the number of choices down).
+
+**Disclosed.** Still a choice of shapes, not every person; the drawings were checked in
+Chromium only, at phone size, in eight combinations and as saved.
+

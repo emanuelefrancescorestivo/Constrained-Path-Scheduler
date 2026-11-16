@@ -3428,6 +3428,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .av-swatch-skin { background: var(--av-skin); }
 .av-swatch-hair { background: var(--av-hair); }
 .av-swatch-top { background: var(--av-top); }
+.av-swatch-bg { background: var(--av-bg); }
 .av-save { margin: 4px 0 0; }
 .av-save .btn { width: 100%; }
 .you-me { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 8px; color: inherit; text-decoration: none; }
@@ -4335,4 +4336,91 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .side-courses li a small { flex: none; font-size: 0.74rem; color: var(--muted); }
 .side-courses li a small.is-soon { color: var(--danger-text); font-weight: 600; }
 .side-courses .hint, .side-more-courses { margin: 4px 8px; font-size: 0.85rem; }
+
+/* D137: more parts. Colours as before (a class on the avatar, or the radio checked on the
+   maker); each new shape shows on the maker when one of the options it belongs to is
+   checked. Thick brows and dark lenses are the same shapes, drawn heavier. */
+.av.skin-s0 { --av-skin: #fbe8dc; --av-shade: #f0cfba; --av-deep: #d9ab90; }
+.av.skin-s7 { --av-skin: #43291b; --av-shade: #371f13; --av-deep: #24140b; }
+.av.col-red { --av-hair: #b8391c; --av-brow: #7a2410; }
+.av.col-platinum { --av-hair: #eee4cf; --av-brow: #b8a98a; }
+.av.col-green { --av-hair: #4fae7f; --av-brow: #4a3a30; }
+.av.col-purple { --av-hair: #8e6bd8; --av-brow: #4a3a30; }
+.av.top-k0 { --av-top: #3a3d46; }
+.av.top-k1 { --av-top: #f2f1ee; }
+.av.top-k2 { --av-top: #d6bf98; }
+.av.bg-b0 { --av-bg: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.av.bg-b1 { --av-bg: #cfeedf; }
+.av.bg-b2 { --av-bg: #ffd9c7; }
+.av.bg-b3 { --av-bg: #e0d6fb; }
+.av.bg-b4 { --av-bg: #cfe6ff; }
+.av.bg-b5 { --av-bg: #f3e6c4; }
+.av.bg-b6 { --av-bg: #3c4356; }
+.av-maker:has(#av-skin-s0:checked) .av-preview { --av-skin: #fbe8dc; --av-shade: #f0cfba; --av-deep: #d9ab90; }
+.av-maker:has(#av-skin-s7:checked) .av-preview { --av-skin: #43291b; --av-shade: #371f13; --av-deep: #24140b; }
+.av-maker:has(#av-colour-red:checked) .av-preview { --av-hair: #b8391c; --av-brow: #7a2410; }
+.av-maker:has(#av-colour-platinum:checked) .av-preview { --av-hair: #eee4cf; --av-brow: #b8a98a; }
+.av-maker:has(#av-colour-green:checked) .av-preview { --av-hair: #4fae7f; --av-brow: #4a3a30; }
+.av-maker:has(#av-colour-purple:checked) .av-preview { --av-hair: #8e6bd8; --av-brow: #4a3a30; }
+.av-maker:has(#av-top-k0:checked) .av-preview { --av-top: #3a3d46; }
+.av-maker:has(#av-top-k1:checked) .av-preview { --av-top: #f2f1ee; }
+.av-maker:has(#av-top-k2:checked) .av-preview { --av-top: #d6bf98; }
+.av-maker:has(#av-bg-b0:checked) .av-preview { --av-bg: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.av-maker:has(#av-bg-b1:checked) .av-preview { --av-bg: #cfeedf; }
+.av-maker:has(#av-bg-b2:checked) .av-preview { --av-bg: #ffd9c7; }
+.av-maker:has(#av-bg-b3:checked) .av-preview { --av-bg: #e0d6fb; }
+.av-maker:has(#av-bg-b4:checked) .av-preview { --av-bg: #cfe6ff; }
+.av-maker:has(#av-bg-b5:checked) .av-preview { --av-bg: #f3e6c4; }
+.av-maker:has(#av-bg-b6:checked) .av-preview { --av-bg: #3c4356; }
+.av-maker:has(#av-hair-bald:checked) .hs-bald,
+.av-maker:has(#av-hair-afro:checked) .hs-afro,
+.av-maker:has(#av-hair-bob:checked) .hs-bob,
+.av-maker:has(#av-hair-ponytail:checked) .hs-ponytail,
+.av-maker:has(#av-hair-braids:checked) .hs-braids,
+.av-maker:has(#av-eyes-soft:checked) .ey-soft,
+.av-maker:has(#av-eyes-wide:checked) .ey-wide,
+.av-maker:has(#av-eyes-happy:checked) .ey-happy,
+.av-maker:has(#av-eyes-wink:checked) .ey-wink,
+.av-maker:has(#av-brows-soft:checked) .br-soft,
+.av-maker:has(#av-brows-thick:checked) .br-thick,
+.av-maker:has(#av-brows-straight:checked) .br-straight,
+.av-maker:has(#av-brows-raised:checked) .br-raised,
+.av-maker:has(#av-mouth-smile:checked) .mo-smile,
+.av-maker:has(#av-mouth-grin:checked) .mo-grin,
+.av-maker:has(#av-mouth-neutral:checked) .mo-neutral,
+.av-maker:has(#av-face-goatee:checked) .fh-goatee,
+.av-maker:has(#av-face-stubble:checked) .fh-stubble,
+.av-maker:has(#av-glasses-sun:checked) .gl-sun,
+.av-maker:has(#av-head-cap:checked) .hd-cap,
+.av-maker:has(#av-head-beanie:checked) .hd-beanie,
+.av-maker:has(#av-head-headphones:checked) .hd-headphones,
+.av-maker:has(#av-head-flower:checked) .hd-flower,
+.av-maker:has(#av-detail-freckles:checked) .dt-freckles,
+.av-maker:has(#av-detail-earrings:checked) .dt-earrings,
+.av-maker:has(#av-detail-mole:checked) .dt-mole,
+.av-maker:has(#av-outfit-tee:checked) .ot-tee,
+.av-maker:has(#av-outfit-hoodie:checked) .ot-hoodie,
+.av-maker:has(#av-outfit-shirt:checked) .ot-shirt,
+.av-maker:has(#av-outfit-sweater:checked) .ot-sweater { display: inline; }
+.av-bg { fill: var(--av-bg, color-mix(in srgb, var(--accent) 16%, var(--surface))); }
+.av-top-deep { fill: var(--av-top); filter: brightness(0.86); }
+.av-string { fill: none; stroke: rgb(255 255 255 / 75%); stroke-width: 1.6; stroke-linecap: round; }
+.av-shirt { fill: #fbfbf8; stroke: rgb(0 0 0 / 12%); stroke-width: 0.8; stroke-linejoin: round; }
+.av-button { fill: rgb(0 0 0 / 30%); }
+.av-rib { fill: none; stroke: rgb(0 0 0 / 22%); stroke-width: 3; stroke-linecap: round; }
+.av-freckles { fill: var(--av-deep); opacity: 0.55; }
+.av-mole { fill: var(--av-deep); }
+.av-earring { fill: #f2c94c; stroke: #c99a26; stroke-width: 0.8; }
+.av-eye-arc { fill: none; stroke: #3a2418; stroke-width: 2.2; stroke-linecap: round; }
+.av-grin { fill: #7a2e2a; }
+.av-teeth { fill: #fff; }
+.av-hat { fill: var(--av-top); }
+.av-hat-deep { fill: var(--av-top); filter: brightness(0.82); }
+.av-phones { fill: #2c2f36; }
+.av-phones-band { fill: none; stroke: #2c2f36; stroke-width: 4.5; stroke-linecap: round; }
+.av-petal { fill: #f59ac0; }
+.av-flower-heart { fill: #ffd25e; }
+.av-bald { fill: #fff; opacity: 0.22; }
+.av-brows.is-thick .av-brow, .av-maker:has(#av-brows-thick:checked) .av-preview .av-brows .av-brow { stroke-width: 5.6; }
+.av-glasses.is-sun rect, .av-maker:has(#av-glasses-sun:checked) .av-preview .gl-sun rect { fill: #23252b; fill-opacity: 0.9; }
 

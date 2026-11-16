@@ -6150,13 +6150,31 @@ def set_glass(subscription: Subscription, glass: str) -> Subscription:
 # science and code pages (D114). Kept in the plan's options as the names chosen: a
 # drawing of shapes, nothing uploaded. The first of each is where the maker starts,
 # save the skin, which starts in the middle of the six.
+# D137 (the owner: "more personalisation options to create the avatar"): two more skin
+# tones at the ends, five more hair styles and four more colours, eyes, eyebrows and a
+# mouth to choose, two more kinds of facial hair, sunglasses, something on the head,
+# freckles, earrings or a beauty mark, four kinds of clothes in ten colours, and a
+# background. A part added later starts at its first name for an avatar saved before.
 AVATAR_PARTS: dict[str, tuple[str, ...]] = {
-    "skin": ("s1", "s2", "s3", "s4", "s5", "s6"),
-    "hair": ("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
-    "colour": ("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
-    "face": ("none", "moustache", "beard"),
-    "glasses": ("none", "round", "square"),
-    "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6"),
+    "skin": ("s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"),
+    "hair": (
+        *("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
+        *("afro", "bob", "ponytail", "braids", "bald"),
+    ),
+    "colour": (
+        *("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
+        *("red", "platinum", "green", "purple"),
+    ),
+    "eyes": ("soft", "wide", "happy", "wink"),
+    "brows": ("soft", "straight", "thick", "raised"),
+    "mouth": ("smile", "grin", "neutral"),
+    "face": ("none", "moustache", "beard", "goatee", "stubble"),
+    "glasses": ("none", "round", "square", "sun"),
+    "head": ("none", "cap", "beanie", "headphones", "flower"),
+    "detail": ("none", "freckles", "earrings", "mole"),
+    "outfit": ("tee", "hoodie", "shirt", "sweater"),
+    "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6", "k0", "k1", "k2"),
+    "bg": ("b0", "b1", "b2", "b3", "b4", "b5", "b6"),
 }
 AVATAR_START: dict[str, str] = {part: names[0] for part, names in AVATAR_PARTS.items()} | {"skin": "s3"}
 

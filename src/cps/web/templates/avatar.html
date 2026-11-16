@@ -15,37 +15,36 @@
 {% if saved %}<p class="notice notice-ok" role="status">{{ _("Saved. Your avatar is now the student in How it works.") }} <a href="/p/{{ token }}/garden">{{ _("See it there") }} ›</a></p>{% endif %}
 {% set words = {
   "short": _("Short"), "swept": _("Swept"), "long": _("Long"), "curly": _("Curly"), "bun": _("Bun"),
-  "shaved": _("Shaved"), "scarf": _("Headscarf"),
+  "shaved": _("Shaved"), "scarf": _("Headscarf"), "afro": _("Afro"), "bob": _("Bob"), "ponytail": _("Ponytail"),
+  "braids": _("Braids"), "bald": _("Bald"),
   "dark": _("Dark brown"), "black": _("Black"), "brown": _("Brown"), "auburn": _("Auburn"), "blonde": _("Blonde"),
-  "grey": _("Grey"), "pink": _("Pink"), "blue": _("Blue"),
-  "none": _("None"), "moustache": _("Moustache"), "beard": _("Beard"), "round": _("Round"), "square": _("Square"),
+  "grey": _("Grey"), "pink": _("Pink"), "blue": _("Blue"), "red": _("Red"), "platinum": _("Platinum"),
+  "green": _("Green"), "purple": _("Purple"),
+  "none": _("None"), "moustache": _("Moustache"), "beard": _("Beard"), "goatee": _("Goatee"), "stubble": _("Stubble"),
+  "round": _("Round"), "square": _("Square"), "sun": _("Sunglasses"),
+  "soft": _("Soft"), "wide": _("Wide"), "happy": _("Happy"), "wink": _("Wink"),
+  "straight": _("Straight"), "thick": _("Thick"), "raised": _("Raised"),
+  "smile": _("Smile"), "grin": _("Grin"), "neutral": _("Calm"),
+  "cap": _("Cap"), "beanie": _("Beanie"), "headphones": _("Headphones"), "flower": _("Flower"),
+  "freckles": _("Freckles"), "earrings": _("Earrings"), "mole": _("Beauty mark"),
+  "tee": _("T-shirt"), "hoodie": _("Hoodie"), "shirt": _("Shirt"), "sweater": _("Sweater"),
 } %}
+{# D137: every part in turn, colours as swatches, shapes as words. #}
+{% set rows = [
+  ("skin", _("Skin tone"), "skin"), ("hair", _("Hair"), ""), ("colour", _("Hair or headscarf colour"), "hair"),
+  ("eyes", _("Eyes"), ""), ("brows", _("Eyebrows"), ""), ("mouth", _("Mouth"), ""),
+  ("face", _("Face"), ""), ("glasses", _("Glasses"), ""), ("head", _("On your head"), ""),
+  ("detail", _("Details"), ""), ("outfit", _("Clothes"), ""), ("top", _("Clothes colour"), "top"),
+  ("bg", _("Background"), "bg"),
+] %}
 <form class="av-maker" method="post" action="/p/{{ token }}/avatar">
   <div class="card av-stage">{{ face(chosen, "maker", every=true, extra=" av-preview") }}{{ face(chosen, "saved", extra=" av-saved") }}</div>
+  {% for part, legend, swatch in rows %}
   <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Skin tone") }}</legend>
-    <div class="av-chips">{% for v in parts.skin %}<input class="av-pick" type="radio" name="skin" id="av-skin-{{ v }}" value="{{ v }}"{% if chosen.skin == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-skin-{{ v }}"><span class="av av-swatch av-swatch-skin skin-{{ v }}"></span><span class="visually-hidden">{{ _("Skin tone {n}", n=loop.index) }}</span></label>{% endfor %}</div>
+    <legend class="tile-label">{{ legend }}</legend>
+    <div class="av-chips">{% for v in parts[part] %}<input class="av-pick" type="radio" name="{{ part }}" id="av-{{ part }}-{{ v }}" value="{{ v }}"{% if chosen[part] == v %} checked{% endif %}>{% if swatch %}<label class="av-chip av-chip-swatch" for="av-{{ part }}-{{ v }}"{% if part == "colour" %} title="{{ words[v] }}"{% endif %}><span class="av av-swatch av-swatch-{{ swatch }} {% if part == 'skin' %}skin{% elif part == 'colour' %}col{% else %}{{ part }}{% endif %}-{{ v }}"></span><span class="visually-hidden">{% if part == "colour" %}{{ words[v] }}{% elif part == "skin" %}{{ _("Skin tone {n}", n=loop.index) }}{% else %}{{ _("Colour {n}", n=loop.index) }}{% endif %}</span></label>{% else %}<label class="av-chip" for="av-{{ part }}-{{ v }}">{{ words[v] }}</label>{% endif %}{% endfor %}</div>
   </fieldset>
-  <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Hair") }}</legend>
-    <div class="av-chips">{% for v in parts.hair %}<input class="av-pick" type="radio" name="hair" id="av-hair-{{ v }}" value="{{ v }}"{% if chosen.hair == v %} checked{% endif %}><label class="av-chip" for="av-hair-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
-  </fieldset>
-  <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Hair or headscarf colour") }}</legend>
-    <div class="av-chips">{% for v in parts.colour %}<input class="av-pick" type="radio" name="colour" id="av-colour-{{ v }}" value="{{ v }}"{% if chosen.colour == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-colour-{{ v }}" title="{{ words[v] }}"><span class="av av-swatch av-swatch-hair col-{{ v }}"></span><span class="visually-hidden">{{ words[v] }}</span></label>{% endfor %}</div>
-  </fieldset>
-  <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Face") }}</legend>
-    <div class="av-chips">{% for v in parts.face %}<input class="av-pick" type="radio" name="face" id="av-face-{{ v }}" value="{{ v }}"{% if chosen.face == v %} checked{% endif %}><label class="av-chip" for="av-face-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
-  </fieldset>
-  <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Glasses") }}</legend>
-    <div class="av-chips">{% for v in parts.glasses %}<input class="av-pick" type="radio" name="glasses" id="av-glasses-{{ v }}" value="{{ v }}"{% if chosen.glasses == v %} checked{% endif %}><label class="av-chip" for="av-glasses-{{ v }}">{{ words[v] }}</label>{% endfor %}</div>
-  </fieldset>
-  <fieldset class="card av-part">
-    <legend class="tile-label">{{ _("Top") }}</legend>
-    <div class="av-chips">{% for v in parts.top %}<input class="av-pick" type="radio" name="top" id="av-top-{{ v }}" value="{{ v }}"{% if chosen.top == v %} checked{% endif %}><label class="av-chip av-chip-swatch" for="av-top-{{ v }}"><span class="av av-swatch av-swatch-top top-{{ v }}"></span><span class="visually-hidden">{{ _("Colour {n}", n=loop.index) }}</span></label>{% endfor %}</div>
-  </fieldset>
+  {% endfor %}
   <p class="av-save"><button class="btn btn-primary" type="submit">{{ _("Save my avatar") }}</button></p>
 </form>
 <p class="hint">{{ _("A drawing made of shapes: nothing is uploaded. It is shown on your own pages only.") }}</p>

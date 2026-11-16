@@ -300,9 +300,10 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   longer than D118's, each pinned panel holding the window for four fifths of a screen of scrolling;
   the lit step follows the scene's part, not exactly the window's middle. How it works (D121) is
   15.4 screens long at 1440 × 900 and 23.6 on a phone: six pinned chapters and the month.
-- The student's avatar (D115) has six skin tones and seven hair styles, a choice and not every
-  person; it is shown on the student's own pages only, in How it works (Community keeps the initial
-  on a colour).
+- The student's avatar (D115, D137) has eight skin tones, twelve hair styles, eyes, brows, a mouth,
+  headwear, details, four kinds of clothes and a background, a choice and not every person; it
+  is shown on the student's own pages only, in How it works (Community keeps the initial on a
+  colour).
   Its preview needs CSS `:has` (elsewhere it shows the avatar as saved). Checked in Chromium only.
 - Studying now and reactions (D108) were checked in Chromium only, at phone size and 1280px;
   the reactions are the device's emoji. Studying now is off until a student says yes, and seen
