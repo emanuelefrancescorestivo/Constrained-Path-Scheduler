@@ -219,7 +219,8 @@ def test_the_pages_offer_a_course_s_materials_in_one_tap(tmp_path, people, monke
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
         deck = web.get(f"/p/{ada.token}/cards").text
-        assert "Make cards from a course" in deck and "/cards/make?from=course&amp;course=Algebra%203" in deck
+        # D134: a file of notes first, the course's materials one line under it.
+        assert "Or from a course" in deck and "/cards/make?from=course&amp;course=Algebra%203" in deck
         page = web.get(f"/p/{ada.token}/cards/make?from=course&course=Algebra%203").text
         assert "Cards from Algebra 3" in page and "Bob&#39;s summary" in page and "12 topics" in page
         assert "Write cards with AI" not in page  # no model on this server

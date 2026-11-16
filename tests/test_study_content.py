@@ -227,9 +227,10 @@ def test_the_pages_make_cards_and_share_notes_with_a_group(tmp_path, people):
     ada, bob, _cleo, group = people
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None)
     with TestClient(create_app(config)) as web:
-        # D101: Flashcards offers a course's materials first, and pasting notes still.
+        # Flashcards offers a file of notes first (D134), a course's materials (D101) and
+        # pasting notes still.
         deck = web.get(f"/p/{bob.token}/cards").text
-        assert "Make cards from a course" in deck and "Or paste your notes" in deck
+        assert "Make cards from your notes" in deck and "Or paste your notes" in deck
         page = web.post(f"/p/{bob.token}/cards/make", data={"text": NOTES, "action": "read"}).text
         assert "Cards found" in page and page.count('name="pick"') == 9
         form = {"text": NOTES, "action": "add", "course": "Algebra 3", "front": ["Rank"], "back": ["dim"]}
