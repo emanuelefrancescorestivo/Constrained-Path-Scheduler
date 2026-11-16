@@ -219,7 +219,8 @@ free instance wakes up.
    (D26). **Groups**: a few friends share one weekly goal in hours; the group sees
    its total and who has studied this week, never one person's hours (D28).
    **Flashcards**: your own cards, each scheduled by the same memory model as the
-   plan and brought back just before you would forget it (D29).
+   plan and brought back just before you would forget it (D29); made from a file of your
+   notes (PDF, Word, PowerPoint, text), read by rules on the server for free (D134).
 7. **Two addresses**: the Today page, and a calendar feed to subscribe to in Google
    Calendar, Apple Calendar or Outlook. The feed follows the timetable's link.
 8. **After each session**: its calendar event links to a page that asks how it went.

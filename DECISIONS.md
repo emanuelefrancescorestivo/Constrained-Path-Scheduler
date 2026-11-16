@@ -5161,3 +5161,50 @@ who is there. Places are listed within about 28 km of the map's centre, which is
 place, else their time zone's main city (D76), not their university. Checked in Chromium only,
 at phone size light and dark and at 1280px, with tiles loaded through this environment's
 network; not on a real phone, Safari or Firefox.
+
+## D134. Flashcards from a file of notes, read for free on the server
+
+*The owner, 2026-11-16, after trying the demo: "the option to upload notes and get flashcards
+from them must be put even if via a dependency but it's better if it's free".* Notes became
+cards only when pasted as text (D84), or through the model when AI is on (D101), which the
+demo is not; there was no way to send a file.
+
+**Chosen.**
+
+- *A file, one step from Flashcards.* The Flashcards page opens with "Make cards from your
+  notes": a file field and "Read my notes", sent as an ordinary form (no script needed). The
+  page that makes cards takes a file too, above the box for pasted text, and shows the text it
+  read in that box, to change before reading again. The cards are offered as for pasted notes,
+  each picked by the student (D84).
+- *What is read* (`notefiles.py`): PDF (pypdf, already in the `web` extra, D90), Word
+  (.docx), PowerPoint (.pptx), LibreOffice's text and slides (.odt, .odp), Markdown and plain
+  text, told apart by their first bytes. The Office and OpenDocument files are zips of XML,
+  read with Python's own `zipfile` and `ElementTree`: no new dependency, no model, no cost,
+  nothing sent anywhere, the file not kept.
+- *The shapes the rules read are kept.* A heading becomes a Markdown heading, a list item a
+  "- " line, a word in bold `**…**` (so a bold term becomes a blank to fill), a whole short
+  line in bold a heading, as students write them. A slide's title goes over its points, so a
+  slide becomes a list to recall; a deck is read in its own order (the presentation's list,
+  not the files' numbers), without slide numbers, footers or speaker notes; a deck of text
+  boxes placed by hand takes its topmost short box as the title. Word's heading styles are
+  read by their names in English, Italian, French, German, Spanish, Dutch and Polish;
+  LibreOffice's through their parent styles. A PDF's symbol-font bullets become items.
+- *Limits.* 10 MB a file (as a PDF), 25 MB unzipped in all, 300 slides, and the card rules
+  now read 60,000 characters at once instead of 20,000 (about 20 pages; a longer file is cut
+  and the page says so). An XML part with a DOCTYPE is refused (no format here needs one;
+  declared entities are how XML is made to swell, and Python's expat bounds them too). Old
+  binary .doc and .ppt files, photos and other kinds are refused with what to do instead.
+
+**Rejected.** OCR for photos and scans: Tesseract or an ONNX model is a dependency for printed
+text only, and handwriting, which most photographed notes are, needs a model; the AI path
+(Claude Haiku, D101) reads text only too. A free model running on the server: gigabytes on
+disk and seconds a page on the pilot's small server. python-docx and python-pptx: two
+dependencies for what the standard library reads in a few lines. Keeping the file (it would
+be a copy of a student's notes the server does not need).
+
+**Disclosed.** Cards come from rules, so notes written as prose give few: definitions,
+questions, lists and words in bold give most. Tried on files written by the tests and by
+LibreOffice (as .docx, .pptx, .odt, .odp and PDF), not on files saved by Microsoft Office,
+Google Docs, Pages, Notion or a note-taking app. Equations, tables' layout and pictures are
+not read. Checked in Chromium only, at phone size and 1280px.
+

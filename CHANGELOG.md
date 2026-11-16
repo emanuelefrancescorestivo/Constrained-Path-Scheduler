@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Flashcards from a file of notes (DECISIONS.md D134): send a PDF, Word, PowerPoint,
+  LibreOffice or text file from Flashcards, and its definitions, questions, lists, slides and
+  words in bold become cards to pick from. Read on the server for free, nothing sent anywhere,
+  the file not kept; photos and scans are not read.
+
 - The study map (DECISIONS.md D133): Community's map of places to study and who is at each
   now, the people you follow by name and everyone else as a count; Study here or Join moves
   your focus session to a place, and anyone with a handle can add a place by tapping the map.

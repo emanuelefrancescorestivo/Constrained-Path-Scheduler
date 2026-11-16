@@ -73,6 +73,7 @@ more than an impressive number.
 | `syllabus.py` | D81: a course's program pasted as text, read by rules into topics (a week or a lecture named in English, French, Italian, Spanish, Portuguese, German, Dutch; bullets, numbering, headings and links dropped), and placed on the course's weeks of lectures, a list without weeks spread by lecture hours: pure functions; D83: a whole course page cut at its headings (content, outcomes, assessment, prerequisites, reading, methods, as the ECTS guide lists them), the topics from its content, the assessment's weights and the ECTS credits with their hours; D90: a whole semester's program cut into its courses (contents page, the plan's names, repeated headings; page furniture dropped), dated or numbered schedules row by row (weekday-checked dates, wrapped cells, readings, "Continuation" and days off skipped), assessments in their weeks, hours of classes, prose and group labels skipped |
 | `pdftext.py` | D90: a PDF's text with pypdf (the `web` extra), within 10 MB, 80 pages and 200,000 characters; the file is not kept; why a PDF gave no text (a scan, a password, damage); D95: a PDF of notes written again without its metadata and what runs, with its text |
 | `cardmaker.py` | D84: flashcards read by rules from a student's notes: questions and answers, terms and definitions, lists, words in bold or a cloze, definition sentences, in seven languages; each card picked by the student before it is kept: pure functions |
+| `notefiles.py` | D134: a file of notes as text for `cardmaker`: PDF (pypdf), Word, PowerPoint, LibreOffice's text and slides (the standard library's zip and XML), Markdown, text; headings, items, bold and slide titles kept; DOCTYPEs, swelling zips, photos and old Office files refused; the file not kept |
 | `tips.py` | D62: the study tips, each with how strong its evidence is, its limits and its sources (only entries of docs/REFERENCES.md marked checked, with the day they were read); `service` picks the one the day calls for (an exam close, a skipped class, an evening session…, D63) or one in turn; D91: six topics, each with a line about it, How the brain learns and Motivation and reward among them |
 | `weekly.py` | D64: the weekly note on the science of learning, ten studies in plain words under the tips' rules; one more each Monday from the plan's first day |
 | `cards.py` | flashcards: the student's own cards, each scheduled by `memory` (FSRS-6, D52; the student's own parameters from 400 answers, D53), the review queue, 20 new a day, "Again" back in 10 minutes (D29); a card's week of lectures and a week's practice, each card once a day (D87) |
@@ -318,6 +319,10 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - The pictures (D99, D100) were checked in Chromium only. The climb's milestones are a
   choice; a diary session's picture is read by rules from its title's words, a compound
   word missed. Whether the climb motivates more than the weekly columns is for the pilot.
+- Flashcards from a file of notes (D134) are read by rules, for free: prose gives few cards;
+  tried on files written by the tests and by LibreOffice, not by Microsoft Office, Google Docs or
+  note-taking apps; photos, scans, equations and tables' layout are not read. Checked in
+  Chromium only.
 - Cards from notes (D84) are read by rules from shapes notes commonly take, not from real
   students' notes; the model's cards, from a note or a course's materials (D101, Haiku 5.5),
   ran against a fake provider only. A classmate's notes reach the model under the reader's

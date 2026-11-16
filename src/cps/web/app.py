@@ -2901,13 +2901,30 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
+        if int(request.headers.get("content-length") or 0) > service.NOTES_FILE_MOST + 256 * 1024:
+            message = service.translate("That file is larger than 10 MB: send a chapter at a time.")
+            return cards_make_page(request, subscription, 413, error=message)
         # The cards found travel back with the form: three fields each, at most 200 (D84).
-        # Four with a week of its own (D101).
-        form = await request.form(max_files=0, max_fields=4 * service.CARDS_MADE_MOST + 12)
+        # Four with a week of its own (D101). One file of notes (D134).
+        form = await request.form(max_files=1, max_fields=4 * service.CARDS_MADE_MOST + 12)
         text = str(form.get("text") or "")[: service.CARDS_TEXT_MOST]
         course = str(form.get("course") or "")[:80]
         action = form.get("action")
         from_course = form.get("from") == "course" and bool(course.strip())
+        upload = form.get("file")
+        read_note = None
+        if isinstance(upload, UploadFile) and upload.filename and action != "add":
+            data = await upload.read(service.NOTES_FILE_MOST + 1)
+            await upload.close()
+            try:
+                text, read_note = service.notes_file_text(str(upload.filename), data)
+            except service.ServiceError as error:
+                return cards_make_page(request, subscription, 400, course=course, error=str(error))
+            finally:
+                del data  # the file is not kept (D134)
+            text = text[: service.CARDS_TEXT_MOST]
+            from_course = False
+            service.log_event(store, token, "cardmaker", "file")
         if action == "add":
             try:
                 added = service.add_made_cards(
@@ -2940,6 +2957,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             text=None if from_course else text,
             course=course,
             both=bool(form.get("both")),
+            read_note=read_note,
             use_ai=action == "ai",
             week=str(form.get("week") or "")[:10] if "week" in form else None,
             from_course=from_course,

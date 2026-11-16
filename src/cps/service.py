@@ -68,6 +68,7 @@ from . import inbox as _inbox
 from . import insights as _insights
 from . import learning as _learning
 from . import mail as _mail
+from . import notefiles as _notefiles
 from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
@@ -7761,6 +7762,7 @@ def card_maker_view(
     week: str | None = None,
     from_course: bool = False,
     of_week: str | None = None,
+    read_note: str | None = None,
 ) -> dict:
     """The page that makes flashcards from notes (D84): the text (pasted, or a note's),
     and the cards read from it for the student to pick. By rules; by the model too
@@ -7855,6 +7857,9 @@ def card_maker_view(
         "ai_off": _ai.cards_from_env() is not None and not ai_on(subscription),
         "ai_used": used_ai,
         "most": _cardmaker.MAX_CARDS,
+        "most_text": _cardmaker.MAX_TEXT,
+        # A file of notes read (D134): what was left out, if anything.
+        "read_note": read_note,
         # The course's weeks, to file the cards under one (D87): this week by default.
         **choice,
     }
@@ -10886,6 +10891,42 @@ def pdf_text(data: bytes) -> tuple[str, str | None]:
     except _pdftext.PdfError as exc:
         raise InvalidInput(_(_PDF_ERRORS[exc.reason])) from exc
     note = _("Only its first {n} pages were read.", n=found.read) if found.read < found.pages else None
+    return found.text, note
+
+
+# D134: why a file of notes gave no text, said to the student with what to do instead.
+_NOTES_ERRORS = {
+    "large": "That file is larger than 10 MB: send a chapter at a time.",
+    "photo": "Photos of notes are not read yet: only typed text is. Send the PDF or the document instead.",
+    "old_office": "That is an old Word or PowerPoint file: save it as .docx, .pptx or PDF and send it again.",
+    "unknown": "That file is not one the app reads: save it as PDF, Word, PowerPoint or text.",
+    "not_pdf": "That file is not one the app reads: save it as PDF, Word, PowerPoint or text.",
+    "unreadable": "That file could not be read. Open it, copy its text and paste it instead.",
+    "locked": _PDF_ERRORS["locked"],
+    "empty": "That file has no text to read: a scan or handwriting is not read. Paste the text instead.",
+    "missing": _PDF_ERRORS["missing"],
+}
+NOTES_FILE_MOST = _notefiles.MAX_BYTES
+
+
+def notes_file_text(name: str, data: bytes) -> tuple[str, str | None]:
+    """The text of a file of notes a student sends to make flashcards (D134), and a
+    note when only part of it was read; read on this server, the file not kept."""
+    try:
+        found = _notefiles.text(name, data)
+    except _notefiles.NotesError as exc:
+        raise InvalidInput(_(_NOTES_ERRORS.get(exc.reason, _NOTES_ERRORS["unreadable"]))) from exc
+    note = None
+    if found.read < found.parts:
+        if found.kind == "pdf":
+            note = _("Only its first {n} pages were read.", n=found.read)
+        else:
+            note = _("Only its first {n} slides were read.", n=found.read)
+    elif found.cut:
+        note = _(
+            "Long notes: the first {n} characters are read; send the rest as another file.",
+            n=format_number(_notefiles.MAX_CHARS, 0),
+        )
     return found.text, note
 
 

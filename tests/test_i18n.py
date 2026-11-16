@@ -92,6 +92,7 @@ def indirect_sentences() -> set[str]:
         *service._INSIGHT_HOW.values(),
         *service._BEST_PART.values(),
         *service._PDF_ERRORS.values(),  # why a PDF gave no text (D90)
+        *service._NOTES_ERRORS.values(),  # why a file of notes gave no text (D134)
         *(label for _, label in usage.PARTS),  # the parts of the app counted (D96)
         *service.SECTION_HINTS.values(),  # each section's line on its first visit (D97)
         service.JOINED_HINT,  # Community's for a student with a handle (AUDIT 82)
