@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% block title %}{{ _("Tasks") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 <div id="tasks">
@@ -8,6 +9,7 @@
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if task_error %}<p class="alert" role="alert">{{ task_error }}</p>{% endif %}
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% if view.error and not view.planned %}<p class="alert" role="alert">{{ view.error }}</p>{% endif %}
 
 {% set open_rows = view.rows | rejectattr("finished") | list %}

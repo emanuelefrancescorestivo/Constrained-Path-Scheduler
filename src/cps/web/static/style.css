@@ -4240,3 +4240,43 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .run-switch { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 0; cursor: pointer; }
 .run-switch input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
 .run-switch small { display: block; color: var(--muted); }
+
+/* D135: a tip beside what a page is about. The card: the spark, why here, the advice; the
+   research folded under it. The line: one row above the calendar's grid. Both open
+   without a script; nothing in them moves but the spark, which rests with the page. */
+.why-tip .mascot-tip { align-items: flex-start; }
+.why-tip .mascot { width: 52px; height: 52px; flex: none; }
+.why-tip .mascot-words { margin: 0; }
+.why-tip .mascot-words b { font-weight: 600; line-height: 1.35; }
+.why-more { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.why-more > summary, .why-line > summary { cursor: pointer; list-style: none; }
+.why-more > summary::-webkit-details-marker, .why-line > summary::-webkit-details-marker { display: none; }
+.why-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 44px; margin: 0; color: var(--accent-ink); font-size: 0.9rem; font-weight: 600; }
+/* The line keeps the fold's chevron on its right, after the words, and the dot first. */
+.why-line > summary { margin: 0; font-weight: 400; color: inherit; }
+.why-line > summary::before { content: none; }
+.why-line > summary::after { content: "›"; margin-left: auto; color: var(--muted); transition: transform 0.2s ease; }
+.why-line[open] > summary::after { transform: rotate(90deg); }
+.why-strength { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.why-strength.is-strong { background: var(--ok-soft); color: var(--text); }
+.why-strength.is-moderate { background: var(--accent-soft); color: var(--text); }
+.why-body { font-size: 0.92rem; line-height: 1.5; }
+.why-body p { margin: 8px 0; }
+.why-limits, .why-app { color: var(--muted); }
+.why-limits b { color: var(--text); font-weight: 600; }
+.why-sources { margin: 8px 0; padding: 0; list-style: none; font-size: 0.86rem; }
+.why-sources li { margin: 4px 0; }
+.why-links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.88rem; }
+.why-line { margin: 0 0 8px; padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); font-size: 0.9rem; }
+.why-line > summary { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.why-line-words { min-width: 0; color: var(--muted); }
+.why-line-words b { color: var(--text); font-weight: 600; }
+.why-line:not([open]) .why-line-words { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.why-bulb { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+/* Opened, the research scrolls inside the line: the calendar's grid keeps its room. */
+.why-line-body { padding: 4px 0 6px; max-height: min(38vh, 320px); overflow: auto; overscroll-behavior: contain; }
+@media (max-width: 760px) { .why-line { margin: 0 8px 8px; } .why-line-body { max-height: 24vh; } }
+.why-strength-line { margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .why-line > summary::after { transition: none; } }
+:root[data-motion="reduce"] .why-line > summary::after { transition: none; }
+

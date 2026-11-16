@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% from "_mascot.html" import mascot %}
 {% from "_art.html" import art %}
 {# How long a session is meant to last, chosen before starting (D67). #}
@@ -62,10 +63,6 @@
   <h1>{{ _("Focus") }}</h1>
   <p>{{ _("Start the timer, study, then log what you did.") }}</p>
 </div>
-{% if tip %}<a class="card link-card mascot-tip section" href="/p/{{ token }}/tips?topic={{ tip.topic }}#tip-{{ tip.key }}">
-  {{ mascot(tip.mood, "mascot-start") }}
-  <span class="mascot-words"><span class="tip-reason">{{ _("Before you start") }}</span><b>{{ tip.advice }}</b><span class="tip-more">{{ _("Why, and the evidence") }} ›</span></span>
-</a>{% endif %}
 {% if focus.suggested %}
 <form method="post" action="/p/{{ token }}/focus/start" class="card start-planned" data-tour="focus-start">
   <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
@@ -77,6 +74,8 @@
   <button class="btn btn-primary btn-lg btn-block">{{ _("Start this session") }}</button>
 </form>
 {% endif %}
+{# D135: the tip for the session about to start, with its evidence folded. #}
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 <form method="post" action="/p/{{ token }}/focus/start" class="card section" data-tour="focus-start">
   {% if place %}<input type="hidden" name="place" value="{{ place.id }}">{% endif %}
   <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>

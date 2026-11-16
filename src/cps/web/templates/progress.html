@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% from "_ring.html" import ring %}
 {% block title %}{{ _("Progress") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
@@ -123,6 +124,8 @@
   </a>
 </div>
 {% endif %}
+
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 
 {# D103 (package C of the 2026-10-23 review): the week, the streak, the exams and the
    climb above; everything else one tap away, folded, so the page is short. The fold

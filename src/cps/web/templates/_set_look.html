@@ -27,13 +27,13 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("Automatic tints the glass, so what scrolls beneath it barely shows, and turns it solid when your device asks for less transparency or blurs too slowly. See-through lets the sky show through every card. Solid is the lightest for an older computer or phone.") }}</p>
-<form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" aria-label="{{ _('Tips') }}">
+<form method="post" action="/p/{{ token }}/tip-setting" class="pills motion-choice" id="tips" aria-label="{{ _('Tips') }}">
   <span class="pills-label">{{ _("Tips") }}</span>
   {% for value, word in (("on", _("On")), ("off", _("Off"))) %}
   <button type="submit" name="tips" value="{{ value }}" class="btn btn-sm"{% if ("on" if tips_on else "off") == value %} aria-pressed="true"{% endif %}>{{ word }}</button>
   {% endfor %}
 </form>
-<p class="hint">{{ _("A study tip on Today and Focus, chosen for your day. The tips page stays in Focus either way.") }}</p>
+<p class="hint">{{ _("A study tip where it applies: on Today, Focus, the calendar, flashcards, a course, Tasks, Progress and your week, chosen from your plan, with its research a tap away. The tips page stays in Focus either way.") }}</p>
 <form method="post" action="/p/{{ token }}/tour/again" class="pills motion-choice" id="tour-again">
   <span class="pills-label">{{ _("Spark's tour") }}</span>
   <button type="submit" class="btn btn-sm">{{ _("Show it again") }}</button>

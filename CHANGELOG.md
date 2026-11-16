@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Tips where they apply (DECISIONS.md D135): Focus, flashcards, the calendar, a course,
+  Tasks, Progress and your week each show one study tip about what they are about, with why
+  here from your plan (a self-test about to start, an exam close, the days a course comes
+  back) and the research behind it folded under it, sources included.
+
 - Flashcards from a file of notes (DECISIONS.md D134): send a PDF, Word, PowerPoint,
   LibreOffice or text file from Flashcards, and its definitions, questions, lists, slides and
   words in bold become cards to pick from. Read on the server for free, nothing sent anywhere,

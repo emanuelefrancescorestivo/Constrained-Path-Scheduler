@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% block title %}{{ _("Review") }} · {{ _("Flashcards") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="{{ asset('cards.js') }}"></script>{% endblock %}
 {% block main %}
@@ -46,4 +47,6 @@
 </section>
 {% endif %}
 {% endif %}
+{# D135: below the card, or below the end of the queue. #}
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% endblock %}

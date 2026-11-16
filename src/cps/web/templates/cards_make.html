@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_why.html" import why with context %}
 {% from "_art.html" import art %}
 {% set m = view.materials %}
 {% block title %}{% if m %}{{ _("Cards from {course}", course=view.course) }}{% else %}{{ _("Cards from your notes") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
@@ -101,5 +102,6 @@
   <p class="hint">{% if view.ai_ready %}{{ _("Read by rules on this server. With AI, the text of your notes is sent to the model too, within your AI limits.") }}{% else %}{{ _("Read by rules on this server: your notes are not sent anywhere.") }}{% endif %}</p>
 </form>
 {% endif %}
+{% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% if view.courses %}<datalist id="m-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
 {% endblock %}

@@ -1,8 +1,8 @@
 """
 Flashcards from a student's own text (DECISIONS.md D84): notes typed or pasted, a file of
 notes read as text (`notefiles`, D134), or a text note of theirs or of their study
-group, read by rules into cards the student picks from before any is kept. No model, no network, no cost; the same text always
-gives the same cards.
+group, read by rules into cards the student picks from before any is kept. No model,
+no network, no cost; the same text always gives the same cards.
 
 Why cards from notes: practice testing is one of the two techniques rated of high
 utility in a review of ten [ref:dunlosky2013], and left alone most students reread

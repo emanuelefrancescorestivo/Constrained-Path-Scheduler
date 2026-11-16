@@ -5208,3 +5208,40 @@ LibreOffice (as .docx, .pptx, .odt, .odp and PDF), not on files saved by Microso
 Google Docs, Pages, Notion or a note-taking app. Equations, tables' layout and pictures are
 not read. Checked in Chromium only, at phone size and 1280px.
 
+## D135. The tips where they apply: beside a session, a card, a course, the calendar
+
+*The owner, 2026-11-16, after trying the demo: "the study tips and neuroscience of learning
+should not be hidden like this but rather appear in context, when focusing, when planning,
+etc..."* A tip reached Today only when nothing else needed saying (D97's one message, the
+tip last), Focus showed one about breaks, and the rest waited on the tips page under You.
+
+**Chosen.**
+
+- *One tip a page, beside what the page is about* (`service.tip_here`, `_why.html`): Focus
+  before a session, a self-test's cards, Flashcards, cards from notes, the calendar, the
+  week's settings, a course, Tasks and Progress. Each comes from the tips of D62 and D91 (the
+  science of learning and the brain's tips among them), with the evidence each already
+  carries: the advice, then folded, without a script, what the research found, how strong it
+  is, what it does not show, its checked sources, and a link to its topic on the tips page.
+- *Why here, from the plan.* A line above the advice says only what the plan holds: "This
+  session is a self-test: recall what you can before you look at your notes" when the session
+  about to start is one; "{course}'s exam is on {day}: sleep over the weeks before it counts"
+  from three weeks before an exam; "Your plan comes back to {course} on {days}", the next
+  three days of one course's sessions; a test in a course from its timetable. These come first; otherwise a page's tips take turns day by day, each page at its
+  own offset, so two pages seldom show the same tip on the same day.
+- *Calm.* A card with the spark (D66) on most pages; on the calendar one line above the grid,
+  its research scrolling inside the line when opened, so the grid keeps its room. Tips off
+  (Settings, Look) removes them all; the line and each card link to that switch.
+
+**Rejected.** A tip on every card of a page (more words than the page's own). Showing tips as
+pop-ups or in the tour (they would interrupt what the student came to do). Tying the calendar's
+mix of courses in a day to interleaving (the research mixed kinds of problems within one
+subject, not courses: the course page says that instead). Tips chosen by a model (D65's rules
+stay: a tip may cite only a checked reference).
+
+**Disclosed.** Which tip a page shows is chosen by rules from the plan, not from what a student
+needs; the lines tie research done elsewhere (laboratories, other subjects, other goals) to
+this plan, and each tip's "what it does not show" says how far. Whether students read them
+more here than on the tips page is for the pilot (`log_tips` counts the tips page only).
+Checked in Chromium only, at phone size and 1280px.
+

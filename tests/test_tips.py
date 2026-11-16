@@ -290,8 +290,11 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         assert today.count('id="mascot-pretest-body"') == 1  # its gradients' ids are its own
 
         focus = unescape(web.get(f"/p/{token}/focus").text)
-        assert "Before you start" in focus and f"/p/{token}/tips?topic=breaks#tip-breaks" in focus
-        assert 'class="mascot is-wave"' in focus
+        # Before a session, the tip for it (D135, which replaced D63's fixed "Before you
+        # start" card about breaks): one of Focus's, with the spark and its evidence.
+        shown = re.search(r'data-why="([\w-]+)"', focus)
+        assert shown is not None and shown[1] in {"recall-strengthens", "breaks", "if-then", "effort-feels"}
+        assert f"/p/{token}/tips?topic=" in focus and 'class="mascot is-' in focus
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
         running = web.get(f"/p/{token}/focus").text
         assert 'data-break-at="1440" hidden' in running  # shown by the clock at 24 minutes
