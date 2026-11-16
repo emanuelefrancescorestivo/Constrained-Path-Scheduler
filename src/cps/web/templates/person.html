@@ -25,6 +25,16 @@
     {% else %}
     <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/follow"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-primary btn-sm">{{ _("Follow") }}</button></form>
     {% endif %}
+    {# Studying together (D127) #}
+    {% if together == "together" %}
+    <span class="badge badge-ok">{{ _("Studying together") }}</span>
+    {% elif together == "asked" %}
+    <form method="post" action="/p/{{ token }}/together/{{ person.handle }}"><input type="hidden" name="answer" value="end"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm">{{ _("Asked to study together · withdraw") }}</button></form>
+    {% elif together == "asks" %}
+    <form method="post" action="/p/{{ token }}/together/{{ person.handle }}"><input type="hidden" name="next" value="{{ here }}"><button type="submit" name="answer" value="accept" class="btn btn-sm btn-primary">{{ _("Study together: accept") }}</button></form>
+    {% elif together_room %}
+    <form method="post" action="/p/{{ token }}/u/{{ person.handle }}/together"><input type="hidden" name="next" value="{{ here }}"><button type="submit" class="btn btn-sm btn-tinted">{{ _("Study together") }}</button></form>
+    {% endif %}
   {% endif %}
   </div>
   {% if not me and profile %}
@@ -36,6 +46,7 @@
   </details>
   {% endif %}
   {% if not me and follow_state != "accepted" %}<p class="hint">{{ _("They see your request and choose. Until then you see only what they share with everyone.") }}</p>{% endif %}
+  {% if not me and profile and not together and together_room %}<p class="hint">{{ _("Study together: you both see the days in a row you both studied, and whether the other studied today. Never how long.") }}</p>{% endif %}
 </section>
 
 <div class="section feed">

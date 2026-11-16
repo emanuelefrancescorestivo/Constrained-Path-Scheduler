@@ -1030,6 +1030,7 @@ def leave(store: Store, token: str) -> None:
             "DELETE FROM follows WHERE follower = :t OR followed = :t",
             "DELETE FROM profiles WHERE token = :t",
             *LEAVE_GROUPS,  # a group is for people with a handle (D28)
+            "DELETE FROM buddies WHERE asker = :t OR asked = :t",  # and so is a pair (D127)
         ):
             db.execute(statement, {"t": token})
 
@@ -1115,6 +1116,11 @@ def block(store: Store, blocker: str, blocked: str, now: datetime | None = None)
         db.execute(
             "DELETE FROM group_members WHERE joined IS NULL AND "
             "((token = ? AND invited_by = ?) OR (token = ? AND invited_by = ?))",
+            (blocker, blocked, blocked, blocker),
+        )
+        # Studying together ends, and an ask between them goes (D127).
+        db.execute(
+            "DELETE FROM buddies WHERE (asker = ? AND asked = ?) OR (asker = ? AND asked = ?)",
             (blocker, blocked, blocked, blocker),
         )
 
@@ -1587,6 +1593,88 @@ def join_by_code(store: Store, token: str, code: str, now: datetime | None = Non
                 (group.id, token, group.owner or token, stamp, stamp),
             )
     return group
+
+
+# --------------------------------------------------------------------------- #
+# Studying together (D127): two students who agree see the days in a row both
+# studied. Asked by handle, accepted or declined as a follow is (D16); either ends it.
+# --------------------------------------------------------------------------- #
+
+BUDDIES_EACH = 3  # the pairs one student is in, asks waiting included
+
+
+@dataclass(frozen=True)
+class Buddy:
+    asker: str
+    asked: str
+    created: str
+    accepted: str | None  # None while the ask waits
+
+    def other(self, token: str) -> str:
+        return self.asked if self.asker == token else self.asker
+
+
+def buddies_of(store: Store, token: str) -> list[Buddy]:
+    """Every pair a student is in, asks waiting included, the oldest first."""
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT asker, asked, created, accepted FROM buddies WHERE asker = ? OR asked = ? "
+            "ORDER BY created, rowid",
+            (token, token),
+        ).fetchall()
+    return [Buddy(*r) for r in rows]
+
+
+def buddy_between(store: Store, a: str, b: str) -> Buddy | None:
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT asker, asked, created, accepted FROM buddies "
+            "WHERE (asker = ? AND asked = ?) OR (asker = ? AND asked = ?)",
+            (a, b, b, a),
+        ).fetchone()
+    return Buddy(*row) if row else None
+
+
+def ask_buddy(store: Store, token: str, handle: str, now: datetime | None = None) -> Profile:
+    """Ask someone with a handle to study together; they see the ask and choose."""
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    person = profile_by_handle(store, handle.strip())
+    if person is None or person.token == token or blocked_between(store, token, person.token):
+        raise SocialError(_("there is nobody called @{handle}", handle=handle.strip().lstrip("@")[:40]))
+    if buddy_between(store, token, person.token) is not None:
+        raise SocialError(_("you already study with @{handle}, or one of you asked", handle=person.handle))
+    for who in (token, person.token):
+        if len(buddies_of(store, who)) >= BUDDIES_EACH:
+            raise SocialError(_("one studies together with {n} people at most", n=BUDDIES_EACH))
+    with store.connection() as db:
+        db.execute(
+            "INSERT INTO buddies (asker, asked, created, accepted) VALUES (?, ?, ?, NULL)",
+            (token, person.token, _now(now)),
+        )
+    return person
+
+
+def answer_buddy(store: Store, token: str, asker: str, accept: bool, now: datetime | None = None) -> bool:
+    """Accept an ask to study together, or decline it (it goes; nobody is told)."""
+    pair = buddy_between(store, token, asker)
+    if pair is None or pair.asked != token or pair.accepted is not None:
+        raise SocialError(_("this request is not, or no longer, there"))
+    with store.connection() as db:
+        if not accept:
+            db.execute("DELETE FROM buddies WHERE asker = ? AND asked = ?", (asker, token))
+            return False
+        db.execute("UPDATE buddies SET accepted = ? WHERE asker = ? AND asked = ?", (_now(now), asker, token))
+    return True
+
+
+def end_buddy(store: Store, token: str, other: str) -> None:
+    """Stop studying together, or take back an ask: either of the two may."""
+    with store.connection() as db:
+        db.execute(
+            "DELETE FROM buddies WHERE (asker = ? AND asked = ?) OR (asker = ? AND asked = ?)",
+            (token, other, other, token),
+        )
 
 
 def set_group(store: Store, owner: str, group_id: str, name: str, goal_hours: object) -> Group:

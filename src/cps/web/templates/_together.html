@@ -1,0 +1,43 @@
+{# Studying together (D127): `together` from service.together_view. Each pair's days
+   in a row both studied, and whether each studied today; asks waiting for an answer;
+   asks sent. Never anyone's hours. #}
+{% from "_people.html" import avatar %}
+{% set tv = together %}
+{% if tv.pairs or tv.waiting or tv.sent %}
+<div class="section together" id="together">
+  <div class="section-title"><h2>{{ _("Studying together") }}</h2><small>{{ _("days in a row you both studied") }}</small></div>
+  <div class="card">
+    <ul class="list together-list">
+    {% for p in tv.pairs %}
+      <li>
+        <a class="together-who" href="/p/{{ token }}/u/{{ p.handle }}">{{ avatar(p, "sm") }}<span>@{{ p.handle }}</span></a>
+        <div class="grow">
+          <div class="title"><b>{{ _n("{n} day together", "{n} days together", p.days) }}</b>{% if p.best > p.days %} <span class="muted">· {{ _("best {n}", n=p.best) }}</span>{% endif %}</div>
+          <div class="meta">{% if p.me_today %}{{ _("You studied today") }}{% else %}{{ _("You: not yet today") }}{% endif %} · {% if p.them_today %}{{ _("@{handle} studied today", handle=p.handle) }}{% else %}{{ _("@{handle}: not yet today", handle=p.handle) }}{% endif %}</div>
+        </div>
+        <form method="post" action="/p/{{ token }}/together/{{ p.handle }}"><input type="hidden" name="answer" value="end"><button type="submit" class="btn btn-sm btn-plain" aria-label="{{ _('Stop studying together with @{handle}', handle=p.handle) }}">{{ _("Stop") }}</button></form>
+      </li>
+    {% endfor %}
+    {% for p in tv.waiting %}
+      <li>
+        <a class="together-who" href="/p/{{ token }}/u/{{ p.handle }}">{{ avatar(p, "sm") }}<span>@{{ p.handle }}</span></a>
+        <div class="grow"><div class="title">{{ _("Asks to study together") }}</div>
+          <form method="post" action="/p/{{ token }}/together/{{ p.handle }}" class="together-answer">
+            <button type="submit" name="answer" value="accept" class="btn btn-sm btn-primary">{{ _("Accept") }}</button>
+            <button type="submit" name="answer" value="decline" class="btn btn-sm btn-plain">{{ _("Decline") }}</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+    {% for p in tv.sent %}
+      <li>
+        <a class="together-who" href="/p/{{ token }}/u/{{ p.handle }}">{{ avatar(p, "sm") }}<span>@{{ p.handle }}</span></a>
+        <div class="grow"><div class="title muted">{{ _("Asked to study together") }}</div></div>
+        <form method="post" action="/p/{{ token }}/together/{{ p.handle }}"><input type="hidden" name="answer" value="end"><button type="submit" class="btn btn-sm btn-plain">{{ _("Withdraw") }}</button></form>
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+  <p class="hint">{{ _("A day either of you misses ends the run; a rest day, a forgiven, repaired or paused day keeps it. Each sees only whether the other studied, never how long.") }}</p>
+</div>
+{% endif %}

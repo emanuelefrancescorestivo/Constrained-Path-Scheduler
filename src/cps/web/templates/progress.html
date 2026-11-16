@@ -56,6 +56,8 @@
 </details>
 {% endif %}
 </div>
+{# Studying together (D127), beside the streak it shares. #}
+{% if together %}{% include "_together.html" %}{% endif %}
 
 {% if view.exams %}
 <div class="section" id="exams">

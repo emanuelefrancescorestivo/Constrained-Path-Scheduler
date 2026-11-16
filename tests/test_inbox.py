@@ -249,6 +249,7 @@ TABLES = {
     "usage_consent": "usage_answer",
     "usage": "usage",
     "presence": "studying_now",  # D108: while a focus timer runs, for a student who said yes
+    "buddies": "studying_together",  # D127: the pair, who asked, when; never the other's hours
     "mail_links": None,  # a link's random value, used once and gone within a week
     "challenges": None,  # a ceremony's random value, gone in minutes
     "push_sent": None,  # which sessions were reminded, for three days

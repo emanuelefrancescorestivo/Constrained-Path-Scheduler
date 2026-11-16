@@ -4885,3 +4885,43 @@ pause with no end (90 days is a semester's share; set another after).
 the sessions it displaces to the days after it; near an exam that can mean more in fewer
 days, as a skipped week would. Checked in Chromium only, at phone size and 1280px.
 Whether repairs and pauses keep more students on their plan is for the pilot.
+
+## D127. Studying together: a pair's days in a row, and a group's memory days
+
+*The owner, 2026-11-13: "now build the rest of the loop". The research doc's G: a
+shared goal, opt-in, nobody ranked (Sailer and Homner 2020 found competition combined
+with collaboration worked best for behaviour; a leaderboard and badges lowered
+motivation in a real course, Hanus and Fox 2015), and Duolingo's Friend Streak, two
+friends keeping a shared count (the company reports learners with one are 22 % more
+likely to finish the day's lesson, blog.duolingo.com/product-lessons-friend-streak; a
+company figure, not a study). The shared goal was already there: a study group's weekly
+goal (D28), which the doc missed.*
+
+**Chosen.**
+
+- *Studying together.* A student with a handle asks another, on their profile ("Study
+  together"); the other accepts or declines on Progress, and a decline tells nobody, as
+  with a follow (D16). Both then see, on Progress beside the streak and in one line under
+  Today's strip, the days in a row they both studied since they agreed
+  (`progress.together`): a day either missed ends the run, a day both studied adds one,
+  any other day holds it (rest, forgiven, repaired, paused, today, a day one has no plan
+  for), each day judged by each student's own streak in their own time zone (D9, D126).
+  And whether each studied today. Never anyone's hours, plan, courses or sessions. Three
+  pairs at most, asks included (`social.BUDDIES_EACH`). Either can stop it; a block,
+  leaving the network or deleting the plan ends it; the plan's copy lists it (D43); the
+  privacy notice says what the other sees.
+- *A group's memory days.* A study group's card and page add the memory days its
+  members' reviews added this week (D82's measure, summed), beside D28's hours: the
+  learning, not only the time.
+
+**Rejected.** Changing a group's goal from hours to sessions kept (D28 chose hours; the
+owner's to change). A pair's count of hours or sessions (a comparison between two, D16).
+More than three pairs (each is a daily look at someone else). Showing a pair to anyone
+else. A message when the other studied ("Ada studied, your turn"), which pressures; the
+line says only what is true.
+
+**Disclosed.** In a pair, the count and the "studied today" give away each one's days
+studied, as a group of two gives away its hours (D28); the profile's hint and the privacy
+notice say so. Two time zones far apart judge "today" each in their own. The 22 % is
+Duolingo's figure, not measured here; whether pairs keep students on their plan is for
+the pilot. Checked in Chromium only.

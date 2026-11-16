@@ -320,6 +320,15 @@ CREATE TABLE IF NOT EXISTS presence (
     started TEXT NOT NULL,
     until   TEXT NOT NULL
 );
+-- Studying together (D127): a pair of students, the ask and when it was accepted.
+CREATE TABLE IF NOT EXISTS buddies (
+    asker    TEXT NOT NULL,
+    asked    TEXT NOT NULL,
+    created  TEXT NOT NULL,
+    accepted TEXT,
+    PRIMARY KEY (asker, asked)
+);
+CREATE INDEX IF NOT EXISTS buddies_by_asked ON buddies (asked);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -375,6 +384,7 @@ _FORGET = (
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
     "DELETE FROM profiles WHERE token = :t",
     *LEAVE_GROUPS,
+    "DELETE FROM buddies WHERE asker = :t OR asked = :t",
     "DELETE FROM card_reviews WHERE token = :t",
     "DELETE FROM card_fits WHERE token = :t",
     "DELETE FROM cards WHERE token = :t",
@@ -421,6 +431,11 @@ _EXPORT = {
     "reports": "SELECT target, kind, reason, created FROM reports WHERE reporter = :t ORDER BY created",
     "groups": "SELECT g.name, g.goal, m.invited, m.joined, g.owner = :t AS owner FROM group_members m "
     "JOIN study_groups g ON g.id = m.grp WHERE m.token = :t ORDER BY m.invited",
+    # D127: who one studies together with (their handle), who asked, and when.
+    "studying_together": "SELECT CASE WHEN b.asker = :t THEN 'you asked' ELSE 'asked you' END AS ask, "
+    "COALESCE(p.handle, '') AS handle, b.created, b.accepted FROM buddies b LEFT JOIN profiles p "
+    "ON p.token = CASE WHEN b.asker = :t THEN b.asked ELSE b.asker END "
+    "WHERE b.asker = :t OR b.asked = :t ORDER BY b.created, b.rowid",
     "cards": "SELECT id, course, front, back, created, stability, difficulty, last, due, reps, lapses "
     "FROM cards WHERE token = :t ORDER BY created",
     "card_reviews": "SELECT card, at, grade, elapsed FROM card_reviews WHERE token = :t ORDER BY at",
