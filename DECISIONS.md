@@ -5245,3 +5245,39 @@ this plan, and each tip's "what it does not show" says how far. Whether students
 more here than on the tips page is for the pilot (`log_tips` counts the tips page only).
 Checked in Chromium only, at phone size and 1280px.
 
+## D136. A sidebar on a laptop, as Notion Calendar's
+
+*The owner, 2026-11-16, after trying the demo: "a sidebar like in notion calendar instead of
+navigating by exiting and entering different pages would considerably streamline user
+experience".* On a laptop the top bar held four sections (Plan, Courses, Community, You), and
+Focus, Flashcards, Tasks, Progress, Tips and Settings were a page further, under You.
+
+**Chosen.**
+
+- *One sidebar on every page of a plan* from 1100px (`_sidebar.html`,
+  `service.sidebar_view`), fixed under the top bar, whose four sections give way to it:
+  - this month, from a Monday, each day a link that opens the calendar on that day
+    (`/week?day=`; the calendar's Today button still goes to today), today in red as the
+    calendar draws it, a dot under a day the plan studies, a red dot and red figure on a day
+    with an exam or a test, each day's label saying which;
+  - Today, Calendar, Focus, Flashcards (with the cards waiting), Tasks, Progress;
+  - the courses in their colours, each with the days to its exam, red within two weeks, as
+    Notion Calendar lists calendars;
+  - Community, Who's studying where, Study tips, You, Settings.
+  The section open is marked; the sidebar keeps its place while pages change (its own
+  view-transition name), so moving between sections changes only the page beside it.
+- *Light.* It reads the plan as kept (sessions, exams, tests, course colours) and the count
+  of cards waiting; no replay. If working it out fails, the page shows without it.
+- *A phone keeps the tab bar* (D97), and a window under 1100px the top bar's sections: below
+  that width a sidebar would take a third of the page.
+
+**Rejected.** Opening pages in a panel beside the current one (Notion Calendar's event panel):
+every page would need a second, partial form, and pages must work without their scripts; the
+fixed sidebar removes most of the going back and forth. A month that pages back and forth in
+the sidebar (a script, or a reload for each month; the calendar's Month view does it). The
+sidebar on a phone (a drawer behind a button is a step more than the tab bar).
+
+**Disclosed.** Checked in Chromium only, at 1440 × 900 light and 1280 × 800 dark, with the
+1024px and phone widths falling back; not in Safari or Firefox, nor with a screen reader. The
+course list shows the plan's courses with exams, as Courses does, at most eight.
+

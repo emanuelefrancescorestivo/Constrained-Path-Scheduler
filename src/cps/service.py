@@ -11780,6 +11780,92 @@ def _course_notes(store: str | os.PathLike, subscription: Subscription, course: 
     return out
 
 
+# --------------------------------------------------------------------------- #
+# The sidebar on a laptop (DECISIONS.md D136)
+
+SIDEBAR_COURSES = 8  # courses listed; the rest are on Courses
+
+
+def sidebar_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """What the laptop's sidebar shows on every page of a plan (D136), as Notion
+    Calendar's does: this month, each day marked if the plan studies or has an exam or a
+    test on it, each a link to the calendar on that day; the courses in their colours with
+    the days to their exams; how many cards wait. Light: no replay, only the plan's
+    sessions, exams and tests as kept."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    first = today.replace(day=1)
+    start = first - timedelta(days=first.weekday())
+    following = (first + timedelta(days=32)).replace(day=1)
+    weeks = -(-(following - start).days // 7)
+    end = start + timedelta(days=7 * weeks)
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    study: set[date] = set()
+    exams: dict[date, list[str]] = {}
+    colours: dict[str, int] = {}
+    if plan is not None:
+
+        def day_of(stamp: str) -> date:
+            return datetime.fromisoformat(stamp).astimezone(zone).date()
+
+        for s in plan.history + plan.sessions:
+            d = day_of(s.start)
+            if start <= d < end and s.outcome != "skipped":
+                study.add(d)
+        for subject in plan.subjects:
+            exams.setdefault(day_of(subject.exam), []).append(subject.name)
+        for e in plan.events:
+            if e.source in ("partial", "quiz", "mock"):
+                exams.setdefault(day_of(e.start), []).append(test_label(e.source, e.summary))
+        colours = {name.casefold(): index for name, index in course_colours(plan)}
+    days = []
+    for n in range(7 * weeks):
+        d = start + timedelta(days=n)
+        said = [format_date(d, "long")]
+        if d in exams:
+            said.append(_("exam: {names}", names=", ".join(exams[d])))
+        elif d in study:
+            said.append(_("study planned"))
+        days.append(
+            {
+                "date": d.isoformat(),
+                "day": d.day,
+                "in_month": d.month == first.month,
+                "today": d == today,
+                "study": d in study,
+                "exam": d in exams,
+                "label": " · ".join(said),
+            }
+        )
+    courses = []
+    for index, course in enumerate(topic_courses(subscription)[:SIDEBAR_COURSES]):
+        exam = _exam_of(plan, course, now) if plan is not None else None
+        courses.append(
+            {
+                "index": index,
+                "name": course,
+                "color": colours.get(course.casefold()),
+                "exam": exam["says"] if exam and exam["days"] >= 0 else "",
+                "soon": bool(exam and 0 <= exam["days"] <= 14),
+            }
+        )
+    return {
+        "month": format_date(first, "month"),
+        "weekdays": [
+            {
+                "letter": _i18n.weekday_name(start + timedelta(days=k), short=True)[:1].upper(),
+                "name": _i18n.weekday_name(start + timedelta(days=k)),
+            }
+            for k in range(7)
+        ],
+        "weeks": [days[k : k + 7] for k in range(0, len(days), 7)],
+        "courses": courses,
+        "more_courses": max(0, len(topic_courses(subscription)) - SIDEBAR_COURSES),
+        "cards_due": cards_due(store, subscription, now),
+    }
+
+
 def courses_view(
     store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
 ) -> list[dict]:

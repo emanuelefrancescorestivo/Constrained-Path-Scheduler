@@ -489,6 +489,16 @@ def create_app(config: Config | None = None) -> FastAPI:
                 setup=bool(context.get("setup")),
                 new=bool(context.get("new")),
             )
+        if token and "sidebar" not in context and not (context.get("setup") or context.get("new")):
+            # The laptop's sidebar (D136): the month, the sections, the courses. Shown
+            # by the style sheet from 1100px; if working it out fails, the page shows
+            # without it.
+            try:
+                subscription = subscription or service.load_subscription(store, token)
+                if subscription is not None:
+                    context["sidebar"] = service.sidebar_view(store, subscription, config.clock())
+            except Exception:
+                LOG.exception("could not work out the sidebar")
         if token and "run" not in context:
             # A new student's first run (D107): its steps' bar, Spark's line on Today.
             subscription = subscription or service.load_subscription(store, token)
@@ -1223,12 +1233,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             feeds.refresh(token)
         service.log_visit(store, token, config.clock())
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
+        first = context.pop("first", None) or today.isoformat()
         return page(
             request,
             "plan.html",
             status,
             token=token,
-            first=today.isoformat(),
+            first=first,
+            today_iso=today.isoformat(),
             tab=tab,
             # D135: planning's tip, on the calendar.
             why_tip=service.tip_here(subscription, "calendar", config.clock()) if tab == "calendar" else None,
@@ -1308,11 +1320,16 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/week", response_class=HTMLResponse)
-    def week(request: Request, token: str, new: int = 0, saved: str = "") -> HTMLResponse:
+    def week(request: Request, token: str, new: int = 0, saved: str = "", day: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
-        return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved))
+        # A day of the sidebar's month (D136): the calendar opens on it.
+        try:
+            first = date.fromisoformat(day[:10]).isoformat() if day else None
+        except ValueError:
+            first = None
+        return plan_page(request, subscription, "calendar", new=bool(new), saved=_notice(saved), first=first)
 
     @app.get("/p/{token}/timetable", response_class=HTMLResponse)
     def timetable(request: Request, token: str) -> HTMLResponse:

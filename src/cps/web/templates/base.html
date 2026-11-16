@@ -40,7 +40,7 @@
 {% if token %}<script type="module" src="{{ asset('ui.js') }}"></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body class="{% if token and not (setup or new) %}has-tabs{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% if weekday %} data-day="{{ weekday }}"{% endif %}{% if sun is number %} data-sun="{{ sun }}" data-icon-mode="{{ icon_mode }}"{% endif %}{% endif %}>
+<body class="{% if token and not (setup or new) %}has-tabs{% endif %}{% if token and sidebar and not (setup or new) %} has-sidebar{% endif %}{% block body_class %}{% endblock %}"{% if forget %} data-forget="{{ forget }}"{% endif %}{% if token %} data-plan="{{ token }}"{% endif %}{% if sky %} data-sky="{{ sky }}" data-garden="{{ garden }}"{% if weekday %} data-day="{{ weekday }}"{% endif %}{% if sun is number %} data-sun="{{ sun }}" data-icon-mode="{{ icon_mode }}"{% endif %}{% endif %}>
 {# The garden in the margins, grown as far as the streak (D73): drawn by the style sheet. #}
 {% if sky %}<div class="garden" aria-hidden="true"><i class="g-sprout"></i><i class="g-vine"></i><i class="g-flower"></i></div>{% endif %}
 {# Five sections (D97), the feed first where the app opens (D102): Community, Today,
@@ -73,6 +73,8 @@
   {% endif %}
   {% block topbar_end %}{% endblock %}
 </header>
+{# The sidebar on a laptop (D136): the month, the sections, the courses. #}
+{% if token and sidebar and not bare %}{% include "_sidebar.html" %}{% endif %}
 {% block body %}
 <main class="site{% block site_class %}{% endblock %}">
 {# What a section is for, in one line, the first time it is opened (D97) #}

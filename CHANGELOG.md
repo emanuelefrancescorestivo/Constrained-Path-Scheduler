@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A sidebar on a laptop (DECISIONS.md D136), as Notion Calendar's: this month with study
+  days and exams marked, each day opening the calendar on it; every section one click away;
+  your courses in their colours with the days to each exam. It stays in place while pages
+  change; a phone keeps the tab bar.
+
 - Tips where they apply (DECISIONS.md D135): Focus, flashcards, the calendar, a course,
   Tasks, Progress and your week each show one study tip about what they are about, with why
   here from your plan (a self-test about to start, an exam close, the days a course comes

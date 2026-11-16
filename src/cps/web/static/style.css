@@ -4280,3 +4280,59 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 @media (prefers-reduced-motion: reduce) { .why-line > summary::after { transition: none; } }
 :root[data-motion="reduce"] .why-line > summary::after { transition: none; }
 
+/* D136: the sidebar on a laptop, as Notion Calendar's. Fixed under the top bar, the same
+   on every page and left in place while pages change (its own view-transition name, so
+   a page's transition does not move it). From 1100px the top bar's sections give way to
+   it; below, the top bar and the tab bar are the way around. Solid, tinted like the bars:
+   nothing scrolls beneath it (D132). */
+:root { --sidebar: 252px; }
+.sidebar { display: none; }
+@media (min-width: 1100px) {
+  body.has-sidebar { padding-left: var(--sidebar); }
+  body.has-sidebar > .topbar { margin-left: calc(-1 * var(--sidebar)); }
+  body.has-sidebar .topbar .nav { display: none; }
+  body.has-sidebar .sidebar {
+    display: flex; flex-direction: column; gap: 18px;
+    position: fixed; z-index: 20; top: var(--topbar); left: 0; bottom: 0; width: var(--sidebar);
+    padding: 16px 12px 28px; overflow-y: auto; overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+    border-right: 0.5px solid var(--line-strong);
+    view-transition-name: sidebar;
+  }
+}
+.side-title { margin: 0 8px 6px; font-size: 0.8rem; font-weight: 650; letter-spacing: 0.02em; color: var(--muted); }
+.side-title a { color: inherit; }
+.side-title a[aria-current="page"] { color: var(--accent-ink); }
+.mini-month { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.mini-month th { padding: 0 0 4px; font-weight: 600; color: var(--muted); font-size: 0.72rem; }
+.mini-month abbr { text-decoration: none; }
+.mini-month td { padding: 1px 0; text-align: center; }
+.side-day {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; color: var(--text); text-decoration: none !important;
+}
+.side-day:hover { background: var(--fill-3); }
+.side-day.is-out { color: var(--muted); opacity: 0.6; }
+.side-day.is-study::after, .side-day.is-exam::after {
+  content: ""; position: absolute; bottom: 2px; left: 50%; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: var(--accent);
+}
+.side-day.is-exam::after { background: var(--danger); width: 5px; height: 5px; margin-left: -2.5px; }
+.side-day.is-exam { color: var(--danger-text); font-weight: 650; }
+.side-day.is-today { background: var(--danger); color: #fff; font-weight: 700; }
+.side-day.is-today::after { background: #fff; }
+.side-nav { display: flex; flex-direction: column; gap: 1px; }
+.side-nav a, .side-courses li a {
+  display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 8px;
+  color: var(--text); font-size: 0.9rem; text-decoration: none !important;
+}
+.side-nav a:hover, .side-courses li a:hover { background: var(--fill-3); }
+.side-nav a[aria-current="page"], .side-courses li a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.side-nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.side-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.72rem; font-weight: 700; text-align: center; line-height: 18px; }
+.side-courses ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.side-courses li a .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-courses li a small { flex: none; font-size: 0.74rem; color: var(--muted); }
+.side-courses li a small.is-soon { color: var(--danger-text); font-weight: 600; }
+.side-courses .hint, .side-more-courses { margin: 4px 8px; font-size: 0.85rem; }
+

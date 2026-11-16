@@ -3033,4 +3033,9 @@ MESSAGES: dict[str, str] = {
     "Your streak forgives a missed day: one miss does not undo a habit.": "Ta série pardonne un jour manqué : un oubli ne défait pas une habitude.",
     "{course}'s exam is on {day}: sleep over the weeks before it counts.": "L'examen de {course} est le {day} : le sommeil des semaines d'avant compte.",
     "{first} and {last}": "{first} et {last}",
+    # D136: the sidebar on a laptop
+    "Add your courses": "Ajoute tes cours",
+    "Sections": "Rubriques",
+    "exam: {names}": "examen : {names}",
+    "study planned": "révision prévue",
 }
