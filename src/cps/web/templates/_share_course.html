@@ -4,7 +4,7 @@
    every page of a plan. #}
 {% macro course_pick(prefix, chosen) %}
 {% if courses %}
-<fieldset class="course-pick">
+<fieldset class="course-pick bare">
   <legend>{{ _("Course") }}</legend>
   <div class="pills course-chips">
     {% for c in courses %}<label class="pill"><input type="radio" name="course" value="{{ c }}"{% if c == chosen %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}

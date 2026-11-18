@@ -5464,3 +5464,54 @@ pilot. "Yours" is the hours awake less the timetable and the plan: meals, travel
 in it. Attention counts only sessions timed with Focus. The links are the ones the student
 added; the app reads nothing from Moodle's pages. Checked in Chromium only, at phone, tablet and
 laptop sizes, light and dark.
+
+## D141. Spark's tour in every section; sharing in fewer taps; classmates check each other
+
+**Asked.** The owner, 2026-11-18, with a phone's screenshot of the Explain form in Italian (the
+Post button over the fields, the Course box empty): "sparks tour is important in every section,
+and we need to streamline the interactions like don't ask many taps for sharing notes and
+explaining stuff, it ought be encouraging and empower students ideas exchange and peer to peer
+feedback review validation".
+
+**Chosen.**
+- *Spark's tour in every section, again* (`service.SECTION_TOURS`, `_tour.html`). D77 gave each
+  section a tour; D97 kept Today's and gave the others one line under their title, to lighten
+  the app. Now each section (Calendar, Courses, Community, You, Focus, Progress, Tasks,
+  Flashcards, Tips) shows its tour on the visit that shows its line: two to four steps, each
+  lighting a part of the page. Community's steps say how to share in a tap and how to check a
+  classmate's work. The line and the tour are remembered together as the page goes out, so a
+  section shows its tour once even if it is left half way; Settings show them all again, as
+  before. Today's stays as D97 left it, until finished or skipped. Settings has none (six rows,
+  each its own page), nor the pages reached from a section.
+- *Sharing in fewer taps* (`explain.html`, `notes_new.html`, `_share_course.html`). The course is
+  a row of chips, and the one being studied is already picked (`service.share_course`: the session
+  under way, else the last one ended today, else the next). A box under the chips takes another
+  course, and wins when typed. Optional fields fold away: a sketch for an explanation, what notes
+  cover. The button sits where the form ends: the sticky bar floated over the fields on a phone
+  (AUDIT item 101). Links that open a form carry what they know. A course's page opens either
+  form on its course. Each taught week has "Explain it simply" with its first topic filled in.
+  Today's classmates widget has "Explain an idea" and "Share notes".
+- *Classmates check each other* (`social.toggle_check`, `checks_of`, `fixes_of`, `accept_fix`;
+  the `checks` table, the comments' `kind` and `accepted`). A reader of an explanation or of notes
+  says "It's right" with one tap, one per person, taken back by the same tap. The author sees
+  "Checked by 2 classmates", or "Not checked yet". A reader who spots a mistake writes the right
+  version in the comment box and sends it with "Suggest a fix". The author may accept it: the post
+  is not edited, but readers see the accepted fix first, marked as accepted. Each post's card shows
+  how many fixes were suggested and how many accepted. After sharing, the notice says classmates
+  can now say it is right or suggest a fix. A session is not checked: it says what someone did, not
+  what is true. Checks and fixes go with the post, with whoever leaves the network, and with a
+  deleted plan; a plan's copy of its data lists its checks (D43).
+
+**Rejected.**
+- A score of trust, or ranking by checks. The notes library keeps ranking by "helpful" (D26); a
+  count of checks says only that some readers found it right.
+- Letting a fix edit the post (the author's words stay theirs).
+- Checking limited to the post's course (courses match only by their words, D104).
+- One tour for the whole app at the start (the owner asked for each section's).
+
+**Disclosed.**
+- "It's right" is a reader's word, not a verification: no one checks the checker, and a wrong
+  explanation can be checked by readers who share the mistake.
+- A block either way hides the blocked person's checks, as it hides their comments.
+- The tours' words are the owner's to review; the Italian was not written by a native speaker.
+- Checked in Chromium only, at 393 × 720 with touch emulated and at 1280px, not on a real phone.

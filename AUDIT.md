@@ -1154,3 +1154,15 @@ page for card links drawn inline (only that one). Status: fixed. The tip's resea
 the grid, which keeps its height, and its line sits in a box of its own inside the summary; the
 map's card is a block; Today scrolls with the page (`tests/test_phone.py`). Checked in Chromium
 only: Safari's layout of the summary was read from the owner's screenshot, not run.
+
+
+**101. On a phone, the Explain form's Post button lay over its fields, and its course started
+empty.** Reported by the owner on 2026-11-18, with a screenshot from an iPhone in Italian. The
+share forms ended in the sticky bar every long form has, which since AUDIT item 70 has no band
+behind its button over the sky: on a short form, with a phone's keyboard up, the button sat on the
+fields being typed in. The course was a text box with suggestions (a `datalist`) that started
+empty, so sharing began with typing the course's name. How
+found: the owner's screenshot, then the form in Chromium at 393 × 720. Status: fixed with D141.
+The share forms keep their button where they end, and the course is a row of chips with the one
+being studied already picked (`tests/test_peer_checks.py`). The longer forms (the diary, Settings)
+keep the sticky bar.

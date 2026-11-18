@@ -4599,8 +4599,9 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .share-form .share-foot { display: grid; gap: 10px; }
 .share-form .share-foot .hint { margin: 0; }
 .share-form .share-foot .pills-label { flex-basis: 100%; margin: 0 0 2px; }
-.course-pick { border: 0; margin: 0; padding: 0; min-width: 0; }
-.course-pick legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+/* A bare fieldset (AUDIT 80): its legend reads as the other fields' labels. */
+.course-pick { margin: 0; }
+.course-pick legend { float: none; padding: 0; margin: 14px 0 6px; font-weight: 600; font-size: 0.87rem; letter-spacing: 0; }
 .course-chips { margin-bottom: 6px; }
 .course-chips .pill span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .course-pick .other-label { font-weight: 500; font-size: 0.86rem; color: var(--muted); }
@@ -4619,3 +4620,14 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .comment-form .row-end { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .comment-form .row-end svg, .glance-share svg { width: 16px; height: 16px; vertical-align: -3px; }
 .glance-share { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+/* D141, checked at 393px: the actions under a post wrap as whole words (the author's row
+   with "Checked by 1 classmate" squeezed "I got it" onto three lines), and on a phone a
+   comment's Report and Delete go under its words instead of narrowing them. */
+.post-actions { flex-wrap: wrap; }
+.post-actions .act { white-space: nowrap; }
+.act-check.given svg { fill: var(--ok-soft); }
+@media (max-width: 520px) {
+  .comments > li { flex-wrap: wrap; }
+  .comments > li > .grow { flex: 1 1 calc(100% - 52px); min-width: 0; }
+  .comments > li > .comment-report { margin-left: 48px; }
+}
