@@ -143,7 +143,8 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
         and '<section class="board"' not in today
         and 'id="calendar"' not in today
     )
-    order = [today.index(f'class="w w-{name}') for name in ("next", "day", "time", "tips", "week", "tasks", "friends")]
+    widgets = ("next", "day", "time", "tips", "week", "tasks", "friends")
+    order = [today.index(f'class="w w-{name}') for name in widgets]
     assert order == sorted(order)  # the most urgent first, as a phone reads it
     for section in ("/week", "/progress", "/tasks", "/community", "/focus"):
         assert f'class="w-link" href="/p/{ben.token}{section}"' in today, section

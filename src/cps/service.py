@@ -5342,8 +5342,9 @@ def time_and_attention(
     down = _hours_of(day["bed"], _("Go to bed"))
     awake = (down if down > up else down + 24) - up
     items = day_agenda(subscription, now)
+    taught = ("class", "exam", *TEST_KINDS)
     hours = {
-        "classes": sum(_span(i["start"], i["end"]) for i in items if i["kind"] in ("class", "exam", *TEST_KINDS)),
+        "classes": sum(_span(i["start"], i["end"]) for i in items if i["kind"] in taught),
         "study": sum(_span(i["start"], i["end"]) for i in items if i["kind"] == "study"),
         "busy": sum(_span(i["start"], i["end"]) for i in items if i["kind"] == "typed"),
     }
