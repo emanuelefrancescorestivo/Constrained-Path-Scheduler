@@ -285,14 +285,14 @@
       <p class="attention-big"><b>{{ time.focus.time }}</b> <span class="muted">{{ _n("focused, {n} session timed", "focused, {n} sessions timed", time.focus.sessions) }}</span></p>
       {% if time.focus.checked %}<p class="muted attention-whole">{{ _n("{whole} of {n} without leaving the app", "{whole} of {n} without leaving the app", time.focus.checked, whole=time.focus.whole) }}</p>{% endif %}
       {# Day by day (D144): one column a day, Monday first, the longest day full height. #}
-      <svg class="focus-week" viewBox="0 0 140 44" role="img" aria-label="{{ _('Time focused each day: {days}', days=time.focus.days_said) }}">
-        <line class="fw-base" x1="2" y1="32.5" x2="138" y2="32.5"/>
-        {% for d in time.focus.days %}{% set x = 20 * loop.index0 + 10 %}{% set h = (22 * d.height / 100) | round(1) %}
-        {% if d.minutes %}<rect class="fw-col{% if d.today %} fw-today{% endif %}" x="{{ x - 4 }}" y="{{ 32 - h }}" width="8" height="{{ h }}" rx="2"><title>{{ d.name }}: {{ d.time }}</title></rect>{% endif %}
-        {% if d.height == 100 %}<text class="fw-top" x="{{ x }}" y="{{ 32 - h - 2.5 }}" text-anchor="middle">{{ d.time }}</text>{% endif %}
-        <text class="fw-day{% if d.today %} fw-today{% endif %}{% if d.ahead %} fw-ahead{% endif %}" x="{{ x }}" y="42" text-anchor="middle">{{ d.letter }}</text>
-        {% endfor %}
-      </svg>
+      <div class="focus-week" role="img" aria-label="{{ _('Time focused each day: {days}', days=time.focus.days_said) }}">
+        {% for d in time.focus.days %}<span class="fw-top" aria-hidden="true">{% if d.height == 100 %}{{ d.time }}{% endif %}</span>{% endfor %}
+        <svg viewBox="0 0 140 24" aria-hidden="true">
+          <line class="fw-base" x1="2" y1="23.5" x2="138" y2="23.5"/>
+          {% for d in time.focus.days %}{% if d.minutes %}{% set h = (22 * d.height / 100) | round(1) %}<rect class="fw-col{% if d.today %} fw-today{% endif %}" x="{{ 20 * loop.index0 + 6 }}" y="{{ 23 - h }}" width="8" height="{{ h }}" rx="2"><title>{{ d.name }}: {{ d.time }}</title></rect>{% endif %}{% endfor %}
+        </svg>
+        {% for d in time.focus.days %}<span class="fw-day{% if d.today %} fw-today{% endif %}{% if d.ahead %} fw-ahead{% endif %}" aria-hidden="true">{{ d.letter }}</span>{% endfor %}
+      </div>
       {% if time.focus.best %}<p class="attention-best">{{ time.focus.best.words }} <span class="muted">{{ _n("Over {n} timed session in four weeks.", "Over {n} timed sessions in four weeks.", time.focus.best.sessions) }}</span></p>{% endif %}
       {% else %}
       <p class="muted">{{ _("Time a session with Focus, and your attention shows here.") }}</p>

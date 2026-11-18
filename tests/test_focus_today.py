@@ -170,8 +170,12 @@ def test_today_draws_the_focus_card_and_the_week_and_the_card_starts_the_timer(t
         # The card stands in for the link to the focus page under the next step.
         assert "Study something else" not in page
         # The week's attention: one column (Monday's), seven day letters.
-        week = re.search(r'<svg class="focus-week".*?</svg>', page, re.S).group(0)
+        week = re.search(r'<div class="focus-week".*?</div>', page, re.S).group(0)
         assert week.count('class="fw-col') == 1 and week.count('class="fw-day') == 7
+        # The longest day's time is written over its column; the words are the page's,
+        # not the drawing's, so they keep the 12px floor at any width.
+        assert re.findall(r'class="fw-top"[^>]*>([^<]+)<', week) == [service.duration_words(60)]
+        assert "<text" not in week
         assert "Time focused each day:" in unescape(week)
         started = client.post(
             f"/p/{sub.token}/focus/start", data={"course": "Algebra 3", "goal": "25"}, follow_redirects=False
