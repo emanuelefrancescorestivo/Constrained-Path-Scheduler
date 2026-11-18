@@ -388,6 +388,8 @@
     {% endfor %}
   </ul>
   {% endif %}
+  {# D141: sharing from home, the course being studied already picked. #}
+  <p class="glance-share"><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ lucide('lightbulb') }} {{ _("Explain an idea") }}</a> <a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes/new">{{ lucide('notebook-pen') }} {{ _("Share notes") }}</a></p>
   </div>
 </section>
 {% endif %}

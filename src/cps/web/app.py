@@ -161,6 +161,9 @@ NETWORK_NOTICES = {
     "joined": "Welcome. Here is what students are sharing; follow the ones you like.",
     "profile": "Profile saved.",
     "posted": "Posted.",
+    # D141: an explanation or notes others can see; what they can do with it.
+    "shared": "Posted. Classmates can now tell you it's right, or suggest a fix.",
+    "fix": "Fix sent. The author can accept it.",
     "left": "You have left the network. Your diary is still here, visible only to you.",
     "reported": "Thank you. The report is with the owner of this service.",
     "blocked": "Blocked. Neither of you sees the other any more; undo it in People.",
@@ -487,7 +490,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             except Exception:
                 LOG.exception("could not work out the page's sky")
         if token and "tour" not in context:
-            # Spark's tour of Today, once after setting up (D77, D97).
+            # Spark's tour of Today once after setting up (D77, D97), and of each section the
+            # first time it is opened (D141); worked out before the section's line below
+            # records the visit.
             subscription = subscription or service.load_subscription(store, token)
             context["tour"] = service.tour_for(
                 subscription,
@@ -1897,6 +1902,22 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
 
+    @app.post("/p/{token}/post/{post_id}/check")
+    async def check(request: Request, token: str, post_id: str) -> Response:
+        """A reader's "It's right" on an explanation or notes, or taking it back (D141)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        try:
+            said = service.toggle_check(store, token, post_id, now=config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        if said:
+            service.log_event(store, token, "checked")
+        return RedirectResponse(back(form, token, f"/p/{token}/post/{post_id}"), 303)
+
     @app.post("/p/{token}/post/{post_id}/comments")
     async def comment(request: Request, token: str, post_id: str) -> Response:
         subscription = load(token)
@@ -1904,10 +1925,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=3)
+        form = await request.form(max_files=0, max_fields=4)
         body = str(form.get("body") or "")
+        # D141: the same box sends a comment or a fix, by the button pressed.
+        kind = "fix" if form.get("kind") == "fix" else "comment"
         try:
-            service.add_comment(store, token, post_id, body)
+            service.add_comment(store, token, post_id, body, kind)
         except service.ServiceError as error:
             view = service.post_view(store, subscription, post_id, config.clock())
             if view is None:
@@ -1915,7 +1938,23 @@ def create_app(config: Config | None = None) -> FastAPI:
             return page(
                 request, "post.html", 400, token=token, **view, error=str(error), draft=body, tab="community"
             )
-        service.log_event(store, token, "comment")
+        service.log_event(store, token, "comment", kind if kind == "fix" else "")
+        saved = "?saved=fix" if kind == "fix" else ""
+        return RedirectResponse(f"/p/{token}/post/{post_id}{saved}#comments", 303)
+
+    @app.post("/p/{token}/comments/{comment_id}/accept")
+    async def comment_accept(request: Request, token: str, comment_id: str) -> Response:
+        """The post's author accepts a fix suggested to it, or takes it back (D141)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        try:
+            accepted, post_id = service.accept_fix(store, token, comment_id)
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        if accepted:
+            service.log_event(store, token, "fix accepted")
         return RedirectResponse(f"/p/{token}/post/{post_id}#comments", 303)
 
     @app.post("/p/{token}/comments/{comment_id}/delete")
@@ -2111,15 +2150,24 @@ def create_app(config: Config | None = None) -> FastAPI:
             request, token, lambda: service.remove_follower(store, token, handle), f"/p/{token}/people"
         )
 
+    def share_draft(subscription: service.Subscription, course: str, **more: str) -> dict:
+        """A share form's start (D141): the course asked for by the link that opened it
+        (a course's page, a week), else the one being studied, so that sharing takes
+        no typing; what else the link carried, cut to the fields' lengths."""
+        names = service.course_names(subscription)
+        chosen = course[:80] if course in names else service.share_course(subscription, config.clock())
+        return {"course": chosen, **{k: v[:120] for k, v in more.items() if v}}
+
     @app.get("/p/{token}/explain", response_class=HTMLResponse)
-    def explain_form(request: Request, token: str) -> HTMLResponse:
-        if load(token) is None:
+    def explain_form(request: Request, token: str, course: str = "", concept: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
             return missing(request)
         return page(
             request,
             "explain.html",
             token=token,
-            draft={},
+            draft=share_draft(subscription, course, concept=concept),
             profile=service.profile_of(store, token),
             tab="community",
         )
@@ -2161,7 +2209,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tab="community",
             )
         service.log_event(store, token, "explained", post.visibility)
-        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved={_posted(post)}", 303)
 
     @app.get("/p/{token}/notes", response_class=HTMLResponse)
     def notes_library(
@@ -2187,14 +2235,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         return page(request, "notes.html", token=token, view=view, saved=_notice(saved), tab="community")
 
     @app.get("/p/{token}/notes/new", response_class=HTMLResponse)
-    def notes_form(request: Request, token: str, group: str = "") -> HTMLResponse:
-        if load(token) is None:
+    def notes_form(request: Request, token: str, group: str = "", course: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
             return missing(request)
         return page(
             request,
             "notes_new.html",
             token=token,
-            draft={"group": group[:40]} if group else {},
+            draft=share_draft(subscription, course, group=group[:40]),
             profile=service.profile_of(store, token),
             groups=service.note_groups(store, token),
             tab="community",
@@ -2244,7 +2293,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return again(400, str(error), fields)
         service.log_event(store, token, "notes", post.visibility)
-        return RedirectResponse(f"/p/{token}/post/{post.id}?saved=posted", 303)
+        return RedirectResponse(f"/p/{token}/post/{post.id}?saved={_posted(post)}", 303)
 
     # ------------------------------------------------------------ study groups (D28)
 
@@ -4712,6 +4761,11 @@ def _html(text: str, /, **values: Any) -> Markup:
     """A translated sentence that holds markup (a link, a key in bold): the
     sentence is the catalogue's, trusted; the values are escaped."""
     return Markup(service.translate(text)).format(**values)
+
+
+def _posted(post: Any) -> str:
+    """The notice after sharing (D141): seen by others, it can be checked."""
+    return "posted" if post.visibility == "me" else "shared"
 
 
 def _notice(saved: str) -> str | None:

@@ -38,6 +38,8 @@
           {% if w.ahead %}<span>{{ _n("{n} review planned", "{n} reviews planned", w.ahead) }}</span>{% endif %}
           {% if w.cards %}<a href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _n("Practise its {n} card", "Practise its {n} cards", w.cards) }}</a>{% elif w.state != "ahead" %}<a href="/p/{{ token }}/cards/make?from=course&amp;course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _("Make cards for this week") }}</a>{% endif %}
           {% for l in w.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.title }} ↗</a>{% endfor %}
+          {# D141: explaining a week's idea opens with its course and first topic filled in. #}
+          {% if w.state != "ahead" %}<a href="/p/{{ token }}/explain?course={{ v.course | urlencode }}{% if w.topics %}&amp;concept={{ w.topics[0] | truncate(120, true, '') | urlencode }}{% endif %}">{{ _("Explain it simply") }}</a>{% endif %}
         </p>
       </div>
     </li>
@@ -149,7 +151,7 @@
     </li>
     {% endfor %}
   </ul>
-  <p class="hint"><a href="/p/{{ token }}/notes/new">{{ _("Share notes") }}</a> · <a href="/p/{{ token }}/notes?course={{ v.course | urlencode }}">{{ _("Classmates' notes for this course") }}</a></p>
+  <p class="hint"><a href="/p/{{ token }}/notes/new?course={{ v.course | urlencode }}">{{ _("Share notes") }}</a> · <a href="/p/{{ token }}/explain?course={{ v.course | urlencode }}">{{ _("Explain an idea") }}</a> · <a href="/p/{{ token }}/notes?course={{ v.course | urlencode }}">{{ _("Classmates' notes for this course") }}</a></p>
   {% if v.all_links < v.links_most %}
   <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links" class="card section link-form" id="link">
     <h3>{{ _("Add a link") }}</h3>

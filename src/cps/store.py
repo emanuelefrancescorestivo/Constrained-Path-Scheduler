@@ -98,6 +98,13 @@ CREATE TABLE IF NOT EXISTS comments (
     hidden  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS comments_by_post ON comments (post, created);
+-- D141: a reader's "It's right" on an explanation or notes, one per person per post.
+CREATE TABLE IF NOT EXISTS checks (
+    post    TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    created TEXT NOT NULL,
+    PRIMARY KEY (post, token)
+);
 CREATE TABLE IF NOT EXISTS reports (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     target   TEXT NOT NULL,
@@ -364,6 +371,10 @@ _ADDED_COLUMNS = (
     ("kudos", "kind", "TEXT NOT NULL DEFAULT 'kudos'"),
     ("profiles", "studying_now", "INTEGER NOT NULL DEFAULT 0"),  # the yes to Studying now (D108)
     ("presence", "place", "TEXT"),  # where, if the student chose a place on the map (D133)
+    # D141: a comment that suggests a fix to an explanation or notes, and whether the
+    # post's author accepted it.
+    ("comments", "kind", "TEXT NOT NULL DEFAULT 'comment'"),
+    ("comments", "accepted", "INTEGER NOT NULL DEFAULT 0"),
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 
@@ -384,12 +395,14 @@ _FORGET = (
     "WHERE p.token = :t)",
     "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+    "DELETE FROM checks WHERE post IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM reports WHERE target IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM reports WHERE target IN (SELECT id FROM comments WHERE token = :t)",
     "DELETE FROM photos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
     "DELETE FROM posts WHERE token = :t",
     "DELETE FROM comments WHERE token = :t",
     "DELETE FROM kudos WHERE token = :t",
+    "DELETE FROM checks WHERE token = :t",
     "DELETE FROM presence WHERE token = :t",
     # A place a student added stays on the map for others; it no longer names who (D133).
     "UPDATE places SET added_by = NULL WHERE added_by = :t",
@@ -433,8 +446,10 @@ _EXPORT = {
     "WHERE token = :t",
     "posts": "SELECT id, kind, created, day, visibility, data, hidden FROM posts WHERE token = :t "
     "ORDER BY created",
-    "comments": "SELECT id, post, created, body, hidden FROM comments WHERE token = :t ORDER BY created",
+    "comments": "SELECT id, post, created, body, hidden, kind, accepted FROM comments WHERE token = :t "
+    "ORDER BY created",
     "kudos": "SELECT post, kind, created FROM kudos WHERE token = :t ORDER BY created",
+    "checks": "SELECT post, created FROM checks WHERE token = :t ORDER BY created",  # D141
     "studying_now": "SELECT x.course, x.started, x.until, COALESCE(p.name, '') AS place FROM presence x "
     "LEFT JOIN places p ON p.id = x.place WHERE x.token = :t",
     "places_added": "SELECT name, lat, lon, created FROM places WHERE added_by = :t ORDER BY created, rowid",

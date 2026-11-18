@@ -83,7 +83,20 @@
       </button>
     </form>
     {% endif %}
+    {% if p.checks is defined %}
+    {# Peer checks (D141): a reader says it is right with one tap; the author sees how
+       many did. A fix is suggested in the comments, by its own button. #}
+    {% if p.mine %}
+    <span class="act act-static check-status{% if p.checks %} is-checked{% endif %}">{{ lucide('circle-check') }}{% if p.checks %}{{ _n("Checked by {n} classmate", "Checked by {n} classmates", p.checks) }}{% else %}{{ _("Not checked yet") }}{% endif %}</span>
+    {% else %}
+    <form method="post" action="/p/{{ token }}/post/{{ p.id }}/check" data-async data-region="#acts-{{ p.id }}" data-quiet>
+      <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
+      <button type="submit" class="act act-check{% if p.checked %} given{% endif %}" aria-pressed="{{ 'true' if p.checked else 'false' }}" data-tour="post-check" title="{{ _('I read it carefully: it is right') }}">{{ lucide('circle-check') }}{{ _("It's right") }}{% if p.checks %}<span class="act-count">{{ p.checks }}</span>{% endif %}</button>
+    </form>
+    {% endif %}
+    {% endif %}
     <a class="act" href="/p/{{ token }}/post/{{ p.id }}#comments">{{ lucide('message-circle') }}{{ _("Comment") }}{% if p.comments %}<span class="act-count">{{ p.comments }}</span>{% endif %}</a>
   </footer>
+  {% if p.fixes %}<p class="post-fixes"><a href="/p/{{ token }}/post/{{ p.id }}#comments">{{ lucide('pencil-line') }}{{ _n("{n} fix suggested", "{n} fixes suggested", p.fixes) }}{% if p.fixes_accepted %} · {{ _n("{n} fix accepted", "{n} fixes accepted", p.fixes_accepted) }}{% endif %}</a></p>{% endif %}
   {% endif %}
 </article>

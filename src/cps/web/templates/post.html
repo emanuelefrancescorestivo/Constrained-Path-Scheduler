@@ -12,11 +12,16 @@
   {% if comments %}
   <div class="card"><ul class="list comments">
     {% for c in comments %}
-    <li>
+    <li{% if c.kind == "fix" %} class="comment-fix{% if c.accepted %} is-accepted{% endif %}"{% endif %}>
       {% if c.author %}{{ avatar(c.author) }}{% else %}<span class="avatar" aria-hidden="true">?</span>{% endif %}
       <div class="grow">
-        <span class="meta">{% if c.author %}<a href="/p/{{ token }}/u/{{ c.author.handle }}">@{{ c.author.handle }}</a>{% else %}{{ _("someone who left") }}{% endif %} · {{ c.when }}</span>
+        <span class="meta">{% if c.author %}<a href="/p/{{ token }}/u/{{ c.author.handle }}">@{{ c.author.handle }}</a>{% else %}{{ _("someone who left") }}{% endif %} · {{ c.when }}{% if c.kind == "fix" %} <span class="badge {% if c.accepted %}badge-ok{% else %}badge-accent{% endif %}">{% if c.accepted %}{{ _("Fix accepted by the author") }}{% else %}{{ _("Suggested fix") }}{% endif %}</span>{% endif %}</span>
         <p class="comment-body">{{ c.body }}</p>
+        {% if c.can_accept %}
+        <form method="post" action="/p/{{ token }}/comments/{{ c.id }}/accept" class="accept-fix">
+          <button type="submit" class="btn btn-sm {% if c.accepted %}btn-plain{% else %}btn-tinted{% endif %}">{% if c.accepted %}{{ _("Take the acceptance back") }}{% else %}{{ lucide('circle-check') }} {{ _("Accept the fix") }}{% endif %}</button>
+        </form>
+        {% endif %}
       </div>
       {% if not c.mine %}<a class="comment-report" href="/p/{{ token }}/report/comment/{{ c.id }}">{{ _("Report") }}</a>{% endif %}
       {% if c.can_delete %}
@@ -34,7 +39,12 @@
   <form method="post" action="/p/{{ token }}/post/{{ post.id }}/comments" class="card comment-form">
     <label for="comment-body" class="sr-only">{{ _("Your comment") }}</label>
     <textarea id="comment-body" name="body" rows="2" maxlength="600" required placeholder="{% if post.kind == 'explain' %}{{ _('A question, or what made it click…') }}{% elif post.kind == 'notes' %}{{ _('What helped, or a question about a page…') }}{% else %}{{ _('Say something encouraging, or ask how they did it…') }}{% endif %}">{{ draft or '' }}</textarea>
-    <div class="row-end"><button type="submit" class="btn btn-primary btn-sm">{{ _("Comment") }}</button></div>
+    <div class="row-end">
+      {# D141: the same words sent as a fix to suggest, which the author can accept. #}
+      {% if can_fix %}<button type="submit" name="kind" value="fix" class="btn btn-tinted btn-sm">{{ lucide('pencil-line') }} {{ _("Suggest a fix") }}</button>{% endif %}
+      <button type="submit" name="kind" value="comment" class="btn btn-primary btn-sm">{{ _("Comment") }}</button>
+    </div>
+    {% if can_fix %}<p class="hint">{{ _("Spotted a mistake? Write the right version and send it as a fix: the author can accept it, and readers see it first.") }}</p>{% endif %}
   </form>
   {% else %}
   <p class="card muted">{{ _h('To comment, <a href="{href}">choose a handle</a> first.', href="/p/" ~ token ~ "/profile") }}</p>

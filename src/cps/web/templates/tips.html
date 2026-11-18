@@ -45,7 +45,7 @@
   <p>{{ _("What research says about studying well, how sure it is, and where it comes from. Choose a topic.") }}</p>
 </div>
 
-<ul class="card list tip-topic-list" aria-label="{{ _('Topics') }}">
+<ul class="card list tip-topic-list" aria-label="{{ _('Topics') }}" data-tour="tip-topics">
   {% for t in view.topics %}
   <li>
     <a class="grow tip-topic-link" href="/p/{{ token }}/tips?topic={{ t.key }}">{% if t.key in pictures %}{{ art(pictures[t.key]) }}{% endif %}<span class="grow"><b>{{ t.name }}</b><small>{{ t.note }} · {{ _n("{n} tip", "{n} tips", t.count) }}</small></span></a>
@@ -54,7 +54,7 @@
   {% endfor %}
 </ul>
 
-<a class="card link-card cards-link with-art" href="/p/{{ token }}/coach">
+<a class="card link-card cards-link with-art" href="/p/{{ token }}/coach" data-tour="tip-coach">
   {{ art("coach") }}<span class="grow"><b>{{ _("Ask the coach") }}</b>
   <span>{{ _("A question about studying, answered from these tips.") }}</span></span>
 </a>

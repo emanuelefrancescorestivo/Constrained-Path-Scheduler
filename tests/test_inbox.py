@@ -230,6 +230,7 @@ TABLES = {
     "follows": "follows",
     "kudos": "kudos",
     "comments": "comments",
+    "checks": "checks",  # D141: the explanations and notes the student said were right
     "reports": "reports",
     "ai_usage": "ai_usage",
     "blocks": "blocks",

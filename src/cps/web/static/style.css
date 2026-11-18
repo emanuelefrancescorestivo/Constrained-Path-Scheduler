@@ -4591,3 +4591,31 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 @media (max-width: 760px) {
   .board-hint { font-size: 0.86rem; padding: 8px 12px; margin: 0 8px 8px; }
 }
+
+/* D141: sharing in fewer taps, and classmates checking each other's work. The share
+   forms keep their button where they end (the sticky bar floated over the fields on a
+   phone, the owner's screenshot); the course is a row of chips, the optional fields
+   folded. */
+.share-form .share-foot { display: grid; gap: 10px; }
+.share-form .share-foot .hint { margin: 0; }
+.share-form .share-foot .pills-label { flex-basis: 100%; margin: 0 0 2px; }
+.course-pick { border: 0; margin: 0; padding: 0; min-width: 0; }
+.course-pick legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+.course-chips { margin-bottom: 6px; }
+.course-chips .pill span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-pick .other-label { font-weight: 500; font-size: 0.86rem; color: var(--muted); }
+.more-fields { margin-top: 8px; }
+.more-fields > summary { cursor: pointer; color: var(--accent-ink, var(--accent)); font-weight: 600; padding: 8px 0; min-height: 44px; display: flex; align-items: center; }
+.more-fields[open] > summary { margin-bottom: 4px; }
+.act-check.given { color: var(--ok); }
+.act-check.given svg { color: var(--ok); }
+.check-status.is-checked, .check-status.is-checked svg { color: var(--ok); }
+.post-fixes { margin: 6px 0 0; font-size: 0.86rem; }
+.post-fixes a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.post-fixes svg { width: 16px; height: 16px; }
+.comments .comment-fix { border-left: 3px solid var(--accent); padding-left: 10px; }
+.comments .comment-fix.is-accepted { border-left-color: var(--ok); background: var(--ok-soft); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.accept-fix { margin-top: 6px; }
+.comment-form .row-end { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.comment-form .row-end svg, .glance-share svg { width: 16px; height: 16px; vertical-align: -3px; }
+.glance-share { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
