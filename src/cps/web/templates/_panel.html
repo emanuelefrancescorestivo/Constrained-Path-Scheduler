@@ -108,6 +108,7 @@
 {% endif %}
 
 
+
 {% if view.banked and not (view.now and view.now.id == view.banked.id) %}
 <section class="w w-ask section banked-today" data-vt="b{{ view.banked.id }}">
   {{ head(_("Just answered"), "brain") }}
@@ -259,6 +260,60 @@
     {% endfor %}
     </ul>
 {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# On your mind (D145): what is on the student's mind, written down; an item given a day is a
+   plan for it (Masicampo and Baumeister, 2011), one without stays a note. In the evening,
+   "Close the day" asks for tomorrow's first three (Scullin et al., 2018). #}
+{% if mind %}
+<section class="w w-mind" aria-labelledby="mind-title" data-tour="mind">
+  <div class="w-head">{{ art("tasks", "xs") }}<h2 id="mind-title">{{ _("On your mind") }}</h2>{% if mind.tip %}<a class="w-link" href="/p/{{ token }}/tips?topic={{ mind.tip.topic }}#tip-{{ mind.tip.key }}">{{ _("Why") }} ›</a>{% endif %}</div>
+  <div class="card">
+    {% if mind.close %}
+    <form method="post" action="/p/{{ token }}/mind/close" class="close-day" data-async data-quiet>
+      <p class="close-title"><b>{{ _("Close the day") }}</b> <span class="muted">{{ _("Tomorrow's first three, as specifically as you can.") }}</span></p>
+      {% for k in range(mind.firsts) %}<input name="first" maxlength="160" autocomplete="off" aria-label="{{ _('Tomorrow, thing {n}', n=loop.index) }}" placeholder="{{ loop.index }}.">{% endfor %}
+      <div class="row-end"><button type="submit" class="btn btn-plain btn-sm" name="skip" value="1">{{ _("Not tonight") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Close the day") }}</button></div>
+    </form>
+    {% endif %}
+    {% if mind.entries %}
+    <ul class="mind-list">
+      {% for x in mind.entries %}
+      <li class="{% if x.today %}is-today{% endif %}{% if x.left %} is-left{% endif %}">
+        <form method="post" action="/p/{{ token }}/mind/{{ x.id }}/off" data-async data-quiet>
+          <button type="submit" class="tick" aria-label="{{ _('Cross off: {what}', what=x.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+        </form>
+        <span class="grow"><span class="mind-text">{{ x.text }}</span>{% if x.when %}<small class="mind-when">{{ x.when }}</small>{% endif %}</span>
+        <details class="menu">
+          <summary aria-label="{{ _('When: {what}', what=x.text) }}">{{ lucide('calendar') }}</summary>
+          <div class="menu-items">
+            <form method="post" action="/p/{{ token }}/mind/{{ x.id }}/when" data-async data-quiet>
+              <button type="submit" name="when" value="today">{{ _("Today") }}</button>
+              <button type="submit" name="when" value="tomorrow">{{ _("Tomorrow") }}</button>
+              <label class="mind-date"><span>{{ _("On a day") }}</span><input type="date" name="day" min="{{ mind.today_iso }}"></label>
+              <button type="submit" name="when" value="day">{{ _("Set the day") }}</button>
+              {% if x.day %}<button type="submit" name="when" value="none">{{ _("No day: keep it as a note") }}</button>{% endif %}
+            </form>
+            {# A deadline with hours to plan: the new-task form, filled in from the words (D12). #}
+            <form method="post" action="/p/{{ token }}/tasks/understand"><input type="hidden" name="words" value="{{ x.text }}"><button type="submit">{{ _("Plan it as a task") }}</button></form>
+          </div>
+        </details>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <form method="post" action="/p/{{ token }}/mind" class="mind-add" data-async data-quiet>
+      <label class="visually-hidden" for="mind-text">{{ _("What is on your mind?") }}</label>
+      <input id="mind-text" name="text" maxlength="160" required autocomplete="off" placeholder="{{ _('What is on your mind?') }}">
+      <div class="pills mind-days">
+        <label class="pill"><input type="radio" name="when" value="" checked><span>{{ _("A note") }}</span></label>
+        <label class="pill"><input type="radio" name="when" value="today"><span>{{ _("Today") }}</span></label>
+        <label class="pill"><input type="radio" name="when" value="tomorrow"><span>{{ _("Tomorrow") }}</span></label>
+      </div>
+      <button type="submit" class="btn btn-tinted btn-sm">{{ lucide('plus') }}{{ _("Write it down") }}</button>
+    </form>
   </div>
 </section>
 {% endif %}

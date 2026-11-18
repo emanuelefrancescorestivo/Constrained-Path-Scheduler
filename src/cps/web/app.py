@@ -1308,6 +1308,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "workspace": service.workspace_view(subscription, now),
             # Anything besides the plan's next session, timed in one tap (D144).
             "quick_focus": service.focus_quick(store, subscription),
+            # What is on the student's mind, and tomorrow's first three in the evening (D145).
+            "mind": service.mind_view(subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -4520,6 +4522,112 @@ def create_app(config: Config | None = None) -> FastAPI:
             return plan_page(request, subscription, "today", 400, task_error=str(error))
         service.log_event(store, token, "task")
         return RedirectResponse(back_to(token, where, saved="added"), 303)
+
+    async def small_change(
+        request: Request,
+        token: str,
+        change: Callable[[service.Subscription, Any], service.Subscription],
+        kind: str,
+        where: str = "",
+        fields: int = 8,
+    ) -> Response:
+        """A small change from a form (D145): the list on Today, a task's steps. Back to
+        the page it was sent from, among the plan's own (`back_to`)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=fields)
+        try:
+            fresh = service.update_subscription(store, token, lambda current: change(current, form))
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        if fresh is None:
+            return missing(request)
+        service.log_event(store, token, kind)
+        return RedirectResponse(back_to(token, str(form.get("back") or where)), 303)
+
+    def _index(form: Any) -> int:
+        try:
+            return int(str(form.get("index") or ""))
+        except ValueError:
+            raise service.InvalidInput(service.translate("this step is no longer there")) from None
+
+    # The clear-your-mind list on Today (D145).
+    @app.post("/p/{token}/mind", response_class=HTMLResponse)
+    async def mind_add(request: Request, token: str) -> Response:
+        return await small_change(
+            request,
+            token,
+            lambda current, form: service.add_to_mind(
+                current, str(form.get("text") or ""), form.get("when"), now=config.clock()
+            ),
+            "mind",
+        )
+
+    @app.post("/p/{token}/mind/close", response_class=HTMLResponse)
+    async def mind_close(request: Request, token: str) -> Response:
+        def change(current: service.Subscription, form: Any) -> service.Subscription:
+            firsts = [] if form.get("skip") else [str(x) for x in form.getlist("first")]
+            return service.close_day(current, firsts, now=config.clock())
+
+        return await small_change(request, token, change, "closed")
+
+    @app.post("/p/{token}/mind/{item}/off", response_class=HTMLResponse)
+    async def mind_off(request: Request, token: str, item: str) -> Response:
+        return await small_change(
+            request, token, lambda current, form: service.cross_off(current, item), "crossed"
+        )
+
+    @app.post("/p/{token}/mind/{item}/when", response_class=HTMLResponse)
+    async def mind_when(request: Request, token: str, item: str) -> Response:
+        def change(current: service.Subscription, form: Any) -> service.Subscription:
+            when = str(form.get("when") or "")
+            day = str(form.get("day") or "") if when == "day" else when
+            if when == "day" and not day:
+                raise service.InvalidInput(service.translate("choose the day"))
+            return service.plan_mind_item(current, item, day, now=config.clock())
+
+        return await small_change(request, token, change, "mind_when")
+
+    # A task's steps (D145), from its card on Today or on Tasks.
+    @app.post("/p/{token}/tasks/steps", response_class=HTMLResponse)
+    async def step_add(request: Request, token: str) -> Response:
+        return await small_change(
+            request,
+            token,
+            lambda current, form: service.add_step(
+                current, str(form.get("name") or ""), str(form.get("text") or "")
+            ),
+            "step",
+        )
+
+    @app.post("/p/{token}/tasks/steps/tick", response_class=HTMLResponse)
+    async def step_tick(request: Request, token: str) -> Response:
+        return await small_change(
+            request,
+            token,
+            lambda current, form: service.tick_step(
+                current, str(form.get("name") or ""), _index(form), str(form.get("done") or "1") == "1"
+            ),
+            "step_done",
+        )
+
+    @app.post("/p/{token}/tasks/steps/drop", response_class=HTMLResponse)
+    async def step_drop(request: Request, token: str) -> Response:
+        return await small_change(
+            request,
+            token,
+            lambda current, form: service.drop_step(current, str(form.get("name") or ""), _index(form)),
+            "step_dropped",
+        )
 
     @app.post("/p/{token}/tasks/understand", response_class=HTMLResponse)
     async def understand_task(request: Request, token: str) -> Response:

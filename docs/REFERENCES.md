@@ -634,3 +634,21 @@ publisher's own page. A tip may cite only a checked entry (`tests/test_tips.py`)
 - doi: 10.1177/0956797617739704
 - status: checked
 - checked against: the abstract in Europe PMC's record of PubMed 29505339 (authors' surnames and initials, journal, volume, issue, pages, DOI), 2026-10-22: a first meta-analysis (k = 273, N = 365,915) of the relationship between mind-set and academic achievement, and a second (k = 43, N = 57,155) of mind-set interventions; overall effects were weak for both; some results suggested that students with low socioeconomic status or academically at risk might benefit from mind-set interventions. The authors' first names come from Crossref's record of the DOI; the full text was not read.
+
+### masicampo2011
+- authors: E. J. Masicampo; Roy F. Baumeister
+- title: Consider it done! Plan making can eliminate the cognitive effects of unfulfilled goals
+- year: 2011
+- venue: Journal of Personality and Social Psychology 101(4), pages 667–683
+- doi: 10.1037/a0024192
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 21688924 and Crossref's record of the DOI (authors, journal, volume, issue, pages), 2026-11-18: unfulfilled goals persisted in the mind; in several studies they caused intrusive thoughts during an unrelated reading task, made goal-related words more accessible and lowered performance on an unrelated anagram task; letting participants make specific plans for those goals eliminated these effects; the abstract concludes that committing to a specific plan may free cognitive resources for other pursuits. The abstract gives no sample sizes; the full text (subscription) was not read.
+
+### scullin2018
+- authors: Michael K. Scullin; Madison L. Krueger; Hannah K. Ballard; Natalya Pruett; Donald L. Bliwise
+- title: The effects of bedtime writing on difficulty falling asleep: A polysomnographic study comparing to-do lists and completed activity lists
+- year: 2018
+- venue: Journal of Experimental Psychology: General 147(1), pages 139–146
+- doi: 10.1037/xge0000374
+- status: checked
+- checked against: the abstract in Europe PMC's record of PubMed 29058942 (PMC5758411) and Crossref's record of the DOI, 2026-11-18: 57 healthy young adults (18–30) wrote for 5 minutes before overnight polysomnography in a sleep laboratory, randomly assigned to write a to-do list of tasks for the next few days or a list of tasks completed in the previous few days; those who wrote a to-do list fell asleep significantly faster; the more specifically they wrote it, the faster they fell asleep. One night in a laboratory; the full text was not read.

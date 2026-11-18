@@ -4570,6 +4570,43 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .fw-day.fw-today { color: var(--text); font-weight: 750; }
 .fw-day.fw-ahead { opacity: 0.55; }
 .attention-best { font-size: 0.9rem; }
+/* On your mind (D145): a list as in Reminders, the items with a day first; today's and
+   those left from before carry their day in the accent. Close the day sits on top in the
+   evening, three short fields and one button. */
+.mind-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.mind-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; position: relative; }
+.mind-list li + li::before { content: ""; position: absolute; top: 0; left: 34px; right: 0; border-top: 0.5px solid var(--line); }
+.mind-list form { margin: 0; }
+.mind-list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mind-text { display: block; }
+.mind-when { display: block; color: var(--muted); font-size: 0.8rem; }
+.mind-list .is-today .mind-when { color: var(--accent-ink); font-weight: 650; }
+.mind-list .menu > summary { padding: 4px 6px; display: inline-flex; align-items: center; letter-spacing: 0; }
+.mind-list .menu > summary svg { width: 18px; height: 18px; }
+.mind-list .menu-items form { display: flex; flex-direction: column; }
+.mind-date { display: grid; gap: 4px; padding: 6px 12px; font-size: 0.85rem; color: var(--muted); }
+.mind-date input { font: inherit; }
+.mind-add { display: grid; gap: 8px; }
+.mind-add input[name="text"] { width: 100%; }
+.mind-add .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.close-day { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.close-day p { margin: 0; }
+.close-day input { width: 100%; }
+/* A task's steps (D145): folded under the task, a smaller ring for each. */
+.steps-fold { margin-top: 6px; }
+.steps-fold > summary { font-size: 0.85rem; color: var(--accent-ink); font-weight: 600; cursor: pointer; }
+.step-list { list-style: none; margin: 6px 0; padding: 0; }
+.step-list li { display: flex; gap: 10px; align-items: center; padding: 4px 0; }
+.step-list .tick { width: 20px; height: 20px; margin-top: 0; }
+.step-list .tick svg { width: 11px; height: 11px; }
+.step-list .done .tick { background: var(--cc, var(--accent)); border-color: var(--cc, var(--accent)); }
+.step-list .done .tick svg { opacity: 1; }
+.step-list .done .step-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.step-text { font-size: 0.92rem; overflow-wrap: anywhere; }
+.step-drop { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.step-drop:hover { background: var(--fill-4); color: var(--text); }
+.step-add { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.step-add input { flex: 1; min-width: 0; }
 /* Focus from Today (D144): the course and the length as chips, one button. */
 .quick-focus { display: grid; gap: 12px; }
 .quick-focus fieldset { margin: 0; }

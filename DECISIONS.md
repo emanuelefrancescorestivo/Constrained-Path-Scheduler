@@ -5688,3 +5688,55 @@ come next, once their two studies are checked.
 - The week's columns count sessions saved with the timer only, so a student who logs by hand
   sees none.
 - Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D145. On your mind, closing the day, and assignments in steps
+
+**Asked.** The owner chose from the options page for Today as headquarters: "Build: focus,
+attention, steps, clear-mind". D144 was the first two; this is the rest.
+
+**Chosen.**
+- *On your mind* (`service.add_to_mind`, `plan_mind_item`, `cross_off`, `mind_view`; a card on
+  Today after the day's agenda): what is on the student's mind, written down in a line.
+  - An item given a day (today, tomorrow, or a date from the card's menu) is a plan for it. It
+    is listed first, in its days' order, and its day is shown in the accent once it has come.
+  - An item without a day stays a note, newest first, until crossed off.
+  - Masicampo and Baumeister (2011) found that unfinished goals intruded on other tasks until a
+    specific plan was made for them [ref:masicampo2011]. A day is the plan the card can hold.
+  - "Plan it as a task" sends the words to the new-task form (D12): a deadline with hours to
+    plan becomes a task, and the plan makes room for it.
+  - A list holds 40 items; when full, it drops its oldest note, never an item with a day.
+- *Close the day* (`close_day`).
+  - From three hours before bed until getting up (D69), once an evening, the card asks for
+    tomorrow's first three things, "as specifically as you can".
+  - Each is given the day after that evening, and after midnight that is the day that has begun.
+  - "Not tonight" closes the day with nothing written.
+  - Scullin et al. (2018) found that 57 young adults who wrote a specific to-do list for 5 minutes
+    before sleeping fell asleep faster than those who listed what they had done [ref:scullin2018].
+- *Assignments in steps* (`add_step`, `tick_step`, `drop_step`, the task card).
+  - A task folds out a list of the student's own steps, ticked off one by one: "1 of 2 steps".
+  - They are the student's words, not the planner's blocks. They change nothing in the plan, and
+    the plan's sessions are counted above them as before.
+  - Twelve at most. Steps go when the task is deleted, and with the tasks at a new semester.
+- *Two tips* (D62), each with only its checked source.
+  - "Write down what is left undone, with when you will do it." (Habits.)
+  - "Before bed, write tomorrow's to-do list, as specifically as you can." (Sleep.)
+  - The card's "Why" opens the evening's tip in the evening and the plan's in the day.
+- *The two sources* were read at Europe PMC and Crossref on 2026-11-18 (docs/REFERENCES.md).
+
+**Rejected.**
+- Every item becoming a task: a task needs hours and a deadline, which most of what is on a
+  mind does not have. The list keeps them light, and "Plan it as a task" is a tap away.
+- The steps as the plan's blocks: the planner sizes blocks by hours and memory, and steps are
+  units of meaning. Tying the two would make the plan follow a student's way of writing.
+- "Close the day" as a notification: reminders already vary and stay quiet between bed and
+  getting up (D129). The question waits on Today.
+- A list of what was done in the evening: Scullin et al. found the to-do list helped sleep, and
+  the completed list did not.
+
+**Disclosed.**
+- Both studies are laboratory studies. Masicampo and Baumeister's abstract gives no sample sizes,
+  and Scullin et al. tested one night in a sleep laboratory with healthy young adults. Whether a
+  list written in an app does the same is not known.
+- Three hours before bed, three things and forty items are choices, not results.
+- The list lives in the plan's document: it is exported and deleted with it, and never shared.
+- Checked in Chromium only, at phone size and 1280px, light and dark.
