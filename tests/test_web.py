@@ -1250,9 +1250,11 @@ def test_explain_it_simply_and_leaving_the_network(web, planned):
         },
         follow_redirects=False,
     )
-    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=posted")
+    # D141: shared with others, the notice says what they can do with it.
+    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=shared")
     page = unescape(web.get(posted.headers["location"]).text)
-    assert "Posted." in page and "Eigenvalues" in page and "I got it" in page and "Explained simply" in page
+    assert "Posted. Classmates can now tell you it's right" in page and "Eigenvalues" in page
+    assert "I got it" in page and "Explained simply" in page
     other = _start(web)
     explore = unescape(web.get(f"/p/{other}/community?tab=explore&kind=explain&uni=lyon").text)
     assert "Eigenvalues" in explore and 'value="lyon"' in explore
@@ -1284,7 +1286,7 @@ def test_the_notes_library_from_sharing_to_the_months_top(web, planned):
         files=[("photos", (f"p{i}.jpg", TINY_JPEG, "image/jpeg")) for i in range(2)],
         follow_redirects=False,
     )
-    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=posted")
+    assert posted.status_code == 303 and posted.headers["location"].endswith("?saved=shared")  # D141
     mine = unescape(web.get(posted.headers["location"]).text)
     assert "Eigenvalues in one page" in mine and "2 pages" in mine and "0 helpful marks" in mine
     assert "/kudos" not in mine  # nobody marks their own notes
