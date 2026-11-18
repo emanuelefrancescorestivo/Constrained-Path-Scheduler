@@ -13206,7 +13206,7 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
     if preset == "cram":
         # As many revisions as the app's plan (D142), all in the last evenings, one course
         # an evening, the hardest last: the best a cram can do on exam day with that effort.
-        plan = [set() for _ in range(count)]
+        plan: list[set[int]] = [set() for _ in range(count)]
         for k in range(sum(len(days) for days in app)):
             plan[k % count].add(last_day - k)
     elif preset == "clear":
