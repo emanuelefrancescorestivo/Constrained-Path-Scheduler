@@ -158,7 +158,7 @@ def test_a_tour_finished_stays_finished_and_settings_show_it_again(web):
 def test_a_tour_is_hidden_without_its_script():
     template = (
         Path(__file__).resolve().parent.parent / "src" / "cps" / "web" / "templates" / "_tour.html"
-    ).read_text()
+    ).read_text(encoding="utf-8")
     assert re.search(r'<div class="tour" id="tour"[^>]* hidden>', template)
     assert '<ol class="tour-steps" hidden>' in template
     assert "style=" not in template  # the page's Content-Security-Policy allows no inline style
@@ -169,11 +169,12 @@ def test_each_tour_is_short_and_lights_parts_the_pages_mark():
     marked `data-tour` on some page, or one found by its class (a session on the
     calendar, a tip's label), passed over when it is not on screen."""
     root = Path(__file__).resolve().parents[1] / "src/cps/web/templates"
-    template = (root / "_tour.html").read_text()
+    template = (root / "_tour.html").read_text(encoding="utf-8")
     tours = dict(re.findall(r'\{% (?:el)?if tour == "(\w+)" %\}(.*?)(?=\{% (?:el|end)if)', template, re.S))
     assert set(tours) == {"today", *service.SECTION_TOURS}
     assert tours["today"].count("<li data-target=") == 3
-    marks = {m for page in root.glob("*.html") for m in re.findall(r'data-tour="([\w-]+)"', page.read_text())}
+    pages = [page.read_text(encoding="utf-8") for page in root.glob("*.html")]
+    marks = {m for page in pages for m in re.findall(r'data-tour="([\w-]+)"', page)}
     for name, steps in tours.items():
         targets = re.findall(r'<li data-target="([^"]+)"', steps)
         assert 2 <= len(targets) <= 4, name
