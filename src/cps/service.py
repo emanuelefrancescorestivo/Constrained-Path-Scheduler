@@ -5312,6 +5312,105 @@ def classmates_glance(
     return {"now": present, "posts": posts, "join_minutes": JOIN_MINUTES}
 
 
+# The owner, 2026-11-18, on Today: "a student should feel in control of their attention and
+# time and feel empowered with some daily tips to study and live well" (D140).
+TIME_PARTS = ("classes", "study", "busy", "free")
+
+
+def _span(start: str, end: str) -> float:
+    """Hours from one "HH:MM" to another the same day; an end at midnight is 24:00."""
+    a = int(start[:2]) + int(start[3:5]) / 60
+    b = int(end[:2]) + int(end[3:5]) / 60
+    return max(0.0, (b or 24.0) - a)
+
+
+def time_and_attention(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """Today's hours and the week's attention, for Today (D140). The day: from getting up
+    to going to bed (D69), the hours of classes and tests, of study planned, of busy
+    times, and what is left, the student's own; drawn as one bar. The week: the minutes
+    focused with the timer since Monday, the sessions timed, and of those checked, how
+    many were spent without leaving the app (D67). What was planned and what was logged,
+    no guess. None without a plan."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    day = day_view(subscription)
+    up = _hours_of(day["wake"], _("Get up"))
+    down = _hours_of(day["bed"], _("Go to bed"))
+    awake = (down if down > up else down + 24) - up
+    items = day_agenda(subscription, now)
+    hours = {
+        "classes": sum(_span(i["start"], i["end"]) for i in items if i["kind"] in ("class", "exam", *TEST_KINDS)),
+        "study": sum(_span(i["start"], i["end"]) for i in items if i["kind"] == "study"),
+        "busy": sum(_span(i["start"], i["end"]) for i in items if i["kind"] == "typed"),
+    }
+    hours["free"] = max(0.0, awake - sum(hours.values()))
+    whole = max(awake, sum(hours.values())) or 1.0
+    bar, x = [], 0.0
+    for part in TIME_PARTS:
+        width = 100 * hours[part] / whole
+        if width > 0:
+            bar.append({"part": part, "x": round(x, 2), "width": round(width, 2)})
+        x += width
+    monday = _progress.monday(local.date())
+    timed = [
+        p
+        for p in social.posts_of(_store(store), subscription.token, "session")
+        if date.fromisoformat(p.day) >= monday and p.data.get("timed")
+    ]
+    checked = [p for p in timed if p.data.get("checked")]
+    minutes = sum(int(p.data.get("minutes", 0) or 0) for p in timed)
+    return {
+        "wake": day["wake"],
+        "bed": day["bed"],
+        "hours": {part: format_number(round(value * 2) / 2) for part, value in hours.items()},
+        "bar": bar,
+        "focus": {
+            "minutes": minutes,
+            "time": duration_words(minutes) if minutes else "",
+            "sessions": len(timed),
+            "checked": len(checked),
+            "whole": sum(1 for p in checked if not p.data.get("interruptions")),
+        },
+    }
+
+
+# Today's two tips (D140): one to study (how to study, how the brain learns, motivation),
+# one to live well (sleep, movement and coffee, breaks, habits), taking turns day by day.
+STUDY_TOPICS = ("studying", "brain", "motivation")
+LIVE_TOPICS = ("body", "breaks", "habits")
+
+
+def tips_for_today(
+    subscription: Subscription, now: datetime | None = None, *, besides: str = ""
+) -> list[dict]:
+    """A tip to study and a tip to live well, each a different one every day and the same
+    for everyone on a date, each with how strong its evidence is and a link to it; never
+    `besides`, the tip the day's message already gives. Empty when tips are off (D62)."""
+    if not tips_on(subscription):
+        return []
+    now = now or datetime.now(UTC)
+    day = now.astimezone(_zone(subscription.options["tz"])).date().toordinal()
+    out = []
+    for kind, topics in (("study", STUDY_TOPICS), ("live", LIVE_TOPICS)):
+        pool = [t for t in _tips.TIPS if t.topic in topics and t.key != besides]
+        tip = pool[day % len(pool)]
+        out.append(
+            {
+                "kind": kind,
+                "key": tip.key,
+                "topic": tip.topic,
+                "topic_name": _(_tips.TOPICS[tip.topic]),
+                "advice": _(tip.advice),
+                "strength": _(_tips.STRENGTHS[tip.strength][0]),
+            }
+        )
+    return out
+
+
 BANKED_FOR = timedelta(hours=3)  # how long an answered self-test's result stays on Today
 
 

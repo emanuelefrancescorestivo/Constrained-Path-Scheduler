@@ -1289,6 +1289,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             # Today as the app's home (D140): the day at a glance, and classmates.
             "day": service.day_agenda(subscription, now),
             "classmates": service.classmates_glance(store, subscription, now),
+            # The student's time today and attention this week (D140).
+            "time": service.time_and_attention(store, subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1310,6 +1312,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             fit=context["fit"],
             insight=context["insight"],
             tip=tip is not None and bool(tip.get("reason")),
+        )
+        # A tip to study and one to live well (D140), never the one the message gives.
+        context["day_tips"] = service.tips_for_today(
+            subscription, now, besides=tip["key"] if tip and context["message"] == "tip" else ""
         )
         return context
 

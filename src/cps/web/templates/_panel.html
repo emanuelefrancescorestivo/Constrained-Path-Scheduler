@@ -244,6 +244,51 @@
 </section>
 {% endif %}
 
+{# Your time today and your attention this week (D140): what was planned and what was
+   logged, so the student sees where the day goes and what is left for them. #}
+{% if time %}
+<section class="w w-time" aria-labelledby="time-title">
+  <div class="w-head">{{ art("daytime", "xs") }}<h2 id="time-title">{{ _("Your time and attention") }}</h2><a class="w-link" href="/p/{{ token }}/settings/week">{{ _("Your week") }} ›</a></div>
+  <div class="card">
+    <p class="time-line"><b>{{ _("Today") }}</b> <span class="muted">{{ _("up at {wake}, to bed at {bed}", wake=time.wake, bed=time.bed) }}</span></p>
+    <svg class="time-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="{{ _('Classes {classes} h, study {study} h, busy {busy} h, yours {free} h', classes=time.hours.classes, study=time.hours.study, busy=time.hours.busy, free=time.hours.free) }}">
+      {% for b in time.bar %}<rect class="tb-{{ b.part }}" x="{{ b.x }}" y="0" width="{{ b.width }}" height="10"/>{% endfor %}
+    </svg>
+    <ul class="time-legend">
+      <li class="tb-classes"><i></i>{{ _("Classes") }} <b>{{ time.hours.classes }} h</b></li>
+      <li class="tb-study"><i></i>{{ _("Study") }} <b>{{ time.hours.study }} h</b></li>
+      {% if time.hours.busy != "0" %}<li class="tb-busy"><i></i>{{ _("Busy") }} <b>{{ time.hours.busy }} h</b></li>{% endif %}
+      <li class="tb-free"><i></i>{{ _("Yours") }} <b>{{ time.hours.free }} h</b></li>
+    </ul>
+    <div class="attention">
+      <p class="time-line"><b>{{ _("Attention this week") }}</b></p>
+      {% if time.focus.sessions %}
+      <p class="attention-big"><b>{{ time.focus.time }}</b> <span class="muted">{{ _n("focused, {n} session timed", "focused, {n} sessions timed", time.focus.sessions) }}</span></p>
+      {% if time.focus.checked %}<p class="muted attention-whole">{{ _n("{whole} of {n} without leaving the app", "{whole} of {n} without leaving the app", time.focus.checked, whole=time.focus.whole) }}</p>{% endif %}
+      {% else %}
+      <p class="muted">{{ _("Time a session with Focus, and your attention shows here.") }}</p>
+      {% endif %}
+      <a class="btn btn-tinted btn-sm" href="/p/{{ token }}/focus">{{ lucide('timer') }}{{ _("Focus") }}</a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# A tip to study and a tip to live well, every day (D140), each with its evidence. #}
+{% if day_tips %}
+<section class="w w-tips" aria-labelledby="tips-title">
+  <div class="w-head">{{ art("tips", "xs") }}<h2 id="tips-title">{{ _("Tips for today") }}</h2><a class="w-link" href="/p/{{ token }}/tips">{{ _("All tips") }} ›</a></div>
+  <div class="card">
+    <ul class="day-tips">
+      {% set pictures = {"studying": "cap", "brain": "brain", "motivation": "trophy", "habits": "repeat", "breaks": "hourglass", "body": "moon"} %}
+      {% for t in day_tips %}
+      <li><a href="/p/{{ token }}/tips?topic={{ t.topic }}#tip-{{ t.key }}">{{ art(pictures[t.topic], "sm") }}<span class="grow"><small>{% if t.kind == "study" %}{{ _("To study") }}{% else %}{{ _("To live well") }}{% endif %} · {{ t.topic_name }}</small><b>{{ t.advice }}</b><small class="tip-strength">{{ t.strength }} · {{ _("Why, and the evidence") }} ›</small></span></a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
 {# The week and the streak (D8, D9), and the people studying together (D127). #}
 {% if progress and progress.planned %}
 <section class="w w-week">
@@ -295,8 +340,6 @@
 </section>
 {% endif %}
 
-{# A tip that takes turns, when nothing in the day calls for one (D62). #}
-{% if tip and not tip.reason %}<section class="w w-tip">{% include "_tip_card.html" %}</section>{% endif %}
 
 {# Classmates (D140): who is studying now (D108) and what the people followed shared. #}
 {% if classmates %}

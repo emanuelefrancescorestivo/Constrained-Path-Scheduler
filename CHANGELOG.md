@@ -7,8 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
-- Today as the app's home (DECISIONS.md D140): the next session, what to report, today's
-  classes and sessions, the week and the streak, cards, tasks, exams, a tip and who of your
+- Today as the app's home (DECISIONS.md D140), sharp as a Notion page: the next session, what
+  to report, today's classes and sessions, your time today (classes, study, busy and what is
+  yours) and your attention this week (minutes focused, sessions without leaving the app), a tip
+  to study and one to live well, the week and the streak, cards, tasks, exams and who of your
   classmates is studying now, each a tap from its section. Calendar is the calendar alone,
   full width.
 

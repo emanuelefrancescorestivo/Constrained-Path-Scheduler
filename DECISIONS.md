@@ -5431,10 +5431,26 @@ laptop and a phone was shown before the owner said "Go: the look, then Today as 
   were already two tabs. A report from Today, where there is no calendar, is sent by the
   page itself and the widgets are fetched again (`app.js`).
 
+- *Then sharper, and about time and attention* (the owner, 2026-11-18: "i want the dashboard to
+  look sharp and notion style with our original hint, a student should feel in control of their
+  attention and time and feel empowered with some daily tips to study and live well"). Today's
+  cards are near-opaque panes with a hairline, small corners and no blur, and a widget's head is
+  its icon and its name in sentence case, as Notion's pages; the sky stays behind, the hint of
+  the hour. Two widgets join: *your time and attention* (`service.time_and_attention`): the day
+  from getting up to going to bed (D69) as one bar, the hours of classes, of study planned, of
+  busy times and what is left, the student's own; and the minutes focused with the timer since
+  Monday, the sessions timed, and of those checked how many were spent without leaving the app
+  (D67), only what the timer logged. And *tips for today* (`service.tips_for_today`): a tip to
+  study (how to study, how the brain learns, motivation) and one to live well (sleep, movement
+  and coffee, breaks, habits), a different pair each day, never the one the day's message
+  gives, each with its evidence a tap away; the tip that took turns (D62) gives way to them.
+
 **Rejected.** Widgets the student arranges (a choice to make before the layout is known to
 help). A feed on Today (Community is a tab; two posts are a window, not a feed). Keeping the
 day's panel beside the calendar on a wide screen (the two pages would be one again).
 
 **Disclosed.** The tasks, which D73 folded under "More", are a widget again: Today is longer
 than D97 left it, on the owner's word; whether students find their way better is for the
-pilot. Checked in Chromium only, at phone, tablet and laptop sizes, light and dark.
+pilot. "Yours" is the hours awake less the timetable and the plan: meals, travel and rest are
+in it. Attention counts only sessions timed with Focus. Checked in Chromium only, at phone,
+tablet and laptop sizes, light and dark.

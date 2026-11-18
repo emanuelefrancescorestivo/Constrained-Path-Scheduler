@@ -20,7 +20,8 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from cps import service
+from cps import service, social
+from cps.store import Store
 from cps.web import Config, create_app
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -142,7 +143,7 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
         and '<section class="board"' not in today
         and 'id="calendar"' not in today
     )
-    order = [today.index(f'class="w w-{name}') for name in ("next", "day", "week", "tasks", "friends")]
+    order = [today.index(f'class="w w-{name}') for name in ("next", "day", "time", "tips", "week", "tasks", "friends")]
     assert order == sorted(order)  # the most urgent first, as a phone reads it
     for section in ("/week", "/progress", "/tasks", "/community", "/focus"):
         assert f'class="w-link" href="/p/{ben.token}{section}"' in today, section
@@ -163,3 +164,59 @@ def test_a_report_from_today_needs_no_calendar():
         "await change(`sessions/${sid}/report`" in script and "if (calendar) return calendar.change" in script
     )
     assert re.search(r"if \(calendar\) calendar\.load\(\);\s*$", script)
+
+
+def test_the_days_hours_add_up_and_attention_counts_what_the_timer_logged(tmp_path):
+    sub = _plan(tmp_path)
+    seen = service.time_and_attention(tmp_path, sub, NOW)
+    assert seen is not None and (seen["wake"], seen["bed"]) == (
+        service.day_view(sub)["wake"],
+        service.day_view(sub)["bed"],
+    )
+    day = service.day_agenda(sub, NOW)
+    classes = sum(service._span(d["start"], d["end"]) for d in day if d["kind"] == "class")
+    assert seen["hours"]["classes"] == service.format_number(round(classes * 2) / 2)
+    widths = [b["width"] for b in seen["bar"]]
+    assert all(w > 0 for w in widths) and 99.5 <= sum(widths) <= 100.5
+    assert [b["part"] for b in seen["bar"]] == [
+        p for p in service.TIME_PARTS if p in {b["part"] for b in seen["bar"]}
+    ]
+    assert seen["focus"] == {"minutes": 0, "time": "", "sessions": 0, "checked": 0, "whole": 0}
+
+    # Two sessions timed this week, one checked without leaving the app, one left twice;
+    # one logged by hand, and one timed last week: neither counts.
+    def log(day, **data):
+        social.create_post(
+            Store(tmp_path),
+            sub.token,
+            "session",
+            day=day,
+            visibility="me",
+            data={"course": "Algebra 3", "effort": 5, "progress": 3, **data},
+            now=NOW,
+        )
+
+    log("2026-09-29", minutes=50, timed=True, checked=True)
+    log("2026-09-29", minutes=25, timed=True, checked=True, interruptions=2, away_minutes=3)
+    log("2026-09-29", minutes=40)
+    log("2026-09-22", minutes=90, timed=True, checked=True)
+    focus = service.time_and_attention(tmp_path, sub, NOW)["focus"]
+    assert focus == {
+        "minutes": 75,
+        "time": service.duration_words(75),
+        "sessions": 2,
+        "checked": 2,
+        "whole": 1,
+    }
+
+
+def test_a_tip_to_study_and_a_tip_to_live_well_each_day(tmp_path):
+    sub = _plan(tmp_path)
+    tips = service.tips_for_today(sub, NOW)
+    assert [t["kind"] for t in tips] == ["study", "live"]
+    assert tips[0]["topic"] in service.STUDY_TOPICS and tips[1]["topic"] in service.LIVE_TOPICS
+    week = {tuple(t["key"] for t in service.tips_for_today(sub, NOW + timedelta(days=d))) for d in range(7)}
+    assert len(week) == 7  # a different pair each day
+    other = service.tips_for_today(sub, NOW, besides=tips[0]["key"])
+    assert tips[0]["key"] not in {t["key"] for t in other}
+    assert service.tips_for_today(service.set_tips(sub, "off"), NOW) == []

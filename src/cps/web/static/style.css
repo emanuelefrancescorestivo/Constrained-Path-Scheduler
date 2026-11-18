@@ -4498,3 +4498,54 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
   .w-day { grid-column: 3; grid-row: 1 / span 2; }
   .w-friends { grid-column: span 2; }
 }
+
+/* Sharp, as Notion's pages (D140, the owner on 2026-11-18): over the sky, Today's cards
+   are near-opaque white or night panes with a hairline and a small shadow, no blur, small
+   corners; a widget's head is its icon and its name in sentence case, the section it
+   opens in grey until pointed at. The sky stays behind, a hint of the hour. */
+body[data-sky] .hub :is(.card, .strip, .cards-due) {
+  background: var(--glass-solid, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.hub .w-head { margin: 0 2px 8px; }
+.hub .w-head h2 {
+  font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--text);
+}
+.hub .w-link { color: var(--muted); }
+.hub .w-link:hover, .hub .w-link:focus-visible { color: var(--accent-ink); }
+.hub .w-sub { text-transform: none; letter-spacing: 0; font-size: 0.82rem; }
+.hello h1 { letter-spacing: -0.035em; }
+
+/* Your time today: one bar from getting up to going to bed, the parts in the app's
+   colours, the student's own hours lightest; the week's attention under it. */
+.time-line { margin: 0 0 8px; font-size: 0.9rem; }
+.time-bar { display: block; width: 100%; height: 12px; border-radius: 6px; overflow: hidden; background: var(--fill-4); }
+.tb-classes { --tb: var(--t-indigo); } .tb-study { --tb: var(--accent); } .tb-busy { --tb: var(--t-grey); }
+.tb-free { --tb: var(--t-green); }
+.time-bar rect { fill: var(--tb); }
+.time-bar .tb-free { fill: color-mix(in srgb, var(--t-green) 35%, transparent); }
+.time-legend { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.84rem; color: var(--muted); }
+.time-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.time-legend i { width: 9px; height: 9px; border-radius: 3px; background: var(--tb); }
+.time-legend .tb-free i { background: color-mix(in srgb, var(--t-green) 35%, transparent); outline: 1px solid var(--t-green); outline-offset: -1px; }
+.time-legend b { color: var(--text); font-variant-numeric: tabular-nums; }
+.attention { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; gap: 4px; justify-items: start; }
+.attention p { margin: 0; }
+.attention-big b { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; }
+.attention-whole { font-size: 0.85rem; }
+.attention .btn { margin-top: 8px; }
+.attention .btn svg { width: 16px; height: 16px; }
+
+/* Tips for today: one to study, one to live well. */
+.day-tips { list-style: none; margin: 0; padding: 0; display: grid; }
+.day-tips li + li { border-top: 1px solid var(--line); }
+.day-tips a { display: flex; gap: 12px; align-items: flex-start; padding: 10px 2px; color: var(--text); text-decoration: none; }
+.day-tips li:first-child a { padding-top: 2px; }
+.day-tips li:last-child a { padding-bottom: 2px; }
+.day-tips a:hover b { text-decoration: underline; text-decoration-color: var(--line-strong); }
+.day-tips small { display: block; color: var(--muted); font-size: 0.78rem; }
+.day-tips b { display: block; font-weight: 650; line-height: 1.35; margin: 2px 0; }
+.day-tips .tip-strength { color: var(--accent-ink); }
