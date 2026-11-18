@@ -1139,3 +1139,18 @@ as terms, and read a numbered definition or theorem with its name as a card of i
 each against the notes, repairing run-together words. Run-together words stay in the rules'
 cards.
 
+
+**100. On a phone, the calendar showed one hour, a card overlapped itself, and Today was cut
+short.** Reported by the owner on 2026-11-18, with screenshots from an iPhone, after D140 went
+live: "in th caldera view it's impossible to see the calendar". Three causes. The calendar's tip
+(D135), once opened, pushed the grid down inside a page of fixed height, and on Safari its line,
+laid out as a flex `<summary>`, took the wrong height, so the opened tip's text ran under it.
+Community's link to the study map (D133) was a link styled as a card with no display set: drawn
+inline, its padding and background wrapped around its two lines and over each other (it showed in
+Chromium too). Today, since D140 a page of widgets without a calendar, still scrolled inside a box
+of the old plan screen's fixed height, which ended in a hard edge at the floating tab bar. How
+found: the owner's screenshots, then the same pages in Chromium at 393 × 720 and a search of every
+page for card links drawn inline (only that one). Status: fixed. The tip's research opens over
+the grid, which keeps its height, and its line sits in a box of its own inside the summary; the
+map's card is a block; Today scrolls with the page (`tests/test_phone.py`). Checked in Chromium
+only: Safari's layout of the summary was read from the owner's screenshot, not run.

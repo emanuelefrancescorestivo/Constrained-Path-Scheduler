@@ -775,6 +775,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Fixed
 
+- On a phone, the calendar's tip opens over the grid instead of pushing it down to one
+  hour, the study map's card no longer overlaps itself, and Today scrolls with the page
+  instead of stopping at the tab bar (AUDIT.md item 100).
+
 - A form sent in the background by the page's script lost the value of the button that
   sent it (AUDIT.md item 91).
 
