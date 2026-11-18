@@ -114,6 +114,34 @@ def test_at_equal_effort_spacing_with_a_last_pass_beats_cramming():
     assert [b[1] for b in c["badge"] if b[0] == c["split"]] == ["Exam day"]
 
 
+def test_what_d121_showed_and_what_it_left_out():
+    """The numbers DECISIONS.md D142 quotes for the comparison D121 drew and the ones it
+    left out, each computed with the chapter's own functions: one new topic, the exam on
+    day 28, scored on exam day, a month on, and the days below the target before."""
+    model, target = FSRS_6, flashcards.RETENTION
+    start = model.initial_state(Grade.GOOD)
+    exam, later, last = service.GARDEN_CRAM_EXAM, service.GARDEN_CRAM_EXAM + service.GARDEN_CRAM_AFTER, 27.0
+
+    def score(days):
+        segments, _chances = service._expected_memory(model, start, 0.0, days)
+        below = sum(service._expected_at(model, segments, d - 0.02)[3] for d in range(1, int(exam)))
+        return (
+            len(days),
+            round(100 * service._expected_at(model, segments, exam)[0]),
+            round(100 * service._expected_at(model, segments, later)[0]),
+            round(below),
+        )
+
+    rule = [3.0, 12.0]  # the rule's revisions, each when the topic dips to the target
+    for day in rule:
+        segments, _c = service._expected_memory(model, start, 0.0, [d for d in rule if d < day])
+        assert service._expected_at(model, segments, day)[0] <= target
+    assert score([last]) == (1, 96, 80, 25)  # crammed the night before (D121's picture)
+    assert score(rule) == (2, 91, 85, 4)  # the rule alone (D121's "app")
+    assert score([*rule, last]) == (3, 99, 91, 4)  # and once more the night before (D142)
+    assert score([25.0, 26.0, last]) == (3, 98, 85, 23)  # crammed with as many revisions (D142)
+
+
 def test_the_month_is_scored_three_ways_against_the_apps():
     """D121: the month the student plans. The app's plan follows its rule, then (D142) a
     last pass, one course an evening in the last ones, as the exam practice it plans; any

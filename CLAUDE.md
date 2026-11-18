@@ -288,8 +288,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - How it works (D116) is a likeness: the garden's water is the memory model's estimate with
   average weights, and each chapter says where its picture stops. The month to plan (D121) has three
   made-up courses; there and in the cramming chapter a revision works with the chance its recall
-  gives, as an expected value (not one student's luck), and the app's plan is its self-test rule
-  alone, without the exam practice the app also plans. Its sentences are kept under 25 words by a
+  gives, as an expected value (not one student's luck), and since D142 the app's plan is its
+  self-test rule and a last pass before the exam, standing for the exam practice it plans (D46),
+  each comparison at equal effort. Its sentences are kept under 25 words by a
   test; its wording is the owner's to review, and the Italian was not written by a native speaker.
   Its 3D is WebGL (D117), checked in Chromium only with software rendering, at phone size and three
   laptop sizes, light and dark, with motion and without, the month also without a script; not on a
@@ -299,7 +300,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   sizes, four shorter laptop windows (to fit its panels) and a phone's; on a laptop the pages are 10 to 18 %
   longer than D118's, each pinned panel holding the window for four fifths of a screen of scrolling;
   the lit step follows the scene's part, not exactly the window's middle. How it works (D121) is
-  15.4 screens long at 1440 × 900 and 23.6 on a phone: six pinned chapters and the month.
+  15.3 screens long at 1440 × 900 and, since D142's scenes stopped pinning on a phone, 10.7 on one
+  (23.6 before); a chapter's words still fading in as they enter leave a band empty for a moment.
 - The student's avatar (D115, D137) has eight skin tones, twelve hair styles, eyes, brows, a mouth,
   headwear, details, four kinds of clothes and a background, a choice and not every person; it
   is shown on the student's own pages only, in How it works (Community keeps the initial on a

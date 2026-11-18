@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- How it works compares cramming with the app's plan fairly (DECISIONS.md D142): the same number
+  of revisions each, the app's last pass before the exam included. The spaced topic is as ready on
+  exam day (99 % against 98 %), keeps more a month later (91 % against 85 %) and spends 4 days
+  below 90 % instead of 23. The month to plan does the same: the app's plan has its last pass, and
+  "Cram at the end" gets as many revisions.
+
 - Spark shows you around every section the first time you open it (DECISIONS.md D141). Sharing
   takes fewer taps: the course you are studying is already picked, the optional parts are folded,
   and a course's page, each of its weeks and Today open the forms filled in. Classmates check each
@@ -780,6 +786,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- On a phone, How it works and How the code works no longer leave blank screens: the scenes stand
+  in the page with their steps listed, and How it works is less than half as long. A formula no
+  longer looks cut off, two labels no longer overlap, and the plants say what their numbers are
+  (AUDIT.md item 102).
 
 - On a phone, the Explain form's Post button lay over the fields and its course box looked empty;
   the share forms now end with their button, and the course is a chip already picked (AUDIT.md

@@ -1166,3 +1166,25 @@ found: the owner's screenshot, then the form in Chromium at 393 × 720. Status: 
 The share forms keep their button where they end, and the course is a row of chips with the one
 being studied already picked (`tests/test_peer_checks.py`). The longer forms (the diary, Settings)
 keep the sticky bar.
+
+
+**102. On a phone, the explaining pages left blank screens, cut a formula off and printed two
+labels over each other.** Reported by the owner on 2026-11-18, with screenshots from an iPhone
+(Safari 26, in Italian). Five causes:
+- A pinned scene (D112) holds its stage in view while a track three windows tall goes by. On a
+  phone the stage was shorter than the window and was centred, so a quarter of the screen stood
+  blank above and below it.
+- The value-iteration formula kept to one line and scrolled sideways inside its box, which looked
+  cut off.
+- The two curves' labels on "A topic is two numbers" sat at their curves' ends, 13 units apart, and
+  moved as they faded in, so they overlapped.
+- The answer chapter's question card, tilted in 3D, was drawn past its panel's left edge.
+- Its two plants were labelled "7 days" with nothing saying what that was, because a phone hides the
+  line under each label.
+
+How found: the owner's screenshots, then the pages in Chromium at 393 × 760, the blank share
+measured at every 190px. Status: fixed with D142. The scenes don't pin below 861px, the
+labels are kept a line apart, the formulas break between terms, the card stands flat, and the
+labels read "lasts 7 days" (`tests/test_how.py`, `tests/test_garden.py`). Measured by
+`benchmarks/scroll_flow.mjs`: How it works is 10.7 screens on a phone instead of 23.6. Checked in
+Chromium only.

@@ -5515,3 +5515,78 @@ feedback review validation".
 - A block either way hides the blocked person's checks, as it hides their comments.
 - The tours' words are the owner's to review; the Italian was not written by a native speaker.
 - Checked in Chromium only, at 393 × 720 with touch emulated and at 1280px, not on a real phone.
+
+## D142. The explaining pages on a phone; cramming and the month at equal effort
+
+**Asked.** The owner, 2026-11-18, with seven screenshots of How the code works and How it works
+from an iPhone (Safari 26, in Italian): "it doesn't format well some bits as you can judge [...]
+and the results of the comparison between cramming the night before and studying consistently
+are not in favour of our app- maybe we got the whole approach wrong ?"
+
+**What the model says.** Computed with the cramming chapter's own functions (FSRS-6, average
+weights, each revision working only as often as the topic is remembered then;
+`tests/test_garden.py::test_what_d121_showed_and_what_it_left_out`). One new topic, the exam on
+day 28:
+
+| | revisions | exam day | a month on | days below 90 % before |
+|---|---|---|---|---|
+| crammed the night before (D121's picture) | 1 | 96 % | 80 % | 25 |
+| revised whenever it dipped (D121's "app") | 2 | 91 % | 85 % | 4 |
+| the same, and once more the night before | 3 | 99 % | 91 % | 4 |
+| crammed the last three evenings | 3 | 98 % | 85 % | 23 |
+
+The approach stands; D121's picture compared the wrong things. It set one crammed revision against
+the self-test rule alone. That left out the exam practice the app plans in the final days (D46),
+and gave cramming fewer revisions. What remains is what the spacing research says: the best gap
+between reviews grows with how long the topic must be remembered [ref:cepeda2008]. For a test
+tomorrow, massing works.
+
+**Chosen.**
+- *The cramming chapter at equal effort* (`service._garden_cram`). The spaced topic is revised
+  whenever it dips to the target, and once more the night before, standing for the exam practice.
+  The cram takes as many of the last evenings. Exam day 98 % against 99 %, a month on 85 % against
+  91 %, 23 days below 90 % against 4. The words still say cramming works for the next morning. Then
+  they say a spaced plan with the same evenings is just as ready, isn't shaky all month, and keeps
+  more. The limit line says the last revision is the app's exam practice, and that a whole semester
+  wouldn't fit in the last evenings.
+- *The month at equal effort* (`service._garden_month_app`, `garden_month_view`). The app's plan is
+  its rule, then a last pass: one course an evening in the last three, the hardest last. That makes
+  9 revisions: the weakest course at 98 % on exam day and 88 % a month on, 11 days below 90 % across
+  the three courses. "Cram at the end" now takes the same 9 revisions in the last nine evenings:
+  97 %, 82 %, 48 days. A plan with fewer revisions is told the evenings it saves ("It does save
+  evenings: 3 revisions, against the app's 9."). Where the app's plan already wins exam day, the
+  days below the target begin with "And", not "But".
+- *The explaining pages on a phone* (AUDIT item 102). Below 861px a pinned scene no longer pins.
+  Its stage was shorter than the window, so a quarter of the screen stood blank above and below,
+  and each scene took three screens of scrolling. Now it stands in the page with every step listed
+  and the current one lit, and its figure runs while it crosses the screen. The figure is its own
+  timeline, shared with its steps through `timeline-scope`.
+  - The two curve labels on the code page are kept a line apart (`service._apart`).
+  - The two long formulas break between their terms.
+  - The answer chapter's labels say "lasts 7 days" (a phone shows no line under them), and its
+    question card stands flat.
+- *Measured* (`benchmarks/scroll_flow.mjs`, Chromium, 390 × 844):
+  - How it works: 10.7 screens (23.6 before), 26 % of a screen empty on average (35 %), 5 % of
+    positions more than half empty (8 %).
+  - How the code works: 13.0 screens. The science page: 10.8.
+  - The laptop sizes are unchanged.
+  - The tallest empty band, 683px on How it works in that run, is a chapter's words still fading in
+    as they enter, and changes from run to run (237 to 350px in two more).
+
+**Rejected.**
+- Keeping one cram against the rule, with a caption: the picture is what a reader remembers.
+- Giving the spaced plan more revisions than the cram, D121's unfairness turned around.
+- A semester of sixty topics drawn out: one line says it, and the month shows three courses.
+- On a phone, pinning with the stage at the top: the blank moved to the bottom, and the three
+  screens of scrolling stayed.
+
+**Disclosed.**
+- The last pass stands for exam practice, which the product plans as practice papers over the
+  final two weeks (D46), not one revision of each topic the night before.
+- The app's forecasts do not count that practice as a revision of each topic, so they show a plan
+  without its last pass. Making the pass explicit in the planner, and counting it, changes the
+  product's plans: it waits for the owner's word.
+- The comparison is the model's, with average weights, as expected values.
+- Checked in Chromium only, at a phone's size and a laptop's. Safari 26's layout was read from the
+  owner's screenshots; whether it supports `timeline-scope` was not checked, and without it the
+  steps on a phone stay listed, unlit.
