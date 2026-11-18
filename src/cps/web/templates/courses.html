@@ -36,7 +36,7 @@
 {# D104: one link for the whole class. Whoever opens it takes these courses' topics
    into their own plan; making it is the yes to that, and the page says what it shows. #}
 {% set cl = class_link %}
-<section class="card section invite-link class-link" id="class">
+<section class="card section invite-link class-link" id="class" data-tour="class-link">
   <h2>{{ _("Your class's link") }}</h2>
   {% if cl.code %}
   <p class="hint">{{ _n("Whoever opens it takes your course's topics into their own plan, in one tap. Share it in your class's chat.", "Whoever opens it takes the topics of your {n} courses into their own plan, in one tap. Share it in your class's chat.", cl.courses | length) }}</p>

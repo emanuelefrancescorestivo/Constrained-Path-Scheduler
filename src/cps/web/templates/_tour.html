@@ -1,4 +1,4 @@
-{# Spark's tour of a section, the first time it is opened (D77). The page around it
+{# Spark's tour of a section, the first time it is opened (D77, D141). The page around it
    dims, the part each step is about is lit, and Spark says what it is for and what to
    do there. `tour` is the section's name (service.tour_for); each step names what it
    lights with a selector, and tour.js shows the first match on screen, or skips the
@@ -22,11 +22,51 @@
     </div>
   </div>
   <ol class="tour-steps" hidden>
-  {# One tour, on Today, three steps (D97); every other section has its line instead. #}
+  {# Today's tour, once after setting up (D97), and each section's, the first time it is
+     opened (D141, as D77 had them): two to four steps, each on a part of the page. A
+     step whose part is not on screen is passed over. #}
   {% if tour == "today" %}
     <li data-target="[data-tour=next]" data-mood="wave"><b>{{ _("Your next step") }}</b><span>{{ _("The session that comes next, and what to do in it. Press Start focus when you begin: I count the time.") }}</span></li>
     <li data-target="[data-tour=strip]" data-mood="think"><b>{{ _("Your week, and how it went") }}</b><span>{{ _("Sessions done this week and your streak. After a session, one tap says how it went, and the plan adapts.") }}</span></li>
     <li data-target="[data-tour=sections]" data-mood="cheer"><b>{{ _("Everything else") }}</b><span>{{ _("Your calendar, your courses, the community and You. I wait in the top bar if you have a question.") }}</span></li>
+  {% elif tour == "calendar" %}
+    <li data-target="[data-tour=calendar]" data-mood="wave"><b>{{ _("Your week at a glance") }}</b><span>{{ _("Classes in their courses' colours, and the sessions I planned around them.") }}</span></li>
+    <li data-target="#calendar .ev-study" data-mood="think"><b>{{ _("Move a session") }}</b><span>{{ _("Drag a session to another time, or tap it to see what to do. I rearrange the rest.") }}</span></li>
+    <li data-target="[data-tour=views]" data-mood="idle"><b>{{ _("A day, a week or a month") }}</b><span>{{ _("Choose how much to see at once.") }}</span></li>
+    <li data-target="[data-tour=block]" data-mood="cheer"><b>{{ _("Keep time for yourself") }}</b><span>{{ _("Block training, a job or an evening off, and I plan around it. On a phone, tap empty time.") }}</span></li>
+  {% elif tour == "courses" %}
+    <li data-target="[data-tour=course-list]" data-mood="wave"><b>{{ _("Your courses") }}</b><span>{{ _("Each one week by week: what was taught, what you reviewed, what comes next. Tap one to open it.") }}</span></li>
+    <li data-target="[data-tour=course-weeks]" data-mood="think"><b>{{ _("Week by week") }}</b><span>{{ _("Each week's topics and what you reviewed. Explain an idea or share your notes right from here.") }}</span></li>
+    <li data-target="[data-tour=course-material]" data-mood="idle"><b>{{ _("Everything to study with") }}</b><span>{{ _("Your links, notes and flashcards for this course, in one place.") }}</span></li>
+    <li data-target="[data-tour=class-link]" data-mood="cheer"><b>{{ _("Bring your class") }}</b><span>{{ _("One link gives your classmates these courses' topics, in one tap.") }}</span></li>
+  {% elif tour == "community" %}
+    <li data-target="[data-tour=community-join]" data-mood="wave"><b>{{ _("Join your classmates") }}</b><span>{{ _("Choose a handle first. Your plan stays private, and each post says who sees it.") }}</span></li>
+    <li data-target="[data-tour=community-share]" data-mood="think"><b>{{ _("Share in a tap") }}</b><span>{{ _("Explain an idea or share your notes. The course you are studying is already picked.") }}</span></li>
+    <li data-target="[data-tour=post-check]" data-mood="idle"><b>{{ _("Check each other's work") }}</b><span>{{ _("Read a classmate's explanation or notes. Tap It's right, or suggest a fix they can accept.") }}</span></li>
+    <li data-target="[data-tour=community-tabs]" data-mood="cheer"><b>{{ _("Your study network") }}</b><span>{{ _("The people you follow, everyone, shared notes and study groups.") }}</span></li>
+  {% elif tour == "you" %}
+    <li data-target="[data-tour=you-study]" data-mood="wave"><b>{{ _("Your study") }}</b><span>{{ _("Your progress, flashcards, tasks and the focus timer.") }}</span></li>
+    <li data-target="[data-tour=you-learn]" data-mood="think"><b>{{ _("Learning to learn") }}</b><span>{{ _("How your plan works, the study tips, and the science behind them.") }}</span></li>
+    <li data-target="[data-tour=you-plan]" data-mood="idle"><b>{{ _("Your plan") }}</b><span>{{ _("Settings, your phone's calendar, and a way to tell us what is missing.") }}</span></li>
+  {% elif tour == "focus" %}
+    <li data-target="[data-tour=focus-start]" data-mood="wave"><b>{{ _("Start a session") }}</b><span>{{ _("Choose how long, then start. Stay on the page: time away is counted and shown.") }}</span></li>
+    <li data-target="[data-tour=focus-log]" data-mood="think"><b>{{ _("Studied without the timer?") }}</b><span>{{ _("Log it here: it goes in your diary and counts for your streak.") }}</span></li>
+    <li data-target="[data-tour=focus-cards]" data-mood="idle"><b>{{ _("Flashcards") }}</b><span>{{ _("Your own cards, each one coming back shortly before you would forget it.") }}</span></li>
+  {% elif tour == "progress" %}
+    <li data-target="[data-tour=progress-week]" data-mood="wave"><b>{{ _("Your week") }}</b><span>{{ _("Sessions done against sessions planned, and your streak.") }}</span></li>
+    <li data-target="[data-tour=progress-exams]" data-mood="think"><b>{{ _("Your exams") }}</b><span>{{ _("How ready each one is, if you keep to the plan.") }}</span></li>
+    <li data-target="[data-tour=progress-trend]" data-mood="cheer"><b>{{ _("Your climb") }}</b><span>{{ _("Every hour you studied, added up, with a flag at each milestone.") }}</span></li>
+  {% elif tour == "tasks" %}
+    <li data-target="[data-tour=task-list]" data-mood="wave"><b>{{ _("Your tasks") }}</b><span>{{ _("Everything that is due, soonest first. Tick a task when it is finished: its remaining sessions become free time.") }}</span></li>
+    <li data-target="[data-tour=task-add]" data-mood="idle"><b>{{ _("Add one") }}</b><span>{{ _("Give it a name and a due date, and I plan the work before it.") }}</span></li>
+  {% elif tour == "cards" %}
+    <li data-target="[data-tour=cards-review]" data-mood="wave"><b>{{ _("Cards to review") }}</b><span>{{ _("The cards you are about to forget. A few minutes a day is enough.") }}</span></li>
+    <li data-target="[data-tour=cards-decks]" data-mood="think"><b>{{ _("One deck a course") }}</b><span>{{ _("Each comes back often at first, then less and less.") }}</span></li>
+    <li data-target="[data-tour=cards-make]" data-mood="cheer"><b>{{ _("Cards from your notes") }}</b><span>{{ _("Send a file of your notes, and pick the cards worth keeping.") }}</span></li>
+  {% elif tour == "tips" %}
+    <li data-target="[data-tour=tip-topics]" data-mood="wave"><b>{{ _("What helps you learn") }}</b><span>{{ _("Tips by topic, each with how sure the research is and where it comes from.") }}</span></li>
+    <li data-target=".tip .strength" data-mood="think"><b>{{ _("How sure we are") }}</b><span>{{ _("This label says how strong the evidence is. Some tips rest on one study.") }}</span></li>
+    <li data-target="[data-tour=tip-coach]" data-mood="cheer"><b>{{ _("Ask the coach") }}</b><span>{{ _("A question about studying, answered from these tips.") }}</span></li>
   {% endif %}
   </ol>
 </div>

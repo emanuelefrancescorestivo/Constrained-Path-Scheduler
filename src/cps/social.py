@@ -368,6 +368,7 @@ def delete_post(store: Store, token: str, post_id: str) -> bool:
         db.execute("DELETE FROM reports WHERE target IN (SELECT id FROM comments WHERE post = ?)", (post_id,))
         db.execute("DELETE FROM comments WHERE post = ?", (post_id,))
         db.execute("DELETE FROM kudos WHERE post = ?", (post_id,))
+        db.execute("DELETE FROM checks WHERE post = ?", (post_id,))
         db.execute("DELETE FROM reports WHERE target = ?", (post_id,))
         db.execute("DELETE FROM photos WHERE post = ?", (post_id,))
         db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
@@ -1072,23 +1073,41 @@ class Comment:
     created: str
     body: str
     hidden: bool
+    kind: str = "comment"  # or "fix": a correction suggested to its author (D141)
+    accepted: bool = False  # a fix the post's author accepted (D141)
 
 
-def add_comment(store: Store, token: str, post: Post, body: str, now: datetime | None = None) -> Comment:
+# Peer checks (D141): a reader of an explanation or of notes says "It's right" with one
+# tap, or suggests a fix, a comment its author may accept. A session is not checked: it
+# says what someone did, not what is true.
+CHECKED = ("explain", "notes")
+COMMENT_KINDS = ("comment", "fix")
+
+
+def add_comment(
+    store: Store, token: str, post: Post, body: str, now: datetime | None = None, *, kind: str = "comment"
+) -> Comment:
+    if kind not in COMMENT_KINDS:
+        raise SocialError(_("a comment, or a fix to suggest"))
     if not may_see(store, token, post):
         raise SocialError(_("this post is not, or no longer, visible to you"))
     if get_profile(store, token) is None:
         raise SocialError(_("choose a handle first, in your profile"))
+    if kind == "fix" and post.kind not in CHECKED:
+        raise SocialError(_("fixes are suggested to explanations and notes"))
+    if kind == "fix" and post.token == token:
+        raise SocialError(_("others suggest fixes to your posts; change your own by posting again"))
     body = body.strip()
     if not body:
         raise SocialError(_("write something"))
     if len(body) > MAX_COMMENT:
         raise SocialError(_("at most {n} characters here", n=MAX_COMMENT))
-    comment = Comment(_new_id(), post.id, token, _now(now), body, False)
+    comment = Comment(_new_id(), post.id, token, _now(now), body, False, kind)
     with store.connection() as db:
         db.execute(
-            "INSERT INTO comments (id, post, token, created, body, hidden) VALUES (?, ?, ?, ?, ?, 0)",
-            (comment.id, post.id, token, comment.created, body),
+            "INSERT INTO comments (id, post, token, created, body, hidden, kind) "
+            "VALUES (?, ?, ?, ?, ?, 0, ?)",
+            (comment.id, post.id, token, comment.created, body, kind),
         )
     return comment
 
@@ -1099,7 +1118,7 @@ def comments_on(store: Store, viewer: str, post: Post) -> list[Comment]:
     with store.connection() as db:
         rows = db.execute(
             """
-            SELECT id, post, token, created, body, hidden FROM comments c
+            SELECT id, post, token, created, body, hidden, kind, accepted FROM comments c
             WHERE c.post = :p AND (c.hidden = 0 OR c.token = :v)
               AND c.token NOT IN (SELECT blocked FROM blocks WHERE blocker = :v)
               AND c.token NOT IN (SELECT blocker FROM blocks WHERE blocked = :v)
@@ -1107,7 +1126,7 @@ def comments_on(store: Store, viewer: str, post: Post) -> list[Comment]:
             """,
             {"p": post.id, "v": viewer},
         ).fetchall()
-    return [Comment(i, p, t, c, b, bool(h)) for i, p, t, c, b, h in rows]
+    return [Comment(i, p, t, c, b, bool(h), k, bool(a)) for i, p, t, c, b, h, k, a in rows]
 
 
 def comment_counts(store: Store, post_ids: Iterable[str]) -> dict[str, int]:
@@ -1138,9 +1157,88 @@ def delete_comment(store: Store, token: str, comment_id: str) -> bool:
     return True
 
 
+def toggle_check(store: Store, token: str, post: Post, now: datetime | None = None) -> bool:
+    """Say an explanation or notes are right, or take it back; True if said (D141).
+    One per person per post; not one's own."""
+    if post.kind not in CHECKED:
+        raise SocialError(_("explanations and notes are checked; a session is not"))
+    if not may_see(store, token, post):
+        raise SocialError(_("this post is not, or no longer, visible to you"))
+    if get_profile(store, token) is None:
+        raise SocialError(_("choose a handle first, in your profile"))
+    if post.token == token:
+        raise SocialError(_("others check your posts; you cannot check your own"))
+    with store.connection() as db:
+        gone = db.execute("DELETE FROM checks WHERE post = ? AND token = ?", (post.id, token)).rowcount
+        if not gone:
+            db.execute(
+                "INSERT INTO checks (post, token, created) VALUES (?, ?, ?)", (post.id, token, _now(now))
+            )
+    return not gone
+
+
+def checks_of(store: Store, post_ids: Iterable[str], viewer: str) -> dict[str, tuple[int, bool]]:
+    """Per post: how many said it is right, and whether `viewer` did (D141). Someone
+    blocked either way is not counted, as their comments are not shown."""
+    ids = list(post_ids)
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    with store.connection() as db:
+        counts = dict(
+            db.execute(
+                f"SELECT post, COUNT(*) FROM checks WHERE post IN ({marks}) "
+                "AND token NOT IN (SELECT blocked FROM blocks WHERE blocker = ?) "
+                "AND token NOT IN (SELECT blocker FROM blocks WHERE blocked = ?) GROUP BY post",
+                [*ids, viewer, viewer],
+            )
+        )
+        mine = {
+            p
+            for (p,) in db.execute(
+                f"SELECT post FROM checks WHERE token = ? AND post IN ({marks})", [viewer, *ids]
+            )
+        }
+    return {i: (counts.get(i, 0), i in mine) for i in ids}
+
+
+def fixes_of(store: Store, post_ids: Iterable[str]) -> dict[str, tuple[int, int]]:
+    """Per post: the fixes suggested and not hidden, and how many its author accepted (D141)."""
+    ids = list(post_ids)
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    with store.connection() as db:
+        rows = db.execute(
+            f"SELECT post, COUNT(*), SUM(accepted) FROM comments WHERE kind = 'fix' AND hidden = 0 "
+            f"AND post IN ({marks}) GROUP BY post",
+            ids,
+        ).fetchall()
+    return {post: (n, int(accepted or 0)) for post, n, accepted in rows}
+
+
+def accept_fix(store: Store, token: str, comment_id: str) -> bool:
+    """The post's author accepts a fix suggested to it, or takes the acceptance back;
+    True if accepted (D141). Accepting changes nothing in the post: it shows readers
+    the correction stands, above the other comments."""
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT c.kind, c.accepted, c.hidden, p.token FROM comments c JOIN posts p ON p.id = c.post "
+            "WHERE c.id = ?",
+            (comment_id,),
+        ).fetchone()
+        if row is None or row[3] != token:
+            raise SocialError(_("only the post's author accepts a fix to it"))
+        kind, accepted, hidden, _author = row
+        if kind != "fix" or hidden:
+            raise SocialError(_("only a fix suggested to your post can be accepted"))
+        db.execute("UPDATE comments SET accepted = ? WHERE id = ?", (0 if accepted else 1, comment_id))
+    return not accepted
+
+
 def leave(store: Store, token: str) -> None:
     """Leave the network and keep the diary: the profile, follows both ways,
-    kudos and comments given go; one's own posts stay, visible only to oneself,
+    kudos, checks and comments given go; one's own posts stay, visible only to oneself,
     with what others left on them removed."""
     with store.connection() as db:
         for statement in (
@@ -1148,9 +1246,11 @@ def leave(store: Store, token: str) -> None:
             "WHERE p.token = :t)",
             "DELETE FROM comments WHERE post IN (SELECT id FROM posts WHERE token = :t)",
             "DELETE FROM kudos WHERE post IN (SELECT id FROM posts WHERE token = :t)",
+            "DELETE FROM checks WHERE post IN (SELECT id FROM posts WHERE token = :t)",
             "UPDATE posts SET visibility = 'me' WHERE token = :t",
             "DELETE FROM comments WHERE token = :t",
             "DELETE FROM kudos WHERE token = :t",
+            "DELETE FROM checks WHERE token = :t",
             "DELETE FROM presence WHERE token = :t",
             "DELETE FROM follows WHERE follower = :t OR followed = :t",
             "DELETE FROM profiles WHERE token = :t",

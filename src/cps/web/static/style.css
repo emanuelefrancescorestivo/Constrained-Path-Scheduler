@@ -4252,8 +4252,8 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 /* The line keeps the fold's chevron on its right, after the words, and the dot first. */
 .why-line > summary { margin: 0; font-weight: 400; color: inherit; }
 .why-line > summary::before { content: none; }
-.why-line > summary::after { content: "›"; margin-left: auto; color: var(--muted); transition: transform 0.2s ease; }
-.why-line[open] > summary::after { transform: rotate(90deg); }
+.why-line-head::after { content: "›"; margin-left: auto; color: var(--muted); transition: transform 0.2s ease; }
+.why-line[open] .why-line-head::after { transform: rotate(90deg); }
 .why-strength { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 0.78rem; font-weight: 600; }
 .why-strength.is-strong { background: var(--ok-soft); color: var(--text); }
 .why-strength.is-moderate { background: var(--accent-soft); color: var(--text); }
@@ -4265,7 +4265,8 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .why-sources li { margin: 4px 0; }
 .why-links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.88rem; }
 .why-line { margin: 0 0 8px; padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); font-size: 0.9rem; }
-.why-line > summary { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.why-line > summary { display: block; }
+.why-line-head { display: flex; align-items: center; gap: 10px; min-height: 40px; }
 .why-line-words { min-width: 0; color: var(--muted); }
 .why-line-words b { color: var(--text); font-weight: 600; }
 .why-line:not([open]) .why-line-words { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -4274,8 +4275,8 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .why-line-body { padding: 4px 0 6px; max-height: min(38vh, 320px); overflow: auto; overscroll-behavior: contain; }
 @media (max-width: 760px) { .why-line { margin: 0 8px 8px; } .why-line-body { max-height: 24vh; } }
 .why-strength-line { margin: 4px 0 0; }
-@media (prefers-reduced-motion: reduce) { .why-line > summary::after { transition: none; } }
-:root[data-motion="reduce"] .why-line > summary::after { transition: none; }
+@media (prefers-reduced-motion: reduce) { .why-line-head::after { transition: none; } }
+:root[data-motion="reduce"] .why-line-head::after { transition: none; }
 
 /* D136: the sidebar on a laptop, as Notion Calendar's. Fixed under the top bar, the same
    on every page and left in place while pages change (its own view-transition name, so
@@ -4568,3 +4569,65 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .work-add, .work-more { display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 0.85rem; color: var(--muted); text-decoration: none; }
 .work-add:hover, .work-more:hover { color: var(--accent-ink); }
 .work-add svg { width: 15px; height: 15px; }
+
+/* -- On a phone (AUDIT 100, the owner's iPhone, 2026-11-18) -----------------------------
+   The calendar's tip, opened, pushed the grid down until a phone showed one hour of it:
+   its research now opens over the grid, which keeps its height. Today, since D140 a page
+   of widgets with no calendar, scrolls with the page, as every other page does, instead
+   of inside a box that ended at the tab bar. The study map's card is a block: a link,
+   it was drawn inline, its padding and background wrapping around its two lines. */
+.board { position: relative; }
+.board > .why-line { position: relative; z-index: 25; }  /* above the calendar's sticky heads (6) and a dragged session (20), below sheets (55) */
+.board > .why-line[open] .why-line-body {
+  position: absolute; left: -1px; right: -1px; top: calc(100% - 4px);
+  max-height: min(60vh, 440px); padding: 10px 14px 12px;
+  background: var(--surface); border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm); box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+}
+.board > .why-line[open] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; background: var(--surface); }
+.plan[data-tab="today"] { height: auto; min-height: calc(100dvh - var(--topbar)); }
+.plan[data-tab="today"] .panel { overflow: visible; }
+.map-link { display: grid; gap: 2px; }
+@media (max-width: 760px) {
+  .board-hint { font-size: 0.86rem; padding: 8px 12px; margin: 0 8px 8px; }
+}
+
+/* D141: sharing in fewer taps, and classmates checking each other's work. The share
+   forms keep their button where they end (the sticky bar floated over the fields on a
+   phone, the owner's screenshot); the course is a row of chips, the optional fields
+   folded. */
+.share-form .share-foot { display: grid; gap: 10px; }
+.share-form .share-foot .hint { margin: 0; }
+.share-form .share-foot .pills-label { flex-basis: 100%; margin: 0 0 2px; }
+/* A bare fieldset (AUDIT 80): its legend reads as the other fields' labels. */
+.course-pick { margin: 0; }
+.course-pick legend { float: none; padding: 0; margin: 14px 0 6px; font-weight: 600; font-size: 0.87rem; letter-spacing: 0; }
+.course-chips { margin-bottom: 6px; }
+.course-chips .pill span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-pick .other-label { font-weight: 500; font-size: 0.86rem; color: var(--muted); }
+.more-fields { margin-top: 8px; }
+.more-fields > summary { cursor: pointer; color: var(--accent-ink, var(--accent)); font-weight: 600; padding: 8px 0; min-height: 44px; display: flex; align-items: center; }
+.more-fields[open] > summary { margin-bottom: 4px; }
+.act-check.given { color: var(--ok); }
+.act-check.given svg { color: var(--ok); }
+.check-status.is-checked, .check-status.is-checked svg { color: var(--ok); }
+.post-fixes { margin: 6px 0 0; font-size: 0.86rem; }
+.post-fixes a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.post-fixes svg { width: 16px; height: 16px; }
+.comments .comment-fix { border-left: 3px solid var(--accent); padding-left: 10px; }
+.comments .comment-fix.is-accepted { border-left-color: var(--ok); background: var(--ok-soft); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.accept-fix { margin-top: 6px; }
+.comment-form .row-end { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.comment-form .row-end svg, .glance-share svg { width: 16px; height: 16px; vertical-align: -3px; }
+.glance-share { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+/* D141, checked at 393px: the actions under a post wrap as whole words (the author's row
+   with "Checked by 1 classmate" squeezed "I got it" onto three lines), and on a phone a
+   comment's Report and Delete go under its words instead of narrowing them. */
+.post-actions { flex-wrap: wrap; }
+.post-actions .act { white-space: nowrap; }
+.act-check.given svg { fill: var(--ok-soft); }
+@media (max-width: 520px) {
+  .comments > li { flex-wrap: wrap; }
+  .comments > li > .grow { flex: 1 1 calc(100% - 52px); min-width: 0; }
+  .comments > li > .comment-report { margin-left: 48px; }
+}

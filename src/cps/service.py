@@ -6261,11 +6261,14 @@ def motion_of(subscription: Subscription | None) -> str:
 
 # -- Spark's tour (D77) -------------------------------------------------------------------
 
-# One tour, on Today, three steps (D97): the next step, how it went, where the rest is.
-# Every other section says what it is for in one line under its title the first time
-# it is opened (`section_hint`). Both are remembered in "tours_seen"; Settings shows
-# them again. "week" and the sections' old tours (D77) keep their names, so a plan
-# that saw them is read as before.
+# Today's tour, three steps (D97): the next step, how it went, where the rest is; once
+# after setting up, until finished or skipped. Each other section says what it is for in
+# one line under its title the first time it is opened (`section_hint`), and since D141
+# Spark shows it around on that same visit (`SECTION_TOURS`; the owner, 2026-11-18:
+# "Spark's tour is important in every section"). The line and the tour are remembered
+# together in "tours_seen" as the page goes out: a section shows its tour once, even if
+# it is left half way, and Settings show them all again. "week" (D77) keeps its name, so
+# a plan that saw it is read as before.
 TOURS = (
     "week",
     "today",
@@ -6304,14 +6307,22 @@ def tours_seen(subscription: Subscription) -> list[str]:
     return [name for name in seen if name in TOURS]
 
 
+# The sections with a tour of their own (D141): Settings has none (it is a list of six
+# rows, each its own page), nor the pages reached from a section (a post, a group).
+SECTION_TOURS = ("calendar", "courses", "community", "you", "focus", "progress", "tasks", "cards", "tips")
+
+
 def tour_for(
     subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
 ) -> str | None:
-    """The tour a page shows: Today's, once, after setting up (D77, D97); during a
+    """The tour a page shows: Today's, once, after setting up (D77, D97), and each
+    section's the first time it is opened (D141); none while setting up, and during a
     first run (D107) Spark says one line on Today instead."""
-    if subscription is None or setup or new or tab != "today" or first_run(subscription) is not None:
+    if subscription is None or setup or new or first_run(subscription) is not None:
         return None
-    return None if "today" in tours_seen(subscription) else "today"
+    if tab != "today" and tab not in SECTION_TOURS:
+        return None
+    return None if tab in tours_seen(subscription) else tab
 
 
 def section_hint(subscription: Subscription | None, tab: str | None, *, joined: bool = False) -> str | None:
@@ -7278,6 +7289,9 @@ def _cards(
     kudos = social.kudos_of(store, [p.id for p in posts], viewer)
     reactions = social.reactions_of(store, [p.id for p in posts if p.kind == "session"], viewer)
     comments = social.comment_counts(store, [p.id for p in posts])
+    checked = [p.id for p in posts if p.kind in social.CHECKED]  # peer checks (D141)
+    checks = social.checks_of(store, checked, viewer)
+    fixes = social.fixes_of(store, checked)
     tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
     authors: dict[str, dict | None] = {}
     out = []
@@ -7297,6 +7311,10 @@ def _cards(
             comments=comments.get(post.id, 0),
             top=tops.get(post.id),
         )
+        if post.id in checks:  # "It's right" and the fixes suggested (D141)
+            count, mine = checks[post.id]
+            suggested, accepted = fixes.get(post.id, (0, 0))
+            card.update(checks=count, checked=mine, fixes=suggested, fixes_accepted=accepted)
         if post.id in reactions:  # a session's reactions (D108)
             these = reactions[post.id]
             card["reactions"] = [
@@ -7406,10 +7424,16 @@ def post_view(
                 "when": format_date(datetime.fromisoformat(c.created).astimezone(zone).date(), "short"),
                 "can_delete": subscription.token in (c.token, post.token),
                 "mine": c.token == subscription.token,
+                "kind": c.kind,  # "comment" or "fix" (D141)
+                "accepted": c.accepted,
+                "can_accept": c.kind == "fix" and post.token == subscription.token and not c.hidden,
             }
         )
+    # A fix the author accepted comes first: readers see the correction before the rest.
+    comments.sort(key=lambda c: not c["accepted"])
     can_comment = social.get_profile(where, subscription.token) is not None
-    return {"post": card, "comments": comments, "can_comment": can_comment}
+    can_fix = can_comment and post.kind in social.CHECKED and post.token != subscription.token
+    return {"post": card, "comments": comments, "can_comment": can_comment, "can_fix": can_fix}
 
 
 def person_view(
@@ -8443,9 +8467,31 @@ def react(
     return _social(lambda: social.react(where, token, post, str(kind), now=now))
 
 
-def add_comment(store: str | os.PathLike, token: str, post_id: str, body: str) -> None:
+def add_comment(
+    store: str | os.PathLike, token: str, post_id: str, body: str, kind: object = "comment"
+) -> None:
+    """A comment, or a fix suggested to an explanation or notes (D141)."""
     where = _store(store)
-    _social(lambda: social.add_comment(where, token, _visible_post(where, token, post_id), body))
+    what = str(kind or "comment")
+    _social(lambda: social.add_comment(where, token, _visible_post(where, token, post_id), body, kind=what))
+
+
+def toggle_check(store: str | os.PathLike, token: str, post_id: str, now: datetime | None = None) -> bool:
+    """A reader's "It's right" on an explanation or notes, or taking it back (D141)."""
+    where = _store(store)
+    return bool(
+        _social(lambda: social.toggle_check(where, token, _visible_post(where, token, post_id), now=now))
+    )
+
+
+def accept_fix(store: str | os.PathLike, token: str, comment_id: str) -> tuple[bool, str]:
+    """The author accepts a fix suggested to their post, or takes it back (D141):
+    whether it is accepted now, and the post's id."""
+    where = _store(store)
+    accepted = bool(_social(lambda: social.accept_fix(where, token, comment_id)))
+    with where.connection() as db:
+        row = db.execute("SELECT post FROM comments WHERE id = ?", (comment_id,)).fetchone()
+    return accepted, str(row[0]) if row else ""
 
 
 # -- Studying now (D108) -------------------------------------------------------------
@@ -8685,7 +8731,7 @@ def post_notes(
     visibility = _sharing(store, subscription.token, form.get("visibility"), "everyone")
     day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
     data = {
-        "course": form.get("course", ""),
+        "course": _shared_course(form),
         "title": form.get("title", ""),
         "note": form.get("note", ""),
         "body": form.get("body", ""),
@@ -8747,6 +8793,39 @@ def library_view(
     }
 
 
+def _shared_course(form: Mapping[str, str]) -> str:
+    """The course of a share form (D141): a course typed under "Another course" wins
+    over the chip ticked, since typing it was the later act."""
+    return str(form.get("course_other") or "").strip() or str(form.get("course") or "").strip()
+
+
+def share_course(subscription: Subscription, now: datetime | None = None) -> str:
+    """The course a share form starts on (D141), so sharing what was just studied takes
+    no typing: the course of the session under way, else of the last one ended today,
+    else of the next one. "" when none is a course of the plan."""
+    if subscription.plan is None:
+        return ""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    names = set(course_names(subscription))
+    plan = PlanReport.from_dict(subscription.plan)
+    sessions = sorted((s for s in plan.history + plan.sessions if s.subject in names), key=lambda s: s.start)
+    local = now.astimezone(zone)
+    today = local.date()
+
+    def at(stamp: str) -> datetime:
+        moment = datetime.fromisoformat(stamp)
+        return moment if moment.tzinfo else moment.replace(tzinfo=zone)
+
+    under_way = [s for s in sessions if at(s.start) <= now < at(s.end)]
+    ended = [s for s in sessions if at(s.end) <= now and at(s.end).astimezone(zone).date() == today]
+    coming = [s for s in sessions if at(s.start) > now]
+    for found in (under_way[:1], ended[-1:], coming[:1]):
+        if found:
+            return found[0].subject
+    return ""
+
+
 def post_explanation(
     store: str | os.PathLike,
     subscription: Subscription,
@@ -8763,7 +8842,7 @@ def post_explanation(
     day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
     data = {
         "concept": form.get("concept", ""),
-        "course": form.get("course", ""),
+        "course": _shared_course(form),
         "text": form.get("text", ""),
     }
     post: social.Post = _social(

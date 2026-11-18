@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Spark shows you around every section the first time you open it (DECISIONS.md D141). Sharing
+  takes fewer taps: the course you are studying is already picked, the optional parts are folded,
+  and a course's page, each of its weeks and Today open the forms filled in. Classmates check each
+  other's work: "It's right" with one tap on an explanation or notes, or a fix suggested in the
+  comments, which the author can accept and readers then see first.
+
 - Today as the app's home (DECISIONS.md D140), sharp as a Notion page: the next session, what
   to report, today's classes and sessions, your time today (classes, study, busy and what is
   yours) and your attention this week (minutes focused, sessions without leaving the app), a tip
@@ -774,6 +780,14 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- On a phone, the Explain form's Post button lay over the fields and its course box looked empty;
+  the share forms now end with their button, and the course is a chip already picked (AUDIT.md
+  item 101).
+
+- On a phone, the calendar's tip opens over the grid instead of pushing it down to one
+  hour, the study map's card no longer overlaps itself, and Today scrolls with the page
+  instead of stopping at the tab bar (AUDIT.md item 100).
 
 - A form sent in the background by the page's script lost the value of the button that
   sent it (AUDIT.md item 91).

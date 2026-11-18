@@ -1,0 +1,19 @@
+{# A share form's course in one tap (D141): the plan's courses as chips, the one being
+   studied already picked (service.share_course), and a box for another course, which
+   wins when typed. A plan without courses has the box alone. `courses` comes with
+   every page of a plan. #}
+{% macro course_pick(prefix, chosen) %}
+{% if courses %}
+<fieldset class="course-pick bare">
+  <legend>{{ _("Course") }}</legend>
+  <div class="pills course-chips">
+    {% for c in courses %}<label class="pill"><input type="radio" name="course" value="{{ c }}"{% if c == chosen %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}
+  </div>
+  <label for="{{ prefix }}-other" class="other-label">{{ _("Another course") }}</label>
+  <input id="{{ prefix }}-other" name="course_other" value="{{ '' if not chosen or chosen in courses else chosen }}" maxlength="80" autocomplete="off">
+</fieldset>
+{% else %}
+<label for="{{ prefix }}-course">{{ _("Course") }}</label>
+<input id="{{ prefix }}-course" name="course" value="{{ chosen or '' }}" maxlength="80">
+{% endif %}
+{% endmacro %}

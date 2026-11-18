@@ -6,7 +6,7 @@
 <p class="back"><a href="/p/{{ token }}/focus">{{ _("Focus") }}</a></p>
 <div class="page-title title-row">
   <h1>{{ _("Flashcards") }}</h1>
-  {% if view.waiting %}<div class="title-actions"><a class="btn btn-primary btn-sm" href="/p/{{ token }}/cards/review">{{ _n("Review {n} card", "Review {n} cards", view.waiting) }}</a></div>{% endif %}
+  {% if view.waiting %}<div class="title-actions"><a class="btn btn-primary btn-sm" href="/p/{{ token }}/cards/review" data-tour="cards-review">{{ _n("Review {n} card", "Review {n} cards", view.waiting) }}</a></div>{% endif %}
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
@@ -17,7 +17,7 @@
 {% if view.decks %}
 <div class="section">
   <div class="section-title"><h2>{{ _("Decks") }}</h2><small>{% if view.today %}{{ _n("{n} answer today", "{n} answers today", view.today) }}{% elif view.next and not view.waiting %}{{ _("next card {when}", when=view.next) }}{% endif %}</small></div>
-  <ul class="card list decks">
+  <ul class="card list decks" data-tour="cards-decks">
     {% for deck in view.decks %}
     <li>
       <a class="grow deck-name" href="/p/{{ token }}/cards?course={{ deck.course | urlencode }}"><b>{{ deck.course }}</b><br><small>{{ _n("{n} card", "{n} cards", deck.total) }}{% if deck.due %} · {{ _n("{n} due", "{n} due", deck.due) }}{% endif %}{% if deck.new %} · {{ _n("{n} new card", "{n} new cards", deck.new) }}{% endif %}</small></a>
@@ -31,7 +31,7 @@
 {# D134: a file of notes first, read on this server for free; then a course's
    materials (D101); pasting stays. #}
 {% from "_art.html" import art %}
-<div class="card section card-make" id="from-notes">
+<div class="card section card-make" id="from-notes" data-tour="cards-make">
   <div class="materials-head">{{ art("cards") }}<div class="grow">
     <h2 class="card-make-title">{{ _("Make cards from your notes") }}</h2>
     <small>{% if ai_cards %}{{ _("Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.") }}{% else %}{{ _("Send a PDF, Word, PowerPoint or text file: definitions, questions, lists and words in bold become cards, and you pick the ones to keep. Free, read on this server.") }}{% endif %}</small>
