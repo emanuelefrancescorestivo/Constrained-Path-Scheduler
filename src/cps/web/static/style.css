@@ -4549,3 +4549,22 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .day-tips small { display: block; color: var(--muted); font-size: 0.78rem; }
 .day-tips b { display: block; font-weight: 650; line-height: 1.35; margin: 2px 0; }
 .day-tips .tip-strength { color: var(--accent-ink); }
+
+/* The workspace (D140): each course in its colour, its links as rows that open where they
+   live, the host under the name so a Moodle page reads as one; adding one in grey. */
+.work-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.work-list > li { padding: 10px 0; }
+.work-list > li:first-child { padding-top: 0; }
+.work-list > li:last-child { padding-bottom: 0; }
+.work-list > li + li { border-top: 1px solid var(--line); }
+.work-course { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); text-decoration: none; }
+.work-course .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cc); }
+.work-links { display: grid; gap: 2px; margin: 6px 0 0 17px; }
+.work-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 6px 8px; margin: 0 -8px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.work-link:hover, .work-link:focus-visible { background: var(--fill-4); }
+.work-link b { font-weight: 600; overflow-wrap: anywhere; }
+.work-link small { grid-column: 1; color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+.work-out { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); }
+.work-add, .work-more { display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 0.85rem; color: var(--muted); text-decoration: none; }
+.work-add:hover, .work-more:hover { color: var(--accent-ink); }
+.work-add svg { width: 15px; height: 15px; }

@@ -5444,6 +5444,15 @@ laptop and a phone was shown before the owner said "Go: the look, then Today as 
   study (how to study, how the brain learns, motivation) and one to live well (sleep, movement
   and coffee, breaks, habits), a different pair each day, never the one the day's message
   gives, each with its evidence a tap away; the tip that took turns (D62) gives way to them.
+- *The workspace* (the owner, the same day: "there could be external links to moodle where the
+  material is, so students can manage the workspace from there"; `service.workspace_view`):
+  each course with the links the student keeps for it (D88: its page on the learning platform,
+  slides, a folder), this week's first, each opening where it lives with its site's name under
+  it, and "Add a link" to the course's page; and the learning platform's own page, "Open
+  Moodle", when the calendar link given for deadlines (D92) says which: every Moodle site
+  exports its calendar at `<site>/calendar/export_execute.php` and keeps a student's dashboard
+  at `<site>/my/` (`service.learning_platform`). Another platform, or no link, shows no such
+  button: the app does not guess an address. Moodle is still not signed in to (D92).
 
 **Rejected.** Widgets the student arranges (a choice to make before the layout is known to
 help). A feed on Today (Community is a tab; two posts are a window, not a feed). Keeping the
@@ -5452,5 +5461,6 @@ day's panel beside the calendar on a wide screen (the two pages would be one aga
 **Disclosed.** The tasks, which D73 folded under "More", are a widget again: Today is longer
 than D97 left it, on the owner's word; whether students find their way better is for the
 pilot. "Yours" is the hours awake less the timetable and the plan: meals, travel and rest are
-in it. Attention counts only sessions timed with Focus. Checked in Chromium only, at phone,
-tablet and laptop sizes, light and dark.
+in it. Attention counts only sessions timed with Focus. The links are the ones the student
+added; the app reads nothing from Moodle's pages. Checked in Chromium only, at phone, tablet and
+laptop sizes, light and dark.

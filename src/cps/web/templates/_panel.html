@@ -289,6 +289,30 @@
 </section>
 {% endif %}
 
+{# The workspace (D140): each course with the links the student keeps for it (D88), its
+   page on the learning platform first among them, each opening where it lives; adding one
+   is on the course's page. #}
+{% if workspace %}
+<section class="w w-work" aria-labelledby="work-title">
+  <div class="w-head">{{ art("reading", "xs") }}<h2 id="work-title">{{ _("Workspace") }}</h2>{% if workspace.platform %}<a class="w-link" href="{{ workspace.platform }}" target="_blank" rel="noopener noreferrer">{{ _("Open Moodle") }} ↗</a>{% else %}<a class="w-link" href="/p/{{ token }}/courses">{{ _("Courses") }} ›</a>{% endif %}</div>
+  <div class="card">
+    <ul class="work-list">
+    {% for c in workspace.courses %}
+      <li class="{% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}">
+        <a class="work-course" href="/p/{{ token }}/courses/{{ c.index }}"><span class="dot"></span>{{ c.name }}</a>
+        <div class="work-links">
+          {% for l in c.links %}<a class="work-link" href="{{ l.url }}" target="_blank" rel="noopener noreferrer"><b>{{ l.title }}</b><small>{% if l.this_week %}{{ _("this week") }} · {% endif %}{{ l.host }}</small><span class="work-out" aria-hidden="true">↗</span></a>{% endfor %}
+          {% if c.more %}<a class="work-more" href="/p/{{ token }}/courses/{{ c.index }}">{{ _n("{n} more", "{n} more", c.more) }} ›</a>{% endif %}
+          <a class="work-add" href="/p/{{ token }}/courses/{{ c.index }}#link">{{ lucide('plus') }}{% if c.links %}{{ _("Add a link") }}{% else %}{{ _("Add a link: its Moodle page, slides, a folder") }}{% endif %}</a>
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+    {% if workspace.more %}<p class="hint"><a href="/p/{{ token }}/courses">{{ _n("{n} more course", "{n} more courses", workspace.more) }} ›</a></p>{% endif %}
+  </div>
+</section>
+{% endif %}
+
 {# The week and the streak (D8, D9), and the people studying together (D127). #}
 {% if progress and progress.planned %}
 <section class="w w-week">

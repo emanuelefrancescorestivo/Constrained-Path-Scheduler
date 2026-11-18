@@ -53,6 +53,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
@@ -5376,6 +5377,64 @@ def time_and_attention(
             "checked": len(checked),
             "whole": sum(1 for p in checked if not p.data.get("interruptions")),
         },
+    }
+
+
+# The workspace on Today (D140; the owner, 2026-11-18: "there could be external links to
+# moodle where the material is, so students can manage the workspace from there").
+WORKSPACE_COURSES = 6  # the courses shown on Today; the rest are on Courses
+WORKSPACE_LINKS = 4  # a course's links shown on Today
+_MOODLE_EXPORT = re.compile(
+    r"^(https?://[^/?#\s]+(?:/[^?#\s]*?)?)/calendar/export_execute\.php", re.IGNORECASE
+)
+
+
+def learning_platform(subscription: Subscription) -> str | None:
+    """The learning platform's own page, from the calendar link the student gave for its
+    deadlines (D92): every Moodle site exports its calendar at
+    `<site>/calendar/export_execute.php` and keeps a student's dashboard at `<site>/my/`,
+    in a subfolder too. None for another platform or without the link: the app does not
+    guess an address."""
+    found = _MOODLE_EXPORT.match(str(subscription.options.get("deadlines_url") or "").strip())
+    return f"{found.group(1)}/my/" if found else None
+
+
+def workspace_view(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Each course with the links the student keeps for it (D88: its page on the learning
+    platform, slides, a folder), this week's first, then the course's own; each opens
+    where it lives, and adding one is a tap away. The learning platform itself when it
+    is known. None without courses."""
+    courses = topic_courses(subscription)
+    if not courses:
+        return None
+    now = now or datetime.now(UTC)
+    monday = _progress.monday(now.astimezone(_zone(subscription.options["tz"])).date()).isoformat()
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
+    rows = []
+    for index, name in enumerate(courses[:WORKSPACE_COURSES]):
+        links = [x for x in _links(subscription, name) if x.get("week") in ("", None, monday)]
+        links.sort(key=lambda x: x.get("week") != monday)
+        rows.append(
+            {
+                "index": index,
+                "name": name,
+                "color": colours.get(name.casefold()),
+                "links": [
+                    {
+                        **x,
+                        "host": (urlsplit(x["url"]).hostname or "").removeprefix("www."),
+                        "this_week": x.get("week") == monday,
+                    }
+                    for x in links[:WORKSPACE_LINKS]
+                ],
+                "more": max(0, len(links) - WORKSPACE_LINKS),
+            }
+        )
+    return {
+        "platform": learning_platform(subscription),
+        "courses": rows,
+        "more": max(0, len(courses) - WORKSPACE_COURSES),
     }
 
 

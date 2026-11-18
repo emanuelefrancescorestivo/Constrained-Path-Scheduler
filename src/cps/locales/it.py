@@ -3081,4 +3081,9 @@ MESSAGES: dict[str, str] = {
     "All tips": "Tutti i consigli",
     "To study": "Per studiare",
     "To live well": "Per vivere bene",
+    "Workspace": "Spazio di lavoro",
+    "Open Moodle": "Apri Moodle",
+    "Add a link: its Moodle page, slides, a folder": "Aggiungi un link: la sua pagina Moodle, le slide, una cartella",
+    "{n} more course": "{n} altro corso",
+    "{n} more courses": "altri {n} corsi",
 }

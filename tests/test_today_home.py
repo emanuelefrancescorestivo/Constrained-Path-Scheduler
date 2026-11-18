@@ -221,3 +221,61 @@ def test_a_tip_to_study_and_a_tip_to_live_well_each_day(tmp_path):
     other = service.tips_for_today(sub, NOW, besides=tips[0]["key"])
     assert tips[0]["key"] not in {t["key"] for t in other}
     assert service.tips_for_today(service.set_tips(sub, "off"), NOW) == []
+
+
+def test_the_learning_platform_is_known_only_from_its_calendar_link(tmp_path):
+    from dataclasses import replace
+
+    sub = _plan(tmp_path)
+    assert service.learning_platform(sub) is None  # no link given: no guess
+    for given, page in (
+        (
+            "https://moodle.example.edu/calendar/export_execute.php?userid=7&authtoken=x",
+            "https://moodle.example.edu/my/",
+        ),
+        (
+            "https://elearning.univ.example.it/moodle/calendar/export_execute.php?preset_what=all",
+            "https://elearning.univ.example.it/moodle/my/",
+        ),
+        ("https://canvas.example.edu/feeds/calendars/user_abc.ics", None),  # not Moodle
+        ("webcal://moodle.example.edu/calendar/export_execute.php", None),  # not an address to open
+    ):
+        assert (
+            service.learning_platform(replace(sub, options={**sub.options, "deadlines_url": given})) == page
+        ), given
+
+
+def test_the_workspace_holds_each_courses_links_this_weeks_first(web, tmp_path):
+    from dataclasses import replace
+
+    sub = _plan(tmp_path, "ada")
+    for title, url, week in (
+        ("Course page", "https://moodle.example.edu/course/view.php?id=12", ""),
+        ("Slides, week 1", "https://www.example.edu/slides/w1.pdf", "2026-09-28"),
+        ("Last month", "https://example.edu/old", "2026-10-05"),  # another week: on the course's page
+    ):
+        sub = service.add_course_link(sub, 0, {"title": title, "url": url, "week": week})
+    view = service.workspace_view(sub, NOW)
+    assert view is not None and [c["name"] for c in view["courses"]] == ["Algebra 3", "Advanced Statistics"]
+    algebra = view["courses"][0]
+    assert [(x["title"], x["host"], x["this_week"]) for x in algebra["links"]] == [
+        ("Slides, week 1", "example.edu", True),
+        ("Course page", "moodle.example.edu", False),
+    ]
+    assert view["courses"][1]["links"] == [] and view["platform"] is None
+    sub = replace(
+        sub,
+        options={**sub.options, "deadlines_url": "https://moodle.example.edu/calendar/export_execute.php"},
+    )
+    service.save_subscription(tmp_path, sub)
+    today = unescape(web.get(f"/p/{sub.token}").text)
+    work = today[today.index('class="w w-work"') :]
+    work = work[: work.index("</section>")]
+    assert (
+        'href="https://moodle.example.edu/my/" target="_blank" rel="noopener noreferrer">Open Moodle' in work
+    )
+    assert (
+        'href="https://moodle.example.edu/course/view.php?id=12" target="_blank" rel="noopener noreferrer"'
+        in work
+    )
+    assert f'href="/p/{sub.token}/courses/1#link"' in work and "its Moodle page, slides, a folder" in work

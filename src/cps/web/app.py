@@ -1291,6 +1291,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "classmates": service.classmates_glance(store, subscription, now),
             # The student's time today and attention this week (D140).
             "time": service.time_and_attention(store, subscription, now),
+            # Each course's links and the learning platform, a tap away (D140).
+            "workspace": service.workspace_view(subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
