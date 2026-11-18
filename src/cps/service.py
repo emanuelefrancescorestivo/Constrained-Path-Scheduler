@@ -12448,6 +12448,25 @@ SCIENCE_SOURCES = {
 }
 
 
+# AUDIT 102: the labels at the ends of two curves are kept a line apart, so that close
+# recalls (54 % and 67 % on the code page) do not print one over the other.
+LABEL_GAP = 15.0  # in the chart's units; its labels are about 12 high
+
+
+def _apart(curves: list[dict]) -> None:
+    """Each curve's label line (`label_y`), its end moved up or down only as far as the
+    gap between neighbouring labels needs."""
+    ends = sorted(curves, key=lambda c: c["end_y"])
+    ys = [float(c["end_y"]) + 4.0 for c in ends]
+    for i in range(1, len(ys)):
+        short = LABEL_GAP - (ys[i] - ys[i - 1])
+        if short > 0:
+            ys[i - 1] -= short / 2
+            ys[i] += short / 2
+    for c, y in zip(ends, ys, strict=True):
+        c["label_y"] = round(y, 1)
+
+
 def science_view() -> dict:
     """The science page (D89): every number on it computed here from the model the
     product runs (FSRS-6, D52) and the app's own settings, so the page and the app
@@ -12896,14 +12915,20 @@ def _garden_fine(
         time_badge.append([p, _("Day {n}", n=int(day)), _("the same topic, twice")])
     # Chapter 6: the answer after a session; the labels change as the roots do.
     grown_from, shrunk_from = 0.36, 0.7
+
+    # AUDIT 102: the big line says what the number is ("lasts 7 days"), since a phone shows
+    # no small line under it, and both plants read "7 days" alone before the answer.
+    def lasts(days: float) -> str:
+        return _n("lasts {n} day", "lasts {n} days", max(1, round(days)))
+
     morning = {
         "yes": [
-            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
-            [grown_from, _n("{n} day", "{n} days", round(just)), _("so the next revision waits"), False],
+            [0.0, lasts(GARDEN_WEEK), _("before the session"), False],
+            [grown_from, lasts(just), _("so the next revision waits"), False],
         ],
         "no": [
-            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
-            [shrunk_from, _n("{n} day", "{n} days", max(1, round(forgot))), _("so it comes back soon"), True],
+            [0.0, lasts(GARDEN_WEEK), _("before the session"), False],
+            [shrunk_from, lasts(forgot), _("so it comes back soon"), True],
         ],
     }
     return {
@@ -12922,8 +12947,10 @@ def _garden_fine(
 # D121: on a laptop each scene of How it works labels its plants as the page is scrolled,
 # from the scene's numbers at this many stops (its eight stops stay the flat drawing's).
 GARDEN_FINE = 25
-# The cramming chapter: the same new topic, crammed the night before an exam on day 28 or
-# revised each time it dips to the target; neither is revised after the exam; a month on.
+# The cramming chapter: the same new topic, crammed in the last evenings before an exam on
+# day 28, or revised each time it dips to the target and once more the night before, as
+# many revisions each (D142; D121 set one cram against the rule alone); neither is
+# revised after the exam; a month on.
 GARDEN_CRAM_EXAM = 28.0
 GARDEN_CRAM_AFTER = 30.0
 GARDEN_CRAM_SPLIT = 0.75  # the share of the scene before the exam (its first three steps)
@@ -13007,17 +13034,22 @@ def _fine_progress(k: int) -> float:
 
 
 def _garden_cram(model: Model) -> dict:
-    """D121, the cramming chapter: the same new topic crammed the night before the exam,
-    or revised whenever it dips to the target, each through the exam and a month on."""
+    """The cramming chapter (D121, D142): the same new topic crammed in the last evenings
+    before the exam, or revised whenever it dips to the target and once more the night
+    before (the app's exam practice, D46), with as many revisions each; each through the
+    exam and a month on. D121 set a single cram against the rule alone, which left out the
+    app's last pass and gave cramming fewer revisions."""
     target = flashcards.RETENTION
     start = model.initial_state(Grade.GOOD)
     last = GARDEN_CRAM_EXAM - 1.0
-    crammed, cram_chance = _expected_memory(model, start, 0.0, [last])
     spaced_days: list[float] = []
     for day in range(1, int(GARDEN_CRAM_EXAM)):
         trial, _chances = _expected_memory(model, start, 0.0, spaced_days)
         if _expected_at(model, trial, float(day))[0] <= target:
             spaced_days.append(float(day))
+    spaced_days = sorted({*spaced_days, last})
+    cram_days = [last - i for i in reversed(range(len(spaced_days)))]
+    crammed, cram_chance = _expected_memory(model, start, 0.0, cram_days)
     spaced, spaced_chances = _expected_memory(model, start, 0.0, spaced_days)
     exam, later = GARDEN_CRAM_EXAM, GARDEN_CRAM_EXAM + GARDEN_CRAM_AFTER
 
@@ -13071,10 +13103,11 @@ def _garden_cram(model: Model) -> dict:
         round(sum(_expected_at(model, segments, d - 0.02)[3] for d in range(1, int(exam))))
         for segments in (crammed, spaced)
     ]
+    cram_name = _n("Crammed the last evening", "Crammed the last {n} evenings", len(cram_days))
     return {
         "pots": [
-            pot(crammed, [last], _("Crammed the night before")),
-            pot(spaced, spaced_days, _("Revised whenever it dipped")),
+            pot(crammed, cram_days, cram_name),
+            pot(spaced, spaced_days, _("Spaced, and once more the night before")),
         ],
         "badge": badge,
         "exam_day": int(exam),
@@ -13107,8 +13140,10 @@ def _month_lane_y(recall: float) -> float:
 
 @functools.lru_cache(maxsize=1)
 def _garden_month_app() -> tuple[tuple[int, ...], ...]:
-    """The app's rule over the month (assistant.py's self-tests): each evening the course
-    that has faded most, once it is down to the target; otherwise the evening is free."""
+    """The app's plan over the month: its rule (assistant.py's self-tests), each evening
+    the course that has faded most, once it is down to the target, otherwise the evening
+    free; then a last pass before the exam, one course an evening in the last ones, the
+    hardest last, as the exam practice it plans in the final days (D46, D142)."""
     model, target = FSRS_6, flashcards.RETENTION
     starts = _garden_month_starts(model)
     plan: list[list[int]] = [[] for _ in starts]
@@ -13124,7 +13159,11 @@ def _garden_month_app() -> tuple[tuple[int, ...], ...]:
         k = min(range(len(starts)), key=recalls.__getitem__)
         if recalls[k] <= target:
             plan[k].append(day)
-    return tuple(tuple(days) for days in plan)
+    last_day = GARDEN_MONTH_DAYS - 1
+    for i, days in enumerate(plan):
+        if last_day - i not in days:
+            days.append(last_day - i)
+    return tuple(tuple(sorted(days)) for days in plan)
 
 
 def _garden_month_score(model: Model, plan: Sequence[Collection[int]]) -> dict:
@@ -13165,9 +13204,11 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
     if preset is not None and preset not in GARDEN_MONTH_PRESETS:
         raise InvalidInput(_("choose a plan from the buttons"))
     if preset == "cram":
-        # One course an evening in the last three, the hardest last: the best a cram
-        # can do on exam day with the evenings the story says there are.
-        plan = [{last_day - i} for i in range(count)]
+        # As many revisions as the app's plan (D142), all in the last evenings, one course
+        # an evening, the hardest last: the best a cram can do on exam day with that effort.
+        plan = [set() for _ in range(count)]
+        for k in range(sum(len(days) for days in app)):
+            plan[k % count].add(last_day - k)
     elif preset == "clear":
         plan = [set() for _ in range(count)]
     elif preset == "app" or ticks is None:
@@ -13280,12 +13321,25 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
             )
         else:
             verdict.append(_("Both plans reach {a} on exam day.", a=_garden_pct(a)))
-        if shaky_mine > shaky_app:
+        if shaky_mine > shaky_app and pa > pb:
             verdict.append(
                 _n(
                     "But between them, your courses spend {n} day below {t} (the app's plan: {m}), "
                     "so you'd be lost in any lecture that builds on them.",
                     "But between them, your courses spend {n} days below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    shaky_mine,
+                    t=_garden_pct(target),
+                    m=shaky_app,
+                )
+            )
+        elif shaky_mine > shaky_app:
+            # D142: the app's plan already won exam day, so this is one more reason, not a "but".
+            verdict.append(
+                _n(
+                    "And between them, your courses spend {n} day below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    "And between them, your courses spend {n} days below {t} (the app's plan: {m}), "
                     "so you'd be lost in any lecture that builds on them.",
                     shaky_mine,
                     t=_garden_pct(target),
@@ -13300,7 +13354,17 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
                     b=_garden_pct(later_app),
                 )
             )
-        # More revisions are more evenings, which chapter 5 says are few.
+        # More revisions are more evenings, which chapter 5 says are few; fewer are evenings
+        # saved, which the verdict says too (D142).
+        if 0 < mine["count"] < theirs["count"]:
+            verdict.append(
+                _n(
+                    "It does save evenings: {n} revision, against the app's {m}.",
+                    "It does save evenings: {n} revisions, against the app's {m}.",
+                    mine["count"],
+                    m=theirs["count"],
+                )
+            )
         if mine["count"] > theirs["count"]:
             verdict.append(
                 _n(
@@ -13735,6 +13799,7 @@ def code_view() -> dict:
                 "color": colour[name],
             }
         )
+    _apart(curves)
     first = topics[0][1]
     delay = instance.blocks[0].start_day
     recalled = _review(first, delay, Grade.GOOD)

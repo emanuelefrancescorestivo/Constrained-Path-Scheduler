@@ -86,54 +86,76 @@ def test_the_story_says_what_the_model_says():
     assert view["week"]["free"] == len(view["week"]["blocks"]) == view["evenings"] == 5
 
 
-def test_cramming_wins_the_next_day_and_loses_the_rest():
-    """D121, the owner: "one can easily say that cramming works best". The cramming
-    chapter counts that a revision may not work (its chance is the recall then) and
-    scores both ways three times: exam day, the days below the target before it, and a
-    month on. Cramming wins the first, and the chapter says so."""
+def test_at_equal_effort_spacing_with_a_last_pass_beats_cramming():
+    """D142, which replaces D121's single cram against the rule alone: the owner read that
+    picture as cramming winning ("maybe we got the whole approach wrong?"), and it had left
+    out the last pass the app plans (D46) and given cramming fewer revisions. Now each gets
+    as many: the cram in the last evenings, the spaced one whenever it dips to the target
+    and once more the night before. Each revision works only as often as the topic is
+    remembered then; scored on exam day, the days below the target before it, a month on."""
     model, target = FSRS_6, flashcards.RETENTION
     c = service.garden_view()["cram"]
     crammed, spaced = c["pots"]
-    assert crammed["exam"] > spaced["exam"] >= round(100 * target)  # cramming wins exam day
-    assert crammed["later"] < spaced["later"]  # and loses a month on
-    assert c["shaky"][0] > c["shaky"][1]  # and the month before it
-    # Its chance: the recall of a new topic after 27 days untouched.
+    assert len(crammed["drops"]) == len(spaced["drops"]) == c["revisions"]  # the same effort
+    assert spaced["exam"] >= crammed["exam"] >= round(100 * target)  # both ready on exam day
+    assert crammed["later"] < spaced["later"]  # cramming keeps less a month on
+    assert c["shaky"][0] > c["shaky"][1]  # and is shaky all month before
+    # Its chance: the recall of a new topic untouched until the first evening of the cram.
     fresh = model.initial_state(Grade.GOOD)
-    assert c["chance"] == round(100 * model.retrievability(27.0, fresh.stability))
-    # The numbers DECISIONS.md D121 quotes.
-    assert (crammed["exam"], spaced["exam"], crammed["later"], spaced["later"]) == (96, 91, 80, 85)
-    assert (c["shaky"], c["chance"], c["revisions"]) == ([25, 4], 68, 2)
-    # Each step holds what it says: the spaced revisions in the first half, the cram in
-    # the third quarter, the exam where the last begins.
-    assert all(d[1] <= 0.5 for d in spaced["drops"]) and len(spaced["drops"]) == c["revisions"]
-    assert [0.5 <= d[0] < d[1] <= c["split"] for d in crammed["drops"]] == [True]
+    first = service.GARDEN_CRAM_EXAM - c["revisions"]
+    assert c["chance"] == round(100 * model.retrievability(first, fresh.stability))
+    # The numbers DECISIONS.md D142 quotes.
+    assert (crammed["exam"], spaced["exam"], crammed["later"], spaced["later"]) == (98, 99, 85, 91)
+    assert (c["shaky"], c["chance"], c["revisions"]) == ([23, 4], 69, 3)
+    # Each step holds what it says: the spaced revisions in the first half, the cram and
+    # the last pass in the third quarter, the exam where the last begins.
+    assert all(d[1] <= 0.5 for d in spaced["drops"][:-1])
+    assert all(0.5 <= d[0] < d[1] <= c["split"] for d in [*crammed["drops"], spaced["drops"][-1]])
     assert [b[1] for b in c["badge"] if b[0] == c["split"]] == ["Exam day"]
 
 
 def test_the_month_is_scored_three_ways_against_the_apps():
-    """D121: the month the student plans. The app's plan follows its rule; any plan is
-    scored on the weakest course on exam day, the days below the target before it and a
-    month later, each revision working only as often as the course is remembered then."""
+    """D121: the month the student plans. The app's plan follows its rule, then (D142) a
+    last pass, one course an evening in the last ones, as the exam practice it plans; any
+    plan is scored on the weakest course on exam day, the days below the target before it
+    and a month later, each revision working only as often as the course is remembered."""
     model, target = FSRS_6, flashcards.RETENTION
     app = service.garden_month_view()
-    assert app["is_app"] and app["count"] == app["app_count"] == 6 and len(app["verdict"]) == 1
-    assert service._garden_month_app() == ((2, 6, 15), (3, 12), (13,))  # as D121 says
-    assert (app["app"]["exam"], app["app"]["shaky"], app["app"]["later"]) == (91, 11, 83)
+    assert app["is_app"] and app["count"] == app["app_count"] == 9 and len(app["verdict"]) == 1
+    assert service._garden_month_app() == ((2, 6, 15, 27), (3, 12, 26), (13, 25))  # as D142 says
+    assert (app["app"]["exam"], app["app"]["shaky"], app["app"]["later"]) == (98, 11, 88)
     # The app's rule: each evening the course that has faded most, once it is down to the
-    # target; so each of its revisions comes when its course is at or just under it.
-    chances = [cell["chance"] for course in app["courses"] for cell in course["cells"] if cell["on"]]
-    assert len(chances) == 6 and all(85 <= c <= round(100 * target) for c in chances)
+    # target; so each of its revisions comes when its course is at or just under it. The
+    # last pass comes when the course is wherever the rule left it.
+    rule = [
+        cell["chance"]
+        for course in app["courses"]
+        for cell in course["cells"]
+        if cell["on"] and cell["day"] < service.GARDEN_MONTH_DAYS - len(app["courses"])
+    ]
+    assert len(rule) == 6 and all(85 <= c <= round(100 * target) for c in rule)
     # A course's first revision: its chance is its recall that evening.
     hard = service._garden_month_starts(model)[0]
     first = model.retrievability(service._month_evening(2), hard.stability)
     assert app["courses"][0]["cells"][1]["chance"] == round(100 * first)
-    # The best cram, one course an evening, the hardest last: it wins exam day, and the
-    # page says so before what it costs.
+    # The best cram with the app's effort (D142): as many revisions, all in the last
+    # evenings, one course an evening, the hardest last. The app's plan is ahead on all
+    # three, and the page says so with the numbers.
     cram = service.garden_month_view(preset="cram")
-    assert [[d["day"] for d in c["cells"] if d["on"]] for c in cram["courses"]] == [[27], [26], [25]]
-    assert (cram["lowest"]["exam"], cram["lowest"]["shaky"], cram["lowest"]["later"]) == (94, 63, 74)
-    assert cram["verdict"][0].startswith("You win exam day") and "next day" in cram["verdict"][1]
-    assert "63 days below 90" in cram["verdict"][2] and "74" in cram["verdict"][3]
+    assert [[d["day"] for d in c["cells"] if d["on"]] for c in cram["courses"]] == [
+        [21, 24, 27],
+        [20, 23, 26],
+        [19, 22, 25],
+    ]
+    assert cram["count"] == app["count"]
+    assert (cram["lowest"]["exam"], cram["lowest"]["shaky"], cram["lowest"]["later"]) == (97, 48, 82)
+    assert cram["verdict"][0].startswith("The app's plan does better on exam day")
+    assert cram["verdict"][1].startswith("And between them") and "48 days below 90" in cram["verdict"][1]
+    assert "82" in cram["verdict"][2] and len(cram["verdict"]) == 3
+    # A cram of one evening each wins nothing, and the page says the evenings it saves.
+    short = service.garden_month_view(["0-27", "1-26", "2-25"])
+    assert (short["lowest"]["exam"], short["lowest"]["shaky"], short["lowest"]["later"]) == (94, 63, 74)
+    assert short["verdict"][-1] == "It does save evenings: 3 revisions, against the app's 9."
     # More revisions win more, and the page counts them.
     every = service.garden_month_view([f"{c}-{d}" for c in range(3) for d in range(1, 28)])
     assert every["lowest"]["exam"] > app["app"]["exam"] and every["count"] == 81
@@ -199,10 +221,11 @@ def test_the_page_opens_for_anyone_and_inside_a_plan(web, token):
     # The month (D121): a form the server answers, three courses of 27 evenings, the
     # app's plan ticked until the student changes it; the chapters' line for a laptop.
     assert re.search(r'<form class="gd-month-form" method="get" action="/garden#month">', page)
-    assert page.count('type="checkbox" name="r"') == 81 and page.count(" checked>") == 6
+    assert page.count('type="checkbox" name="r"') == 81 and page.count(" checked>") == 9  # D142
     assert '<nav class="gd-timeline"' in page and page.count("data-chapter=") == 7
     played = web.get("/garden?month=1&r=0-27&r=1-26&r=2-25")
-    assert played.status_code == 200 and "You win exam day" in played.text and "63 days below" in played.text
+    assert played.status_code == 200 and "does better on exam day" in played.text
+    assert "63 days below" in played.text
     assert played.text.count(" checked>") == 3
     part = web.get("/garden?month=1&r=0-27&part=month")
     assert part.status_code == 200 and '<section class="code-row gd-month" id="month">' in part.text

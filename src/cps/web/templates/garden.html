@@ -148,10 +148,10 @@
   {{ limit(_("Wait too long, though, and you'll have forgotten it, which means starting almost from scratch.")) }}
 </section>
 
-{# 4. Cramming (D121): the same new topic crammed the night before or revised whenever
-   it dips, through the exam and a month on; three quarters of the scene before the
-   exam, the month after it in the last. A revision may not work: its chance is the
-   recall at that moment (service._expected_memory). #}
+{# 4. Cramming (D121, D142): the same new topic, crammed in the last evenings or spaced and
+   revised once more the night before, as many revisions each. D121 set one cram against
+   the rule alone; the owner read it as cramming winning, and it had left out the last
+   pass the app plans. #}
 <section class="code-scene code-scene-pin gd-chapter" id="cram">
   <div class="code-story">
   <div class="code-panel">
@@ -160,26 +160,26 @@
   <div class="code-copy">
     <p class="code-kicker"><span class="sci-step">4</span></p>
     <h2>{{ _("Cramming works, for a day") }}</h2>
-    <p>{{ _("Revise a topic the night before and you'll probably remember it in the morning, so cramming isn't useless. The trouble is everything around it. You spend the month not really knowing it, a revision that late doesn't always stick, and a month on, more of it is gone.") }}</p>
+    <p>{{ _("Cram a topic in the last evenings and you'll remember it in the morning, so cramming isn't useless. Now give a spaced plan the same number of evenings, one of them the night before. It's just as ready on exam day, it isn't shaky all month, and a month on it keeps more.") }}</p>
   </div>
   <figure class="card code-fig gd-fig">
     {% set crammed, spaced = c.pots %}
     {{ shelf([
       {"w": crammed.w, "zf": crammed.zf, "rtf": crammed.rtf, "drops": crammed.drops, "tags": crammed.tags, "roots": crammed.roots, "name": crammed.name, "small": _("exam day {a} %, a month on {b} %", a=crammed.exam, b=crammed.later)},
       {"w": spaced.w, "zf": spaced.zf, "rtf": spaced.rtf, "drops": spaced.drops, "tags": spaced.tags, "roots": spaced.roots, "name": spaced.name, "small": _("exam day {a} %, a month on {b} %", a=spaced.exam, b=spaced.later)},
-    ], "gd-pair", label=_("The same topic twice: one crammed the night before the exam, one revised whenever it dipped"), motion={"t": "pin", "turn": [-20, 12]}, badge=c.badge) }}
+    ], "gd-pair", label=_("The same topic twice, with as many revisions: one crammed in the last evenings, one spaced and revised once more the night before"), motion={"t": "pin", "turn": [-20, 12]}, badge=c.badge) }}
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
-    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("The same new topic, twice, with the exam on day {n}. You revise the second each time it dips to {t} %.", n=c.exam_day, t=g.target) }}</span></li>
-    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("The first you leave alone. Before the exam it spends {a} days below {t} %, the second {b}.", a=c.shaky[0], b=c.shaky[1], t=g.target) }}</span></li>
-    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("The night before, you cram the first. By then you'd recall it only {n} % of the time, so the revision settles less well.", n=c.chance) }}</span></li>
+    <li class="cap1of4"><span class="sci-step">1</span><span>{{ _n("The same new topic, twice, with the exam on day {d}. Each gets {n} revision.", "The same new topic, twice, with the exam on day {d}. Each gets {n} revisions.", c.revisions, d=c.exam_day) }}</span></li>
+    <li class="cap2of4"><span class="sci-step">2</span><span>{{ _("You revise the second each time it dips to {t} %. The first waits: before the exam it spends {a} days below {t} %, the second {b}.", a=c.shaky[0], b=c.shaky[1], t=g.target) }}</span></li>
+    <li class="cap3of4"><span class="sci-step">3</span><span>{{ _("In the last evenings you cram the first, starting where you'd recall it only {n} % of the time. The second gets one last revision the night before.", n=c.chance) }}</span></li>
     <li class="cap4of4"><span class="sci-step">4</span><span>{{ _("Exam day: {a} % for the crammed one, {b} % for the other. A month later: {c} % against {d} %.", a=crammed.exam, b=spaced.exam, c=crammed.later, d=spaced.later) }}</span></li>
   </ol>
   </div>
   </div>
   </div>
   </div>
-  {{ limit(_("The app plans exam practice in the last days before an exam too. It just doesn't leave everything until then.")) }}
+  {{ limit(_("In the app, that last revision is the exam practice it plans in the final days. And a whole semester wouldn't fit in the last evenings.")) }}
 </section>
 
 {# 5. A few free evenings: the code page's week (D109), its layers falling into one

@@ -126,7 +126,7 @@
       <text class="code-tick" x="300" y="120" text-anchor="end">{{ _n("{n} day", "{n} days", h.exam_days | int) }}</text>
       <g class="st3"><line class="code-exam-line" x1="300" y1="-8" x2="300" y2="100"></line><text class="code-exam-text" x="300" y="-12" text-anchor="middle">{{ _("Exam") }}</text></g>
       {% for c in h.curves %}<polyline class="code-curve {{ c.color }} st-draw st{{ loop.index }}" pathLength="1" points="{{ c.points }}"></polyline>
-      <g class="st{{ loop.index + 2 }}"><circle class="code-cdot {{ c.color }}" cx="300" cy="{{ c.end_y }}" r="4.5"></circle><text class="code-small code-num" x="308" y="{{ c.end_y + 4 }}">{{ c.at_exam }} %</text></g>{% endfor %}
+      <g class="st{{ loop.index + 2 }}"><circle class="code-cdot {{ c.color }}" cx="300" cy="{{ c.end_y }}" r="4.5"></circle><text class="code-small code-num" x="308" y="{{ c.label_y }}">{{ c.at_exam }} %</text></g>{% endfor %}
     </svg>
     <figcaption class="sci-key">{% for c in h.curves %}<span>{{ mark(c) }}{{ _("{topic}: S = {s}, D = {d}, {r} % on exam day", topic=c.topic, s=c.stability, d=c.difficulty, r=c.at_exam) }}</span>{% endfor %}</figcaption>
     {% set r = h.review %}
@@ -168,7 +168,7 @@
     <p class="code-kicker"><span class="sci-step">4</span><code>ssp.py</code></p>
     <h2>{{ _("What reaching the target costs") }}</h2>
     <p class="code-big"><b>{{ h.sweeps }}</b><span>{{ _("sweeps until the values settle") }}</span></p>
-    <p class="formula"><var>V</var>(<var>D</var>, <var>S</var>) = min<sub><var>r</var></sub> [ 1 + <var>r</var> · <var>V</var>(<var>D</var>′, <var>S</var>′) + (1 − <var>r</var>) · <var>V</var>(<var>D</var>″, <var>S</var>″) ]</p>
+    <p class="formula formula-wraps"><span><var>V</var>(<var>D</var>, <var>S</var>) = min<sub><var>r</var></sub> [ 1</span> <span>+ <var>r</var> · <var>V</var>(<var>D</var>′, <var>S</var>′)</span> <span>+ (1 − <var>r</var>) · <var>V</var>(<var>D</var>″, <var>S</var>″) ]</span></p>
     <p>{{ _("Value iteration over every memory state: review at recall r, succeed with probability r, or fail. Here it converged in {n} sweeps, to within {e}.", n=h.sweeps, e=h.residual) }}</p>
     <p>{{ _("Read optimistically between grid points, it is a lower bound: no plan does better. That makes it a safe guide for the search: here {a} + {b} = {sum} reviews at least.", a=h.h_topics[0].value, b=h.h_topics[1].value, sum=h.h_sum) }}</p>
   </div>

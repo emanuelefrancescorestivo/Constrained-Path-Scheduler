@@ -3869,6 +3869,25 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .code-win {
       animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
     }
+    /* AUDIT 102: on a phone a pinned scene no longer pins. Held in a window taller than it, its
+       short stage left a quarter of the screen blank above and below, and each scene asked
+       three screens of scrolling (the owner's iPhone, Safari 26, which ties animations to
+       scrolling as Chromium does). Below 861px the scene stands in the page as a laptop's
+       does in a window too short for its panel: every step listed, the one the figure is at
+       lit, and the figure running while it crosses the screen: the figure is the timeline,
+       --pin, from the moment it is wholly in view at the bottom to the moment it reaches the
+       bar, and the scene shares it with its steps (`timeline-scope`; where a browser lacks
+       that, the steps stay as listed, unlit). */
+    @media (max-width: 860px) {
+      :root:not([data-motion="reduce"]) .code-pin,
+      :root:not([data-motion="reduce"]) .code-pin.code-pin-long { height: auto; view-timeline: none; timeline-scope: --pin; }
+      :root:not([data-motion="reduce"]) .code-pin-stage > figure { view-timeline: --pin block; view-timeline-inset: var(--topbar) 12%; }
+      :root:not([data-motion="reduce"]) .code-pin-stage { position: static; height: auto; align-content: start; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li { grid-area: auto; animation-name: code-step; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li:first-child { animation-name: code-step-first; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li:last-child { animation-name: code-step-last; }
+      :root:not([data-motion="reduce"]) .code-pin .gd-phone { animation-name: none; transform: none; }
+    }
   }
 }
 @keyframes code-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: none; } }
@@ -4631,3 +4650,13 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
   .comments > li > .grow { flex: 1 1 calc(100% - 52px); min-width: 0; }
   .comments > li > .comment-report { margin-left: 48px; }
 }
+
+/* AUDIT 102: on a phone the question card stands flat in its panel; tilted in 3D, Safari
+   drew it past the panel's left edge. */
+@media (max-width: 860px) {
+  .gd-phone { transform: none; }
+}
+/* AUDIT 102: a long formula breaks between its terms on a narrow screen instead of
+   scrolling sideways, which on a phone looked cut off. */
+.formula.formula-wraps { white-space: normal; overflow: visible; text-wrap: balance; }
+.formula.formula-wraps > span { display: inline-block; white-space: nowrap; }
