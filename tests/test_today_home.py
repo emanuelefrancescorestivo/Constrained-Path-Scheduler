@@ -182,7 +182,14 @@ def test_the_days_hours_add_up_and_attention_counts_what_the_timer_logged(tmp_pa
     assert [b["part"] for b in seen["bar"]] == [
         p for p in service.TIME_PARTS if p in {b["part"] for b in seen["bar"]}
     ]
-    assert seen["focus"] == {"minutes": 0, "time": "", "sessions": 0, "checked": 0, "whole": 0}
+    counted = ("minutes", "time", "sessions", "checked", "whole")
+    assert {k: seen["focus"][k] for k in counted} == {
+        "minutes": 0,
+        "time": "",
+        "sessions": 0,
+        "checked": 0,
+        "whole": 0,
+    }
 
     # Two sessions timed this week, one checked without leaving the app, one left twice;
     # one logged by hand, and one timed last week: neither counts.
@@ -202,7 +209,8 @@ def test_the_days_hours_add_up_and_attention_counts_what_the_timer_logged(tmp_pa
     log("2026-09-29", minutes=40)
     log("2026-09-22", minutes=90, timed=True, checked=True)
     focus = service.time_and_attention(tmp_path, sub, NOW)["focus"]
-    assert focus == {
+    # The days and the part of the day (D144) are tested in test_focus_today.py.
+    assert {k: focus[k] for k in counted} == {
         "minutes": 75,
         "time": service.duration_words(75),
         "sessions": 2,

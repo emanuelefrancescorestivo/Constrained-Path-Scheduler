@@ -3177,4 +3177,12 @@ MESSAGES: dict[str, str] = {
     "Where you're from, as a round badge on your avatar. Others in Community see it on your initial; choose No flag to show none.": "Da dove vieni, come un bollino tondo sul tuo avatar. Nella Community gli altri lo vedono sulla tua iniziale; scegli Nessuna bandiera per non mostrarne nessuna.",
     "Your flag": "La tua bandiera",
     "choose a country from the list": "scegli un paese dalla lista",
+    "You focus longest in the morning: {time} a session on average.": "Ti concentri più a lungo la mattina: {time} a sessione in media.",
+    "You focus longest in the afternoon: {time} a session on average.": "Ti concentri più a lungo il pomeriggio: {time} a sessione in media.",
+    "You focus longest in the evening: {time} a session on average.": "Ti concentri più a lungo la sera: {time} a sessione in media.",
+    "Over {n} timed session in four weeks.": "Su {n} sessione cronometrata in quattro settimane.",
+    "Over {n} timed sessions in four weeks.": "Su {n} sessioni cronometrate in quattro settimane.",
+    "Time focused each day: {days}": "Tempo di concentrazione ogni giorno: {days}",
+    "Other courses and lengths": "Altri corsi e durate",
+    "What are you studying?": "Cosa stai studiando?",
 }

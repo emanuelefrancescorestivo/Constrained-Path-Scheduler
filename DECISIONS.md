@@ -5637,3 +5637,54 @@ the owner chose "Avatar: Ink · Flag: a round badge".
 - A few flags are large files, Serbia's 181 KB, fetched by the pages that show it.
 - The flag is shown to everyone in Community who can see the student's profile.
 - Checked in Chromium only, at phone size, light and dark.
+
+## D144. Focus and attention from Today
+
+**Asked.** The owner chose from the options page for Today as headquarters: "Build: focus,
+attention, steps, clear-mind". This record is the first two. Steps and the clear-your-mind list
+come next, once their two studies are checked.
+
+**Chosen.**
+- *Focus from Today* (`service.focus_quick`, the Focus card under the next step). It starts
+  anything besides the plan's next session in one tap; that session already starts from its own
+  card.
+  - The course last timed is chosen first, then the others in their colours' order, four at
+    most.
+  - Three of the focus page's lengths are offered: 25 minutes, 45 and 1 h 30. The shortest is
+    chosen, since a short start is the easiest to begin; D106's first session was 25 minutes
+    too.
+  - It posts to the focus page's own form, so nothing about the timer changed.
+  - Before: "Study something else", then a course typed, then Start, from two pages. Now:
+    Start, once a course has been timed or is the first in the list.
+  - The tip on breaks sits under the button, with its evidence a tap away (D62: Albulescu et
+    al., 2022 and Biwer et al., 2023, both checked).
+  - The card is not shown while a session runs: Today's banner leads back to that session.
+- *Attention day by day* (`service.time_and_attention`'s `days`, `_focus_days`).
+  - Each day of the week, Monday first, has a column for the minutes the timer logged. The
+    longest day is full height and labelled with its time. Today's column is in the accent, and
+    the days ahead keep their letter, faint.
+  - Minutes typed by hand are not counted, as before (D140).
+- *The part of the day you focus longest* (`_focus_best`).
+  - This is the part of the day (morning, afternoon, evening, as `progress.part_of_day`) whose
+    timed sessions lasted longest on average over the last four weeks.
+  - It is named only when four sessions say when they started (saved since 2026-10-21, D80) and
+    two parts have two sessions each. One session is an anecdote, and a part with nothing to
+    compare it with is not "longest".
+  - The line says how many sessions it rests on.
+
+**Rejected.**
+- Every length of the focus page on Today: six chips and "No limit" would make the card a page.
+  The link to the focus page says "Other courses and lengths".
+- The plan's next session as the card's first course: that session starts from its own card,
+  with its report tied to it. A second way to start it would start it without that tie.
+- The hour of the day as a heat map: four weeks of a few sessions spread over 24 hours says
+  nothing. Three parts of the day are what the app already uses (D45, D80).
+- "When you focus best": the timer measures how long, not how well.
+
+**Disclosed.**
+- Four sessions and two per part are choices, not results. Average minutes describe the
+  sessions a student chose to time, not their capacity: a long evening session may be the
+  evening the student had free.
+- The week's columns count sessions saved with the timer only, so a student who logs by hand
+  sees none.
+- Checked in Chromium only, at phone size and 1280px, light and dark.

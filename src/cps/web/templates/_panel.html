@@ -84,9 +84,28 @@
 {% else %}
 <div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
 {% endif %}
-{# Focus is no longer a tab (D97): a session's Start, or this. #}
-<p class="next-else"><a href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a></p>
+{# Focus is no longer a tab (D97): a session's Start, or this; with a course to name, the
+   focus card below starts anything else in one tap (D144). #}
+{% if not quick_focus %}<p class="next-else"><a href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a></p>{% endif %}
 </section>
+
+{# Focus from Today (D144): anything besides the plan's next session, in one tap: the course
+   last timed and the shortest length are chosen already. #}
+{% if quick_focus %}
+<section class="w w-focus" aria-labelledby="focus-title" data-tour="focus-quick">
+  <div class="w-head">{{ art("focus", "xs") }}<h2 id="focus-title">{{ _("Focus") }}</h2><a class="w-link" href="/p/{{ token }}/focus">{{ _("Other courses and lengths") }} ›</a></div>
+  <form method="post" action="/p/{{ token }}/focus/start" class="card quick-focus">
+    <fieldset class="bare"><legend>{{ _("What are you studying?") }}</legend>
+      <div class="pills">{% for c in quick_focus.courses %}<label class="pill"><input type="radio" name="course" value="{{ c }}"{% if loop.first %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}</div>
+    </fieldset>
+    <fieldset class="bare"><legend>{{ _("How long?") }}</legend>
+      <div class="pills">{% for g in quick_focus.goals %}<label class="pill"><input type="radio" name="goal" value="{{ g.minutes }}"{% if g.minutes == quick_focus.goal %} checked{% endif %}><span>{{ g.label }}</span></label>{% endfor %}</div>
+    </fieldset>
+    <button class="btn btn-primary btn-block">{{ lucide('timer') }}{{ _("Start the timer") }}</button>
+    {% if quick_focus.tip %}<p class="hint quick-tip"><a href="/p/{{ token }}/tips?topic={{ quick_focus.tip.topic }}#tip-{{ quick_focus.tip.key }}">{{ quick_focus.tip.advice }} <span class="nowrap">{{ _("Why, and the evidence") }} ›</span></a></p>{% endif %}
+  </form>
+</section>
+{% endif %}
 
 
 {% if view.banked and not (view.now and view.now.id == view.banked.id) %}
@@ -265,10 +284,19 @@
       {% if time.focus.sessions %}
       <p class="attention-big"><b>{{ time.focus.time }}</b> <span class="muted">{{ _n("focused, {n} session timed", "focused, {n} sessions timed", time.focus.sessions) }}</span></p>
       {% if time.focus.checked %}<p class="muted attention-whole">{{ _n("{whole} of {n} without leaving the app", "{whole} of {n} without leaving the app", time.focus.checked, whole=time.focus.whole) }}</p>{% endif %}
+      {# Day by day (D144): one column a day, Monday first, the longest day full height. #}
+      <svg class="focus-week" viewBox="0 0 140 44" role="img" aria-label="{{ _('Time focused each day: {days}', days=time.focus.days_said) }}">
+        <line class="fw-base" x1="2" y1="32.5" x2="138" y2="32.5"/>
+        {% for d in time.focus.days %}{% set x = 20 * loop.index0 + 10 %}{% set h = (22 * d.height / 100) | round(1) %}
+        {% if d.minutes %}<rect class="fw-col{% if d.today %} fw-today{% endif %}" x="{{ x - 4 }}" y="{{ 32 - h }}" width="8" height="{{ h }}" rx="2"><title>{{ d.name }}: {{ d.time }}</title></rect>{% endif %}
+        {% if d.height == 100 %}<text class="fw-top" x="{{ x }}" y="{{ 32 - h - 2.5 }}" text-anchor="middle">{{ d.time }}</text>{% endif %}
+        <text class="fw-day{% if d.today %} fw-today{% endif %}{% if d.ahead %} fw-ahead{% endif %}" x="{{ x }}" y="42" text-anchor="middle">{{ d.letter }}</text>
+        {% endfor %}
+      </svg>
+      {% if time.focus.best %}<p class="attention-best">{{ time.focus.best.words }} <span class="muted">{{ _n("Over {n} timed session in four weeks.", "Over {n} timed sessions in four weeks.", time.focus.best.sessions) }}</span></p>{% endif %}
       {% else %}
       <p class="muted">{{ _("Time a session with Focus, and your attention shows here.") }}</p>
       {% endif %}
-      <a class="btn btn-tinted btn-sm" href="/p/{{ token }}/focus">{{ lucide('timer') }}{{ _("Focus") }}</a>
     </div>
   </div>
 </section>

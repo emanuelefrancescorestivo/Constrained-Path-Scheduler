@@ -4556,6 +4556,25 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .attention p { margin: 0; }
 .attention-big b { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; }
 .attention-whole { font-size: 0.85rem; }
+/* Attention day by day (D144): thin columns on a hairline, Monday first, today's in the
+   accent, the others its quieter tint; the days ahead keep their letter, faint. */
+.focus-week { display: block; width: 100%; max-width: 280px; height: auto; margin: 8px 0 2px; overflow: visible; }
+.focus-week .fw-base { stroke: var(--line); stroke-width: 1; }
+.focus-week .fw-col { fill: color-mix(in srgb, var(--accent) 45%, transparent); }
+.focus-week .fw-col.fw-today { fill: var(--accent); }
+.focus-week .fw-day { fill: var(--muted); font-size: 7px; font-weight: 600; }
+.focus-week .fw-top { fill: var(--text); font-size: 6.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.focus-week .fw-day.fw-today { fill: var(--text); font-weight: 750; }
+.focus-week .fw-day.fw-ahead { opacity: 0.5; }
+.attention-best { font-size: 0.9rem; }
+/* Focus from Today (D144): the course and the length as chips, one button. */
+.quick-focus { display: grid; gap: 12px; }
+.quick-focus fieldset { margin: 0; }
+.quick-focus legend { margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
+.quick-focus .pill span { text-align: center; }
+.quick-focus .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.quick-tip { margin: 0; }
+.nowrap { white-space: nowrap; }
 .attention .btn { margin-top: 8px; }
 .attention .btn svg { width: 16px; height: 16px; }
 

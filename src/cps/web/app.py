@@ -1306,6 +1306,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "time": service.time_and_attention(store, subscription, now),
             # Each course's links and the learning platform, a tap away (D140).
             "workspace": service.workspace_view(subscription, now),
+            # Anything besides the plan's next session, timed in one tap (D144).
+            "quick_focus": service.focus_quick(store, subscription),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).

@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Focus and attention from Today (DECISIONS.md D144): a Focus card starts the timer in one tap,
+  the course you last timed and 25 minutes already chosen, the tip on breaks under it. Your
+  attention this week is drawn day by day, and once four timed sessions allow it, Today says
+  which part of the day you focus longest in.
+
 - Your avatar in ink, with your flag (DECISIONS.md D143): a drawn portrait in dark lines and
   flat colours, every option kept, skin tones as themselves. Choose the flag of where you're
   from under You: a round badge on your avatar, and on your initial in Community.

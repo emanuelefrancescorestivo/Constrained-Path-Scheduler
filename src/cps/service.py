@@ -5358,13 +5358,10 @@ def time_and_attention(
             bar.append({"part": part, "x": round(x, 2), "width": round(width, 2)})
         x += width
     monday = _progress.monday(local.date())
-    timed = [
-        p
-        for p in social.posts_of(_store(store), subscription.token, "session")
-        if date.fromisoformat(p.day) >= monday and p.data.get("timed")
-    ]
+    posts = [p for p in social.posts_of(_store(store), subscription.token, "session") if p.data.get("timed")]
+    timed = [p for p in posts if date.fromisoformat(p.day) >= monday]
     checked = [p for p in timed if p.data.get("checked")]
-    minutes = sum(int(p.data.get("minutes", 0) or 0) for p in timed)
+    minutes = sum(_minutes_of(p) for p in timed)
     return {
         "wake": day["wake"],
         "bed": day["bed"],
@@ -5376,7 +5373,124 @@ def time_and_attention(
             "sessions": len(timed),
             "checked": len(checked),
             "whole": sum(1 for p in checked if not p.data.get("interruptions")),
+            "days": (days := _focus_days(timed, monday, local.date())),
+            "days_said": ", ".join(f"{d['name']} {d['time']}" for d in days if d["minutes"]),
+            "best": _focus_best(posts, local),
         },
+    }
+
+
+# Attention over the week (D144; the owner's pick, 2026-11-18: "attention"). Its part of
+# the day is named once FOCUS_BEST_SESSIONS timed sessions of the last FOCUS_BEST_DAYS
+# days say when they started, and only between parts with two such sessions each: one
+# session is an anecdote, and a part with nothing to compare is not "longest". The
+# numbers are choices, not results, and the page says what they count.
+FOCUS_BEST_SESSIONS = 4
+FOCUS_BEST_DAYS = 28
+_FOCUS_BEST_WORDS = {
+    "morning": "You focus longest in the morning: {time} a session on average.",
+    "afternoon": "You focus longest in the afternoon: {time} a session on average.",
+    "evening": "You focus longest in the evening: {time} a session on average.",
+}
+
+
+def _minutes_of(post: social.Post) -> int:
+    try:
+        return max(0, int(post.data.get("minutes", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _focus_days(timed: Sequence[social.Post], monday: date, today: date) -> list[dict]:
+    """The minutes timed on each day of the week, Monday first, each column's height a
+    share of the week's longest day (D144); the days still ahead are drawn empty."""
+    minutes: dict[str, int] = {}
+    for post in timed:
+        minutes[post.day] = minutes.get(post.day, 0) + _minutes_of(post)
+    tallest = max(minutes.values(), default=0) or 1
+    days = []
+    for k in range(7):
+        day = monday + timedelta(days=k)
+        spent = minutes.get(day.isoformat(), 0)
+        days.append(
+            {
+                "letter": _i18n.weekday_name(day, short=True)[:1].upper(),
+                "name": _i18n.weekday_name(day),
+                "minutes": spent,
+                "time": duration_words(spent) if spent else "",
+                "height": round(100 * spent / tallest),
+                "today": day == today,
+                "ahead": day > today,
+            }
+        )
+    return days
+
+
+def _focus_best(posts: Sequence[social.Post], local: datetime) -> dict | None:
+    """The part of the day the student's timed sessions last longest, on average, over
+    the last four weeks (D144): counted from when each timer started, so only sessions
+    saved since 2026-10-21 say. None until there are enough to compare."""
+    since = local.date() - timedelta(days=FOCUS_BEST_DAYS)
+    zone = local.tzinfo
+    parts: dict[str, list[int]] = {}
+    count = 0
+    for post in posts:
+        started = str(post.data.get("started") or "")
+        if not started or date.fromisoformat(post.day) <= since:
+            continue
+        try:
+            moment = datetime.fromisoformat(started).astimezone(zone)
+        except ValueError:
+            continue
+        parts.setdefault(_progress.part_of_day(moment), []).append(_minutes_of(post))
+        count += 1
+    compared = {part: sum(v) / len(v) for part, v in parts.items() if len(v) >= 2}
+    if count < FOCUS_BEST_SESSIONS or len(compared) < 2:
+        return None
+    part = max(compared, key=lambda k: (compared[k], k))
+    return {
+        "part": part,
+        "words": _(_FOCUS_BEST_WORDS[part], time=duration_words(round(compared[part]))),
+        "sessions": count,
+    }
+
+
+# Focus from Today (D144; the owner's pick, 2026-11-18: "focus"). The plan's own session
+# starts from its card; this starts anything else in one tap: the course last timed
+# first, and three of the focus page's lengths, the shortest chosen, since a short start
+# is the easiest to begin (D106's first session was 25 minutes too).
+FOCUS_QUICK = (25, 45, 90)
+FOCUS_QUICK_COURSES = 4
+
+
+def focus_quick(store: str | os.PathLike, subscription: Subscription) -> dict | None:
+    """The focus card on Today: the courses to start with (the one last timed first, then
+    the others in their colours' order), three lengths, and the tip on breaks with its
+    evidence a tap away. None while a session runs, or without a course to name."""
+    if subscription.options.get("focus"):
+        return None
+    courses = course_names(subscription)
+    if not courses:
+        return None
+    last = next(
+        (
+            str(p.data.get("course") or "")
+            for p in social.posts_of(_store(store), subscription.token, "session", limit=50)
+            if p.data.get("timed")
+        ),
+        "",
+    )
+    first = next((c for c in courses if c.casefold() == last.casefold()), None)
+    ordered = [first, *[c for c in courses if c != first]] if first else list(courses)
+    breaks = next(t for t in _tips.TIPS if t.key == "breaks")
+    return {
+        "courses": ordered[:FOCUS_QUICK_COURSES],
+        "more": len(ordered) > FOCUS_QUICK_COURSES,
+        "goals": [{"minutes": g, "label": duration_words(g)} for g in FOCUS_QUICK],
+        "goal": FOCUS_QUICK[0],
+        "tip": {"key": breaks.key, "topic": breaks.topic, "advice": _(breaks.advice)}
+        if tips_on(subscription)
+        else None,
     }
 
 
