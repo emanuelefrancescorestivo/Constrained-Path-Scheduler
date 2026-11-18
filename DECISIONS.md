@@ -5360,3 +5360,107 @@ check reduces, but does not remove, cards that are wrong or poorly put; the stud
 each. The notes go to Anthropic in the United States only with the student's yes. The rules'
 cards from a LaTeX PDF keep words run together. Checked in Chromium only.
 
+
+## D139. The look the owner chose: one face, precise icons on soft tiles
+
+*The owner, 2026-11-16: "rework on UX and UI graphics and make it look more like the notion-like
+sidebar we added earlier also in other sections, replacing colourful and nauseous icons with more
+minimalist ones that still catch the eye, and in general let's pick a better font, give me
+choices". Shown seven faces, four kinds of icons and three backgrounds on the app's own screens
+(an artifact, not in the repository), the owner chose "Font: Plus Jakarta Sans · Icons: Line on a
+soft tile · Background: Now", adding: "look for example at the task icon being not precise, we
+need graphics to be spot on, same for the settings one". The icons were drawn again from one set
+and shown before the owner said "Go".*
+
+**Chosen.**
+
+- *One face, Plus Jakarta Sans*, for reading and for what is large (D73 had Figtree and
+  Bricolage Grotesque). A variable font from 200 to 800, its Latin and Latin Extended files
+  shipped in `static/fonts` with the SIL Open Font Licence, as D73's were: fetched from Google
+  they would give Google every student's address. The first page asks for one font file instead
+  of two (`benchmarks/page_weight.py` measures what a first visit downloads).
+- *Lucide's icons* (`web/icons.py`, `static/vendor/lucide`): an open set drawn on one 24-unit
+  grid with one stroke width and round ends, so every icon has the same weight; the hand-drawn
+  ones had ticks against their box (Tasks) and a gear that read as a sun (Settings). Only the 58
+  icons the app draws are shipped, unchanged from lucide-static 0.460.0, with its licence (ISC;
+  a part from Feather under MIT). The server writes each icon into the page: no request, no
+  script, under the Content-Security-Policy, offline and in print.
+- *Each place's picture a line icon on a soft tile of its colour* (`_art.html`): flat, without
+  D99's gradients and shadows, ten hues chosen for each mode, darker on light and lighter on
+  dark. The sidebar, the tab bar, the "+" and the calendar's arrows, the posts' actions, the
+  badges and the questions about the week use the same set.
+- *The sky stays* (the owner's "Background: Now"), and so does the glass.
+
+**Rejected.** An icon font (a request, and letters before it loads), a sprite read by
+`<use href>` (one more request, an icon missing until it arrives), the whole set of 1,500 files.
+Keeping two faces (the owner chose one). Course colours for the tiles (a place would read as a
+course).
+
+**Disclosed.** Lucide is third-party artwork under its licence, shipped with it; the owner
+approved adding it. The hues and the face are choices of taste; checked in Chromium only, at
+phone and laptop sizes, light and dark.
+
+## D140. Today as the app's home; Calendar the calendar alone
+
+*The owner, 2026-11-16: "be mindful that as of now from the sidebar the sections 'today' and
+'calendar' are the same. what can we put in today? like the headquarters of the app? students
+like having everything under control, like a tip here, a study session there, a feed window,
+let's say a general menu to then dive into other things, what do you think?" A mockup on a
+laptop and a phone was shown before the owner said "Go: the look, then Today as home".*
+
+**Chosen.**
+
+- *Today is a page of widgets, the most urgent first* (`_panel.html`): the next step with
+  Start focus and its stakes; what needs an answer (how a session went, in one tap, or the
+  self-test just answered); the day's one message (D97, unchanged); the day's list; the week
+  and the streak; the cards waiting; the next tasks; the next exams with their topics on
+  track; a tip; the classmates. Each has a head with its picture (D139), its name and the
+  section it opens. A widget with nothing to say is not drawn; what remains (last week,
+  keeping the plan, a weekly budget, a warm-up, the weekly note, a classmate's topics) folds
+  under "More" as before (D73). One column on a phone in that order; two columns from 720px;
+  three from 1100px, the next step on the left and the day's list on the right.
+- *The day's list* (`service.day_agenda`): today's classes, exams, tests, busy times and
+  sessions in time order, each over, going on or to come, with a line at now and a session's
+  report; the trips to campus and lunch (D42, D69) are left to the calendar.
+- *A window on classmates* (`service.classmates_glance`): who of the people followed is
+  studying now, with Join (D108), and the two newest posts of the people followed, as
+  Community shows them; never the student's own, nothing for a student without a handle,
+  no window when there is nothing in it.
+- *Calendar is the calendar alone, full width* (`plan.html`). D73 to D139 drew the day's
+  panel beside the calendar on both, so on a laptop the two were one page. On a phone they
+  were already two tabs. A report from Today, where there is no calendar, is sent by the
+  page itself and the widgets are fetched again (`app.js`).
+
+- *Then sharper, and about time and attention* (the owner, 2026-11-18: "i want the dashboard to
+  look sharp and notion style with our original hint, a student should feel in control of their
+  attention and time and feel empowered with some daily tips to study and live well"). Today's
+  cards are near-opaque panes with a hairline, small corners and no blur, and a widget's head is
+  its icon and its name in sentence case, as Notion's pages; the sky stays behind, the hint of
+  the hour. Two widgets join: *your time and attention* (`service.time_and_attention`): the day
+  from getting up to going to bed (D69) as one bar, the hours of classes, of study planned, of
+  busy times and what is left, the student's own; and the minutes focused with the timer since
+  Monday, the sessions timed, and of those checked how many were spent without leaving the app
+  (D67), only what the timer logged. And *tips for today* (`service.tips_for_today`): a tip to
+  study (how to study, how the brain learns, motivation) and one to live well (sleep, movement
+  and coffee, breaks, habits), a different pair each day, never the one the day's message
+  gives, each with its evidence a tap away; the tip that took turns (D62) gives way to them.
+- *The workspace* (the owner, the same day: "there could be external links to moodle where the
+  material is, so students can manage the workspace from there"; `service.workspace_view`):
+  each course with the links the student keeps for it (D88: its page on the learning platform,
+  slides, a folder), this week's first, each opening where it lives with its site's name under
+  it, and "Add a link" to the course's page; and the learning platform's own page, "Open
+  Moodle", when the calendar link given for deadlines (D92) says which: every Moodle site
+  exports its calendar at `<site>/calendar/export_execute.php` and keeps a student's dashboard
+  at `<site>/my/` (`service.learning_platform`). Another platform, or no link, shows no such
+  button: the app does not guess an address. Moodle is still not signed in to (D92).
+
+**Rejected.** Widgets the student arranges (a choice to make before the layout is known to
+help). A feed on Today (Community is a tab; two posts are a window, not a feed). Keeping the
+day's panel beside the calendar on a wide screen (the two pages would be one again).
+
+**Disclosed.** The tasks, which D73 folded under "More", are a widget again: Today is longer
+than D97 left it, on the owner's word; whether students find their way better is for the
+pilot. "Yours" is the hours awake less the timetable and the plan: meals, travel and rest are
+in it. Attention counts only sessions timed with Focus. The links are the ones the student
+added; the app reads nothing from Moodle's pages. Checked in Chromium only, at phone, tablet and
+laptop sizes, light and dark.

@@ -26,14 +26,14 @@ function el(tag, cls, text) {
   return node;
 }
 
-// The sun and the moon, drawn with the app's strokes.
+// The sun and the moon, Lucide's (D139; its circle written as a path).
 function icon(kind) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", kind === "wake"
-    ? "M12 7.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"
-    : "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z");
+    ? "M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+    : "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z");
   svg.append(path);
   return svg;
 }

@@ -136,7 +136,9 @@ def test_each_page_shows_its_tip_with_the_research_folded(web, tmp_path):
         assert f"/p/{token}/settings/look#tips" in page, path
     calendar = unescape(web.get(f"/p/{token}/week").text)
     assert '<details class="why-line"' in calendar
-    assert "data-why=" not in unescape(web.get(f"/p/{token}").text).split('<section class="board"')[1]
+    # D140: the calendar is its own page; Today has no grid, so no planning tip.
+    today = unescape(web.get(f"/p/{token}").text)
+    assert '<section class="board"' not in today and '<details class="why-line"' not in today
 
 
 def test_with_tips_off_the_pages_show_none(web, tmp_path):

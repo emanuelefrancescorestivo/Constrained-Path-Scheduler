@@ -125,9 +125,10 @@ def test_the_apps_files_are_named_under_a_version_and_kept_for_a_year(tmp_path):
         assert f'src="/static/v/{version}/ui.js"' in page or f"/static/v/{version}/" in page
         kept = web.get(f"/static/v/{version}/style.css")
         assert kept.status_code == 200 and "immutable" in kept.headers["cache-control"]
-        assert 'url("fonts/figtree-latin.woff2")' in kept.text  # relative: under the version too
+        assert 'url("fonts/plus-jakarta-sans-latin.woff2")' in kept.text  # relative: under the version too
         assert (
-            "immutable" in web.get(f"/static/v/{version}/fonts/figtree-latin.woff2").headers["cache-control"]
+            "immutable"
+            in web.get(f"/static/v/{version}/fonts/plus-jakarta-sans-latin.woff2").headers["cache-control"]
         )
         # An older version (a page kept offline) gets today's file, asked about again.
         old = web.get("/static/v/0123456789/style.css")

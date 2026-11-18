@@ -1,7 +1,8 @@
-// The plan screen: the calendar (calendar.js) and the panel beside it. The panel
-// is HTML the server renders (/p/<token>/panel); after every change it is fetched
-// again, so there is one place where what it says is decided. Without this
-// script, every form on the page still works, by full page loads.
+// The plan screen: Today's widgets (the panel) or the calendar (calendar.js); since
+// D140 each is its own page, where D73 drew them side by side. The panel is HTML the
+// server renders (/p/<token>/panel); after every change it is fetched again, so there
+// is one place where what it says is decided. Without this script, every form on the
+// page still works, by full page loads.
 import { Calendar } from "./calendar.js";
 import { t } from "./i18n.js";
 import { carryOver, transition } from "./motion.js";
@@ -35,7 +36,8 @@ async function refreshPanel() {
 }
 
 const bar = document.getElementById("calendar-bar");
-const calendar = new Calendar(document.getElementById("calendar"), {
+const board = document.getElementById("calendar");
+const calendar = board && new Calendar(board, {
   token,
   first: plan.dataset.first,
   today: plan.dataset.today,
@@ -48,7 +50,32 @@ const calendar = new Calendar(document.getElementById("calendar"), {
   },
 });
 
-// The reports in the panel go through the calendar, which redraws itself.
+// A change from Today (D140), where there is no calendar to send it and redraw: the
+// same request, then the widgets again.
+async function change(path, body, said) {
+  if (calendar) return calendar.change(path, body, said);
+  try {
+    const response = await fetch(`/p/${token}/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let answer = {};
+    try {
+      answer = await response.json();
+    } catch {
+      /* said below */
+    }
+    if (!response.ok) throw new Error(answer.message || t("The server answered {status}.", { status: response.status }));
+    if (said) toast(said);
+    await refreshPanel();
+  } catch (error) {
+    toast(error.message, { bad: true });
+  }
+}
+
+// The reports in the panel go through the calendar where there is one, which redraws
+// itself; on Today, through `change`.
 function wirePanel() {
   if (!panel()) return;
   panel().querySelectorAll("form[data-report]").forEach((form) => {
@@ -60,7 +87,7 @@ function wirePanel() {
       const said = form.hasAttribute("data-recall") && outcome !== "skipped"
         ? t("Recorded. Your exam forecast now uses what you recalled.")
         : t("Recorded: {word}. The plan has adjusted.", { word });
-      await calendar.change(`sessions/${sid}/report`, { outcome }, said);
+      await change(`sessions/${sid}/report`, { outcome }, said);
     });
   });
 }
@@ -68,11 +95,11 @@ function wirePanel() {
 // A task added, finished or deleted elsewhere on the page (ui.js): redraw.
 document.addEventListener("cps:changed", () => {
   wirePanel();
-  calendar.load(true);
+  if (calendar) calendar.load(true);
 });
 
-bar.hidden = false;
-bar.addEventListener("click", (event) => {
+if (bar) bar.hidden = false;
+bar?.addEventListener("click", (event) => {
   const view = event.target.closest("[data-view]");
   if (view) {
     calendar.setView(Number(view.dataset.view));
@@ -85,6 +112,7 @@ bar.addEventListener("click", (event) => {
 });
 // The arrow keys move through days, as in Calendar; T goes to today.
 document.addEventListener("keydown", (event) => {
+  if (!calendar) return;
   if (event.metaKey || event.ctrlKey || event.altKey || event.target.closest("input, textarea, select, [popover]:popover-open, .pop")) return;
   if (event.key === "ArrowLeft") calendar.go("back");
   else if (event.key === "ArrowRight") calendar.go("forward");
@@ -93,4 +121,4 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
 });
 wirePanel();
-calendar.load();
+if (calendar) calendar.load();

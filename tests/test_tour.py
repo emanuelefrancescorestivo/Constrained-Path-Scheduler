@@ -165,8 +165,9 @@ def test_the_calendar_offers_a_month_once_set_up(web):
     # D79: Day, 3 Days, Week and Month on the plan; drawing a week by hand keeps the
     # views with hours only (a month is no place to draw classes).
     token = _start(web)
-    assert '<button type="button" data-view="30">Month</button>' in web.get(f"/p/{token}").text
-    assert 'data-view="30"' in web.get(f"/p/{token}/week").text
+    # D140: the calendar is its own page; Today has no calendar, so no views.
+    assert '<button type="button" data-view="30">Month</button>' in web.get(f"/p/{token}/week").text
+    assert 'data-view="30"' not in web.get(f"/p/{token}").text
 
 
 def test_a_first_run_has_no_tour_and_settings_bring_it_back_after(web):

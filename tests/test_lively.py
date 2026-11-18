@@ -68,11 +68,13 @@ def test_each_place_under_you_has_its_own_picture(web):
     assert len(rows) == 11 and len({name for _, name in rows}) == 11  # How it works since D116
     art = (WEB / "templates" / "_art.html").read_text()
     assert "style=" not in art and "<script" not in art  # the Content-Security-Policy allows neither
-    assert all(f'name == "{name}"' in art for _, name in rows)
-    # Every picture drawn anywhere has its tile's colour in the style sheet.
+    # Since D139 each picture is a Lucide icon on a soft tile of the place's colour.
+    from cps.web import icons
+
+    assert all(name in icons.ART for _, name in rows)
     css = (WEB / "static" / "style.css").read_text()
-    for name in re.findall(r'name == "([a-z]+)"', art):
-        assert f".art.art-{name} {{ background: linear-gradient" in css, name
+    for name in icons.ART:
+        assert f".art-{name} {{ --hue: var(--t-" in css, name
 
 
 def test_each_topic_of_study_tips_has_its_own_picture(web):

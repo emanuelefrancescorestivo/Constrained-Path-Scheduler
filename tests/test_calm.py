@@ -92,18 +92,14 @@ def test_the_type_faces_are_the_apps_own_files_with_their_licences(web):
     """Fetched from Google's servers, the fonts would give Google every student's
     address; they are files of the app, under the SIL Open Font Licence."""
     css = web.get("/static/style.css").text
-    for name in (
-        "figtree-latin",
-        "figtree-latin-ext",
-        "bricolage-grotesque-latin",
-        "bricolage-grotesque-latin-ext",
-    ):
+    # One face since D139, Plus Jakarta Sans (D73 had Figtree and Bricolage Grotesque).
+    for name in ("plus-jakarta-sans-latin", "plus-jakarta-sans-latin-ext"):
         # Named next to the stylesheet, so under its versioned name too (D106).
         assert f'url("fonts/{name}.woff2")' in css
         font = web.get(f"/static/fonts/{name}.woff2")
         assert font.status_code == 200 and font.headers["content-type"] == "font/woff2"
         assert font.content[:4] == b"wOF2"
-    for licence in ("OFL-Figtree.txt", "OFL-BricolageGrotesque.txt"):
+    for licence in ("OFL-PlusJakartaSans.txt",):
         assert "SIL Open Font License, Version 1.1" in (STATIC / "fonts" / licence).read_text(
             encoding="utf-8"
         )
@@ -125,15 +121,19 @@ def test_today_puts_the_next_step_first_and_folds_the_rest(web, clock):
     clock["now"] = MORNING + timedelta(days=8, hours=8)  # 16:00 in Paris, a week of sessions behind
     page = unescape(web.get(f"/p/{token}").text)
     assert "<h1>Good afternoon</h1>" in page
-    # The next step, then what needs an answer, then everything else under "More".
-    assert page.index('class="section next-step"') < page.index('id="reports"') < page.index("data-more")
-    assert page.index("data-more") < page.index("<h2>Tasks</h2>")
+    # The next step, then what needs an answer, then the widgets (D140: the tasks are one,
+    # where D73 folded them), then the rest under "More".
+    tasks = page.index('class="w w-tasks"')
+    assert page.index('class="w w-next section next-step"') < page.index('id="reports"') < tasks
+    assert tasks < page.index("<h2>Tasks</h2>") < page.index("data-more")
     assert '<details class="why-now"><summary>Why now</summary>' in page
     # One session to report, the latest (D97); the ones before it count as done.
     asked = page[page.index('id="reports"') : page.index("data-more")]
     assert asked.count('class="mini-outcomes"') == 1 and "more-asked" not in page
-    # The summary says what is folded; the session's own page keeps its reasons open.
-    assert re.search(r'<span class="more-what">[^<]*Tasks[^<]*</span>', page)
+    # The summary says what is folded, and no widget is in it; the session's own page
+    # keeps its reasons open.
+    folded = re.search(r'<span class="more-what">([^<]+)</span>', page)
+    assert folded and "Tasks" not in folded.group(1)
     session = re.search(r'action="(/s/[\w-]+/\w+)"', page).group(1)
     shown = unescape(web.get(session).text)
     assert "session-card" in shown and "why-now" not in shown

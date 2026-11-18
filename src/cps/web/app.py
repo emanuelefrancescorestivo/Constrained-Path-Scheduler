@@ -59,7 +59,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon, sky
+from . import charts, forms, icon, icons, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -333,6 +333,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["recall_words"] = RECALL_WORDS
     templates.env.globals["charts"] = charts
     templates.env.globals["familiarity"] = FAMILIARITY
+    # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
+    templates.env.globals["lucide"] = icons.icon
+    templates.env.globals["art_icons"] = icons.ART
+    templates.env.globals["badge_icons"] = icons.GLYPHS
     templates.env.filters["nice_date"] = _nice_date
     templates.env.filters["hours"] = service.format_number
     templates.env.globals["_"] = service.translate
@@ -1282,6 +1286,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             "together": service.together_view(store, subscription, now)["pairs"],
             # A first week with every self-test recalled, said the week after (D130).
             "recalled": service.recall_week(subscription, now),
+            # Today as the app's home (D140): the day at a glance, and classmates.
+            "day": service.day_agenda(subscription, now),
+            "classmates": service.classmates_glance(store, subscription, now),
+            # The student's time today and attention this week (D140).
+            "time": service.time_and_attention(store, subscription, now),
+            # Each course's links and the learning platform, a tap away (D140).
+            "workspace": service.workspace_view(subscription, now),
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1303,6 +1314,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             fit=context["fit"],
             insight=context["insight"],
             tip=tip is not None and bool(tip.get("reason")),
+        )
+        # A tip to study and one to live well (D140), never the one the message gives.
+        context["day_tips"] = service.tips_for_today(
+            subscription, now, besides=tip["key"] if tip and context["message"] == "tip" else ""
         )
         return context
 

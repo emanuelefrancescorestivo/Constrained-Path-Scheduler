@@ -30,8 +30,7 @@
 <link rel="icon" href="{{ asset('icons/favicon-32.png') }}" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{{ asset('icons/apple-touch-icon' ~ ('-dark' if theme == 'dark' else '') ~ '.png') }}">
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
-<link rel="preload" href="{{ asset('fonts/figtree-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="{{ asset('fonts/bricolage-grotesque-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ asset('fonts/plus-jakarta-sans-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 {% if sky and sun is number %}<link rel="stylesheet" href="/sky/{{ sun }}.css" data-sky-sheet>{% endif %}
 <script type="module" src="{{ asset('errors.js') }}"></script>
@@ -64,9 +63,9 @@
   <span class="spacer"></span>
   {% if token and not bare %}
   <button type="button" class="btn btn-primary btn-sm wide-only" popovertarget="quick-add" title="{{ _('New task (N)') }}" data-tour="new-task">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>{{ _("New task") }}</button>
+    {{ lucide('plus') }}{{ _("New task") }}</button>
   {# On a phone, a new task is the bar's "+", as in Apple's own apps (D37) #}
-  {% if tab not in ('focus', 'community') %}<button type="button" class="icon-link phone-only topbar-add" popovertarget="quick-add" aria-label="{{ _('New task') }}" data-tour="new-task"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>{% endif %}
+  {% if tab not in ('focus', 'community') %}<button type="button" class="icon-link phone-only topbar-add" popovertarget="quick-add" aria-label="{{ _('New task') }}" data-tour="new-task">{{ lucide('plus') }}</button>{% endif %}
   {# Spark waits in the bar (D97), never over a page's buttons: a link to the coach,
      which ui.js turns into Spark's sheet. #}
   {% block spark_button %}<a class="spark-top" href="/p/{{ token }}/coach" data-spark data-tour="spark" aria-haspopup="dialog" aria-label="{{ _('Ask Spark') }}" title="{{ _('Ask Spark') }}">{{ mascot("idle", "mascot-top") }}</a>{% endblock %}
@@ -91,15 +90,15 @@
 <nav class="tabbar" aria-label="{{ _('Your plan') }}" data-tour="sections">
   {# D124: Today first, where the app opens, then the rest (D97's order). #}
   <a href="/p/{{ token }}" {% if section == 'today' %}aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>{{ _("Today") }}</a>
+    {{ lucide('sun') }}{{ _("Today") }}</a>
   <a href="/p/{{ token }}/week" {% if section == 'calendar' %}aria-current="page"{% endif %} data-tour="calendar">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>{{ _("Calendar") }}</a>
+    {{ lucide('calendar') }}{{ _("Calendar") }}</a>
   <a href="/p/{{ token }}/courses" {% if section == 'courses' %}aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5c2.6-1.2 5.3-1.2 8 .5v14c-2.7-1.7-5.4-1.7-8-.5zM20 5.5c-2.6-1.2-5.3-1.2-8 .5v14c2.7-1.7 5.4-1.7 8-.5z"/></svg>{{ _("Courses") }}</a>
+    {{ lucide('book-open') }}{{ _("Courses") }}</a>
   <a href="/p/{{ token }}/community" {% if section == 'community' %}aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="9" r="3.2"/><circle cx="16.5" cy="8.5" r="2.6"/><path d="M2.8 19.5c.6-3.2 3-5 5.7-5s5.1 1.8 5.7 5M14.2 14.4c.8-.6 1.7-.9 2.6-.9 2.2 0 4.1 1.5 4.6 4.5"/></svg>{{ _("Community") }}</a>
+    {{ lucide('users') }}{{ _("Community") }}</a>
   <a href="/p/{{ token }}/you" {% if section == 'you' %}aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.9-4 3.9-6.3 7.5-6.3s6.6 2.3 7.5 6.3"/></svg>{{ _("You") }}</a>
+    {{ lucide('circle-user') }}{{ _("You") }}</a>
 </nav>
 {% endif %}
 {% endif %}

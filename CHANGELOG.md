@@ -7,6 +7,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Today as the app's home (DECISIONS.md D140), sharp as a Notion page: the next session, what
+  to report, today's classes and sessions, your time today (classes, study, busy and what is
+  yours) and your attention this week (minutes focused, sessions without leaving the app), a tip
+  to study and one to live well, your workspace (each course's links, its Moodle page among
+  them, and Moodle itself when your calendar link says where), the week and the streak, cards,
+  tasks, exams and who of your classmates is studying now, each a tap from its section. Calendar is the calendar alone,
+  full width.
+
+- A new look (DECISIONS.md D139), as the owner chose it: one type face, Plus Jakarta Sans;
+  every icon from one precise set (Lucide's), the same weight everywhere; each place's picture a
+  line icon on a soft tile of its colour instead of a bright drawing. The sky stays.
+
 - Cards from notes written by Claude and checked (DECISIONS.md D138): with your yes to AI,
   Claude writes cards from a file of notes the way an exam asks, then checks each against your
   notes and keeps, fixes or drops it; Rules only keeps the notes on the server. The rules read
