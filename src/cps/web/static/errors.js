@@ -31,7 +31,17 @@ addEventListener("error", (event) => {
   report(event.error?.name, event.message, event.filename, event.lineno, event.colno, event.error?.stack);
 });
 
+// AUDIT 103: a transition between two pages (D30) that the browser gives up, when a link
+// is followed while one runs, rejects promises that nothing waits on. It is the browser
+// dropping an animation, not a fault of the app's, so it is kept out of the log.
+const abandoned = (reason) =>
+  (reason?.name === "InvalidStateError" || reason?.name === "AbortError") && /transition/i.test(String(reason?.message));
+
 addEventListener("unhandledrejection", (event) => {
   const reason = event.reason;
+  if (abandoned(reason)) {
+    event.preventDefault();
+    return;
+  }
   report(reason?.name || "Unhandled rejection", reason?.message || String(reason), "", 0, 0, reason?.stack);
 });

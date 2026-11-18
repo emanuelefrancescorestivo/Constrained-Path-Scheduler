@@ -4660,3 +4660,38 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
    scrolling sideways, which on a phone looked cut off. */
 .formula.formula-wraps { white-space: normal; overflow: visible; text-wrap: balance; }
 .formula.formula-wraps > span { display: inline-block; white-space: nowrap; }
+
+/* D143: the avatar in ink, the owner's choice ("Avatar: Ink"): a dark line round every
+   shape, flat fills, no shading or shine, as a drawn portrait. The same parts and every
+   option of D137 stay; a skin tone is kept as a tint of itself, so that the drawing is
+   still the person, and the clothes keep their colour, softened. */
+.av { --av-ink: #1f1d1a; }
+.av .av-bg { fill: color-mix(in srgb, var(--av-bg, #f4f2ec) 50%, #fbfaf7); }
+.av .av-skin, .av .av-shade {
+  fill: color-mix(in srgb, var(--av-skin) 82%, #fffdf9); stroke: var(--av-ink); stroke-width: 2.4; stroke-linejoin: round;
+}
+.av .av-hair { stroke: var(--av-ink); stroke-width: 2.2; stroke-linejoin: round; }
+.av .av-hair.av-stubble { stroke: none; opacity: 0.4; }
+.av .av-top, .av .av-hat {
+  fill: color-mix(in srgb, var(--av-top) 55%, #fffdf9); stroke: var(--av-ink); stroke-width: 2.4; stroke-linejoin: round;
+}
+.av .av-top-deep, .av .av-hat-deep {
+  fill: color-mix(in srgb, var(--av-top) 78%, #fffdf9); filter: none; stroke: var(--av-ink); stroke-width: 2; stroke-linejoin: round;
+}
+.av .av-shirt { stroke: var(--av-ink); stroke-width: 1.8; }
+.av :is(.av-light, .av-sheen) { display: none; }
+.av .av-blush { opacity: 0.16; }
+.av .av-eye { fill: var(--av-ink); }
+.av :is(.av-eye-arc, .av-brow, .av-mouth, .av-line, .av-collar, .av-rib) { stroke: var(--av-ink); }
+.av .av-brow { stroke-width: 3; }
+.av .av-line { stroke-width: 1.9; }
+.av .av-mouth { stroke-width: 2.3; }
+.av .av-glasses { stroke: var(--av-ink); stroke-width: 2.1; }
+/* The flag: a round badge in a ring of the surface's colour, on the avatar and on a
+   person's initial in Community. */
+.av-flag-ring { fill: var(--surface); }
+.avatar { position: relative; }
+.avatar-flag { position: absolute; right: -3px; bottom: -3px; width: 46%; height: 46%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--surface); }
+.av-chip-flag { gap: 8px; padding: 0 14px 0 8px; }
+.av-chip-flag img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
+.av-flags select { width: 100%; }

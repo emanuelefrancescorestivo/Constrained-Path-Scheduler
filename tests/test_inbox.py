@@ -163,6 +163,7 @@ def test_every_page_hears_its_scripts_errors(web):
         assert first and first.group(1) == "/static/errors.js", path
     script = web.get("/static/errors.js").text
     assert 'sendBeacon("/errors"' in script and "location.pathname" in script
+    assert "if (abandoned(reason))" in script  # AUDIT 103: a transition the browser gave up is not a fault
 
 
 # --------------------------------------------------------------------------- #

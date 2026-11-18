@@ -375,6 +375,8 @@ _ADDED_COLUMNS = (
     # post's author accepted it.
     ("comments", "kind", "TEXT NOT NULL DEFAULT 'comment'"),
     ("comments", "accepted", "INTEGER NOT NULL DEFAULT 0"),
+    # D143: where the student is from, a flag they chose for their avatar; "" for none.
+    ("profiles", "flag", "TEXT NOT NULL DEFAULT ''"),
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 
@@ -442,7 +444,7 @@ _FORGET = (
 # sessions were reminded, a password's digest and the links sent by e-mail.
 _EXPORT = {
     "events": "SELECT at, kind, detail FROM events WHERE token = :t ORDER BY id",
-    "profile": "SELECT handle, university, programme, year, country, bio, created FROM profiles "
+    "profile": "SELECT handle, university, programme, year, country, flag, bio, created FROM profiles "
     "WHERE token = :t",
     "posts": "SELECT id, kind, created, day, visibility, data, hidden FROM posts WHERE token = :t "
     "ORDER BY created",

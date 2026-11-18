@@ -6458,27 +6458,74 @@ AVATAR_PARTS: dict[str, tuple[str, ...]] = {
 AVATAR_START: dict[str, str] = {part: names[0] for part, names in AVATAR_PARTS.items()} | {"skin": "s3"}
 
 
+# D143: where a student is from, a round badge on their avatar and on their initial in
+# Community. The flags are flag-icons 7.6.0's square ones (MIT, in web/static/vendor/flags
+# with its licence); the countries and their names in English are the same package's list,
+# its ISO countries only (data/countries.json).
+@functools.cache
+def flag_countries() -> tuple[tuple[str, str], ...]:
+    """Every country a flag can be chosen for: (code, name in English), by name."""
+    rows = json.loads((Path(__file__).parent / "data" / "countries.json").read_text(encoding="utf-8"))
+    return tuple((str(r["code"]), str(r["name"])) for r in rows)
+
+
+def flag_name(code: str) -> str:
+    return dict(flag_countries()).get(code, "")
+
+
+def flag_suggestions(store: str | os.PathLike, subscription: Subscription) -> list[dict]:
+    """The countries the avatar page offers first (D143): the university's, from the
+    profile (D39), and the time zone's. Only suggestions: where a student is from is theirs
+    to say."""
+    found: list[str] = []
+    profile = social.get_profile(_store(store), subscription.token)
+    zone = _universities.country_of_zone(subscription.options["tz"]) or ""
+    for code in (profile.country if profile else "", zone):
+        if code and code.lower() not in found and flag_name(code.lower()):
+            found.append(code.lower())
+    return [{"code": c, "name": flag_name(c)} for c in found]
+
+
 def avatar_of(subscription: Subscription | None) -> dict[str, str] | None:
     """The avatar a student made (D115), or None before they make one. A part saved
-    under a name this version does not draw falls back to where the maker starts."""
+    under a name this version does not draw falls back to where the maker starts; a flag
+    (D143) not on the list is no flag."""
     chosen = subscription.options.get("avatar") if subscription else None
     if not isinstance(chosen, Mapping):
         return None
-    return {
+    avatar = {
         part: chosen[part] if chosen.get(part) in names else AVATAR_START[part]
         for part, names in AVATAR_PARTS.items()
     }
+    flag = str(chosen.get("flag") or "")
+    avatar["flag"] = flag if flag_name(flag) else ""
+    return avatar
 
 
 def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscription:
-    """Keep the avatar a student made: every part one of its names (D115)."""
+    """Keep the avatar a student made: every part one of its names (D115), and the flag
+    (D143) one on the list, or none. A country picked from the full list wins over the
+    suggestion ticked, since it was picked later."""
     avatar = {}
     for part, names in AVATAR_PARTS.items():
         value = chosen.get(part) or AVATAR_START[part]
         if value not in names:
             raise InvalidInput(_("choose one of the options shown for each part"))
         avatar[part] = value
+    flag = str(chosen.get("flag_other") or chosen.get("flag") or "")
+    if flag == "none":
+        flag = ""
+    if flag and not flag_name(flag):
+        raise InvalidInput(_("choose a country from the list"))
+    avatar["flag"] = flag
     return replace(subscription, options={**subscription.options, "avatar": avatar})
+
+
+def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
+    """The avatar's flag on the student's profile, for their initial in Community (D143):
+    after the avatar is saved, and when a profile is made after the avatar."""
+    avatar = avatar_of(subscription)
+    social.set_flag(_store(store), subscription.token, avatar["flag"] if avatar else "")
 
 
 def language_of(subscription: Subscription) -> str:

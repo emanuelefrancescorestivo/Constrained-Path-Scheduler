@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Your avatar in ink, with your flag (DECISIONS.md D143): a drawn portrait in dark lines and
+  flat colours, every option kept, skin tones as themselves. Choose the flag of where you're
+  from under You: a round badge on your avatar, and on your initial in Community.
+
 - How it works compares cramming with the app's plan fairly (DECISIONS.md D142): the same number
   of revisions each, the app's last pass before the exam included. The spaced topic is as ready on
   exam day (99 % against 98 %), keeps more a month later (91 % against 85 %) and spends 4 days
@@ -786,6 +790,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
   same sessions, and a replan reuses the solved value functions.
 
 ### Fixed
+
+- A page-to-page transition the browser abandoned no longer reaches the error log as the app's
+  fault (AUDIT.md item 103).
 
 - On a phone, How it works and How the code works no longer leave blank screens: the scenes stand
   in the page with their steps listed, and How it works is less than half as long. A formula no

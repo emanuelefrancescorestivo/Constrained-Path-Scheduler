@@ -479,6 +479,7 @@ class Profile:
     created: str
     year: str = ""
     country: str = ""  # ISO 3166 code, when the university was chosen from the list
+    flag: str = ""  # D143: where the student is from, as they chose it ("" for none)
 
     def public(self) -> dict:
         """What anyone in the network may see: never the token."""
@@ -489,19 +490,28 @@ class Profile:
             "bio": self.bio,
             "year": self.year,
             "flag": "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in self.country if "A" <= c <= "Z"),
+            # D143: the round badge on their initial, the country they chose as theirs.
+            "badge": self.flag,
             # The avatar: the handle's first letter on one of the seven colours.
             "initial": self.handle[:1].upper(),
             "hue": f"c{sum(self.handle.encode()) % 7}",
         }
 
 
-_PROFILE = "token, handle, university, programme, bio, created, year, country"
+_PROFILE = "token, handle, university, programme, bio, created, year, country, flag"
 
 
 def get_profile(store: Store, token: str) -> Profile | None:
     with store.connection() as db:
         row = db.execute(f"SELECT {_PROFILE} FROM profiles WHERE token = ?", (token,)).fetchone()
     return Profile(*row) if row else None
+
+
+def set_flag(store: Store, token: str, code: str) -> None:
+    """The flag a student chose for their avatar (D143), on their profile so that others
+    see it on their initial; nothing without a profile. `code` is checked by the caller."""
+    with store.connection() as db:
+        db.execute("UPDATE profiles SET flag = ? WHERE token = ?", (code, token))
 
 
 def profile_by_handle(store: Store, handle: str) -> Profile | None:

@@ -5590,3 +5590,50 @@ tomorrow, massing works.
 - Checked in Chromium only, at a phone's size and a laptop's. Safari 26's layout was read from the
   owner's screenshots; whether it supports `timeline-scope` was not checked, and without it the
   steps on a phone stay listed, unlit.
+
+## D143. The avatar in ink, with a flag of where you're from
+
+**Asked.** The owner, after an iPhone's screenshots: "in the avatar section would like to add
+the chance to put the flag were you're from, and really i want to polish and finalise the
+characterisation well with proper better graphics and a characteristic design so show me
+some options". Four styles and three places for the flag were drawn on a page to choose from;
+the owner chose "Avatar: Ink · Flag: a round badge".
+
+**Chosen.**
+- *Ink* (`style.css`, D143's block): every shape of the avatar drawn with a dark line, flat
+  fills, no shading or shine, as a drawn portrait.
+  - The parts and every option of D115 and D137 stay, restyled rather than redrawn.
+  - A skin tone is kept as itself, lightened a fifth. At 45 % the tones ran together, so the
+    drawing stopped being the person.
+  - The clothes keep their colour, softened; the background is a paler paper of its own.
+- *A flag of where you're from* (`service.flag_countries`, `set_avatar`, `share_flag`; the
+  profiles' `flag` column):
+  - It is a round badge at the avatar's bottom right, in a ring of the page's colour, chosen on
+    the avatar page.
+  - None is shown until one is chosen. The page offers the university's country (D39) and the time
+    zone's first, then every country in a list; a country picked from the list wins.
+  - The flag reaches the student's profile, so others see it as a badge on their initial in
+    Community, and the page says so. "No flag" shows none anywhere.
+  - A flag chosen before the handle reaches Community when the handle is chosen.
+  - The flag beside a university, the university's country (D39), stays as it was: where
+    someone studies is not where they are from.
+- *The flags* are flag-icons 7.6.0's square ones (MIT, approved by the owner's choice on the
+  options page, which named it), 249 countries. Each is its own file under
+  `static/vendor/flags/1x1/` with the licence, fetched only by a page that shows that flag.
+  The countries' names come from the same package (`data/countries.json`, its ISO countries).
+- *An abandoned page transition* (AUDIT item 103): `errors.js` no longer reports the rejection
+  a browser raises when a link is followed while a page-to-page transition runs (D30).
+
+**Rejected.**
+- The university's country as the flag: it is where someone studies.
+- A flag on by default, from the time zone: where a student is from is theirs to say.
+- A preview of each flag on the avatar before saving: it would need a rule per country, and an
+  inline style the pages' Content-Security-Policy forbids. The choices show each flag, and the
+  avatar shows the saved one.
+- The other three styles (Clay, Shapes, today's): the owner chose Ink.
+
+**Disclosed.**
+- The countries' names are in English in every language, as the universities' are (D39).
+- A few flags are large files, Serbia's 181 KB, fetched by the pages that show it.
+- The flag is shown to everyone in Community who can see the student's profile.
+- Checked in Chromium only, at phone size, light and dark.

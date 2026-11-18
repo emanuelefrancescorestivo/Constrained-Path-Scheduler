@@ -85,7 +85,7 @@ more than an impressive number.
 | `feed.py` | WSGI feed server (`cps serve`): `/feed/<token>.ics`, background refresh, no secrets in logs |
 | `store.py` | SQLite store (`healthy()` for `/health`, D106): one JSON document per token, version compare-and-swap, event log, expiry sweep (12 months after the last visit, D36), backups; a plan's rows of every table for its copy (`_EXPORT`, D43) |
 | `inbox.py` | D43: what reaches the owner: students' feedback, and the error log (server and browser errors, one row per kind, plans' addresses cut out, kept 30 days) |
-| `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone) |
+| `universities.py`, `data/` | D39: the list of universities (Hipo's, MIT, its notice in `data/`), searched by name or domain, the student's country first (from the plan's time zone); D143: the countries a flag can be chosen for, with their names in English (`countries.json`, from flag-icons) |
 | `reminders.py` | D38: Web Push before each session: the server's VAPID key (made once, kept in the store), devices at known push services only, a session reminded once, sending with `pywebpush` |
 | `usage.py` | D96: what a student uses, counted only with their yes: the part of the app each page's address is (40 parts), per day and how many times, on the server; a no deletes; kept 180 days; the student's own counts and the owner's totals |
 | `mail.py` | D94: the only e-mail sent (a link to confirm an address, one to choose a new password), plain text through any SMTP server named by `CPS_SMTP_*`; none named, nothing sent |
@@ -305,7 +305,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - The student's avatar (D115, D137) has eight skin tones, twelve hair styles, eyes, brows, a mouth,
   headwear, details, four kinds of clothes and a background, a choice and not every person; it
   is shown on the student's own pages only, in How it works (Community keeps the initial on a
-  colour).
+  colour). Since D143 it is drawn in ink, and a flag of where the student is from, which they
+  choose (none until then), is a round badge on it and on their initial in Community; the
+  countries' names are in English; flag-icons 7.6.0 (MIT) is shipped with its licence.
   Its preview needs CSS `:has` (elsewhere it shows the avatar as saved). Checked in Chromium only.
 - Studying now and reactions (D108) were checked in Chromium only, at phone size and 1280px;
   the reactions are the device's emoji. Studying now is off until a student says yes, and seen

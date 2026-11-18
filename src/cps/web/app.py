@@ -1151,6 +1151,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             chosen=mine or service.AVATAR_START,
             parts=service.AVATAR_PARTS,
             saved=request.query_params.get("saved") == "1",
+            # D143: the flag, the countries offered first, then every one.
+            flags=service.flag_suggestions(store, subscription),
+            countries=service.flag_countries(),
+            has_profile=service.profile_of(store, token) is not None,
         )
 
     @app.post("/p/{token}/avatar")
@@ -1159,12 +1163,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=len(service.AVATAR_PARTS) + 2)
-        chosen = {part: str(form.get(part) or "") for part in service.AVATAR_PARTS}
+        form = await request.form(max_files=0, max_fields=len(service.AVATAR_PARTS) + 4)
+        chosen = {part: str(form.get(part) or "") for part in (*service.AVATAR_PARTS, "flag", "flag_other")}
         try:
-            service.update_subscription(store, token, lambda current: service.set_avatar(current, chosen))
+            saved = service.update_subscription(
+                store, token, lambda current: service.set_avatar(current, chosen)
+            )
         except service.ServiceError as error:
             return refused(request, token, error)
+        if saved is not None:
+            service.share_flag(store, saved)  # D143: the badge on their initial in Community
         service.log_event(store, token, "avatar")
         return RedirectResponse(f"/p/{token}/avatar?saved=1", 303)
 
@@ -2028,6 +2036,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 tab="community",
             )
         service.set_studying_now(store, token, fields.get("studying_now") == "1")
+        if before is None and subscription is not None:
+            service.share_flag(store, subscription)  # D143: an avatar's flag made before the profile
         service.log_event(store, token, "profile", "new" if before is None else "changed")
         if then:
             return RedirectResponse(then, 303)

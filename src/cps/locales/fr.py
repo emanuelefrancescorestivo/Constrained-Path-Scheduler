@@ -3194,4 +3194,14 @@ MESSAGES: dict[str, str] = {
     "You revise the second each time it dips to {t} %. The first waits: before the exam it spends {a} days below {t} %, the second {b}.": "Tu révises le second chaque fois qu'il descend à {t} %. Le premier attend : avant l'examen, il passe {a} jours sous {t} %, le second {b}.",
     "before the session": "avant la séance",
     "lasts {n} day": "tient {n} jour",
+    # D143: the avatar's flag.
+    "A drawing in ink: nothing is uploaded. It is shown on your own pages only; only its flag is seen in Community.": "Un dessin à l'encre : rien n'est envoyé. Il ne s'affiche que sur tes propres pages ; seul son drapeau se voit dans la Communauté.",
+    "Another country": "Un autre pays",
+    "Choose a country": "Choisis un pays",
+    "It reaches Community once you choose a handle.": "Il arrive dans la Communauté dès que tu choisis un pseudo.",
+    "It shows on your avatar once you save.": "Il apparaît sur ton avatar une fois enregistré.",
+    "No flag": "Pas de drapeau",
+    "Where you're from, as a round badge on your avatar. Others in Community see it on your initial; choose No flag to show none.": "D'où tu viens, en badge rond sur ton avatar. Dans la Communauté, les autres le voient sur ton initiale ; choisis Pas de drapeau pour n'en montrer aucun.",
+    "Your flag": "Ton drapeau",
+    "choose a country from the list": "choisis un pays dans la liste",
 }

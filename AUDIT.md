@@ -1188,3 +1188,12 @@ labels are kept a line apart, the formulas break between terms, the card stands 
 labels read "lasts 7 days" (`tests/test_how.py`, `tests/test_garden.py`). Measured by
 `benchmarks/scroll_flow.mjs`: How it works is 10.7 screens on a phone instead of 23.6. Checked in
 Chromium only.
+
+
+**103. A page-to-page transition the browser gave up was reported as the app's error.** Found
+while checking D141 on the live demo: following a link while a cross-document view transition
+(D30) ran made Chromium reject the transition's promises ("Transition was aborted because of
+invalid state"). Nothing waits on them, so `errors.js` sent each to the owner's error log as an
+unhandled rejection. How found: the live check's page errors, in Chromium at phone size. Status:
+fixed with D143. `errors.js` lets an `InvalidStateError` or `AbortError` about a transition pass
+unreported (`tests/test_inbox.py`); other rejections are reported as before.

@@ -55,7 +55,8 @@ def test_an_avatar_is_its_parts_names_and_nothing_else():
     empty = plan({})
     assert service.avatar_of(empty) is None and service.avatar_of(None) is None
     made = service.set_avatar(empty, MINE)
-    assert service.avatar_of(made) == MINE and made.options["avatar"] == MINE
+    # D143: and a flag, none until one is chosen.
+    assert service.avatar_of(made) == {**MINE, "flag": ""} and made.options["avatar"] == {**MINE, "flag": ""}
     # A part left out starts where the maker starts; a name it does not draw is refused.
     assert (
         service.avatar_of(service.set_avatar(empty, {"hair": "bun"}))["skin"] == service.AVATAR_START["skin"]
@@ -137,3 +138,51 @@ def test_the_preview_follows_the_radios_with_the_avatars_own_colours():
 
 def test_making_it_counts_as_you():
     assert usage.part_of("GET", "/avatar") == "you" and usage.part_of("POST", "/avatar") == "you"
+
+
+def test_a_flag_is_where_you_are_from_on_your_avatar_and_your_initial(web, token, tmp_path):
+    """D143: a flag chosen on the avatar page (none until then; the university's and the
+    time zone's countries offered first, then every country) is a round badge on the
+    avatar, and on the student's initial in Community once they have a handle."""
+    empty = plan({})
+    assert service.avatar_of(service.set_avatar(empty, {**MINE, "flag": "it"}))["flag"] == "it"
+    picked = service.set_avatar(empty, {**MINE, "flag": "it", "flag_other": "jp"})
+    assert service.avatar_of(picked)["flag"] == "jp"  # the list, picked later, wins
+    assert service.avatar_of(service.set_avatar(empty, {**MINE, "flag": "none"}))["flag"] == ""
+    for bad in ("xx", "../../etc", "IT"):
+        with pytest.raises(service.InvalidInput):
+            service.set_avatar(empty, {**MINE, "flag": bad})
+    assert service.avatar_of(plan({"avatar": {**MINE, "flag": "zz"}}))["flag"] == ""  # not on the list
+    codes = [code for code, _name in service.flag_countries()]
+    assert len(codes) == len(set(codes)) == 249 and "it" in codes and "fr" in codes
+    for code in codes:  # every country offered has its flag shipped
+        assert (STATIC / "vendor" / "flags" / "1x1" / f"{code}.svg").exists(), code
+    assert (STATIC / "vendor" / "flags" / "LICENSE").read_text(encoding="utf-8").startswith("The MIT License")
+    # The page: the countries first (Paris's time zone: France), every country in the list.
+    maker = web.get(f"/p/{token}/avatar").text
+    assert 'id="av-flag-none"' in maker and 'id="av-flag-fr"' in maker
+    other = maker.split('id="av-flag-other"', 1)[1].split("</select>", 1)[0]
+    assert other.count("<option value=") == 250  # every country, and "Choose a country"
+    picked = {**MINE, "flag": "none", "flag_other": "it"}
+    saved = web.post(f"/p/{token}/avatar", data=picked, follow_redirects=False)
+    assert saved.status_code == 303
+    you = web.get(f"/p/{token}/you").text
+    assert re.search(r'<image href="/static/v/[0-9a-f]{10}/vendor/flags/1x1/it\.svg"', you)
+    # Community: the badge comes with the handle, and follows the avatar's flag.
+    person = web.get(f"/p/{token}/u/flagged")
+    assert person.status_code == 404  # no handle yet: nothing in Community
+    made = web.post(
+        f"/p/{token}/profile",
+        data={"handle": "flagged", "university": "Sapienza", "old_enough": "1"},
+        follow_redirects=False,
+    )
+    assert made.status_code == 303
+
+    def badge(code: str) -> str:
+        return r'<img class="avatar-flag" src="/static/v/[0-9a-f]{10}/vendor/flags/1x1/' + code + r'\.svg"'
+
+    assert re.search(badge("it"), web.get(f"/p/{token}/u/flagged").text)  # the avatar's, made before
+    web.post(f"/p/{token}/avatar", data={**MINE, "flag": "fr"})
+    assert re.search(badge("fr"), web.get(f"/p/{token}/u/flagged").text)  # and after
+    web.post(f"/p/{token}/avatar", data={**MINE, "flag": "none"})
+    assert 'class="avatar-flag"' not in web.get(f"/p/{token}/u/flagged").text  # none shows none
