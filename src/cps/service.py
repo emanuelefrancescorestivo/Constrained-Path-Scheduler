@@ -2414,7 +2414,73 @@ def delete_task(subscription: Subscription, name: str, *, now: datetime | None =
     removed: the platform's next reading does not bring it back."""
     tasks = _task_specs(subscription)
     del tasks[_find_task(subscription, name)]
+    steps = {k: v for k, v in _steps(subscription).items() if k != name.strip().casefold()}
+    subscription = replace(subscription, options={**subscription.options, "steps": steps})
     return revise_subscription(subscription, tasks=tasks, now=now, strict=False)
+
+
+# Assignments in steps (D145; the owner's pick, 2026-11-18: "steps"). A task is broken into
+# the student's own steps, each ticked off as it is done: a specific plan for an unfinished
+# goal (Masicampo and Baumeister, 2011). The steps are the student's words, not the
+# planner's blocks: they change nothing in the plan, and the plan's sessions are counted
+# beside them as before. Kept under the task's name, and deleted with it.
+TASK_STEPS = 12  # the most a task holds
+STEP_TEXT = 120  # a step's characters
+
+
+def _steps(subscription: Subscription) -> dict[str, list[dict]]:
+    return {k: [dict(s) for s in v] for k, v in subscription.options.get("steps", {}).items()}
+
+
+def task_steps(subscription: Subscription, name: str) -> list[dict]:
+    """A task's steps, in the order written: each its text and whether it is done."""
+    return _steps(subscription).get(name.strip().casefold(), [])
+
+
+def add_step(subscription: Subscription, name: str, text: str) -> Subscription:
+    """A step at the end of a task's list."""
+    _find_task(subscription, name)
+    text = " ".join(str(text or "").split())[:STEP_TEXT]
+    if not text:
+        raise InvalidInput(_("write the step"))
+    steps = _steps(subscription)
+    key = name.strip().casefold()
+    if len(steps.get(key, [])) >= TASK_STEPS:
+        raise InvalidInput(_n("a task holds {n} step at most", "a task holds {n} steps at most", TASK_STEPS))
+    steps[key] = [*steps.get(key, []), {"text": text, "done": False}]
+    return replace(subscription, options={**subscription.options, "steps": steps})
+
+
+def tick_step(subscription: Subscription, name: str, index: int, done: bool = True) -> Subscription:
+    """A step done, or not; the task itself is ticked on its own."""
+    steps = _steps(subscription)
+    key = name.strip().casefold()
+    if not 0 <= index < len(steps.get(key, [])):
+        raise InvalidInput(_("this step is no longer there"))
+    steps[key][index] = {**steps[key][index], "done": bool(done)}
+    return replace(subscription, options={**subscription.options, "steps": steps})
+
+
+def drop_step(subscription: Subscription, name: str, index: int) -> Subscription:
+    steps = _steps(subscription)
+    key = name.strip().casefold()
+    if not 0 <= index < len(steps.get(key, [])):
+        raise InvalidInput(_("this step is no longer there"))
+    del steps[key][index]
+    if not steps[key]:
+        del steps[key]
+    return replace(subscription, options={**subscription.options, "steps": steps})
+
+
+def _step_rows(subscription: Subscription, name: str) -> dict:
+    """A task's steps as its card shows them: each with its place, and how many are done."""
+    steps = task_steps(subscription, name)
+    return {
+        "entries": [{"index": i, "text": x["text"], "done": bool(x["done"])} for i, x in enumerate(steps)],
+        "done": sum(1 for x in steps if x["done"]),
+        "count": len(steps),
+        "full": len(steps) >= TASK_STEPS,
+    }
 
 
 # A class the student catches up on alone (D60) is due before the course's next
@@ -4276,7 +4342,7 @@ def start_subscription(
 # What a new semester puts away (D36). Everything else in the options stays: the
 # week's hours and days off, the study window, the language, the appearance, AI,
 # the Moodle link and what was imported from it.
-_SEMESTER_ONLY = ("start", "tasks", "pins", "deadlines_error", "focus", "focus_draft", "topics")
+_SEMESTER_ONLY = ("start", "tasks", "steps", "pins", "deadlines_error", "focus", "focus_draft", "topics")
 
 
 def _archive(subscription: Subscription, now: datetime) -> list[dict]:
@@ -5494,6 +5560,162 @@ def focus_quick(store: str | os.PathLike, subscription: Subscription) -> dict | 
     }
 
 
+# The clear-your-mind list (D145; the owner's pick, 2026-11-18: "clear-mind"). What is on a
+# student's mind, written down on Today: an item given a day is a plan for it, shown first
+# and on its day; one without stays a note until crossed off. Masicampo and Baumeister
+# (2011) found that a specific plan for an unfinished goal ended the intrusive thoughts it
+# caused; Scullin et al. (2018), that a specific to-do list written for five minutes at
+# bedtime brought sleep sooner than a list of what was done. "Close the day" asks for
+# tomorrow's first three in the hours before bed. Kept with the plan, never shared.
+MIND_ITEMS = 40  # the most a list holds; the oldest note goes first when it is full
+MIND_TEXT = 160  # an item's characters
+CLOSE_BEFORE_BED = timedelta(hours=3)  # "Close the day" is asked from then until bed
+CLOSE_FIRSTS = 3  # tomorrow's first things
+
+
+def _mind(subscription: Subscription) -> list[dict]:
+    return [dict(x) for x in subscription.options.get("mind", ())]
+
+
+def _with_mind(subscription: Subscription, items: list[dict], **more: Any) -> Subscription:
+    return replace(subscription, options={**subscription.options, "mind": items, **more})
+
+
+def _mind_day(value: object, today: date) -> str:
+    """A day for an item: "" (none), "today", "tomorrow" or an ISO date from today on."""
+    text = str(value or "").strip()
+    if text in ("", "none"):
+        return ""
+    if text == "today":
+        return today.isoformat()
+    if text == "tomorrow":
+        return (today + timedelta(days=1)).isoformat()
+    try:
+        day = date.fromisoformat(text)
+    except ValueError:
+        raise InvalidInput(_("{value} is not a day", value=repr(text))) from None
+    if day < today:
+        raise InvalidInput(_("choose today or a day after it"))
+    return day.isoformat()
+
+
+def add_to_mind(
+    subscription: Subscription, text: str, when: object = "", *, now: datetime | None = None
+) -> Subscription:
+    """Write something down; `when` gives it a day ("today", "tomorrow", a date)."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    text = " ".join(str(text or "").split())[:MIND_TEXT]
+    if not text:
+        raise InvalidInput(_("write what is on your mind"))
+    items = _mind(subscription)
+    items.append({"id": secrets.token_hex(4), "text": text, "day": _mind_day(when, today)})
+    while len(items) > MIND_ITEMS:
+        oldest = next((i for i, x in enumerate(items) if not x["day"]), 0)
+        del items[oldest]
+    return _with_mind(subscription, items)
+
+
+def _mind_index(items: list[dict], item: str) -> int:
+    for i, x in enumerate(items):
+        if x["id"] == item:
+            return i
+    raise InvalidInput(_("this is no longer on your list"))
+
+
+def plan_mind_item(
+    subscription: Subscription, item: str, when: object, *, now: datetime | None = None
+) -> Subscription:
+    """Give an item a day, or take it away ("none")."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    items = _mind(subscription)
+    i = _mind_index(items, item)
+    items[i] = {**items[i], "day": _mind_day(when, today)}
+    return _with_mind(subscription, items)
+
+
+def cross_off(subscription: Subscription, item: str) -> Subscription:
+    """An item done, or no longer on the student's mind: gone from the list."""
+    items = _mind(subscription)
+    del items[_mind_index(items, item)]
+    return _with_mind(subscription, items)
+
+
+def close_day(
+    subscription: Subscription, firsts: Sequence[str], *, now: datetime | None = None
+) -> Subscription:
+    """Tomorrow's first things, up to three, each given the day after this evening (after
+    midnight, the day that has begun); the day is closed even with none written, and the
+    question is not asked again tonight."""
+    now = now or datetime.now(UTC)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    evening = _evening_of(subscription, local)
+    changed = subscription
+    for text in [f for f in firsts if str(f or "").strip()][:CLOSE_FIRSTS]:
+        changed = add_to_mind(changed, text, (evening + timedelta(days=1)).isoformat(), now=now)
+    return replace(changed, options={**changed.options, "closed": evening.isoformat()})
+
+
+def _evening_of(subscription: Subscription, local: datetime) -> date:
+    """The day an evening belongs to: after midnight and before getting up, the day before."""
+    wake = _hours_of(day_view(subscription)["wake"], _("Get up"))
+    return local.date() - timedelta(days=1) if local.hour + local.minute / 60 < wake else local.date()
+
+
+def mind_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The list on Today: the items with a day first, in their days' order (today's and
+    those left from before marked), then the notes, newest first; and whether to ask
+    "Close the day": from three hours before bed until getting up, once an evening."""
+    now = now or datetime.now(UTC)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    today = local.date()
+    evening = _evening_of(subscription, local)
+    items = _mind(subscription)
+    planned = sorted((x for x in items if x["day"]), key=lambda x: x["day"])
+    notes = [x for x in reversed(items) if not x["day"]]
+    rows = []
+    for x in [*planned, *notes]:
+        day = date.fromisoformat(x["day"]) if x["day"] else None
+        rows.append(
+            {
+                "id": x["id"],
+                "text": x["text"],
+                "day": x["day"],
+                "when": ""
+                if day is None
+                else _("today")
+                if day == today
+                else _("tomorrow")
+                if day == today + timedelta(days=1)
+                else _("since {day}", day=_i18n.format_date(day, "short"))
+                if day < today
+                else _i18n.format_date(day, "short"),
+                "today": day is not None and day <= today,
+                "left": day is not None and day < today,
+            }
+        )
+    bed = _hours_of(day_view(subscription)["bed"], _("Go to bed"))
+    wake = _hours_of(day_view(subscription)["wake"], _("Get up"))
+    hour = local.hour + local.minute / 60
+    from_hour = (bed - CLOSE_BEFORE_BED.total_seconds() / 3600) % 24
+    # Between `from_hour` and getting up, across midnight when bed is late.
+    late = hour >= from_hour or hour < wake if from_hour > wake else from_hour <= hour < wake
+    asked = late and subscription.options.get("closed") != evening.isoformat()
+    # Its evidence a tap away: the bedtime list in the evening, the plan otherwise.
+    key = "bedtime-list" if late else "plan-it"
+    tip = next(t for t in _tips.TIPS if t.key == key)
+    return {
+        "entries": rows,
+        "today_iso": today.isoformat(),
+        "tip": {"key": tip.key, "topic": tip.topic} if tips_on(subscription) else None,
+        "today": sum(1 for r in rows if r["today"]),
+        "close": asked,
+        "closed": subscription.options.get("closed") == evening.isoformat(),
+        "firsts": CLOSE_FIRSTS,
+    }
+
+
 # The workspace on Today (D140; the owner, 2026-11-18: "there could be external links to
 # moodle where the material is, so students can manage the workspace from there").
 WORKSPACE_COURSES = 6  # the courses shown on Today; the rest are on Courses
@@ -5694,6 +5916,7 @@ def _task_rows(
                 "finished": t.done,
                 "status": status,
                 "imported": t.name in imported,
+                "steps": _step_rows(subscription, t.name),
             }
         )
     rows.sort(key=lambda r: (r["finished"], -r["days"] if r["finished"] else r["days"]))
@@ -5730,6 +5953,7 @@ def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
                 "finished": bool(t.get("done")),
                 "status": "done" if t.get("done") else "not planned",
                 "imported": False,
+                "steps": _step_rows(subscription, t["name"]),
             }
             for t in subscription.options.get("tasks", ())
         ]
@@ -9096,6 +9320,9 @@ TIP_MOODS = {
     "track": "think",
     "if-then": "think",
     "habit": "cheer",
+    # The clear-your-mind list's (D145)
+    "plan-it": "think",
+    "bedtime-list": "rest",
     # How the brain learns, motivation and reward (D91)
     "recall-strengthens": "think",
     "surprise": "think",
@@ -12887,25 +13114,136 @@ def _garden_week(model: Model, plan: Sequence[str]) -> dict:
     }
 
 
-def _garden_app_plan(model: Model) -> list[str]:
-    """The app's rule for self-tests (assistant.py, the science page's third rule): each
-    evening the topic that has faded furthest, once it is down to the target; otherwise
-    the evening stays free."""
+def _garden_evenings(model: Model) -> list[dict]:
+    """The app's rule for self-tests evening by evening (assistant.py, the science page's
+    third rule), with what it saw (D146): each evening every topic's recall, and the one
+    revised, the topic that has faded furthest once it is down to the target; None when
+    every topic is above it and the evening stays free."""
     target = flashcards.RETENTION
     states = {
         key: (MemoryState(stability=s, difficulty=5.0), -float(ago)) for key, _, s, ago in GARDEN_TOPICS
     }
-    plan = []
+    evenings = []
     for day in range(1, GARDEN_EVENINGS + 1):
         recall = {k: model.retrievability(day - last, st.stability) for k, (st, last) in states.items()}
         key = min(recall, key=lambda k: recall[k])
-        if recall[key] <= target:
-            state, last = states[key]
-            states[key] = (model.review(state, day - last, Grade.GOOD), float(day))
-            plan.append(key)
-        else:
-            plan.append(GARDEN_REST)
-    return plan
+        picked = key if recall[key] <= target else None
+        if picked is not None:
+            state, last = states[picked]
+            states[picked] = (model.review(state, day - last, Grade.GOOD), float(day))
+        evenings.append({"pick": picked, "recall": recall})
+    return evenings
+
+
+def _garden_app_plan(model: Model) -> list[str]:
+    """The app's rule for self-tests (assistant.py, the science page's third rule): each
+    evening the topic that has faded furthest, once it is down to the target; otherwise
+    the evening stays free."""
+    return [e["pick"] or GARDEN_REST for e in _garden_evenings(model)]
+
+
+# D146: the evenings drawn as the owner chose (2026-11-18, "all choices but the plant one"):
+# each day a 24-hour dial, and the week with a wire from each evening to the topic it went to.
+_DIAL_AT = ((52, 72), (150, 72), (248, 72), (101, 194), (199, 194))  # five dials, three and two
+DIAL_R = 40
+
+
+def _dial_arc(cx: float, cy: float, r: float, h0: float, h1: float) -> str:
+    """An arc of a 24-hour dial, midnight at the top, clockwise: an SVG path."""
+    a0 = h0 / 24 * 2 * math.pi - math.pi / 2
+    a1 = h1 / 24 * 2 * math.pi - math.pi / 2
+    x0, y0 = cx + r * math.cos(a0), cy + r * math.sin(a0)
+    x1, y1 = cx + r * math.cos(a1), cy + r * math.sin(a1)
+    large = 1 if h1 - h0 > 12 else 0
+    return f"M{x0:.2f} {y0:.2f}A{r} {r} 0 {large} 1 {x1:.2f} {y1:.2f}"
+
+
+def _garden_dials(
+    week: dict, evenings: list[dict], names: dict[str, str], colours: dict[str, int]
+) -> list[dict]:
+    """Each day of the week as a dial: its sleep and lectures, the evening's block, and the
+    topic the evening goes to (or none: a night off)."""
+    per_hour = week["slots_per_day"] / 24
+    dials = []
+    for d, (cx, cy) in zip(week["days"], _DIAL_AT, strict=True):
+        arcs = [
+            {
+                "kind": r["kind"],
+                "d": _dial_arc(cx, cy, DIAL_R, r["start"] / per_hour + 0.08, r["end"] / per_hour - 0.08),
+            }
+            for r in d["runs"]
+        ]
+        block = next((b for b in week["blocks"] if b["day"] == d["day"]), None)
+        evening = (
+            _dial_arc(
+                cx, cy, DIAL_R, block["slot"] / per_hour, (block["slot"] + week["block_slots"]) / per_hour
+            )
+            if block
+            else ""
+        )
+        pick = evenings[d["day"]]["pick"] if d["day"] < len(evenings) else None
+        ticks = []
+        for hour in (0, 6, 12, 18):
+            a = hour / 24 * 2 * math.pi - math.pi / 2
+            ticks.append(
+                {
+                    "x1": round(cx + (DIAL_R + 8) * math.cos(a), 2),
+                    "y1": round(cy + (DIAL_R + 8) * math.sin(a), 2),
+                    "x2": round(cx + (DIAL_R + 12) * math.cos(a), 2),
+                    "y2": round(cy + (DIAL_R + 12) * math.sin(a), 2),
+                }
+            )
+        dials.append(
+            {
+                "day": d["day"],
+                "cx": cx,
+                "cy": cy,
+                "arcs": arcs,
+                "evening": evening,
+                "ticks": ticks,
+                "topic": names[pick] if pick else "",
+                "color": colours[pick] if pick else None,
+            }
+        )
+    return dials
+
+
+def _garden_water(evenings: list[dict], names: dict[str, str], colours: dict[str, int]) -> dict:
+    """The week, then the water (D146): each evening's levels (every topic's recall as the
+    evening begins), the one it went to, and where that topic is after it, back to full.
+    The levels are FSRS-6's with average weights, every revision a success."""
+    target = flashcards.RETENTION
+    rows = []
+    for k, e in enumerate(evenings):
+        rows.append(
+            {
+                "day": k,
+                "pick": names[e["pick"]] if e["pick"] else "",
+                "color": colours[e["pick"]] if e["pick"] else None,
+                "level": round(100 * e["recall"][e["pick"]]) if e["pick"] else 0,
+                "lowest": round(100 * min(e["recall"].values())),
+            }
+        )
+    topics = []
+    for key, name, _s, _ago in GARDEN_TOPICS:
+        levels = [round(100 * e["recall"][key]) for e in evenings]
+        topics.append(
+            {
+                "key": key,
+                "name": name,
+                "color": colours[key],
+                "levels": [
+                    {"day": k, "level": v, "watered": evenings[k]["pick"] == key}
+                    for k, v in enumerate(levels)
+                ],
+            }
+        )
+    return {
+        "rows": rows,
+        "topics": topics,
+        "target": round(100 * target),
+        "free": sum(1 for r in rows if not r["pick"]),
+    }
 
 
 def garden_view() -> dict:
@@ -12956,9 +13294,16 @@ def garden_view() -> dict:
         "days": [{"day": d["day"], "runs": d["runs"]} for d in code["days"]],
         "blocks": code["blocks"],
         "block_slots": code["block_slots"],
+        "slots_per_day": 24 * 60 // code["slot_minutes"],
         "day_count": code["day_count"],
         "free": len(code["blocks"]),
     }
+    # D146: each day as a dial, and where each evening goes, from the app's rule.
+    evenings = _garden_evenings(model)
+    names = {key: name for key, name, _s, _ago in GARDEN_TOPICS}
+    colours = {key: k for k, (key, *_rest) in enumerate(GARDEN_TOPICS)}
+    week["dials"] = _garden_dials(week, evenings, names, colours)
+    week["water"] = _garden_water(evenings, names, colours)
     return {
         "week": week,
         "target": round(100 * target),

@@ -21,6 +21,37 @@
     <div class="meta">{{ _("{done} of {n} sessions done", done=t.sessions_done, n=t.blocks) }}{% if t.next %} · {{ _("next {when}", when=t.next) }}{% endif %}</div>
     <div class="progress"><span class="w{{ (t.percent // 10) * 10 }}"></span></div>
     {% endif %}
+    {# Its steps (D145): the student's own words, ticked off one by one; the plan's sessions
+       are counted above, and the steps change nothing in the plan. #}
+    {% if t.steps and not t.finished %}
+    <details class="steps-fold">
+      <summary>{% if t.steps.count %}{{ _("{done} of {n} steps", done=t.steps.done, n=t.steps.count) }}{% else %}{{ _("Break it into steps") }}{% endif %}</summary>
+      {% if t.steps.entries %}
+      <ul class="step-list">
+        {% for x in t.steps.entries %}
+        <li{% if x.done %} class="done"{% endif %}>
+          <form method="post" action="/p/{{ token }}/tasks/steps/tick" data-async data-quiet>
+            <input type="hidden" name="name" value="{{ t.name }}"><input type="hidden" name="index" value="{{ x.index }}"><input type="hidden" name="done" value="{{ '0' if x.done else '1' }}"><input type="hidden" name="back" value="{{ back }}">
+            <button type="submit" class="tick" aria-label="{% if x.done %}{{ _('Not done yet: {step}', step=x.text) }}{% else %}{{ _('Step done: {step}', step=x.text) }}{% endif %}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+          </form>
+          <span class="grow step-text">{{ x.text }}</span>
+          <form method="post" action="/p/{{ token }}/tasks/steps/drop" data-async data-quiet>
+            <input type="hidden" name="name" value="{{ t.name }}"><input type="hidden" name="index" value="{{ x.index }}"><input type="hidden" name="back" value="{{ back }}">
+            <button type="submit" class="step-drop" aria-label="{{ _('Remove the step: {step}', step=x.text) }}"><span aria-hidden="true">×</span></button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if not t.steps.full %}
+      <form method="post" action="/p/{{ token }}/tasks/steps" class="step-add" data-async data-quiet>
+        <input type="hidden" name="name" value="{{ t.name }}"><input type="hidden" name="back" value="{{ back }}">
+        <input name="text" maxlength="120" required autocomplete="off" aria-label="{{ _('A step of {name}', name=t.name) }}" placeholder="{{ _('The next step') }}">
+        <button type="submit" class="btn btn-tinted btn-sm">{{ _("Add") }}</button>
+      </form>
+      {% endif %}
+    </details>
+    {% endif %}
   </div>
   <details class="menu">
     <summary aria-label="{{ _('More for {name}', name=t.name) }}">···</summary>

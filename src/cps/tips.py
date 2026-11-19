@@ -71,6 +71,7 @@ class Tip:
 
 CHECKED = date(2026, 10, 15)
 READ = date(2026, 10, 22)  # the brain and motivation sources (D91)
+FOUND = date(2026, 11, 18)  # the clear-your-mind list's sources (D145)
 
 SOURCES = {
     s.key: s
@@ -207,6 +208,20 @@ SOURCES = {
             "British Journal of Educational Psychology",
             "https://doi.org/10.1111/bjep.12593",
             CHECKED,
+        ),
+        Source(
+            "masicampo2011",
+            "Masicampo and Baumeister, 2011",
+            "Journal of Personality and Social Psychology",
+            "https://doi.org/10.1037/a0024192",
+            FOUND,
+        ),
+        Source(
+            "scullin2018",
+            "Scullin et al., 2018",
+            "Journal of Experimental Psychology: General",
+            "https://doi.org/10.1037/xge0000374",
+            FOUND,
         ),
         Source(
             "harkin2016",
@@ -430,6 +445,19 @@ TIPS = (
         ("okano2019",),
     ),
     Tip(
+        "bedtime-list",
+        "body",
+        "early",
+        "Before bed, write tomorrow's to-do list, as specifically as you can.",
+        "In a sleep laboratory, 57 young adults wrote for 5 minutes before sleeping. Those who listed "
+        "what they had to do in the next few days fell asleep faster than those who listed what they "
+        "had done; the more specific the list, the faster.",
+        "One night in a laboratory, with healthy young adults; neither students' own beds nor many "
+        "nights were tested.",
+        ("scullin2018",),
+        "That is why Today asks for tomorrow's first three in the evening.",
+    ),
+    Tip(
         "exercise",
         "body",
         "moderate",
@@ -624,6 +652,18 @@ TIPS = (
         "The tests covered all kinds of goals, not studying in particular.",
         ("gollwitzer2006",),
         "Your plan gives each session a day and a time; choose the place.",
+    ),
+    Tip(
+        "plan-it",
+        "habits",
+        "early",
+        "Write down what is left undone, with when you will do it.",
+        "In laboratory studies, goals left unfinished kept coming back to mind during other tasks and "
+        "made people do worse at them. Making a specific plan for each goal, when and how, stopped it.",
+        "Short laboratory tasks; the abstract gives no sample sizes. Whether a plan written in an app "
+        "works the same way is not known.",
+        ("masicampo2011",),
+        "That is why each line on your list can have a day.",
     ),
     Tip(
         "habit",

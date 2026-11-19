@@ -7,6 +7,17 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The evenings redrawn (DECISIONS.md D146), as the owner chose. How it works draws each day as a
+  24-hour dial, with the topic its free evening goes to in the middle. A new chapter, "Each
+  evening", runs a wire from every evening to the topic least likely to be remembered, its tube
+  filling back up. How the code works draws the week as a card of lights that the sleep and
+  classes masks switch on.
+
+- On your mind (DECISIONS.md D145): write what is on your mind on Today, give it a day or keep it
+  as a note, and cross it off. In the evening, Close the day asks for tomorrow's first three. A
+  task folds out into your own steps, ticked off one by one. Two new tips say why, each from a
+  checked study.
+
 - Focus and attention from Today (DECISIONS.md D144): a Focus card starts the timer in one tap,
   the course you last timed and 25 minutes already chosen, the tip on breaks under it. Your
   attention this week is drawn day by day, and once four timed sessions allow it, Today says

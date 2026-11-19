@@ -236,13 +236,57 @@ def test_the_story_is_told_in_short_sentences():
             assert len(re.findall(r"[\w{}'’]+", sentence)) <= 25, sentence
 
 
+def test_the_evenings_are_drawn_from_the_apps_rule(web):
+    """D146 (the owner's choice, 2026-11-18): each day of the week a dial, its evening going
+    to the topic the app's rule picks, or none; then the week with each evening's levels.
+    The rule seen: the evening goes to the lowest topic once it is down to the target, and
+    is free when every topic is above it; every tube's level sits on its 80 to 100 % scale,
+    so the zoomed tubes never hide a level under it."""
+    view = service.garden_view()
+    week, plan = view["week"], service._garden_app_plan(FSRS_6)
+    names = {key: name for key, name, _s, _ago in service.GARDEN_TOPICS}
+    assert [d["topic"] for d in week["dials"]] == [names.get(k, "") for k in plan]
+    assert all(d["evening"] and len(d["arcs"]) == len(week["days"][d["day"]]["runs"]) for d in week["dials"])
+    water, target = week["water"], round(100 * flashcards.RETENTION)
+    for k, row in enumerate(water["rows"]):
+        levels = {t["name"]: t["levels"][k]["level"] for t in water["topics"]}
+        if row["pick"]:
+            assert row["level"] == min(levels.values()) == levels[row["pick"]] <= target
+        else:
+            assert min(levels.values()) > target
+    assert water["free"] == plan.count(service.GARDEN_REST) == 2
+    # The numbers DECISIONS.md D146 quotes.
+    assert [(r["pick"], r["level"], r["lowest"]) for r in water["rows"]] == [
+        ("Analysis", 90, 90),
+        ("Algebra", 90, 90),
+        ("", 0, 92),
+        ("", 0, 91),
+        ("Physics", 90, 90),
+    ]
+    assert all(80 <= v["level"] <= 100 for t in water["topics"] for v in t["levels"])
+    watered = [(t["name"], v["day"]) for t in water["topics"] for v in t["levels"] if v["watered"]]
+    assert sorted(watered, key=lambda x: x[1]) == [(names[k], d) for d, k in enumerate(plan) if k in names]
+    page = web.get("/garden").text
+    dials = page.split('class="code-chart gd-dials"', 1)[1].split("</svg>", 1)[0]
+    assert (
+        dials.count('class="dial-ring"') == week["day_count"] and dials.count("dial-say") == week["day_count"]
+    )
+    tubes = page.split('class="code-chart gd-water"', 1)[1].split("</svg>", 1)[0]
+    assert tubes.count('class="water-tube"') == 3 * week["day_count"]
+    assert tubes.count('class="water-wire"') == week["day_count"] - water["free"]
+    assert tubes.count('class="water-refill"') == len(watered)
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert ":is(.dial-say, .water-on) { animation-name: code-show; }" in css
+
+
 def test_the_page_opens_for_anyone_and_inside_a_plan(web, token):
     page = web.get("/garden").text
-    assert page.count('class="code-scene') == 7 and len(re.findall(r'<div class="code-pin[ "]', page)) == 6
-    for chapter in ("plant", "pace", "time", "cram", "evenings", "morning", "exam", "month"):
+    # D146 added a chapter: where each evening goes ("water").
+    assert page.count('class="code-scene') == 8 and len(re.findall(r'<div class="code-pin[ "]', page)) == 7
+    for chapter in ("plant", "pace", "time", "cram", "evenings", "water", "morning", "exam", "month"):
         assert f'id="{chapter}"' in page
     # A pinned chapter's words are in its stage, before its picture (D117, AUDIT 95).
-    for chapter in ("plant", "pace", "time", "cram", "evenings", "morning"):
+    for chapter in ("plant", "pace", "time", "cram", "evenings", "water", "morning"):
         part = page.split(f'id="{chapter}"', 1)[1]
         assert part.index('class="code-pin-stage"') < part.index('class="code-copy"') < part.index("<figure")
     assert page.count('class="chat scroll-fig"') == 1 and "av-ghost" in page  # the reader, not made yet
@@ -250,7 +294,7 @@ def test_the_page_opens_for_anyone_and_inside_a_plan(web, token):
     # app's plan ticked until the student changes it; the chapters' line for a laptop.
     assert re.search(r'<form class="gd-month-form" method="get" action="/garden#month">', page)
     assert page.count('type="checkbox" name="r"') == 81 and page.count(" checked>") == 9  # D142
-    assert '<nav class="gd-timeline"' in page and page.count("data-chapter=") == 7
+    assert '<nav class="gd-timeline"' in page and page.count("data-chapter=") == 8  # D146: and "water"
     played = web.get("/garden?month=1&r=0-27&r=1-26&r=2-25")
     assert played.status_code == 200 and "does better on exam day" in played.text
     assert "63 days below" in played.text

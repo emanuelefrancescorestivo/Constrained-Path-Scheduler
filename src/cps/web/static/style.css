@@ -2984,6 +2984,48 @@ main.site.code-page { max-width: 64rem; }
 .code-key.ev-classes { background: color-mix(in srgb, var(--c-none) 34%, transparent); box-shadow: inset 3px 0 0 var(--c-none); }
 .code-key.ev-study { background: var(--accent); }
 .code-key.bit1 { background: var(--text); opacity: 0.62; width: 6px; }
+/* D146, How the code works' week: a card of lights, one a half hour; off is 0 (free), the
+   sleep mask lights its bits dark as the 1s written under it, the classes mask in teal, and
+   three dark lights in a row fuse into a study block in the accent, glowing. */
+.led0 { fill: var(--fill-3); }
+.led-sleep { fill: color-mix(in srgb, var(--text) 62%, transparent); }
+.led-classes { fill: var(--t-teal); }
+.led-block { fill: var(--accent); }
+.led-glow { fill: var(--accent); opacity: 0.22; }
+.code-key.led-key-off { background: var(--fill-3); width: 6px; }
+.code-key.led-key-sleep { background: color-mix(in srgb, var(--text) 62%, transparent); width: 6px; }
+.code-key.led-key-classes { background: var(--t-teal); width: 6px; }
+/* D146, How it works' evenings: each day a 24-hour dial, midnight at the top, the nights in
+   grey, the lectures in the timetable's grey, the free evening in the accent with a glow, and
+   the topic it goes to in its colour; then the same week with a wire from each evening to the
+   topic's tube, each tube 80 to 100 % with the target dashed across it. */
+.dial-ring { fill: none; stroke: var(--fill-3); stroke-width: 12; }
+.dial-tick { stroke: var(--muted); stroke-width: 1.2; }
+.dial-arc { fill: none; stroke-width: 12; }
+.dial-sleep { stroke: color-mix(in srgb, var(--text) 30%, transparent); }
+.dial-classes { stroke: color-mix(in srgb, var(--c-none) 50%, transparent); }
+.dial-evening { stroke: var(--accent); stroke-linecap: round; }
+.dial-glow { fill: none; stroke: var(--accent); stroke-width: 22; stroke-linecap: round; opacity: 0.22; }
+.dial-dot { fill: var(--cc); }
+.dial-topic { fill: var(--text); font-size: 13px; font-weight: 700; }
+.dial-topic.dial-off { fill: var(--muted); }
+.code-key.dial-key-classes { background: color-mix(in srgb, var(--c-none) 50%, transparent); }
+.code-key.dial-key-evening { background: var(--accent); }
+.water-tube { fill: var(--fill-3); }
+.water-target { stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; opacity: 0.55; }
+.water-level { fill: color-mix(in srgb, var(--cc) 50%, transparent); }
+.water-refill { fill: var(--cc); }
+.water-num { fill: var(--text); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.water-num.water-num-on { fill: #fff; }
+.water-drop { fill: var(--cc); }
+.water-evening { fill: var(--cc); }
+.water-free { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 2 2; }
+.water-wire { fill: none; stroke: var(--cc); stroke-width: 1.6; stroke-linejoin: round; }
+.code-key.water-key-target { background: none; height: 0; width: 14px; border-top: 1.5px dashed var(--text); vertical-align: middle; border-radius: 0; }
+/* On a laptop the two figures are taller than wide: held to the panel's height, centred. */
+@media (min-width: 861px) {
+  .read .code-panel :is(.gd-dials, .gd-water) { width: auto; max-width: 100%; max-height: calc(100svh - var(--topbar) - 190px); margin: 0 auto; }
+}
 .code-bits { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 12px 0 0; }
 .code-bits code { font-size: 0.78rem; letter-spacing: 0.06em; color: var(--muted); }
 .code-label { font-size: 0.82rem; font-weight: 650; margin-right: 4px; }
@@ -3238,7 +3280,7 @@ main.site.read { max-width: 74rem; }
 }
 /* The search as a disc: tonight in the centre, a ring per evening, each node under the
    one that first produced it; the best plan so far drawn thick. */
-.code-disc-wrap { perspective: 1000px; }
+.code-disc-wrap { perspective: 1000px; overflow-x: clip; } /* AUDIT 104: the tilted disc stays in the card */
 .code-disc { display: block; width: 100%; max-width: 400px; max-height: min(44svh, 400px); margin: 0 auto; overflow: visible; }
 .code-ringline { fill: none; stroke: var(--line-strong); stroke-width: 0.8; stroke-dasharray: 2 3; }
 .t-skip { --tc: var(--muted); }
@@ -3539,7 +3581,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .gd-badge span { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
 /* The chapters along the bottom of a laptop's window, the one in view filled as it goes
    by (garden.js shows it where the scenes run). */
-.gd-timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;
+.gd-timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px;
   padding: 6px max(32px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(32px, env(safe-area-inset-left, 0px));
   background: var(--bg); box-shadow: 0 -1px 0 var(--line); }
 .gd-timeline[hidden] { display: none; }
@@ -3746,7 +3788,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) :where(.code-pin) :where(.code-caps > li, .code-stack, .code-layer-classes,
       .code-layer-study, .lay-sleep, .lay-classes, .lay-study, .code-sheet, .code-layer-name, .code-bits,
       .code-tower, .code-land-plane, .code-at, .code-disc, line.code-tedge, circle.code-gdot, circle.code-odot, .code-plan,
-      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-pot, .gd-roots, .gd-drop,
+      .code-cover, .code-win, .f-top, .sci-cursor, .sci-pop, .gd-pot, .gd-roots, .gd-drop, .dial-say, .water-on,
       .gd-phone, .gd-phone-a span) {
       animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both;
       animation-timeline: --pin; animation-range: contain 0% contain 100%;
@@ -3790,6 +3832,8 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .lay-classes { animation-range: contain 47% contain 57%; }
     :root:not([data-motion="reduce"]) .code-pin .lay-study { animation-range: contain 70% contain 78%; }
     :root:not([data-motion="reduce"]) .code-pin .code-bits { animation-range: contain 88% contain 96%; }
+    /* D146: a dial says its evening's topic at the end; the week's evenings go one a step. */
+    :root:not([data-motion="reduce"]) .code-pin :is(.dial-say, .water-on) { animation-name: code-show; }
     /* 4. Value iteration: the towers grow through the table's sweeps as the plane turns;
        their height, not their opacity, moves (opacity would flatten them). */
     :root:not([data-motion="reduce"]) .code-pin .code-tower { --h: calc(var(--zq) * var(--u)); animation-name: code-sweep; }
@@ -4570,6 +4614,43 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .fw-day.fw-today { color: var(--text); font-weight: 750; }
 .fw-day.fw-ahead { opacity: 0.55; }
 .attention-best { font-size: 0.9rem; }
+/* On your mind (D145): a list as in Reminders, the items with a day first; today's and
+   those left from before carry their day in the accent. Close the day sits on top in the
+   evening, three short fields and one button. */
+.mind-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.mind-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; position: relative; }
+.mind-list li + li::before { content: ""; position: absolute; top: 0; left: 34px; right: 0; border-top: 0.5px solid var(--line); }
+.mind-list form { margin: 0; }
+.mind-list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mind-text { display: block; }
+.mind-when { display: block; color: var(--muted); font-size: 0.8rem; }
+.mind-list .is-today .mind-when { color: var(--accent-ink); font-weight: 650; }
+.mind-list .menu > summary { padding: 4px 6px; display: inline-flex; align-items: center; letter-spacing: 0; }
+.mind-list .menu > summary svg { width: 18px; height: 18px; }
+.mind-list .menu-items form { display: flex; flex-direction: column; }
+.mind-date { display: grid; gap: 4px; padding: 6px 12px; font-size: 0.85rem; color: var(--muted); }
+.mind-date input { font: inherit; }
+.mind-add { display: grid; gap: 8px; }
+.mind-add input[name="text"] { width: 100%; }
+.mind-add .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.close-day { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.close-day p { margin: 0; }
+.close-day input { width: 100%; }
+/* A task's steps (D145): folded under the task, a smaller ring for each. */
+.steps-fold { margin-top: 6px; }
+.steps-fold > summary { font-size: 0.85rem; color: var(--accent-ink); font-weight: 600; cursor: pointer; }
+.step-list { list-style: none; margin: 6px 0; padding: 0; }
+.step-list li { display: flex; gap: 10px; align-items: center; padding: 4px 0; }
+.step-list .tick { width: 20px; height: 20px; margin-top: 0; }
+.step-list .tick svg { width: 11px; height: 11px; }
+.step-list .done .tick { background: var(--cc, var(--accent)); border-color: var(--cc, var(--accent)); }
+.step-list .done .tick svg { opacity: 1; }
+.step-list .done .step-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.step-text { font-size: 0.92rem; overflow-wrap: anywhere; }
+.step-drop { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.step-drop:hover { background: var(--fill-4); color: var(--text); }
+.step-add { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.step-add input { flex: 1; min-width: 0; }
 /* Focus from Today (D144): the course and the length as chips, one button. */
 .quick-focus { display: grid; gap: 12px; }
 .quick-focus fieldset { margin: 0; }

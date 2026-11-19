@@ -5688,3 +5688,110 @@ come next, once their two studies are checked.
 - The week's columns count sessions saved with the timer only, so a student who logs by hand
   sees none.
 - Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D145. On your mind, closing the day, and assignments in steps
+
+**Asked.** The owner chose from the options page for Today as headquarters: "Build: focus,
+attention, steps, clear-mind". D144 was the first two; this is the rest.
+
+**Chosen.**
+- *On your mind* (`service.add_to_mind`, `plan_mind_item`, `cross_off`, `mind_view`; a card on
+  Today after the day's agenda): what is on the student's mind, written down in a line.
+  - An item given a day (today, tomorrow, or a date from the card's menu) is a plan for it. It
+    is listed first, in its days' order, and its day is shown in the accent once it has come.
+  - An item without a day stays a note, newest first, until crossed off.
+  - Masicampo and Baumeister (2011) found that unfinished goals intruded on other tasks until a
+    specific plan was made for them [ref:masicampo2011]. A day is the plan the card can hold.
+  - "Plan it as a task" sends the words to the new-task form (D12): a deadline with hours to
+    plan becomes a task, and the plan makes room for it.
+  - A list holds 40 items; when full, it drops its oldest note, never an item with a day.
+- *Close the day* (`close_day`).
+  - From three hours before bed until getting up (D69), once an evening, the card asks for
+    tomorrow's first three things, "as specifically as you can".
+  - Each is given the day after that evening, and after midnight that is the day that has begun.
+  - "Not tonight" closes the day with nothing written.
+  - Scullin et al. (2018) found that 57 young adults who wrote a specific to-do list for 5 minutes
+    before sleeping fell asleep faster than those who listed what they had done [ref:scullin2018].
+- *Assignments in steps* (`add_step`, `tick_step`, `drop_step`, the task card).
+  - A task folds out a list of the student's own steps, ticked off one by one: "1 of 2 steps".
+  - They are the student's words, not the planner's blocks. They change nothing in the plan, and
+    the plan's sessions are counted above them as before.
+  - Twelve at most. Steps go when the task is deleted, and with the tasks at a new semester.
+- *Two tips* (D62), each with only its checked source.
+  - "Write down what is left undone, with when you will do it." (Habits.)
+  - "Before bed, write tomorrow's to-do list, as specifically as you can." (Sleep.)
+  - The card's "Why" opens the evening's tip in the evening and the plan's in the day.
+- *The two sources* were read at Europe PMC and Crossref on 2026-11-18 (docs/REFERENCES.md).
+
+**Rejected.**
+- Every item becoming a task: a task needs hours and a deadline, which most of what is on a
+  mind does not have. The list keeps them light, and "Plan it as a task" is a tap away.
+- The steps as the plan's blocks: the planner sizes blocks by hours and memory, and steps are
+  units of meaning. Tying the two would make the plan follow a student's way of writing.
+- "Close the day" as a notification: reminders already vary and stay quiet between bed and
+  getting up (D129). The question waits on Today.
+- A list of what was done in the evening: Scullin et al. found the to-do list helped sleep, and
+  the completed list did not.
+
+**Disclosed.**
+- Both studies are laboratory studies. Masicampo and Baumeister's abstract gives no sample sizes,
+  and Scullin et al. tested one night in a sleep laboratory with healthy young adults. Whether a
+  list written in an app does the same is not known.
+- Three hours before bed, three things and forty items are choices, not results.
+- The list lives in the plan's document: it is exported and deleted with it, and never shared.
+- Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D146. The evenings redrawn: day dials, where each evening goes, a card of lights
+
+**Asked.** The owner, on iPhone screenshots of the explaining pages: the bits and watering
+graphics "with the days of the week drawing" were "quite poor in terms of expressiveness". A page
+of four drawings followed, each played with made-up numbers. The owner's answer: "i like all
+choices but the plant one".
+
+**Chosen.**
+- *Day dials* (How it works, chapter 5, `service._garden_dials`). Each of the worked example's five
+  days is a 24-hour dial, midnight at the top.
+  - The nights are drawn in grey, the lectures in the timetable's grey, and the free evening in the
+    accent with a glow.
+  - In the middle is the topic the evening goes to, or "Free, night off".
+  - The scene runs as the old one did: the week, then sleep, then lectures, then the evenings, and
+    last what each evening goes to.
+- *The week, then the water* (How it works, a new chapter 6, "Each evening",
+  `service._garden_evenings`, `_garden_water`). The same week as columns, and under them three
+  topics' tubes, one per evening.
+  - Each tube is filled to how likely the topic is to be remembered as that evening begins: FSRS-6
+    with average weights, the topics of D116's week.
+  - A wire runs from each evening to the topic it goes to, whose tube fills back to 100.
+  - The steps are the evenings. Day 1 goes to Analysis at 90 %, Day 2 to Algebra at 90 %, Days 3 and
+    4 are free (the lowest topic is at 92 and 91 %), and Day 5 goes to Physics at 90 %. That is the
+    app's rule as `_garden_app_plan` always ran it, now drawn with what it saw.
+  - The tubes run from 80 to 100 %, and the figure says so: on a scale from 0, 90 against 98 would
+    look the same. Every level of the week is above 80, which a test keeps true.
+- *A card of lights* (How the code works, scene 1). The week as the code builds it: a light per half
+  hour, off when free (0).
+  - The sleep mask lights its bits, then the classes mask, each an OR.
+  - Then three dark lights in a row fuse into a study block, glowing. Day 1's bits are written under.
+  - It replaces D111's three layers falling into one; the steps' words are unchanged.
+- *The chapter line* holds eight chapters, and the two tall figures are held to a laptop panel's
+  height.
+- *AUDIT 104*: How the code works was 7px wider than a phone, from the search's tilted disc. Its
+  frame now clips what passes its sides.
+
+**Rejected.**
+- *Thirstiest first*, a plant in a bowl with a gauge: the owner left it out.
+- One chapter with both drawings: the dials say where the evenings come from, the water where they
+  go. Together in one figure, neither could be read on a phone.
+- The made-up week of the options page (named courses, a gym, a job): the pages draw from their own
+  worked example, as every figure there does. So its five days are alike, and the chapter's words
+  name the gym and work only as what fills a real week.
+- Each tube's level moving through the week in one tube: it needs a width per frame per topic, and
+  the pages' Content-Security-Policy forbids inline styles. A tube per evening shows the same, and
+  needs no script.
+
+**Disclosed.**
+- The week is the worked example's (the same lectures every day, one block an evening), and the
+  three topics are made up.
+- The tubes are FSRS-6's estimate with average weights, and every revision here is a success.
+- How it works is 17.3 screens long at 1440 × 900 and 12.0 on a phone (15.3 and 10.7 before),
+  measured by `benchmarks/scroll_flow.mjs`.
+- Checked in Chromium only, at 390 × 844 and 1440 × 900, light and dark, with motion and without.
