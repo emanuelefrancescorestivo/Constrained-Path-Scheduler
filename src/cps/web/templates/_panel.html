@@ -177,6 +177,22 @@
 </form>
 {% elif message == "first" %}
 {% if not spark_line %}{{ first_day_card(first_day) }}{% endif %}
+{% elif message == "hours" %}
+{# Hours that fit the exams (D147): what this week's hours keep at the target on exam day,
+   and what a few more would, weeks ahead; offered, never applied without a tap. #}
+<div class="card nudge-card section hours-offer">
+  <span class="tip-reason">{{ _("Hours for your exams") }}</span>
+  <b>{{ _n("At {hours} hours a week, {n} topic is predicted under {t} % on its exam day.", "At {hours} hours a week, {n} topics are predicted under {t} % on their exam day.", hours.below_now, hours=hours.hours_now | hours, t=hours.target) }}</b>
+  <span class="muted">{{ _("More hours a week keep more, by the plans made with them:") }}</span>
+  <form method="post" action="/p/{{ token }}/budget" class="hours-steps">
+    <input type="hidden" name="from" value="hours">
+    {% for step in hours.steps %}<button type="submit" name="hours" value="{{ step.hours }}" class="btn btn-sm {% if step.hours == hours.hours %}btn-primary{% else %}btn-tinted{% endif %}"><b>{{ _("{hours} h a week", hours=step.hours | hours) }}</b><small>{% if step.below == 0 %}{{ _("every topic at {t} %", t=hours.target) }}{% else %}{{ _n("{n} topic under {t} %", "{n} topics under {t} %", step.below, t=hours.target) }}{% endif %}</small></button>{% endfor %}
+  </form>
+  <span class="muted">{{ _("The memory model's estimate with average weights, if every session is kept. Change it now, and the weeks before the exams have room.") }}</span>
+  <div class="row-end">
+    <form method="post" action="/p/{{ token }}/hours/later"><button type="submit" class="btn btn-plain btn-sm">{{ _("Not now") }}</button></form>
+  </div>
+</div>
 {% elif message == "remind" %}
 {# A first run's first session is done (D107): reminders are asked now, not before. #}
 <a class="card nudge-card section run-remind-card" href="/p/{{ token }}/start/remind">

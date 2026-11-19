@@ -4614,6 +4614,11 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .fw-day.fw-today { color: var(--text); font-weight: 750; }
 .fw-day.fw-ahead { opacity: 0.55; }
 .attention-best { font-size: 0.9rem; }
+/* Hours for your exams (D147): each step of more hours a week a button, its hours over the
+   topics it leaves under the target; the fewest that keep the most is the primary one. */
+.hours-steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0; }
+.hours-steps .btn { display: grid; justify-items: start; gap: 1px; text-align: left; height: auto; min-height: 44px; padding: 7px 12px; }
+.hours-steps .btn small { font-size: 0.78rem; font-weight: 500; }
 /* On your mind (D145): a list as in Reminders, the items with a day first; today's and
    those left from before carry their day in the accent. Close the day sits on top in the
    evening, three short fields and one button. */
