@@ -5795,3 +5795,55 @@ choices but the plant one".
 - How it works is 17.3 screens long at 1440 × 900 and 12.0 on a phone (15.3 and 10.7 before),
   measured by `benchmarks/scroll_flow.mjs`.
 - Checked in Chromium only, at 390 × 844 and 1440 × 900, light and dark, with motion and without.
+
+## D147. Hours that fit the exams (and a last pass, measured and rejected)
+
+**Asked.** After D142's cramming chapter, a last revision before each exam, made explicit in the
+plan and counted in the exam forecast. The owner said "yes". The last pass was then measured,
+changed nothing, and was put back; the owner chose instead "Warn early on hours".
+
+**Measured first: a last pass** (`benchmarks/last_pass.py`). The rule would have given a topic a
+self-test as soon as its predicted recall *at the exam* fell under 90 %, in the last 3 to 28 days
+before it, not only once it is under 90 % now. On the benchmark semester (six courses, 69 topics,
+six exams within five days, FSRS-6, Sundays off, 4.5 hours of practice per exam):
+- *3 to 21 days:* it never fires, at 12, 15 or 18 hours a week or with no weekly limit. The
+  results are unchanged: 31, 44 and 58 of 69 topics at 90 % or more.
+- *28 days:* it fires a few times and loses a topic: 43 of 69 at 15 hours, 57 at 18.
+- *Why:* the self-test rule already revises each topic as it dips to 90 %, right up to its exam.
+  Where topics miss, the weeks before the exams have no free block left. At 18 hours a week, and
+  with no limit, the plan makes the same 197 sessions and keeps the same 58 of 69: the calendar,
+  not the rule, is the limit then. The exam forecast already counts every planned self-test.
+
+**Chosen: hours that fit the exams** (`service.hours_offer`, a card in Today's one message, D97).
+- When the week's hours leave topics under the target on their exam day, Today says how many,
+  and what more hours a week would keep.
+- More hours are tried a block at a time, up to four blocks (6 hours with 90-minute blocks).
+  Each try is the whole plan made again with those hours.
+- Every step that keeps more is a button, and the fewest hours that keep the most is the primary
+  one. On a plan of three courses at 6 hours a week, a week in, 21 of 34 topics end under 90 %.
+  The steps read 12 at 7.5 hours, 4 at 9, and none at 10.5 (`tests/test_hours_offer.py`).
+- A tap plans those hours through the budget's own route (D47).
+- "Not now" waits two weeks.
+- It is not shown in the plan's first week, whose questions about the week change the plan
+  (D98). Nor with no weekly limit, while every topic is kept, once every exam is less than a week
+  away, or beside D47's smaller budget offered from what is kept. A student who keeps few sessions
+  is not asked for more hours.
+- In Today's one message it comes after the question about counting use and before the
+  questions that make the plan fit.
+
+**Rejected.**
+- The last pass, measured above: a rule that never fires is not worth its explanation.
+- Counting exam practice in the forecast as a revision of each topic: the forecast would rise by
+  assumption. A past paper samples a course, and FSRS has no way to say how much it revises each
+  topic.
+- One offer of the hours that keep every topic: on the plan above that is 4.5 more hours, while
+  1.5 more already keep 9 topics. The steps let the student choose.
+- Fewer days off as a second offer: the weekly hours are what most students can name, and the
+  plan's warning already says fewer days off would help.
+
+**Disclosed.**
+- The numbers are the memory model's estimate with average weights, if every session is kept,
+  and the card says so.
+- Four blocks, a first week, two weeks, a week before the last exam and the message's place
+  among Today's are choices, not results.
+- Checked in Chromium only, at phone size and 1280px, light and dark.

@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Hours for your exams (DECISIONS.md D147). When your weekly hours leave topics under 90 % on
+  their exam day, Today says how many, weeks ahead, with each step of more hours and what it
+  keeps; one tap plans it. A last revision before each exam was measured first: the plan already
+  revises each topic as it dips, up to its exam, and the rule never fired
+  (`benchmarks/last_pass.py`).
+
 - The evenings redrawn (DECISIONS.md D146), as the owner chose. How it works draws each day as a
   24-hour dial, with the topic its free evening goes to in the middle. A new chapter, "Each
   evening", runs a wire from every evening to the topic least likely to be remembered, its tube

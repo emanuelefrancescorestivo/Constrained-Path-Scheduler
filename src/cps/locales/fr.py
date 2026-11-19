@@ -3267,4 +3267,13 @@ MESSAGES: dict[str, str] = {
     "{n} days as 24-hour dials: sleep, lectures, the free evening, and the topic each evening goes to": "{n} jours en cadrans de 24 heures : le sommeil, les cours, la soirée libre, et le sujet auquel va chaque soirée",
     "{n} evenings, each going to the topic least likely to be remembered, once it is down to {t} %": "{n} soirées, chacune pour le sujet le moins susceptible d'être retenu, une fois descendu à {t} %",
     "{t} %, the target": "{t} %, l'objectif",
+    "At {hours} hours a week, {n} topic is predicted under {t} % on its exam day.": "À {hours} heures par semaine, {n} sujet est prévu sous {t} % le jour de son examen.",
+    "At {hours} hours a week, {n} topics are predicted under {t} % on their exam day.": "À {hours} heures par semaine, {n} sujets sont prévus sous {t} % le jour de leur examen.",
+    "Hours for your exams": "Des heures pour tes examens",
+    "More hours a week keep more, by the plans made with them:": "Plus d'heures par semaine en gardent davantage, d'après les plans faits avec elles :",
+    "The memory model's estimate with average weights, if every session is kept. Change it now, and the weeks before the exams have room.": "L'estimation du modèle de mémoire avec des poids moyens, si chaque séance est tenue. Change-le maintenant, et les semaines avant les examens auront de la place.",
+    "every topic at {t} %": "chaque sujet à {t} %",
+    "{hours} h a week": "{hours} h par semaine",
+    "{n} topic under {t} %": "{n} sujet sous {t} %",
+    "{n} topics under {t} %": "{n} sujets sous {t} %",
 }

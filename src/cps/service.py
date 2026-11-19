@@ -3389,6 +3389,9 @@ MESSAGES = (
     "recalled",
     "semester",
     "usage",
+    # Hours that fit the exams (D147): after the question about counting use, before the
+    # questions that make the plan fit, which it waits a week for (`HOURS_AFTER_DAYS`).
+    "hours",
     "fit",
     "insight",
     "tip",
@@ -4592,6 +4595,88 @@ def budget_offer(subscription: Subscription, now: datetime | None = None) -> dic
         "ready_now": sum(s.topics_ready for s in plan.subjects),
         "topics": sum(s.topics for s in plan.subjects),
     }
+
+
+# Hours that fit the exams (DECISIONS.md D147; the owner, 2026-11-19, after a last pass
+# before each exam was measured and changed nothing): when the week's hours leave topics
+# under the target on their exam day, Today says so with the model's numbers, and what a
+# few more hours a week would keep, weeks ahead, so the hours can change before the exam
+# weeks. More hours are tried a block at a time, up to `HOURS_STEPS` blocks; the offer is
+# the fewest that keep the most. Not in the plan's first week (its questions about the
+# week come first and change it, D98), not with no weekly limit,
+# not while an exam is less than `HOURS_LEAD_DAYS` away for every course, not beside a
+# smaller budget offered from what is kept (D47), and "Not now" waits `HOURS_LATER_DAYS`.
+HOURS_STEPS = 4
+HOURS_AFTER_DAYS = 7
+HOURS_LEAD_DAYS = 7
+HOURS_LATER_DAYS = 14
+
+
+def hours_offer(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """The weekly hours that would keep more topics at the target on exam day (D147): the
+    topics under it now, each step of more hours that keeps more (`steps`), and the fewest
+    that keep the most (`hours`, `below`); None when more hours would keep no more, or when
+    there is nothing to offer. Nothing changes until the student takes one."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    current = plan.settings.preferences.get("weekly_hours")
+    if plan.settings.engine != "assistant" or not plan.subjects or current is None:
+        return None
+    now = now or datetime.now(UTC)
+    zone = _zone(plan.settings.tz)
+    today = now.astimezone(zone).date()
+    made = datetime.fromisoformat(subscription.created).astimezone(zone).date()
+    if today < made + timedelta(days=HOURS_AFTER_DAYS):
+        return None
+    later = subscription.options.get("hours_later")
+    if later and today < date.fromisoformat(later) + timedelta(days=HOURS_LATER_DAYS):
+        return None
+    lead = timedelta(days=HOURS_LEAD_DAYS)
+    if not any(datetime.fromisoformat(s.exam) - now >= lead for s in plan.subjects):
+        return None
+    topics = sum(s.topics for s in plan.subjects)
+    ready_now = sum(s.topics_ready for s in plan.subjects)
+    if ready_now >= topics or budget_offer(subscription, now) is not None:
+        return None
+    step = plan.settings.block_minutes / 60
+    best: tuple[float, int] | None = None
+    steps: list[dict] = []
+    for k in range(1, HOURS_STEPS + 1):
+        hours = float(current) + k * step
+        preferences = {**subscription.options.get("preferences", {}), "weekly_hours": hours}
+        tried = _refresh(
+            replace(subscription, options={**subscription.options, "preferences": preferences}),
+            now=now,
+            reread=False,
+        )
+        if tried.plan is None or tried.error:
+            break
+        ready = sum(s.topics_ready for s in PlanReport.from_dict(tried.plan).subjects)
+        if best is None or ready > best[1]:
+            best = (hours, ready)
+            # Each step that keeps more than the one before it, for the student to choose.
+            if ready > ready_now:
+                steps.append({"hours": hours, "below": topics - ready})
+        if ready >= topics:
+            break
+    if best is None or best[1] <= ready_now:
+        return None
+    return {
+        "hours_now": float(current),
+        "below_now": topics - ready_now,
+        "hours": best[0],
+        "below": topics - best[1],
+        "steps": steps,
+        "topics": topics,
+        "target": round(100 * plan.settings.retention),
+    }
+
+
+def hours_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """ "Not now" to the hours offered (D147): asked again after `HOURS_LATER_DAYS`."""
+    local = (now or datetime.now(UTC)).astimezone(_zone(subscription.options["tz"]))
+    return replace(subscription, options={**subscription.options, "hours_later": local.date().isoformat()})
 
 
 def budget_later(subscription: Subscription, now: datetime | None = None) -> Subscription:

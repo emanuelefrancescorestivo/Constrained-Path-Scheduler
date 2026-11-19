@@ -1287,6 +1287,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
             "budget": service.budget_offer(subscription, now),
+            # The hours that would keep more topics at 90 % by their exams (D147).
+            "hours": service.hours_offer(subscription, now),
             "exam_questions": service.exam_questions(subscription, now),
             "exam_outcome": service.exam_outcomes(subscription, now)["latest"],
             "exam_results": list(service.EXAM_RESULTS.items()),
@@ -1324,6 +1326,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             outcome=context["exam_outcome"],
             repair=context["repair"],
             first=context["first_day"],
+            hours=context["hours"],
             remind=service.remind_ask(store, subscription),
             recalled=context["recalled"],
             semester=context["semester_over"],
@@ -4167,7 +4170,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 current, preferences={"weekly_hours": hours}, now=config.clock(), fetch=config.fetch
             ),
         )
-        service.log_event(store, token, "budget")
+        # The same budget route takes the hours offered for the exams (D147).
+        service.log_event(store, token, "hours" if form.get("from") == "hours" else "budget")
         return RedirectResponse(f"/p/{token}?saved=1", 303)
 
     @app.post("/p/{token}/budget/later")
@@ -4176,6 +4180,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         service.update_subscription(
             store, token, lambda current: service.budget_later(current, config.clock())
+        )
+        return RedirectResponse(f"/p/{token}", 303)
+
+    @app.post("/p/{token}/hours/later")
+    def hours_later(request: Request, token: str) -> Response:
+        """ "Not now" to the hours offered for the exams (D147)."""
+        if load(token) is None:
+            return missing(request)
+        service.update_subscription(
+            store, token, lambda current: service.hours_later(current, config.clock())
         )
         return RedirectResponse(f"/p/{token}", 303)
 
