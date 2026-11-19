@@ -33,41 +33,43 @@ from typing import Any, Protocol
 from .store import Store
 
 # --------------------------------------------------------------------------- #
-# Reading a task typed in words, by rules (English and French)
+# Reading a task typed in words, by rules (English, French, Italian; D148)
 # --------------------------------------------------------------------------- #
 
 WEEKDAYS = {
-    "monday": 0, "lundi": 0,
-    "tuesday": 1, "tues": 1, "mardi": 1,
-    "wednesday": 2, "mercredi": 2,
-    "thursday": 3, "thurs": 3, "jeudi": 3,
-    "friday": 4, "vendredi": 4,
-    "saturday": 5, "samedi": 5,
-    "sunday": 6, "dimanche": 6,
+    "monday": 0, "lundi": 0, "lunedi": 0,
+    "tuesday": 1, "tues": 1, "mardi": 1, "martedi": 1,
+    "wednesday": 2, "mercredi": 2, "mercoledi": 2,
+    "thursday": 3, "thurs": 3, "jeudi": 3, "giovedi": 3,
+    "friday": 4, "vendredi": 4, "venerdi": 4,
+    "saturday": 5, "samedi": 5, "sabato": 5,
+    "sunday": 6, "dimanche": 6, "domenica": 6,
 }  # fmt: skip
 # Three-letter weekdays are left out: "mon" is French for "my", "sun" and "sat"
-# are words, "mar" is March as well as mardi.
+# are words, "mar" is March as well as mardi and martedì. So are three-letter months
+# that are words elsewhere: Italian "set" (settembre) and "ago" (agosto).
 MONTHS = {
-    "january": 1, "jan": 1, "janvier": 1, "janv": 1,
-    "february": 2, "feb": 2, "fevrier": 2, "fev": 2,
-    "march": 3, "mars": 3,
-    "april": 4, "apr": 4, "avril": 4, "avr": 4,
-    "may": 5, "mai": 5,
-    "june": 6, "jun": 6, "juin": 6,
-    "july": 7, "jul": 7, "juillet": 7, "juil": 7,
-    "august": 8, "aug": 8, "aout": 8,
-    "september": 9, "sep": 9, "sept": 9, "septembre": 9,
-    "october": 10, "oct": 10, "octobre": 10,
+    "january": 1, "jan": 1, "janvier": 1, "janv": 1, "gennaio": 1, "gen": 1,
+    "february": 2, "feb": 2, "fevrier": 2, "fev": 2, "febbraio": 2,
+    "march": 3, "mars": 3, "marzo": 3,
+    "april": 4, "apr": 4, "avril": 4, "avr": 4, "aprile": 4,
+    "may": 5, "mai": 5, "maggio": 5, "mag": 5,
+    "june": 6, "jun": 6, "juin": 6, "giugno": 6, "giu": 6,
+    "july": 7, "jul": 7, "juillet": 7, "juil": 7, "luglio": 7, "lug": 7,
+    "august": 8, "aug": 8, "aout": 8, "agosto": 8,
+    "september": 9, "sep": 9, "sept": 9, "septembre": 9, "settembre": 9,
+    "october": 10, "oct": 10, "octobre": 10, "ottobre": 10, "ott": 10,
     "november": 11, "nov": 11, "novembre": 11,
-    "december": 12, "dec": 12, "decembre": 12,
+    "december": 12, "dec": 12, "decembre": 12, "dicembre": 12, "dic": 12,
 }  # fmt: skip
 END_OF_DAY = time(23, 59)  # a deadline "on" a day is the end of it, as the sheet's shortcuts say
 
 # Words that join a date or a duration to the rest of the sentence ("for Friday",
-# "pour vendredi", "about 6 h"), taken away with it.
+# "pour vendredi", "entro venerdì", "about 6 h"), taken away with it.
 _LEAD = (
     r"(?:\b(?:for|due|by|on|before|until|till|about|around|approx\.?|roughly|"
-    r"pour|le|la|avant|vers|d'ici|environ|a rendre|a faire|de)\s+|~\s*)*"
+    r"pour|le|la|avant|vers|d'ici|environ|a rendre|a faire|de|"
+    r"per|entro|il|prima di|prima del|verso|circa|scadenza|da consegnare|da fare)\s+|~\s*)*"
 )
 _NUM = r"(\d+(?:[.,]\d+)?)"
 
@@ -121,13 +123,15 @@ def _dated(today: date, day: int, month: int, year: int | None) -> date | None:
 
 def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGuess:
     """A task from one line, by rules: "stats report for Friday, about 6 h",
-    "rapport de stats pour vendredi 18h, 6 heures", "essay due 12/10 (4 hours)".
+    "rapport de stats pour vendredi 18h, 6 heures", "relazione di statistica entro
+    venerdì alle 18, 6 ore", "essay due 12/10 (4 hours)".
 
     Dates: today, tomorrow, the day after, in N days or weeks, next week, a weekday
     (its next occurrence after today), "12 October", "October 12", "12/10" (day
-    first, unless the first number cannot be a month), "2026-10-12". Times: "18:00",
-    "18h30", "at 6pm", "à 18h", noon, midnight; otherwise the end of the day. Work:
-    "6 h", "6 hours", "6 heures", "90 min", "an hour". The course is the one of the
+    first, unless the first number cannot be a month), "2026-10-12", in English,
+    French or Italian words. Times: "18:00", "18h30", "at 6pm", "à 18h", "alle 18",
+    noon, midnight; otherwise the end of the day. Work: "6 h", "6 hours", "6 heures",
+    "6 ore", "90 min", "an hour", "un'ora". The course is the one of the
     student's whose words the sentence shares (four letters in common at the start
     of a word: "stats" finds "Advanced Statistics"); none if two tie."""
     typed = " " + " ".join(words.split()) + " "
@@ -153,12 +157,16 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     months = "|".join(sorted(MONTHS, key=len, reverse=True))
     weekdays = "|".join(WEEKDAYS)
     a_day = (
-        rf"(?:{weekdays}|tomorrow|demain|today|aujourd'hui|\d{{1,2}}[/.]\d{{1,2}}|\d{{1,2}}\s+(?:{months}))"
+        rf"(?:{weekdays}|tomorrow|demain|domani|today|aujourd'hui|oggi|"
+        rf"\d{{1,2}}[/.]\d{{1,2}}|\d{{1,2}}\s+(?:{months}))"
     )
     # Times of day first, so that "18h" is not read as eighteen hours of work: "at
     # 18:00", "à 18h" (with its accent: English "a 2h session" is two hours of work),
-    # "18h30", "6pm", and an hour written straight after a day ("vendredi 18h").
-    if m := take(_LEAD + r"(?:\bat\s+|(?<!\w)à\s+)(\d{1,2})\s*(?:h|:)\s*(\d{2})?\b", accents=True):
+    # "18h30", "6pm", and an hour written straight after a day ("vendredi 18h"); Italian
+    # "alle 18" or "alle 18.30" needs no mark after the hour, "alle" says it is one.
+    if m := take(_LEAD + r"\balle\s+(?:ore\s+)?(\d{1,2})(?:[:.](\d{2}))?\b"):
+        found_time = time(int(m.group(1)) % 24, int(m.group(2) or 0) % 60)
+    elif m := take(_LEAD + r"(?:\bat\s+|(?<!\w)à\s+)(\d{1,2})\s*(?:h|:)\s*(\d{2})?\b", accents=True):
         found_time = time(int(m.group(1)) % 24, int(m.group(2) or 0))
     elif m := re.search(rf"\b{a_day}\s+(\d{{1,2}})h(\d{{2}})?\b", left[0]):
         mark(m.start(1), m.end())
@@ -168,16 +176,21 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     elif m := take(_LEAD + r"\b(?:at\s+)?(\d{1,2})\s*(am|pm)\b"):
         hour = int(m.group(1)) % 12 + (12 if m.group(2) == "pm" else 0)
         found_time = time(hour, 0)
-    elif take(_LEAD + r"\b(?:noon|midi)\b"):
+    elif take(_LEAD + r"\b(?:noon|midi|(?:a\s+)?mezzogiorno)\b"):
         found_time = time(12, 0)
-    elif take(_LEAD + r"\b(?:midnight|minuit)\b"):
+    elif take(_LEAD + r"\b(?:midnight|minuit|(?:a\s+)?mezzanotte)\b"):
         found_time = END_OF_DAY
 
-    if m := take(_LEAD + r"\b" + _NUM + r"\s*(?:min|mins|minutes?)\b"):
+    if m := take(_LEAD + r"\b" + _NUM + r"\s*(?:min|mins|minutes?|minuti)\b"):
         hours = float(m.group(1).replace(",", ".")) / 60
-    elif m := take(_LEAD + r"\b" + _NUM + r"\s*(?:h|hrs?|hours?|heures?)\b(?:\s+(?:of work|de travail))?"):
+    elif m := take(
+        _LEAD
+        + r"\b"
+        + _NUM
+        + r"\s*(?:h|hrs?|hours?|heures?|ore|ora)\b(?:\s+(?:of work|de travail|di lavoro))?"
+    ):
         hours = float(m.group(1).replace(",", "."))
-    elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure)\b"):
+    elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure|un'ora|un ora)\b"):
         hours = 1.0
 
     if m := take(_LEAD + r"\b(\d{4})-(\d{2})-(\d{2})\b"):
@@ -186,7 +199,7 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
         first, second = int(m.group(1)), int(m.group(2))
         day, month = (second, first) if first <= 12 < second else (first, second)
         found_day = _dated(today, day, month, int(m.group(3)) if m.group(3) else None)
-    elif m := take(_LEAD + rf"\b(\d{{1,2}})(?:er|st|nd|rd|th)?\s+({months})\.?\b(?:\s+(\d{{4}}))?"):
+    elif m := take(_LEAD + rf"\b(\d{{1,2}})(?:er|st|nd|rd|th|°|º)?\s+({months})\.?\b(?:\s+(\d{{4}}))?"):
         found_day = _dated(
             today, int(m.group(1)), MONTHS[m.group(2)], int(m.group(3)) if m.group(3) else None
         )
@@ -194,18 +207,28 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
         found_day = _dated(
             today, int(m.group(2)), MONTHS[m.group(1)], int(m.group(3)) if m.group(3) else None
         )
-    elif take(_LEAD + r"\b(?:day after tomorrow|apres-demain|apres demain)\b"):
+    elif take(_LEAD + r"\b(?:day after tomorrow|apres-demain|apres demain|dopodomani)\b"):
         found_day = today + timedelta(days=2)
-    elif take(_LEAD + r"\b(?:tomorrow|demain)\b"):
+    elif take(_LEAD + r"\b(?:tomorrow|demain|domani)\b"):
         found_day = today + timedelta(days=1)
-    elif take(_LEAD + r"\b(?:today|tonight|aujourd'hui|ce soir)\b"):
+    elif take(_LEAD + r"\b(?:today|tonight|aujourd'hui|ce soir|oggi|stasera)\b"):
         found_day = today
-    elif m := take(_LEAD + r"\b(?:in|dans)\s+(\d+)\s+(days?|jours?|weeks?|semaines?)\b"):
+    elif m := take(
+        _LEAD + r"\b(?:in|dans|tra|fra)\s+(\d+)\s+(days?|jours?|giorn[oi]|weeks?|semaines?|settiman[ae])\b"
+    ):
         n = int(m.group(1))
         found_day = today + timedelta(days=n * (7 if m.group(2)[0] in "ws" else 1))
-    elif take(_LEAD + r"\b(?:next week|la semaine prochaine|semaine prochaine)\b"):
+    elif take(
+        _LEAD
+        + r"\b(?:next week|la semaine prochaine|semaine prochaine|"
+        + r"(?:la\s+)?settimana prossima|(?:la\s+)?prossima settimana)\b"
+    ):
         found_day = today + timedelta(days=7)
-    elif m := take(_LEAD + rf"\b(?:next\s+|this\s+|ce\s+)?({weekdays})(?:\s+(?:prochain|next))?\b"):
+    elif m := take(
+        _LEAD
+        + rf"\b(?:next\s+|this\s+|ce\s+|prossim[oa]\s+|quest[oa]\s+)?({weekdays})"
+        + r"(?:\s+(?:prochain|next|prossim[oa]))?\b"
+    ):
         found_day = _next_weekday(today, WEEKDAYS[m.group(1)])
 
     # The name: the sentence without what was read, in the student's own letters.
@@ -223,7 +246,9 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     name = re.sub(r"\s+", " ", " ".join(kept))
     name = re.sub(r"\s+([,.;:)])", r"\1", name)
     name = re.sub(r"\(\s*\)", "", name).strip(" ,.;:-–—(")
-    name = re.sub(r"(?i)\s+(for|due|by|on|pour|le|avant|d'ici|à rendre)$", "", name).strip(" ,.;:-–—")
+    name = re.sub(
+        r"(?i)\s+(for|due|by|on|pour|le|avant|d'ici|à rendre|per|entro|il|prima di|da consegnare)$", "", name
+    ).strip(" ,.;:-–—")
     name = name[:1].upper() + name[1:]
 
     due = ""
@@ -238,6 +263,9 @@ _STOP = frozenset(
         "the", "for", "and", "des", "les", "une", "pour", "avec", "report", "rapport", "sheet",
         "exercise", "exercises", "homework", "devoir", "devoirs", "project", "projet", "essay",
         "exam", "examen", "read", "reading", "lecture", "chapter", "chapitre",
+        "per", "con", "una", "del", "dei", "gli", "della", "delle", "relazione", "esercizi",
+        "esercizio", "compito", "compiti", "progetto", "saggio", "lettura", "capitolo", "esame",
+        "lezione", "tesina",
     }
 )  # fmt: skip
 

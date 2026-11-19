@@ -1,6 +1,6 @@
 """
-AI features (DECISIONS.md D12): the rules that always answer, in English and
-French; the model only when AI is on, the server has a provider, the month is under
+AI features (DECISIONS.md D12): the rules that always answer, in English,
+French and Italian (D148); the model only when AI is on, the server has a provider, the month is under
 the cap and the student under the day's limit; every call in the ledger; any
 failure gives the rules' answer.
 """
@@ -18,7 +18,7 @@ from cps.store import Store
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 TODAY = date(2026, 10, 8)  # a Thursday
 NOW = datetime(2026, 10, 8, 8, 0, tzinfo=UTC)
-COURSES = ["Advanced Statistics", "Algebra 3", "Analyse numérique", "Histoire moderne"]
+COURSES = ["Advanced Statistics", "Algebra 3", "Analyse numérique", "Histoire moderne", "Fisica generale"]
 
 
 @pytest.mark.parametrize(
@@ -74,9 +74,47 @@ COURSES = ["Advanced Statistics", "Algebra 3", "Analyse numérique", "Histoire m
         ("lab report October 20th 5pm", "Lab report", "2026-10-20T17:00", None, ""),
         ("revise for the exam 3 March", "Revise for the exam", "2027-03-03T23:59", None, ""),  # next March
         ("prepare slides", "Prepare slides", "", None, ""),
+        # Italian (D148): days, months, "alle", hours of work, the words that join them.
+        (
+            "relazione di statistica entro venerdì alle 18, 6 ore",
+            "Relazione di statistica",
+            "2026-10-09T18:00",
+            6.0,
+            "Advanced Statistics",
+        ),
+        (
+            "esercizi di fisica per domani, un'ora",
+            "Esercizi di fisica",
+            "2026-10-09T23:59",
+            1.0,
+            "Fisica generale",
+        ),
+        ("progetto da consegnare il 15 ottobre alle 14:30", "Progetto", "2026-10-15T14:30", None, ""),
+        (
+            "tesina di algebra tra 2 settimane, 10 ore di lavoro",
+            "Tesina di algebra",
+            "2026-10-22T23:59",
+            10.0,
+            "Algebra 3",
+        ),
+        ("leggere capitolo 4 fra 3 giorni, 90 minuti", "Leggere capitolo 4", "2026-10-11T23:59", 1.5, ""),
+        ("compito per lunedì prossimo", "Compito", "2026-10-12T23:59", None, ""),
+        (
+            "esercizi di fisica prossimo martedì a mezzogiorno",
+            "Esercizi di fisica",
+            "2026-10-13T12:00",
+            None,
+            "Fisica generale",
+        ),
+        ("ripasso la settimana prossima", "Ripasso", "2026-10-15T23:59", None, ""),
+        ("presentazione dopodomani alle 9", "Presentazione", "2026-10-10T09:00", None, ""),
+        ("saggio prima del 20 gen", "Saggio", "2027-01-20T23:59", None, ""),  # next January
+        ("relazione 1° dicembre", "Relazione", "2026-12-01T23:59", None, ""),
+        ("studiare stasera 2 ore", "Studiare", "2026-10-08T23:59", 2.0, ""),
+        ("il progetto finale", "Il progetto finale", "", None, ""),  # "il" joins a date only
     ],
 )
-def test_the_rules_read_a_task_in_english_and_french(words, name, due, hours, course):
+def test_the_rules_read_a_task_in_english_french_and_italian(words, name, due, hours, course):
     read = ai.read_task(words, today=TODAY, courses=COURSES)
     assert (read.name, read.due, read.hours, read.course) == (name, due, hours, course)
 
@@ -85,6 +123,8 @@ def test_two_courses_named_at_once_is_neither():
     assert ai.read_task("Statistics and Algebra revision", today=TODAY, courses=COURSES).course == ""
     # "le" inside "module" is not a word that joins a date.
     assert ai.read_task("module 6 h", today=TODAY).name == "Module"
+    # Italian short months that are words elsewhere are left out (D148): "set" and "ago".
+    assert ai.read_task("set theory exercises 2 days ago", today=TODAY).due == ""
 
 
 class Fake:

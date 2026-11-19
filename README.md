@@ -188,7 +188,7 @@ free instance wakes up.
    week (← → to move, T for today); tabs at the bottom on a phone.
 4. **Tasks**, as in Motion: a new-task sheet on every page (the + button, or N) with
    one-tap due dates and durations, and a line to type it in words ("stats report for
-   Friday, about 6 h", or in French) that fills the fields in to check; by rules, or
+   Friday, about 6 h", or in French or Italian) that fills the fields in to check; by rules, or
    by a model if the server has a key and the student turns AI on (D12, capped); the Tasks page lists each with its sessions done
    and the next one; tick it off when it is finished and its remaining sessions become
    free time (with an Undo).
@@ -256,8 +256,9 @@ What it does not do yet, said plainly:
 - **Google Calendar reads a subscribed feed on its own schedule**, often hours
   apart, so a change reaches the calendar late; the Today page is always current.
   Writing into Google Calendar directly needs Google's verification (Phase 2).
-- **Moodle only, in English.** Other platforms, and Moodle in other languages, name
-  their events differently.
+- **Moodle only.** Its deadlines are read in the eight languages whose Moodle strings were
+  checked (English, French, Italian, Spanish, German, Portuguese, Brazilian Portuguese, Dutch;
+  D148); other platforms, and Moodle in other languages, name their events differently.
 
 The Streamlit page (`app.py`) is the workbench: the research planner, the recall
 curves, the drag-and-drop week ([screenshot](docs/app-screenshot.png)). It can still publish a feed for `cps serve` to
@@ -419,8 +420,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1433 passed, 17 deselected (slow), 1 xfailed, ~450 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1450 passed, 1 xfailed, 94% coverage
+pytest                                    # 1457 passed, 17 deselected (slow), 1 xfailed, ~450 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1474 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

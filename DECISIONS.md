@@ -5847,3 +5847,67 @@ six exams within five days, FSRS-6, Sundays off, 4.5 hours of practice per exam)
 - Four blocks, a first week, two weeks, a week before the last exam and the message's place
   among Today's are choices, not results.
 - Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D148. Deadlines in the platform's language, and tasks typed in Italian
+
+**Asked.** "Continue with the next improvements." Chosen from the product plan's open items
+(docs/PRODUCT.md, "Moodle in languages other than English") and the limits CLAUDE.md listed:
+deadlines were read from English event names only, and a task typed in one line in English or
+French only, while the app speaks Italian (D34).
+
+**Found first: whose language a deadline is in.** Moodle writes an activity's calendar event
+when the activity is saved, with its name built from a language string in the language of
+whoever saved it (`mod/assign/locallib.php`, `get_string('calendardue', 'assign', …)`), and its
+calendar export writes that stored name as is (`calendar/export_execute.php`). So an Italian
+university's export says "Relazione è in scadenza", whatever language the student reads the app
+in, and one export can mix languages. Read in Moodle's source (the 4.5 branch) on 2026-11-19.
+
+**Chosen.**
+- *Moodle's own strings, eight languages* (`calendar_io._MOODLE_DEADLINES`). For each, the 4.5
+  language pack's strings for an assignment's due date (`calendardue`), a personal extension
+  (`calendarextension`) and a quiz's close (`quizeventcloses`), downloaded from
+  download.moodle.org and read on 2026-11-19: English, French, Italian, Spanish, German,
+  Portuguese, Brazilian Portuguese and Dutch. Those are the languages the syllabus reader
+  already knows (D81), with Brazil's Portuguese, which Moodle keeps apart.
+- *Every language on every event*, whatever the app's language, since the teacher's language
+  decides. The teacher's grading date (`calendargradingdue`) and a quiz's opening
+  (`quizeventopens`) are worded differently in each pack, so they match none of the patterns,
+  as "is due to be graded" and "opens" did not in English.
+- *A final full stop is optional*: German's due string ends with one, and an older pack or a
+  name edited by hand may not.
+- *The first string that matches decides.* With ordinary names no two match the same event
+  (`tests/test_deadlines.py` fills every string with names that have parentheses, accents and
+  another language's short words). A name made of another string's own words ("Se cierra is
+  due") matches two, and then the table's order decides, English first.
+- *Typed tasks in Italian* (`ai.read_task`): weekdays, months ("gen", "mag", "giu", "lug",
+  "ott", "dic" short), "alle 18" and "alle 18.30", "a mezzogiorno", "a mezzanotte", "6 ore",
+  "un'ora", "90 minuti", "di lavoro", "domani", "dopodomani", "oggi", "stasera", "tra 2
+  settimane", "fra 3 giorni", "la settimana prossima", "prossimo martedì", "questo sabato",
+  "1° dicembre"; "entro", "per", "il", "prima del", "da consegnare" join a date to the task's
+  name and are taken away with it; Italian words for kinds of work ("relazione", "esercizi",
+  "compito"…) do not pick a course.
+
+**Fixed on the way** (AUDIT.md item 105). Moodle's export escapes a bare "&" in a name as
+"&amp;" (`core\formatting::format_string`, read in the same source), so "Q&A sheet" arrived as a
+task named "Q&amp;A sheet", and a course's short name the same. Both are now unescaped once
+before they are read.
+
+**Rejected.**
+- *Strings typed from memory* or a translation of the English ones: Moodle's packs say "Se
+  cierra X" in Spanish and "Termina o prazo de 'X'" in Portuguese, word orders a guess would miss.
+- *Choosing the language from the student's own setting*: the event's language is the
+  teacher's.
+- *Requiring an event with no duration* (Moodle's deadlines start and end at the same moment):
+  it would set apart events a person named "… closes", but no such event has been reported,
+  and it changes how English exports are read.
+- *Italian three-letter months "set" and "ago"*: both are English words ("set theory",
+  "2 days ago"), as "mar" is left out for English and French already.
+
+**Disclosed.**
+- The exports in the tests are written in Moodle's shape for each language
+  (`tests/test_generality.py`), not taken from a real university; a site that changed its own
+  strings (Moodle allows it) is not read.
+- An event a person named in one of these shapes ("Library closes", "Bibliotheek sluit") is
+  taken as a deadline, as it already was in English.
+- The Italian sentences were written by the developer, not a native speaker (as D34's were).
+

@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Deadlines in your Moodle's language (DECISIONS.md D148). Assignments and quizzes due arrive
+  from a Moodle in English, French, Italian, Spanish, German, Portuguese, Brazilian Portuguese
+  or Dutch, read from Moodle's own words for each; a task typed in one line is read in Italian
+  too ("relazione entro venerdì alle 18, 6 ore"). A name with "&" in it now arrives as written
+  (AUDIT.md item 105).
+
 - Hours for your exams (DECISIONS.md D147). When your weekly hours leave topics under 90 % on
   their exam day, Today says how many, weeks ahead, with each step of more hours and what it
   keeps; one tap plans it. A last revision before each exam was measured first: the plan already

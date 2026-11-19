@@ -51,6 +51,7 @@ Four decisions that matter, all of which are easy to get silently wrong
 from __future__ import annotations
 
 import functools
+import html
 import math
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -547,15 +548,67 @@ def _assessment_match(title: str, keywords: tuple[str, ...] = DEADLINE_KEYWORDS)
 
 
 # What a learning platform names its deadlines. Moodle's calendar export
-# (calendar/export_execute.php) writes each event's name as SUMMARY and the course's
-# short name as CATEGORIES; an assignment's due date is named "<name> is due"
-# (mod/assign lang string `calendardue`), a personal extension "<name> is due
-# (extension)" (`calendarextension`), and a quiz's close "<name> closes"
-# (mod/quiz `quizeventcloses`). "is due to be graded" is the teacher's, and "opens"
-# is not a deadline. English only: other languages' strings live in language packs
-# not checked here.
-_PLATFORM_DEADLINE = re.compile(r"^(?P<name>.+?) (?:is due(?P<extension> \(extension\))?|closes)$")
-_NOT_A_DEADLINE = re.compile(r" is due to be graded$")
+# (calendar/export_execute.php) writes each event's stored name as SUMMARY and the
+# course's short name as CATEGORIES. The name is written when the activity is saved,
+# from a language string in the language of whoever saved it (mod/assign/locallib.php:
+# `get_string('calendardue', 'assign', $instance->name)`), so an Italian university's
+# export says "è in scadenza", and one export can mix languages. Each language below is
+# its Moodle 4.5 language pack's own strings (download.moodle.org, read 2026-11-19, D148):
+# an assignment's due date (`calendardue`), a personal extension (`calendarextension`)
+# and a quiz's close (`quizeventcloses`). The teacher's grading date
+# (`calendargradingdue`) and a quiz's opening (`quizeventopens`) are not the student's
+# deadlines: their strings differ from these, so they match none. Every language is tried
+# on every event, whatever the app's language. (language, kind, string, with {$a} the name)
+_MOODLE_DEADLINES: tuple[tuple[str, str, str], ...] = (
+    ("en", "due", "{$a} is due"),
+    ("en", "extension", "{$a} is due (extension)"),
+    ("en", "close", "{$a} closes"),
+    ("fr", "due", "{$a} doit être rendu"),
+    ("fr", "extension", "{$a} doit être rendu (prolongation)"),
+    ("fr", "close", "{$a} se termine"),
+    ("it", "due", "{$a} è in scadenza"),
+    ("it", "extension", "{$a} è in scadenza (estensione)"),
+    ("it", "close", "{$a} chiude"),
+    ("es", "due", "Vencimiento de {$a}"),
+    ("es", "extension", "{$a} ha vencido (extensión)"),
+    ("es", "close", "Se cierra {$a}"),
+    ("de", "due", "{$a} ist fällig."),
+    ("de", "extension", "{$a} ist fällig (Verlängerung)"),
+    ("de", "close", "{$a} endet"),
+    ("pt", "due", "Termina o prazo de '{$a}'"),
+    ("pt", "extension", "Já terminou o prazo de '{$a}' (prolongar prazo)"),
+    ("pt", "close", "Fecha '{$a}'"),
+    ("pt_br", "due", "{$a} está marcado(a) para esta data"),
+    ("pt_br", "extension", "{$a} está vencido (prorrogação)"),
+    ("pt_br", "close", "Término de {$a}"),
+    ("nl", "due", "{$a} moet worden ingeleverd"),
+    ("nl", "extension", "{$a} moet klaar zijn (verlenging)"),
+    ("nl", "close", "{$a} sluit"),
+)
+
+
+def _moodle_pattern(string: str) -> re.Pattern[str]:
+    """A Moodle string as a pattern for a whole event name: {$a} is the activity's name;
+    a final full stop may be missing (an older pack, a name edited by hand)."""
+    before, after = string.split("{$a}")
+    after = after.removesuffix(".")
+    return re.compile(rf"^{re.escape(before)}(?P<name>.+?){re.escape(after)}\.?$")
+
+
+_PLATFORM_DEADLINES = tuple((kind, _moodle_pattern(string)) for _, kind, string in _MOODLE_DEADLINES)
+
+
+def _platform_deadline(summary: str) -> tuple[str, bool] | None:
+    """The activity's name and whether this is a personal extension, if `summary` is
+    how Moodle names a student's deadline in one of its languages; None otherwise. Two
+    strings match the same event only when the activity's name is made of another
+    string's words ("Se cierra is due"); then the table's order decides, English first
+    (`tests/test_deadlines.py`)."""
+    for kind, pattern in _PLATFORM_DEADLINES:
+        match = pattern.match(summary)
+        if match is not None and match.group("name").strip():
+            return match.group("name").strip(), kind == "extension"
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -579,17 +632,22 @@ def find_assignments(ics_text: str, tz: str) -> list[Assignment]:
     found: dict[tuple[str, str], tuple[bool, Assignment]] = {}
     events: list[Any] = calendar.walk("VEVENT")
     for component in events:
-        summary = str(component.get("SUMMARY", "")).strip()
-        match = _PLATFORM_DEADLINE.match(summary)
-        if match is None or _NOT_A_DEADLINE.search(summary) or "DTSTART" not in component:
+        # Moodle escapes a name's "&" as "&amp;" (and < > as entities) before the export
+        # writes it (core\formatting::format_string, AUDIT 105): undone once, here.
+        summary = " ".join(html.unescape(str(component.get("SUMMARY", ""))).split())
+        read = _platform_deadline(summary)
+        if read is None or "DTSTART" not in component:
             continue
         due, _ = _as_datetime(component["DTSTART"].dt, zone)
         categories = component.get("CATEGORIES")
         if isinstance(categories, list):
             categories = categories[0] if categories else None
-        course = ", ".join(str(c) for c in getattr(categories, "cats", [])) if categories is not None else ""
-        name = match.group("name").strip()
-        extension = match.group("extension") is not None
+        course = (
+            html.unescape(", ".join(str(c) for c in getattr(categories, "cats", [])))
+            if categories is not None
+            else ""
+        )  # the course's short name is escaped the same way
+        name, extension = read
         key = (name.casefold(), course.casefold())
         current = found.get(key)
         # A personal extension wins over the course's date; between two of a kind,
