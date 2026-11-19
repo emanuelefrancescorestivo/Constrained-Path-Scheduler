@@ -242,6 +242,9 @@ def test_today_offers_the_repair_and_progress_holds_the_pause(web):
     form = _form(web.get(f"/p/{token}/settings?new=1").text)
     assert web.post(f"/p/{token}/settings", data=form, follow_redirects=False).status_code == 303
     service.update_subscription(web.root, token, service.finish_first_run)
+    # The week's widget is on, where the streak and its pause show (D155 starts with five).
+    week = [*service.TODAY_START, "week"]
+    service.update_subscription(web.root, token, lambda s: service.set_today_widgets(s, week))
     sub = service.load_subscription(web.root, token)
     skipped, missed = _two_misses(sub)
     service.update_subscription(web.root, token, lambda _current: skipped)

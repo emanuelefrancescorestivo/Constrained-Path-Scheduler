@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Edit Today (DECISIONS.md D155): Today starts with five widgets (Up next, the day, Focus,
+  Tasks, Exams), and a page of switches turns each of the twelve on or off; what needs your
+  answer always shows.
+
 - Setting up in one sentence (DECISIONS.md D154): what the plan assumes (when you get up, go to
   bed and have lunch, how many sessions and how long) is shown as one sentence, each value a tap
   away; busy times, the trip and deadlines are added in a tap or two. Moodle's link is found in

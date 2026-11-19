@@ -835,7 +835,14 @@ def test_a_session_is_reported_from_the_calendar(web, planned, clock):
     assert refused.status_code == 400 and "already started" in refused.json()["message"]
 
 
+def _widgets(web, token: str, *keys: str) -> None:
+    """Today with these widgets on besides the five it starts with (D155)."""
+    chosen = [*service.TODAY_START, *keys]
+    service.update_subscription(web.store.path, token, lambda s: service.set_today_widgets(s, chosen))
+
+
 def test_the_panel_is_the_plan_pages_panel(web, planned):
+    _widgets(web, planned, "week")
     page = web.get(f"/p/{planned}").text
     panel = web.get(f"/p/{planned}/panel").text
     assert panel.strip() and panel.strip().split("\n")[0] in page
@@ -976,6 +983,7 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
 
 
 def test_today_shows_the_streak_and_on_monday_last_week_s_review_until_hidden(web, planned, clock):
+    _widgets(web, planned, "week")
     clock.now = MONDAY
     for s in _first_week(web, planned):
         web.post(f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"})
@@ -1378,6 +1386,7 @@ def test_a_study_group_from_starting_it_to_leaving(web, planned, clock):
 
 
 def test_flashcards_from_writing_to_reviewing(web, planned):
+    _widgets(web, planned, "cards")
     assert "No cards yet" in unescape(web.get(f"/p/{planned}/cards").text)
     refused = web.post(
         f"/p/{planned}/cards", data={"course": "Algebra 3", "front": "Eigenvalue?", "back": ""}

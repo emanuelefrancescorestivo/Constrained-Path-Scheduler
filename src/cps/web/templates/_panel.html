@@ -40,6 +40,8 @@
 <div class="hello">
   <h1>{{ greetings[sky] if sky in greetings else _("Today") }}</h1>
   {% if view.today %}<p>{{ view.today }}</p>{% endif %}
+  {# D155: what Today shows is the student's to choose, as a phone's widgets. #}
+  {% if view.planned %}<a class="btn btn-sm btn-plain hello-edit" href="/p/{{ token }}/today/edit" data-tour="edit-today">{{ lucide('pencil-line') }} {{ _("Edit Today") }}</a>{% endif %}
 </div>
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
@@ -64,7 +66,10 @@
 {# A first run's first day (D107): its short session is the next step, before the
    plan's next one. #}
 {% if spark_line and message == "first" %}<div class="w-wide">{{ first_day_card(first_day) }}</div>{% endif %}
-{# The next step, large: the session going on, or the next one. #}
+{# The next step, large: the session going on, or the next one. Each widget below is
+   drawn when the student keeps it on Today (D155: `shown`); what asks for an answer is
+   always drawn. #}
+{% if "next" in shown %}
 <section class="w w-next section next-step" data-tour="next">
 {% if view.now %}
 {{ head(_("Now"), "focus") }}
@@ -88,6 +93,7 @@
    focus card below starts anything else in one tap (D144). #}
 {% if not quick_focus %}<p class="next-else"><a href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a></p>{% endif %}
 </section>
+{% endif %}
 
 {# Focus from Today (D144): anything besides the plan's next session, in one tap: the course
    last timed and the shortest length are chosen already. #}
@@ -247,7 +253,7 @@
 {# The day at a glance (D140): classes, sessions and busy times, the calendar a tap away.
    After what needs an answer in the page's order, as a phone reads it; at the top right
    on a laptop (style.css). #}
-{% if view.planned %}
+{% if view.planned and "day" in shown %}
 <section class="w w-day" aria-labelledby="day-title">
   <div class="w-head">{{ art("calendar", "xs") }}<h2 id="day-title">{{ _("Today") }}</h2><a class="w-link" href="/p/{{ token }}/week">{{ _("Calendar") }} ›</a></div>
   <div class="card day-card">
@@ -421,7 +427,7 @@
 {% endif %}
 
 {# The week and the streak (D8, D9), and the people studying together (D127). #}
-{% if progress and progress.planned %}
+{% if progress and progress.planned and "week" in shown %}
 <section class="w w-week">
   {{ head(_("This week"), "progress", "/p/" ~ token ~ "/progress", _("Progress")) }}
   {% include "_streak_strip.html" %}
@@ -429,13 +435,14 @@
 </section>
 {% endif %}
 
-{% if cards_due %}
+{% if cards_due and "cards" in shown %}
 <section class="w w-cards">
   {{ head(_("Flashcards"), "cards", "/p/" ~ token ~ "/cards", _("See all")) }}
   <a class="cards-due" href="/p/{{ token }}/cards/review"><b>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</b><span>{{ _("Review") }} ›</span></a>
 </section>
 {% endif %}
 
+{% if "tasks" in shown %}
 <section class="w w-tasks">
   {{ head(_("Tasks"), "tasks", "/p/" ~ token ~ "/tasks", _("See all")) }}
   <div class="card">
@@ -449,8 +456,9 @@
     <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
   </div>
 </section>
+{% endif %}
 
-{% if view.exams %}
+{% if view.exams and "exams" in shown %}
 <section class="w w-exams">
   {{ head(_("Exams"), "cap", "/p/" ~ token ~ "/settings/exams", _("Edit")) }}
   <div class="card">

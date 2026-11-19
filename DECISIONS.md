@@ -6111,3 +6111,28 @@ or a Moodle in another language than the app's, shows other words. The preview r
 from the server, as saving it does. Without `::details-content` (browsers before Chromium 131 and
 Safari 18.4), each value sits on its own line. Checked in Chromium only, at phone size with touch
 and at 1280px.
+
+## D155. Edit Today
+
+**Asked.** The owner, on 2026-11-19, of Today on a laptop: "this page is very overwhelming i do not
+feel in control". Of the three proposed, they chose B: "Edit Today", as a phone's widgets, each block
+on or off, five on to start, the order kept.
+
+**Chosen.** Today starts with five widgets: Up next, Today (the day's list), Focus, Tasks and Exams.
+"Edit Today", beside the greeting, opens a page of twelve switches, one per widget, each with a line
+on what it shows: the five, then On your mind, Your time and attention, Tips for today, Workspace,
+This week, Flashcards and Classmates. What is saved is drawn in the page's own order, the most
+urgent first, so nothing moves under a student's thumb. What asks for an answer (a session to
+report, an answered self-test, the day's one message, a notice) is not a widget and always shows.
+A widget turned off is not worked out when the page is drawn. "Back to the five to start" restores
+them. Today's tour (D97) now shows where Today is edited, in place of the week's strip.
+
+**Rejected.** A, three things only (what now, what today, one thing to know), with the rest in the
+sections: calmer still, but the owner wanted to choose. C, one large card and a row of numbers:
+each number opens a page, so the day's list and tasks are a tap further away. Dragging widgets into
+another order: the proposal kept the page's order, and a grid that moves is harder to trust.
+
+**Disclosed.** The mock-up's list of switches did not name This week or Flashcards; both start off,
+like the other five, which takes the streak's strip off Today until it is turned on (Progress keeps
+it). Every plan, the demo's students included, opens on the five until its student chooses.
+Checked in Chromium only, at phone size in dark mode and at 1280px in light.

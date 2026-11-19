@@ -1276,7 +1276,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     def panel_context(subscription: service.Subscription) -> dict[str, Any]:
         now = config.clock()
         logged = service.logged_sessions(store, subscription)
+        # The widgets the student keeps on Today (D155); one turned off is not worked out.
+        shown = service.today_widgets(subscription)
         context: dict[str, Any] = {
+            "shown": shown,
             "view": service.today_view(subscription, now),
             "progress": service.progress_view(subscription, now, logged=logged),
             "review": service.review_with_ai(
@@ -1309,15 +1312,15 @@ def create_app(config: Config | None = None) -> FastAPI:
             "recalled": service.recall_week(subscription, now),
             # Today as the app's home (D140): the day at a glance, and classmates.
             "day": service.day_agenda(subscription, now),
-            "classmates": service.classmates_glance(store, subscription, now),
+            "classmates": service.classmates_glance(store, subscription, now) if "friends" in shown else None,
             # The student's time today and attention this week (D140).
-            "time": service.time_and_attention(store, subscription, now),
+            "time": service.time_and_attention(store, subscription, now) if "time" in shown else None,
             # Each course's links and the learning platform, a tap away (D140).
-            "workspace": service.workspace_view(subscription, now),
+            "workspace": service.workspace_view(subscription, now) if "work" in shown else None,
             # Anything besides the plan's next session, timed in one tap (D144).
-            "quick_focus": service.focus_quick(store, subscription),
+            "quick_focus": service.focus_quick(store, subscription) if "focus" in shown else None,
             # What is on the student's mind, and tomorrow's first three in the evening (D145).
-            "mind": service.mind_view(subscription, now),
+            "mind": service.mind_view(subscription, now) if "mind" in shown else None,
         }
         # One message at a time on Today (D97); a question that makes the plan fit, one
         # a day from the day after it was made (D98).
@@ -1342,8 +1345,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             tip=tip is not None and bool(tip.get("reason")),
         )
         # A tip to study and one to live well (D140), never the one the message gives.
-        context["day_tips"] = service.tips_for_today(
-            subscription, now, besides=tip["key"] if tip and context["message"] == "tip" else ""
+        context["day_tips"] = (
+            service.tips_for_today(
+                subscription, now, besides=tip["key"] if tip and context["message"] == "tip" else ""
+            )
+            if "tips" in shown
+            else []
         )
         return context
 
@@ -3662,6 +3669,38 @@ def create_app(config: Config | None = None) -> FastAPI:
             **extra,
         )
 
+    @app.get("/p/{token}/today/edit", response_class=HTMLResponse)
+    def today_edit(request: Request, token: str) -> HTMLResponse:
+        """D155: Today's widgets, each on or off."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "today_edit.html",
+            token=token,
+            tab="today",
+            widgets=service.today_widgets_view(subscription),
+            start=service.TODAY_START,
+        )
+
+    @app.post("/p/{token}/today/edit", response_class=HTMLResponse)
+    async def today_edit_save(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=len(service.TODAY_WIDGETS) + 2)
+        chosen = [str(w) for w in form.getlist("widget")]
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_today_widgets(current, chosen)
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "today_widgets", ",".join(chosen))
+        return RedirectResponse(f"/p/{token}?saved=today", 303)
+
     @app.post("/p/{token}/deadlines/preview", response_class=HTMLResponse)
     async def deadlines_preview(request: Request, token: str) -> Response:
         """D154: what a learning platform's link would bring, shown as it is pasted while
@@ -4944,6 +4983,8 @@ def _notice(saved: str) -> str | None:
         return service.translate(NETWORK_NOTICES[saved])
     if saved in ("ai", "theme", "usage", "pause"):
         return service.translate("Saved.")
+    if saved == "today":
+        return service.translate("Today shows what you chose. Edit Today changes it again.")
     if saved == "usage-yes":
         return service.translate(
             "Thank you. What you use is counted from now on; see it or stop in Settings."

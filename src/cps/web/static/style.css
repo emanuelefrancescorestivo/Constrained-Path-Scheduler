@@ -4900,3 +4900,16 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .msub-sup { display: inline-flex; flex-direction: column; vertical-align: -0.35em; line-height: 1; margin: 0 0.05em; }
 .msub-sup :is(sup, sub) { position: static !important; font-size: 0.68em !important; line-height: 1.05 !important; }
 
+/* D155: Edit Today. The button sits with the greeting; the list is a phone's settings, each
+   widget a row with its switch. */
+.hello { position: relative; }
+.hello-edit { margin-top: 6px; }
+.widget-list > li { padding: 0; }
+.widget-list .widget-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; cursor: pointer; }
+.widget-list .widget-row .grow { flex: 1 1 auto; min-width: 0; }
+.widget-list .widget-row input { flex: none; margin: 0; }
+.widget-list .widget-row b { display: block; }
+.widget-list .widget-row small { display: block; color: var(--muted); }
+@media (min-width: 700px) {
+  .hello-edit { position: absolute; top: 6px; right: 4px; margin: 0; }
+}

@@ -9570,6 +9570,58 @@ TIP_MOODS = {
 TIP_SETTINGS = ("on", "off")
 
 
+# D155: Today's widgets, each on or off, as a phone's home screen lets a person choose (the
+# owner's choice 2-B, 2026-11-19, after "this page is very overwhelming i do not feel in
+# control"). Five are on to start; the order is the page's own, most urgent first, so
+# nothing moves under a student's thumb. What asks for an answer (a session to report,
+# an answered self-test, the day's one message) is always shown: it is not a widget.
+TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
+    ("next", "Up next", "The session going on, or the next one, with Focus a tap away."),
+    ("day", "Today", "Your classes, sessions and busy times today."),
+    ("focus", "Focus", "Time anything besides the plan's next session, in one tap."),
+    ("tasks", "Tasks", "What is due next, and how far each has come."),
+    ("exams", "Exams", "Each exam, how far off, and how many topics are on track."),
+    ("mind", "On your mind", "A list to empty your head into, a day or a note each."),
+    ("time", "Your time and attention", "The hours left today, and how long you focused this week."),
+    ("tips", "Tips for today", "A tip to study and one to live well, with their evidence."),
+    ("work", "Workspace", "Each course's links, and your learning platform."),
+    ("week", "This week", "The week's sessions and your days in a row."),
+    ("cards", "Flashcards", "The cards waiting for you today."),
+    ("friends", "Classmates", "Who is studying now, and what classmates shared."),
+)
+TODAY_START = ("next", "day", "focus", "tasks", "exams")
+
+
+def today_widgets(subscription: Subscription) -> tuple[str, ...]:
+    """The widgets a student keeps on Today (D155), in the page's order; the five to start
+    until they choose."""
+    chosen = subscription.options.get("today_widgets")
+    keys = [k for k, _name, _line in TODAY_WIDGETS]
+    if not isinstance(chosen, list):
+        return TODAY_START
+    return tuple(k for k in keys if k in chosen)
+
+
+def set_today_widgets(subscription: Subscription, chosen: Iterable[str]) -> Subscription:
+    """Keep the widgets chosen for Today (D155); a name Today does not draw is refused."""
+    keys = [k for k, _name, _line in TODAY_WIDGETS]
+    wanted = set(chosen)
+    if wanted - set(keys):
+        raise InvalidInput(_("choose among Today's widgets"))
+    return replace(
+        subscription, options={**subscription.options, "today_widgets": [k for k in keys if k in wanted]}
+    )
+
+
+def today_widgets_view(subscription: Subscription) -> list[dict]:
+    """Edit Today's list (D155): each widget, what it shows, and whether it is on."""
+    shown = today_widgets(subscription)
+    return [
+        {"key": key, "name": _(name), "line": _(line), "on": key in shown, "start": key in TODAY_START}
+        for key, name, line in TODAY_WIDGETS
+    ]
+
+
 def tips_on(subscription: Subscription) -> bool:
     """Whether Today and Focus show tips (D63); the tips page is always there."""
     return subscription.options.get("tips", "on") != "off"
