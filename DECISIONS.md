@@ -6348,3 +6348,34 @@ and a shorter version would need the same review in three languages.
 words carry it. Every number under a picture is checked against its tip's own text
 (`tests/test_tip_pictures.py`). Folding the limits puts them one tap away, where before they were
 read with the rest. Checked in Chromium only, at 1440px light and dark and at phone size.
+
+## D161. Settings as a dashboard
+
+**Asked.** The owner, on 2026-11-19, of Settings' six rows: "maybe we can have everything open as a
+dashboard here too?" Of three options (A, six cards with their values; B, everything open with an
+index; C, each part as a sentence), the owner chose A.
+
+**Chosen.** Settings is six cards, three to a row on a laptop, two on a tablet, one on a phone. Each
+keeps its head (its picture, its name, what it holds), now with "Change ›", the link to its own page
+as before (D103), and under it what the part is set to, in two to four lines
+(`service.settings_overview`, read from the values its page shows):
+
+- Your week: the study hours, the most a week, the days off, the busy times;
+- Exams and deadlines: the next two exams with their dates, the deadlines to do, where the
+  timetable comes from;
+- Keep your plan (or Your account): the address and whether it is confirmed, the passkeys, the
+  recovery code;
+- Reminders and the app: on or off and on how many devices, how long before a session;
+- Language and appearance: the language, Automatic, Light or Dark, the two themes, the accent;
+- AI and your data: AI on or off (or not on this server), whether what you use is counted, the
+  tips shown or hidden.
+
+Nothing is changed on the dashboard: each part still saves on its own page, so saving works as
+before. The old anchors still lead to their part (D103).
+
+**Rejected.** B, every form open on one page: the longest page of the app, with six forms that save
+separately. C, sentences: the owner chose A; passkeys and data read poorly as a sentence.
+
+**Disclosed.** The lines are a summary: a part's page has more (the busy times one by one, every
+exam, motion and glass). Whether the app is installed on the phone is not known to the server, so it
+is not shown. Checked in Chromium only, at 1440 and 1280px light and dark and at phone size.

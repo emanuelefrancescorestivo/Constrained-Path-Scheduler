@@ -5064,6 +5064,111 @@ def sun_hours(tz: str, day: date) -> list[float]:
     ]
 
 
+def settings_overview(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    *,
+    login: Mapping[str, Any] | None = None,
+    now: datetime | None = None,
+) -> dict[str, list[dict[str, str]]]:
+    """Settings as a dashboard (D161): what each of its six parts is set to, a few lines
+    each as (label, value), read from the same values its own page shows. `login` is the
+    e-mail account's view (`email_account_view`) when the plan belongs to one."""
+    now = now or datetime.now(UTC)
+    values = setup_view(subscription)
+    zone = _zone(subscription.options["tz"])
+
+    def clock(hours: float) -> str:
+        whole = int(hours)
+        return f"{whole}:{round((hours - whole) * 60):02d}"
+
+    def row(label: str, value: str) -> dict[str, str]:
+        return {"label": label, "value": value}
+
+    start, end = values["study_window"]
+    hours = values.get("weekly_hours")
+    off = [
+        _i18n.weekday_name(date(2024, 1, 1) + timedelta(days=WEEKDAY_NAMES.index(d)))
+        for d in values.get("rest_days") or []
+        if d in WEEKDAY_NAMES
+    ]
+    busy = len(values.get("activities") or [])
+    week = [
+        row(_("Study hours"), f"{clock(start)}–{clock(end)}"),
+        row(_("At most"), _("{n} h a week", n=format_number(hours)) if hours else _("No limit")),
+        row(_("Days off"), ", ".join(off) if off else _("None")),
+        row(_("Busy times"), _n("{n} busy time", "{n} busy times", busy) if busy else _("None")),
+    ]
+
+    exams: list[dict[str, str]] = []
+    dated = []
+    for subject in values.get("subjects") or []:
+        when = subject.get("exam") or subject.get("found_when") or ""
+        with contextlib.suppress(ValueError):
+            day = datetime.fromisoformat(when.replace(" ", "T")).date()
+            if day >= now.astimezone(zone).date():
+                dated.append((day, subject["name"]))
+    for day, name in sorted(dated)[:2]:
+        exams.append(row(name, format_date(day, "day")))
+    tasks = len(values.get("tasks") or [])
+    exams.append(row(_("Deadlines"), _n("{n} to do", "{n} to do", tasks) if tasks else _("None")))
+    exams.append(
+        row(
+            _("Timetable"),
+            _("drawn by hand")
+            if values.get("drawn")
+            else _("from a link")
+            if values.get("source_url")
+            else _("from a file"),
+        )
+    )
+
+    account = account_view(store, subscription, now)
+    keys = len(account.get("passkeys") or [])
+    kept: list[dict[str, str]] = []
+    if login:
+        kept.append(row(_("E-mail"), str(login.get("email") or "")))
+        kept.append(row(_("Confirmed"), _("yes") if login.get("confirmed") else _("not yet")))
+    kept.append(row(_("Passkeys"), str(keys) if keys else _("None")))
+    kept.append(row(_("Recovery code"), _("saved") if account.get("recovery") else _("not yet")))
+
+    reminders = reminders_view(store, subscription)
+    devices = len(reminders.get("devices") or [])
+    phone = [
+        row(
+            _("Reminders"),
+            _n("on, on {n} device", "on, on {n} devices", devices) if devices else _("off"),
+        ),
+        row(_("Before a session"), _("{n} min", n=reminders.get("lead") or 10)),
+    ]
+
+    theme_words = {"auto": _("Automatic"), "light": _("Light"), "dark": _("Dark")}
+    palette = palette_of(subscription)
+    light_names = {k: _(n) for k, n, _l in LIGHT_THEMES}
+    dark_names = {k: _(n) for k, n, _l in DARK_THEMES}
+    accent_names = {k: _(n) for k, n in ACCENTS}
+    look = [
+        row(_("Language"), LANGUAGES.get(subscription.options.get("lang") or "en", "English")),
+        row(_("Appearance"), theme_words[theme_of(subscription)]),
+        row(_("Themes"), f"{light_names[palette['light']]} · {dark_names[palette['dark']]}"),
+        row(_("Accent"), accent_names[palette["accent"]]),
+    ]
+
+    usage = usage_answer(store, subscription.token)
+    data = [
+        row(
+            _("AI"),
+            (_("on") if ai_on(subscription) else _("off")) if ai_available() else _("not on this server"),
+        ),
+        row(
+            _("What you use"),
+            _("counted") if usage else _("not counted") if usage is False else _("not asked yet"),
+        ),
+        row(_("Study tips"), _("shown") if tips_on(subscription) else _("hidden")),
+    ]
+    return {"week": week, "exams": exams, "account": kept, "phone": phone, "look": look, "data": data}
+
+
 def setup_view(subscription: Subscription) -> dict:
     """What the settings page shows: the exams planned for, the courses in the
     timetable, deadlines, activities and the week, as plain values for a form."""

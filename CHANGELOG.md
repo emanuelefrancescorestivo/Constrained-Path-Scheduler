@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Settings as a dashboard (DECISIONS.md D161): six cards, each showing what its part is set to
+  (your study hours, the next exams, your passkeys, reminders, language and look, AI), with
+  "Change" to its page.
+
 - A picture for each study tip (DECISIONS.md D160): a small drawing of what the advice asks, with
   the study's number under it where it gives one ("138 studies"); the limits and sources fold
   under each tip, and a topic's tips sit two to a row on a laptop.

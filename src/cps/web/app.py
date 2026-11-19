@@ -3690,6 +3690,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             new=False,
             rows=settings_rows(bool(owner)),
+            # D161: what each part is set to, on its card.
+            overview=service.settings_overview(
+                store,
+                subscription,
+                login=service.email_account_view(store, owner) if owner else None,
+                now=config.clock(),
+            ),
             tab="settings",
             saved=_notice(saved),
         )
@@ -3869,9 +3876,21 @@ def create_app(config: Config | None = None) -> FastAPI:
                 "suggested": [],
             }
             if not new:  # the whole form, from a page made before Settings had pages
-                rows = settings_rows(bool(owner_here(request, token)))
+                owner = owner_here(request, token)
                 return page(
-                    request, "settings.html", 400, token=token, new=False, rows=rows, error=str(error)
+                    request,
+                    "settings.html",
+                    400,
+                    token=token,
+                    new=False,
+                    rows=settings_rows(bool(owner)),
+                    overview=service.settings_overview(
+                        store,
+                        subscription,
+                        login=service.email_account_view(store, owner) if owner else None,
+                        now=config.clock(),
+                    ),
+                    error=str(error),
                 )
             return page(
                 request,
