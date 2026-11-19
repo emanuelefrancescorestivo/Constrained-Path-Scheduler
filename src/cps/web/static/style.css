@@ -3869,6 +3869,25 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
     :root:not([data-motion="reduce"]) .code-pin .code-win {
       animation-name: code-slide; animation-timing-function: steps(17, jump-none); animation-range: contain 22% contain 96%;
     }
+    /* AUDIT 102: on a phone a pinned scene no longer pins. Held in a window taller than it, its
+       short stage left a quarter of the screen blank above and below, and each scene asked
+       three screens of scrolling (the owner's iPhone, Safari 26, which ties animations to
+       scrolling as Chromium does). Below 861px the scene stands in the page as a laptop's
+       does in a window too short for its panel: every step listed, the one the figure is at
+       lit, and the figure running while it crosses the screen: the figure is the timeline,
+       --pin, from the moment it is wholly in view at the bottom to the moment it reaches the
+       bar, and the scene shares it with its steps (`timeline-scope`; where a browser lacks
+       that, the steps stay as listed, unlit). */
+    @media (max-width: 860px) {
+      :root:not([data-motion="reduce"]) .code-pin,
+      :root:not([data-motion="reduce"]) .code-pin.code-pin-long { height: auto; view-timeline: none; timeline-scope: --pin; }
+      :root:not([data-motion="reduce"]) .code-pin-stage > figure { view-timeline: --pin block; view-timeline-inset: var(--topbar) 12%; }
+      :root:not([data-motion="reduce"]) .code-pin-stage { position: static; height: auto; align-content: start; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li { grid-area: auto; animation-name: code-step; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li:first-child { animation-name: code-step-first; }
+      :root:not([data-motion="reduce"]) .code-pin .code-caps > li:last-child { animation-name: code-step-last; }
+      :root:not([data-motion="reduce"]) .code-pin .gd-phone { animation-name: none; transform: none; }
+    }
   }
 }
 @keyframes code-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: none; } }
@@ -4537,6 +4556,28 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .attention p { margin: 0; }
 .attention-big b { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; }
 .attention-whole { font-size: 0.85rem; }
+/* Attention day by day (D144): thin columns on a hairline, Monday first, today's in the
+   accent, the others its quieter tint; the days ahead keep their letter, faint. The words
+   are HTML in a seven-column grid that matches the drawing's columns, so they stay 12px
+   or more at any width; the drawing scales alone. */
+.focus-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); width: 100%; max-width: 280px; margin: 8px 0 2px; justify-self: stretch; }
+.focus-week svg { grid-column: 1 / -1; display: block; width: 100%; height: auto; }
+.focus-week .fw-base { stroke: var(--line); stroke-width: 1; }
+.focus-week .fw-col { fill: color-mix(in srgb, var(--accent) 45%, transparent); }
+.focus-week .fw-col.fw-today { fill: var(--accent); }
+.fw-top { justify-self: center; font-size: 0.75rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; min-height: 1.2em; margin-bottom: 2px; }
+.fw-day { text-align: center; font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-top: 4px; }
+.fw-day.fw-today { color: var(--text); font-weight: 750; }
+.fw-day.fw-ahead { opacity: 0.55; }
+.attention-best { font-size: 0.9rem; }
+/* Focus from Today (D144): the course and the length as chips, one button. */
+.quick-focus { display: grid; gap: 12px; }
+.quick-focus fieldset { margin: 0; }
+.quick-focus legend { margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
+.quick-focus .pill span { text-align: center; }
+.quick-focus .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.quick-tip { margin: 0; }
+.nowrap { white-space: nowrap; }
 .attention .btn { margin-top: 8px; }
 .attention .btn svg { width: 16px; height: 16px; }
 
@@ -4631,3 +4672,48 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
   .comments > li > .grow { flex: 1 1 calc(100% - 52px); min-width: 0; }
   .comments > li > .comment-report { margin-left: 48px; }
 }
+
+/* AUDIT 102: on a phone the question card stands flat in its panel; tilted in 3D, Safari
+   drew it past the panel's left edge. */
+@media (max-width: 860px) {
+  .gd-phone { transform: none; }
+}
+/* AUDIT 102: a long formula breaks between its terms on a narrow screen instead of
+   scrolling sideways, which on a phone looked cut off. */
+.formula.formula-wraps { white-space: normal; overflow: visible; text-wrap: balance; }
+.formula.formula-wraps > span { display: inline-block; white-space: nowrap; }
+
+/* D143: the avatar in ink, the owner's choice ("Avatar: Ink"): a dark line round every
+   shape, flat fills, no shading or shine, as a drawn portrait. The same parts and every
+   option of D137 stay; a skin tone is kept as a tint of itself, so that the drawing is
+   still the person, and the clothes keep their colour, softened. */
+.av { --av-ink: #1f1d1a; }
+.av .av-bg { fill: color-mix(in srgb, var(--av-bg, #f4f2ec) 50%, #fbfaf7); }
+.av .av-skin, .av .av-shade {
+  fill: color-mix(in srgb, var(--av-skin) 82%, #fffdf9); stroke: var(--av-ink); stroke-width: 2.4; stroke-linejoin: round;
+}
+.av .av-hair { stroke: var(--av-ink); stroke-width: 2.2; stroke-linejoin: round; }
+.av .av-hair.av-stubble { stroke: none; opacity: 0.4; }
+.av .av-top, .av .av-hat {
+  fill: color-mix(in srgb, var(--av-top) 55%, #fffdf9); stroke: var(--av-ink); stroke-width: 2.4; stroke-linejoin: round;
+}
+.av .av-top-deep, .av .av-hat-deep {
+  fill: color-mix(in srgb, var(--av-top) 78%, #fffdf9); filter: none; stroke: var(--av-ink); stroke-width: 2; stroke-linejoin: round;
+}
+.av .av-shirt { stroke: var(--av-ink); stroke-width: 1.8; }
+.av :is(.av-light, .av-sheen) { display: none; }
+.av .av-blush { opacity: 0.16; }
+.av .av-eye { fill: var(--av-ink); }
+.av :is(.av-eye-arc, .av-brow, .av-mouth, .av-line, .av-collar, .av-rib) { stroke: var(--av-ink); }
+.av .av-brow { stroke-width: 3; }
+.av .av-line { stroke-width: 1.9; }
+.av .av-mouth { stroke-width: 2.3; }
+.av .av-glasses { stroke: var(--av-ink); stroke-width: 2.1; }
+/* The flag: a round badge in a ring of the surface's colour, on the avatar and on a
+   person's initial in Community. */
+.av-flag-ring { fill: var(--surface); }
+.avatar { position: relative; }
+.avatar-flag { position: absolute; right: -3px; bottom: -3px; width: 46%; height: 46%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--surface); }
+.av-chip-flag { gap: 8px; padding: 0 14px 0 8px; }
+.av-chip-flag img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
+.av-flags select { width: 100%; }

@@ -38,6 +38,7 @@
   ("bg", _("Background"), "bg"),
 ] %}
 <form class="av-maker" method="post" action="/p/{{ token }}/avatar">
+  {% set flags_offered = (flags | map(attribute="code") | list) + ([chosen.flag] if chosen.flag and chosen.flag not in (flags | map(attribute="code") | list) else []) %}
   <div class="card av-stage">{{ face(chosen, "maker", every=true, extra=" av-preview") }}{{ face(chosen, "saved", extra=" av-saved") }}</div>
   {% for part, legend, swatch in rows %}
   <fieldset class="card av-part">
@@ -45,7 +46,21 @@
     <div class="av-chips">{% for v in parts[part] %}<input class="av-pick" type="radio" name="{{ part }}" id="av-{{ part }}-{{ v }}" value="{{ v }}"{% if chosen[part] == v %} checked{% endif %}>{% if swatch %}<label class="av-chip av-chip-swatch" for="av-{{ part }}-{{ v }}"{% if part == "colour" %} title="{{ words[v] }}"{% endif %}><span class="av av-swatch av-swatch-{{ swatch }} {% if part == 'skin' %}skin{% elif part == 'colour' %}col{% else %}{{ part }}{% endif %}-{{ v }}"></span><span class="visually-hidden">{% if part == "colour" %}{{ words[v] }}{% elif part == "skin" %}{{ _("Skin tone {n}", n=loop.index) }}{% else %}{{ _("Colour {n}", n=loop.index) }}{% endif %}</span></label>{% else %}<label class="av-chip" for="av-{{ part }}-{{ v }}">{{ words[v] }}</label>{% endif %}{% endfor %}</div>
   </fieldset>
   {% endfor %}
+  {# D143: where you're from, a round badge; the countries offered first, then every one. #}
+  <fieldset class="card av-part av-flags">
+    <legend class="tile-label">{{ _("Your flag") }}</legend>
+    <div class="av-chips">
+      <input class="av-pick" type="radio" name="flag" id="av-flag-none" value="none"{% if not chosen.flag %} checked{% endif %}><label class="av-chip" for="av-flag-none">{{ _("No flag") }}</label>
+      {% for code in flags_offered %}<input class="av-pick" type="radio" name="flag" id="av-flag-{{ code }}" value="{{ code }}"{% if chosen.flag == code %} checked{% endif %}><label class="av-chip av-chip-flag" for="av-flag-{{ code }}"><img src="{{ asset('vendor/flags/1x1/' ~ code ~ '.svg') }}" alt="" width="22" height="22">{{ countries | selectattr(0, "equalto", code) | map(attribute=1) | first }}</label>{% endfor %}
+    </div>
+    <label for="av-flag-other" class="other-label">{{ _("Another country") }}</label>
+    <select id="av-flag-other" name="flag_other">
+      <option value="">{{ _("Choose a country") }}</option>
+      {% for code, name in countries %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+    </select>
+    <p class="hint">{{ _("Where you're from, as a round badge on your avatar. Others in Community see it on your initial; choose No flag to show none.") }}{% if not has_profile %} {{ _("It reaches Community once you choose a handle.") }}{% endif %} {{ _("It shows on your avatar once you save.") }}</p>
+  </fieldset>
   <p class="av-save"><button class="btn btn-primary" type="submit">{{ _("Save my avatar") }}</button></p>
 </form>
-<p class="hint">{{ _("A drawing made of shapes: nothing is uploaded. It is shown on your own pages only.") }}</p>
+<p class="hint">{{ _("A drawing in ink: nothing is uploaded. It is shown on your own pages only; only its flag is seen in Community.") }}</p>
 {% endblock %}

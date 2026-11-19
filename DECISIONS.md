@@ -5515,3 +5515,176 @@ feedback review validation".
 - A block either way hides the blocked person's checks, as it hides their comments.
 - The tours' words are the owner's to review; the Italian was not written by a native speaker.
 - Checked in Chromium only, at 393 × 720 with touch emulated and at 1280px, not on a real phone.
+
+## D142. The explaining pages on a phone; cramming and the month at equal effort
+
+**Asked.** The owner, 2026-11-18, with seven screenshots of How the code works and How it works
+from an iPhone (Safari 26, in Italian): "it doesn't format well some bits as you can judge [...]
+and the results of the comparison between cramming the night before and studying consistently
+are not in favour of our app- maybe we got the whole approach wrong ?"
+
+**What the model says.** Computed with the cramming chapter's own functions (FSRS-6, average
+weights, each revision working only as often as the topic is remembered then;
+`tests/test_garden.py::test_what_d121_showed_and_what_it_left_out`). One new topic, the exam on
+day 28:
+
+| | revisions | exam day | a month on | days below 90 % before |
+|---|---|---|---|---|
+| crammed the night before (D121's picture) | 1 | 96 % | 80 % | 25 |
+| revised whenever it dipped (D121's "app") | 2 | 91 % | 85 % | 4 |
+| the same, and once more the night before | 3 | 99 % | 91 % | 4 |
+| crammed the last three evenings | 3 | 98 % | 85 % | 23 |
+
+The approach stands; D121's picture compared the wrong things. It set one crammed revision against
+the self-test rule alone. That left out the exam practice the app plans in the final days (D46),
+and gave cramming fewer revisions. What remains is what the spacing research says: the best gap
+between reviews grows with how long the topic must be remembered [ref:cepeda2008]. For a test
+tomorrow, massing works.
+
+**Chosen.**
+- *The cramming chapter at equal effort* (`service._garden_cram`). The spaced topic is revised
+  whenever it dips to the target, and once more the night before, standing for the exam practice.
+  The cram takes as many of the last evenings. Exam day 98 % against 99 %, a month on 85 % against
+  91 %, 23 days below 90 % against 4. The words still say cramming works for the next morning. Then
+  they say a spaced plan with the same evenings is just as ready, isn't shaky all month, and keeps
+  more. The limit line says the last revision is the app's exam practice, and that a whole semester
+  wouldn't fit in the last evenings.
+- *The month at equal effort* (`service._garden_month_app`, `garden_month_view`). The app's plan is
+  its rule, then a last pass: one course an evening in the last three, the hardest last. That makes
+  9 revisions: the weakest course at 98 % on exam day and 88 % a month on, 11 days below 90 % across
+  the three courses. "Cram at the end" now takes the same 9 revisions in the last nine evenings:
+  97 %, 82 %, 48 days. A plan with fewer revisions is told the evenings it saves ("It does save
+  evenings: 3 revisions, against the app's 9."). Where the app's plan already wins exam day, the
+  days below the target begin with "And", not "But".
+- *The explaining pages on a phone* (AUDIT item 102). Below 861px a pinned scene no longer pins.
+  Its stage was shorter than the window, so a quarter of the screen stood blank above and below,
+  and each scene took three screens of scrolling. Now it stands in the page with every step listed
+  and the current one lit, and its figure runs while it crosses the screen. The figure is its own
+  timeline, shared with its steps through `timeline-scope`.
+  - The two curve labels on the code page are kept a line apart (`service._apart`).
+  - The two long formulas break between their terms.
+  - The answer chapter's labels say "lasts 7 days" (a phone shows no line under them), and its
+    question card stands flat.
+- *Measured* (`benchmarks/scroll_flow.mjs`, Chromium, 390 × 844):
+  - How it works: 10.7 screens (23.6 before), 26 % of a screen empty on average (35 %), 5 % of
+    positions more than half empty (8 %).
+  - How the code works: 13.0 screens. The science page: 10.8.
+  - The laptop sizes are unchanged.
+  - The tallest empty band, 683px on How it works in that run, is a chapter's words still fading in
+    as they enter, and changes from run to run (237 to 350px in two more).
+
+**Rejected.**
+- Keeping one cram against the rule, with a caption: the picture is what a reader remembers.
+- Giving the spaced plan more revisions than the cram, D121's unfairness turned around.
+- A semester of sixty topics drawn out: one line says it, and the month shows three courses.
+- On a phone, pinning with the stage at the top: the blank moved to the bottom, and the three
+  screens of scrolling stayed.
+
+**Disclosed.**
+- The last pass stands for exam practice, which the product plans as practice papers over the
+  final two weeks (D46), not one revision of each topic the night before.
+- The app's forecasts do not count that practice as a revision of each topic, so they show a plan
+  without its last pass. Making the pass explicit in the planner, and counting it, changes the
+  product's plans: it waits for the owner's word.
+- The comparison is the model's, with average weights, as expected values.
+- Checked in Chromium only, at a phone's size and a laptop's. Safari 26's layout was read from the
+  owner's screenshots; whether it supports `timeline-scope` was not checked, and without it the
+  steps on a phone stay listed, unlit.
+
+## D143. The avatar in ink, with a flag of where you're from
+
+**Asked.** The owner, after an iPhone's screenshots: "in the avatar section would like to add
+the chance to put the flag were you're from, and really i want to polish and finalise the
+characterisation well with proper better graphics and a characteristic design so show me
+some options". Four styles and three places for the flag were drawn on a page to choose from;
+the owner chose "Avatar: Ink · Flag: a round badge".
+
+**Chosen.**
+- *Ink* (`style.css`, D143's block): every shape of the avatar drawn with a dark line, flat
+  fills, no shading or shine, as a drawn portrait.
+  - The parts and every option of D115 and D137 stay, restyled rather than redrawn.
+  - A skin tone is kept as itself, lightened a fifth. At 45 % the tones ran together, so the
+    drawing stopped being the person.
+  - The clothes keep their colour, softened; the background is a paler paper of its own.
+- *A flag of where you're from* (`service.flag_countries`, `set_avatar`, `share_flag`; the
+  profiles' `flag` column):
+  - It is a round badge at the avatar's bottom right, in a ring of the page's colour, chosen on
+    the avatar page.
+  - None is shown until one is chosen. The page offers the university's country (D39) and the time
+    zone's first, then every country in a list; a country picked from the list wins.
+  - The flag reaches the student's profile, so others see it as a badge on their initial in
+    Community, and the page says so. "No flag" shows none anywhere.
+  - A flag chosen before the handle reaches Community when the handle is chosen.
+  - The flag beside a university, the university's country (D39), stays as it was: where
+    someone studies is not where they are from.
+- *The flags* are flag-icons 7.6.0's square ones (MIT, approved by the owner's choice on the
+  options page, which named it), 249 countries. Each is its own file under
+  `static/vendor/flags/1x1/` with the licence, fetched only by a page that shows that flag.
+  The countries' names come from the same package (`data/countries.json`, its ISO countries).
+- *An abandoned page transition* (AUDIT item 103): `errors.js` no longer reports the rejection
+  a browser raises when a link is followed while a page-to-page transition runs (D30).
+
+**Rejected.**
+- The university's country as the flag: it is where someone studies.
+- A flag on by default, from the time zone: where a student is from is theirs to say.
+- A preview of each flag on the avatar before saving: it would need a rule per country, and an
+  inline style the pages' Content-Security-Policy forbids. The choices show each flag, and the
+  avatar shows the saved one.
+- The other three styles (Clay, Shapes, today's): the owner chose Ink.
+
+**Disclosed.**
+- The countries' names are in English in every language, as the universities' are (D39).
+- A few flags are large files, Serbia's 181 KB, fetched by the pages that show it.
+- The flag is shown to everyone in Community who can see the student's profile.
+- Checked in Chromium only, at phone size, light and dark.
+
+## D144. Focus and attention from Today
+
+**Asked.** The owner chose from the options page for Today as headquarters: "Build: focus,
+attention, steps, clear-mind". This record is the first two. Steps and the clear-your-mind list
+come next, once their two studies are checked.
+
+**Chosen.**
+- *Focus from Today* (`service.focus_quick`, the Focus card under the next step). It starts
+  anything besides the plan's next session in one tap; that session already starts from its own
+  card.
+  - The course last timed is chosen first, then the others in their colours' order, four at
+    most.
+  - Three of the focus page's lengths are offered: 25 minutes, 45 and 1 h 30. The shortest is
+    chosen, since a short start is the easiest to begin; D106's first session was 25 minutes
+    too.
+  - It posts to the focus page's own form, so nothing about the timer changed.
+  - Before: "Study something else", then a course typed, then Start, from two pages. Now:
+    Start, once a course has been timed or is the first in the list.
+  - The tip on breaks sits under the button, with its evidence a tap away (D62: Albulescu et
+    al., 2022 and Biwer et al., 2023, both checked).
+  - The card is not shown while a session runs: Today's banner leads back to that session.
+- *Attention day by day* (`service.time_and_attention`'s `days`, `_focus_days`).
+  - Each day of the week, Monday first, has a column for the minutes the timer logged. The
+    longest day is full height and labelled with its time. Today's column is in the accent, and
+    the days ahead keep their letter, faint.
+  - Minutes typed by hand are not counted, as before (D140).
+- *The part of the day you focus longest* (`_focus_best`).
+  - This is the part of the day (morning, afternoon, evening, as `progress.part_of_day`) whose
+    timed sessions lasted longest on average over the last four weeks.
+  - It is named only when four sessions say when they started (saved since 2026-10-21, D80) and
+    two parts have two sessions each. One session is an anecdote, and a part with nothing to
+    compare it with is not "longest".
+  - The line says how many sessions it rests on.
+
+**Rejected.**
+- Every length of the focus page on Today: six chips and "No limit" would make the card a page.
+  The link to the focus page says "Other courses and lengths".
+- The plan's next session as the card's first course: that session starts from its own card,
+  with its report tied to it. A second way to start it would start it without that tie.
+- The hour of the day as a heat map: four weeks of a few sessions spread over 24 hours says
+  nothing. Three parts of the day are what the app already uses (D45, D80).
+- "When you focus best": the timer measures how long, not how well.
+
+**Disclosed.**
+- Four sessions and two per part are choices, not results. Average minutes describe the
+  sessions a student chose to time, not their capacity: a long evening session may be the
+  evening the student had free.
+- The week's columns count sessions saved with the timer only, so a student who logs by hand
+  sees none.
+- Checked in Chromium only, at phone size and 1280px, light and dark.

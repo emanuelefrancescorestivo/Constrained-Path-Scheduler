@@ -86,6 +86,16 @@
     {% if every or s.head in ("headphones",) %}<g class="avo hd-headphones"><path class="av-phones-band" d="M30 54C29 32 43 17 60 17 77 17 91 32 90 54"></path><rect class="av-phones" x="23" y="47" width="12" height="20" rx="5"></rect><rect class="av-phones" x="85" y="47" width="12" height="20" rx="5"></rect></g>{% endif %}
     {% if every or s.head in ("flower",) %}<g class="avo hd-flower"><circle class="av-petal" cx="80" cy="24" r="4"></circle><circle class="av-petal" cx="87" cy="27" r="4"></circle><circle class="av-petal" cx="86" cy="34" r="4"></circle><circle class="av-petal" cx="79" cy="34" r="4"></circle><circle class="av-petal" cx="76" cy="28" r="4"></circle><circle class="av-flower-heart" cx="81.6" cy="29.4" r="3"></circle></g>{% endif %}
   </g>
+  {# D143: where the student is from, a round badge at the bottom right, the flag cut to a
+     circle in a ring of the page's colour. The maker shows the flag saved: the chips show
+     each flag, and a preview of each would need a rule per country. #}
+  {% if s.flag %}
+  <g class="av-flag">
+    <clipPath id="{{ uid }}-flag"><circle cx="97" cy="97" r="18"></circle></clipPath>
+    <circle class="av-flag-ring" cx="97" cy="97" r="21"></circle>
+    <image href="{{ asset('vendor/flags/1x1/' ~ s.flag ~ '.svg') }}" x="79" y="79" width="36" height="36" clip-path="url(#{{ uid }}-flag)" preserveAspectRatio="xMidYMid slice"></image>
+  </g>
+  {% endif %}
 </svg>
 {%- endif %}
 {%- endmacro %}

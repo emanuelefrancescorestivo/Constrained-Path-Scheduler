@@ -1,5 +1,6 @@
 {# The network's small pieces: an avatar, a person in a list. #}
-{% macro avatar(person, size="") %}<span class="avatar {{ person.hue }}{% if size %} avatar-{{ size }}{% endif %}" aria-hidden="true">{{ person.initial }}</span>{% endmacro %}
+{# D143: the flag a person chose as where they're from, a round badge on their initial. #}
+{% macro avatar(person, size="") %}<span class="avatar {{ person.hue }}{% if size %} avatar-{{ size }}{% endif %}" aria-hidden="true">{{ person.initial }}{% if person.badge %}<img class="avatar-flag" src="{{ asset('vendor/flags/1x1/' ~ person.badge ~ '.svg') }}" alt="" loading="lazy">{% endif %}</span>{% endmacro %}
 
 {% macro person_row(person, token) %}
 <li>

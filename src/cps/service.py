@@ -5358,13 +5358,10 @@ def time_and_attention(
             bar.append({"part": part, "x": round(x, 2), "width": round(width, 2)})
         x += width
     monday = _progress.monday(local.date())
-    timed = [
-        p
-        for p in social.posts_of(_store(store), subscription.token, "session")
-        if date.fromisoformat(p.day) >= monday and p.data.get("timed")
-    ]
+    posts = [p for p in social.posts_of(_store(store), subscription.token, "session") if p.data.get("timed")]
+    timed = [p for p in posts if date.fromisoformat(p.day) >= monday]
     checked = [p for p in timed if p.data.get("checked")]
-    minutes = sum(int(p.data.get("minutes", 0) or 0) for p in timed)
+    minutes = sum(_minutes_of(p) for p in timed)
     return {
         "wake": day["wake"],
         "bed": day["bed"],
@@ -5376,7 +5373,124 @@ def time_and_attention(
             "sessions": len(timed),
             "checked": len(checked),
             "whole": sum(1 for p in checked if not p.data.get("interruptions")),
+            "days": (days := _focus_days(timed, monday, local.date())),
+            "days_said": ", ".join(f"{d['name']} {d['time']}" for d in days if d["minutes"]),
+            "best": _focus_best(posts, local),
         },
+    }
+
+
+# Attention over the week (D144; the owner's pick, 2026-11-18: "attention"). Its part of
+# the day is named once FOCUS_BEST_SESSIONS timed sessions of the last FOCUS_BEST_DAYS
+# days say when they started, and only between parts with two such sessions each: one
+# session is an anecdote, and a part with nothing to compare is not "longest". The
+# numbers are choices, not results, and the page says what they count.
+FOCUS_BEST_SESSIONS = 4
+FOCUS_BEST_DAYS = 28
+_FOCUS_BEST_WORDS = {
+    "morning": "You focus longest in the morning: {time} a session on average.",
+    "afternoon": "You focus longest in the afternoon: {time} a session on average.",
+    "evening": "You focus longest in the evening: {time} a session on average.",
+}
+
+
+def _minutes_of(post: social.Post) -> int:
+    try:
+        return max(0, int(post.data.get("minutes", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _focus_days(timed: Sequence[social.Post], monday: date, today: date) -> list[dict]:
+    """The minutes timed on each day of the week, Monday first, each column's height a
+    share of the week's longest day (D144); the days still ahead are drawn empty."""
+    minutes: dict[str, int] = {}
+    for post in timed:
+        minutes[post.day] = minutes.get(post.day, 0) + _minutes_of(post)
+    tallest = max(minutes.values(), default=0) or 1
+    days = []
+    for k in range(7):
+        day = monday + timedelta(days=k)
+        spent = minutes.get(day.isoformat(), 0)
+        days.append(
+            {
+                "letter": _i18n.weekday_name(day, short=True)[:1].upper(),
+                "name": _i18n.weekday_name(day),
+                "minutes": spent,
+                "time": duration_words(spent) if spent else "",
+                "height": round(100 * spent / tallest),
+                "today": day == today,
+                "ahead": day > today,
+            }
+        )
+    return days
+
+
+def _focus_best(posts: Sequence[social.Post], local: datetime) -> dict | None:
+    """The part of the day the student's timed sessions last longest, on average, over
+    the last four weeks (D144): counted from when each timer started, so only sessions
+    saved since 2026-10-21 say. None until there are enough to compare."""
+    since = local.date() - timedelta(days=FOCUS_BEST_DAYS)
+    zone = local.tzinfo
+    parts: dict[str, list[int]] = {}
+    count = 0
+    for post in posts:
+        started = str(post.data.get("started") or "")
+        if not started or date.fromisoformat(post.day) <= since:
+            continue
+        try:
+            moment = datetime.fromisoformat(started).astimezone(zone)
+        except ValueError:
+            continue
+        parts.setdefault(_progress.part_of_day(moment), []).append(_minutes_of(post))
+        count += 1
+    compared = {part: sum(v) / len(v) for part, v in parts.items() if len(v) >= 2}
+    if count < FOCUS_BEST_SESSIONS or len(compared) < 2:
+        return None
+    part = max(compared, key=lambda k: (compared[k], k))
+    return {
+        "part": part,
+        "words": _(_FOCUS_BEST_WORDS[part], time=duration_words(round(compared[part]))),
+        "sessions": count,
+    }
+
+
+# Focus from Today (D144; the owner's pick, 2026-11-18: "focus"). The plan's own session
+# starts from its card; this starts anything else in one tap: the course last timed
+# first, and three of the focus page's lengths, the shortest chosen, since a short start
+# is the easiest to begin (D106's first session was 25 minutes too).
+FOCUS_QUICK = (25, 45, 90)
+FOCUS_QUICK_COURSES = 4
+
+
+def focus_quick(store: str | os.PathLike, subscription: Subscription) -> dict | None:
+    """The focus card on Today: the courses to start with (the one last timed first, then
+    the others in their colours' order), three lengths, and the tip on breaks with its
+    evidence a tap away. None while a session runs, or without a course to name."""
+    if subscription.options.get("focus"):
+        return None
+    courses = course_names(subscription)
+    if not courses:
+        return None
+    last = next(
+        (
+            str(p.data.get("course") or "")
+            for p in social.posts_of(_store(store), subscription.token, "session", limit=50)
+            if p.data.get("timed")
+        ),
+        "",
+    )
+    first = next((c for c in courses if c.casefold() == last.casefold()), None)
+    ordered = [first, *[c for c in courses if c != first]] if first else list(courses)
+    breaks = next(t for t in _tips.TIPS if t.key == "breaks")
+    return {
+        "courses": ordered[:FOCUS_QUICK_COURSES],
+        "more": len(ordered) > FOCUS_QUICK_COURSES,
+        "goals": [{"minutes": g, "label": duration_words(g)} for g in FOCUS_QUICK],
+        "goal": FOCUS_QUICK[0],
+        "tip": {"key": breaks.key, "topic": breaks.topic, "advice": _(breaks.advice)}
+        if tips_on(subscription)
+        else None,
     }
 
 
@@ -6458,27 +6572,74 @@ AVATAR_PARTS: dict[str, tuple[str, ...]] = {
 AVATAR_START: dict[str, str] = {part: names[0] for part, names in AVATAR_PARTS.items()} | {"skin": "s3"}
 
 
+# D143: where a student is from, a round badge on their avatar and on their initial in
+# Community. The flags are flag-icons 7.6.0's square ones (MIT, in web/static/vendor/flags
+# with its licence); the countries and their names in English are the same package's list,
+# its ISO countries only (data/countries.json).
+@functools.cache
+def flag_countries() -> tuple[tuple[str, str], ...]:
+    """Every country a flag can be chosen for: (code, name in English), by name."""
+    rows = json.loads((Path(__file__).parent / "data" / "countries.json").read_text(encoding="utf-8"))
+    return tuple((str(r["code"]), str(r["name"])) for r in rows)
+
+
+def flag_name(code: str) -> str:
+    return dict(flag_countries()).get(code, "")
+
+
+def flag_suggestions(store: str | os.PathLike, subscription: Subscription) -> list[dict]:
+    """The countries the avatar page offers first (D143): the university's, from the
+    profile (D39), and the time zone's. Only suggestions: where a student is from is theirs
+    to say."""
+    found: list[str] = []
+    profile = social.get_profile(_store(store), subscription.token)
+    zone = _universities.country_of_zone(subscription.options["tz"]) or ""
+    for code in (profile.country if profile else "", zone):
+        if code and code.lower() not in found and flag_name(code.lower()):
+            found.append(code.lower())
+    return [{"code": c, "name": flag_name(c)} for c in found]
+
+
 def avatar_of(subscription: Subscription | None) -> dict[str, str] | None:
     """The avatar a student made (D115), or None before they make one. A part saved
-    under a name this version does not draw falls back to where the maker starts."""
+    under a name this version does not draw falls back to where the maker starts; a flag
+    (D143) not on the list is no flag."""
     chosen = subscription.options.get("avatar") if subscription else None
     if not isinstance(chosen, Mapping):
         return None
-    return {
+    avatar = {
         part: chosen[part] if chosen.get(part) in names else AVATAR_START[part]
         for part, names in AVATAR_PARTS.items()
     }
+    flag = str(chosen.get("flag") or "")
+    avatar["flag"] = flag if flag_name(flag) else ""
+    return avatar
 
 
 def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscription:
-    """Keep the avatar a student made: every part one of its names (D115)."""
+    """Keep the avatar a student made: every part one of its names (D115), and the flag
+    (D143) one on the list, or none. A country picked from the full list wins over the
+    suggestion ticked, since it was picked later."""
     avatar = {}
     for part, names in AVATAR_PARTS.items():
         value = chosen.get(part) or AVATAR_START[part]
         if value not in names:
             raise InvalidInput(_("choose one of the options shown for each part"))
         avatar[part] = value
+    flag = str(chosen.get("flag_other") or chosen.get("flag") or "")
+    if flag == "none":
+        flag = ""
+    if flag and not flag_name(flag):
+        raise InvalidInput(_("choose a country from the list"))
+    avatar["flag"] = flag
     return replace(subscription, options={**subscription.options, "avatar": avatar})
+
+
+def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
+    """The avatar's flag on the student's profile, for their initial in Community (D143):
+    after the avatar is saved, and when a profile is made after the avatar."""
+    avatar = avatar_of(subscription)
+    social.set_flag(_store(store), subscription.token, avatar["flag"] if avatar else "")
 
 
 def language_of(subscription: Subscription) -> str:
@@ -12448,6 +12609,25 @@ SCIENCE_SOURCES = {
 }
 
 
+# AUDIT 102: the labels at the ends of two curves are kept a line apart, so that close
+# recalls (54 % and 67 % on the code page) do not print one over the other.
+LABEL_GAP = 15.0  # in the chart's units; its labels are about 12 high
+
+
+def _apart(curves: list[dict]) -> None:
+    """Each curve's label line (`label_y`), its end moved up or down only as far as the
+    gap between neighbouring labels needs."""
+    ends = sorted(curves, key=lambda c: c["end_y"])
+    ys = [float(c["end_y"]) + 4.0 for c in ends]
+    for i in range(1, len(ys)):
+        short = LABEL_GAP - (ys[i] - ys[i - 1])
+        if short > 0:
+            ys[i - 1] -= short / 2
+            ys[i] += short / 2
+    for c, y in zip(ends, ys, strict=True):
+        c["label_y"] = round(y, 1)
+
+
 def science_view() -> dict:
     """The science page (D89): every number on it computed here from the model the
     product runs (FSRS-6, D52) and the app's own settings, so the page and the app
@@ -12896,14 +13076,20 @@ def _garden_fine(
         time_badge.append([p, _("Day {n}", n=int(day)), _("the same topic, twice")])
     # Chapter 6: the answer after a session; the labels change as the roots do.
     grown_from, shrunk_from = 0.36, 0.7
+
+    # AUDIT 102: the big line says what the number is ("lasts 7 days"), since a phone shows
+    # no small line under it, and both plants read "7 days" alone before the answer.
+    def lasts(days: float) -> str:
+        return _n("lasts {n} day", "lasts {n} days", max(1, round(days)))
+
     morning = {
         "yes": [
-            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
-            [grown_from, _n("{n} day", "{n} days", round(just)), _("so the next revision waits"), False],
+            [0.0, lasts(GARDEN_WEEK), _("before the session"), False],
+            [grown_from, lasts(just), _("so the next revision waits"), False],
         ],
         "no": [
-            [0.0, _n("{n} day", "{n} days", round(GARDEN_WEEK)), _("it lasts before the session"), False],
-            [shrunk_from, _n("{n} day", "{n} days", max(1, round(forgot))), _("so it comes back soon"), True],
+            [0.0, lasts(GARDEN_WEEK), _("before the session"), False],
+            [shrunk_from, lasts(forgot), _("so it comes back soon"), True],
         ],
     }
     return {
@@ -12922,8 +13108,10 @@ def _garden_fine(
 # D121: on a laptop each scene of How it works labels its plants as the page is scrolled,
 # from the scene's numbers at this many stops (its eight stops stay the flat drawing's).
 GARDEN_FINE = 25
-# The cramming chapter: the same new topic, crammed the night before an exam on day 28 or
-# revised each time it dips to the target; neither is revised after the exam; a month on.
+# The cramming chapter: the same new topic, crammed in the last evenings before an exam on
+# day 28, or revised each time it dips to the target and once more the night before, as
+# many revisions each (D142; D121 set one cram against the rule alone); neither is
+# revised after the exam; a month on.
 GARDEN_CRAM_EXAM = 28.0
 GARDEN_CRAM_AFTER = 30.0
 GARDEN_CRAM_SPLIT = 0.75  # the share of the scene before the exam (its first three steps)
@@ -13007,17 +13195,22 @@ def _fine_progress(k: int) -> float:
 
 
 def _garden_cram(model: Model) -> dict:
-    """D121, the cramming chapter: the same new topic crammed the night before the exam,
-    or revised whenever it dips to the target, each through the exam and a month on."""
+    """The cramming chapter (D121, D142): the same new topic crammed in the last evenings
+    before the exam, or revised whenever it dips to the target and once more the night
+    before (the app's exam practice, D46), with as many revisions each; each through the
+    exam and a month on. D121 set a single cram against the rule alone, which left out the
+    app's last pass and gave cramming fewer revisions."""
     target = flashcards.RETENTION
     start = model.initial_state(Grade.GOOD)
     last = GARDEN_CRAM_EXAM - 1.0
-    crammed, cram_chance = _expected_memory(model, start, 0.0, [last])
     spaced_days: list[float] = []
     for day in range(1, int(GARDEN_CRAM_EXAM)):
         trial, _chances = _expected_memory(model, start, 0.0, spaced_days)
         if _expected_at(model, trial, float(day))[0] <= target:
             spaced_days.append(float(day))
+    spaced_days = sorted({*spaced_days, last})
+    cram_days = [last - i for i in reversed(range(len(spaced_days)))]
+    crammed, cram_chance = _expected_memory(model, start, 0.0, cram_days)
     spaced, spaced_chances = _expected_memory(model, start, 0.0, spaced_days)
     exam, later = GARDEN_CRAM_EXAM, GARDEN_CRAM_EXAM + GARDEN_CRAM_AFTER
 
@@ -13071,10 +13264,11 @@ def _garden_cram(model: Model) -> dict:
         round(sum(_expected_at(model, segments, d - 0.02)[3] for d in range(1, int(exam))))
         for segments in (crammed, spaced)
     ]
+    cram_name = _n("Crammed the last evening", "Crammed the last {n} evenings", len(cram_days))
     return {
         "pots": [
-            pot(crammed, [last], _("Crammed the night before")),
-            pot(spaced, spaced_days, _("Revised whenever it dipped")),
+            pot(crammed, cram_days, cram_name),
+            pot(spaced, spaced_days, _("Spaced, and once more the night before")),
         ],
         "badge": badge,
         "exam_day": int(exam),
@@ -13107,8 +13301,10 @@ def _month_lane_y(recall: float) -> float:
 
 @functools.lru_cache(maxsize=1)
 def _garden_month_app() -> tuple[tuple[int, ...], ...]:
-    """The app's rule over the month (assistant.py's self-tests): each evening the course
-    that has faded most, once it is down to the target; otherwise the evening is free."""
+    """The app's plan over the month: its rule (assistant.py's self-tests), each evening
+    the course that has faded most, once it is down to the target, otherwise the evening
+    free; then a last pass before the exam, one course an evening in the last ones, the
+    hardest last, as the exam practice it plans in the final days (D46, D142)."""
     model, target = FSRS_6, flashcards.RETENTION
     starts = _garden_month_starts(model)
     plan: list[list[int]] = [[] for _ in starts]
@@ -13124,7 +13320,11 @@ def _garden_month_app() -> tuple[tuple[int, ...], ...]:
         k = min(range(len(starts)), key=recalls.__getitem__)
         if recalls[k] <= target:
             plan[k].append(day)
-    return tuple(tuple(days) for days in plan)
+    last_day = GARDEN_MONTH_DAYS - 1
+    for i, days in enumerate(plan):
+        if last_day - i not in days:
+            days.append(last_day - i)
+    return tuple(tuple(sorted(days)) for days in plan)
 
 
 def _garden_month_score(model: Model, plan: Sequence[Collection[int]]) -> dict:
@@ -13165,9 +13365,11 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
     if preset is not None and preset not in GARDEN_MONTH_PRESETS:
         raise InvalidInput(_("choose a plan from the buttons"))
     if preset == "cram":
-        # One course an evening in the last three, the hardest last: the best a cram
-        # can do on exam day with the evenings the story says there are.
-        plan = [{last_day - i} for i in range(count)]
+        # As many revisions as the app's plan (D142), all in the last evenings, one course
+        # an evening, the hardest last: the best a cram can do on exam day with that effort.
+        plan: list[set[int]] = [set() for _ in range(count)]
+        for k in range(sum(len(days) for days in app)):
+            plan[k % count].add(last_day - k)
     elif preset == "clear":
         plan = [set() for _ in range(count)]
     elif preset == "app" or ticks is None:
@@ -13280,12 +13482,25 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
             )
         else:
             verdict.append(_("Both plans reach {a} on exam day.", a=_garden_pct(a)))
-        if shaky_mine > shaky_app:
+        if shaky_mine > shaky_app and pa > pb:
             verdict.append(
                 _n(
                     "But between them, your courses spend {n} day below {t} (the app's plan: {m}), "
                     "so you'd be lost in any lecture that builds on them.",
                     "But between them, your courses spend {n} days below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    shaky_mine,
+                    t=_garden_pct(target),
+                    m=shaky_app,
+                )
+            )
+        elif shaky_mine > shaky_app:
+            # D142: the app's plan already won exam day, so this is one more reason, not a "but".
+            verdict.append(
+                _n(
+                    "And between them, your courses spend {n} day below {t} (the app's plan: {m}), "
+                    "so you'd be lost in any lecture that builds on them.",
+                    "And between them, your courses spend {n} days below {t} (the app's plan: {m}), "
                     "so you'd be lost in any lecture that builds on them.",
                     shaky_mine,
                     t=_garden_pct(target),
@@ -13300,7 +13515,17 @@ def garden_month_view(ticks: Collection[str] | None = None, preset: str | None =
                     b=_garden_pct(later_app),
                 )
             )
-        # More revisions are more evenings, which chapter 5 says are few.
+        # More revisions are more evenings, which chapter 5 says are few; fewer are evenings
+        # saved, which the verdict says too (D142).
+        if 0 < mine["count"] < theirs["count"]:
+            verdict.append(
+                _n(
+                    "It does save evenings: {n} revision, against the app's {m}.",
+                    "It does save evenings: {n} revisions, against the app's {m}.",
+                    mine["count"],
+                    m=theirs["count"],
+                )
+            )
         if mine["count"] > theirs["count"]:
             verdict.append(
                 _n(
@@ -13735,6 +13960,7 @@ def code_view() -> dict:
                 "color": colour[name],
             }
         )
+    _apart(curves)
     first = topics[0][1]
     delay = instance.blocks[0].start_day
     recalled = _review(first, delay, Grade.GOOD)

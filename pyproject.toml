@@ -29,6 +29,8 @@ where = ["src"]
     "static/vendor/leaflet/*", "static/vendor/leaflet/images/*",
     # Lucide's icons the app draws, with their licence (D139).
     "static/vendor/lucide/*",
+    # flag-icons 7.6.0's square flags, with their licence (D143).
+    "static/vendor/flags/*", "static/vendor/flags/1x1/*",
 ]
 # The list of universities and its licence (D39).
 "cps" = ["data/*"]
