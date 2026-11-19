@@ -5121,3 +5121,42 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .pop-points .hint { margin: 2px 0 8px; }
 .pop-points .hint:last-child { margin-bottom: 0; }
 /* -- end of D158 */
+
+/* -- D159: the new-task sheet's own day and time, and "Other…" in its courses ---------
+   The system's picker for a date and a time was grey and unlike the app (the owner's
+   screenshot, 2026-11-19): on a computer its button is hidden and the app's month opens
+   instead, the days as round buttons, today ringed, the chosen day in the accent, the
+   usual times as chips. The field can still be typed in; a phone keeps its own wheel. */
+.due-line { display: flex; gap: 8px; align-items: center; }
+.due-line input { flex: 1; min-width: 0; }
+@media (pointer: fine) {
+  #qa-due.has-pick::-webkit-calendar-picker-indicator { display: none; }
+}
+/* A phone's own wheel opens on a tap and suits it: no second way in beside the field. */
+@media (pointer: coarse) {
+  .due-open { display: none; }
+}
+.due-pick {
+  margin-top: 8px; padding: 10px; border-radius: 14px; background: var(--surface-2);
+  display: grid; gap: 8px; max-width: 340px;
+}
+.due-month { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.due-month b { font-size: 0.95rem; text-transform: capitalize; }
+.due-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.due-wd { font-size: 0.75rem; font-weight: 650; color: var(--muted); padding: 2px 0; }
+.due-day {
+  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%; background: none; color: var(--text);
+  font: inherit; font-size: 0.9rem; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.due-day:hover:not(:disabled) { background: var(--fill-3); }
+.due-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 700; }
+.due-day[aria-pressed="true"]:not(:disabled) { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.due-day:disabled { color: var(--muted); opacity: 0.45; cursor: default; }
+.pill-btn {
+  min-width: 46px; min-height: 34px; padding: 6px 13px; border: 0; border-radius: 980px;
+  background: var(--fill-3); color: var(--text); font: inherit; font-weight: 600; font-size: 0.9rem;
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.pill-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.course-choice { display: grid; gap: 8px; }
+/* -- end of D159 */

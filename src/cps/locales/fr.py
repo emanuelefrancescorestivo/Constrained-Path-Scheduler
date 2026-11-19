@@ -3384,4 +3384,8 @@ MESSAGES: dict[str, str] = {
     "I believe this session happened: my word is its proof": "Je crois que cette séance a eu lieu : ma parole en est la preuve",
     "Vouch": "Je confirme",
     "Say or show what you did, and share it with your followers or everyone: once a classmate vouches for it, this session earns {n} more points.": "Dis ou montre ce que tu as fait, et partage-le avec tes abonnés ou avec tout le monde : dès qu'une personne de ta classe le confirme, cette séance rapporte {n} points de plus.",
+    # D159: the new-task sheet's day and course
+    "No course": "Aucun cours",
+    "Other…": "Autre…",
+    "Choose the day and the time": "Choisir le jour et l'heure",
 }

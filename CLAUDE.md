@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1486 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1503 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1488 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1505 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -106,7 +106,7 @@ drag, popovers, titles that fit, AUDIT 39; with no timetable file, a week drawn 
 hand, classes first, D32; since D157 cleaner, after Notion Calendar: the month and the week over one menu, each title first in its course's colour with its kind's mark, what is over faded, the courses as switches (the sidebar's "On the calendar" on a laptop), the day's sky beside the hours and the line of now in the hour's colour), `app.js` (the plan screen: the panel is
 server-rendered HTML, fetched again after each change) and `ui.js` (every page:
 forms sent in the background with the page's own HTML as the answer, the new-task
-sheet, Undo, the N key, the sky and the live icon as the sun moves, asked of the server every five minutes, D76), `motion.js` (D30: numbers that count up, swaps carried over
+sheet (its own month and times, a course list with "Other…", D159), Undo, the N key, the sky and the live icon as the sun moves, asked of the server every five minutes, D76), `motion.js` (D30: numbers that count up, swaps carried over
 from old values in one view transition, confetti once per achievement; page
 transitions and draw-ins are CSS; the calendar slides moved sessions itself; D93:
 ambient motion rests six seconds after the last tap or key, and the glass turns solid on a
@@ -375,6 +375,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   accents' chosen and measured (`tests/test_palette.py`, every text at 4.5:1 or more); the flat
   themes' cards are opaque whatever the glass; an installed icon keeps the sky's colours. Checked in
   Chromium only, at phone size and 1280px, light and dark.
+- The new-task sheet's month and times (D159) were checked in Chromium only; Firefox and Safari were
+  not tried and may show their own calendar button beside the app's. A phone keeps its own wheel.
 - Points and proof of work (D158): a vouch is a classmate's word, not a check; two friends can
   vouch for sessions that never happened. The 10 and 20 are choices; whether points bring more
   sessions or more honest reports is for the pilot. Points are private, with no ranking. Checked in

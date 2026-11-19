@@ -364,6 +364,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["familiarity"] = FAMILIARITY
     # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
     templates.env.globals["lucide"] = icons.icon
+    templates.env.globals["other_course"] = forms.OTHER_COURSE  # the sheet's "Other…" (D159)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a
@@ -4652,7 +4653,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 name,
                 str(form.get("due") or "").replace("T", " ").strip(),
                 hours,
-                str(form.get("course") or "").strip(),
+                forms.chosen_course(form),
             )
             service.update_subscription(
                 store, token, lambda current: service.add_task(current, task, now=config.clock())

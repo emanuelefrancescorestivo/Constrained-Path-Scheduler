@@ -16,6 +16,18 @@ from typing import Any
 from cps import service
 
 EMPTY_ROWS = 2
+# The value of "Other…" in the new-task sheet's list of courses (D159), chosen so that it
+# does not read as a course's name.
+OTHER_COURSE = "*other"
+
+
+def chosen_course(form: Mapping[str, object]) -> str:
+    """The course a form names (D159): a course typed in the "Other…" field wins over the
+    one picked, as on the share forms (D141), since typing it was the later act; "Other…"
+    picked with nothing typed is no course."""
+    other = str(form.get("course_other") or "").strip()
+    picked = str(form.get("course") or "").strip()
+    return other or ("" if picked == OTHER_COURSE else picked)
 
 
 def _rows(form: Mapping[str, str], prefix: str, fields: tuple[str, ...]) -> list[dict[str, str]]:
