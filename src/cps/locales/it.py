@@ -3321,4 +3321,6 @@ MESSAGES: dict[str, str] = {
     "The week's sessions and your days in a row.": "Le sessioni della settimana e i tuoi giorni di fila.",
     "The cards waiting for you today.": "Le carte che ti aspettano oggi.",
     "Who is studying now, and what classmates shared.": "Chi sta studiando ora, e cosa hanno condiviso i compagni.",
+    "Make Today yours": "Fai di Oggi il tuo spazio",
+    "Turn on what you want here: your week and streak, flashcards, classmates, tips. What needs your answer always shows.": "Attiva qui ciò che vuoi: la tua settimana e la serie, le carte, i compagni, i consigli. Ciò che aspetta una tua risposta si vede sempre.",
 }
