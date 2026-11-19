@@ -79,6 +79,10 @@ def _form(html: str) -> dict:
             if " checked" in tag:
                 form.setdefault(name.group(1), []).append(unescape(value.group(1)))
             continue
+        if 'type="radio"' in tag:  # only the chosen one is sent
+            if " checked" in tag:
+                form[name.group(1)] = unescape(value.group(1))
+            continue
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
@@ -183,9 +187,10 @@ def test_starting_from_a_file_finds_the_exams(web):
     assert (
         "<h1>What do you study?</h1>" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
     )
-    # While setting up, the rest has its defaults under folds (D98), and one way forward.
+    # While setting up, the rest has its defaults (D98), shown as one sentence (D154), and
+    # one way forward.
     assert page.count('<details class="adjust">') == len(subscription.subjects)
-    assert '<details class="setup-more">' in page
+    assert '<section class="card sentence"' in page
     assert 'class="tabbar"' not in page and "spark-top" not in page
 
 

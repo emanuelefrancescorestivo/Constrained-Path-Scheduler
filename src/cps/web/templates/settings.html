@@ -25,18 +25,17 @@
 {% include "_set_exams.html" %}
 
 {% if new %}
-{# While setting up (D98), these keep their defaults unless opened: Today asks about
-   deadlines, the trip and busy times later, one question a day. #}
-<details class="setup-more">
-<summary><b>{{ _("Deadlines, how much you study, when you are not free") }}</b><small>{{ _("Good defaults are set. Change them now, or later in Settings.") }}</small></summary>
-{% endif %}
+{# D154: setting up shows the defaults as one sentence, each value a tap; D98 had them
+   in a closed fold of about ten fields, which most students never opened. #}
+{% include "_setup_sentence.html" %}
+{% if values.drawn %}{% include "_set_busy.html" %}{% endif %}
+{% else %}
 {% include "_set_deadlines.html" %}
 
 {% include "_set_week.html" %}
 
 {% include "_set_busy.html" %}
-
-{% if new %}</details>{% endif %}
+{% endif %}
 
 <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{% if new and run %}{{ _("Looks right") }}{% elif new %}{{ _("Next: your week") }}{% else %}{{ _("Save and plan") }}{% endif %}</button></div>
 </form>

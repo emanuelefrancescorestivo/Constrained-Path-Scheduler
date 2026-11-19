@@ -10,6 +10,7 @@ each. A row without a name is ignored.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import time
 from typing import Any
 
 from cps import service
@@ -79,7 +80,9 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "study_window": [form.get("from_hour", "8"), form.get("to_hour", "22")],
         # When the student gets up and goes to bed, and lunch (D69): the study
         # window is made from them, when the form asked.
-        "day": {k: form.get(k, "") for k in ("wake", "bed", "lunch", "lunch_start", "lunch_end")}
+        "day": _lunch_picked(
+            {k: form.get(k, "") for k in ("wake", "bed", "lunch", "lunch_start", "lunch_end")}, form
+        )
         if form.get("wake") is not None
         else None,
         "blocks_per_day": form.get("blocks_per_day", "2"),
@@ -94,6 +97,45 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
         "warm_up": bool(form.get("warm_up")) if form.get("quick_shown") else None,
         "study_on_the_way": bool(form.get("study_on_the_way")) if form.get("commute") is not None else None,
     }
+
+
+def _lunch_picked(day: dict[str, str], form: Mapping[str, str]) -> dict[str, str]:
+    """Lunch as setting up's sentence offers it (D154): a time to start, kept free for as
+    long as lunch was, or "study" for studying then; elsewhere the form's own fields."""
+    pick = str(form.get("lunch_pick") or "")
+    if not pick:
+        return day
+    if pick == "study":
+        return {**day, "lunch": "study"}
+    try:
+        start, before, end = (time.fromisoformat(v) for v in (pick, day["lunch_start"], day["lunch_end"]))
+    except ValueError:
+        return day  # the service says what is wrong with the times
+    length = (end.hour * 60 + end.minute) - (before.hour * 60 + before.minute)
+    finish = (start.hour * 60 + start.minute + (length if length > 0 else 60)) % (24 * 60)
+    return {**day, "lunch": "free", "lunch_start": pick, "lunch_end": f"{finish // 60:02d}:{finish % 60:02d}"}
+
+
+def quick_busy(form: Any) -> list[dict[str, Any]]:
+    """The busy times added in setting up's sentence (D154), as the questions about the
+    week take them (`service.routine_rows`): a kind, a name, the days, the hours. Their
+    hours come filled in, so one with no day chosen is no answer."""
+    answers = []
+    index = 0
+    while f"q{index}_kind" in form and index < 10:
+        days = [str(d) for d in form.getlist(f"q{index}_days")]
+        if days:
+            answers.append(
+                {
+                    "kind": str(form.get(f"q{index}_kind") or ""),
+                    "label": str(form.get(f"q{index}_label") or "").strip(),
+                    "days": days,
+                    "start": str(form.get(f"q{index}_start") or "").strip(),
+                    "end": str(form.get(f"q{index}_end") or "").strip(),
+                }
+            )
+        index += 1
+    return answers
 
 
 def _subjects(rows: list[Mapping[str, Any]]) -> list[service.SubjectSpec]:

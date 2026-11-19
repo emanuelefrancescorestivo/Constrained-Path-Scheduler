@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import itertools
 import json
 import logging
 import mimetypes
@@ -340,6 +341,10 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["lucide"] = icons.icon
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
+    # D153: an id no other element of the page has, for each avatar's clip path, since a
+    # feed draws the same person's avatar once per post.
+    ids = itertools.count(1)
+    templates.env.globals["fresh_id"] = lambda prefix: f"{prefix}{next(ids)}"
     templates.env.filters["nice_date"] = _nice_date
     templates.env.filters["hours"] = service.format_number
     templates.env.globals["_"] = service.translate
@@ -3600,11 +3605,13 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         if new:
+            values = service.setup_view(subscription)
             return page(
                 request,
                 "settings.html",
                 token=token,
-                values=service.setup_view(subscription),
+                values=values,
+                sentence=service.setup_sentence(values),
                 new=True,
                 run=service.first_run(subscription) is not None,
                 empty_rows=forms.EMPTY_ROWS,
@@ -3655,6 +3662,24 @@ def create_app(config: Config | None = None) -> FastAPI:
             **extra,
         )
 
+    @app.post("/p/{token}/deadlines/preview", response_class=HTMLResponse)
+    async def deadlines_preview(request: Request, token: str) -> Response:
+        """D154: what a learning platform's link would bring, shown as it is pasted while
+        setting up, before anything is saved."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        url = str(form.get("url") or "").strip()
+        found = (
+            service.deadlines_preview(url, subscription.options["tz"], now=config.clock(), fetch=config.fetch)
+            if url
+            else None
+        )
+        return page(request, "_deadlines_found.html", token=token, found=found)
+
     @app.get("/p/{token}/settings/{part}", response_class=HTMLResponse)
     def settings_page(
         request: Request, token: str, part: str, saved: str = "", login_error: str = ""
@@ -3680,6 +3705,10 @@ def create_app(config: Config | None = None) -> FastAPI:
         # D103: a page of Settings saves its part alone; setting up saves it all.
         part = raw.get("part", "")
         try:
+            if new:
+                # D154: the busy times added in setting up's sentence, one row a day.
+                quick = service.routine_rows(forms.quick_busy(form))
+                values["activities"] += [{**r, "date": ""} for r in quick]
             if part == "add":
                 rows = values["subjects"]
 
@@ -3752,6 +3781,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 400,
                 token=token,
                 values=shown,
+                sentence=service.setup_sentence({**stored, **shown}),
                 new=True,
                 run=service.first_run(subscription) is not None,
                 empty_rows=forms.EMPTY_ROWS,

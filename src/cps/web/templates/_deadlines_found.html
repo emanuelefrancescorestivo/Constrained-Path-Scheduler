@@ -1,0 +1,16 @@
+{# D154: what a learning platform's link would bring, before it is saved; sent as the
+   link is pasted while setting up (`found` is service.deadlines_preview, or None). #}
+{% if found is none %}
+{% elif found.error %}
+<p class="alert">{{ _("Nothing could be read from this link: {error}", error=found.error) }}</p>
+{% elif not found.count %}
+<p class="hint">{{ _("This calendar has no deadlines ahead. It is read again with your timetable, so new ones come by themselves.") }}</p>
+{% else %}
+<p><b>{{ _n("{n} deadline found", "{n} deadlines found", found.count) }}</b></p>
+<ul class="found-list">
+  {% for d in found.found %}<li><span class="grow">{{ d.name }}{% if d.course %} <small>· {{ d.course }}</small>{% endif %}</span><small>{{ d.due | nice_date }}</small></li>
+  {% endfor %}
+</ul>
+{% if found.count > found.found | length %}<p class="hint">{{ _n("And {n} more.", "And {n} more.", found.count - found.found | length) }}</p>{% endif %}
+<p class="hint">{{ _("They are added when you go on, at 2 hours of work each until you change it.") }}</p>
+{% endif %}

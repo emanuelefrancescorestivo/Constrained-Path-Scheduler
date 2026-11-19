@@ -2,7 +2,7 @@
    form, while setting up. #}
 <fieldset id="busy">
   <legend>{% if values.drawn %}{{ _("Your classes, and when you are not free") }}{% else %}{{ _("When you are not free, outside your timetable") }}{% endif %}</legend>
-  <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% elif new %}{{ _("Training, a job, a commute: nothing is planned then. The next step asks about them;") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
+  <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
   {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
   <details>
   <summary>{{ _("Type them instead") }}</summary>

@@ -67,6 +67,10 @@ def _form(html: str) -> dict:
             if " checked" in tag:
                 form.setdefault(name.group(1), []).append(unescape(value.group(1)))
             continue
+        if 'type="radio"' in tag:  # only the chosen one is sent
+            if " checked" in tag:
+                form[name.group(1)] = unescape(value.group(1))
+            continue
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)

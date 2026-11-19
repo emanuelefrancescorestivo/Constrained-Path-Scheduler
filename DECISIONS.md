@@ -6038,3 +6038,76 @@ does not come back. With D149's planning tip, the calendar now opens on its grid
 **Disclosed.** Without a script there is no tour, so a page opened without one no longer says
 what its section is for.
 
+
+## D153. Your avatar on your posts; Community among the main sections
+
+**Asked.** The owner, on 2026-11-19, of a post in Community that showed its author's initial:
+"the avatar does not pop out here"; and "community is at the very bottom it could be easier to
+reach maybe from the headquarters/dashboard".
+
+**Chosen.** When a student saves their avatar (D115), it is kept with their profile, as its flag
+already was (D143): only its parts' names, each one the maker offers, and read back as letters,
+digits and dashes alone, since they become class names. Wherever Community draws a person (a
+post, a comment, a profile, a group, Studying now, Today's window on classmates), the avatar
+they made takes the place of their initial, with the flag's badge on it; without one, the
+initial on its colour, as before. A feed draws the same person once per post, so each drawing
+gets its own clip path's id from a counter, not one per person.
+
+On a laptop, Community moves from the sidebar's bottom group to the main sections, after the
+calendar; the study map stays below. A phone's tab bar already had it, and Today's window on
+classmates links to it.
+
+**Rejected.** Drawing the avatar from the plan's options at each post: a post is read by other
+students, whose pages have no access to the author's plan, only to their profile.
+
+**Disclosed.** An avatar made before this change reaches Community the next time it is saved, or
+when a profile is made; until then, the initial shows. Each avatar is under 4 KB of drawing
+before gzip each time it is drawn (`tests/test_avatar.py`), so a feed of people with avatars is
+heavier than one of initials; gzip takes much of it back, since the drawings repeat.
+
+## D154. Setting up as one sentence; Moodle in three steps
+
+**Asked.** The owner, on 2026-11-19, of setting up's deadlines, study time and busy times: "i
+think these deserve more attention but definitely need to be made very easy to fill in so
+students do not have much friction to start with, make proposals". Of the three proposed, they
+chose B, the defaults as one sentence, with Moodle in three steps, and the busy-time line fixed
+(it said "The next step asks about them", and no step did: AUDIT 112).
+
+**Chosen.** Under the exams, setting up shows what the plan assumes as a few sentences, each value
+underlined: "You get up at 07:30, go to bed at 22:30 and have lunch at 12:30. You study at most 2
+sessions of 90 min a day. Outside your classes, you are free all the time. Your deadlines: none
+yet." A value tapped opens its choices under the line (six times to get up, six to go to bed,
+three lunches or none, one to four sessions, 45 to 120 minutes); one chosen closes them, and the
+sentence shows it. When everything is right, going on is the one tap it was. Under the busy line,
+"+ Training", "+ Work", "+ Busy" and "+ Trip to university" each open a small form: the days, and
+hours already filled in (a busy time with no day chosen is none; one with days and no hours says
+so); the trip is its minutes each way. Under the deadlines, "From Moodle" and "+ Type one".
+
+From Moodle is three steps in Moodle's own words, read from Moodle 4.5's strings in the student's
+language (English, French, Italian): open the export page (Calendar, then "Import or export
+calendars", then "Export calendar"; or type the Moodle's address, and the page's script makes the
+link to `<site>/calendar/export.php`, the same on every Moodle site); choose "All events" and
+"Recent and next 60 days", then the button "Get calendar URL"; paste the link. Pasted, the link is
+read at once and the page lists the deadlines it brings (`deadlines_preview`), before anything is
+saved. Once a link is kept, its export page is a tap away.
+
+Each value is a `<details>`, so it opens without a script, one at a time where the browser knows
+`name`; the value shown follows the choice through CSS (`:has`). What the sentence does not show
+(days off, a limit on weekly hours, exam practice, the self-tests and warm-ups, the busy times
+already there) is sent back as it is. A week drawn by hand keeps its classes' typed rows under
+the sentence, for a browser without scripts (D32). Setting up now offers the trip, which D98 had
+left to Today's questions; those questions still come for what was not answered.
+
+**Rejected.** A, one question at a time on cards: about eight taps to answer all three, and a
+student who is fine with the defaults still pages through them. C, the week said in one line and
+read by rules: fastest when the rules read it, but what they miss must be said and corrected,
+and it adds a reader of free text in three languages to setting up. A link that opens Moodle's
+export already filled in: Moodle's form needs a signed-in session's key, so the last click stays
+the student's.
+
+**Disclosed.** The choices are around where most students' days fall; a value set elsewhere is
+added to them. Moodle's words are those of Moodle 4.5's language packs; a site that changed them,
+or a Moodle in another language than the app's, shows other words. The preview reads the link
+from the server, as saving it does. Without `::details-content` (browsers before Chromium 131 and
+Safari 18.4), each value sits on its own line. Checked in Chromium only, at phone size with touch
+and at 1280px.

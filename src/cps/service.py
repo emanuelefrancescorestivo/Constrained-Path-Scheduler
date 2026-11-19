@@ -2907,25 +2907,7 @@ def answer_routine(
 
     `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`; `day`,
     if given, `{"wake", "bed", "lunch", "lunch_start", "lunch_end"}` (D69)."""
-    kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
-    rows = [dict(r) for r in subscription.busy_rows]
-    for answer in answers:
-        kind = str(answer.get("kind") or "")
-        kind = kind if kind in kinds else "other"
-        label = str(answer.get("label") or "").strip()[:60]
-        days = list(dict.fromkeys(str(d) for d in answer.get("days") or () if str(d).strip()))
-        start, end = (str(answer.get(k) or "").strip() for k in ("start", "end"))
-        if not (label or days or start or end):
-            continue
-        name = label or _(_ROUTINE_NAMES.get(kind, "Busy"))
-        if not days:
-            raise InvalidInput(_("{name}: choose the days", name=name))
-        if not start or not end:
-            raise InvalidInput(_("{name}: give the hours", name=name))
-        rows += [
-            {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
-            for day in days
-        ]
+    rows = [dict(r) for r in subscription.busy_rows] + routine_rows(answers)
     return revise_subscription(
         subscription,
         busy_rows=rows,
@@ -5825,6 +5807,156 @@ def learning_platform(subscription: Subscription) -> str | None:
     return f"{found.group(1)}/my/" if found else None
 
 
+# D154: Moodle's own words for the way to its calendar's link, in the app's languages,
+# read from Moodle 4.5's strings (lang/en/calendar.php and its French and Italian language
+# packs): the calendar page's button to its subscriptions ("managesubscriptions"), the
+# export page ("exportcalendar"), its two choices ("eventsall", "recentupcoming") and the
+# button that shows the link ("generateurlbutton"). The export page is the same address
+# on every Moodle site, `<site>/calendar/export.php` (calendar/export.php).
+MOODLE_EXPORT_WORDS: dict[str, dict[str, str]] = {
+    "en": {
+        "calendar": "Calendar",
+        "manage": "Import or export calendars",
+        "export": "Export calendar",
+        "events": "All events",
+        "period": "Recent and next 60 days",
+        "button": "Get calendar URL",
+    },
+    "fr": {
+        "calendar": "Calendrier",
+        "manage": "Importer ou exporter des calendriers",
+        "export": "Exporter le calendrier",
+        "events": "Tous les événements",
+        "period": "Les 60 prochains jours",
+        "button": "URL du calendrier",
+    },
+    "it": {
+        "calendar": "Calendario",
+        "manage": "Importa o esporta calendari",
+        "export": "Esporta calendario",
+        "events": "Tutti gli eventi",
+        "period": "Recenti e dei prossimi 60 giorni",
+        "button": "URL del calendario",
+    },
+}
+
+
+def deadlines_preview(
+    url: str,
+    tz: str,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+    most: int = 5,
+) -> dict:
+    """What a learning platform's link would bring (D154), before it is saved: the
+    deadlines still ahead, the first `most` of them, and how many in all; or why the link
+    gives none. Nothing is kept."""
+    now = now or datetime.now(UTC)
+    zone = _zone(tz)
+    try:
+        found = [a for a in find_assignments(decode_ics(fetch(url.strip())), tz) if a.due > now]
+    except ServiceError as error:
+        return {"found": [], "count": 0, "error": str(error)}
+    except ValueError:
+        return {"found": [], "count": 0, "error": _("this link does not give a calendar")}
+    return {
+        "found": [
+            {"name": a.name, "course": a.course, "due": a.due.astimezone(zone).strftime("%Y-%m-%d %H:%M")}
+            for a in found[:most]
+        ],
+        "count": len(found),
+        "error": None,
+    }
+
+
+# D154: setting up shows the plan's defaults as one sentence, each value a choice. The
+# choices are around where most students' days fall; a value set elsewhere is added, so
+# the sentence never shows what the plan does not do.
+WAKE_CHOICES = ("06:30", "07:00", "07:30", "08:00", "08:30", "09:00")
+BED_CHOICES = ("22:00", "22:30", "23:00", "23:30", "00:00", "00:30")
+LUNCH_START_CHOICES = ("12:00", "12:30", "13:00")
+SESSION_CHOICES = (1, 2, 3, 4)
+MINUTE_CHOICES = (45, 60, 90, 120)
+# The busy times a student adds in a tap, each with the hours it starts at; the days are
+# theirs to pick. Training and a job are ROUTINE_QUESTIONS' kinds (D42).
+QUICK_BUSY: tuple[tuple[str, str, str, str], ...] = (
+    ("training", "Training", "18:00", "20:00"),
+    ("work", "Work", "09:00", "13:00"),
+    ("other", "Busy", "17:00", "18:00"),
+)
+
+
+def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
+    """Weekly busy times from answers about the week (D42): one row per day chosen. An
+    answer left empty is none; one half given says what is missing."""
+    kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
+    rows: list[dict] = []
+    for answer in answers:
+        kind = str(answer.get("kind") or "")
+        kind = kind if kind in kinds else "other"
+        label = str(answer.get("label") or "").strip()[:60]
+        days = list(dict.fromkeys(str(d) for d in answer.get("days") or () if str(d).strip()))
+        start, end = (str(answer.get(k) or "").strip() for k in ("start", "end"))
+        if not (label or days or start or end):
+            continue
+        name = label or _(_ROUTINE_NAMES.get(kind, "Busy"))
+        if not days:
+            raise InvalidInput(_("{name}: choose the days", name=name))
+        if not start or not end:
+            raise InvalidInput(_("{name}: give the hours", name=name))
+        rows += [
+            {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
+            for day in days
+        ]
+    return rows
+
+
+def setup_sentence(values: Mapping) -> dict:
+    """The sentence setting up shows (D154), from `setup_view`'s values (or the form's,
+    sent back with a mistake): each value's choices, the current one among them, the busy
+    times other than classes grouped by name and hours, the deadlines, and Moodle's words
+    in the student's language."""
+    day = values["day"]
+
+    def among(choices: Iterable, current: object) -> list:
+        out = list(choices)
+        return out if current in out or current in ("", None) else sorted([*out, current], key=str)
+
+    wake = str(day["wake"])
+    bed = str(day["bed"])
+    busy: dict[tuple, list[str]] = {}
+    for a in values["activities"]:
+        if a.get("kind") == "class" or not a.get("weekday"):
+            continue
+        busy.setdefault((a.get("label") or "", a.get("start"), a.get("end")), []).append(_(a["weekday"]))
+    words = MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+    site = _MOODLE_EXPORT.match(str(values.get("deadlines_url") or "").strip())
+    # Each choice as (value, words), for the radio and for the sentence.
+    return {
+        "wake": [(t, t) for t in among(WAKE_CHOICES, wake)],
+        "bed": [(t, t) for t in among(BED_CHOICES, bed)],
+        "lunch": [(t, t) for t in among(LUNCH_START_CHOICES, str(day["lunch_start"]))]
+        + [("study", _("any time (I can study then)"))],
+        "lunch_now": "study" if day["lunch"] == "study" else str(day["lunch_start"]),
+        "sessions": [(n, str(n)) for n in among(SESSION_CHOICES, int(values["blocks_per_day"]))],
+        "minutes": [(m, _("{n} min", n=m)) for m in among(MINUTE_CHOICES, int(values["block_minutes"]))],
+        "commute": values["commute_choices"],
+        "busy": [
+            {"label": label, "days": days, "start": start, "end": end}
+            for (label, start, end), days in busy.items()
+        ],
+        "quick": [
+            {"kind": kind, "name": name, "start": start, "end": end} for kind, name, start, end in QUICK_BUSY
+        ],
+        "moodle": words,
+        # The export page of the Moodle whose link was given, to give it again; else the
+        # student finds it by Moodle's own words (the page has the same address on every
+        # site, but which site is theirs the app does not guess).
+        "export_page": f"{site.group(1)}/calendar/export.php" if site else None,
+    }
+
+
 def workspace_view(subscription: Subscription, now: datetime | None = None) -> dict | None:
     """Each course with the links the student keeps for it (D88: its page on the learning
     platform, slides, a folder), this week's first, then the course's own; each opens
@@ -6955,10 +7087,14 @@ def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscri
 
 
 def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
-    """The avatar's flag on the student's profile, for their initial in Community (D143):
-    after the avatar is saved, and when a profile is made after the avatar."""
+    """The avatar's flag on the student's profile, for their initial in Community (D143),
+    and since D153 the avatar itself, drawn on their posts in its place (the owner,
+    2026-11-19: "the avatar does not pop out here"): after the avatar is saved, and when a
+    profile is made after the avatar. Only its parts' names, each one of AVATAR_PARTS'."""
     avatar = avatar_of(subscription)
-    social.set_flag(_store(store), subscription.token, avatar["flag"] if avatar else "")
+    flag = avatar["flag"] if avatar else ""
+    parts = json.dumps({part: avatar[part] for part in AVATAR_PARTS}) if avatar else ""
+    social.set_flag(_store(store), subscription.token, flag, parts)
 
 
 def language_of(subscription: Subscription) -> str:

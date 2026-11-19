@@ -206,3 +206,39 @@ def test_every_option_is_drawn_and_the_hair_has_no_line_through_it():
                 assert re.search(rf'class="avo [^"]*\b{prefix}-{name}\b', drawing), (part, name)
     for name in ("fade", "mullet", "curtains", "crop", "wolf", "locs", "spacebuns", "pixie", "cornrows"):
         assert name in service.AVATAR_PARTS["hair"]
+
+
+def test_the_avatar_a_student_made_is_on_their_posts_and_community_is_a_main_section(web):
+    """D153 (the owner, 2026-11-19: "the avatar does not pop out here"; "community is at the
+    very bottom"): an avatar made is kept with the profile, as its flag is (D143), and drawn
+    where the initial was, each drawing with its own clip path; without one, the initial.
+    Community sits among the main sections, after the calendar."""
+    files = {"file": ("timetable.ics", (EXAMPLES / "sample-semester.ics").read_bytes(), "text/calendar")}
+    start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
+    mine = start.headers["location"].split("/")[2]
+    profile = {"university": "Sapienza", "old_enough": "1"}
+    assert web.post(f"/p/{mine}/profile", data={**profile, "handle": "drawn"}).status_code == 200
+    post = {"concept": "Eigenvalues", "course": "Algebra 3", "text": "A direction a matrix only stretches."}
+    for concept in ("Eigenvalues", "Kernels"):
+        web.post(f"/p/{mine}/explain", data={**post, "concept": concept, "visibility": "everyone"})
+    initials = web.get(f"/p/{mine}/community").text
+    assert '<span class="avatar c' in initials and ">D<" in initials  # no avatar yet: the initial
+    web.post(f"/p/{mine}/avatar", data={**MINE, "flag": "it"})
+    feed = web.get(f"/p/{mine}/community").text
+    # What D153 says a drawing weighs: under 4 KB each time it is drawn, before gzip.
+    one = re.search(r'<span class="avatar avatar-face".*?</span>', feed, re.S).group(0)
+    assert len(one.encode()) < 4000
+    face = r'<span class="avatar avatar-face" aria-hidden="true">\s*<svg class="av-face av ([^"]+)"'
+    drawn = re.findall(face, feed)
+    assert len(drawn) >= 2 and all("skin-s5" in d and "col-auburn" in d for d in drawn)
+    ids = re.findall(r'<clipPath id="(pa\d+)-round">', feed)
+    assert len(ids) >= 2 and len(ids) == len(set(ids))  # one id per drawing
+    assert re.search(r'<img class="avatar-flag" src="/static/v/[0-9a-f]{10}/vendor/flags/1x1/it\.svg"', feed)
+    # Only part names reach the page: anything else kept on a profile is dropped.
+    from cps import social
+
+    assert social._face('{"skin": "s5", "hair": "<script>"}') == {"skin": "s5"}
+    assert social._face("not json") is None and social._face("[1]") is None and social._face("") is None
+    # The sidebar's main sections: Today, Calendar, then Community.
+    side = web.get(f"/p/{mine}").text.split('class="side-nav"', 1)[1].split("</nav>", 1)[0]
+    assert re.findall(r'href="/p/[^/"]+(/[a-z]*)?"', side)[:3] == ["", "/week", "/community"]

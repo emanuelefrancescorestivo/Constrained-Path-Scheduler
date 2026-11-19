@@ -377,6 +377,8 @@ _ADDED_COLUMNS = (
     ("comments", "accepted", "INTEGER NOT NULL DEFAULT 0"),
     # D143: where the student is from, a flag they chose for their avatar; "" for none.
     ("profiles", "flag", "TEXT NOT NULL DEFAULT ''"),
+    # D153: the avatar a student made, its parts' names as JSON, shown on their posts; "" for none.
+    ("profiles", "avatar", "TEXT NOT NULL DEFAULT ''"),
 )
 _AFTER_COLUMNS = "CREATE UNIQUE INDEX IF NOT EXISTS study_groups_by_invite ON study_groups (invite);"
 

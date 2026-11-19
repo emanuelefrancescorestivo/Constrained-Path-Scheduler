@@ -480,6 +480,7 @@ class Profile:
     year: str = ""
     country: str = ""  # ISO 3166 code, when the university was chosen from the list
     flag: str = ""  # D143: where the student is from, as they chose it ("" for none)
+    avatar: str = ""  # D153: the avatar they made, its parts' names as JSON ("" for none)
 
     def public(self) -> dict:
         """What anyone in the network may see: never the token."""
@@ -492,13 +493,28 @@ class Profile:
             "flag": "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in self.country if "A" <= c <= "Z"),
             # D143: the round badge on their initial, the country they chose as theirs.
             "badge": self.flag,
-            # The avatar: the handle's first letter on one of the seven colours.
+            # The avatar: the handle's first letter on one of the seven colours, or since D153
+            # the avatar the student made, drawn where their initial was.
             "initial": self.handle[:1].upper(),
             "hue": f"c{sum(self.handle.encode()) % 7}",
+            "face": _face(self.avatar),
         }
 
 
-_PROFILE = "token, handle, university, programme, bio, created, year, country, flag"
+def _face(saved: str) -> dict[str, str] | None:
+    """An avatar kept on a profile (D153): its parts' names, letters, digits and dashes
+    only (they become class names), or None."""
+    try:
+        parts = json.loads(saved) if saved else None
+    except ValueError:
+        return None
+    if not isinstance(parts, dict):
+        return None
+    clean = {str(k): str(v) for k, v in parts.items() if re.fullmatch(r"[a-z0-9-]{1,20}", str(v))}
+    return clean or None
+
+
+_PROFILE = "token, handle, university, programme, bio, created, year, country, flag, avatar"
 
 
 def get_profile(store: Store, token: str) -> Profile | None:
@@ -507,11 +523,12 @@ def get_profile(store: Store, token: str) -> Profile | None:
     return Profile(*row) if row else None
 
 
-def set_flag(store: Store, token: str, code: str) -> None:
+def set_flag(store: Store, token: str, code: str, avatar: str = "") -> None:
     """The flag a student chose for their avatar (D143), on their profile so that others
-    see it on their initial; nothing without a profile. `code` is checked by the caller."""
+    see it on their initial, and since D153 the avatar itself, as JSON of its parts'
+    names; nothing without a profile. Both are checked by the caller."""
     with store.connection() as db:
-        db.execute("UPDATE profiles SET flag = ? WHERE token = ?", (code, token))
+        db.execute("UPDATE profiles SET flag = ?, avatar = ? WHERE token = ?", (code, avatar, token))
 
 
 def profile_by_handle(store: Store, handle: str) -> Profile | None:

@@ -19,6 +19,7 @@ nothing in it is a fixture for a number in the documents.
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import random
 import re
@@ -45,6 +46,20 @@ PEOPLE = (
     ("noah", "KU Leuven", "Bachelor Psychologie", "Cognitive Psychology", ""),
     ("chloe", "Sorbonne Université", "Licence Physique", "Mécanique quantique", "Coffee, then quanta."),
 )
+# D153: the avatar each classmate made, so that Community shows them drawn; the flag is
+# their university's country.
+FACES = {
+    "marco": {"skin": "s3", "hair": "curtains", "colour": "dark", "face": "stubble", "outfit": "jacket"}
+    | {"top": "c2", "bg": "b2", "flag": "it"},
+    "lena": {"skin": "s1", "hair": "ponytail", "colour": "blonde", "glasses": "round", "outfit": "turtleneck"}
+    | {"top": "k1", "bg": "b4", "flag": "de"},
+    "sofia": {"skin": "s4", "hair": "curly", "colour": "black", "detail": "earrings", "mouth": "grin"}
+    | {"top": "c5", "bg": "b1", "flag": "es"},
+    "noah": {"skin": "s6", "hair": "fade", "colour": "black", "head": "headphones", "outfit": "hoodie"}
+    | {"top": "c4", "bg": "b5", "flag": "be"},
+    "chloe": {"skin": "s2", "hair": "bob", "colour": "auburn", "detail": "freckles", "eyes": "happy"}
+    | {"top": "c1", "bg": "b3", "flag": "fr"},
+}
 TEAMMATES = ("maya", "tom", "ines")
 ADJECTIVES = ("calm", "brave", "quick", "bright", "keen", "bold", "wise", "sunny", "clever", "merry")
 ANIMALS = ("otter", "fox", "owl", "lynx", "panda", "heron", "koala", "tiger", "whale", "robin")
@@ -246,6 +261,11 @@ def _free_handle(where: Path, base: str) -> str:
     return f"{base}{secrets.randbelow(10**6)}"
 
 
+def _drawn(face: dict[str, str], current: service.Subscription) -> service.Subscription:
+    """A classmate's avatar (D153), kept as a student keeps theirs."""
+    return service.set_avatar(current, face)
+
+
 def _join(where: Path, token: str, handle: str, university: str, programme: str, bio: str = "") -> str:
     form = {"handle": handle, "university": university, "programme": programme, "bio": bio, "old_enough": "1"}
     return str(service.save_profile(where, token, form)["handle"])
@@ -411,6 +431,10 @@ def seed_world(where: Path, real_now: datetime | None = None) -> Showcase:
     for handle, university, programme, _course, bio in PEOPLE:
         plan = _copy(where, mate)
         _join(where, plan.token, handle, university, programme, bio)
+        drawn = service.update_subscription(where, plan.token, functools.partial(_drawn, FACES[handle]))
+        assert drawn is not None
+        service.share_flag(where, drawn)
+        plan = drawn
         people[handle] = plan.token
         subs[handle] = plan
     posts = []

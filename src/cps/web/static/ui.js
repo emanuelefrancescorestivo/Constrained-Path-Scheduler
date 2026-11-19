@@ -284,6 +284,51 @@ for (const field of document.querySelectorAll("input[data-suggest]")) {
   });
 }
 
+// D154: setting up's sentence. A value closes once chosen, so the sentence reads again.
+document.addEventListener("change", (event) => {
+  const pick = event.target.closest("details.pick");
+  if (pick && event.target.type === "radio") pick.open = false;
+});
+
+// D154: the Moodle export page from its site's address as it is typed: every Moodle
+// keeps it at <site>/calendar/export.php. Without this script the steps say where it
+// is in Moodle's own words.
+for (const field of document.querySelectorAll("input[data-moodle-site]")) {
+  const box = field.closest("[data-moodle]");
+  const open = box.querySelector("[data-moodle-open]");
+  box.hidden = false;
+  field.addEventListener("input", () => {
+    const site = field.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    const fine = /^[a-z0-9.-]+\.[a-z]{2,}(:\d{2,5})?(\/[\w.~-]+)*$/i.test(site);
+    open.hidden = !fine;
+    if (fine) open.href = `https://${site}/calendar/export.php`;
+  });
+}
+
+// D154: a learning platform's link, pasted, shows the deadlines it brings before
+// anything is saved; the server reads it and answers with the list.
+for (const field of document.querySelectorAll("input[data-preview]")) {
+  const out = document.getElementById(field.getAttribute("aria-describedby"));
+  let timer = null;
+  let asked = "";
+  const ask = async () => {
+    const url = field.value.trim();
+    if (url === asked || !/^https?:\/\/\S+$/i.test(url)) return;
+    asked = url;
+    out.textContent = t("Reading the link…");
+    try {
+      const answer = await fetch(field.dataset.preview, { method: "POST", body: new URLSearchParams({ url }) });
+      out.innerHTML = answer.ok ? await answer.text() : "";
+    } catch {
+      out.textContent = t("No connection to the server. Try again.");
+    }
+  };
+  field.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(ask, 500);
+  });
+}
+
 // Copy and Share buttons appear only where they work.
 for (const button of document.querySelectorAll("[data-copy]")) button.hidden = !(navigator.clipboard && window.isSecureContext);
 for (const button of document.querySelectorAll("[data-share]")) button.hidden = typeof navigator.share !== "function";
