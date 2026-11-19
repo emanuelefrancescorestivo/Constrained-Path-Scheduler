@@ -6038,3 +6038,255 @@ does not come back. With D149's planning tip, the calendar now opens on its grid
 **Disclosed.** Without a script there is no tour, so a page opened without one no longer says
 what its section is for.
 
+
+## D153. Your avatar on your posts; Community among the main sections
+
+**Asked.** The owner, on 2026-11-19, of a post in Community that showed its author's initial:
+"the avatar does not pop out here"; and "community is at the very bottom it could be easier to
+reach maybe from the headquarters/dashboard".
+
+**Chosen.** When a student saves their avatar (D115), it is kept with their profile, as its flag
+already was (D143): only its parts' names, each one the maker offers, and read back as letters,
+digits and dashes alone, since they become class names. Wherever Community draws a person (a
+post, a comment, a profile, a group, Studying now, Today's window on classmates), the avatar
+they made takes the place of their initial, with the flag's badge on it; without one, the
+initial on its colour, as before. A feed draws the same person once per post, so each drawing
+gets its own clip path's id from a counter, not one per person.
+
+On a laptop, Community moves from the sidebar's bottom group to the main sections, after the
+calendar; the study map stays below. A phone's tab bar already had it, and Today's window on
+classmates links to it.
+
+**Rejected.** Drawing the avatar from the plan's options at each post: a post is read by other
+students, whose pages have no access to the author's plan, only to their profile.
+
+**Disclosed.** An avatar made before this change reaches Community the next time it is saved, or
+when a profile is made; until then, the initial shows. Each avatar is under 4 KB of drawing
+before gzip each time it is drawn (`tests/test_avatar.py`), so a feed of people with avatars is
+heavier than one of initials; gzip takes much of it back, since the drawings repeat.
+
+## D154. Setting up as one sentence; Moodle in three steps
+
+**Asked.** The owner, on 2026-11-19, of setting up's deadlines, study time and busy times: "i
+think these deserve more attention but definitely need to be made very easy to fill in so
+students do not have much friction to start with, make proposals". Of the three proposed, they
+chose B, the defaults as one sentence, with Moodle in three steps, and the busy-time line fixed
+(it said "The next step asks about them", and no step did: AUDIT 112).
+
+**Chosen.** Under the exams, setting up shows what the plan assumes as a few sentences, each value
+underlined: "You get up at 07:30, go to bed at 22:30 and have lunch at 12:30. You study at most 2
+sessions of 90 min a day. Outside your classes, you are free all the time. Your deadlines: none
+yet." A value tapped opens its choices under the line (six times to get up, six to go to bed,
+three lunches or none, one to four sessions, 45 to 120 minutes); one chosen closes them, and the
+sentence shows it. When everything is right, going on is the one tap it was. Under the busy line,
+"+ Training", "+ Work", "+ Busy" and "+ Trip to university" each open a small form: the days, and
+hours already filled in (a busy time with no day chosen is none; one with days and no hours says
+so); the trip is its minutes each way. Under the deadlines, "From Moodle" and "+ Type one".
+
+From Moodle is three steps in Moodle's own words, read from Moodle 4.5's strings in the student's
+language (English, French, Italian): open the export page (Calendar, then "Import or export
+calendars", then "Export calendar"; or type the Moodle's address, and the page's script makes the
+link to `<site>/calendar/export.php`, the same on every Moodle site); choose "All events" and
+"Recent and next 60 days", then the button "Get calendar URL"; paste the link. Pasted, the link is
+read at once and the page lists the deadlines it brings (`deadlines_preview`), before anything is
+saved. Once a link is kept, its export page is a tap away.
+
+Each value is a `<details>`, so it opens without a script, one at a time where the browser knows
+`name`; the value shown follows the choice through CSS (`:has`). What the sentence does not show
+(days off, a limit on weekly hours, exam practice, the self-tests and warm-ups, the busy times
+already there) is sent back as it is. A week drawn by hand keeps its classes' typed rows under
+the sentence, for a browser without scripts (D32). Setting up now offers the trip, which D98 had
+left to Today's questions; those questions still come for what was not answered.
+
+**Rejected.** A, one question at a time on cards: about eight taps to answer all three, and a
+student who is fine with the defaults still pages through them. C, the week said in one line and
+read by rules: fastest when the rules read it, but what they miss must be said and corrected,
+and it adds a reader of free text in three languages to setting up. A link that opens Moodle's
+export already filled in: Moodle's form needs a signed-in session's key, so the last click stays
+the student's.
+
+**Disclosed.** The choices are around where most students' days fall; a value set elsewhere is
+added to them. Moodle's words are those of Moodle 4.5's language packs; a site that changed them,
+or a Moodle in another language than the app's, shows other words. The preview reads the link
+from the server, as saving it does. Without `::details-content` (browsers before Chromium 131 and
+Safari 18.4), each value sits on its own line. Checked in Chromium only, at phone size with touch
+and at 1280px.
+
+## D155. Edit Today
+
+**Asked.** The owner, on 2026-11-19, of Today on a laptop: "this page is very overwhelming i do not
+feel in control". Of the three proposed, they chose B: "Edit Today", as a phone's widgets, each block
+on or off, five on to start, the order kept.
+
+**Chosen.** Today starts with five widgets: Up next, Today (the day's list), Focus, Tasks and Exams.
+"Edit Today", beside the greeting, opens a page of twelve switches, one per widget, each with a line
+on what it shows: the five, then On your mind, Your time and attention, Tips for today, Workspace,
+This week, Flashcards and Classmates. What is saved is drawn in the page's own order, the most
+urgent first, so nothing moves under a student's thumb. What asks for an answer (a session to
+report, an answered self-test, the day's one message, a notice) is not a widget and always shows.
+A widget turned off is not worked out when the page is drawn. "Back to the five to start" restores
+them. Today's tour (D97) now shows where Today is edited, in place of the week's strip.
+
+**Rejected.** A, three things only (what now, what today, one thing to know), with the rest in the
+sections: calmer still, but the owner wanted to choose. C, one large card and a row of numbers:
+each number opens a page, so the day's list and tasks are a tap further away. Dragging widgets into
+another order: the proposal kept the page's order, and a grid that moves is harder to trust.
+
+**Disclosed.** The mock-up's list of switches did not name This week or Flashcards; both start off,
+like the other five, which takes the streak's strip off Today until it is turned on (Progress keeps
+it). Every plan, the demo's students included, opens on the five until its student chooses.
+Checked in Chromium only, at phone size in dark mode and at 1280px in light.
+
+## D156. Themes for light and dark, and an accent
+
+**Asked.** The owner, on 2026-11-19, of the dark pages: "propose different contrasts for dark,
+maybe we can have themes for light and dark"; and of the themes proposed: "i like the themes but
+i mean even for example for the doux one to allow the user to pick from a colour palette,
+maintaining as primary objective to make frictionless using the app, comfortable to navigate the
+sections and look at the screen, warmly welcomed on the app".
+
+**Chosen.** Settings, Appearance keeps Automatic, Light and Dark, and adds three rows, each choice
+one tap, as the rows above it:
+
+- a light theme: Sky (the sky of the hour, D76, as before), Paper, Soft day;
+- a dark theme: Night sky (as before), Calm night, Graphite, Dim, High contrast;
+- an accent for both: Automatic (the sky's colour of the hour on the sky themes, D78, and each
+  theme's own on the others), Blue, Teal, Green, Amber, Rose, Violet. No red: red is for exams
+  and today.
+
+Automatic switches between the two themes with the device. The themes other than the sky are flat:
+the page is one colour, the cards opaque, and when both chosen are flat the sky's sheet is not
+fetched. High contrast outlines each card. A theme is set on the page as `data-light`,
+`data-dark` and `data-accent`; its tokens outrank the sky's on the same elements, and an accent
+comes after the themes, so it wins over a theme's own.
+
+The values (page, cards, text, secondary text, accent, text in the accent, text on the accent):
+
+| theme | page | cards | text | secondary | accent | in the accent | on the accent |
+|---|---|---|---|---|---|---|---|
+| Paper | #f2f2f7 | #ffffff | #1c1c1e | #636369 | #006ae0 | #0a5fc9 | #ffffff |
+| Soft day | #ebe8e3 | #f7f5f1 | #2a2824 | #6b665e | #2c64ad | #285a9c | #ffffff |
+| Calm night | #10151e | #1a212d | #eef1f5 | #a9b2c1 | #2e6fd6 | #8ab4ff | #ffffff |
+| Graphite | #161618 | #232326 | #f5f5f7 | #a8a8ae | #006ae0 | #4fa3ff | #ffffff |
+| Dim | #1c1b19 | #262421 | #e8e3da | #aaa397 | #d9a23d | #e6b75d | #1c1b19 |
+| High contrast | #000000 | #0b0b0b | #ffffff | #dcdcdc | #3d9bff | #6fb6ff | #000000 |
+
+| accent | light: fill, text in it | dark: fill, text in it, text on it |
+|---|---|---|
+| Blue | #006ae0, #0a5fc9 | #006ae0, #7cb4ff, #ffffff |
+| Teal | #0f766e, #0f6b64 | #2dd4bf, #5eead4, #04201c |
+| Green | #15803d, #157238 | #4ade80, #86efac, #052e14 |
+| Amber | #a15c07, #8f5206 | #f5b544, #f7c873, #241703 |
+| Rose | #be185d, #b0164f | #f472b6, #f9a8d4, #2a0617 |
+| Violet | #7c3aed, #6d28d9 | #a78bfa, #c4b5fd, #1b0f3d |
+
+Every text keeps 4.5:1 against its page and its cards, in every theme and with every accent of its
+mode, a tinted button (the accent at 12 % light, 22 % dark over a card) included; the lowest is
+4.66, Soft day's secondary text on its page (`tests/test_palette.py` reads the values from
+style.css and checks each).
+
+**Rejected.** A colour wheel for any accent: most hues fail 4.5:1 on one theme or another, and a
+student would have to find one that works. A palette per theme: twelve rows for a choice most
+make once. Red as an accent: it says "exam" and "now" in this app.
+
+**Disclosed.** The theme values are those of the options page the owner chose from; the accents'
+are chosen, then measured. The flat themes have opaque cards whatever the glass setting (D132). The
+icon of an installed app keeps the sky's colours (D74). Checked in Chromium only, at phone size and
+1280px, light and dark: Paper with Teal, Soft day, Graphite, Dim, High contrast with Violet.
+
+## D157. The calendar, cleaner, with the day's sky beside the hours
+
+**Asked.** The owner, on 2026-11-19, with a screenshot of Notion Calendar: "you see how this
+calendar from notion is much cleaner and smoother? can we replicate this with a touch of
+originality? make proposals". Of the three proposed (A, Clean; B, Timetable and plan; C, Sun
+ribbon), the owner chose "A + C", and for C's bar under each day "more in a progression way like
+how much you got done in the day and how many points it will give you": that bar is D158's.
+
+**Chosen.** From A, the calm of Notion Calendar in the app's face:
+
+- a quiet header: the month and the year of the days shown ("November 2026", or "Nov – Dec 2026"
+  across two), the week's number as ISO 8601 counts it, one menu for Day, 3 Days, Week and Month,
+  then the arrows and Today. D59 to D156 had a segmented control of four and the first and last
+  day's dates; on a phone the header is two rows, the menu at the left of the second;
+- each day as "Thu 19" on one line, today a red pill;
+- each title first, in its course's ink, the time under it, smaller; a small mark before a study
+  session's title says its kind: ↻ a topic coming back, ? a first self-test, ✎ deadline work, ◆
+  exam practice, ✓ once reported done;
+- what is over faded: a class once it began, a session once it ended, its title in the secondary
+  text on a paler tint;
+- a solid board with hairlines: no sky behind the grid (D73's glass stays on the rest of the app);
+- the courses as switches: in the sidebar on a laptop, under the month, "On the calendar", as
+  Notion Calendar lists its calendars; under the grid elsewhere, the legend's chips. A course hidden
+  takes its classes, sessions and exams off the calendar on that device (kept in the browser, as
+  the view is); it is matched by name, so two courses that share a colour are told apart.
+
+From C:
+
+- a ribbon beside the hours, the sky of each hour of today (`service.sun_hours`, the day's
+  position of D76 at every hour; the sky's first light at that position): indigo at night, gold
+  at sunrise, blue by day, orange then violet at sunset;
+- the line of now in the accent of the hour (D78) with a sun while the sun is up and a moon after,
+  and the line faint across the other days, as Notion Calendar draws it;
+- a moon where the study window ends: no session is planned after it.
+
+A title is 40 % of its course's colour and 60 % of the text. Over every course colour, at a
+session's tint and a lecture's, in every theme of D156 and the two before them, it reads at 4.5:1
+or more, and so does a past title; the lowest is 4.77, a past violet class on Soft day's cards
+(`tests/test_calendar_clean.py`). The label of now is white on the accent of its hour, 4.8:1 by
+construction (D78).
+
+**Rejected.** A's 55 % of the course's colour, as proposed: 3.78:1 for an amber session on Soft
+day's cards (D156 came after the proposal). D78's accent for the ribbon: it stays between blue and
+purple all day, so the morning would not be gold; the ribbon has no text, so the sky's lighter
+first light is used. Fading what is over with opacity: its title fell under 4.5:1. B's free time
+drawn as bands: not chosen. The legend kept under the grid on a laptop: the sidebar has the room
+and lists the courses already.
+
+**Disclosed.** The ribbon is today's sky drawn beside every day shown, for the time zone's main
+city (D76). The kinds' marks are a choice; a session's kind is still said in full in its popover.
+The courses hidden are kept on the device only. Checked in Chromium only, at 1440 × 900, 1280 ×
+800 and phone size, light and dark.
+
+## D158. Points for a session, and its proof of work
+
+**Asked.** The owner, on 2026-11-19, of option C's bar under each day (D157): "more in a
+progression way like how much you got done in the day and how many points it will give you if
+you do it (like a study session, and you get those points if you post what you did and your
+peers validate it like a proof of work, on top of an inherent bonus for completing it (because a
+lazy student could simply say they studied even if they have not))".
+
+**Chosen.** Each study session of the plan is worth points:
+
+- 10 for doing it, on the student's word: any answer but Skipped (D25's recall answers
+  included, "Nothing" too: the session happened);
+- 20 more for its proof: a session post that says what was done (its note, or its line for
+  anyone) or shows it (a photo), vouched for by at least one other student. A post logged from
+  the session (timed with Focus, or shared from the calendar) names it; one logged by hand goes to
+  the first session of its day and course not yet proven. A proven session counts as done for
+  its points.
+
+Vouching is D141's mark on a new kind of post: a reader who can see the post (its followers or
+everyone, as it was shared) taps Vouch, "I believe this session happened: my word is its proof",
+and can take it back; not on one's own posts, not without a handle, not on a post that says or
+shows nothing (minutes alone prove nothing), and someone blocked either way is not counted. The
+author sees "Vouched for by 1 classmate". The points are the student's own: no one else sees them,
+and there is no ranking.
+
+On the calendar, under each day's name, a slim bar fills with the points the day's sessions gave
+against what they can give; beside each session's time, "+10" while it is to do, then what it
+gave. Its popover says why and offers "Share what you did", which opens the diary's form on that
+session (its course, its length, its day): saving it reports the session done, and posts it.
+
+**Rejected.** Points for minutes: the plan sets a session's length, and a longer one is no more
+proof. Points without a report: D44 counts an unreported session as done for the plan, but points
+ask for the student's word. A proof from any reaction (D108): a reaction says "nice", not "I
+believe it". Two vouches: a first class of the pilot may have few classmates on the app. A public
+score or a ranking: the stakes (D128) and the study network (D16) are about the work, not about
+beating others; a ranking invites collusion and shame.
+
+**Disclosed.** A vouch is a classmate's word, not a check: two friends can vouch for each other's
+sessions that never happened, and a post's words or photo can be borrowed. It raises the cost of
+claiming a session, it does not prove it. The 10 and 20 are choices, not measured; whether points
+bring more sessions, or more honest reports, is for the pilot. A post logged by hand on a day
+without a session of its course proves nothing. Checked in Chromium only, at 1440 × 900 and phone
+size, light and dark.

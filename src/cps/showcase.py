@@ -19,6 +19,7 @@ nothing in it is a fixture for a number in the documents.
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import random
 import re
@@ -45,6 +46,20 @@ PEOPLE = (
     ("noah", "KU Leuven", "Bachelor Psychologie", "Cognitive Psychology", ""),
     ("chloe", "Sorbonne Université", "Licence Physique", "Mécanique quantique", "Coffee, then quanta."),
 )
+# D153: the avatar each classmate made, so that Community shows them drawn; the flag is
+# their university's country.
+FACES = {
+    "marco": {"skin": "s3", "hair": "curtains", "colour": "dark", "face": "stubble", "outfit": "jacket"}
+    | {"top": "c2", "bg": "b2", "flag": "it"},
+    "lena": {"skin": "s1", "hair": "ponytail", "colour": "blonde", "glasses": "round", "outfit": "turtleneck"}
+    | {"top": "k1", "bg": "b4", "flag": "de"},
+    "sofia": {"skin": "s4", "hair": "curly", "colour": "black", "detail": "earrings", "mouth": "grin"}
+    | {"top": "c5", "bg": "b1", "flag": "es"},
+    "noah": {"skin": "s6", "hair": "fade", "colour": "black", "head": "headphones", "outfit": "hoodie"}
+    | {"top": "c4", "bg": "b5", "flag": "be"},
+    "chloe": {"skin": "s2", "hair": "bob", "colour": "auburn", "detail": "freckles", "eyes": "happy"}
+    | {"top": "c1", "bg": "b3", "flag": "fr"},
+}
 TEAMMATES = ("maya", "tom", "ines")
 ADJECTIVES = ("calm", "brave", "quick", "bright", "keen", "bold", "wise", "sunny", "clever", "merry")
 ANIMALS = ("otter", "fox", "owl", "lynx", "panda", "heron", "koala", "tiger", "whale", "robin")
@@ -180,6 +195,14 @@ def page_png(rng: random.Random, width: int = 480, height: int = 640) -> bytes:
 # The store
 # --------------------------------------------------------------------------- #
 
+# What a classmate's session says was done, every other one (D158: what can be vouched
+# for); chosen by the session's place in turn, so the seeded draws stay as they were.
+DONE_LINES = (
+    "Exercises 1 to 6 of the sheet; stuck on the fifth.",
+    "Went through the lecture again and rewrote the two proofs.",
+    "One past paper, timed, then marked against the solutions.",
+    "Read the chapter and wrote a one-page summary.",
+)
 SIMPLE = (
     "A matrix can stretch some directions without turning them; those are its eigenvectors.",
     "A p-value is how surprising the data would be if nothing were going on.",
@@ -246,6 +269,11 @@ def _free_handle(where: Path, base: str) -> str:
     return f"{base}{secrets.randbelow(10**6)}"
 
 
+def _drawn(face: dict[str, str], current: service.Subscription) -> service.Subscription:
+    """A classmate's avatar (D153), kept as a student keeps theirs."""
+    return service.set_avatar(current, face)
+
+
 def _join(where: Path, token: str, handle: str, university: str, programme: str, bio: str = "") -> str:
     form = {"handle": handle, "university": university, "programme": programme, "bio": bio, "old_enough": "1"}
     return str(service.save_profile(where, token, form)["handle"])
@@ -261,7 +289,7 @@ def _logged(
     rate: float = 0.45,
 ) -> tuple[service.Subscription, list[social.Post]]:
     """Sessions logged on about `rate` of the days, shared as `share` says."""
-    posts = []
+    posts: list[social.Post] = []
     day, end = days
     while day < end:
         if rng.random() < rate:
@@ -272,6 +300,7 @@ def _logged(
                 "progress": str(rng.randint(2, 5)),
                 "minutes": str(rng.choice([40, 50, 60, 90, 120])),
                 "visibility": rng.choice(share),
+                "note": DONE_LINES[len(posts) // 2 % len(DONE_LINES)] if len(posts) % 2 == 0 else "",
             }
             sub, post = service.log_session(where, sub, form, now=_at(day, rng.randint(8, 18)))
             posts.append(post)
@@ -411,6 +440,10 @@ def seed_world(where: Path, real_now: datetime | None = None) -> Showcase:
     for handle, university, programme, _course, bio in PEOPLE:
         plan = _copy(where, mate)
         _join(where, plan.token, handle, university, programme, bio)
+        drawn = service.update_subscription(where, plan.token, functools.partial(_drawn, FACES[handle]))
+        assert drawn is not None
+        service.share_flag(where, drawn)
+        plan = drawn
         people[handle] = plan.token
         subs[handle] = plan
     posts = []
@@ -551,6 +584,17 @@ def add_student(
         social.mark_present(Store(where), people[other], course, started, started + timedelta(minutes=70))
     if shared:
         service.add_comment(where, people["marco"], shared[0].id, "Nice one. Same sheet tomorrow for me.")
+    # Proof of work (D158): two of their sessions that say what was done, vouched for, on
+    # days the plan had a session of their course, so the calendar shows them proven.
+    latest = service.load_subscription(where, you.token)
+    plan = latest.plan if latest is not None else None
+    planned = (
+        {(x.start[:10], x.subject) for x in service.PlanReport.from_dict(plan).history} if plan else set()
+    )
+    said = [p for p in shared if social.says_what_was_done(p)]
+    for post in sorted(said, key=lambda p: (p.day, str(p.data.get("course"))) not in planned)[:2]:
+        with contextlib.suppress(service.InvalidInput):
+            service.toggle_check(where, people["marco"], post.id, now=now - timedelta(hours=2))
 
     # A study group of their own, four weeks old, with three teammates who keep their
     # sessions to themselves; its goal is what the group usually does, so some weeks

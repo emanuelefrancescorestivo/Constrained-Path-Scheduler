@@ -207,6 +207,10 @@ def _form(html: str) -> dict:
             if " checked" in tag:
                 form.setdefault(name.group(1), []).append(unescape(value.group(1)))
             continue
+        if 'type="radio"' in tag:  # only the chosen one is sent
+            if " checked" in tag:
+                form[name.group(1)] = unescape(value.group(1))
+            continue
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
@@ -263,9 +267,13 @@ def test_a_half_answer_is_shown_again_as_typed(web):
     assert stored is not None and stored.busy_rows == () and not stored.options.get("commute_minutes")
 
 
-def test_settings_change_the_trip_and_setting_up_leaves_it_to_the_questions(web):
+def test_settings_change_the_trip_and_setting_up_offers_it_in_its_sentence(web):
     token = _start(web)
-    assert 'name="commute"' not in web.get(f"/p/{token}/settings?new=1").text
+    # D154 (the owner's 1-B): the trip is one of the sentence's additions, at no trip
+    # unless chosen; D98 had left it to the questions about the week.
+    setup = web.get(f"/p/{token}/settings?new=1").text
+    trip = setup.split("+ Trip to university", 1)[1].split("</details>", 1)[0]
+    assert 'name="commute" value="0" checked' in trip and 'name="commute" value="30"' in trip
     service.update_subscription(
         web.path, token, lambda s: service.revise_subscription(s, commute_minutes=20, now=MORNING)
     )

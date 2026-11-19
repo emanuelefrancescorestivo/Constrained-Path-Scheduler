@@ -203,6 +203,9 @@ def test_ask_on_the_person_page_answer_on_progress_and_the_line_on_today(web, pe
     progress = unescape(web.get(f"/p/{bob.token}/progress").text)
     assert "Studying together" in progress and "0 days together" in progress
     assert "@ada: not yet today" in progress
+    # The line is in the week's widget, on as a student turns it on (D155 starts with five).
+    week = [*service.TODAY_START, "week"]
+    service.update_subscription(web.root, ada.token, lambda s: service.set_today_widgets(s, week))
     today = unescape(web.get(f"/p/{ada.token}/panel").text)
     assert "@bob" in today and "days together" in today
     assert "Studying together" in unescape(web.get(f"/p/{ada.token}/u/bob").text)  # the badge

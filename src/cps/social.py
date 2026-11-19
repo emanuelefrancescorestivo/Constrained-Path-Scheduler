@@ -480,6 +480,7 @@ class Profile:
     year: str = ""
     country: str = ""  # ISO 3166 code, when the university was chosen from the list
     flag: str = ""  # D143: where the student is from, as they chose it ("" for none)
+    avatar: str = ""  # D153: the avatar they made, its parts' names as JSON ("" for none)
 
     def public(self) -> dict:
         """What anyone in the network may see: never the token."""
@@ -492,13 +493,28 @@ class Profile:
             "flag": "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in self.country if "A" <= c <= "Z"),
             # D143: the round badge on their initial, the country they chose as theirs.
             "badge": self.flag,
-            # The avatar: the handle's first letter on one of the seven colours.
+            # The avatar: the handle's first letter on one of the seven colours, or since D153
+            # the avatar the student made, drawn where their initial was.
             "initial": self.handle[:1].upper(),
             "hue": f"c{sum(self.handle.encode()) % 7}",
+            "face": _face(self.avatar),
         }
 
 
-_PROFILE = "token, handle, university, programme, bio, created, year, country, flag"
+def _face(saved: str) -> dict[str, str] | None:
+    """An avatar kept on a profile (D153): its parts' names, letters, digits and dashes
+    only (they become class names), or None."""
+    try:
+        parts = json.loads(saved) if saved else None
+    except ValueError:
+        return None
+    if not isinstance(parts, dict):
+        return None
+    clean = {str(k): str(v) for k, v in parts.items() if re.fullmatch(r"[a-z0-9-]{1,20}", str(v))}
+    return clean or None
+
+
+_PROFILE = "token, handle, university, programme, bio, created, year, country, flag, avatar"
 
 
 def get_profile(store: Store, token: str) -> Profile | None:
@@ -507,11 +523,12 @@ def get_profile(store: Store, token: str) -> Profile | None:
     return Profile(*row) if row else None
 
 
-def set_flag(store: Store, token: str, code: str) -> None:
+def set_flag(store: Store, token: str, code: str, avatar: str = "") -> None:
     """The flag a student chose for their avatar (D143), on their profile so that others
-    see it on their initial; nothing without a profile. `code` is checked by the caller."""
+    see it on their initial, and since D153 the avatar itself, as JSON of its parts'
+    names; nothing without a profile. Both are checked by the caller."""
     with store.connection() as db:
-        db.execute("UPDATE profiles SET flag = ? WHERE token = ?", (code, token))
+        db.execute("UPDATE profiles SET flag = ?, avatar = ? WHERE token = ?", (code, avatar, token))
 
 
 def profile_by_handle(store: Store, handle: str) -> Profile | None:
@@ -1088,9 +1105,22 @@ class Comment:
 
 
 # Peer checks (D141): a reader of an explanation or of notes says "It's right" with one
-# tap, or suggests a fix, a comment its author may accept. A session is not checked: it
-# says what someone did, not what is true.
+# tap, or suggests a fix, a comment its author may accept. A session is vouched for
+# instead (D158): a reader who saw what it says or shows was done believes it happened,
+# its proof of work, worth points to its author. Both are the same mark, in `checks`.
 CHECKED = ("explain", "notes")
+VOUCHED = ("session",)
+
+
+def says_what_was_done(post: Post) -> bool:
+    """Whether a session post can be vouched for (D158): it says what was done, in its
+    note or its line for anyone, or shows it, in a photo. Minutes alone prove nothing."""
+    data = post.data
+    return bool(
+        str(data.get("simple") or "").strip() or str(data.get("note") or "").strip() or data.get("photos")
+    )
+
+
 COMMENT_KINDS = ("comment", "fix")
 
 
@@ -1168,10 +1198,12 @@ def delete_comment(store: Store, token: str, comment_id: str) -> bool:
 
 
 def toggle_check(store: Store, token: str, post: Post, now: datetime | None = None) -> bool:
-    """Say an explanation or notes are right, or take it back; True if said (D141).
-    One per person per post; not one's own."""
-    if post.kind not in CHECKED:
+    """Say an explanation or notes are right, or vouch for a session (D158), or take it
+    back; True if said (D141). One per person per post; not one's own."""
+    if post.kind not in CHECKED + VOUCHED:
         raise SocialError(_("explanations and notes are checked; a session is not"))
+    if post.kind in VOUCHED and not says_what_was_done(post):
+        raise SocialError(_("a session is vouched for when its post says or shows what was done"))
     if not may_see(store, token, post):
         raise SocialError(_("this post is not, or no longer, visible to you"))
     if get_profile(store, token) is None:

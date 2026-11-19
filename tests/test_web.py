@@ -79,6 +79,10 @@ def _form(html: str) -> dict:
             if " checked" in tag:
                 form.setdefault(name.group(1), []).append(unescape(value.group(1)))
             continue
+        if 'type="radio"' in tag:  # only the chosen one is sent
+            if " checked" in tag:
+                form[name.group(1)] = unescape(value.group(1))
+            continue
         form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
         chosen = re.search(r'<option(?: value="([^"]*)")? selected>([^<]*)', body)
@@ -183,9 +187,10 @@ def test_starting_from_a_file_finds_the_exams(web):
     assert (
         "<h1>What do you study?</h1>" in page and "Exam Mon 25 Jan 2027, 13:45 · from your timetable<" in page
     )
-    # While setting up, the rest has its defaults under folds (D98), and one way forward.
+    # While setting up, the rest has its defaults (D98), shown as one sentence (D154), and
+    # one way forward.
     assert page.count('<details class="adjust">') == len(subscription.subjects)
-    assert '<details class="setup-more">' in page
+    assert '<section class="card sentence"' in page
     assert 'class="tabbar"' not in page and "spark-top" not in page
 
 
@@ -830,7 +835,14 @@ def test_a_session_is_reported_from_the_calendar(web, planned, clock):
     assert refused.status_code == 400 and "already started" in refused.json()["message"]
 
 
+def _widgets(web, token: str, *keys: str) -> None:
+    """Today with these widgets on besides the five it starts with (D155)."""
+    chosen = [*service.TODAY_START, *keys]
+    service.update_subscription(web.store.path, token, lambda s: service.set_today_widgets(s, chosen))
+
+
 def test_the_panel_is_the_plan_pages_panel(web, planned):
+    _widgets(web, planned, "week")
     page = web.get(f"/p/{planned}").text
     panel = web.get(f"/p/{planned}/panel").text
     assert panel.strip() and panel.strip().split("\n")[0] in page
@@ -971,6 +983,7 @@ def test_progress_counts_reported_sessions_and_never_scolds(web, planned, clock)
 
 
 def test_today_shows_the_streak_and_on_monday_last_week_s_review_until_hidden(web, planned, clock):
+    _widgets(web, planned, "week")
     clock.now = MONDAY
     for s in _first_week(web, planned):
         web.post(f"/s/{planned}/{service.session_id(s)}", data={"outcome": "done"})
@@ -1373,6 +1386,7 @@ def test_a_study_group_from_starting_it_to_leaving(web, planned, clock):
 
 
 def test_flashcards_from_writing_to_reviewing(web, planned):
+    _widgets(web, planned, "cards")
     assert "No cards yet" in unescape(web.get(f"/p/{planned}/cards").text)
     refused = web.post(
         f"/p/{planned}/cards", data={"course": "Algebra 3", "front": "Eigenvalue?", "back": ""}

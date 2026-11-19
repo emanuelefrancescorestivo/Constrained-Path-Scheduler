@@ -56,15 +56,19 @@
     {# D135 put planning's tip in a line above the grid; the owner found it pushed the
        calendar down (2026-11-19), so the calendar has none: planning's tips are on the
        tips page and Today's. #}
+    {# D157: a quiet header, as Notion Calendar's: the month and the week, one menu for the
+       days shown, then Today and the arrows. D59 to D156 had a segmented control of four. #}
     <div class="board-bar" id="calendar-bar" hidden>
-      <span class="range" id="calendar-range" aria-live="polite"></span>
+      <span class="range" aria-live="polite"><span id="calendar-range"></span> <span class="range-week" id="calendar-week"></span></span>
       <span class="spacer"></span>
-      <div class="segmented" role="group" aria-label="{{ _('Days shown') }}" data-tour="views">
-        <button type="button" data-view="1">{{ _("Day") }}</button>
-        <button type="button" data-view="3">{{ _("3 Days") }}</button>
-        <button type="button" data-view="7">{{ _("Week") }}</button>
-        {% if not setup %}<button type="button" data-view="30">{{ _("Month") }}</button>{% endif %}
-      </div>
+      <label class="view-pick" data-tour="views"><span class="sr-only">{{ _("Days shown") }}</span>
+        <select id="calendar-view">
+          <option value="1">{{ _("Day") }}</option>
+          <option value="3">{{ _("3 Days") }}</option>
+          <option value="7">{{ _("Week") }}</option>
+          {% if not setup %}<option value="30">{{ _("Month") }}</option>{% endif %}
+        </select>
+      </label>
       <button type="button" class="btn btn-sm btn-icon" data-go="back" aria-label="{{ _('Earlier days') }}">
         {{ lucide('chevron-left') }}</button>
       <button type="button" class="btn btn-sm" data-go="today">{{ _("Today") }}</button>

@@ -137,6 +137,9 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
         },
         now=NOW,
     )
+    # Every widget on (D155 starts with five), to see them all in their order.
+    every = [key for key, _name, _line in service.TODAY_WIDGETS]
+    service.update_subscription(tmp_path, ben.token, lambda s: service.set_today_widgets(s, every))
     today = unescape(web.get(f"/p/{ben.token}").text)
     assert (
         '<div class="hub">' in today
@@ -262,6 +265,9 @@ def test_the_workspace_holds_each_courses_links_this_weeks_first(web, tmp_path):
     from dataclasses import replace
 
     sub = _plan(tmp_path, "ada")
+    # The workspace is on, as a student turns it on (D155 starts with five).
+    with_work = [*service.TODAY_START, "work"]
+    sub = service.update_subscription(tmp_path, sub.token, lambda s: service.set_today_widgets(s, with_work))
     for title, url, week in (
         ("Course page", "https://moodle.example.edu/course/view.php?id=12", ""),
         ("Slides, week 1", "https://www.example.edu/slides/w1.pdf", "2026-09-28"),
@@ -295,6 +301,7 @@ def test_the_workspace_holds_each_courses_links_this_weeks_first(web, tmp_path):
     # said once, only while no course has one (the owner, 2026-11-19: it was said per course).
     assert f'href="/p/{sub.token}/courses/1#link"' in work and "its Moodle page, slides, a folder" not in work
     bare = _plan(tmp_path)  # a plan of its own, no links yet
+    service.update_subscription(tmp_path, bare.token, lambda s: service.set_today_widgets(s, with_work))
     empty = unescape(web.get(f"/p/{bare.token}").text)
     empty = empty[empty.index('class="w w-work"') :]
     empty = empty[: empty.index("</section>")]

@@ -252,8 +252,11 @@ def test_buttons_links_and_grey_text_read_at_4_5_to_1():
     muted = tuple(round(int(c) * a + p * (1 - a)) for c, p in zip((red, green, blue), page, strict=True))
     assert sky.contrast(muted, page) >= 4.5
     assert sky.contrast(hexed(_token("--danger-fill", root)), white) >= 4.5  # red buttons, the "now" label
-    # Dark mode's buttons, in both copies of its tokens.
-    for dark in re.findall(r"--accent:\s*(#[0-9a-f]{6});", css)[1:]:
+    # Dark mode's buttons, in both copies of its tokens. The themes and accents of D156 each
+    # carry their own text on the accent (dark on Dim's amber, say): tests/test_palette.py
+    # checks every one of them against that text.
+    base = css[: css.index("/* -- D156: themes and accents")]
+    for dark in re.findall(r"--accent:\s*(#[0-9a-f]{6});", base)[1:]:
         assert sky.contrast(hexed(dark), white) >= 4.5, dark
 
 

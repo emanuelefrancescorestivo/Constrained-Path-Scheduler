@@ -178,6 +178,9 @@ def test_both_tips_cite_checked_sources():
 def test_today_writes_down_closes_the_day_and_a_task_takes_steps(tmp_path):
     task = service.TaskSpec("Stats report", "2026-10-20 18:00", 6, "Advanced Statistics")
     sub = _plan(tmp_path, [task])
+    # On your mind is on, as a student turns it on (D155 starts with five).
+    mind = [*service.TODAY_START, "mind"]
+    sub = service.update_subscription(tmp_path, sub.token, lambda s: service.set_today_widgets(s, mind))
     clock = {"now": EVENING}
     config = Config(
         store=tmp_path, clock=lambda: clock["now"], background=False, sweep_every=None, remind_every=None

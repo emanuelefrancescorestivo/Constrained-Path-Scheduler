@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_art.html" import art %}
+{% block title %}{{ _("Edit Today") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# D155: Today's widgets, each on or off, as a phone's home screen (the owner's choice
+   2-B). Five are on to start; the order stays the page's, most urgent first. What asks
+   for an answer is always shown, so it is not on this list. #}
+<p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>
+<div class="page-title"><h1>{{ _("Edit Today") }}</h1></div>
+<p class="muted">{{ _("Choose what Today shows. What needs an answer from you, like how a session went, always shows.") }}</p>
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/today/edit">
+  <ul class="card list widget-list">
+    {% for w in widgets %}
+    <li><label class="widget-row" for="w-{{ w.key }}">
+      <span class="grow"><b>{{ w.name }}</b><small>{{ w.line }}</small></span>
+      <input type="checkbox" id="w-{{ w.key }}" name="widget" value="{{ w.key }}"{% if w.on %} checked{% endif %}>
+    </label></li>
+    {% endfor %}
+  </ul>
+  <p class="hint">{{ _("Everything stays a tap away in the sections, whatever Today shows.") }}</p>
+  <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Done") }}</button></div>
+</form>
+<form method="post" action="/p/{{ token }}/today/edit" class="row-end">
+  {% for key in start %}<input type="hidden" name="widget" value="{{ key }}">{% endfor %}
+  <button type="submit" class="btn btn-plain btn-sm">{{ _("Back to the five to start") }}</button>
+</form>
+{% endblock %}

@@ -66,6 +66,8 @@ def test_a_reader_says_it_is_right_with_one_tap_and_can_take_it_back(tmp_path, p
 
 
 def test_a_session_is_not_checked_nor_given_fixes(tmp_path, people):
+    # Since D158 a session that says or shows what was done is vouched for, with the same
+    # mark (tests/test_points.py); this one says nothing, and no session is given fixes.
     ada, bob, _, _ = people
     session = {
         "course": "Algebra 3",

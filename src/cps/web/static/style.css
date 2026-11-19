@@ -753,9 +753,55 @@ details.inline > summary::before { content: none; }
 .exam-row > details.adjust { flex: 0 0 auto; align-self: center; }
 .exam-row > details.adjust[open] { flex: 1 1 100%; }
 .exam-row > details.adjust > summary { font-size: 0.88rem; color: var(--accent-ink); }
-.setup-more { margin: 18px 0; }
-.setup-more > summary { display: grid; gap: 2px; padding: 12px 0; cursor: pointer; }
-.setup-more > summary small { color: var(--muted); font-weight: 400; }
+/* D154: setting up's sentence. Each value is underlined in the accent, a tap from its
+   choices, which open under the line; the value shown follows the choice (`:has`), and
+   without `:has` it stays the one saved until the page is sent. */
+.sentence { margin: 18px 0; }
+.sentence h2 { margin: 0 0 2px; font-size: 1.1rem; }
+.sentence-line { margin: 14px 0 6px; font-size: 1.15rem; line-height: 1.9; }
+.pick { display: inline; }
+/* Closed, a value's choices take no room, so the sentence runs on; open, they break the
+   line under it. (Where `::details-content` is unknown, each value sits on its own line.) */
+.pick:not([open])::details-content { display: none; }
+.pick[open]::details-content { display: contents; }
+.pick > summary::before, .add-busy > summary::before { content: none; }
+.pick > summary { display: inline; margin: 0; list-style: none; cursor: pointer; color: var(--accent-ink); font-weight: 650;
+  text-decoration: underline; text-decoration-style: dashed; text-decoration-thickness: 1.5px; text-underline-offset: 5px;
+  border-radius: 6px; padding: 1px 1px; }
+.pick > summary::-webkit-details-marker { display: none; }
+.pick > summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+.pick[open] > summary { background: var(--accent-soft); text-decoration-style: solid; }
+.pick-panel { display: flex; margin: 6px 0 10px; font-size: 1rem; line-height: 1.3; }
+.pick-now > span { display: none; }
+.pick-now > span.is-saved { display: inline; }
+@supports selector(:has(*)) {
+  .pick:has(input:checked) .pick-now > span.is-saved { display: none; }
+  .pick:has(.pill:nth-child(1) > input:checked) .pick-now > span:nth-child(1),
+  .pick:has(.pill:nth-child(2) > input:checked) .pick-now > span:nth-child(2),
+  .pick:has(.pill:nth-child(3) > input:checked) .pick-now > span:nth-child(3),
+  .pick:has(.pill:nth-child(4) > input:checked) .pick-now > span:nth-child(4),
+  .pick:has(.pill:nth-child(5) > input:checked) .pick-now > span:nth-child(5),
+  .pick:has(.pill:nth-child(6) > input:checked) .pick-now > span:nth-child(6),
+  .pick:has(.pill:nth-child(7) > input:checked) .pick-now > span:nth-child(7),
+  .pick:has(.pill:nth-child(8) > input:checked) .pick-now > span:nth-child(8) { display: inline; }
+}
+.busy-chip { display: inline-block; margin: 0 4px 4px 0; padding: 2px 10px; border-radius: 999px; background: var(--fill-2);
+  font-size: 0.95rem; line-height: 1.6; }
+.sentence-adds { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin: 4px 0 8px; }
+.add-busy > summary { list-style: none; margin: 0; }
+.add-busy > summary::-webkit-details-marker { display: none; }
+.add-busy[open] { flex: 1 0 100%; order: 1; }
+.add-busy[open] > summary { background: var(--accent); color: var(--on-accent); }
+.add-panel { margin: 10px 0 4px; padding: 12px 14px; border-radius: 14px; background: var(--fill-4); }
+.moodle-steps { padding-left: 34px; display: grid; gap: 10px; }
+.moodle-steps li { padding-left: 2px; }
+.moodle-steps .btn { margin-left: 6px; }
+.moodle-site { display: block; margin-top: 8px; }
+.moodle-site .row-end { gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
+.moodle-site input { flex: 1 1 14em; min-width: 0; }
+.deadlines-found:not(:empty) { margin-top: 8px; }
+.found-list { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.found-list li { display: flex; gap: 10px; align-items: baseline; }
 
 /* -- progress: ring, streak, the day grid, milestones, the review ---------------- */
 .ring { flex: none; display: block; }
@@ -1965,12 +2011,12 @@ a, button, summary, label, .pill { touch-action: manipulation; }
    the flashcard's answer keep their own behaviour. */
 @supports (interpolate-size: allow-keywords) and selector(::details-content) {
   :root { interpolate-size: allow-keywords; }
-  details:not(.menu):not(.flash-answer)::details-content { block-size: 0; overflow-y: clip; }
-  details:not(.menu):not(.flash-answer)[open]::details-content { block-size: auto; }
+  details:not(.menu):not(.flash-answer):not(.pick)::details-content { block-size: 0; overflow-y: clip; }
+  details:not(.menu):not(.flash-answer):not(.pick)[open]::details-content { block-size: auto; }
   /* The reduced-motion rules above do not reach this part (it is neither ::before
      nor ::after), so the movement is asked for here only when motion is welcome. */
   @media (prefers-reduced-motion: no-preference) {
-    :root:not([data-motion="reduce"]) details:not(.menu):not(.flash-answer)::details-content {
+    :root:not([data-motion="reduce"]) details:not(.menu):not(.flash-answer):not(.pick)::details-content {
       transition: block-size 0.35s var(--ease-out), content-visibility 0.35s allow-discrete;
     }
   }
@@ -4832,6 +4878,12 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
    person's initial in Community. */
 .av-flag-ring { fill: var(--surface); }
 .avatar { position: relative; }
+/* D153: the avatar a person made, in place of their initial: the drawing is its own circle,
+   a little larger than an initial so its face reads, and its flag smaller so as not to hide it. */
+.avatar.avatar-face { background: none; }
+.avatar.avatar-face:not(.avatar-sm):not(.avatar-lg) { width: 40px; height: 40px; }
+.avatar-face > .av-face { width: 100%; height: 100%; }
+.avatar-face > .avatar-flag { width: 40%; height: 40%; right: -2px; bottom: -2px; }
 .avatar-flag { position: absolute; right: -3px; bottom: -3px; width: 46%; height: 46%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--surface); }
 .av-chip-flag { gap: 8px; padding: 0 14px 0 8px; }
 .av-chip-flag img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
@@ -4848,3 +4900,224 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .msub-sup { display: inline-flex; flex-direction: column; vertical-align: -0.35em; line-height: 1; margin: 0 0.05em; }
 .msub-sup :is(sup, sub) { position: static !important; font-size: 0.68em !important; line-height: 1.05 !important; }
 
+/* D155: Edit Today. The button sits with the greeting; the list is a phone's settings, each
+   widget a row with its switch. */
+.hello { position: relative; }
+.hello-edit { margin-top: 6px; }
+.widget-list > li { padding: 0; }
+.widget-list .widget-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; cursor: pointer; }
+.widget-list .widget-row .grow { flex: 1 1 auto; min-width: 0; }
+.widget-list .widget-row input { flex: none; margin: 0; }
+.widget-list .widget-row b { display: block; }
+.widget-list .widget-row small { display: block; color: var(--muted); }
+@media (min-width: 700px) {
+  .hello-edit { position: absolute; top: 6px; right: 4px; margin: 0; }
+}
+
+/* -- D156: themes and accents (the values of DECISIONS.md D156's tables; tests/test_palette.py
+   reads them here and checks every text against its surface at 4.5:1). A theme other than the sky is flat: the sky's
+   colours are the page's own and the cards opaque. Set on the page and on body[data-sky], whose
+   own rules (the sky of the hour) they outrank; the sky's sheet then leaves out what they replace. */
+@media (prefers-color-scheme: light) { :root[data-light="paper"]:not([data-theme="dark"]), :root[data-light="paper"]:not([data-theme="dark"]) body[data-sky] { --bg: #f2f2f7; --surface: #ffffff; --surface-2: #f2f2f7; --elevated: #ffffff; --material: rgb(255 255 255 / 94%); --text: #1c1c1e; --muted: #636369; --line: rgb(60 60 67 / 18%); --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 12%); --accent-ink: #0a5fc9; --on-accent: #ffffff; --glass-top: #ffffff; --glass-bottom: #ffffff; --sky-base: #f2f2f7; --sky-1: 242 242 247; --sky-2: 242 242 247; --sky-3: 242 242 247; --sky-4: 242 242 247; } }
+:root[data-light="paper"][data-theme="light"], :root[data-light="paper"][data-theme="light"] body[data-sky] { --bg: #f2f2f7; --surface: #ffffff; --surface-2: #f2f2f7; --elevated: #ffffff; --material: rgb(255 255 255 / 94%); --text: #1c1c1e; --muted: #636369; --line: rgb(60 60 67 / 18%); --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 12%); --accent-ink: #0a5fc9; --on-accent: #ffffff; --glass-top: #ffffff; --glass-bottom: #ffffff; --sky-base: #f2f2f7; --sky-1: 242 242 247; --sky-2: 242 242 247; --sky-3: 242 242 247; --sky-4: 242 242 247; }
+@media (prefers-color-scheme: light) { :root[data-light="softday"]:not([data-theme="dark"]), :root[data-light="softday"]:not([data-theme="dark"]) body[data-sky] { --bg: #ebe8e3; --surface: #f7f5f1; --surface-2: #ebe8e3; --elevated: #f7f5f1; --material: rgb(247 245 241 / 94%); --text: #2a2824; --muted: #6b665e; --line: rgb(70 62 50 / 18%); --accent: #2c64ad; --accent-hover: #275898; --accent-soft: rgb(44 100 173 / 12%); --accent-ink: #285a9c; --on-accent: #ffffff; --glass-top: #f7f5f1; --glass-bottom: #f7f5f1; --sky-base: #ebe8e3; --sky-1: 235 232 227; --sky-2: 235 232 227; --sky-3: 235 232 227; --sky-4: 235 232 227; } }
+:root[data-light="softday"][data-theme="light"], :root[data-light="softday"][data-theme="light"] body[data-sky] { --bg: #ebe8e3; --surface: #f7f5f1; --surface-2: #ebe8e3; --elevated: #f7f5f1; --material: rgb(247 245 241 / 94%); --text: #2a2824; --muted: #6b665e; --line: rgb(70 62 50 / 18%); --accent: #2c64ad; --accent-hover: #275898; --accent-soft: rgb(44 100 173 / 12%); --accent-ink: #285a9c; --on-accent: #ffffff; --glass-top: #f7f5f1; --glass-bottom: #f7f5f1; --sky-base: #ebe8e3; --sky-1: 235 232 227; --sky-2: 235 232 227; --sky-3: 235 232 227; --sky-4: 235 232 227; }
+@media (prefers-color-scheme: dark) { :root[data-dark="calm"]:not([data-theme="light"]), :root[data-dark="calm"]:not([data-theme="light"]) body[data-sky] { color-scheme: dark; --bg: #10151e; --surface: #1a212d; --surface-2: #232b39; --elevated: #1a212d; --material: rgb(26 33 45 / 94%); --text: #eef1f5; --muted: #a9b2c1; --line: rgb(200 210 230 / 16%); --accent: #2e6fd6; --accent-hover: #2862bc; --accent-soft: rgb(46 111 214 / 22%); --accent-ink: #8ab4ff; --on-accent: #ffffff; --glass-top: #1a212d; --glass-bottom: #1a212d; --sky-base: #10151e; --sky-1: 16 21 30; --sky-2: 16 21 30; --sky-3: 16 21 30; --sky-4: 16 21 30; } }
+:root[data-dark="calm"][data-theme="dark"], :root[data-dark="calm"][data-theme="dark"] body[data-sky] { color-scheme: dark; --bg: #10151e; --surface: #1a212d; --surface-2: #232b39; --elevated: #1a212d; --material: rgb(26 33 45 / 94%); --text: #eef1f5; --muted: #a9b2c1; --line: rgb(200 210 230 / 16%); --accent: #2e6fd6; --accent-hover: #2862bc; --accent-soft: rgb(46 111 214 / 22%); --accent-ink: #8ab4ff; --on-accent: #ffffff; --glass-top: #1a212d; --glass-bottom: #1a212d; --sky-base: #10151e; --sky-1: 16 21 30; --sky-2: 16 21 30; --sky-3: 16 21 30; --sky-4: 16 21 30; }
+@media (prefers-color-scheme: dark) { :root[data-dark="graphite"]:not([data-theme="light"]), :root[data-dark="graphite"]:not([data-theme="light"]) body[data-sky] { color-scheme: dark; --bg: #161618; --surface: #232326; --surface-2: #2c2c30; --elevated: #232326; --material: rgb(35 35 38 / 94%); --text: #f5f5f7; --muted: #a8a8ae; --line: rgb(235 235 245 / 16%); --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 22%); --accent-ink: #4fa3ff; --on-accent: #ffffff; --glass-top: #232326; --glass-bottom: #232326; --sky-base: #161618; --sky-1: 22 22 24; --sky-2: 22 22 24; --sky-3: 22 22 24; --sky-4: 22 22 24; } }
+:root[data-dark="graphite"][data-theme="dark"], :root[data-dark="graphite"][data-theme="dark"] body[data-sky] { color-scheme: dark; --bg: #161618; --surface: #232326; --surface-2: #2c2c30; --elevated: #232326; --material: rgb(35 35 38 / 94%); --text: #f5f5f7; --muted: #a8a8ae; --line: rgb(235 235 245 / 16%); --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 22%); --accent-ink: #4fa3ff; --on-accent: #ffffff; --glass-top: #232326; --glass-bottom: #232326; --sky-base: #161618; --sky-1: 22 22 24; --sky-2: 22 22 24; --sky-3: 22 22 24; --sky-4: 22 22 24; }
+@media (prefers-color-scheme: dark) { :root[data-dark="dim"]:not([data-theme="light"]), :root[data-dark="dim"]:not([data-theme="light"]) body[data-sky] { color-scheme: dark; --bg: #1c1b19; --surface: #262421; --surface-2: #302d29; --elevated: #262421; --material: rgb(38 36 33 / 94%); --text: #e8e3da; --muted: #aaa397; --line: rgb(232 227 218 / 15%); --accent: #d9a23d; --accent-hover: #bf8f36; --accent-soft: rgb(217 162 61 / 22%); --accent-ink: #e6b75d; --on-accent: #1c1b19; --glass-top: #262421; --glass-bottom: #262421; --sky-base: #1c1b19; --sky-1: 28 27 25; --sky-2: 28 27 25; --sky-3: 28 27 25; --sky-4: 28 27 25; } }
+:root[data-dark="dim"][data-theme="dark"], :root[data-dark="dim"][data-theme="dark"] body[data-sky] { color-scheme: dark; --bg: #1c1b19; --surface: #262421; --surface-2: #302d29; --elevated: #262421; --material: rgb(38 36 33 / 94%); --text: #e8e3da; --muted: #aaa397; --line: rgb(232 227 218 / 15%); --accent: #d9a23d; --accent-hover: #bf8f36; --accent-soft: rgb(217 162 61 / 22%); --accent-ink: #e6b75d; --on-accent: #1c1b19; --glass-top: #262421; --glass-bottom: #262421; --sky-base: #1c1b19; --sky-1: 28 27 25; --sky-2: 28 27 25; --sky-3: 28 27 25; --sky-4: 28 27 25; }
+@media (prefers-color-scheme: dark) { :root[data-dark="contrast"]:not([data-theme="light"]), :root[data-dark="contrast"]:not([data-theme="light"]) body[data-sky] { color-scheme: dark; --bg: #000000; --surface: #0b0b0b; --surface-2: #161616; --elevated: #0b0b0b; --material: rgb(11 11 11 / 94%); --text: #ffffff; --muted: #dcdcdc; --line: rgb(255 255 255 / 55%); --accent: #3d9bff; --accent-hover: #3688e0; --accent-soft: rgb(61 155 255 / 22%); --accent-ink: #6fb6ff; --on-accent: #000000; --glass-top: #0b0b0b; --glass-bottom: #0b0b0b; --sky-base: #000000; --sky-1: 0 0 0; --sky-2: 0 0 0; --sky-3: 0 0 0; --sky-4: 0 0 0; } }
+:root[data-dark="contrast"][data-theme="dark"], :root[data-dark="contrast"][data-theme="dark"] body[data-sky] { color-scheme: dark; --bg: #000000; --surface: #0b0b0b; --surface-2: #161616; --elevated: #0b0b0b; --material: rgb(11 11 11 / 94%); --text: #ffffff; --muted: #dcdcdc; --line: rgb(255 255 255 / 55%); --accent: #3d9bff; --accent-hover: #3688e0; --accent-soft: rgb(61 155 255 / 22%); --accent-ink: #6fb6ff; --on-accent: #000000; --glass-top: #0b0b0b; --glass-bottom: #0b0b0b; --sky-base: #000000; --sky-1: 0 0 0; --sky-2: 0 0 0; --sky-3: 0 0 0; --sky-4: 0 0 0; }
+/* High contrast draws every card's edge. */
+@media (prefers-color-scheme: dark) { :root[data-dark="contrast"]:not([data-theme="light"]) .card { outline: 1px solid var(--line); } }
+:root[data-dark="contrast"][data-theme="dark"] .card { outline: 1px solid var(--line); }
+/* An accent chosen (after the themes, so it wins over a theme's own). */
+@media (prefers-color-scheme: light) { :root[data-accent="blue"]:not([data-theme="dark"]), :root[data-accent="blue"]:not([data-theme="dark"]) body[data-sky] { --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 12%); --accent-ink: #0a5fc9; --on-accent: #ffffff; } }
+:root[data-accent="blue"][data-theme="light"], :root[data-accent="blue"][data-theme="light"] body[data-sky] { --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 12%); --accent-ink: #0a5fc9; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="blue"]:not([data-theme="light"]), :root[data-accent="blue"]:not([data-theme="light"]) body[data-sky] { --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 22%); --accent-ink: #7cb4ff; --on-accent: #ffffff; } }
+:root[data-accent="blue"][data-theme="dark"], :root[data-accent="blue"][data-theme="dark"] body[data-sky] { --accent: #006ae0; --accent-hover: #005dc5; --accent-soft: rgb(0 106 224 / 22%); --accent-ink: #7cb4ff; --on-accent: #ffffff; }
+@media (prefers-color-scheme: light) { :root[data-accent="teal"]:not([data-theme="dark"]), :root[data-accent="teal"]:not([data-theme="dark"]) body[data-sky] { --accent: #0f766e; --accent-hover: #0d6861; --accent-soft: rgb(15 118 110 / 12%); --accent-ink: #0f6b64; --on-accent: #ffffff; } }
+:root[data-accent="teal"][data-theme="light"], :root[data-accent="teal"][data-theme="light"] body[data-sky] { --accent: #0f766e; --accent-hover: #0d6861; --accent-soft: rgb(15 118 110 / 12%); --accent-ink: #0f6b64; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="teal"]:not([data-theme="light"]), :root[data-accent="teal"]:not([data-theme="light"]) body[data-sky] { --accent: #2dd4bf; --accent-hover: #28bba8; --accent-soft: rgb(45 212 191 / 22%); --accent-ink: #5eead4; --on-accent: #04201c; } }
+:root[data-accent="teal"][data-theme="dark"], :root[data-accent="teal"][data-theme="dark"] body[data-sky] { --accent: #2dd4bf; --accent-hover: #28bba8; --accent-soft: rgb(45 212 191 / 22%); --accent-ink: #5eead4; --on-accent: #04201c; }
+@media (prefers-color-scheme: light) { :root[data-accent="green"]:not([data-theme="dark"]), :root[data-accent="green"]:not([data-theme="dark"]) body[data-sky] { --accent: #15803d; --accent-hover: #127136; --accent-soft: rgb(21 128 61 / 12%); --accent-ink: #157238; --on-accent: #ffffff; } }
+:root[data-accent="green"][data-theme="light"], :root[data-accent="green"][data-theme="light"] body[data-sky] { --accent: #15803d; --accent-hover: #127136; --accent-soft: rgb(21 128 61 / 12%); --accent-ink: #157238; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="green"]:not([data-theme="light"]), :root[data-accent="green"]:not([data-theme="light"]) body[data-sky] { --accent: #4ade80; --accent-hover: #41c371; --accent-soft: rgb(74 222 128 / 22%); --accent-ink: #86efac; --on-accent: #052e14; } }
+:root[data-accent="green"][data-theme="dark"], :root[data-accent="green"][data-theme="dark"] body[data-sky] { --accent: #4ade80; --accent-hover: #41c371; --accent-soft: rgb(74 222 128 / 22%); --accent-ink: #86efac; --on-accent: #052e14; }
+@media (prefers-color-scheme: light) { :root[data-accent="amber"]:not([data-theme="dark"]), :root[data-accent="amber"]:not([data-theme="dark"]) body[data-sky] { --accent: #a15c07; --accent-hover: #8e5106; --accent-soft: rgb(161 92 7 / 12%); --accent-ink: #8f5206; --on-accent: #ffffff; } }
+:root[data-accent="amber"][data-theme="light"], :root[data-accent="amber"][data-theme="light"] body[data-sky] { --accent: #a15c07; --accent-hover: #8e5106; --accent-soft: rgb(161 92 7 / 12%); --accent-ink: #8f5206; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="amber"]:not([data-theme="light"]), :root[data-accent="amber"]:not([data-theme="light"]) body[data-sky] { --accent: #f5b544; --accent-hover: #d89f3c; --accent-soft: rgb(245 181 68 / 22%); --accent-ink: #f7c873; --on-accent: #241703; } }
+:root[data-accent="amber"][data-theme="dark"], :root[data-accent="amber"][data-theme="dark"] body[data-sky] { --accent: #f5b544; --accent-hover: #d89f3c; --accent-soft: rgb(245 181 68 / 22%); --accent-ink: #f7c873; --on-accent: #241703; }
+@media (prefers-color-scheme: light) { :root[data-accent="rose"]:not([data-theme="dark"]), :root[data-accent="rose"]:not([data-theme="dark"]) body[data-sky] { --accent: #be185d; --accent-hover: #a71552; --accent-soft: rgb(190 24 93 / 12%); --accent-ink: #b0164f; --on-accent: #ffffff; } }
+:root[data-accent="rose"][data-theme="light"], :root[data-accent="rose"][data-theme="light"] body[data-sky] { --accent: #be185d; --accent-hover: #a71552; --accent-soft: rgb(190 24 93 / 12%); --accent-ink: #b0164f; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="rose"]:not([data-theme="light"]), :root[data-accent="rose"]:not([data-theme="light"]) body[data-sky] { --accent: #f472b6; --accent-hover: #d764a0; --accent-soft: rgb(244 114 182 / 22%); --accent-ink: #f9a8d4; --on-accent: #2a0617; } }
+:root[data-accent="rose"][data-theme="dark"], :root[data-accent="rose"][data-theme="dark"] body[data-sky] { --accent: #f472b6; --accent-hover: #d764a0; --accent-soft: rgb(244 114 182 / 22%); --accent-ink: #f9a8d4; --on-accent: #2a0617; }
+@media (prefers-color-scheme: light) { :root[data-accent="violet"]:not([data-theme="dark"]), :root[data-accent="violet"]:not([data-theme="dark"]) body[data-sky] { --accent: #7c3aed; --accent-hover: #6d33d1; --accent-soft: rgb(124 58 237 / 12%); --accent-ink: #6d28d9; --on-accent: #ffffff; } }
+:root[data-accent="violet"][data-theme="light"], :root[data-accent="violet"][data-theme="light"] body[data-sky] { --accent: #7c3aed; --accent-hover: #6d33d1; --accent-soft: rgb(124 58 237 / 12%); --accent-ink: #6d28d9; --on-accent: #ffffff; }
+@media (prefers-color-scheme: dark) { :root[data-accent="violet"]:not([data-theme="light"]), :root[data-accent="violet"]:not([data-theme="light"]) body[data-sky] { --accent: #a78bfa; --accent-hover: #937adc; --accent-soft: rgb(167 139 250 / 22%); --accent-ink: #c4b5fd; --on-accent: #1b0f3d; } }
+:root[data-accent="violet"][data-theme="dark"], :root[data-accent="violet"][data-theme="dark"] body[data-sky] { --accent: #a78bfa; --accent-hover: #937adc; --accent-soft: rgb(167 139 250 / 22%); --accent-ink: #c4b5fd; --on-accent: #1b0f3d; }
+/* Each choice's swatch on Appearance: the page, a card and the accent. */
+.swatch.sw-paper { --sw-bg: #f2f2f7; --sw-card: #ffffff; --sw-accent: #006ae0; }
+.swatch.sw-softday { --sw-bg: #ebe8e3; --sw-card: #f7f5f1; --sw-accent: #2c64ad; }
+.swatch.sw-calm { --sw-bg: #10151e; --sw-card: #1a212d; --sw-accent: #2e6fd6; }
+.swatch.sw-graphite { --sw-bg: #161618; --sw-card: #232326; --sw-accent: #006ae0; }
+.swatch.sw-dim { --sw-bg: #1c1b19; --sw-card: #262421; --sw-accent: #d9a23d; }
+.swatch.sw-contrast { --sw-bg: #000000; --sw-card: #0b0b0b; --sw-accent: #3d9bff; }
+.swatch.sw-sky { --sw-bg: #eef5ff; --sw-card: #ffffff; --sw-accent: #006ae0; }
+.swatch.sw-night { --sw-bg: #0b1222; --sw-card: #1a1c23; --sw-accent: #006ae0; }
+.accent-dot.sw-blue { --sw-bg: #006ae0; }
+.accent-dot.sw-teal { --sw-bg: #0f766e; }
+.accent-dot.sw-green { --sw-bg: #15803d; }
+.accent-dot.sw-amber { --sw-bg: #a15c07; }
+.accent-dot.sw-rose { --sw-bg: #be185d; }
+.accent-dot.sw-violet { --sw-bg: #7c3aed; }
+/* -- end of D156's themes and accents */
+
+/* D156: Appearance's swatches: each theme's page, a card and its accent; each accent a dot. */
+.look-sub { margin: 18px 0 8px; font-size: 1rem; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.swatch-btn { display: grid; gap: 4px; align-content: start; padding: 8px 8px 10px; border-radius: 16px;
+  border: 2px solid var(--line); background: var(--surface); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.swatch-btn small { color: var(--muted); font-size: 0.8rem; line-height: 1.3; }
+.swatch-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.swatch { display: block; position: relative; height: 52px; border-radius: 10px; background: var(--sw-bg);
+  box-shadow: inset 0 0 0 1px rgb(127 127 127 / 25%); }
+.swatch::before { content: ""; position: absolute; left: 10px; right: 30px; top: 10px; bottom: 10px; border-radius: 6px; background: var(--sw-card); }
+.swatch::after { content: ""; position: absolute; right: 10px; bottom: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--sw-accent); }
+.swatch.sw-sky { background: linear-gradient(135deg, #cfe2ff, #ffe1d2 60%, #e6dcff); }
+.swatch.sw-night { background: linear-gradient(135deg, #10204a, #2b1f55 60%, #0d3340); }
+.accent-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.accent-btn { display: grid; justify-items: center; gap: 4px; min-width: 64px; padding: 8px 6px; border-radius: 14px;
+  border: 2px solid transparent; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.accent-btn small { font-size: 0.8rem; }
+.accent-btn[aria-pressed="true"] { border-color: var(--accent); }
+.accent-dot { display: block; width: 32px; height: 32px; border-radius: 50%; background: var(--sw-bg); box-shadow: inset 0 0 0 1px rgb(127 127 127 / 25%); }
+.accent-dot.sw-auto { background: conic-gradient(#006ae0, #0f766e, #15803d, #a15c07, #be185d, #7c3aed, #006ae0); }
+
+/* -- D157: the calendar, cleaner (A) with the day's sky beside the hours (C) ------------
+   The owner's pick of three (2026-11-19), after Notion Calendar: a quiet header (the
+   month, the week's number, one menu for the days shown), days as "Thu 19" with today a
+   red pill, each title first in its course's ink and the time under it, what is over
+   faded, a solid board with hairlines instead of the sky's glass (D73), and the courses
+   as switches, in the sidebar on a laptop. From C: a ribbon of the sky's accent at each
+   hour of today beside the hours (D76, D78), the line of now in the hour's colour with a
+   sun or a moon, and a moon where the study window ends. */
+.board-bar { gap: 6px; }
+.board-bar .range { font-size: 1.15rem; margin: 0 6px 0 2px; white-space: nowrap; }
+.range-week { font-family: var(--font-text); font-size: 0.85rem; font-weight: 550; letter-spacing: 0; color: var(--muted); margin-left: 4px; }
+.view-pick select {
+  width: auto; min-height: 32px; padding: 4px 12px; border-radius: 8px;
+  font-size: 0.85rem; font-weight: 550; background-color: var(--fill-3);
+}
+body[data-sky] .board, :root[data-glass="solid"] body[data-sky] .board {
+  background: var(--surface); border-left: 0.5px solid var(--line-strong);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.days-strip .cal-head > :first-child) {
+  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.cal-head { border-bottom: 0.5px solid var(--line); }
+.cal-day { padding: 8px 2px; }
+.cal-day-in {
+  display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%;
+  padding: 3px 9px; border-radius: 980px; white-space: nowrap;
+}
+.cal-day .wd { display: inline; font-size: 0.8rem; font-weight: 550; text-transform: none; letter-spacing: 0; }
+.cal-day .dn {
+  display: inline; min-width: 0; height: auto; padding: 0; margin: 0; border-radius: 0;
+  font-size: 0.95rem; font-weight: 650; background: none;
+}
+.cal-day.today .dn { background: none; }
+.cal-day.today .cal-day-in { background: var(--danger-fill); }
+.cal-day.today :is(.wd, .dn), .cal-day.today.weekend .dn { color: #fff; }
+.cal-hour { right: 11px; }
+.cal-ribbon {
+  position: absolute; top: 0; bottom: 0; right: 3px; width: 5px; border-radius: 5px;
+  background: var(--ribbon-light); pointer-events: none;
+}
+.cal-closed.late::before {
+  content: "☾"; position: absolute; top: 3px; left: 6px; font-size: 0.75rem; line-height: 1; color: var(--muted);
+}
+.cal-now, .cal-now-label { --hour: var(--hour-light); }
+.cal-now { border-top-color: var(--hour, var(--now)); }
+.cal-now::before { background: var(--hour, var(--now)); }
+.cal-now.faint { z-index: 1; border-top-width: 1px; opacity: 0.4; }
+.cal-now.faint::before { display: none; }
+.cal-now-label { right: 1px; padding: 1px 5px; white-space: nowrap; letter-spacing: -0.01em; }
+.cal-now-label.sun { background: var(--hour, var(--danger-fill)); }
+.cal-now-label .sunmark { font-size: 0.75rem; margin-right: 2px; }
+
+.ev { border-radius: 7px; padding: 4px 6px 3px 9px; }
+.ev .t { margin-top: 1px; }
+.ev:is(.ev-study, .ev-calendar, .ev-quiz, .ev-mock, .ev-exam, .ev-class) .l {
+  font-weight: 650; color: color-mix(in srgb, var(--cc, var(--busy)) 40%, var(--text));
+}
+.ev .l[data-glyph]::before { content: attr(data-glyph) "\00a0"; font-weight: 750; }
+.ev.past, .ev.ev-study.past { opacity: 1; background: color-mix(in srgb, var(--cc, var(--busy)) 6%, var(--surface)); }
+.ev.past .l, .ev.past:is(.ev-study, .ev-calendar, .ev-quiz, .ev-mock, .ev-exam, .ev-class) .l { color: var(--muted); font-weight: 600; }
+.ev.past::before { opacity: 0.4; }
+
+.legend { gap: 6px; padding: 8px 12px; }
+.legend-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 11px 4px 9px;
+  border: 0.5px solid var(--line-strong); border-radius: 980px; background: transparent; color: var(--text);
+  font: inherit; font-size: 0.8rem; font-weight: 550; white-space: nowrap; cursor: pointer;
+}
+.legend-chip .dot { width: 9px; height: 9px; }
+.legend-chip[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+.legend-chip[aria-pressed="false"] .dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cc); }
+.side-shows ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.side-show {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 4px 8px;
+  border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 0.9rem;
+  text-align: left; cursor: pointer;
+}
+.side-show:hover { background: var(--fill-3); }
+.side-show .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-check {
+  display: grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 4px; background: var(--cc);
+}
+.side-check::after { content: "✓"; color: #fff; font-size: 0.75rem; font-weight: 800; line-height: 1; }
+.side-show[aria-pressed="false"] .side-check { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cc); }
+.side-show[aria-pressed="false"] .side-check::after { content: none; }
+.side-show[aria-pressed="false"] .grow { color: var(--muted); text-decoration: line-through; }
+@media (min-width: 1100px) {
+  body.has-sidebar:has(.side-shows) .cal .legend { display: none; }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cal-ribbon { background: var(--ribbon-dark); }
+  :root:not([data-theme="light"]) :is(.cal-now, .cal-now-label) { --hour: var(--hour-dark); }
+}
+:root[data-theme="dark"] .cal-ribbon { background: var(--ribbon-dark); }
+:root[data-theme="dark"] :is(.cal-now, .cal-now-label) { --hour: var(--hour-dark); }
+/* On a phone the header is two rows: the month and the week, then the menu at the left and
+   Today with its arrows at the right (one row did not fit at 390px). */
+@media (max-width: 900px) {
+  .board-bar .range { flex: 1 0 100%; }
+  .board-bar .view-pick { order: 1; margin-right: auto; }
+  .board-bar [data-go] { order: 2; }
+}
+/* -- end of D157's calendar */
+
+/* -- D158: points and proof of work ------------------------------------------------------
+   Under each day's name, how much of it is done: the points its sessions gave against what
+   they can give, a slim bar in the accent (C's bar of D157, made a progress at the owner's
+   word). Beside a session's time, what doing it gives, then what it gave; in its popover,
+   why, and the way to share it for a classmate to vouch for. */
+.cal-day { position: relative; }
+.cal-day-pts {
+  position: absolute; left: 50%; bottom: 3px; width: 44px; height: 3px; margin-left: -22px;
+  border-radius: 3px; background: var(--fill-2); overflow: hidden;
+}
+.cal-day-pts i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+/* The time stays whole; in a narrow column the points go under it rather than be cut. */
+.ev .t { white-space: normal; }
+.ev .t .tm, .ev .t .pts { display: inline-block; white-space: nowrap; }
+.ev .t .pts { font-weight: 650; }
+.pop-points { margin: 10px 0 2px; padding: 10px 12px; border-radius: 10px; background: var(--fill-4); }
+.pop-points .label { margin: 0; font-weight: 650; }
+.pop-points .hint { margin: 2px 0 8px; }
+.pop-points .hint:last-child { margin-bottom: 0; }
+/* -- end of D158 */

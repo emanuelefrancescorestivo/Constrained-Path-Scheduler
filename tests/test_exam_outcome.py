@@ -106,7 +106,7 @@ def _form(html: str, marker: str) -> dict:
     for tag in re.findall(r"<input[^>]*>", found):
         name = re.search(r'name="([^"]+)"', tag)
         value = re.search(r'value="([^"]*)"', tag)
-        if name and ('type="checkbox"' not in tag or " checked" in tag):
+        if name and (('type="checkbox"' not in tag and 'type="radio"' not in tag) or " checked" in tag):
             form[name.group(1)] = unescape(value.group(1)) if value else ""
     for name, body in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', found, re.S):
         chosen = re.search(r'<option value="([^"]*)" selected>', body)

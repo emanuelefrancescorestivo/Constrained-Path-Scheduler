@@ -13,6 +13,24 @@
   {% endfor %}
 </form>
 <p class="hint">{{ _("Automatic follows your device's light or dark setting.") }}</p>
+{# D156: a theme for light, one for dark, and an accent for both; one tap each, as the rows
+   above. Each swatch shows its page, a card and its accent. #}
+<h3 class="look-sub" id="themes">{{ _("Light theme") }}</h3>
+<form method="post" action="/p/{{ token }}/palette" class="swatches" aria-label="{{ _('Light theme') }}">
+  <input type="hidden" name="part" value="light">
+  {% for t in palette_choices.light %}<button type="submit" name="value" value="{{ t.key }}" class="swatch-btn"{% if t.on %} aria-pressed="true"{% endif %}><span class="swatch sw-{{ t.key }}" aria-hidden="true"></span><b>{{ t.name }}</b><small>{{ t.line }}</small></button>{% endfor %}
+</form>
+<h3 class="look-sub">{{ _("Dark theme") }}</h3>
+<form method="post" action="/p/{{ token }}/palette" class="swatches" aria-label="{{ _('Dark theme') }}">
+  <input type="hidden" name="part" value="dark">
+  {% for t in palette_choices.dark %}<button type="submit" name="value" value="{{ t.key }}" class="swatch-btn"{% if t.on %} aria-pressed="true"{% endif %}><span class="swatch sw-{{ t.key }}" aria-hidden="true"></span><b>{{ t.name }}</b><small>{{ t.line }}</small></button>{% endfor %}
+</form>
+<h3 class="look-sub">{{ _("Accent colour") }}</h3>
+<form method="post" action="/p/{{ token }}/palette" class="accent-row" aria-label="{{ _('Accent colour') }}">
+  <input type="hidden" name="part" value="accent">
+  {% for a in palette_choices.accent %}<button type="submit" name="value" value="{{ a.key }}" class="accent-btn"{% if a.on %} aria-pressed="true"{% endif %}><span class="accent-dot sw-{{ a.key }}" aria-hidden="true"></span><small>{{ a.name }}</small></button>{% endfor %}
+</form>
+<p class="hint">{{ _("Automatic takes the sky's colour of the hour on the sky themes, and each theme's own on the others. Every theme and colour keeps text readable, at 4.5:1 or more.") }}</p>
 <form method="post" action="/p/{{ token }}/motion" class="pills motion-choice" aria-label="{{ _('Motion') }}">
   <span class="pills-label">{{ _("Motion") }}</span>
   {% for value, word in (("auto", _("Automatic")), ("reduce", _("Reduced"))) %}

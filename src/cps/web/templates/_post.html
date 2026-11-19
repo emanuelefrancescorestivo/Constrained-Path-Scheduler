@@ -83,7 +83,19 @@
       </button>
     </form>
     {% endif %}
-    {% if p.checks is defined %}
+    {% if p.checks is defined and p.kind == "session" %}
+    {# D158: a session that says or shows what was done is vouched for by a reader who
+       believes it happened, its proof of work; worth points to its author, who sees how
+       many vouched. The same mark as "It's right" (D141). #}
+    {% if p.mine %}
+    <span class="act act-static check-status{% if p.checks %} is-checked{% endif %}">{{ lucide('shield-check') }}{% if p.checks %}{{ _n("Vouched for by {n} classmate", "Vouched for by {n} classmates", p.checks) }}{% else %}{{ _("Not vouched for yet") }}{% endif %}</span>
+    {% else %}
+    <form method="post" action="/p/{{ token }}/post/{{ p.id }}/check" data-async data-region="#acts-{{ p.id }}" data-quiet>
+      <input type="hidden" name="next" value="{{ here }}#post-{{ p.id }}">
+      <button type="submit" class="act act-check{% if p.checked %} given{% endif %}" aria-pressed="{{ 'true' if p.checked else 'false' }}" title="{{ _('I believe this session happened: my word is its proof') }}">{{ lucide('shield-check') }}{{ _("Vouch") }}{% if p.checks %}<span class="act-count">{{ p.checks }}</span>{% endif %}</button>
+    </form>
+    {% endif %}
+    {% elif p.checks is defined %}
     {# Peer checks (D141): a reader says it is right with one tap; the author sees how
        many did. A fix is suggested in the comments, by its own button. #}
     {% if p.mine %}

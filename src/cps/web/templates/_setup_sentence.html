@@ -1,0 +1,123 @@
+{# D154: setting up shows the plan's defaults as one sentence (the owner's choice, 1-B,
+   2026-11-19: "very easy to fill in so students do not have much friction to start
+   with"). Each value is a choice: tapped, its options open under it; nothing to answer
+   when it is right. `sentence` is service.setup_sentence. Each value is a <details>, so
+   it opens without a script, and one at a time where the browser knows `name`; the
+   value shown follows the choice through CSS (`:has`), and ui.js closes it once chosen.
+   What the sentence does not show keeps its value, sent again as hidden fields. #}
+{% macro pick(name, choices, current, label) -%}
+<details class="pick" name="sentence"><summary><span class="visually-hidden">{{ label }}: </span><span class="pick-now">{% for value, words in choices %}<span{% if value | string == current | string %} class="is-saved"{% endif %}>{{ words }}</span>{% endfor %}</span></summary><span class="pick-panel pills" role="radiogroup" aria-label="{{ label }}">{% for value, words in choices %}<label class="pill"><input type="radio" name="{{ name }}" value="{{ value }}"{% if value | string == current | string %} checked{% endif %}><span>{{ words }}</span></label>{% endfor %}</span></details>
+{%- endmacro %}
+{% set day = values.day %}
+<section class="card sentence" aria-labelledby="sentence-title">
+  <h2 id="sentence-title">{{ _("Your week, as the plan sees it") }}</h2>
+  <p class="hint">{{ _("Tap what is not right. Everything can change later, in Settings.") }}</p>
+
+  <div class="sentence-line">{{ _h("You get up at {wake}, go to bed at {bed} and have lunch at {lunch}.",
+    wake=pick("wake", sentence.wake, day.wake, _("I get up at")),
+    bed=pick("bed", sentence.bed, day.bed, _("I go to bed at")),
+    lunch=pick("lunch_pick", sentence.lunch, sentence.lunch_now, _("Lunch"))) }}</div>
+
+  <div class="sentence-line">{{ _h("You study at most {sessions} sessions of {minutes} a day.",
+    sessions=pick("blocks_per_day", sentence.sessions, values.blocks_per_day, _("Sessions a day at most")),
+    minutes=pick("block_minutes", sentence.minutes, values.block_minutes, _("Session length"))) }}</div>
+
+  <div class="sentence-line">{% if sentence.busy %}{{ _("Outside your classes, you are busy:") }}
+    {% for b in sentence.busy %}<span class="busy-chip">{{ b.label }} · {{ b.days | join(", ") }} · {{ b.start }}–{{ b.end }}</span>{% endfor %}
+    {%- else %}{{ _("Outside your classes, you are free all the time.") }}{% endif %}
+    {% if values.commute %}{{ _n("And {n} minute to get to university.", "And {n} minutes to get to university.", values.commute) }}{% endif %}</div>
+  <div class="sentence-adds">
+    {% for q in sentence.quick %}{% set i = loop.index0 %}
+    <details class="add-busy" name="sentence">
+      <summary class="btn btn-sm btn-tinted">+ {{ _(q.name) }}</summary>
+      <div class="add-panel">
+        <input type="hidden" name="q{{ i }}_kind" value="{{ q.kind }}">
+        <label for="q{{ i }}_label">{{ _("What") }}</label>
+        <input id="q{{ i }}_label" name="q{{ i }}_label" placeholder="{{ _(q.name) }}" maxlength="60">
+        <p class="label" id="q{{ i }}-days">{{ _("Which days") }}</p>
+        <div class="pills" role="group" aria-labelledby="q{{ i }}-days">
+          {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="q{{ i }}_days" value="{{ d }}"><span>{{ _(d) }}</span></label>{% endfor %}
+        </div>
+        <div class="row">
+          <div><label for="q{{ i }}_start">{{ _("From") }}</label>
+          <input id="q{{ i }}_start" name="q{{ i }}_start" type="time" step="900" value="{{ q.start }}"></div>
+          <div><label for="q{{ i }}_end">{{ _("to") }}</label>
+          <input id="q{{ i }}_end" name="q{{ i }}_end" type="time" step="900" value="{{ q.end }}"></div>
+        </div>
+      </div>
+    </details>
+    {% endfor %}
+    <details class="add-busy" name="sentence">
+      <summary class="btn btn-sm btn-tinted">+ {{ _("Trip to university") }}</summary>
+      <div class="add-panel">
+        <p class="label" id="commute-label">{{ _("Trip to university, one way") }}</p>
+        <div class="pills" role="radiogroup" aria-labelledby="commute-label">
+          {% for m in sentence.commute %}<label class="pill"><input type="radio" name="commute" value="{{ m }}"{% if m == values.commute | int %} checked{% endif %}><span>{% if m == 0 %}{{ _("No trip") }}{% else %}{{ _("{n} min", n=m) }}{% endif %}</span></label>{% endfor %}
+        </div>
+        <p class="hint">{{ _("Kept free before your first class and after your last, on each day you have classes.") }}</p>
+        <label class="check"><input type="checkbox" name="study_on_the_way" value="1"{% if values.study_on_the_way %} checked{% endif %}> {{ _("I can study on the way (train, bus)") }}</label>
+      </div>
+    </details>
+  </div>
+
+  {% set m = sentence.moodle %}
+  <div class="sentence-line">{% if values.tasks %}{{ _("Your deadlines:") }}
+    {% for t in values.tasks %}<span class="busy-chip">{{ t.name }} · {{ t.due | nice_date }}</span>{% endfor %}
+    {%- else %}{{ _("Your deadlines: none yet.") }}{% endif %}</div>
+  {% if values.deadlines_error %}<p class="error">{{ _("The learning platform's link could not be read: {error}", error=values.deadlines_error) }}</p>{% endif %}
+  <div class="sentence-adds">
+    <details class="add-busy" name="sentence"{% if values.deadlines_error %} open{% endif %}>
+      <summary class="btn btn-sm btn-tinted">{{ lucide('graduation-cap') }} {{ _("From Moodle") }}</summary>
+      <ol class="add-panel moodle-steps">
+        <li><b>{{ _("Open your Moodle's export page.") }}</b>
+          {% if sentence.export_page %}<a class="btn btn-sm" href="{{ sentence.export_page }}" target="_blank" rel="noopener noreferrer">{{ _("Open the export") }} ↗</a>
+          {% else %}<span class="hint">{{ _h("On your Moodle: <b>{calendar}</b>, then <b>{manage}</b>, then <b>{export}</b>.", calendar=m.calendar, manage=m.manage, export=m.export) }}</span>
+          <span class="moodle-site" data-moodle hidden><label for="moodle_site">{{ _("Or type your Moodle's address") }}</label>
+          <span class="row-end"><input id="moodle_site" type="text" inputmode="url" autocomplete="url" placeholder="moodle.your-university.edu" data-moodle-site>
+          <a class="btn btn-sm" data-moodle-open hidden target="_blank" rel="noopener noreferrer">{{ _("Open the export") }} ↗</a></span></span>{% endif %}</li>
+        <li>{{ _h("Choose <b>{events}</b> and <b>{period}</b>, then the button <b>{button}</b>.", events=m.events, period=m.period, button=m.button) }}</li>
+        <li><label for="deadlines_url">{{ _("Copy the link it shows and paste it here") }}</label>
+          <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url }}" placeholder="https://…/calendar/export_execute.php?…" data-preview="/p/{{ token }}/deadlines/preview" aria-describedby="deadlines-found">
+          <div id="deadlines-found" class="deadlines-found" aria-live="polite"></div></li>
+      </ol>
+    </details>
+    {% set n = values.tasks | length %}
+    <details class="add-busy" name="sentence">
+      <summary class="btn btn-sm btn-tinted">+ {{ _("Type one") }}</summary>
+      <div class="add-panel">
+        <label for="t{{ n }}_name">{{ _("What") }}</label>
+        <input id="t{{ n }}_name" name="t{{ n }}_name" placeholder="{{ _('Statistics report') }}">
+        <label for="t{{ n }}_due">{{ _("Due") }}</label>
+        <input id="t{{ n }}_due" name="t{{ n }}_due" type="datetime-local">
+        <div class="row">
+          <div><label for="t{{ n }}_hours">{{ _("Hours of work") }}</label>
+          <input id="t{{ n }}_hours" name="t{{ n }}_hours" type="number" min="0.5" step="0.5" value="2" inputmode="decimal"></div>
+          <div><label for="t{{ n }}_course">{{ _("Course") }}</label>
+          <input id="t{{ n }}_course" name="t{{ n }}_course" list="courses"></div>
+        </div>
+      </div>
+    </details>
+  </div>
+  <p class="hint">{{ _("Days off, a limit on weekly hours, exam practice and self-tests keep their defaults: they are in Settings whenever you want them.") }}</p>
+
+  {# What the sentence does not show, as it is, so that going on does not change it. #}
+  <input type="hidden" name="lunch" value="{{ day.lunch }}">
+  <input type="hidden" name="lunch_start" value="{{ day.lunch_start }}">
+  <input type="hidden" name="lunch_end" value="{{ day.lunch_end }}">
+  <input type="hidden" name="weekly_hours" value="{{ values.weekly_hours or '' }}">
+  <input type="hidden" name="practice_hours" value="{{ values.practice_hours }}">
+  {% for d in values.rest_days %}<input type="hidden" name="rest" value="{{ d }}">{% endfor %}
+  <input type="hidden" name="quick_shown" value="1">
+  {% if values.quick_tests %}<input type="hidden" name="quick_tests" value="1">{% endif %}
+  {% if values.warm_up %}<input type="hidden" name="warm_up" value="1">{% endif %}
+  {# A week drawn by hand has its classes typed in rows below, for a browser without
+     scripts (D32); else the busy times are kept as they are. #}
+  {% if not values.drawn %}
+  {% for a in values.activities %}{% set i = loop.index0 %}
+  {% for f in ("label", "kind", "weekday", "date", "start", "end") %}<input type="hidden" name="a{{ i }}_{{ f }}" value="{{ a[f] or '' }}">{% endfor %}
+  {% endfor %}
+  {% endif %}
+  {% for t in values.tasks %}{% set i = loop.index0 %}
+  {% for f in ("name", "due", "hours", "course") %}<input type="hidden" name="t{{ i }}_{{ f }}" value="{{ t[f] | replace(' ', 'T') if f == 'due' else t[f] }}">{% endfor %}
+  {% endfor %}
+</section>

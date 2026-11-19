@@ -7,6 +7,33 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Points and proof of work (DECISIONS.md D158): a study session gives 10 points for doing it and
+  20 more once a classmate vouches for a post that says or shows what you did. Under each day on
+  the calendar a bar fills with its points; "Share what you did" opens the diary on that session;
+  a session post that says what was done has a Vouch button. Points are yours alone.
+
+- A cleaner calendar (DECISIONS.md D157): the month and the week's number over one menu for the
+  days shown; days as "Thu 19"; each title first in its course's colour, with a mark for its kind;
+  what is over faded; the courses as switches, in the sidebar on a laptop; and beside the hours a
+  ribbon of the day's sky, the line of now in the hour's colour with a sun or a moon.
+
+- Themes and an accent (DECISIONS.md D156): Paper and Soft day for light; Calm night, Graphite,
+  Dim and High contrast for dark; and an accent colour for both (Blue, Teal, Green, Amber, Rose,
+  Violet), each one tap in Appearance, every text kept at 4.5:1 or more.
+
+- Edit Today (DECISIONS.md D155): Today starts with five widgets (Up next, the day, Focus,
+  Tasks, Exams), and a page of switches turns each of the twelve on or off; what needs your
+  answer always shows.
+
+- Setting up in one sentence (DECISIONS.md D154): what the plan assumes (when you get up, go to
+  bed and have lunch, how many sessions and how long) is shown as one sentence, each value a tap
+  away; busy times, the trip and deadlines are added in a tap or two. Moodle's link is found in
+  three steps in Moodle's own words, and pasting it shows the deadlines it brings before anything
+  is saved (AUDIT.md item 112).
+
+- Your avatar on your posts (DECISIONS.md D153): the avatar you made shows in Community where your
+  initial was, and Community sits among the main sections on a laptop, after the calendar.
+
 - Mathematics in flashcards (DECISIONS.md D151): notes from a LaTeX PDF keep their words apart
   from the mathematics, and a card draws powers and indices raised and lowered (Rⁿ, C¹, xᵢ, f⁻¹),
   "≠" as one sign, and a long theorem cut at a sentence. Pages open without the line above them

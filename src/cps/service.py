@@ -2907,25 +2907,7 @@ def answer_routine(
 
     `answers` are `{"kind", "label", "days": ["Mon", ...], "start", "end"}`; `day`,
     if given, `{"wake", "bed", "lunch", "lunch_start", "lunch_end"}` (D69)."""
-    kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
-    rows = [dict(r) for r in subscription.busy_rows]
-    for answer in answers:
-        kind = str(answer.get("kind") or "")
-        kind = kind if kind in kinds else "other"
-        label = str(answer.get("label") or "").strip()[:60]
-        days = list(dict.fromkeys(str(d) for d in answer.get("days") or () if str(d).strip()))
-        start, end = (str(answer.get(k) or "").strip() for k in ("start", "end"))
-        if not (label or days or start or end):
-            continue
-        name = label or _(_ROUTINE_NAMES.get(kind, "Busy"))
-        if not days:
-            raise InvalidInput(_("{name}: choose the days", name=name))
-        if not start or not end:
-            raise InvalidInput(_("{name}: give the hours", name=name))
-        rows += [
-            {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
-            for day in days
-        ]
+    rows = [dict(r) for r in subscription.busy_rows] + routine_rows(answers)
     return revise_subscription(
         subscription,
         busy_rows=rows,
@@ -4896,13 +4878,87 @@ def course_names(subscription: Subscription) -> list[str]:
     return [name for name, _ in course_colours(PlanReport.from_dict(subscription.plan), drawn)]
 
 
+# --------------------------------------------------------------------------- #
+# Points and proof of work (D158)
+# --------------------------------------------------------------------------- #
+
+# A study session's points (the owner, 2026-11-19: "how many points it will give you if you
+# do it ... and you get those points if you post what you did and your peers validate it like
+# a proof of work, on top of an inherent bonus for completing it (because a lazy student could
+# simply say they studied even if they have not)"). Doing it, on the student's word: 10. Its
+# proof, a post saying or showing what was done that another student vouched for: 20 more.
+POINTS_DONE = 10
+POINTS_PROOF = 20
+# The answers that say a session happened; "skipped" does not (D25, D44).
+DONE_REPORTS = frozenset({"done", "struggled", "forgot", "some", "most", "all"})
+
+
+def proof_posts(store: str | os.PathLike, token: str) -> list[dict]:
+    """The student's session posts that prove a session (D158): each says what was done (a
+    note or a line for anyone) or shows it (a photo), and at least one other student vouched
+    for it, someone blocked either way not counted. Each as its session's id (a session
+    timed with Focus, or shared from the calendar), its day and its course."""
+    where = _store(store)
+    posts = [
+        p
+        for p in social.posts_of(where, token, "session")
+        if not p.hidden
+        and (
+            str(p.data.get("simple") or "").strip()
+            or str(p.data.get("note") or "").strip()
+            or p.data.get("photos")
+        )
+    ]
+    vouched = social.checks_of(where, [p.id for p in posts], token)
+    return [
+        {"sid": str(p.data.get("sid") or ""), "day": p.day, "course": str(p.data.get("course") or "")}
+        for p in posts
+        if vouched.get(p.id, (0, False))[0] > 0
+    ]
+
+
+def session_points(
+    items: Sequence[dict], outcomes: Mapping[str, str], proofs: Sequence[dict]
+) -> dict[str, dict]:
+    """Each study session's points (D158), by its id: what it can give (`possible`), what it
+    gave (`earned`) and why (`state`: "to do", "done", "proven", "skipped"). A proof names its
+    session, or, logged without one, the first session of its day and course not yet proven."""
+    by_id = {p["sid"] for p in proofs if p["sid"]}
+    loose = [(p["day"], p["course"].casefold()) for p in proofs if not p["sid"]]
+    out: dict[str, dict] = {}
+    for item in sorted(items, key=lambda x: x["at"]):
+        sid = item["id"]
+        proven = sid in by_id
+        key = (item["at"][:10], str(item.get("course") or "").casefold())
+        if not proven and key in loose:
+            loose.remove(key)
+            proven = True
+        report = outcomes.get(sid)
+        if proven:
+            state, earned = "proven", POINTS_DONE + POINTS_PROOF
+        elif report in DONE_REPORTS:
+            state, earned = "done", POINTS_DONE
+        elif report == "skipped":
+            state, earned = "skipped", 0
+        else:
+            state, earned = "to do", 0
+        out[sid] = {"possible": POINTS_DONE + POINTS_PROOF, "earned": earned, "state": state}
+    return out
+
+
 def calendar_view(
-    subscription: Subscription, first: date | None = None, count: int = 7, now: datetime | None = None
+    subscription: Subscription,
+    first: date | None = None,
+    count: int = 7,
+    now: datetime | None = None,
+    proofs: Sequence[dict] = (),
 ) -> dict:
     """What the calendar page draws: `count` days from `first` (today by default)
     with the timetable, exams and study sessions (done and to come) as items, and
     the student's own busy times as editable activities, in the shape the week
-    calendar widget takes. Works before there is a plan, from the timetable alone."""
+    calendar widget takes. Works before there is a plan, from the timetable alone.
+    Each study session carries its points and each day their sum (D158), from the
+    student's reports and `proofs` (`proof_posts`)."""
     options = subscription.options
     zone = _zone(options["tz"])
     first = first or (now or datetime.now(UTC)).astimezone(zone).date()
@@ -4955,8 +5011,19 @@ def calendar_view(
             item["done"] = _local(item["until"], zone) <= moment
             item["reported"] = subscription.outcomes.get(item["id"])
             item["movable"] = not started and item["id"] in upcoming
+    studies = [item for item in week["items"] if item["kind"] == "study"]
+    points = session_points(studies, subscription.outcomes, proofs)
+    for item in studies:
+        item["points"] = points[item["id"]]
+    for index, day in enumerate(week["days"]):
+        mine = [points[item["id"]] for item in studies if item["day"] == index]
+        day["points"] = {
+            "earned": sum(p["earned"] for p in mine),
+            "possible": sum(p["possible"] for p in mine),
+        }
     return {
         **week,
+        "points_rule": {"done": POINTS_DONE, "proof": POINTS_PROOF},
         "now": {"date": moment.date().isoformat(), "minute": moment.hour * 60 + moment.minute},
         "legend": [{"course": name, "color": index} for name, index in legend],
         "activities": [
@@ -4979,7 +5046,22 @@ def calendar_view(
         "first": first.isoformat(),
         "planned": subscription.plan is not None,
         "error": subscription.error,
+        # Where the sun is at each hour of today (D157), for the ribbon beside the hours.
+        "sun": sun_hours(options["tz"], moment.date()),
     }
+
+
+def sun_hours(tz: str, day: date) -> list[float]:
+    """Where the sun is at each hour of `day`, from midnight to midnight (25 values, D157):
+    the day's position from 0 (deep night) through 1 (sunrise), 2 (the highest sun) and 3
+    (sunset) back towards 4, for the time zone's main city (D76)."""
+    zone = _zone(tz)
+    midnight = datetime.combine(day, time(), zone)
+    latitude, longitude = _daylight.place(tz, midnight)
+    return [
+        round(_daylight.day_position(latitude, longitude, (midnight + timedelta(hours=h)).astimezone(UTC)), 3)
+        for h in range(25)
+    ]
 
 
 def setup_view(subscription: Subscription) -> dict:
@@ -5823,6 +5905,156 @@ def learning_platform(subscription: Subscription) -> str | None:
     guess an address."""
     found = _MOODLE_EXPORT.match(str(subscription.options.get("deadlines_url") or "").strip())
     return f"{found.group(1)}/my/" if found else None
+
+
+# D154: Moodle's own words for the way to its calendar's link, in the app's languages,
+# read from Moodle 4.5's strings (lang/en/calendar.php and its French and Italian language
+# packs): the calendar page's button to its subscriptions ("managesubscriptions"), the
+# export page ("exportcalendar"), its two choices ("eventsall", "recentupcoming") and the
+# button that shows the link ("generateurlbutton"). The export page is the same address
+# on every Moodle site, `<site>/calendar/export.php` (calendar/export.php).
+MOODLE_EXPORT_WORDS: dict[str, dict[str, str]] = {
+    "en": {
+        "calendar": "Calendar",
+        "manage": "Import or export calendars",
+        "export": "Export calendar",
+        "events": "All events",
+        "period": "Recent and next 60 days",
+        "button": "Get calendar URL",
+    },
+    "fr": {
+        "calendar": "Calendrier",
+        "manage": "Importer ou exporter des calendriers",
+        "export": "Exporter le calendrier",
+        "events": "Tous les événements",
+        "period": "Les 60 prochains jours",
+        "button": "URL du calendrier",
+    },
+    "it": {
+        "calendar": "Calendario",
+        "manage": "Importa o esporta calendari",
+        "export": "Esporta calendario",
+        "events": "Tutti gli eventi",
+        "period": "Recenti e dei prossimi 60 giorni",
+        "button": "URL del calendario",
+    },
+}
+
+
+def deadlines_preview(
+    url: str,
+    tz: str,
+    *,
+    now: datetime | None = None,
+    fetch: Callable[[str], bytes] = fetch_calendar,
+    most: int = 5,
+) -> dict:
+    """What a learning platform's link would bring (D154), before it is saved: the
+    deadlines still ahead, the first `most` of them, and how many in all; or why the link
+    gives none. Nothing is kept."""
+    now = now or datetime.now(UTC)
+    zone = _zone(tz)
+    try:
+        found = [a for a in find_assignments(decode_ics(fetch(url.strip())), tz) if a.due > now]
+    except ServiceError as error:
+        return {"found": [], "count": 0, "error": str(error)}
+    except ValueError:
+        return {"found": [], "count": 0, "error": _("this link does not give a calendar")}
+    return {
+        "found": [
+            {"name": a.name, "course": a.course, "due": a.due.astimezone(zone).strftime("%Y-%m-%d %H:%M")}
+            for a in found[:most]
+        ],
+        "count": len(found),
+        "error": None,
+    }
+
+
+# D154: setting up shows the plan's defaults as one sentence, each value a choice. The
+# choices are around where most students' days fall; a value set elsewhere is added, so
+# the sentence never shows what the plan does not do.
+WAKE_CHOICES = ("06:30", "07:00", "07:30", "08:00", "08:30", "09:00")
+BED_CHOICES = ("22:00", "22:30", "23:00", "23:30", "00:00", "00:30")
+LUNCH_START_CHOICES = ("12:00", "12:30", "13:00")
+SESSION_CHOICES = (1, 2, 3, 4)
+MINUTE_CHOICES = (45, 60, 90, 120)
+# The busy times a student adds in a tap, each with the hours it starts at; the days are
+# theirs to pick. Training and a job are ROUTINE_QUESTIONS' kinds (D42).
+QUICK_BUSY: tuple[tuple[str, str, str, str], ...] = (
+    ("training", "Training", "18:00", "20:00"),
+    ("work", "Work", "09:00", "13:00"),
+    ("other", "Busy", "17:00", "18:00"),
+)
+
+
+def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
+    """Weekly busy times from answers about the week (D42): one row per day chosen. An
+    answer left empty is none; one half given says what is missing."""
+    kinds = {k for k, _ in ACTIVITY_KINDS} - {"class"}
+    rows: list[dict] = []
+    for answer in answers:
+        kind = str(answer.get("kind") or "")
+        kind = kind if kind in kinds else "other"
+        label = str(answer.get("label") or "").strip()[:60]
+        days = list(dict.fromkeys(str(d) for d in answer.get("days") or () if str(d).strip()))
+        start, end = (str(answer.get(k) or "").strip() for k in ("start", "end"))
+        if not (label or days or start or end):
+            continue
+        name = label or _(_ROUTINE_NAMES.get(kind, "Busy"))
+        if not days:
+            raise InvalidInput(_("{name}: choose the days", name=name))
+        if not start or not end:
+            raise InvalidInput(_("{name}: give the hours", name=name))
+        rows += [
+            {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
+            for day in days
+        ]
+    return rows
+
+
+def setup_sentence(values: Mapping) -> dict:
+    """The sentence setting up shows (D154), from `setup_view`'s values (or the form's,
+    sent back with a mistake): each value's choices, the current one among them, the busy
+    times other than classes grouped by name and hours, the deadlines, and Moodle's words
+    in the student's language."""
+    day = values["day"]
+
+    def among(choices: Iterable, current: object) -> list:
+        out = list(choices)
+        return out if current in out or current in ("", None) else sorted([*out, current], key=str)
+
+    wake = str(day["wake"])
+    bed = str(day["bed"])
+    busy: dict[tuple, list[str]] = {}
+    for a in values["activities"]:
+        if a.get("kind") == "class" or not a.get("weekday"):
+            continue
+        busy.setdefault((a.get("label") or "", a.get("start"), a.get("end")), []).append(_(a["weekday"]))
+    words = MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+    site = _MOODLE_EXPORT.match(str(values.get("deadlines_url") or "").strip())
+    # Each choice as (value, words), for the radio and for the sentence.
+    return {
+        "wake": [(t, t) for t in among(WAKE_CHOICES, wake)],
+        "bed": [(t, t) for t in among(BED_CHOICES, bed)],
+        "lunch": [(t, t) for t in among(LUNCH_START_CHOICES, str(day["lunch_start"]))]
+        + [("study", _("any time (I can study then)"))],
+        "lunch_now": "study" if day["lunch"] == "study" else str(day["lunch_start"]),
+        "sessions": [(n, str(n)) for n in among(SESSION_CHOICES, int(values["blocks_per_day"]))],
+        "minutes": [(m, _("{n} min", n=m)) for m in among(MINUTE_CHOICES, int(values["block_minutes"]))],
+        "commute": values["commute_choices"],
+        "busy": [
+            {"label": label, "days": days, "start": start, "end": end}
+            for (label, start, end), days in busy.items()
+        ],
+        "quick": [
+            {"kind": kind, "name": name, "start": start, "end": end} for kind, name, start, end in QUICK_BUSY
+        ],
+        "moodle": words,
+        # The export page of the Moodle whose link was given, to give it again; else the
+        # student finds it by Moodle's own words (the page has the same address on every
+        # site, but which site is theirs the app does not guess).
+        "export_page": f"{site.group(1)}/calendar/export.php" if site else None,
+    }
 
 
 def workspace_view(subscription: Subscription, now: datetime | None = None) -> dict | None:
@@ -6677,6 +6909,75 @@ def set_theme(subscription: Subscription, theme: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "theme": theme})
 
 
+# D156: themes and an accent (the owner, 2026-11-19: themes for light and dark, and "to allow the
+# user to pick from a colour palette, maintaining as primary objective to make frictionless using
+# the app, comfortable to navigate the sections and look at the screen"). A light theme and a dark
+# theme, each used when its mode is (Appearance's Automatic follows the device), and one accent for
+# both. The sky (D73, D76) stays the start; the others are flat. Their colours are in style.css.
+LIGHT_THEMES: tuple[tuple[str, str, str], ...] = (
+    ("sky", "Sky", "The sky of the hour behind glass cards."),
+    ("paper", "Paper", "A flat grey page and white cards, no sky."),
+    ("softday", "Soft day", "Less glare: warm grey and off-white."),
+)
+DARK_THEMES: tuple[tuple[str, str, str], ...] = (
+    ("night", "Night sky", "The night's sky behind glass cards."),
+    ("calm", "Calm night", "A flat page, lighter cards, clear edges."),
+    ("graphite", "Graphite", "Neutral greys, as a phone's own dark mode."),
+    ("dim", "Dim", "Warm and dim, for late evenings."),
+    ("contrast", "High contrast", "Black, white and outlined edges."),
+)
+ACCENTS: tuple[tuple[str, str], ...] = (
+    ("auto", "Automatic"),
+    ("blue", "Blue"),
+    ("teal", "Teal"),
+    ("green", "Green"),
+    ("amber", "Amber"),
+    ("rose", "Rose"),
+    ("violet", "Violet"),
+)
+PALETTE_START = {"light": "sky", "dark": "night", "accent": "auto"}
+_PALETTE_CHOICES = {
+    "light": [k for k, _n, _l in LIGHT_THEMES],
+    "dark": [k for k, _n, _l in DARK_THEMES],
+    "accent": [k for k, _n in ACCENTS],
+}
+
+
+def palette_of(subscription: Subscription | None) -> dict[str, str]:
+    """A plan's light theme, dark theme and accent (D156); the sky and its accent of the hour
+    until the student chooses."""
+    chosen = (subscription.options.get("palette") if subscription else None) or {}
+    out = dict(PALETTE_START)
+    for part, names in _PALETTE_CHOICES.items():
+        value = chosen.get(part)
+        if isinstance(value, str) and value in names:
+            out[part] = value
+    return out
+
+
+def set_palette(subscription: Subscription, part: str, value: str) -> Subscription:
+    """One of the three choices (D156): a theme for light, one for dark, or the accent."""
+    if value not in _PALETTE_CHOICES.get(part, ()):
+        raise InvalidInput(_("choose one of the themes or colours shown"))
+    return replace(
+        subscription, options={**subscription.options, "palette": {**palette_of(subscription), part: value}}
+    )
+
+
+def palette_view(subscription: Subscription) -> dict:
+    """Appearance's three rows of swatches (D156), each choice with its name and line."""
+    now = palette_of(subscription)
+
+    def themes(part: str, table: tuple[tuple[str, str, str], ...]) -> list[dict]:
+        return [{"key": k, "name": _(name), "line": _(line), "on": now[part] == k} for k, name, line in table]
+
+    return {
+        "light": themes("light", LIGHT_THEMES),
+        "dark": themes("dark", DARK_THEMES),
+        "accent": [{"key": k, "name": _(name), "on": now["accent"] == k} for k, name in ACCENTS],
+    }
+
+
 MOTIONS = ("auto", "reduce")
 
 
@@ -6955,10 +7256,14 @@ def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscri
 
 
 def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
-    """The avatar's flag on the student's profile, for their initial in Community (D143):
-    after the avatar is saved, and when a profile is made after the avatar."""
+    """The avatar's flag on the student's profile, for their initial in Community (D143),
+    and since D153 the avatar itself, drawn on their posts in its place (the owner,
+    2026-11-19: "the avatar does not pop out here"): after the avatar is saved, and when a
+    profile is made after the avatar. Only its parts' names, each one of AVATAR_PARTS'."""
     avatar = avatar_of(subscription)
-    social.set_flag(_store(store), subscription.token, avatar["flag"] if avatar else "")
+    flag = avatar["flag"] if avatar else ""
+    parts = json.dumps({part: avatar[part] for part in AVATAR_PARTS}) if avatar else ""
+    social.set_flag(_store(store), subscription.token, flag, parts)
 
 
 def language_of(subscription: Subscription) -> str:
@@ -7300,12 +7605,14 @@ def _focus_rewards(goal: int, focused: int) -> list[dict]:
     return rewards
 
 
-def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
-    """The log form's starting values: the session just timed, or an empty one."""
+def log_draft(subscription: Subscription, now: datetime | None = None, sid: str = "") -> dict:
+    """The log form's starting values: the session just timed; or a session of the plan
+    that has started, shared from the calendar to prove it (D158), its course, length and
+    day; or an empty one."""
     draft = subscription.options.get("focus_draft")
     if draft:
         return {**draft}
-    return {
+    empty = {
         "course": "",
         "sid": "",
         "minutes": 60,
@@ -7315,6 +7622,14 @@ def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
         "interruptions": 0,
         "goal": 0,
     }
+    found = find_session(subscription, sid) if sid else None
+    if found is not None:
+        zone = _zone(subscription.options["tz"])
+        start, end = _local(found.start, zone), _local(found.end, zone)
+        if start <= (now or datetime.now(UTC)).astimezone(zone):
+            minutes = max(1, round((end - start).total_seconds() / 60))
+            empty.update(course=found.subject, sid=sid, minutes=minutes, day=start.date().isoformat())
+    return empty
 
 
 def _sharing(store: str | os.PathLike, token: str, chosen: str | None, default: str) -> str:
@@ -7344,7 +7659,8 @@ def log_session(
     from the plan reports that session done."""
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
-    draft = log_draft(subscription, now)
+    # A session of the plan shared from the calendar (D158) names itself in the form.
+    draft = log_draft(subscription, now, sid=str(form.get("sid") or "")[:32])
     minutes = str(form.get("minutes") or draft["minutes"])
     timed = draft["timed"] and minutes == str(draft["minutes"])
     data = {
@@ -7368,6 +7684,8 @@ def log_session(
     day = (
         datetime.fromisoformat(draft["started"]).astimezone(zone).date()
         if draft.get("started")
+        else date.fromisoformat(draft["day"])
+        if draft.get("day")
         else now.astimezone(zone).date()
     )
     try:
@@ -7770,7 +8088,9 @@ def _cards(
     reactions = social.reactions_of(store, [p.id for p in posts if p.kind == "session"], viewer)
     comments = social.comment_counts(store, [p.id for p in posts])
     checked = [p.id for p in posts if p.kind in social.CHECKED]  # peer checks (D141)
-    checks = social.checks_of(store, checked, viewer)
+    # A session that says or shows what was done is vouched for (D158), with the same mark.
+    vouched = [p.id for p in posts if p.kind in social.VOUCHED and social.says_what_was_done(p)]
+    checks = social.checks_of(store, checked + vouched, viewer)
     fixes = social.fixes_of(store, checked)
     tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
     authors: dict[str, dict | None] = {}
@@ -9432,6 +9752,58 @@ TIP_MOODS = {
 }
 
 TIP_SETTINGS = ("on", "off")
+
+
+# D155: Today's widgets, each on or off, as a phone's home screen lets a person choose (the
+# owner's choice 2-B, 2026-11-19, after "this page is very overwhelming i do not feel in
+# control"). Five are on to start; the order is the page's own, most urgent first, so
+# nothing moves under a student's thumb. What asks for an answer (a session to report,
+# an answered self-test, the day's one message) is always shown: it is not a widget.
+TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
+    ("next", "Up next", "The session going on, or the next one, with Focus a tap away."),
+    ("day", "Today", "Your classes, sessions and busy times today."),
+    ("focus", "Focus", "Time anything besides the plan's next session, in one tap."),
+    ("tasks", "Tasks", "What is due next, and how far each has come."),
+    ("exams", "Exams", "Each exam, how far off, and how many topics are on track."),
+    ("mind", "On your mind", "A list to empty your head into, a day or a note each."),
+    ("time", "Your time and attention", "The hours left today, and how long you focused this week."),
+    ("tips", "Tips for today", "A tip to study and one to live well, with their evidence."),
+    ("work", "Workspace", "Each course's links, and your learning platform."),
+    ("week", "This week", "The week's sessions and your days in a row."),
+    ("cards", "Flashcards", "The cards waiting for you today."),
+    ("friends", "Classmates", "Who is studying now, and what classmates shared."),
+)
+TODAY_START = ("next", "day", "focus", "tasks", "exams")
+
+
+def today_widgets(subscription: Subscription) -> tuple[str, ...]:
+    """The widgets a student keeps on Today (D155), in the page's order; the five to start
+    until they choose."""
+    chosen = subscription.options.get("today_widgets")
+    keys = [k for k, _name, _line in TODAY_WIDGETS]
+    if not isinstance(chosen, list):
+        return TODAY_START
+    return tuple(k for k in keys if k in chosen)
+
+
+def set_today_widgets(subscription: Subscription, chosen: Iterable[str]) -> Subscription:
+    """Keep the widgets chosen for Today (D155); a name Today does not draw is refused."""
+    keys = [k for k, _name, _line in TODAY_WIDGETS]
+    wanted = set(chosen)
+    if wanted - set(keys):
+        raise InvalidInput(_("choose among Today's widgets"))
+    return replace(
+        subscription, options={**subscription.options, "today_widgets": [k for k in keys if k in wanted]}
+    )
+
+
+def today_widgets_view(subscription: Subscription) -> list[dict]:
+    """Edit Today's list (D155): each widget, what it shows, and whether it is on."""
+    shown = today_widgets(subscription)
+    return [
+        {"key": key, "name": _(name), "line": _(line), "on": key in shown, "start": key in TODAY_START}
+        for key, name, line in TODAY_WIDGETS
+    ]
 
 
 def tips_on(subscription: Subscription) -> bool:

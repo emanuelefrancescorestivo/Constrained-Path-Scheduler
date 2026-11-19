@@ -27,7 +27,8 @@
      step whose part is not on screen is passed over. #}
   {% if tour == "today" %}
     <li data-target="[data-tour=next]" data-mood="wave"><b>{{ _("Your next step") }}</b><span>{{ _("The session that comes next, and what to do in it. Press Start focus when you begin: I count the time.") }}</span></li>
-    <li data-target="[data-tour=strip]" data-mood="think"><b>{{ _("Your week, and how it went") }}</b><span>{{ _("Sessions done this week and your streak. After a session, one tap says how it went, and the plan adapts.") }}</span></li>
+    {# D155: Today starts with five widgets; the second step says how to choose them. #}
+    <li data-target="[data-tour=edit-today]" data-mood="think"><b>{{ _("Make Today yours") }}</b><span>{{ _("Turn on what you want here: your week and streak, flashcards, classmates, tips. What needs your answer always shows.") }}</span></li>
     <li data-target="[data-tour=sections]" data-mood="cheer"><b>{{ _("Everything else") }}</b><span>{{ _("Your calendar, your courses, the community and You. I wait in the top bar if you have a question.") }}</span></li>
   {% elif tour == "calendar" %}
     <li data-target="[data-tour=calendar]" data-mood="wave"><b>{{ _("Your week at a glance") }}</b><span>{{ _("Classes in their courses' colours, and the sessions I planned around them.") }}</span></li>

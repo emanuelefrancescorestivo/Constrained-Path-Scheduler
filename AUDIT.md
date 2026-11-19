@@ -1262,3 +1262,9 @@ writes TeX's slash for "not" apart from its sign, and reads TeX's big sum as "P"
 no Unicode names). The card rules then took "n = 1" as a term and its definition, and cut a
 long statement at a fixed length. Status: fixed with D151 (`tests/test_maths_cards.py`).
 
+**112. Setting up promised a step about busy times that did not come.** While setting up, the busy
+times' line said "Training, a job, a commute: nothing is planned then. The next step asks about
+them"; since D98 the next step is the week with its plan, and the questions about the week come
+on Today from the second day. How found: the owner's screenshots of setting up (2026-11-19), read
+against the flow. Status: fixed with D154: setting up asks about busy times itself, in its
+sentence, and the line is gone (`tests/test_setup_sentence.py`).

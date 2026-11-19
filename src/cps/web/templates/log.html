@@ -32,6 +32,9 @@
 {% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 <form method="post" action="/p/{{ token }}/log" enctype="multipart/form-data" class="log-form with-photos" id="log-form">
+  {# D158: a session of the plan, shared from the calendar to prove it. #}
+  {% if draft.sid %}<input type="hidden" name="sid" value="{{ draft.sid }}">{% endif %}
+  {% if draft.day %}<p class="notice" role="note">{{ _("Say or show what you did, and share it with your followers or everyone: once a classmate vouches for it, this session earns {n} more points.", n=proof_points) }}</p>{% endif %}
   <div class="card">
     <label for="log-course">{{ _("Course") }}</label>
     <input id="log-course" name="course" value="{{ draft.course }}" required list="qa-courses" autocomplete="off">

@@ -52,6 +52,18 @@ const shiftMonth = (iso, months) => {
 // In a month's day, what tells most comes first: exams and tests, study, then classes.
 const MONTH_RANK = { exam: 0, partial: 0, quiz: 1, mock: 1, study: 2, calendar: 3 };
 const MONTH_LOOK = { exam: "exam", partial: "exam", quiz: "test", mock: "test", study: "study", calendar: "class" };
+// The week's number, as ISO 8601 counts it (Monday first; week 1 holds the year's
+// first Thursday), for the header (D157).
+const isoWeek = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
+  const jan4 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round((d - jan4) / 86400000 / 7 - 3 / 7 + ((jan4.getUTCDay() + 6) % 7) / 7);
+};
+// A small mark before a session's title says its kind at a glance (D157): a topic
+// coming back, a first self-test, deadline work, exam practice; done once reported so.
+const GLYPHS = { review: "↻", "first review": "?", task: "✎", practice: "◆" };
+const DONE = ["done", "most", "all"];
 
 function h(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -109,7 +121,7 @@ function lanes(boxes) {
 }
 
 export class Calendar {
-  constructor(root, { token, first, today, onChanged, toast, onRange, setup = false }) {
+  constructor(root, { token, first, today, onChanged, toast, onRange, onLegend, setup = false }) {
     this.root = root;
     this.token = token;
     this.first = first;
@@ -127,6 +139,8 @@ export class Calendar {
     this.onChanged = onChanged || (() => {});
     this.toast = toast || (() => {});
     this.onRange = onRange || (() => {});
+    this.onLegend = onLegend || (() => {});
+    this.hidden = this.savedHidden();
     this.data = null;
     this.scrolled = null;
     this.pop = null;
@@ -170,6 +184,62 @@ export class Calendar {
 
   get month() {
     return this.view === MONTH;
+  }
+
+  // The courses hidden (D157), by name in lower case, on this device: a switch in the
+  // legend or the sidebar. Kept in the browser only, as the view is.
+  savedHidden() {
+    try {
+      const kept = JSON.parse(window.localStorage.getItem(`cps-hidden-${this.token}`) || "[]");
+      if (Array.isArray(kept)) return new Set(kept.filter((x) => typeof x === "string"));
+    } catch {
+      /* private browsing, blocked storage, a bad value: every course shown */
+    }
+    return new Set();
+  }
+
+  toggleCourse(course) {
+    const key = course.toLowerCase();
+    if (this.hidden.has(key)) this.hidden.delete(key);
+    else this.hidden.add(key);
+    try {
+      window.localStorage.setItem(`cps-hidden-${this.token}`, JSON.stringify([...this.hidden]));
+    } catch {
+      /* not kept; the choice still applies now */
+    }
+    if (this.data) this.draw(this.data);
+  }
+
+  // A thing's course: a drawn class is named after it (D32); the rest carry it. Practice
+  // for a partial exam is "Course, partial 1" (D61) and goes with its course.
+  courseOf(box) {
+    const name = box.kind === "own" ? (box.own === "class" ? box.label : "") : box.course;
+    return String(name || "").toLowerCase();
+  }
+
+  isHidden(box) {
+    const course = this.courseOf(box);
+    if (!course) return false;
+    for (const name of this.hidden) if (course === name || course.startsWith(`${name},`)) return true;
+    return false;
+  }
+
+  // The legend: the courses that have something in the days drawn, each a switch.
+  legend(boxes) {
+    const courses = new Set(boxes.map((b) => this.courseOf(b)).filter(Boolean));
+    const has = (name) => [...courses].some((c) => c === name || c.startsWith(`${name},`));
+    const rows = this.data.legend
+      .filter((l) => has(l.course.toLowerCase()))
+      .map((l) => ({ ...l, shown: !this.hidden.has(l.course.toLowerCase()) }));
+    this.onLegend(rows);
+    if (!rows.length) return null;
+    return h("div", { class: "legend", role: "group", "aria-label": t("Courses shown") },
+      rows.map((l) => h("button", {
+        type: "button",
+        class: `legend-chip ${l.color === null || l.color === undefined ? "cn" : `c${l.color}`}`,
+        "aria-pressed": l.shown ? "true" : "false",
+        onclick: () => this.toggleCourse(l.course),
+      }, h("span", { class: "dot" }), l.course)));
   }
 
   get count() {
@@ -256,10 +326,20 @@ export class Calendar {
       this.onRange(title.charAt(0).toUpperCase() + title.slice(1), this.view);
       return;
     }
+    // D157: the month and the year of the days shown, and the week's number, as Notion
+    // Calendar heads its grid; D59 to D156 named the first and last day.
     const days = this.data.days;
-    const first = days[index].label;
-    const last = days[Math.min(index + this.count, days.length) - 1].label;
-    this.onRange(this.count === 1 ? first : `${first.slice(4)} – ${last.slice(4)}`, this.view);
+    const first = days[index].date;
+    const last = days[Math.min(index + this.count, days.length) - 1].date;
+    const lang = document.documentElement.lang || undefined;
+    const name = (iso, options) => new Intl.DateTimeFormat(lang, { ...options, timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
+    let title = name(first, { month: "long", year: "numeric" });
+    if (first.slice(0, 7) !== last.slice(0, 7)) {
+      title = first.slice(0, 4) === last.slice(0, 4)
+        ? `${name(first, { month: "short" })} – ${name(last, { month: "short", year: "numeric" })}`
+        : `${name(first, { month: "short", year: "numeric" })} – ${name(last, { month: "short", year: "numeric" })}`;
+    }
+    this.onRange(title.charAt(0).toUpperCase() + title.slice(1), this.view, t("Week {n}", { n: isoWeek(first) }));
   }
 
   // A change sent to the server; the calendar it answers with is drawn.
@@ -318,7 +398,8 @@ export class Calendar {
       head.append(
         h("div", {
           class: `cal-day${day.date === data.now.date ? " today" : ""}${day.in_horizon ? "" : " out"}${weekend ? " weekend" : ""}`,
-        }, h("span", { class: "wd" }, wd), h("span", { class: "dn" }, dn)),
+        }, h("span", { class: "cal-day-in" }, h("span", { class: "wd" }, wd), " ", h("span", { class: "dn" }, dn)),
+        this.dayPoints(day.points)),
       );
     });
 
@@ -327,6 +408,16 @@ export class Calendar {
     body.style.height = `${height}px`;
     const gutter = h("div", { class: "cal-gutter" });
     this.gutter = gutter;
+    // C's sun ribbon (D157): beside the hours, the sky's colour at each hour of today,
+    // gold at sunrise, the day's blue, orange then violet at sunset, night. One gradient
+    // for light pages and one for dark; the stylesheet picks.
+    if (data.sun && data.sun.length > 1) {
+      const ribbon = h("div", { class: "cal-ribbon", "aria-hidden": "true" });
+      const stops = (mode) => data.sun.map((hour, k) => `${hour[mode]} ${((100 * k) / (data.sun.length - 1)).toFixed(2)}%`).join(", ");
+      ribbon.style.setProperty("--ribbon-light", `linear-gradient(to bottom, ${stops("sky_light")})`);
+      ribbon.style.setProperty("--ribbon-dark", `linear-gradient(to bottom, ${stops("sky_dark")})`);
+      gutter.append(ribbon);
+    }
     for (let m = this.top; m < this.bottom; m += 60) {
       // Midnight is named too, set under the top edge rather than across it.
       const label = h("div", { class: `cal-hour${m === this.top ? " first" : ""}` }, toClock(m));
@@ -355,6 +446,8 @@ export class Calendar {
       };
       shade(this.top, Math.min(earliest, this.bottom));
       shade(Math.max(latest, this.top), this.bottom);
+      // The study window's end, with a moon: no session is planned after it (D157).
+      if (latest < this.bottom) column.lastChild.classList.add("late");
       if (day.in_horizon) this.wireColumn(column, d);
       body.append(column);
       return column;
@@ -373,7 +466,7 @@ export class Calendar {
       });
     });
     const byDay = days.map(() => []);
-    for (const box of boxes) if (byDay[box.day]) byDay[box.day].push(box);
+    for (const box of boxes) if (byDay[box.day] && !this.isHidden(box)) byDay[box.day].push(box);
     byDay.forEach((list, d) => {
       for (const box of lanes(list)) this.columns[d].append(this.box(box, d));
     });
@@ -381,9 +474,7 @@ export class Calendar {
     // The day names ride along with the columns, held at the top; the hours, at the
     // left (CSS: sticky).
     const scroll = h("div", { class: `cal-scroll${this.strip ? " days-strip" : ""}` }, head, body);
-    const used = new Set(data.items.concat(data.activities).map((i) => i.color).filter((c) => c !== null && c !== undefined));
-    const legend = h("div", { class: "legend", "aria-label": t("Courses") },
-      data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
+    const legend = this.legend(boxes);
     // An empty week to draw on says how, until the first class is in (D32).
     const empty = this.setup && !data.activities.length
       ? h("div", { class: "cal-empty", "aria-hidden": "true" },
@@ -391,7 +482,7 @@ export class Calendar {
           h("b", {}, t("Drag on the calendar to add your first class")),
           h("span", {}, narrow() ? t("Tap the hour it starts; you can change it after.") : t("From its start to its end, on its day; you can change it after."))))
       : null;
-    this.root.replaceChildren(h("div", { class: "cal" }, scroll, empty, legend.childElementCount ? legend : null));
+    this.root.replaceChildren(h("div", { class: "cal" }, scroll, empty, legend));
     this.placeNow();
     this.fitLabels();
 
@@ -418,6 +509,16 @@ export class Calendar {
     if (before) this.slide(before);
   }
 
+  // How much of the day is done (D158), C's bar under the day's name: the points its
+  // sessions gave against what they can give; none on a day without sessions.
+  dayPoints(points) {
+    if (!points || !points.possible) return null;
+    const said = t("{earned} of {possible} points", points);
+    const fill = h("i");
+    fill.style.width = `${Math.round((100 * points.earned) / points.possible)}%`;
+    return h("span", { class: `cal-day-pts${points.earned ? " has" : ""}`, role: "img", "aria-label": said, title: said }, fill);
+  }
+
   // -- a month (DECISIONS.md D79) ---------------------------------------------------
   // Six weeks, Monday first, around the month shown. Each day lists what tells most
   // first (exams and tests, then study sessions, then classes), as many as fit, and
@@ -431,7 +532,7 @@ export class Calendar {
     const month = this.first.slice(0, 7);
     const room = narrow() ? 4 : 3;
     const byDay = days.map(() => []);
-    for (const item of data.items) if (byDay[item.day] && item.kind in MONTH_RANK) byDay[item.day].push(item);
+    for (const item of data.items) if (byDay[item.day] && item.kind in MONTH_RANK && !this.isHidden(item)) byDay[item.day].push(item);
     const name = (item) => item.course || item.title || item.label;
     const head = h("div", { class: "month-head", "aria-hidden": "true" }, days.slice(0, 7).map((day) => h("span", {}, day.label.slice(0, 3))));
     const grid = h("div", { class: "month-grid" });
@@ -456,10 +557,8 @@ export class Calendar {
       h("span", { class: "m-evs", "aria-hidden": "true" }, chips),
       list.length > room ? h("span", { class: "m-more", "aria-hidden": "true" }, t("{n} more", { n: list.length - room })) : null));
     });
-    const used = new Set(data.items.map((i) => i.color).filter((c) => c !== null && c !== undefined));
-    const legend = h("div", { class: "legend", "aria-label": t("Courses") },
-      data.legend.filter((l) => used.has(l.color)).map((l) => h("span", {}, h("span", { class: `dot c${l.color}` }), l.course)));
-    this.root.replaceChildren(h("div", { class: "cal cal-month" }, head, grid, legend.childElementCount ? legend : null));
+    const legend = this.legend(data.items);
+    this.root.replaceChildren(h("div", { class: "cal cal-month" }, head, grid, legend));
     this.announce(0);
   }
 
@@ -505,11 +604,23 @@ export class Calendar {
     const d = this.data.days.findIndex((day) => day.date === this.data.now.date);
     const minute = this.data.now.minute + (Date.now() - this.loadedAt) / 60000;
     if (d < 0 || minute < this.top || minute > this.bottom) return;
-    const line = h("div", { class: "cal-now", "aria-hidden": "true" });
-    line.style.top = `${(minute - this.top) * PX}px`;
-    this.columns[d].append(line);
-    // As Apple Calendar does: the time itself, in red, in the hour gutter.
-    const label = h("div", { class: "cal-now-label", "aria-hidden": "true" }, toClock(Math.floor(minute)));
+    // D157: the hour's colour from the sun ribbon, a sun while it is up and a moon after;
+    // the line runs faintly across the other days, as Notion Calendar's does.
+    const hour = (this.data.sun || [])[Math.min(Math.floor(minute / 60), 24)];
+    const colour = (node) => {
+      if (!hour) return node;
+      node.style.setProperty("--hour-light", hour.light);
+      node.style.setProperty("--hour-dark", hour.dark);
+      return node;
+    };
+    this.columns.forEach((column, k) => {
+      const line = colour(h("div", { class: `cal-now${k === d ? "" : " faint"}`, "aria-hidden": "true" }));
+      line.style.top = `${(minute - this.top) * PX}px`;
+      column.append(line);
+    });
+    // As Apple Calendar does: the time itself in the hour gutter, here in the hour's colour.
+    const label = colour(h("div", { class: `cal-now-label${hour ? " sun" : ""}`, "aria-hidden": "true" },
+      hour ? h("span", { class: "sunmark" }, hour.up ? "☀" : "☾") : null, toClock(Math.floor(minute))));
     label.style.top = `${(minute - this.top) * PX}px`;
     this.gutter.append(label);
     this.root.querySelectorAll(".cal-hour").forEach((hour) => {
@@ -561,6 +672,9 @@ export class Calendar {
       if (box.movable) cls += " movable";
     } else if (["calendar", "skipped", "quiz", "mock"].includes(box.kind)) cls += colour;
     else if (box.kind === "partial") cls += ` ev-exam${colour}`;
+    // What is over fades, as in Notion Calendar (D157): a class once it began, a session
+    // once it ended (above).
+    if (box.kind !== "study" && box.past) cls += " past";
     else if (box.kind === "own" && box.own === "class") cls += ` ev-class${colour}`;
     const tall = (to - from) * PX;
     if (tall < 34) cls += " short";
@@ -585,16 +699,22 @@ export class Calendar {
       "data-full": label,
       "data-short": short || null,
       "data-key": box.kind === "study" ? `${box.session_kind || ""}|${box.title || label}` : null,
-      "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) }),
+      "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) })
+        + (box.points ? `, ${t("{earned} of {possible} points", box.points)}` : ""),
     },
-    h("span", { class: "t" }, span),
-    h("span", { class: "l" }, label));
+    // D157: the title first, the time under it, smaller; D59 to D156 had the time first.
+    h("span", {
+      class: "l",
+      "data-glyph": box.kind === "study" ? (DONE.includes(box.reported) ? "✓" : GLYPHS[box.session_kind] || null) : null,
+    }, label),
+    h("span", { class: "t" }, h("span", { class: "tm" }, span), this.pointsMark(box.points)));
     node.style.top = `${(from - this.top) * PX}px`;
     node.style.height = `${Math.max(tall - 2, 16)}px`;
     node.style.left = `calc(${(100 * box.lane) / box.lanes}% + 2px)`;
     node.style.width = `calc(${100 / box.lanes}% - 4px)`;
     if (box.pinned) node.append(pinIcon());
-    if (box.reported) node.append(h("span", { class: "mark", "aria-hidden": "true" }, MARKS[box.reported] || ""));
+    // Done is the ✓ before the title (D157); the other answers keep their mark in the corner.
+    if (box.reported && !DONE.includes(box.reported)) node.append(h("span", { class: "mark", "aria-hidden": "true" }, MARKS[box.reported] || ""));
     if (box.kind === "own") node.append(h("div", { class: "grip", "aria-hidden": "true" }));
 
     const open = () => {
@@ -628,6 +748,13 @@ export class Calendar {
       this.drag(event, node, box, d, open);
     });
     return node;
+  }
+
+  // A session's points beside its time (D158): what doing it gives, then what it gave.
+  pointsMark(points) {
+    if (!points || points.state === "skipped") return null;
+    const text = points.state === "to do" ? `+${this.data.points_rule.done}` : String(points.earned);
+    return h("span", { class: `pts is-${points.state.replace(" ", "-")}` }, " · ", text);
   }
 
   kindLabel(kind) {
@@ -958,6 +1085,7 @@ export class Calendar {
       box.detail ? h("p", {}, box.detail) : null,
       box.why ? h("p", { class: "hint" }, box.why) : null,
     ];
+    if (box.points) parts.push(this.pointsPart(box));
     if (box.started) {
       const recall = SELF_TESTS.includes(box.session_kind);
       parts.push(h("hr"), h("p", { class: "label" }, recall ? t("How much could you recall, without your notes?") : t("How did it go?")),
@@ -992,6 +1120,24 @@ export class Calendar {
     }
     parts.push(h("p", { class: "hint" }, h("a", { href: `/s/${this.token}/${box.id}` }, t("Open this session's page"))));
     this.openPop(anchor, parts, box.label);
+  }
+
+  // What a session gives (D158): points for doing it, on the student's word, and more
+  // once a classmate vouches for a post that says or shows what was done.
+  pointsPart(box) {
+    const p = box.points;
+    const rule = this.data.points_rule;
+    const lines = {
+      "to do": t("{done} points for doing it, {proof} more once a classmate vouches for what you share of it.", rule),
+      done: t("Done: {done} points. Share what you did: {proof} more once a classmate vouches for it.", rule),
+      proven: t("Done, and a classmate vouched for what you shared."),
+      skipped: t("Skipped: no points."),
+    };
+    const share = box.started && (p.state === "to do" || p.state === "done");
+    return h("div", { class: "pop-points" },
+      h("p", { class: "label" }, t("{earned} of {possible} points", p)),
+      h("p", { class: "hint" }, lines[p.state]),
+      share ? h("a", { class: "btn btn-sm btn-tinted", href: `/p/${this.token}/log?sid=${encodeURIComponent(box.id)}` }, t("Share what you did")) : null);
   }
 
   activityForm(row, d, isNew, anchor) {

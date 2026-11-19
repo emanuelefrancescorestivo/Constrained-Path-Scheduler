@@ -157,6 +157,9 @@ def test_focus_from_today_starts_in_one_tap_with_the_last_course_first(tmp_path)
 def test_today_draws_the_focus_card_and_the_week_and_the_card_starts_the_timer(tmp_path):
     sub = _plan(tmp_path)
     _log(tmp_path, sub, "2026-09-28", 60, at="09:00")
+    # Time and attention is on, as a student turns it on (D155 starts with five).
+    time = [*service.TODAY_START, "time"]
+    sub = service.update_subscription(tmp_path, sub.token, lambda s: service.set_today_widgets(s, time))
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None, remind_every=None)
     with TestClient(create_app(config)) as client:
         page = client.get(f"/p/{sub.token}").text
