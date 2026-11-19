@@ -4995,3 +4995,108 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .accent-btn[aria-pressed="true"] { border-color: var(--accent); }
 .accent-dot { display: block; width: 32px; height: 32px; border-radius: 50%; background: var(--sw-bg); box-shadow: inset 0 0 0 1px rgb(127 127 127 / 25%); }
 .accent-dot.sw-auto { background: conic-gradient(#006ae0, #0f766e, #15803d, #a15c07, #be185d, #7c3aed, #006ae0); }
+
+/* -- D157: the calendar, cleaner (A) with the day's sky beside the hours (C) ------------
+   The owner's pick of three (2026-11-19), after Notion Calendar: a quiet header (the
+   month, the week's number, one menu for the days shown), days as "Thu 19" with today a
+   red pill, each title first in its course's ink and the time under it, what is over
+   faded, a solid board with hairlines instead of the sky's glass (D73), and the courses
+   as switches, in the sidebar on a laptop. From C: a ribbon of the sky's accent at each
+   hour of today beside the hours (D76, D78), the line of now in the hour's colour with a
+   sun or a moon, and a moon where the study window ends. */
+.board-bar { gap: 6px; }
+.board-bar .range { font-size: 1.15rem; margin: 0 6px 0 2px; white-space: nowrap; }
+.range-week { font-family: var(--font-text); font-size: 0.85rem; font-weight: 550; letter-spacing: 0; color: var(--muted); margin-left: 4px; }
+.view-pick select {
+  width: auto; min-height: 32px; padding: 4px 12px; border-radius: 8px;
+  font-size: 0.85rem; font-weight: 550; background-color: var(--fill-3);
+}
+body[data-sky] .board, :root[data-glass="solid"] body[data-sky] .board {
+  background: var(--surface); border-left: 0.5px solid var(--line-strong);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.days-strip .cal-head > :first-child) {
+  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.cal-head { border-bottom: 0.5px solid var(--line); }
+.cal-day { padding: 8px 2px; }
+.cal-day-in {
+  display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%;
+  padding: 3px 9px; border-radius: 980px; white-space: nowrap;
+}
+.cal-day .wd { display: inline; font-size: 0.8rem; font-weight: 550; text-transform: none; letter-spacing: 0; }
+.cal-day .dn {
+  display: inline; min-width: 0; height: auto; padding: 0; margin: 0; border-radius: 0;
+  font-size: 0.95rem; font-weight: 650; background: none;
+}
+.cal-day.today .dn { background: none; }
+.cal-day.today .cal-day-in { background: var(--danger-fill); }
+.cal-day.today :is(.wd, .dn), .cal-day.today.weekend .dn { color: #fff; }
+.cal-hour { right: 11px; }
+.cal-ribbon {
+  position: absolute; top: 0; bottom: 0; right: 3px; width: 5px; border-radius: 5px;
+  background: var(--ribbon-light); pointer-events: none;
+}
+.cal-closed.late::before {
+  content: "☾"; position: absolute; top: 3px; left: 6px; font-size: 0.75rem; line-height: 1; color: var(--muted);
+}
+.cal-now, .cal-now-label { --hour: var(--hour-light); }
+.cal-now { border-top-color: var(--hour, var(--now)); }
+.cal-now::before { background: var(--hour, var(--now)); }
+.cal-now.faint { z-index: 1; border-top-width: 1px; opacity: 0.4; }
+.cal-now.faint::before { display: none; }
+.cal-now-label { right: 1px; padding: 1px 5px; white-space: nowrap; letter-spacing: -0.01em; }
+.cal-now-label.sun { background: var(--hour, var(--danger-fill)); }
+.cal-now-label .sunmark { font-size: 0.75rem; margin-right: 2px; }
+
+.ev { border-radius: 7px; padding: 4px 6px 3px 9px; }
+.ev .t { margin-top: 1px; }
+.ev:is(.ev-study, .ev-calendar, .ev-quiz, .ev-mock, .ev-exam, .ev-class) .l {
+  font-weight: 650; color: color-mix(in srgb, var(--cc, var(--busy)) 40%, var(--text));
+}
+.ev .l[data-glyph]::before { content: attr(data-glyph) "\00a0"; font-weight: 750; }
+.ev.past, .ev.ev-study.past { opacity: 1; background: color-mix(in srgb, var(--cc, var(--busy)) 6%, var(--surface)); }
+.ev.past .l, .ev.past:is(.ev-study, .ev-calendar, .ev-quiz, .ev-mock, .ev-exam, .ev-class) .l { color: var(--muted); font-weight: 600; }
+.ev.past::before { opacity: 0.4; }
+
+.legend { gap: 6px; padding: 8px 12px; }
+.legend-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 11px 4px 9px;
+  border: 0.5px solid var(--line-strong); border-radius: 980px; background: transparent; color: var(--text);
+  font: inherit; font-size: 0.8rem; font-weight: 550; white-space: nowrap; cursor: pointer;
+}
+.legend-chip .dot { width: 9px; height: 9px; }
+.legend-chip[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+.legend-chip[aria-pressed="false"] .dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cc); }
+.side-shows ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.side-show {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 4px 8px;
+  border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 0.9rem;
+  text-align: left; cursor: pointer;
+}
+.side-show:hover { background: var(--fill-3); }
+.side-show .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-check {
+  display: grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 4px; background: var(--cc);
+}
+.side-check::after { content: "✓"; color: #fff; font-size: 0.75rem; font-weight: 800; line-height: 1; }
+.side-show[aria-pressed="false"] .side-check { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cc); }
+.side-show[aria-pressed="false"] .side-check::after { content: none; }
+.side-show[aria-pressed="false"] .grow { color: var(--muted); text-decoration: line-through; }
+@media (min-width: 1100px) {
+  body.has-sidebar:has(.side-shows) .cal .legend { display: none; }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cal-ribbon { background: var(--ribbon-dark); }
+  :root:not([data-theme="light"]) :is(.cal-now, .cal-now-label) { --hour: var(--hour-dark); }
+}
+:root[data-theme="dark"] .cal-ribbon { background: var(--ribbon-dark); }
+:root[data-theme="dark"] :is(.cal-now, .cal-now-label) { --hour: var(--hour-dark); }
+/* On a phone the header is two rows: the month and the week, then the menu at the left and
+   Today with its arrows at the right (one row did not fit at 390px). */
+@media (max-width: 900px) {
+  .board-bar .range { flex: 1 0 100%; }
+  .board-bar .view-pick { order: 1; margin-right: auto; }
+  .board-bar [data-go] { order: 2; }
+}
+/* -- end of D157's calendar */

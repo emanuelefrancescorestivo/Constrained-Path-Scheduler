@@ -148,6 +148,31 @@ FAMILIARITY = (
 )
 
 
+def _sun_colours(positions: list[float]) -> list[dict]:
+    """The sky at each hour of today for the calendar (D157): the sky's first light (D76)
+    for the ribbon beside the hours, gold at sunrise, blue by day, orange then violet at
+    sunset, indigo at night; the accent of the moment (D78) for the line of now and its
+    label, under white text at 4.8:1 or more by construction; each for light pages and for
+    dark; and whether the sun is up. D78's accent alone stays between blue and purple."""
+
+    def hexed(colour: tuple[int, int, int]) -> str:
+        return "#{:02x}{:02x}{:02x}".format(*colour)
+
+    out = []
+    for position in positions:
+        step = sky.step_of(position)
+        out.append(
+            {
+                "sky_light": hexed(sky.colours(step, "light")[1]),
+                "sky_dark": hexed(sky.colours(step, "dark")[1]),
+                "light": hexed(sky.accent(step, "light")[0]),
+                "dark": hexed(sky.accent(step, "dark")[0]),
+                "up": 1 <= position <= 3,
+            }
+        )
+    return out
+
+
 def _nice_date(value: str) -> str:
     """ "2027-01-25 13:45" as a person reads it: "Mon 25 Jan 2027, 13:45"."""
     try:
@@ -3479,7 +3504,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             view = service.calendar_view(subscription, first, count, config.clock())
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
-        return JSONResponse(view)
+        return JSONResponse({**view, "sun": _sun_colours(view["sun"])})
 
     @app.post("/p/{token}/activities")
     async def activities(request: Request, token: str, start: str | None = None, days: int = 7) -> Response:
@@ -3511,7 +3536,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
         service.log_event(store, token, "activities", str(len(rows)))
-        return JSONResponse(view)
+        return JSONResponse({**view, "sun": _sun_colours(view["sun"])})
 
     async def session_change(
         request: Request,
@@ -3544,7 +3569,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
         service.log_event(store, token, kind, str(body.get("outcome", body.get("action", ""))))
-        return JSONResponse(view)
+        return JSONResponse({**view, "sun": _sun_colours(view["sun"])})
 
     # A class of the timetable skipped, caught up on alone, or kept (D60).
     @app.post("/p/{token}/lecture.json")

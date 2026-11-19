@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A cleaner calendar (DECISIONS.md D157): the month and the week's number over one menu for the
+  days shown; days as "Thu 19"; each title first in its course's colour, with a mark for its kind;
+  what is over faded; the courses as switches, in the sidebar on a laptop; and beside the hours a
+  ribbon of the day's sky, the line of now in the hour's colour with a sun or a moon.
+
 - Themes and an accent (DECISIONS.md D156): Paper and Soft day for light; Calm night, Graphite,
   Dim and High contrast for dark; and an accent colour for both (Blue, Teal, Green, Amber, Rose,
   Violet), each one tap in Appearance, every text kept at 4.5:1 or more.

@@ -17,6 +17,10 @@ const FR = {
   "Recorded. Your exam forecast now uses what you recalled.": "Noté. Ta prévision d'examen utilise maintenant ce dont tu t'es souvenu.",
   "The server answered {status}.": "Le serveur a répondu {status}.",
   "Courses": "Cours",
+  // D157: the calendar's header and its courses as switches
+  "Week {n}": "Semaine {n}",
+  "Courses shown": "Cours affichés",
+  "On the calendar": "Dans le calendrier",
   "Busy": "Occupé",
   "Moved. It stays there; the rest of the plan has made room.": "Déplacée. Elle reste là ; le reste du plan s'est adapté.",
   "Saved. The plan has moved around it.": "Enregistré. Le plan s'est organisé autour.",
@@ -140,6 +144,10 @@ const IT = {
   "Recorded. Your exam forecast now uses what you recalled.": "Registrato. La tua previsione d'esame ora usa quello che hai ricordato.",
   "The server answered {status}.": "Il server ha risposto {status}.",
   "Courses": "Corsi",
+  // D157: the calendar's header and its courses as switches
+  "Week {n}": "Settimana {n}",
+  "Courses shown": "Corsi mostrati",
+  "On the calendar": "Nel calendario",
   "Busy": "Occupato",
   "Moved. It stays there; the rest of the plan has made room.": "Spostata. Resta lì; il resto del piano ha fatto spazio.",
   "Saved. The plan has moved around it.": "Salvato. Il piano si è organizzato intorno.",

@@ -44,11 +44,55 @@ const calendar = board && new Calendar(board, {
   toast: (text, bad) => toast(text, { bad }),
   onChanged: refreshPanel,
   setup: plan.dataset.setup === "classes",
-  onRange: (text, view) => {
+  onRange: (text, view, week) => {
     document.getElementById("calendar-range").textContent = text;
-    bar.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.view) === view ? "true" : "false"));
+    document.getElementById("calendar-week").textContent = week || "";
+    const pick = document.getElementById("calendar-view");
+    if (pick) pick.value = String(view);
   },
+  onLegend: sideCourses,
 });
+
+// The courses shown on the calendar, in the sidebar on a laptop (D157), as Notion
+// Calendar lists its calendars: each a switch that shows or hides the course's classes
+// and sessions. Drawn from what the calendar draws; under 1100px, where the sidebar is
+// hidden, the calendar's own legend has the same switches.
+function sideCourses(legend) {
+  const sidebar = document.querySelector(".sidebar");
+  if (!sidebar) return;
+  let list = sidebar.querySelector(".side-shows");
+  if (!legend.length) {
+    list?.remove();
+    return;
+  }
+  if (!list) {
+    list = document.createElement("section");
+    list.className = "side-shows";
+    const title = document.createElement("h2");
+    title.className = "side-title";
+    title.textContent = t("On the calendar");
+    list.append(title, document.createElement("ul"));
+    sidebar.querySelector(".side-month")?.after(list);
+  }
+  const rows = legend.map(({ course, color, shown }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `side-show ${color === null || color === undefined ? "cn" : `c${color}`}`;
+    button.setAttribute("aria-pressed", shown ? "true" : "false");
+    const box = document.createElement("span");
+    box.className = "side-check";
+    box.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "grow";
+    name.textContent = course;
+    button.append(box, name);
+    button.addEventListener("click", () => calendar.toggleCourse(course));
+    const item = document.createElement("li");
+    item.append(button);
+    return item;
+  });
+  list.querySelector("ul").replaceChildren(...rows);
+}
 
 // A change from Today (D140), where there is no calendar to send it and redraw: the
 // same request, then the widgets again.
@@ -135,12 +179,10 @@ document.addEventListener("cps:changed", () => {
 });
 
 if (bar) bar.hidden = false;
+document.getElementById("calendar-view")?.addEventListener("change", (event) => {
+  calendar.setView(Number(event.target.value));
+});
 bar?.addEventListener("click", (event) => {
-  const view = event.target.closest("[data-view]");
-  if (view) {
-    calendar.setView(Number(view.dataset.view));
-    return;
-  }
   const button = event.target.closest("[data-go]");
   if (!button) return;
   if (button.dataset.go === "busy") calendar.addBusy(button);

@@ -4961,7 +4961,22 @@ def calendar_view(
         "first": first.isoformat(),
         "planned": subscription.plan is not None,
         "error": subscription.error,
+        # Where the sun is at each hour of today (D157), for the ribbon beside the hours.
+        "sun": sun_hours(options["tz"], moment.date()),
     }
+
+
+def sun_hours(tz: str, day: date) -> list[float]:
+    """Where the sun is at each hour of `day`, from midnight to midnight (25 values, D157):
+    the day's position from 0 (deep night) through 1 (sunrise), 2 (the highest sun) and 3
+    (sunset) back towards 4, for the time zone's main city (D76)."""
+    zone = _zone(tz)
+    midnight = datetime.combine(day, time(), zone)
+    latitude, longitude = _daylight.place(tz, midnight)
+    return [
+        round(_daylight.day_position(latitude, longitude, (midnight + timedelta(hours=h)).astimezone(UTC)), 3)
+        for h in range(25)
+    ]
 
 
 def setup_view(subscription: Subscription) -> dict:

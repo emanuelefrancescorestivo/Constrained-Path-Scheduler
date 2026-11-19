@@ -6193,3 +6193,56 @@ make once. Red as an accent: it says "exam" and "now" in this app.
 are chosen, then measured. The flat themes have opaque cards whatever the glass setting (D132). The
 icon of an installed app keeps the sky's colours (D74). Checked in Chromium only, at phone size and
 1280px, light and dark: Paper with Teal, Soft day, Graphite, Dim, High contrast with Violet.
+
+## D157. The calendar, cleaner, with the day's sky beside the hours
+
+**Asked.** The owner, on 2026-11-19, with a screenshot of Notion Calendar: "you see how this
+calendar from notion is much cleaner and smoother? can we replicate this with a touch of
+originality? make proposals". Of the three proposed (A, Clean; B, Timetable and plan; C, Sun
+ribbon), the owner chose "A + C", and for C's bar under each day "more in a progression way like
+how much you got done in the day and how many points it will give you": that bar is D158's.
+
+**Chosen.** From A, the calm of Notion Calendar in the app's face:
+
+- a quiet header: the month and the year of the days shown ("November 2026", or "Nov – Dec 2026"
+  across two), the week's number as ISO 8601 counts it, one menu for Day, 3 Days, Week and Month,
+  then the arrows and Today. D59 to D156 had a segmented control of four and the first and last
+  day's dates; on a phone the header is two rows, the menu at the left of the second;
+- each day as "Thu 19" on one line, today a red pill;
+- each title first, in its course's ink, the time under it, smaller; a small mark before a study
+  session's title says its kind: ↻ a topic coming back, ? a first self-test, ✎ deadline work, ◆
+  exam practice, ✓ once reported done;
+- what is over faded: a class once it began, a session once it ended, its title in the secondary
+  text on a paler tint;
+- a solid board with hairlines: no sky behind the grid (D73's glass stays on the rest of the app);
+- the courses as switches: in the sidebar on a laptop, under the month, "On the calendar", as
+  Notion Calendar lists its calendars; under the grid elsewhere, the legend's chips. A course hidden
+  takes its classes, sessions and exams off the calendar on that device (kept in the browser, as
+  the view is); it is matched by name, so two courses that share a colour are told apart.
+
+From C:
+
+- a ribbon beside the hours, the sky of each hour of today (`service.sun_hours`, the day's
+  position of D76 at every hour; the sky's first light at that position): indigo at night, gold
+  at sunrise, blue by day, orange then violet at sunset;
+- the line of now in the accent of the hour (D78) with a sun while the sun is up and a moon after,
+  and the line faint across the other days, as Notion Calendar draws it;
+- a moon where the study window ends: no session is planned after it.
+
+A title is 40 % of its course's colour and 60 % of the text. Over every course colour, at a
+session's tint and a lecture's, in every theme of D156 and the two before them, it reads at 4.5:1
+or more, and so does a past title; the lowest is 4.77, a past violet class on Soft day's cards
+(`tests/test_calendar_clean.py`). The label of now is white on the accent of its hour, 4.8:1 by
+construction (D78).
+
+**Rejected.** A's 55 % of the course's colour, as proposed: 3.78:1 for an amber session on Soft
+day's cards (D156 came after the proposal). D78's accent for the ribbon: it stays between blue and
+purple all day, so the morning would not be gold; the ribbon has no text, so the sky's lighter
+first light is used. Fading what is over with opacity: its title fell under 4.5:1. B's free time
+drawn as bands: not chosen. The legend kept under the grid on a laptop: the sidebar has the room
+and lists the courses already.
+
+**Disclosed.** The ribbon is today's sky drawn beside every day shown, for the time zone's main
+city (D76). The kinds' marks are a choice; a session's kind is still said in full in its popover.
+The courses hidden are kept on the device only. Checked in Chromium only, at 1440 × 900, 1280 ×
+800 and phone size, light and dark.
