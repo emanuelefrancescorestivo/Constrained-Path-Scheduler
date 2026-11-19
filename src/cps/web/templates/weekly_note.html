@@ -9,7 +9,7 @@
   {% for p in note.paragraphs %}<p>{{ p }}</p>{% endfor %}
   <div class="card weekly-for-you">
     {{ mascot(note.mood, "mascot-note") }}
-    <p><b>{{ _("What it means for you") }}</b> {{ note.for_you }}</p>
+    <p><b class="for-you-title">{{ _("What it means for you") }}</b> {{ note.for_you }}</p>
   </div>
   <p class="tip-note"><b>{{ _("Limits") }}</b> {{ note.limits }}</p>
   <ul class="tip-sources" aria-label="{{ _('Sources') }}">

@@ -23,14 +23,10 @@ def _rule(selector: str) -> str:
     return " ".join(found)
 
 
-def test_the_calendars_tip_opens_over_the_grid_and_its_line_is_not_a_flex_summary():
-    why = (WEB / "templates" / "_why.html").read_text(encoding="utf-8")
-    assert '<summary><span class="why-line-head">' in why
-    assert "display: block" in _rule(".why-line > summary")
-    assert "display: flex" in _rule(".why-line-head")
-    body = _rule(".board > .why-line[open] .why-line-body")
-    assert "position: absolute" in body and "top: calc(100% - 4px)" in body
-    assert "position: relative" in _rule(".board")
+def test_the_calendar_has_no_tip_line_over_its_grid():
+    # The line AUDIT 100 fixed is gone: the owner found it pushed the grid down (2026-11-19).
+    plan = (WEB / "templates" / "plan.html").read_text(encoding="utf-8")
+    assert "why_line" not in plan and "why-line" not in CSS
 
 
 def test_the_study_maps_card_is_a_block():

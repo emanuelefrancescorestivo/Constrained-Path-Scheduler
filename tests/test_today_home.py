@@ -151,6 +151,11 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
     day = today[today.index('class="w w-day"') :]
     day = day[: day.index("</section>")]
     assert day.count('class="day-item') == len(service.day_agenda(ben, NOW)) and 'class="day-now"' in day
+    # An item's state never takes the now line's class (AUDIT 106): an item under way
+    # was drawn as a line of no height, over the next one.
+    items = re.findall(r'<li class="(day-item [^"]*)"', day)
+    assert items and all("day-now" not in c.split() for c in items)
+    assert {c.split()[2] for c in items} <= {"at-past", "at-now", "at-later"}
     assert "@ada" in today and "explained Eigenvalues" in today
     # The page's redraw is the same widgets.
     assert '<div class="hub">' in web.get(f"/p/{ben.token}/panel").text
@@ -286,4 +291,36 @@ def test_the_workspace_holds_each_courses_links_this_weeks_first(web, tmp_path):
         'href="https://moodle.example.edu/course/view.php?id=12" target="_blank" rel="noopener noreferrer"'
         in work
     )
-    assert f'href="/p/{sub.token}/courses/1#link"' in work and "its Moodle page, slides, a folder" in work
+    # A course without links is one row, its name and "+ Add a link"; what a link can be is
+    # said once, only while no course has one (the owner, 2026-11-19: it was said per course).
+    assert f'href="/p/{sub.token}/courses/1#link"' in work and "its Moodle page, slides, a folder" not in work
+    bare = _plan(tmp_path)  # a plan of its own, no links yet
+    empty = unescape(web.get(f"/p/{bare.token}").text)
+    empty = empty[empty.index('class="w w-work"') :]
+    empty = empty[: empty.index("</section>")]
+    assert empty.count("its Moodle page, slides, a folder") == 1
+    assert empty.count('class="work-add"') == len(service.workspace_view(bare, NOW)["courses"])
+
+
+def test_an_item_under_way_is_drawn_as_an_item_with_the_now_line_after_it(tmp_path):
+    # AUDIT 106, from the owner's screenshot: during a class, the class took the now line's
+    # own class (`day-now`), lost its height and was drawn over the next item.
+    sub = _plan(tmp_path)
+    first = service.PlanReport.from_dict(sub.plan).sessions[0]
+    during = datetime.fromisoformat(first.start) + timedelta(minutes=10)
+    assert any(d["state"] == "now" for d in service.day_agenda(sub, during))
+    config = Config(
+        store=tmp_path, clock=lambda: during, background=False, sweep_every=None, remind_every=None
+    )
+    with TestClient(create_app(config)) as web:
+        page = unescape(web.get(f"/p/{sub.token}").text)
+    day = page[page.index('class="w w-day"') :]
+    day = day[: day.index("</ol>")]
+    rows = re.findall(r'<li class="([^"]*)"', day)
+    under_way = [r for r in rows if "at-now" in r.split()]
+    assert len(under_way) >= 1 and all(r.startswith("day-item ") for r in under_way)
+    # One now line, after what is under way and before what is to come.
+    assert rows.count("day-now") == 1
+    line = rows.index("day-now")
+    assert all("at-later" not in r.split() for r in rows[:line])
+    assert all("at-now" not in r.split() and "at-past" not in r.split() for r in rows[line + 1 :])

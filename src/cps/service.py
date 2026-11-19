@@ -1818,20 +1818,25 @@ def session_label(session: SessionView) -> str:
 
 _MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 _TOPIC_WEEK = re.compile(r"(week of|taught before) (\d{1,2}) (" + "|".join(_MONTH_ABBR) + r")")
+_TOPIC_PART = re.compile(r"(week of \d{1,2} \w{3}) \((\d+) of (\d+)\)")
 
 
 def topic_words(title: str) -> str:
     """A topic's name in the current language. Topic names are identifiers (a
     session's id is made from its title, so a report survives a change of
     language): "Algebra 3 · week of 05 Oct" is stored in English and shown as
-    "Algebra 3 · semaine du 5 oct." in French."""
+    "Algebra 3 · semaine du 5 oct." in French, and a week in parts (D50), "week of 16
+    Nov (1 of 2)", as "semaine du 16 nov. (1 sur 2)" (AUDIT 107)."""
 
     def say(match: re.Match[str]) -> str:
         day = date(2000, _MONTH_ABBR.index(match.group(3)) + 1, int(match.group(2)))
         phrase = _("week of {day}") if match.group(1) == "week of" else _("taught before {day}")
         return phrase.format(day=format_date(day, "day_short"))
 
-    return _TOPIC_WEEK.sub(say, title)
+    def part(match: re.Match[str]) -> str:
+        return match.group(1) + " " + _("({k} of {n})", k=match.group(2), n=match.group(3))
+
+    return _TOPIC_WEEK.sub(say, _TOPIC_PART.sub(part, title))
 
 
 def short_title(summary: str) -> str:
@@ -6857,24 +6862,29 @@ def set_glass(subscription: Subscription, glass: str) -> Subscription:
 # mouth to choose, two more kinds of facial hair, sunglasses, something on the head,
 # freckles, earrings or a beauty mark, four kinds of clothes in ten colours, and a
 # background. A part added later starts at its first name for an avatar saved before.
+# D150 (the owner: "add the fade haircut, the mullet, more trendy haircuts and features for
+# personalisation"): nine more cuts, lashes and sleepy eyes, a slit brow, a smirk and
+# lipstick, a nose ring, ear studs and dimples, a bandana, a bucket hat and a headband, a
+# jacket and a turtleneck. Each is added at the end of its part, so no saved name moves.
 AVATAR_PARTS: dict[str, tuple[str, ...]] = {
     "skin": ("s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"),
     "hair": (
         *("short", "swept", "long", "curly", "bun", "shaved", "scarf"),
         *("afro", "bob", "ponytail", "braids", "bald"),
+        *("fade", "mullet", "curtains", "crop", "wolf", "locs", "spacebuns", "pixie", "cornrows"),
     ),
     "colour": (
         *("dark", "black", "brown", "auburn", "blonde", "grey", "pink", "blue"),
         *("red", "platinum", "green", "purple"),
     ),
-    "eyes": ("soft", "wide", "happy", "wink"),
-    "brows": ("soft", "straight", "thick", "raised"),
-    "mouth": ("smile", "grin", "neutral"),
+    "eyes": ("soft", "wide", "happy", "wink", "lashes", "sleepy"),
+    "brows": ("soft", "straight", "thick", "raised", "slit"),
+    "mouth": ("smile", "grin", "neutral", "smirk", "lips"),
     "face": ("none", "moustache", "beard", "goatee", "stubble"),
     "glasses": ("none", "round", "square", "sun"),
-    "head": ("none", "cap", "beanie", "headphones", "flower"),
-    "detail": ("none", "freckles", "earrings", "mole"),
-    "outfit": ("tee", "hoodie", "shirt", "sweater"),
+    "head": ("none", "cap", "beanie", "headphones", "flower", "bandana", "bucket", "headband"),
+    "detail": ("none", "freckles", "earrings", "mole", "nosering", "studs", "dimples"),
+    "outfit": ("tee", "hoodie", "shirt", "sweater", "jacket", "turtleneck"),
     "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6", "k0", "k1", "k2"),
     "bg": ("b0", "b1", "b2", "b3", "b4", "b5", "b6"),
 }

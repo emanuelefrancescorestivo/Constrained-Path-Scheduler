@@ -170,3 +170,29 @@ def test_topic_names_are_shown_in_italian_too():
     with i18n.use("it"):
         assert service.topic_words("Algebra 3 · week of 05 Oct") == "Algebra 3 · settimana del 5 ott"
         assert service.topic_words("taught before 29 Sep") == "spiegato prima del 29 set"
+
+
+def test_a_week_in_parts_says_its_part_in_the_language():
+    # AUDIT 107, from the owner's screenshot: "semaine du 16 nov. (1 of 2)" on a French page.
+    title = "Analysis 3 · week of 16 Nov (1 of 2)"
+    assert service.topic_words(title) == "Analysis 3 · week of 16 Nov (1 of 2)"
+    with i18n.use("fr"):
+        assert service.topic_words(title) == "Analysis 3 · semaine du 16 nov. (1 sur 2)"
+    with i18n.use("it"):
+        assert service.topic_words(title) == "Analysis 3 · settimana del 16 nov (1 di 2)"
+
+
+def test_french_speaks_to_one_student_as_tu():
+    # AUDIT 108, from the owner's screenshot: the calendar's tip said "Faites glisser… votre
+    # plan" beside the app's "tu". "Vous" stays where the English speaks to two or more
+    # ("you both", "one of you"), and "Chez" is a preposition, not a verb.
+    plural = re.compile(
+        r"\b(both|each other|all of you|either of you|one of you|neither of you|your handles)\b", re.I
+    )
+    formal = re.compile(r"\b(vous|votre|vos)\b|\b(?!Chez\b)[A-Z][a-zéè]+ez(-le|-la|-les|-vous)?\b")
+    found = []
+    for english, french in MESSAGES.items():
+        words = " ".join(french) if isinstance(french, tuple) else french
+        if formal.search(words) and not plural.search(english):
+            found.append(english)
+    assert found == []

@@ -119,7 +119,6 @@ PAGES = (
     "/cards",
     "/cards/review",
     "/cards/make",
-    "/week",
     "/settings/week",
     "/courses/0",
     "/tasks",
@@ -134,8 +133,9 @@ def test_each_page_shows_its_tip_with_the_research_folded(web, tmp_path):
         assert page.count("data-why=") == 1, path
         assert "What it does not show" in page and 'rel="noopener noreferrer"' in page, path
         assert f"/p/{token}/settings/look#tips" in page, path
+    # The calendar has no tip line: it pushed the grid down (the owner, 2026-11-19).
     calendar = unescape(web.get(f"/p/{token}/week").text)
-    assert '<details class="why-line"' in calendar
+    assert '<details class="why-line"' not in calendar and "data-why=" not in calendar
     # D140: the calendar is its own page; Today has no grid, so no planning tip.
     today = unescape(web.get(f"/p/{token}").text)
     assert '<section class="board"' not in today and '<details class="why-line"' not in today

@@ -1214,3 +1214,40 @@ task named "Q&amp;A sheet"; the course's short name is escaped the same way. How
 the source, not a report. Status: fixed with D148. The name and the course are unescaped once
 before they are read (`tests/test_deadlines.py`).
 
+**106. Today's day list drew a class under way as a line over the next one.** Reported by the
+owner on 2026-11-19 with a screenshot: at 09:30 the 09:00 class was printed over the 10:45 one,
+under two red lines. An item's state became its class (`day-{{ state }}`), so an item under way
+was `day-now`, the class of the now line itself: no height, a red border and a dot, its text
+spilling over the next item. How found: the owner's screenshot, then the same page in Chromium
+during a session. Status: fixed with D149. A state is `at-past`, `at-now` or `at-later`, and the
+time of what is under way is red (`tests/test_today_home.py`).
+
+**107. A week in parts said "(1 of 2)" in English on a French page.** Reported by the owner on
+2026-11-19 with a screenshot of Today: "semaine du 16 nov. (1 of 2)". `topic_words` translated a
+topic's week but not the part a week with many lectures is split into (D50). How found: the
+owner's screenshot. Status: fixed with D149: "(1 sur 2)", "(1 di 2)" (`tests/test_i18n.py`).
+
+**108. Some French said "vous" where the app says "tu".** Reported by the owner on 2026-11-19 with
+a screenshot of the calendar's tip, "Faites glisser une séance… votre plan", under the tour's
+"Fais glisser une séance". Thirty-one strings, from the program import (D90), the tips in
+context (D135) and the tips page (D91), spoke to one student as "vous". How found: the owner's
+screenshot, then a search of `cps/locales/fr.py`. Status: fixed with D149, every one in "tu";
+"vous" stays where the English speaks to two or more ("you both"), and a test keeps it so
+(`tests/test_i18n.py`).
+
+**109. A list of countries showed only the highlighted one.** Reported by the owner on 2026-11-19
+with a screenshot of the avatar's "Another country" list, in dark mode: a white list with only
+"Armenia" readable. The system draws a select's list; it stayed light while each option kept the
+page's white text. How found: the owner's screenshot (a laptop's Chrome, likely Windows). Status:
+fixed with D149: options carry the page's own background and text (`select option`). Checked in
+Chromium on Linux only, where the list follows the dark scheme anyway: not tried on Windows.
+
+**110. Three cards had no room inside or between them.** Reported by the owner on 2026-11-19 with
+screenshots ("some pads don't separate well"): on Today, the week's two chips sat on their
+widget's border, because the sky's rule for the week strip (a row of chips with no padding,
+made for the old Today) outranked the widget's card; on the first run, the year's choices were
+boxed by the glass every fieldset gets, with nothing padded; on Community, the empty feed touched
+the map's card, its first card being the feed's child and not the map card's sibling. How found:
+the owner's screenshots, then the pages in Chromium. Status: fixed with D149
+(`tests/test_layout_pass.py`).
+

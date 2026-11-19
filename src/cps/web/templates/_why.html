@@ -1,8 +1,8 @@
 {# Tips in context (D135): one tip beside what a page is about. `t` comes from
    service.tip_here: why here (only what is true of this plan), the advice, and, folded,
    what the research found, what it does not show, how strong it is and its sources.
-   A fold, not a script: it opens without one. `why` is a card with the spark; `why_line`
-   one line, for the calendar, whose grid needs the room. #}
+   A fold, not a script: it opens without one. `why` is a card with the spark (the calendar
+   had a one-line version until the owner found it pushed the grid down, 2026-11-19). #}
 {% from "_mascot.html" import mascot %}
 
 {% macro research(t) -%}
@@ -26,13 +26,4 @@
     {{ research(t) }}
   </details>
 </aside>
-{%- endmacro %}
-
-{% macro why_line(t) -%}
-<details class="why-line" data-why="{{ t.key }}">
-  {# The line's parts in a box of their own: Safari lays out a flex <summary> with the
-     wrong height, and the opened tip's text then ran under it (AUDIT 100). #}
-  <summary><span class="why-line-head"><span class="why-bulb" aria-hidden="true"></span><span class="why-line-words"><span>{{ t.here }}</span> <b>{{ t.advice }}</b></span></span></summary>
-  <div class="why-line-body"><p class="why-strength-line"><span class="why-strength is-{{ t.strength }}">{{ t.strength_label }}</span></p>{{ research(t) }}</div>
-</details>
 {%- endmacro %}

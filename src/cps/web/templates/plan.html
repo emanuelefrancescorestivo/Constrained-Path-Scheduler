@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "_why.html" import why_line with context %}
 {% block title %}{% if tab == 'calendar' %}{{ _("Calendar") }}{% else %}{{ _("Today") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="{{ asset('app.js') }}"></script>{% endblock %}
 {% block body %}
@@ -54,8 +53,9 @@
     {% elif hint and tab == 'calendar' %}
     <p class="section-hint board-hint" role="note">{{ hint }}</p>
     {% endif %}
-    {# D135: planning's tip, one line above the grid, its evidence folded. #}
-    {% if why_tip and tab == 'calendar' and not setup and not new %}{{ why_line(why_tip) }}{% endif %}
+    {# D135 put planning's tip in a line above the grid; the owner found it pushed the
+       calendar down (2026-11-19), so the calendar has none: planning's tips are on the
+       tips page and Today's. #}
     <div class="board-bar" id="calendar-bar" hidden>
       <span class="range" id="calendar-range" aria-live="polite"></span>
       <span class="spacer"></span>

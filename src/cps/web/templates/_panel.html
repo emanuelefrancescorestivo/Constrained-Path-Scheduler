@@ -256,7 +256,7 @@
   {% set ns = namespace(line=false) %}
   {% for d in day %}
     {% if d.state == "later" and not ns.line %}{% set ns.line = true %}<li class="day-now" aria-hidden="true"></li>{% endif %}
-    <li class="day-item day-{{ d.kind }} day-{{ d.state }} {% if d.color is not none %}c{{ d.color }}{% else %}cn{% endif %}">
+    <li class="day-item day-{{ d.kind }} at-{{ d.state }} {% if d.color is not none %}c{{ d.color }}{% else %}cn{% endif %}">
       <time>{{ d.start }}</time><span class="day-bar" aria-hidden="true"></span>
       <span class="grow"><b>{{ d.label }}</b><small>{{ d.what }} · {{ d.start }}–{{ d.end }}{% if d.reported %} · {{ _(outcome_words.get(d.reported) or recall_words.get(d.reported) or d.reported) }}{% endif %}</small></span>
     </li>
@@ -395,15 +395,23 @@
 <section class="w w-work" aria-labelledby="work-title">
   <div class="w-head">{{ art("reading", "xs") }}<h2 id="work-title">{{ _("Workspace") }}</h2>{% if workspace.platform %}<a class="w-link" href="{{ workspace.platform }}" target="_blank" rel="noopener noreferrer">{{ _("Open Moodle") }} ↗</a>{% else %}<a class="w-link" href="/p/{{ token }}/courses">{{ _("Courses") }} ›</a>{% endif %}</div>
   <div class="card">
+    {# What a link can be is said once, not under every course (the owner, 2026-11-19):
+       a course without links is one row, its name and "+ Add a link". #}
+    {% if not workspace.courses | selectattr("links") | list %}<p class="hint work-hint">{{ _("Keep each course's links here: its Moodle page, slides, a folder.") }}</p>{% endif %}
     <ul class="work-list">
     {% for c in workspace.courses %}
       <li class="{% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}">
-        <a class="work-course" href="/p/{{ token }}/courses/{{ c.index }}"><span class="dot"></span>{{ c.name }}</a>
+        <div class="work-row">
+          <a class="work-course" href="/p/{{ token }}/courses/{{ c.index }}"><span class="dot"></span>{{ c.name }}</a>
+          {% if not c.links %}<a class="work-add" href="/p/{{ token }}/courses/{{ c.index }}#link" aria-label="{{ _('Add a link to {course}', course=c.name) }}">{{ lucide('plus') }}{{ _("Add a link") }}</a>{% endif %}
+        </div>
+        {% if c.links %}
         <div class="work-links">
           {% for l in c.links %}<a class="work-link" href="{{ l.url }}" target="_blank" rel="noopener noreferrer"><b>{{ l.title }}</b><small>{% if l.this_week %}{{ _("this week") }} · {% endif %}{{ l.host }}</small><span class="work-out" aria-hidden="true">↗</span></a>{% endfor %}
           {% if c.more %}<a class="work-more" href="/p/{{ token }}/courses/{{ c.index }}">{{ _n("{n} more", "{n} more", c.more) }} ›</a>{% endif %}
-          <a class="work-add" href="/p/{{ token }}/courses/{{ c.index }}#link">{{ lucide('plus') }}{% if c.links %}{{ _("Add a link") }}{% else %}{{ _("Add a link: its Moodle page, slides, a folder") }}{% endif %}</a>
+          <a class="work-add" href="/p/{{ token }}/courses/{{ c.index }}#link">{{ lucide('plus') }}{{ _("Add a link") }}</a>
         </div>
+        {% endif %}
       </li>
     {% endfor %}
     </ul>

@@ -5911,3 +5911,76 @@ before they are read.
   taken as a deadline, as it already was in English.
 - The Italian sentences were written by the developer, not a native speaker (as D34's were).
 
+## D149. A layout pass from the owner's screenshots
+
+**Asked.** On 2026-11-19 the owner tried the live demo in French on a laptop and a phone, and
+sent screenshots: "where the paging is awkward, too many blank void empty spaces, some pads don't
+separate well"; of the calendar, "this whole upper bar is annoying, it puts everything down by
+its width". The defects among them are AUDIT items 106 to 110. The avatar's hair and haircuts,
+asked at the same time, are a slice of their own.
+
+**Chosen.**
+- *The top bar is the sidebar's head on a laptop.* From 1100px, where the sidebar holds the
+  sections, the bar's band across the page carried only the name, New task and Spark. They now
+  sit at the top of the sidebar: the name and Spark on one line, New task under them, the width of
+  the sidebar. The page starts at the window's top, and the calendar gains the bar's 52px. A
+  phone, and a laptop page without the sidebar (setting up), keep the bar.
+- *No tip line on the calendar.* D135's one-line planning tip sat above the grid and pushed it
+  down. It is gone, with its styles; planning's tips stay on the tips page and Today's.
+- *Today's widgets packed.* On a laptop each row of widgets was as tall as its tallest, leaving a
+  gap under the others. `app.js` now lets each widget span rows of 2px for its height and the
+  gap, so each column runs on; the most urgent widgets keep their places at the top. Without the
+  script the grid is as before.
+- *Workspace says once what a link can be*, and only while no course has one; a course without
+  links is one row, its name and "+ Add a link".
+- *The weekly note's "What it means for you"* is a title on its own line, not run into its
+  sentence.
+
+**Rejected.**
+- *CSS masonry* (`grid-template-rows: masonry`): only behind a flag in one browser.
+- *Columns* (`columns: 3`): they fill one column before the next, so the most urgent widgets
+  would no longer lead across the top.
+- *Moving the calendar's tip under the grid*: the grid fills the window, so it would be out of
+  sight, as good as gone, and still built on every visit.
+- *Hiding the top bar on every page*: a phone has no sidebar, and its bar holds the "+" and Spark.
+
+**Not fixed.** A flashcard the owner made on the demo from a LaTeX lecture PDF ran words together
+("LetGandHbe groups"). pypdf 6.21.4 read every LaTeX-like layout tried here correctly (kerned
+words, a word per position, a font change at each symbol, fonts without a space), so the cause in
+that file is not known; it stays under AUDIT item 99 until the file can be tried.
+
+**Disclosed.** Checked in Chromium only, at 2000, 1440, 1280 and 1200px and a phone's size, light
+and dark; the list of countries (AUDIT 109) was not tried on Windows, where it was seen.
+
+## D150. The avatar: no line through the hair, a lower quiff, more cuts and features
+
+**Asked.** The owner, on 2026-11-19, with screenshots of the avatar maker: "you can still see the
+border of the head", "hair is too tall", then "add the fade haircut, the mullet, more trendy
+haircuts and features for personalisation".
+
+**Found first.**
+- *The line was the sheen*, a white arc D115 drew over every haircut. The ink drawing (D143)
+  hides it on a saved avatar, but on the maker the sheen carried every haircut's class, so the
+  rule that shows the chosen cut in the preview showed it too, across the hair.
+- *The swept cut stood 17 units above the head* (its crown at 6, the head's top at 23); the
+  others stand 1 to 2 above.
+
+**Chosen.**
+- The sheen is gone from the drawing and the style sheet, and the swept cut's crown is at 16.
+- Nine more cuts, each at the end of the list, so no saved avatar changes: a fade (a short top,
+  the sides faded to the skin), a mullet (short on top and at the sides, the ears showing, long
+  at the nape), curtains (a middle parting to the jaw), a French crop (a straight fringe), a
+  wolf cut (shaggy layers), locs, space buns, a pixie and cornrows.
+- Lashes and sleepy eyes, a slit in the brow, a smirk and lipstick; a nose ring, ear studs and
+  dimples; a bandana, a bucket hat and a headband; a jacket and a turtleneck. Each drawn in the
+  ink of D143, in the clothes' or the hair's colour where it has one.
+
+**Rejected.**
+- *More than one detail at a time* (earrings and a nose ring): the details are one part with one
+  choice; making them a set changes how an avatar is saved, for every student. Later, if asked.
+- *A second hair colour* (dyed tips, highlights): a colour per part is how the drawing is
+  tinted; a second one means a second set of swatches.
+
+**Disclosed.** The shapes are a choice of taste, drawn at the avatar's 120 units; checked in
+Chromium only, light and dark, on four skin tones and four hair colours.
+
