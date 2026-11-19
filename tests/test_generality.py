@@ -16,7 +16,7 @@ import pytest
 from icalendar import Calendar, Event
 
 from cps import cardmaker, service, syllabus
-from cps.calendar_io import course_of
+from cps.calendar_io import course_of, find_assignments
 from cps.syllabus import read as read_syllabus
 
 START = date(2026, 9, 28)  # a Monday
@@ -489,3 +489,100 @@ def test_notes_become_cards_in_each_language_s_words(shape):
     found = cardmaker.read(f"{text}\n\n{q}: 2 + 2?\n{a}: 4")
     assert [(c.kind, c.front) for c in found] == [("definition", term), ("qa", "2 + 2?")]
     assert found[0].back.endswith("Av = λv") and found[1].back == "4"
+
+
+# A learning platform's deadlines in the language its teacher wrote them in (D148). Moodle
+# stores an event's name in the language of whoever saved the activity, so a university's
+# export follows its own language. Each row is one Moodle 4.5 language pack's strings
+# (assign `calendardue`, `calendarextension`, `calendargradingdue`; quiz `quizeventcloses`,
+# `quizeventopens`), as read from the packs on 2026-11-19: due, extension, grading, close, open.
+MOODLE_LANGUAGES = {
+    "English": ("{} is due", "{} is due (extension)", "{} is due to be graded", "{} closes", "{} opens"),
+    "French": (
+        "{} doit être rendu",
+        "{} doit être rendu (prolongation)",
+        "{} doit être évalué",
+        "{} se termine",
+        "{} s’ouvre",
+    ),
+    "Italian": (
+        "{} è in scadenza",
+        "{} è in scadenza (estensione)",
+        "{} deve essere valutato",
+        "{} chiude",
+        "{} apre",
+    ),
+    "Spanish": (
+        "Vencimiento de {}",
+        "{} ha vencido (extensión)",
+        "{} se debe calificar",
+        "Se cierra {}",
+        "Se abre {}",
+    ),
+    "German": (
+        "{} ist fällig.",
+        "{} ist fällig (Verlängerung)",
+        "{} ist zur Bewertung fällig.",
+        "{} endet",
+        "{} beginnt",
+    ),
+    "Portuguese": (
+        "Termina o prazo de '{}'",
+        "Já terminou o prazo de '{}' (prolongar prazo)",
+        "Termina o prazo de avaliação de '{}'",
+        "Fecha '{}'",
+        "Inicia '{}'",
+    ),
+    "Brazilian Portuguese": (
+        "{} está marcado(a) para esta data",
+        "{} está vencido (prorrogação)",
+        "{} está com avaliação marcada para esta data",
+        "Término de {}",
+        "Início de {}",
+    ),
+    "Dutch": (
+        "{} moet worden ingeleverd",
+        "{} moet klaar zijn (verlenging)",
+        "{} moet worden beoordeeld",
+        "{} sluit",
+        "{} opent",
+    ),
+}
+
+
+def _moodle_export(names: list[tuple[str, datetime]]) -> str:
+    """A Moodle-shaped export: each event instantaneous, the course its category."""
+    cal = Calendar()
+    cal.add("prodid", "-//test//moodle//EN")
+    cal.add("version", "2.0")
+    for i, (summary, when) in enumerate(names):
+        event = Event()
+        event.add("summary", summary)
+        event.add("dtstart", when)
+        event.add("dtend", when)
+        event.add("categories", ["STAT301"])
+        event.add("uid", f"{i}@moodle.test")
+        cal.add_component(event)
+    return cal.to_ical().decode()
+
+
+@pytest.mark.parametrize("shape", MOODLE_LANGUAGES)
+def test_a_learning_platform_s_deadlines_are_read_in_each_language(shape):
+    due, extension, grading, close, opens = MOODLE_LANGUAGES[shape]
+    at = datetime(2026, 10, 9, 21, 59, tzinfo=UTC)
+    export = _moodle_export(
+        [
+            (due.format("Problem sheet 3"), at),
+            (extension.format("Problem sheet 3"), at + timedelta(days=3)),
+            (grading.format("Problem sheet 3"), at + timedelta(days=10)),
+            (opens.format("Week 4 quiz"), at - timedelta(days=4)),
+            (close.format("Week 4 quiz"), at - timedelta(days=2)),
+        ]
+    )
+    found = find_assignments(export, "Europe/Paris")
+    # The quiz's close and the extension, which replaces the due date; the grading date
+    # is the teacher's and the opening is not a deadline.
+    assert [(a.name, a.course, a.due.strftime("%m-%d %H:%M")) for a in found] == [
+        ("Week 4 quiz", "STAT301", "10-07 23:59"),
+        ("Problem sheet 3", "STAT301", "10-12 23:59"),
+    ]

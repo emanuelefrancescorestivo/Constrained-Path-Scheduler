@@ -1,7 +1,8 @@
 """
 Deadlines from a learning platform (Moodle's calendar export). The event names
 and the course category follow Moodle's source (see `calendar_io.find_assignments`);
-`examples/sample-moodle.ics` is synthetic, written in that shape.
+`examples/sample-moodle.ics` is synthetic, written in that shape. Moodle's other
+languages are in `tests/test_generality.py` (D148).
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import service
+from cps import calendar_io, service
 from cps.calendar_io import find_assignments
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -31,6 +32,44 @@ def test_assignments_quizzes_and_extensions_are_found():
         # graded" is the teacher's, "opens" and office hours are not deadlines.
         ("Essay on fairness", "ETH210", "2026-10-19 12:00"),
     ]
+
+
+def test_each_of_moodle_s_strings_reads_as_itself_and_no_other():
+    # The reader takes the first string that matches (D148): it is right only if no two
+    # match the same event name. Names below have parentheses, accents, another
+    # language's short words; only a name made of another string's own words ("Se cierra
+    # is due") matches two, and then the table's order decides.
+    for name in ("Problem sheet 3", "Quiz (extension)", "Übung 4 – Teil 2", "Relazione 'finale'", "Fecha"):
+        for language, kind, string in calendar_io._MOODLE_DEADLINES:
+            summary = string.replace("{$a}", name)
+            matched = [k for k, pattern in calendar_io._PLATFORM_DEADLINES if pattern.match(summary)]
+            assert matched == [kind], (language, summary, matched)
+            assert calendar_io._platform_deadline(summary) == (name, kind == "extension")
+    assert calendar_io._platform_deadline("Se cierra is due") == ("Se cierra", False)
+
+
+def test_a_name_with_an_ampersand_is_read_as_written():
+    # Moodle's export writes "&" as "&amp;" (AUDIT 105): the task is named as the teacher wrote it.
+    escaped = MOODLE.replace(b"SUMMARY:Problem sheet 3 is due", b"SUMMARY:Q&amp;A sheet 3 is due").replace(
+        b"CATEGORIES:ETH210", b"CATEGORIES:R&amp;D210"
+    )
+    found = [(a.name, a.course) for a in find_assignments(escaped.decode(), "Europe/Paris")]
+    assert ("Q&A sheet 3", "STAT301") in found and ("Essay on fairness", "R&D210") in found
+    assert not any("&amp;" in name + course for name, course in found)
+
+
+def test_an_export_that_mixes_languages_gives_the_same_tasks(subscription):
+    # Each activity's name is in the language of whoever saved it (D148).
+    mixed = (
+        MOODLE.replace(b"SUMMARY:Problem sheet 3 is due", "SUMMARY:Problem sheet 3 è in scadenza".encode())
+        .replace(b"SUMMARY:Week 4 quiz closes", b"SUMMARY:Week 4 quiz se termine")
+        .replace(
+            b"SUMMARY:Essay on fairness is due (extension)",
+            "SUMMARY:Essay on fairness ist fällig (Verlängerung)".encode(),
+        )
+    )
+    english = service.sync_deadlines(subscription, now=NOW, fetch=lambda url: MOODLE)
+    assert _names(service.sync_deadlines(subscription, now=NOW, fetch=lambda url: mixed)) == _names(english)
 
 
 def test_a_file_that_is_not_a_calendar_says_so():

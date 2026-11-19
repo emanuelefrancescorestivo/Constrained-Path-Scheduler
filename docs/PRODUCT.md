@@ -73,7 +73,8 @@ around it; that is a search, not a proof.
    ([Google: sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)).
 4. **Capturing tasks in words** ("stats report, due the 20th, about six hours"),
    with a language model: a provider, an API key and a cost per student.
-5. **Other learning platforms**, and Moodle in languages other than English.
+5. **Other learning platforms**, and Moodle in languages beyond the eight whose strings
+   were checked (D148).
 
 ## What people might pay for (hypotheses)
 

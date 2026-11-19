@@ -1205,3 +1205,12 @@ live demo had it too, before D146. How found: a script listing every element pas
 edge, in Chromium at phone size. Status: fixed with D146. The disc's frame clips what passes its
 sides (`.code-disc-wrap { overflow-x: clip }`), which keeps the tilt and draws nothing outside the
 card.
+
+**105. A deadline's name with "&" in it arrived as "&amp;".** Found while reading Moodle's
+source for D148: the calendar export writes each event's name through `format_string`, which
+escapes a bare "&" as "&amp;" and "<" ">" as entities (`lib/classes/formatting.php`, 4.5
+branch). `calendar_io.find_assignments` took the name as written, so "Q&A sheet is due" became a
+task named "Q&amp;A sheet"; the course's short name is escaped the same way. How found: reading
+the source, not a report. Status: fixed with D148. The name and the course are unescaped once
+before they are read (`tests/test_deadlines.py`).
+
