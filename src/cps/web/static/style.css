@@ -5256,3 +5256,26 @@ main.site:has(.settings-dash) { max-width: 72rem; }
   .with-context > .context-col { grid-area: context; }
 }
 /* -- end of D162 */
+
+/* -- D163: Moodle within reach -----------------------------------------------------------
+   A course's card: its four pages on Moodle as tiles, two to a row, each saying what it
+   holds; before it is linked, the search on Moodle and the field to paste the address.
+   On the focus screen, the materials under the course's name. */
+.moodle-card { display: grid; gap: 12px; }
+.moodle-card > * { margin: 0; }
+.moodle-card .materials-head small { line-height: 1.4; }
+.moodle-pages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.moodle-pages a {
+  display: grid; gap: 2px; min-height: 56px; padding: 10px 12px; border-radius: 12px;
+  background: var(--fill-3); color: var(--text); text-decoration: none;
+}
+.moodle-pages a:hover { background: var(--fill-2); }
+.moodle-pages b { font-weight: 650; }
+.moodle-pages small { color: var(--muted); font-size: 0.8rem; }
+.moodle-change > summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; font-size: 0.9rem; min-height: 32px; display: inline-flex; align-items: center; }
+.moodle-change[open] { display: grid; gap: 8px; }
+.moodle-link { margin: 0; }
+.focus-moodle { margin: 0; text-align: center; font-size: 0.92rem; }
+.focus-moodle small { color: var(--muted); font-size: 0.78rem; }
+.side-out { color: var(--muted); font-size: 0.85rem; }
+/* -- end of D163 */

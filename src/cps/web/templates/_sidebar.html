@@ -44,6 +44,9 @@
     {% endif %}
   </section>
   <nav class="side-nav" aria-label="{{ _('More') }}">
+    {# D163: the student's Moodle; before it is known, where to give it. #}
+    {% if sidebar.moodle %}<a href="{{ sidebar.moodle.dashboard }}" rel="noopener noreferrer" target="_blank">{{ lucide('graduation-cap') }}<span class="grow">{{ _("Moodle") }}</span><span class="side-out" aria-hidden="true">↗</span></a>
+    {% else %}{{ item("/settings/exams#deadlines", _("Moodle"), False, "graduation-cap") }}{% endif %}
     {{ item("/map", _("Who's studying where"), here.endswith("/map"), "map-pin") }}
     {{ item("/tips", _("Study tips"), tab == "tips", "lightbulb") }}
     {{ item("/you", _("You"), tab == "you", "circle-user") }}

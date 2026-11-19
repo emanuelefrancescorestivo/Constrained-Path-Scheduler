@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Moodle within reach (DECISIONS.md D163): each course's page links to the course on Moodle,
+  its materials, its assignments and your grades, once you paste its address (or "Find it on
+  Moodle" searches for it); the focus screen shows the course's materials, and Moodle has its row
+  in the sidebar and under You.
+
 - The list and its context (DECISIONS.md D162): on a laptop, Tasks, Courses, Flashcards and
   Community keep their list on the left and put beside it what helps act on it: this week's hours
   for tasks and where deadlines come from; importing the program and the class's link; making
