@@ -3083,7 +3083,8 @@ MESSAGES: dict[str, str] = {
     "To live well": "Per vivere bene",
     "Workspace": "Spazio di lavoro",
     "Open Moodle": "Apri Moodle",
-    "Add a link: its Moodle page, slides, a folder": "Aggiungi un link: la sua pagina Moodle, le slide, una cartella",
+    "Keep each course's links here: its Moodle page, slides, a folder.": "Tieni qui i link di ogni corso: la sua pagina Moodle, le slide, una cartella.",
+    "Add a link to {course}": "Aggiungi un link a {course}",
     "{n} more course": "{n} altro corso",
     "{n} more courses": "altri {n} corsi",
     # D141: Spark's tour of each section, sharing in fewer taps, peer checks.
@@ -3249,4 +3250,5 @@ MESSAGES: dict[str, str] = {
     "{hours} h a week": "{hours} h a settimana",
     "{n} topic under {t} %": "{n} argomento sotto il {t} %",
     "{n} topics under {t} %": "{n} argomenti sotto il {t} %",
+    "({k} of {n})": "({k} di {n})",
 }

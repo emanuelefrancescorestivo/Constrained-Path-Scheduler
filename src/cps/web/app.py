@@ -1262,7 +1262,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             today_iso=today.isoformat(),
             tab=tab,
             # D135: planning's tip, on the calendar.
-            why_tip=service.tip_here(subscription, "calendar", config.clock()) if tab == "calendar" else None,
+            why_tip=None,  # the calendar has no tip line (the owner, 2026-11-19)
             **panel_context(subscription),
             **context,
         )

@@ -25,7 +25,7 @@
   <input id="pf-uni" name="university" value="{{ values.university or '' }}" required maxlength="120" placeholder="{{ _('Start typing: Bologna, Sorbonne, polimi…') }}" list="universities" autocomplete="off" data-suggest="/p/{{ token }}/universities">
   <datalist id="universities"></datalist>
   {% if values.programme %}<input type="hidden" name="programme" value="{{ values.programme }}">{% endif %}
-  <fieldset class="run-years">
+  <fieldset class="run-years bare">
     <legend>{{ _("Year") }}</legend>
     <div class="pills" role="radiogroup">
       {% for code, words in years.items() %}<label class="pill"><input type="radio" name="year" value="{{ code }}"{% if values.year == code %} checked{% endif %}><span>{{ _(words) }}</span></label>{% endfor %}

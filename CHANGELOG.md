@@ -7,6 +7,12 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A tidier layout (DECISIONS.md D149), from the owner's screenshots. On a laptop the top bar is the
+  sidebar's head, so pages start at the top; the calendar loses the tip line above its grid;
+  Today's widgets fill the space under shorter ones. Fixed: a class under way drawn over the next
+  one, "(1 of 2)" in English, French that said "vous", an unreadable list of countries in dark
+  mode, and cards with no room inside or between them (AUDIT.md items 106 to 110).
+
 - Deadlines in your Moodle's language (DECISIONS.md D148). Assignments and quizzes due arrive
   from a Moodle in English, French, Italian, Spanish, German, Portuguese, Brazilian Portuguese
   or Dutch, read from Moodle's own words for each; a task typed in one line is read in Italian

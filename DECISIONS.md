@@ -5911,3 +5911,44 @@ before they are read.
   taken as a deadline, as it already was in English.
 - The Italian sentences were written by the developer, not a native speaker (as D34's were).
 
+## D149. A layout pass from the owner's screenshots
+
+**Asked.** On 2026-11-19 the owner tried the live demo in French on a laptop and a phone, and
+sent screenshots: "where the paging is awkward, too many blank void empty spaces, some pads don't
+separate well"; of the calendar, "this whole upper bar is annoying, it puts everything down by
+its width". The defects among them are AUDIT items 106 to 110. The avatar's hair and haircuts,
+asked at the same time, are a slice of their own.
+
+**Chosen.**
+- *The top bar is the sidebar's head on a laptop.* From 1100px, where the sidebar holds the
+  sections, the bar's band across the page carried only the name, New task and Spark. They now
+  sit at the top of the sidebar: the name and Spark on one line, New task under them, the width of
+  the sidebar. The page starts at the window's top, and the calendar gains the bar's 52px. A
+  phone, and a laptop page without the sidebar (setting up), keep the bar.
+- *No tip line on the calendar.* D135's one-line planning tip sat above the grid and pushed it
+  down. It is gone, with its styles; planning's tips stay on the tips page and Today's.
+- *Today's widgets packed.* On a laptop each row of widgets was as tall as its tallest, leaving a
+  gap under the others. `app.js` now lets each widget span rows of 2px for its height and the
+  gap, so each column runs on; the most urgent widgets keep their places at the top. Without the
+  script the grid is as before.
+- *Workspace says once what a link can be*, and only while no course has one; a course without
+  links is one row, its name and "+ Add a link".
+- *The weekly note's "What it means for you"* is a title on its own line, not run into its
+  sentence.
+
+**Rejected.**
+- *CSS masonry* (`grid-template-rows: masonry`): only behind a flag in one browser.
+- *Columns* (`columns: 3`): they fill one column before the next, so the most urgent widgets
+  would no longer lead across the top.
+- *Moving the calendar's tip under the grid*: the grid fills the window, so it would be out of
+  sight, as good as gone, and still built on every visit.
+- *Hiding the top bar on every page*: a phone has no sidebar, and its bar holds the "+" and Spark.
+
+**Not fixed.** A flashcard the owner made on the demo from a LaTeX lecture PDF ran words together
+("LetGandHbe groups"). pypdf 6.21.4 read every LaTeX-like layout tried here correctly (kerned
+words, a word per position, a font change at each symbol, fonts without a space), so the cause in
+that file is not known; it stays under AUDIT item 99 until the file can be tried.
+
+**Disclosed.** Checked in Chromium only, at 2000, 1440, 1280 and 1200px and a phone's size, light
+and dark; the list of countries (AUDIT 109) was not tried on Windows, where it was seen.
+

@@ -74,10 +74,46 @@ async function change(path, body, said) {
   }
 }
 
+// Today's widgets packed as a masonry (the owner, 2026-11-19: "too many blank void empty
+// spaces"): in two or three columns each widget spans as many rows of HUB_ROW pixels as
+// it is tall, with the gap, so a short widget no longer leaves a tall neighbour's row
+// empty under it. Layout only: without this script the grid is as before, each row as
+// tall as its tallest widget. Measured again when a widget or the page changes size.
+const HUB_ROW = 2;
+let hubWatch = null;
+function packHub() {
+  hubWatch?.disconnect();
+  const hub = panel()?.querySelector(".hub");
+  if (!hub) return;
+  let queued = false;
+  const pack = () => {
+    queued = false;
+    const style = getComputedStyle(hub);
+    const columns = style.gridTemplateColumns.split(" ").filter(Boolean).length;
+    if (columns < 2) {
+      hub.classList.remove("is-packed");
+      for (const widget of hub.children) widget.style.removeProperty("grid-row-end");
+      return;
+    }
+    const gap = parseFloat(style.getPropertyValue("--hub-gap")) || 0;
+    hub.classList.add("is-packed");
+    for (const widget of hub.children) {
+      const tall = widget.getBoundingClientRect().height;
+      widget.style.gridRowEnd = `span ${Math.max(1, Math.ceil((tall + gap) / HUB_ROW))}`;
+    }
+  };
+  hubWatch = new ResizeObserver(() => {
+    if (!queued) { queued = true; requestAnimationFrame(pack); }
+  });
+  hubWatch.observe(hub);
+  for (const widget of hub.children) hubWatch.observe(widget);
+}
+
 // The reports in the panel go through the calendar where there is one, which redraws
 // itself; on Today, through `change`.
 function wirePanel() {
   if (!panel()) return;
+  packHub();
   panel().querySelectorAll("form[data-report]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

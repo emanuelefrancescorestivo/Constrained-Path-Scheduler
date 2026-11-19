@@ -1818,20 +1818,25 @@ def session_label(session: SessionView) -> str:
 
 _MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 _TOPIC_WEEK = re.compile(r"(week of|taught before) (\d{1,2}) (" + "|".join(_MONTH_ABBR) + r")")
+_TOPIC_PART = re.compile(r"(week of \d{1,2} \w{3}) \((\d+) of (\d+)\)")
 
 
 def topic_words(title: str) -> str:
     """A topic's name in the current language. Topic names are identifiers (a
     session's id is made from its title, so a report survives a change of
     language): "Algebra 3 · week of 05 Oct" is stored in English and shown as
-    "Algebra 3 · semaine du 5 oct." in French."""
+    "Algebra 3 · semaine du 5 oct." in French, and a week in parts (D50), "week of 16
+    Nov (1 of 2)", as "semaine du 16 nov. (1 sur 2)" (AUDIT 107)."""
 
     def say(match: re.Match[str]) -> str:
         day = date(2000, _MONTH_ABBR.index(match.group(3)) + 1, int(match.group(2)))
         phrase = _("week of {day}") if match.group(1) == "week of" else _("taught before {day}")
         return phrase.format(day=format_date(day, "day_short"))
 
-    return _TOPIC_WEEK.sub(say, title)
+    def part(match: re.Match[str]) -> str:
+        return match.group(1) + " " + _("({k} of {n})", k=match.group(2), n=match.group(3))
+
+    return _TOPIC_WEEK.sub(say, _TOPIC_PART.sub(part, title))
 
 
 def short_title(summary: str) -> str:
