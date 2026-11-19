@@ -60,7 +60,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon, icons, sky
+from . import charts, forms, icon, icons, sky, thumbs
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -364,6 +364,8 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["familiarity"] = FAMILIARITY
     # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
     templates.env.globals["lucide"] = icons.icon
+    templates.env.globals["other_course"] = forms.OTHER_COURSE  # the sheet's "Other…" (D159)
+    templates.env.globals["tip_art"] = thumbs.drawing  # each tip's picture (D160)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a
@@ -3688,6 +3690,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             new=False,
             rows=settings_rows(bool(owner)),
+            # D161: what each part is set to, on its card.
+            overview=service.settings_overview(
+                store,
+                subscription,
+                login=service.email_account_view(store, owner) if owner else None,
+                now=config.clock(),
+            ),
             tab="settings",
             saved=_notice(saved),
         )
@@ -3867,9 +3876,21 @@ def create_app(config: Config | None = None) -> FastAPI:
                 "suggested": [],
             }
             if not new:  # the whole form, from a page made before Settings had pages
-                rows = settings_rows(bool(owner_here(request, token)))
+                owner = owner_here(request, token)
                 return page(
-                    request, "settings.html", 400, token=token, new=False, rows=rows, error=str(error)
+                    request,
+                    "settings.html",
+                    400,
+                    token=token,
+                    new=False,
+                    rows=settings_rows(bool(owner)),
+                    overview=service.settings_overview(
+                        store,
+                        subscription,
+                        login=service.email_account_view(store, owner) if owner else None,
+                        now=config.clock(),
+                    ),
+                    error=str(error),
                 )
             return page(
                 request,
@@ -4652,7 +4673,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 name,
                 str(form.get("due") or "").replace("T", " ").strip(),
                 hours,
-                str(form.get("course") or "").strip(),
+                forms.chosen_course(form),
             )
             service.update_subscription(
                 store, token, lambda current: service.add_task(current, task, now=config.clock())

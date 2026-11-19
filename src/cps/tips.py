@@ -693,3 +693,25 @@ def of_the_day(day: date) -> Tip:
     """One tip a day, taking turns: the same for everyone on a given date, and every
     tip comes back after len(TIPS) days. Tips at the right moment are a later step."""
     return TIPS[day.toordinal() % len(TIPS)]
+
+
+# Each tip's figure under its picture (D160): the one number its `why` gives, as (unit, n)
+# or, for a range, (unit, low, high). Mindset's two meta-analyses, and the tips without a
+# count, have none. tests/test_tip_pictures.py checks each number
+# against the tip's own words.
+FIGURES: dict[str, tuple[str, int] | tuple[str, int, int]] = {
+    "spacing": ("experiments", 317),
+    "class-quizzes": ("studies", 222),
+    "interleave": ("studies", 59),
+    "attend": ("studies", 69),
+    "sleep-after": ("people", 40),
+    "sleep-regular": ("students", 88),
+    "bedtime-list": ("people", 57),
+    "caffeine": ("trials", 11),
+    "breaks": ("students", 87),
+    "rewards": ("experiments", 128),
+    "choice": ("studies", 41),
+    "track": ("studies", 138),
+    "if-then": ("tests", 94),
+    "habit": ("days", 18, 254),
+}

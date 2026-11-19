@@ -151,7 +151,7 @@ async function understand(form, button) {
       form.querySelectorAll('input[name="hours"]').forEach((r) => (r.checked = r === pill));
       form.elements.hours_other.value = pill ? "" : String(read.hours);
     }
-    if (read.course) form.elements.course.value = read.course;
+    if (read.course) pickCourse(form, read.course);
     const note = form.querySelector(".typed-note");
     note.textContent = read.note;
     note.hidden = false;
@@ -160,6 +160,153 @@ async function understand(form, button) {
     toast(t("No connection to the server. Try again."), { bad: true });
   } finally {
     button.disabled = false;
+  }
+}
+
+// -- the sheet's day and time (D159) ----------------------------------------------
+// The system's picker for a date and a time is grey and unlike the app (the owner's
+// screenshot, 2026-11-19); this one draws the month in the app's look, with the usual
+// times as chips. The field stays the form's own: it can still be typed in, and a phone's
+// own wheel still opens on a tap. Layout and input only: the server reads the field.
+const pad2 = (n) => String(n).padStart(2, "0");
+const isoDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const TIMES = ["09:00", "12:00", "14:00", "18:00", "23:59"];
+
+function duePicker(sheet, due) {
+  const open = sheet.querySelector(".due-open");
+  const panel = sheet.querySelector(".due-pick");
+  if (!open || !panel) return;
+  open.hidden = false;
+  due.classList.add("has-pick");
+  const lang = document.documentElement.lang || undefined;
+  let shown = new Date();
+  shown.setDate(1);
+  const parts = () => {
+    const [day, time] = (due.value || "").split("T");
+    return { day: day || "", time: (time || "").slice(0, 5) };
+  };
+  const set = (day, time) => {
+    due.value = `${day}T${time}`;
+    due.dispatchEvent(new Event("input", { bubbles: true }));
+    draw();
+  };
+  const button = (label, attrs, onclick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    for (const [k, v] of Object.entries(attrs)) b.setAttribute(k, v);
+    b.addEventListener("click", onclick);
+    return b;
+  };
+  function draw() {
+    const { day: chosen, time } = parts();
+    const today = isoDay(new Date());
+    const head = document.createElement("div");
+    head.className = "due-month";
+    const title = document.createElement("b");
+    title.textContent = new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(shown);
+    const move = (n) => () => {
+      shown = new Date(shown.getFullYear(), shown.getMonth() + n, 1);
+      draw();
+    };
+    head.append(
+      button("‹", { class: "btn btn-sm btn-icon", "aria-label": t("Previous month") }, move(-1)),
+      title,
+      button("›", { class: "btn btn-sm btn-icon", "aria-label": t("Next month") }, move(1)),
+    );
+    const grid = document.createElement("div");
+    grid.className = "due-days";
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", title.textContent);
+    const monday = new Date(2024, 0, 1); // a Monday, for the weekdays' letters
+    for (let k = 0; k < 7; k++) {
+      const name = document.createElement("span");
+      name.className = "due-wd";
+      name.setAttribute("aria-hidden", "true");
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + k);
+      name.textContent = new Intl.DateTimeFormat(lang, { weekday: "narrow" }).format(d);
+      grid.append(name);
+    }
+    const lead = (shown.getDay() + 6) % 7; // Monday first
+    for (let k = 0; k < lead; k++) grid.append(document.createElement("span"));
+    const last = new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate();
+    for (let n = 1; n <= last; n++) {
+      const date = new Date(shown.getFullYear(), shown.getMonth(), n);
+      const iso = isoDay(date);
+      const b = button(String(n), {
+        class: `due-day${iso === today ? " is-today" : ""}`,
+        "aria-pressed": iso === chosen ? "true" : "false",
+        "aria-label": new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" }).format(date),
+      }, () => set(iso, time || "23:59"));
+      if (iso < today) b.disabled = true; // a deadline is ahead
+      grid.append(b);
+    }
+    const times = document.createElement("div");
+    times.className = "due-times pills";
+    times.setAttribute("role", "group");
+    times.setAttribute("aria-label", t("Time"));
+    for (const at of TIMES) {
+      times.append(button(at, { class: "pill-btn", "aria-pressed": at === time ? "true" : "false" }, () => {
+        set(chosen || today, at);
+        close();
+      }));
+    }
+    panel.replaceChildren(head, grid, times);
+  }
+  const close = () => {
+    panel.hidden = true;
+    open.setAttribute("aria-expanded", "false");
+  };
+  open.addEventListener("click", () => {
+    if (!panel.hidden) return close();
+    const { day } = parts();
+    if (day) shown = new Date(`${day.slice(0, 7)}-01T12:00`);
+    draw();
+    panel.hidden = false;
+    open.setAttribute("aria-expanded", "true");
+  });
+  sheet.addEventListener("toggle", (event) => {
+    if (event.newState === "closed") close();
+  });
+}
+
+// The course list's "Other…" (D159): its field shows when it is chosen, and is focused.
+function courseOther(sheet) {
+  const select = sheet.querySelector(".course-choice select");
+  const other = sheet.querySelector(".course-choice .course-other");
+  if (!select || !other) return;
+  const show = () => {
+    const on = select.value === select.options[select.options.length - 1].value;
+    other.hidden = !on;
+    if (!on) other.value = "";
+    return on;
+  };
+  show();
+  select.addEventListener("change", () => {
+    if (show()) other.focus();
+  });
+  select.form.addEventListener("reset", () => setTimeout(show));
+}
+
+// A course read from the typed line: picked from the list when it is one of the plan's,
+// else typed under "Other…".
+function pickCourse(form, course) {
+  const select = form.querySelector(".course-choice select");
+  if (!select) {
+    form.elements.course.value = course;
+    return;
+  }
+  const found = [...select.options].find((o) => o.value.toLowerCase() === course.toLowerCase());
+  const other = form.querySelector(".course-other");
+  if (found && found !== select.options[select.options.length - 1]) {
+    select.value = found.value;
+    other.value = "";
+    other.hidden = true;
+  } else {
+    select.value = select.options[select.options.length - 1].value;
+    other.hidden = false;
+    other.value = course;
   }
 }
 
@@ -218,6 +365,8 @@ if (sheet && !("popover" in HTMLElement.prototype)) {
     shortcuts.querySelectorAll("[data-due]").forEach((b) => b.setAttribute("aria-pressed", b === button ? "true" : "false"));
   });
   due.addEventListener("input", () => shortcuts.querySelectorAll("[data-due]").forEach((b) => b.setAttribute("aria-pressed", "false")));
+  duePicker(sheet, due);
+  courseOther(sheet);
   const other = sheet.querySelector('input[name="hours_other"]');
   other.addEventListener("input", () => {
     if (other.value) sheet.querySelectorAll('input[name="hours"]').forEach((r) => (r.checked = false));

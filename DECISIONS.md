@@ -6290,3 +6290,92 @@ claiming a session, it does not prove it. The 10 and 20 are choices, not measure
 bring more sessions, or more honest reports, is for the pilot. A post logged by hand on a day
 without a session of its course proves nothing. Checked in Chromium only, at 1440 × 900 and phone
 size, light and dark.
+
+## D159. The new-task sheet's own day and time, and "Other…" in its courses
+
+**Asked.** The owner, on 2026-11-19, with screenshots of the new-task sheet in Chromium on
+Windows, dark: the system's picker for the due date, grey and unlike the app, "ugly"; and the
+list of courses under the course field, '"other:" option please'.
+
+**Chosen.**
+
+- On a computer, the field's own calendar button is hidden and a button beside the field opens
+  the app's month: the days as round buttons, Monday first, today ringed, the chosen day in the
+  accent, the days before today not offered, arrows for the months; under it the usual times
+  (09:00, 12:00, 14:00, 18:00, 23:59) as chips. A day keeps the time chosen, or takes 23:59, as
+  the shortcuts do; a time closes the month. The field stays the form's own: it can be typed in,
+  and the shortcuts (Tomorrow, In 3 days…) stay under it. On a touch screen the phone's own wheel
+  opens on a tap, as before, and the button is not shown.
+- The course is a list: "No course", the plan's courses, then "Other…", whose field shows when it
+  is chosen and is focused; a course read from the typed line is picked in the list, or typed
+  under "Other…" when it is not one of the plan's. A course typed under "Other…" wins over the one
+  picked, as on the share forms (D141), and "Other…" with nothing typed is no course
+  (`forms.chosen_course`). Without the script both show, the field labelled "Another course".
+
+**Rejected.** A date library: the app has no build step and loads nothing it does not ship.
+Splitting the date and the time into two system fields: each still opens the system's picker.
+Chips of every course instead of a list: seven long names took three rows of the sheet on a phone.
+
+**Disclosed.** The month and the times were checked in Chromium only, at 1280px dark and phone size
+light. The rule that hides the field's own button is WebKit's and Chromium's; Firefox and Safari
+were not tried, and may show their own button beside the app's. The times are a choice.
+
+## D160. A picture for each study tip, and shorter tip cards
+
+**Asked.** The owner, on 2026-11-19, of the tips page: "let's start working on the thumbnails for
+the studies like i mentioned earlier, make proposals" (the streamlining with icons and figures
+deferred earlier). Of three options (A, the study's own number drawn; B, a small scene of the
+advice; C, the source at a glance), the owner chose "a mix of A and B, especially B".
+
+**Chosen.** Each of the 26 tips has a picture on a soft tile beside it: a line drawing of what the
+advice asks (a checklist ticked off, a calendar with a clock and a place, days in a row with one
+missed, a cup with steam and a clock…), in the weight of the app's icons (D139), the accent on the
+part that matters (`web/thumbs.py`, drawn inline by the server, classes only). Under the drawing,
+A's part: the study's number where its text gives one, "138 studies", "94 tests", "18 to 254
+days", in the page's language (`tips.FIGURES`, `service.tip_figure`). Fourteen tips have one.
+Eleven do not because their text gives no count (a review, a laboratory study, a study in cells);
+the mindset tip gives two meta-analyses, which one number would misrepresent.
+
+The card is shorter: the label, the advice and its evidence stay in view; the limits, what the app
+does about it and the sources fold under "Limits, in this app, sources", which opens without a
+script. On a laptop the topic's page is wider (72rem) and its tips two to a row.
+
+**Rejected.** Pictures from a stock set: none says what each tip asks. C's source cards: the owner
+chose A and B. Shortening the evidence itself: each line was written under the tips' rules (D62),
+and a shorter version would need the same review in three languages.
+
+**Disclosed.** The drawings are a matter of taste, and a drawing can only suggest the advice; the
+words carry it. Every number under a picture is checked against its tip's own text
+(`tests/test_tip_pictures.py`). Folding the limits puts them one tap away, where before they were
+read with the rest. Checked in Chromium only, at 1440px light and dark and at phone size.
+
+## D161. Settings as a dashboard
+
+**Asked.** The owner, on 2026-11-19, of Settings' six rows: "maybe we can have everything open as a
+dashboard here too?" Of three options (A, six cards with their values; B, everything open with an
+index; C, each part as a sentence), the owner chose A.
+
+**Chosen.** Settings is six cards, three to a row on a laptop, two on a tablet, one on a phone. Each
+keeps its head (its picture, its name, what it holds), now with "Change ›", the link to its own page
+as before (D103), and under it what the part is set to, in two to four lines
+(`service.settings_overview`, read from the values its page shows):
+
+- Your week: the study hours, the most a week, the days off, the busy times;
+- Exams and deadlines: the next two exams with their dates, the deadlines to do, where the
+  timetable comes from;
+- Keep your plan (or Your account): the address and whether it is confirmed, the passkeys, the
+  recovery code;
+- Reminders and the app: on or off and on how many devices, how long before a session;
+- Language and appearance: the language, Automatic, Light or Dark, the two themes, the accent;
+- AI and your data: AI on or off (or not on this server), whether what you use is counted, the
+  tips shown or hidden.
+
+Nothing is changed on the dashboard: each part still saves on its own page, so saving works as
+before. The old anchors still lead to their part (D103).
+
+**Rejected.** B, every form open on one page: the longest page of the app, with six forms that save
+separately. C, sentences: the owner chose A; passkeys and data read poorly as a sentence.
+
+**Disclosed.** The lines are a summary: a part's page has more (the busy times one by one, every
+exam, motion and glass). Whether the app is installed on the phone is not known to the server, so it
+is not shown. Checked in Chromium only, at 1440 and 1280px light and dark and at phone size.

@@ -5121,3 +5121,108 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .pop-points .hint { margin: 2px 0 8px; }
 .pop-points .hint:last-child { margin-bottom: 0; }
 /* -- end of D158 */
+
+/* -- D159: the new-task sheet's own day and time, and "Other…" in its courses ---------
+   The system's picker for a date and a time was grey and unlike the app (the owner's
+   screenshot, 2026-11-19): on a computer its button is hidden and the app's month opens
+   instead, the days as round buttons, today ringed, the chosen day in the accent, the
+   usual times as chips. The field can still be typed in; a phone keeps its own wheel. */
+.due-line { display: flex; gap: 8px; align-items: center; }
+.due-line input { flex: 1; min-width: 0; }
+@media (pointer: fine) {
+  #qa-due.has-pick::-webkit-calendar-picker-indicator { display: none; }
+}
+/* A phone's own wheel opens on a tap and suits it: no second way in beside the field. */
+@media (pointer: coarse) {
+  .due-open { display: none; }
+}
+.due-pick {
+  margin-top: 8px; padding: 10px; border-radius: 14px; background: var(--surface-2);
+  display: grid; gap: 8px; max-width: 340px;
+}
+.due-month { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.due-month b { font-size: 0.95rem; text-transform: capitalize; }
+.due-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.due-wd { font-size: 0.75rem; font-weight: 650; color: var(--muted); padding: 2px 0; }
+.due-day {
+  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%; background: none; color: var(--text);
+  font: inherit; font-size: 0.9rem; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.due-day:hover:not(:disabled) { background: var(--fill-3); }
+.due-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 700; }
+.due-day[aria-pressed="true"]:not(:disabled) { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.due-day:disabled { color: var(--muted); opacity: 0.45; cursor: default; }
+.pill-btn {
+  min-width: 46px; min-height: 34px; padding: 6px 13px; border: 0; border-radius: 980px;
+  background: var(--fill-3); color: var(--text); font: inherit; font-weight: 600; font-size: 0.9rem;
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.pill-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.course-choice { display: grid; gap: 8px; }
+/* -- end of D159 */
+
+/* -- D160: each tip's picture, and shorter cards ------------------------------------------
+   A drawing of what the advice asks on a soft tile, and under it the study's number where
+   it gives one; beside them the label, the advice and its evidence; limits, the app and the
+   sources in a fold. Two cards to a row from 900px; on a phone the tile sits beside the
+   advice, smaller. */
+.tip-topic { display: grid; gap: 12px; align-items: start; }
+@media (min-width: 900px) {
+  main.site.tips-wide { max-width: 72rem; }
+  .tip-topic { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.tip-topic > .tip { margin: 0; }
+.tip { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; align-items: start; }
+.tip-body { min-width: 0; }
+.tip-body h3 { margin-top: 6px; }
+.tip-thumb {
+  margin: 0; display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px;
+  border-radius: 14px; background: var(--fill-3); color: var(--text);
+}
+.tip-art { width: 60px; height: 60px; display: block; }
+.tip-art .a { stroke: var(--accent); }
+.tip-art .f { fill: var(--accent); stroke: var(--accent); }
+.tip-art .w { stroke: var(--on-accent); }
+.tip-art .s { fill: var(--surface); }
+.tip-art .m { opacity: 0.45; }
+.tip-thumb figcaption {
+  font-size: 0.75rem; font-weight: 700; line-height: 1.2; text-align: center; color: var(--accent-ink);
+  font-variant-numeric: tabular-nums; text-wrap: balance;
+}
+.tip-more { margin-top: 2px; }
+.tip-more > summary {
+  cursor: pointer; list-style: none; font-size: 0.9rem; font-weight: 600; color: var(--accent-ink);
+  min-height: 32px; display: inline-flex; align-items: center;
+}
+.tip-more > summary::-webkit-details-marker { display: none; }
+.tip-more .tip-note:first-of-type { margin-top: 4px; }
+@media (max-width: 480px) {
+  .tip { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; }
+  .tip-art { width: 46px; height: 46px; }
+}
+/* -- end of D160 */
+
+/* -- D161: Settings as a dashboard -----------------------------------------------------
+   Six cards, each with what its part is set to under its head, the head the link to the
+   part's own page; three to a row on a wide page, two on a tablet, one on a phone. */
+main.site:has(.settings-dash) { max-width: 72rem; }
+.settings-dash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (min-width: 700px) { .settings-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1240px) { .settings-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.settings-dash > .set-card { margin: 0; padding: 14px 16px; display: grid; gap: 10px; }
+.set-card > a {
+  display: flex; align-items: center; gap: 12px; min-width: 0; color: inherit; text-decoration: none !important;
+}
+.set-card > a .grow { min-width: 0; }
+.set-card > a b { display: block; }
+.set-card > a small { display: block; color: var(--muted); }
+.set-change { flex: none; align-self: start; font-size: 0.88rem; font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
+.set-values { display: grid; gap: 0; margin: 0; }
+.set-values div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0;
+  border-top: 0.5px solid var(--line); font-size: 0.9rem;
+}
+.set-values :is(dt, dd) { margin: 0; padding: 0; }
+.set-values dt { color: var(--muted); font-weight: 500; }
+.set-values dd { font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+/* -- end of D161 */

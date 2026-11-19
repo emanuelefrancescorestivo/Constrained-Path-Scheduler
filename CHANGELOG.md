@@ -7,6 +7,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Settings as a dashboard (DECISIONS.md D161): six cards, each showing what its part is set to
+  (your study hours, the next exams, your passkeys, reminders, language and look, AI), with
+  "Change" to its page.
+
+- A picture for each study tip (DECISIONS.md D160): a small drawing of what the advice asks, with
+  the study's number under it where it gives one ("138 studies"); the limits and sources fold
+  under each tip, and a topic's tips sit two to a row on a laptop.
+
+- The new-task sheet's own day and time (DECISIONS.md D159): on a computer, the app's month and the
+  usual times instead of the system's grey picker; the course is a list of your courses with
+  "Other…" for any other.
+
 - Points and proof of work (DECISIONS.md D158): a study session gives 10 points for doing it and
   20 more once a classmate vouches for a post that says or shows what you did. Under each day on
   the calendar a bar fills with its points; "Share what you did" opens the diary on that session;

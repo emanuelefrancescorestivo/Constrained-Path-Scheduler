@@ -1,5 +1,8 @@
 {# The new-task sheet, on every page of a plan. The popover attribute opens it
-   without a script; ui.js adds the date shortcuts and sends it without a reload. #}
+   without a script; ui.js adds the date shortcuts and sends it without a reload.
+   D159: ui.js also draws the app's own month and times under the date (the system's
+   picker was grey and unlike the app, the owner, 2026-11-19), and the course is a list
+   of the plan's courses with "Other…", whose field shows when it is chosen. #}
 <div id="quick-add" class="sheet" popover aria-label="{{ _('New task') }}">
   <form method="post" action="/p/{{ token }}/tasks" data-async>
     <input type="hidden" name="back" value="{{ tab or '' }}">
@@ -21,7 +24,11 @@
         <div class="sheet-row">
           <label class="label" for="qa-due">{{ _("Due") }}</label>
           <div class="grow">
-            <input id="qa-due" name="due" type="datetime-local" required>
+            <div class="due-line">
+              <input id="qa-due" name="due" type="datetime-local" required>
+              <button type="button" class="btn btn-sm btn-icon due-open" aria-expanded="false" aria-controls="qa-due-pick" aria-label="{{ _('Choose the day and the time') }}" hidden>{{ lucide('calendar') }}</button>
+            </div>
+            <div class="due-pick" id="qa-due-pick" hidden></div>
             <div class="quick-dates" hidden>
               <button type="button" class="btn btn-sm" data-due="1">{{ _("Tomorrow") }}</button>
               <button type="button" class="btn btn-sm" data-due="3">{{ _("In 3 days") }}</button>
@@ -41,10 +48,20 @@
         </div>
         <div class="sheet-row">
           <label class="label" for="qa-course">{{ _("Course") }}</label>
-          <div class="grow"><input id="qa-course" name="course" placeholder="{{ _('Optional') }}" list="qa-sheet-courses" autocomplete="off"></div>
+          {% if courses %}
+          <div class="grow course-choice">
+            <select id="qa-course" name="course">
+              <option value="">{{ _("No course") }}</option>
+              {% for c in courses %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              <option value="{{ other_course }}">{{ _("Other…") }}</option>
+            </select>
+            <input id="qa-course-other" name="course_other" class="course-other" maxlength="80" autocomplete="off" placeholder="{{ _('Another course') }}" aria-label="{{ _('Another course') }}">
+          </div>
+          {% else %}
+          <div class="grow"><input id="qa-course" name="course" placeholder="{{ _('Optional') }}" maxlength="80" autocomplete="off"></div>
+          {% endif %}
         </div>
       </div>
-      {% if courses %}<datalist id="qa-sheet-courses">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
       <p class="hint">{{ _("It is planned at once, earliest deadline first, within your hours; if it cannot fit before it is due, you are told now, not the night before.") }}</p>
     </div>
   </form>

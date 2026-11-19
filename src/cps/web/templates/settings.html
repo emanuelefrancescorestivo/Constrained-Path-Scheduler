@@ -46,10 +46,19 @@
 <div class="page-title"><h1>{{ _("Settings") }}</h1></div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
-<ul class="card list you-list settings-list">
+{# D161: Settings as a dashboard (the owner's choice, 2026-11-19): each of the six parts a
+   card with what it is set to, its head the link to its page, as before. #}
+<div class="settings-list settings-dash">
   {% for row in rows %}
-  <li><a href="/p/{{ token }}/settings/{{ row.part }}" data-anchors="{{ row.anchors | join(' ') }}">{{ art(row.art) }}<span class="grow"><b>{{ row.title }}</b><small>{{ row.line }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <section class="card set-card" aria-labelledby="set-{{ row.part }}">
+    <a href="/p/{{ token }}/settings/{{ row.part }}" data-anchors="{{ row.anchors | join(' ') }}">{{ art(row.art) }}<span class="grow"><b id="set-{{ row.part }}">{{ row.title }}</b><small>{{ row.line }}</small></span><span class="set-change">{{ _("Change") }} <span aria-hidden="true">›</span></span></a>
+    {% if overview and overview[row.part] %}
+    <dl class="set-values">
+      {% for v in overview[row.part] %}<div><dt>{{ v.label }}</dt><dd>{{ v.value }}</dd></div>{% endfor %}
+    </dl>
+    {% endif %}
+  </section>
   {% endfor %}
-</ul>
+</div>
 {% endif %}
 {% endblock %}

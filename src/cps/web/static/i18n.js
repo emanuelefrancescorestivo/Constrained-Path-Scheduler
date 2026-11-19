@@ -20,6 +20,10 @@ const FR = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Semaine {n}",
   "Courses shown": "Cours affichés",
+  // D159: the new-task sheet's day and time
+  "Previous month": "Mois précédent",
+  "Next month": "Mois suivant",
+  "Time": "Heure",
   // D158: points and proof of work
   "{earned} of {possible} points": "{earned} sur {possible} points",
   "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} points pour l'avoir faite, {proof} de plus dès qu'une personne de ta classe confirme ce que tu en partages.",
@@ -154,6 +158,10 @@ const IT = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Settimana {n}",
   "Courses shown": "Corsi mostrati",
+  // D159: the new-task sheet's day and time
+  "Previous month": "Mese precedente",
+  "Next month": "Mese successivo",
+  "Time": "Ora",
   // D158: points and proof of work
   "{earned} of {possible} points": "{earned} su {possible} punti",
   "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} punti per averla fatta, {proof} in più quando una persona del tuo corso conferma ciò che ne condividi.",
