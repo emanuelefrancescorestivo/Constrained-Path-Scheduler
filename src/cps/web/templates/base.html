@@ -1,6 +1,6 @@
 <!doctype html>
 {% from "_mascot.html" import mascot %}
-<html lang="{{ lang() }}"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}{% if motion == "reduce" %} data-motion="reduce"{% endif %}{% if glass in ("clear", "solid") %} data-glass="{{ glass }}"{% endif %}>
+<html lang="{{ lang() }}"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}{% if motion == "reduce" %} data-motion="reduce"{% endif %}{% if glass in ("clear", "solid") %} data-glass="{{ glass }}"{% endif %}{% if palette %}{% if palette.light != "sky" %} data-light="{{ palette.light }}"{% endif %}{% if palette.dark != "night" %} data-dark="{{ palette.dark }}"{% endif %}{% if palette.accent != "auto" %} data-accent="{{ palette.accent }}"{% endif %}{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -32,7 +32,8 @@
 <title>{% block title %}{{ _("Study plan") }}{% endblock %}</title>
 <link rel="preload" href="{{ asset('fonts/plus-jakarta-sans-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ asset('style.css') }}">
-{% if sky and sun is number %}<link rel="stylesheet" href="/sky/{{ sun }}.css" data-sky-sheet>{% endif %}
+{# The sky of the hour (D76), unless both themes chosen are flat (D156). #}
+{% if sky and sun is number and not (palette and palette.light != "sky" and palette.dark != "night") %}<link rel="stylesheet" href="/sky/{{ sun }}.css" data-sky-sheet>{% endif %}
 <script type="module" src="{{ asset('errors.js') }}"></script>
 <script type="module" src="{{ asset('motion.js') }}"></script>
 <script type="module" src="{{ asset('pwa.js') }}"></script>

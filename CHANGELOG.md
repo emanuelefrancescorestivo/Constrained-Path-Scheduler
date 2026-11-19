@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Themes and an accent (DECISIONS.md D156): Paper and Soft day for light; Calm night, Graphite,
+  Dim and High contrast for dark; and an accent colour for both (Blue, Teal, Green, Amber, Rose,
+  Violet), each one tap in Appearance, every text kept at 4.5:1 or more.
+
 - Edit Today (DECISIONS.md D155): Today starts with five widgets (Up next, the day, Focus,
   Tasks, Exams), and a page of switches turns each of the twelve on or off; what needs your
   answer always shows.

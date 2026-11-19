@@ -6136,3 +6136,60 @@ another order: the proposal kept the page's order, and a grid that moves is hard
 like the other five, which takes the streak's strip off Today until it is turned on (Progress keeps
 it). Every plan, the demo's students included, opens on the five until its student chooses.
 Checked in Chromium only, at phone size in dark mode and at 1280px in light.
+
+## D156. Themes for light and dark, and an accent
+
+**Asked.** The owner, on 2026-11-19, of the dark pages: "propose different contrasts for dark,
+maybe we can have themes for light and dark"; and of the themes proposed: "i like the themes but
+i mean even for example for the doux one to allow the user to pick from a colour palette,
+maintaining as primary objective to make frictionless using the app, comfortable to navigate the
+sections and look at the screen, warmly welcomed on the app".
+
+**Chosen.** Settings, Appearance keeps Automatic, Light and Dark, and adds three rows, each choice
+one tap, as the rows above it:
+
+- a light theme: Sky (the sky of the hour, D76, as before), Paper, Soft day;
+- a dark theme: Night sky (as before), Calm night, Graphite, Dim, High contrast;
+- an accent for both: Automatic (the sky's colour of the hour on the sky themes, D78, and each
+  theme's own on the others), Blue, Teal, Green, Amber, Rose, Violet. No red: red is for exams
+  and today.
+
+Automatic switches between the two themes with the device. The themes other than the sky are flat:
+the page is one colour, the cards opaque, and when both chosen are flat the sky's sheet is not
+fetched. High contrast outlines each card. A theme is set on the page as `data-light`,
+`data-dark` and `data-accent`; its tokens outrank the sky's on the same elements, and an accent
+comes after the themes, so it wins over a theme's own.
+
+The values (page, cards, text, secondary text, accent, text in the accent, text on the accent):
+
+| theme | page | cards | text | secondary | accent | in the accent | on the accent |
+|---|---|---|---|---|---|---|---|
+| Paper | #f2f2f7 | #ffffff | #1c1c1e | #636369 | #006ae0 | #0a5fc9 | #ffffff |
+| Soft day | #ebe8e3 | #f7f5f1 | #2a2824 | #6b665e | #2c64ad | #285a9c | #ffffff |
+| Calm night | #10151e | #1a212d | #eef1f5 | #a9b2c1 | #2e6fd6 | #8ab4ff | #ffffff |
+| Graphite | #161618 | #232326 | #f5f5f7 | #a8a8ae | #006ae0 | #4fa3ff | #ffffff |
+| Dim | #1c1b19 | #262421 | #e8e3da | #aaa397 | #d9a23d | #e6b75d | #1c1b19 |
+| High contrast | #000000 | #0b0b0b | #ffffff | #dcdcdc | #3d9bff | #6fb6ff | #000000 |
+
+| accent | light: fill, text in it | dark: fill, text in it, text on it |
+|---|---|---|
+| Blue | #006ae0, #0a5fc9 | #006ae0, #7cb4ff, #ffffff |
+| Teal | #0f766e, #0f6b64 | #2dd4bf, #5eead4, #04201c |
+| Green | #15803d, #157238 | #4ade80, #86efac, #052e14 |
+| Amber | #a15c07, #8f5206 | #f5b544, #f7c873, #241703 |
+| Rose | #be185d, #b0164f | #f472b6, #f9a8d4, #2a0617 |
+| Violet | #7c3aed, #6d28d9 | #a78bfa, #c4b5fd, #1b0f3d |
+
+Every text keeps 4.5:1 against its page and its cards, in every theme and with every accent of its
+mode, a tinted button (the accent at 12 % light, 22 % dark over a card) included; the lowest is
+4.66, Soft day's secondary text on its page (`tests/test_palette.py` reads the values from
+style.css and checks each).
+
+**Rejected.** A colour wheel for any accent: most hues fail 4.5:1 on one theme or another, and a
+student would have to find one that works. A palette per theme: twelve rows for a choice most
+make once. Red as an accent: it says "exam" and "now" in this app.
+
+**Disclosed.** The theme values are those of the options page the owner chose from; the accents'
+are chosen, then measured. The flat themes have opaque cards whatever the glass setting (D132). The
+icon of an installed app keeps the sky's colours (D74). Checked in Chromium only, at phone size and
+1280px, light and dark: Paper with Teal, Soft day, Graphite, Dim, High contrast with Violet.

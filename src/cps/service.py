@@ -6809,6 +6809,75 @@ def set_theme(subscription: Subscription, theme: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "theme": theme})
 
 
+# D156: themes and an accent (the owner, 2026-11-19: themes for light and dark, and "to allow the
+# user to pick from a colour palette, maintaining as primary objective to make frictionless using
+# the app, comfortable to navigate the sections and look at the screen"). A light theme and a dark
+# theme, each used when its mode is (Appearance's Automatic follows the device), and one accent for
+# both. The sky (D73, D76) stays the start; the others are flat. Their colours are in style.css.
+LIGHT_THEMES: tuple[tuple[str, str, str], ...] = (
+    ("sky", "Sky", "The sky of the hour behind glass cards."),
+    ("paper", "Paper", "A flat grey page and white cards, no sky."),
+    ("softday", "Soft day", "Less glare: warm grey and off-white."),
+)
+DARK_THEMES: tuple[tuple[str, str, str], ...] = (
+    ("night", "Night sky", "The night's sky behind glass cards."),
+    ("calm", "Calm night", "A flat page, lighter cards, clear edges."),
+    ("graphite", "Graphite", "Neutral greys, as a phone's own dark mode."),
+    ("dim", "Dim", "Warm and dim, for late evenings."),
+    ("contrast", "High contrast", "Black, white and outlined edges."),
+)
+ACCENTS: tuple[tuple[str, str], ...] = (
+    ("auto", "Automatic"),
+    ("blue", "Blue"),
+    ("teal", "Teal"),
+    ("green", "Green"),
+    ("amber", "Amber"),
+    ("rose", "Rose"),
+    ("violet", "Violet"),
+)
+PALETTE_START = {"light": "sky", "dark": "night", "accent": "auto"}
+_PALETTE_CHOICES = {
+    "light": [k for k, _n, _l in LIGHT_THEMES],
+    "dark": [k for k, _n, _l in DARK_THEMES],
+    "accent": [k for k, _n in ACCENTS],
+}
+
+
+def palette_of(subscription: Subscription | None) -> dict[str, str]:
+    """A plan's light theme, dark theme and accent (D156); the sky and its accent of the hour
+    until the student chooses."""
+    chosen = (subscription.options.get("palette") if subscription else None) or {}
+    out = dict(PALETTE_START)
+    for part, names in _PALETTE_CHOICES.items():
+        value = chosen.get(part)
+        if isinstance(value, str) and value in names:
+            out[part] = value
+    return out
+
+
+def set_palette(subscription: Subscription, part: str, value: str) -> Subscription:
+    """One of the three choices (D156): a theme for light, one for dark, or the accent."""
+    if value not in _PALETTE_CHOICES.get(part, ()):
+        raise InvalidInput(_("choose one of the themes or colours shown"))
+    return replace(
+        subscription, options={**subscription.options, "palette": {**palette_of(subscription), part: value}}
+    )
+
+
+def palette_view(subscription: Subscription) -> dict:
+    """Appearance's three rows of swatches (D156), each choice with its name and line."""
+    now = palette_of(subscription)
+
+    def themes(part: str, table: tuple[tuple[str, str, str], ...]) -> list[dict]:
+        return [{"key": k, "name": _(name), "line": _(line), "on": now[part] == k} for k, name, line in table]
+
+    return {
+        "light": themes("light", LIGHT_THEMES),
+        "dark": themes("dark", DARK_THEMES),
+        "accent": [{"key": k, "name": _(name), "on": now["accent"] == k} for k, name in ACCENTS],
+    }
+
+
 MOTIONS = ("auto", "reduce")
 
 

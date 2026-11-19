@@ -478,7 +478,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
         subscription = None
-        if token and any(key not in context for key in ("courses", "theme", "motion", "glass")):
+        if token and any(key not in context for key in ("courses", "theme", "motion", "glass", "palette")):
             # Every page of a plan carries the new-task sheet, which suggests courses,
             # and the plan's appearance (D21), motion (D30) and glass (D93).
             subscription = service.load_subscription(store, token)
@@ -486,6 +486,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             context.setdefault("theme", service.theme_of(subscription))
             context.setdefault("motion", service.motion_of(subscription))
             context.setdefault("glass", service.glass_of(subscription))
+            # A theme for light, one for dark, and an accent (D156).
+            context.setdefault("palette", service.palette_of(subscription))
         if token and "sky" not in context:
             # The sky of the hour and the garden of the streak behind the page (D73).
             # Decoration: if working it out fails, the page shows without it.
@@ -3363,6 +3365,22 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "theme", chosen)
         return RedirectResponse(f"/p/{token}/settings/look?saved=theme#appearance", 303)
 
+    @app.post("/p/{token}/palette")
+    async def palette(request: Request, token: str) -> Response:
+        """D156: a theme for light, one for dark, or the accent, one tap each."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=4)
+        part, value = str(form.get("part") or ""), str(form.get("value") or "")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_palette(current, part, value)
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "palette", f"{part}:{value}")
+        return RedirectResponse(f"/p/{token}/settings/look?saved=theme#themes", 303)
+
     @app.post("/p/{token}/motion")
     async def motion(request: Request, token: str) -> Response:
         if load(token) is None:
@@ -3665,6 +3683,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             reminders=service.reminders_view(store, subscription),
             tips_on=service.tips_on(subscription),
             why_tip=service.tip_here(subscription, "week", config.clock()) if part == "week" else None,
+            palette_choices=service.palette_view(subscription) if part == "look" else None,
             usage=service.usage_answer(store, token),
             **extra,
         )
