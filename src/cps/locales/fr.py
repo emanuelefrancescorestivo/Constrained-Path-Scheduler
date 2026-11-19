@@ -3432,4 +3432,14 @@ MESSAGES: dict[str, str] = {
     "{n} busy times": "{n} moments pris",
     "{n} h a week": "{n} h par semaine",
     "{n} to do": "{n} à faire",
+    # D162: the list and its context
+    "Check it in Settings": "Le vérifier dans les Réglages",
+    "Everyone at your university": "Tout le monde dans ton université",
+    "Its calendar link is in place: {n} deadline brought here so far.": "Le lien de son calendrier est en place : {n} échéance arrivée ici jusqu'à présent.",
+    "Its calendar link is in place: {n} deadlines brought here so far.": "Le lien de son calendrier est en place : {n} échéances arrivées ici jusqu'à présent.",
+    "Its link could not be read: {error}": "Son lien n'a pas pu être lu : {error}",
+    "Next: {task}, {when}": "Ensuite : {task}, {when}",
+    "No sessions for your tasks this week.": "Aucune séance pour tes tâches cette semaine.",
+    "This week: {hours} of {goal} h": "Cette semaine : {hours} sur {goal} h",
+    "Write a question and its answer, or make cards from your notes.": "Écris une question et sa réponse, ou fais des cartes à partir de tes notes.",
 }

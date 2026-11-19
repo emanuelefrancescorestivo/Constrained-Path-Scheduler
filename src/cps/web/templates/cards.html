@@ -14,6 +14,10 @@
 {% if view.fitted %}<p class="hint">{{ _n("The intervals are fitted to your own memory, from {n} of your answers.", "The intervals are fitted to your own memory, from {n} of your answers.", view.fitted) }}</p>
 {% elif view.decks and view.to_fit %}<p class="hint">{{ _n("The intervals follow how most people remember. After {n} more answer on a later day, they will be fitted to your own memory.", "The intervals follow how most people remember. After {n} more answers on later days, they will be fitted to your own memory.", view.to_fit) }}</p>{% endif %}
 
+{# D162: the decks and a course's cards on the left; on a wide screen, beside them, the
+   ways to make cards. On a phone they follow the list. #}
+<div class="with-context">
+<div class="list-col">
 {% if view.decks %}
 <div class="section">
   <div class="section-title"><h2>{{ _("Decks") }}</h2><small>{% if view.today %}{{ _n("{n} answer today", "{n} answers today", view.today) }}{% elif view.next and not view.waiting %}{{ _("next card {when}", when=view.next) }}{% endif %}</small></div>
@@ -28,10 +32,27 @@
 </div>
 {% endif %}
 
+{% if view.cards %}
+<div class="section">
+  <div class="section-title"><h2>{{ view.course }}</h2><small>{{ _n("{n} card", "{n} cards", view.cards | length) }}</small></div>
+  <ul class="card list card-list">
+    {% for c in view.cards %}
+    <li>
+      <a class="grow" href="/p/{{ token }}/cards/{{ c.id }}"><span class="card-front">{{ c.front | maths }}</span><br><small>{% if c.week_label %}{{ c.week_label }} · {% endif %}{% if c.new %}{{ _("new") }}{% elif c.due %}{{ _("next review {when}", when=c.due) }}{% endif %}{% if c.lapses %} · {{ _n("forgotten {n} time", "forgotten {n} times", c.lapses) }}{% endif %}</small></a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% elif not view.decks %}
+<div class="card empty"><b>{{ _("No cards yet") }}</b>{{ _("Write a question and its answer, or make cards from your notes.") }}</div>
+{% endif %}
+</div>
+
+<div class="context-col">
 {# D134: a file of notes first, read on this server for free; then a course's
    materials (D101); pasting stays. #}
 {% from "_art.html" import art %}
-<div class="card section card-make" id="from-notes" data-tour="cards-make">
+<div class="card card-make" id="from-notes" data-tour="cards-make">
   <div class="materials-head">{{ art("cards") }}<div class="grow">
     <h2 class="card-make-title">{{ _("Make cards from your notes") }}</h2>
     <small>{% if ai_cards %}{{ _("Send a PDF, Word, PowerPoint or text file: Claude writes cards from it and checks each against your notes; you pick the ones to keep.") }}{% else %}{{ _("Send a PDF, Word, PowerPoint or text file: definitions, questions, lists and words in bold become cards, and you pick the ones to keep. Free, read on this server.") }}{% endif %}</small>
@@ -52,7 +73,7 @@
 
 {% if why_tip %}{{ why(why_tip) }}{% endif %}
 
-<form method="post" action="/p/{{ token }}/cards" class="card section card-new">
+<form method="post" action="/p/{{ token }}/cards" class="card card-new">
   <h2>{{ _("New card") }}</h2>
   <label for="c-course">{{ _("Course") }}</label>
   <input id="c-course" name="course" required maxlength="80" list="c-courses" autocomplete="off" value="{{ d.course or view.course or '' }}">
@@ -74,19 +95,6 @@
   <button type="submit" class="btn btn-primary">{{ _("Add") }}</button>
 </form>
 {% if view.courses %}<datalist id="c-courses">{% for c in view.courses %}<option value="{{ c }}">{% endfor %}</datalist>{% endif %}
-
-{% if view.cards %}
-<div class="section">
-  <div class="section-title"><h2>{{ view.course }}</h2><small>{{ _n("{n} card", "{n} cards", view.cards | length) }}</small></div>
-  <ul class="card list card-list">
-    {% for c in view.cards %}
-    <li>
-      <a class="grow" href="/p/{{ token }}/cards/{{ c.id }}"><span class="card-front">{{ c.front | maths }}</span><br><small>{% if c.week_label %}{{ c.week_label }} · {% endif %}{% if c.new %}{{ _("new") }}{% elif c.due %}{{ _("next review {when}", when=c.due) }}{% endif %}{% if c.lapses %} · {{ _n("forgotten {n} time", "forgotten {n} times", c.lapses) }}{% endif %}</small></a>
-    </li>
-    {% endfor %}
-  </ul>
 </div>
-{% elif not view.decks %}
-<div class="card empty"><b>{{ _("No cards yet") }}</b>{{ _("Write one question and its answer above, or paste a list.") }}</div>
-{% endif %}
+</div>
 {% endblock %}

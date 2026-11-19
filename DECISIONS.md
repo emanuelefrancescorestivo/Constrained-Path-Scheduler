@@ -6379,3 +6379,45 @@ separately. C, sentences: the owner chose A; passkeys and data read poorly as a 
 **Disclosed.** The lines are a summary: a part's page has more (the busy times one by one, every
 exam, motion and glass). Whether the app is installed on the phone is not known to the server, so it
 is not shown. Checked in Chromium only, at 1440 and 1280px light and dark and at phone size.
+
+## D162. The list and its context
+
+**Asked.** The owner, on 2026-11-19, of pages that "leave a lot of empty room" on a laptop. Of
+three options drawn on Tasks ("Calmer App Options", part 4: A, the list and its context; B, a wider
+page with cards in a grid; C, a detail panel beside the list), the owner chose A, for the list
+pages: Tasks, Courses, Flashcards and Community.
+
+**Chosen.** On a wide screen each of the four pages has two columns: its own list on the left, at
+about the width the page had (752px at 1440px), and on the right, in the room the centred column
+left empty, what helps act on it. On a phone the right column follows the list.
+
+- Tasks: the open tasks and the done ones; beside them, this week's time for tasks, done of
+  planned, and the next one (`service.task_week`: the plan's task sessions from Monday to Sunday
+  in the plan's time zone; past ones count as done unless reported skipped, as a task's own
+  progress counts them), then the learning platform (its link in place and how many deadlines it
+  brought, Open Moodle; the link's error; or how to paste one), then the page's tip (D135).
+- Courses: the courses; beside them, importing the semester's program and the class's link (D104).
+- Flashcards: the decks and a course's cards; beside them, cards from notes (D134), the tip and a
+  new card. The empty list no longer says "above".
+- Community: the feed; beside it, the study map's card and Studying now (D108) as before, and on a
+  wide screen the student's groups with their week and up to three people at their university
+  they neither follow nor asked to, same programme and year first
+  (`service.community_context`, `social.classmates`). Its column comes first in the page, so a
+  phone keeps Studying now above the feed as it was; on a phone the groups and classmates stay on
+  the Groups tab and People, and the feed comes sooner.
+
+The page widens to 70rem from 960px; the side column is 15 to 19rem. The two columns are a grid
+whose areas place them, so Community's order in the page does not decide where its column shows.
+
+**Rejected.** B for these pages: more cards per row suits the tips (D160) and Settings (D161), but a
+list read from top to bottom loses its order across columns. C: the owner chose A; a panel that is
+empty until something is chosen leaves the room empty most of the time. Showing the context column
+only from 1200px, where the list keeps 580px beside the sidebar: the page jumped from two columns
+at 1099px to one at 1100px, when the sidebar appears; from 960px the list is about 480px at 1100px,
+narrow but wider than a phone.
+
+**Disclosed.** On Community the side column comes before the feed in the page, so on a laptop a
+keyboard reaches Studying now and the groups before the feed, as a phone always did. This week's
+time for tasks counts sessions the plan has moved to its past; a session whose time has gone by
+but which the plan has not yet read again counts as planned, not done. Checked in Chromium only,
+at phone size and at 1000, 1100 and 1440px, light and dark.

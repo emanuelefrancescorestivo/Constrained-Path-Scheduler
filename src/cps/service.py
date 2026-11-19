@@ -6389,7 +6389,49 @@ def tasks_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["at_risk"] = sum(r["status"] in ("at risk", "late") for r in rows)
     view["this_week"] = sum(not r["finished"] and 0 <= r["days"] < 7 for r in rows)
     view["finished"] = sum(r["finished"] for r in rows)
+    view["week"] = task_week(subscription, now)
+    view["platform"] = {
+        "linked": bool(subscription.options.get("deadlines_url")),
+        "error": subscription.options.get("deadlines_error"),
+        "brought": len(set(subscription.options.get("imported", {}).values())),
+        "site": learning_platform(subscription),
+    }
     return view
+
+
+def task_week(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """D162: the time the plan gives tasks this week, Monday to Sunday in the plan's time
+    zone, and the part of it done: past sessions count unless reported skipped, as a
+    task's own progress counts them (`_task_rows`); the next one to come. None without
+    a plan."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = (now or datetime.now(UTC)).astimezone(zone)
+    monday = datetime.combine(local.date() - timedelta(days=local.weekday()), time(0, 0), zone)
+    sunday = monday + timedelta(days=7)
+    planned = done = 0.0
+    upcoming: list[tuple[datetime, str]] = []
+    for s, past in [(x, True) for x in plan.history] + [(x, False) for x in plan.sessions]:
+        if s.kind != "task":
+            continue
+        start = datetime.fromisoformat(s.start).astimezone(zone)
+        if not past and start >= local:
+            upcoming.append((start, s.title))
+        if not monday <= start < sunday:
+            continue
+        minutes = (datetime.fromisoformat(s.end) - datetime.fromisoformat(s.start)) / timedelta(minutes=1)
+        planned += minutes
+        if past and s.outcome != "skipped":
+            done += minutes
+    first = min(upcoming, default=None)
+    return {
+        "planned": planned / 60,
+        "done": done / 60,
+        "percent": min(100, round(100 * done / planned)) if planned else 0,
+        "next": {"task": first[1], "when": _when(first[0], local)} if first else None,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -8303,6 +8345,34 @@ def community_view(
         "studying": studying_now_view(store, subscription, now) if me else [],
         "focusing": bool(subscription.options.get("focus")),
         "join_minutes": JOIN_MINUTES,
+        **community_context(store, subscription, now),
+    }
+
+
+CLASSMATES_BESIDE = 3  # classmates not followed yet, beside the feed (D162)
+
+
+def community_context(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict:
+    """D162: what sits beside the feed on a wide screen, to act on it: the student's
+    groups with their week, and a few people at their university they neither follow
+    nor have asked to (`social.classmates`, same programme and year first). Nothing
+    without a profile."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    token = subscription.token
+    me = social.get_profile(where, token)
+    if me is None:
+        return {"groups": [], "classmates": [], "university": ""}
+    zone = _zone(subscription.options["tz"])
+    circle = social.relations(where, token)
+    known = {p.token for p in circle["following"] + circle["asked"]}
+    mates = [p.public() for p in social.classmates(where, token) if p.token not in known]
+    return {
+        "groups": [_group_card(store, token, g, now, zone) for g in social.groups_of(where, token)],
+        "classmates": mates[:CLASSMATES_BESIDE],
+        "university": me.university,
     }
 
 

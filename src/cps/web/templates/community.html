@@ -31,6 +31,10 @@
 
 {% set nav = view.tab %}{% set invites = view.invitations %}{% include "_community_nav.html" %}
 
+{# D162: the feed and, on a wide screen, beside it what helps act on it. The column
+   comes first in the page so that a phone keeps Studying now above the feed. #}
+<div class="with-context context-first">
+<div class="context-col">
 {% if view.tab != "explore" %}
 {# The study map (D133): who is studying where. #}
 <a class="card link-card section map-link" href="/p/{{ token }}/map"><b>{{ _("Who's studying where") }}</b><span class="muted">{{ _("The map of places to study, and who is at each now.") }}</span></a>
@@ -55,6 +59,33 @@
 </section>
 {% endif %}
 
+{# D162: beside the feed on a wide screen, the student's groups and classmates not
+   followed yet; on a phone the Groups tab and People have them, and the feed comes
+   sooner. #}
+{% if view.groups %}
+<section class="card context-card context-extra" aria-labelledby="ctx-groups">
+  <h2 id="ctx-groups">{{ _("Your groups") }}</h2>
+  <ul class="list ctx-list">
+    {% for g in view.groups %}
+    <li><a class="grow" href="/p/{{ token }}/groups/{{ g.id }}"><b>{{ g.name }}</b><br><small>{{ _("This week: {hours} of {goal} h", hours=g.week.hours | hours, goal=g.week.goal | hours) }}{% if g.week.met %} · {{ _("Goal met this week.") }}{% endif %}</small></a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if view.classmates %}
+<section class="card context-card context-extra" aria-labelledby="ctx-mates">
+  <h2 id="ctx-mates">{{ _("At {university}", university=view.university) }}</h2>
+  <ul class="list ctx-list">
+    {% for m in view.classmates %}
+    <li>{{ avatar(m) }}<a class="grow person-link" href="/p/{{ token }}/u/{{ m.handle }}"><span class="title">@{{ m.handle }}</span>{% if m.programme or m.year %}<span class="meta">{{ m.programme }}{% if m.programme and m.year %} · {% endif %}{% if m.year %}{{ year_words(m.year) }}{% endif %}</span>{% endif %}</a></li>
+    {% endfor %}
+  </ul>
+  <p class="hint"><a href="/p/{{ token }}/people">{{ _("Everyone at your university") }}</a></p>
+</section>
+{% endif %}
+</div>
+
+<div class="list-col">
 {% if view.tab == "explore" %}
 {% set f = view.filters %}
 <form class="filters" method="get" action="/p/{{ token }}/community" role="search">
@@ -87,5 +118,7 @@
 {# D106: the newest ten, then ten more a tap, a link that works without scripts and
    lands on the first post it adds. #}
 {% if view.more %}<p class="feed-more"><a class="btn btn-tinted btn-block" href="/p/{{ token }}/community?{% if view.tab == 'explore' %}tab=explore&amp;{% for k, v in view.filters.items() if v %}{{ k }}={{ v | urlencode }}&amp;{% endfor %}{% endif %}n={{ view.more }}#post-{{ view.next }}">{{ _("Show more") }}</a></p>{% endif %}
+</div>
+</div>
 </div>
 {% endblock %}
