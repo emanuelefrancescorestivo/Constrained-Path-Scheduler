@@ -1176,7 +1176,6 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
   margin: 0 0 14px; padding: 10px 14px; max-width: 46rem; border-radius: 12px;
   background: var(--accent-soft); color: var(--accent-ink); font-size: 0.94rem;
 }
-.board-hint { margin: 0 0 10px; }
 
 /* -- two ways to start: import a timetable, or draw a week (D32) ----------------- */
 .ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
@@ -4749,7 +4748,6 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
    not the map card's sibling, so `.card + .card` gave it none (the owner, 2026-11-19). */
 .map-link + .feed { margin-top: 12px; }
 @media (max-width: 760px) {
-  .board-hint { font-size: 0.86rem; padding: 8px 12px; margin: 0 8px 8px; }
 }
 
 /* D141: sharing in fewer taps, and classmates checking each other's work. The share
@@ -4838,3 +4836,15 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .av-chip-flag { gap: 8px; padding: 0 14px 0 8px; }
 .av-chip-flag img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
 .av-flags select { width: 100%; }
+
+/* D151: a card's mathematics. Scripts sit close to their sign and do not push the line apart;
+   a superscript and a subscript on the same sign are stacked (x with i below and 2 above, a
+   fraction's 1 over 2, a sum's limits). */
+:is(.flash-front, .flash-back, .card-front, .made-front, .made-back, .focus-question-front) :is(sup, sub) {
+  font-size: 0.72em; line-height: 0; position: relative; vertical-align: baseline;
+}
+:is(.flash-front, .flash-back, .card-front, .made-front, .made-back, .focus-question-front) sup { top: -0.45em; }
+:is(.flash-front, .flash-back, .card-front, .made-front, .made-back, .focus-question-front) sub { top: 0.25em; }
+.msub-sup { display: inline-flex; flex-direction: column; vertical-align: -0.35em; line-height: 1; margin: 0 0.05em; }
+.msub-sup :is(sup, sub) { position: static !important; font-size: 0.68em !important; line-height: 1.05 !important; }
+

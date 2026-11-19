@@ -126,17 +126,18 @@ def test_every_step_of_todays_tour_lights_something(web):
         assert wanted and wanted[1] in marks, selector
 
 
-def test_setting_up_has_no_tour_and_a_section_shows_its_line_once(web):
+def test_setting_up_has_no_tour_and_a_section_shows_its_tour_once(web):
     token = _start(web)
     for setup in (f"/p/{token}/week?new=1", f"/p/{token}/settings?new=1"):
         assert 'id="tour"' not in web.get(setup).text, setup
-    line = "Everything that is due, soonest first."
+    # D152: no line above the page (the owner, 2026-11-19: it pushed every page down);
+    # Spark's tour of the section (D141) says what it is for, the first time only.
     first = web.get(f"/p/{token}/tasks").text
-    assert line in first and 'data-name="tasks"' in first  # the line, and Spark's tour (D141)
+    assert 'data-name="tasks"' in first and "section-hint" not in first
     again = web.get(f"/p/{token}/tasks").text
-    assert line not in again and 'id="tour"' not in again  # once
+    assert 'id="tour"' not in again  # once, even if left half way
     calendar = web.get(f"/p/{token}/week").text
-    assert 'class="section-hint board-hint"' in calendar and 'data-name="calendar"' in calendar
+    assert "section-hint" not in calendar and 'data-name="calendar"' in calendar
 
 
 def test_a_tour_finished_stays_finished_and_settings_show_it_again(web):

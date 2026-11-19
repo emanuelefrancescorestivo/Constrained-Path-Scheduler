@@ -81,8 +81,11 @@ def test_the_feeds_first_line_does_not_ask_a_member_to_choose_a_handle(web):
     # a member reads what the feed is to them instead, once.
     member, newcomer = _start(web), _start(web)
     _join(web, member)
+    # Since D152 the line is no longer drawn above the page (Spark's tour says it); what
+    # the first visit would say is still the member's own, never "choose a handle".
     first = unescape(web.get(f"/p/{member}/community").text)
-    assert "What your classmates studied, explained and shared." in first
-    assert "Choose a handle to join your classmates" not in first
-    assert "What your classmates studied" not in unescape(web.get(f"/p/{member}/community").text)  # once
-    assert "Choose a handle to join your classmates" in unescape(web.get(f"/p/{newcomer}/community").text)
+    assert "Choose a handle to join your classmates. Each post" not in first
+    assert "What your classmates studied, explained and shared." not in first
+    plan = service.load_subscription(web.root, newcomer)
+    assert service.section_hint(plan, "community", joined=False).startswith("Choose a handle")
+    assert service.section_hint(plan, "community", joined=True).startswith("What your classmates")

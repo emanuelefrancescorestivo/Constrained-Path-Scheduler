@@ -81,7 +81,7 @@
   <ul class="card list card-list">
     {% for c in view.cards %}
     <li>
-      <a class="grow" href="/p/{{ token }}/cards/{{ c.id }}"><span class="card-front">{{ c.front }}</span><br><small>{% if c.week_label %}{{ c.week_label }} · {% endif %}{% if c.new %}{{ _("new") }}{% elif c.due %}{{ _("next review {when}", when=c.due) }}{% endif %}{% if c.lapses %} · {{ _n("forgotten {n} time", "forgotten {n} times", c.lapses) }}{% endif %}</small></a>
+      <a class="grow" href="/p/{{ token }}/cards/{{ c.id }}"><span class="card-front">{{ c.front | maths }}</span><br><small>{% if c.week_label %}{{ c.week_label }} · {% endif %}{% if c.new %}{{ _("new") }}{% elif c.due %}{{ _("next review {when}", when=c.due) }}{% endif %}{% if c.lapses %} · {{ _n("forgotten {n} time", "forgotten {n} times", c.lapses) }}{% endif %}</small></a>
     </li>
     {% endfor %}
   </ul>

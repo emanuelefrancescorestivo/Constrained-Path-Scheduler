@@ -24,7 +24,7 @@
   {# A curious start (D128): one question from the week's cards; the answer comes at the end. #}
   <div class="card focus-question">
     <p class="kicker">{{ _("Before your notes") }}</p>
-    <p class="focus-question-front">{{ question.front }}</p>
+    <p class="focus-question-front">{{ question.front | maths }}</p>
     <p class="hint">{{ _("Think of the answer: it shows when you finish.") }}</p>
     <form method="post" action="/p/{{ token }}/focus/question/skip"><button type="submit" class="btn btn-sm btn-plain">{{ _("Skip the question") }}</button></form>
   </div>

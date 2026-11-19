@@ -76,8 +76,9 @@
 {% if token and sidebar and not bare %}{% include "_sidebar.html" %}{% endif %}
 {% block body %}
 <main class="site{% block site_class %}{% endblock %}">
-{# What a section is for, in one line, the first time it is opened (D97) #}
-{% if hint %}<p class="section-hint" role="note">{{ hint }}</p>{% endif %}
+{# D97 drew what a section is for in a line above the page, the first time it is opened;
+   since D152 Spark's tour of the section says it, and the line pushed every page down
+   (the owner, 2026-11-19). The first visit is still recorded, so the tour shows once. #}
 {% block main %}{% endblock %}
 </main>
 <footer class="footer">{% if demo %}<b>{{ _("Demo") }}</b> · {{ _("made-up classmates; everything starts again when it restarts") }} · {% endif %}<a href="{% if token %}/p/{{ token }}/garden{% else %}/garden?lang={{ lang() }}{% endif %}">{{ _("How it works") }}</a> · <a href="{% if token %}/p/{{ token }}/science{% else %}/science?lang={{ lang() }}{% endif %}">{{ _("The science behind it") }}</a> · <a href="/privacy{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Privacy") }}</a> · <a href="/terms{% if not token %}?lang={{ lang() }}{% endif %}">{{ _("Terms") }}</a>{% if token %} · <a href="/p/{{ token }}/feedback?from={{ request.url.path | urlencode }}">{{ _("Send feedback") }}</a>{% endif %} · {% if accounts %}{{ _("one cookie to keep you signed in, no trackers") }}{% else %}{{ _("no e-mail, no password, no cookies, no trackers") }}{% endif %}{% if not token %} · {% for code, name in languages.items() if code != lang() %}<a href="?lang={{ code }}" hreflang="{{ code }}" lang="{{ code }}">{{ name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</footer>
