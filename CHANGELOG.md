@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The list and its context (DECISIONS.md D162): on a laptop, Tasks, Courses, Flashcards and
+  Community keep their list on the left and put beside it what helps act on it: this week's hours
+  for tasks and where deadlines come from; importing the program and the class's link; making
+  cards; Studying now, your groups and classmates you don't follow yet.
+
 - Settings as a dashboard (DECISIONS.md D161): six cards, each showing what its part is set to
   (your study hours, the next exams, your passkeys, reminders, language and look, AI), with
   "Change" to its page.

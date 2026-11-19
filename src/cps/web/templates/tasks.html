@@ -9,9 +9,12 @@
 </div>
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if task_error %}<p class="alert" role="alert">{{ task_error }}</p>{% endif %}
-{% if why_tip %}{{ why(why_tip) }}{% endif %}
 {% if view.error and not view.planned %}<p class="alert" role="alert">{{ view.error }}</p>{% endif %}
 
+{# D162: on a wide screen the list and, beside it, what helps act on it; on a phone the
+   second column follows the list. #}
+<div class="with-context">
+<div class="list-col">
 {% set open_rows = view.rows | rejectattr("finished") | list %}
 {% set done_rows = view.rows | selectattr("finished") | list %}
 <div class="card" data-tour="task-list">
@@ -37,9 +40,41 @@
 </div>
 {% endif %}
 
-<div class="section">
-  <div class="section-title"><h2>{{ _("From your learning platform") }}</h2></div>
-  <div class="card"><p class="muted">{{ _h("Moodle's assignments and quizzes can arrive here by themselves: paste its calendar link in <a href=\"{url}\">Settings</a>.", url="/p/" ~ token ~ "/settings/exams#deadlines") }}</p></div>
+</div>
+
+<div class="context-col">
+  {% set w = view.week %}
+  {% if w %}
+  <section class="card context-card">
+    <h2>{{ _("This week") }}</h2>
+    {% if w.planned %}
+    <div class="meter-row"><span>{{ _("Done") }}</span><div class="meter"><span class="fill w{{ (w.percent // 10) * 10 }}"></span></div><b>{{ w.done | hours }} / {{ w.planned | hours }} h</b></div>
+    {% else %}
+    <p class="hint">{{ _("No sessions for your tasks this week.") }}</p>
+    {% endif %}
+    {% if w.next %}<p class="hint">{{ _("Next: {task}, {when}", task=w.next.task, when=w.next.when) }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% set pl = view.platform %}
+  <section class="card context-card">
+    <h2>{{ _("From your learning platform") }}</h2>
+    {% if pl.linked and pl.error %}
+    <p class="hint error">{{ _("Its link could not be read: {error}", error=pl.error) }}</p>
+    <p class="hint"><a href="/p/{{ token }}/settings/exams#deadlines">{{ _("Check it in Settings") }}</a></p>
+    {% elif pl.linked %}
+    <p class="hint">{{ _n("Its calendar link is in place: {n} deadline brought here so far.", "Its calendar link is in place: {n} deadlines brought here so far.", pl.brought) }}</p>
+    <div class="row-buttons">
+      {% if pl.site %}<a class="btn btn-sm btn-tinted" href="{{ pl.site }}" rel="noopener noreferrer" target="_blank">{{ _("Open Moodle") }}</a>{% endif %}
+      <a class="btn btn-sm btn-plain" href="/p/{{ token }}/settings/exams#deadlines">{{ _("Change") }}</a>
+    </div>
+    {% else %}
+    <p class="hint">{{ _h("Moodle's assignments and quizzes can arrive here by themselves: paste its calendar link in <a href=\"{url}\">Settings</a>.", url="/p/" ~ token ~ "/settings/exams#deadlines") }}</p>
+    {% endif %}
+  </section>
+
+  {% if why_tip %}{{ why(why_tip) }}{% endif %}
+</div>
 </div>
 </div>
 {% endblock %}
