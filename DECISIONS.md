@@ -5740,3 +5740,58 @@ attention, steps, clear-mind". D144 was the first two; this is the rest.
 - Three hours before bed, three things and forty items are choices, not results.
 - The list lives in the plan's document: it is exported and deleted with it, and never shared.
 - Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D146. The evenings redrawn: day dials, where each evening goes, a card of lights
+
+**Asked.** The owner, on iPhone screenshots of the explaining pages: the bits and watering
+graphics "with the days of the week drawing" were "quite poor in terms of expressiveness". A page
+of four drawings followed, each played with made-up numbers. The owner's answer: "i like all
+choices but the plant one".
+
+**Chosen.**
+- *Day dials* (How it works, chapter 5, `service._garden_dials`). Each of the worked example's five
+  days is a 24-hour dial, midnight at the top.
+  - The nights are drawn in grey, the lectures in the timetable's grey, and the free evening in the
+    accent with a glow.
+  - In the middle is the topic the evening goes to, or "Free, night off".
+  - The scene runs as the old one did: the week, then sleep, then lectures, then the evenings, and
+    last what each evening goes to.
+- *The week, then the water* (How it works, a new chapter 6, "Each evening",
+  `service._garden_evenings`, `_garden_water`). The same week as columns, and under them three
+  topics' tubes, one per evening.
+  - Each tube is filled to how likely the topic is to be remembered as that evening begins: FSRS-6
+    with average weights, the topics of D116's week.
+  - A wire runs from each evening to the topic it goes to, whose tube fills back to 100.
+  - The steps are the evenings. Day 1 goes to Analysis at 90 %, Day 2 to Algebra at 90 %, Days 3 and
+    4 are free (the lowest topic is at 92 and 91 %), and Day 5 goes to Physics at 90 %. That is the
+    app's rule as `_garden_app_plan` always ran it, now drawn with what it saw.
+  - The tubes run from 80 to 100 %, and the figure says so: on a scale from 0, 90 against 98 would
+    look the same. Every level of the week is above 80, which a test keeps true.
+- *A card of lights* (How the code works, scene 1). The week as the code builds it: a light per half
+  hour, off when free (0).
+  - The sleep mask lights its bits, then the classes mask, each an OR.
+  - Then three dark lights in a row fuse into a study block, glowing. Day 1's bits are written under.
+  - It replaces D111's three layers falling into one; the steps' words are unchanged.
+- *The chapter line* holds eight chapters, and the two tall figures are held to a laptop panel's
+  height.
+- *AUDIT 104*: How the code works was 7px wider than a phone, from the search's tilted disc. Its
+  frame now clips what passes its sides.
+
+**Rejected.**
+- *Thirstiest first*, a plant in a bowl with a gauge: the owner left it out.
+- One chapter with both drawings: the dials say where the evenings come from, the water where they
+  go. Together in one figure, neither could be read on a phone.
+- The made-up week of the options page (named courses, a gym, a job): the pages draw from their own
+  worked example, as every figure there does. So its five days are alike, and the chapter's words
+  name the gym and work only as what fills a real week.
+- Each tube's level moving through the week in one tube: it needs a width per frame per topic, and
+  the pages' Content-Security-Policy forbids inline styles. A tube per evening shows the same, and
+  needs no script.
+
+**Disclosed.**
+- The week is the worked example's (the same lectures every day, one block an evening), and the
+  three topics are made up.
+- The tubes are FSRS-6's estimate with average weights, and every revision here is a success.
+- How it works is 17.3 screens long at 1440 × 900 and 12.0 on a phone (15.3 and 10.7 before),
+  measured by `benchmarks/scroll_flow.mjs`.
+- Checked in Chromium only, at 390 × 844 and 1440 × 900, light and dark, with motion and without.

@@ -1197,3 +1197,11 @@ invalid state"). Nothing waits on them, so `errors.js` sent each to the owner's 
 unhandled rejection. How found: the live check's page errors, in Chromium at phone size. Status:
 fixed with D143. `errors.js` lets an `InvalidStateError` or `AbortError` about a transition pass
 unreported (`tests/test_inbox.py`); other rejections are reported as before.
+
+**104. How the code works was 7px wider than a phone.** Found while checking D146 at 390 × 844:
+the search's disc (D112), tilted in 3D as the scene runs, reaches past the screen's right edge,
+so the page scrolled sideways a little and a phone's browser zoomed the page out to fit it. The
+live demo had it too, before D146. How found: a script listing every element past the window's
+edge, in Chromium at phone size. Status: fixed with D146. The disc's frame clips what passes its
+sides (`.code-disc-wrap { overflow-x: clip }`), which keeps the tilt and draws nothing outside the
+card.

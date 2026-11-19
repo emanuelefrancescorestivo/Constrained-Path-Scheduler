@@ -13114,25 +13114,136 @@ def _garden_week(model: Model, plan: Sequence[str]) -> dict:
     }
 
 
-def _garden_app_plan(model: Model) -> list[str]:
-    """The app's rule for self-tests (assistant.py, the science page's third rule): each
-    evening the topic that has faded furthest, once it is down to the target; otherwise
-    the evening stays free."""
+def _garden_evenings(model: Model) -> list[dict]:
+    """The app's rule for self-tests evening by evening (assistant.py, the science page's
+    third rule), with what it saw (D146): each evening every topic's recall, and the one
+    revised, the topic that has faded furthest once it is down to the target; None when
+    every topic is above it and the evening stays free."""
     target = flashcards.RETENTION
     states = {
         key: (MemoryState(stability=s, difficulty=5.0), -float(ago)) for key, _, s, ago in GARDEN_TOPICS
     }
-    plan = []
+    evenings = []
     for day in range(1, GARDEN_EVENINGS + 1):
         recall = {k: model.retrievability(day - last, st.stability) for k, (st, last) in states.items()}
         key = min(recall, key=lambda k: recall[k])
-        if recall[key] <= target:
-            state, last = states[key]
-            states[key] = (model.review(state, day - last, Grade.GOOD), float(day))
-            plan.append(key)
-        else:
-            plan.append(GARDEN_REST)
-    return plan
+        picked = key if recall[key] <= target else None
+        if picked is not None:
+            state, last = states[picked]
+            states[picked] = (model.review(state, day - last, Grade.GOOD), float(day))
+        evenings.append({"pick": picked, "recall": recall})
+    return evenings
+
+
+def _garden_app_plan(model: Model) -> list[str]:
+    """The app's rule for self-tests (assistant.py, the science page's third rule): each
+    evening the topic that has faded furthest, once it is down to the target; otherwise
+    the evening stays free."""
+    return [e["pick"] or GARDEN_REST for e in _garden_evenings(model)]
+
+
+# D146: the evenings drawn as the owner chose (2026-11-18, "all choices but the plant one"):
+# each day a 24-hour dial, and the week with a wire from each evening to the topic it went to.
+_DIAL_AT = ((52, 72), (150, 72), (248, 72), (101, 194), (199, 194))  # five dials, three and two
+DIAL_R = 40
+
+
+def _dial_arc(cx: float, cy: float, r: float, h0: float, h1: float) -> str:
+    """An arc of a 24-hour dial, midnight at the top, clockwise: an SVG path."""
+    a0 = h0 / 24 * 2 * math.pi - math.pi / 2
+    a1 = h1 / 24 * 2 * math.pi - math.pi / 2
+    x0, y0 = cx + r * math.cos(a0), cy + r * math.sin(a0)
+    x1, y1 = cx + r * math.cos(a1), cy + r * math.sin(a1)
+    large = 1 if h1 - h0 > 12 else 0
+    return f"M{x0:.2f} {y0:.2f}A{r} {r} 0 {large} 1 {x1:.2f} {y1:.2f}"
+
+
+def _garden_dials(
+    week: dict, evenings: list[dict], names: dict[str, str], colours: dict[str, int]
+) -> list[dict]:
+    """Each day of the week as a dial: its sleep and lectures, the evening's block, and the
+    topic the evening goes to (or none: a night off)."""
+    per_hour = week["slots_per_day"] / 24
+    dials = []
+    for d, (cx, cy) in zip(week["days"], _DIAL_AT, strict=True):
+        arcs = [
+            {
+                "kind": r["kind"],
+                "d": _dial_arc(cx, cy, DIAL_R, r["start"] / per_hour + 0.08, r["end"] / per_hour - 0.08),
+            }
+            for r in d["runs"]
+        ]
+        block = next((b for b in week["blocks"] if b["day"] == d["day"]), None)
+        evening = (
+            _dial_arc(
+                cx, cy, DIAL_R, block["slot"] / per_hour, (block["slot"] + week["block_slots"]) / per_hour
+            )
+            if block
+            else ""
+        )
+        pick = evenings[d["day"]]["pick"] if d["day"] < len(evenings) else None
+        ticks = []
+        for hour in (0, 6, 12, 18):
+            a = hour / 24 * 2 * math.pi - math.pi / 2
+            ticks.append(
+                {
+                    "x1": round(cx + (DIAL_R + 8) * math.cos(a), 2),
+                    "y1": round(cy + (DIAL_R + 8) * math.sin(a), 2),
+                    "x2": round(cx + (DIAL_R + 12) * math.cos(a), 2),
+                    "y2": round(cy + (DIAL_R + 12) * math.sin(a), 2),
+                }
+            )
+        dials.append(
+            {
+                "day": d["day"],
+                "cx": cx,
+                "cy": cy,
+                "arcs": arcs,
+                "evening": evening,
+                "ticks": ticks,
+                "topic": names[pick] if pick else "",
+                "color": colours[pick] if pick else None,
+            }
+        )
+    return dials
+
+
+def _garden_water(evenings: list[dict], names: dict[str, str], colours: dict[str, int]) -> dict:
+    """The week, then the water (D146): each evening's levels (every topic's recall as the
+    evening begins), the one it went to, and where that topic is after it, back to full.
+    The levels are FSRS-6's with average weights, every revision a success."""
+    target = flashcards.RETENTION
+    rows = []
+    for k, e in enumerate(evenings):
+        rows.append(
+            {
+                "day": k,
+                "pick": names[e["pick"]] if e["pick"] else "",
+                "color": colours[e["pick"]] if e["pick"] else None,
+                "level": round(100 * e["recall"][e["pick"]]) if e["pick"] else 0,
+                "lowest": round(100 * min(e["recall"].values())),
+            }
+        )
+    topics = []
+    for key, name, _s, _ago in GARDEN_TOPICS:
+        levels = [round(100 * e["recall"][key]) for e in evenings]
+        topics.append(
+            {
+                "key": key,
+                "name": name,
+                "color": colours[key],
+                "levels": [
+                    {"day": k, "level": v, "watered": evenings[k]["pick"] == key}
+                    for k, v in enumerate(levels)
+                ],
+            }
+        )
+    return {
+        "rows": rows,
+        "topics": topics,
+        "target": round(100 * target),
+        "free": sum(1 for r in rows if not r["pick"]),
+    }
 
 
 def garden_view() -> dict:
@@ -13183,9 +13294,16 @@ def garden_view() -> dict:
         "days": [{"day": d["day"], "runs": d["runs"]} for d in code["days"]],
         "blocks": code["blocks"],
         "block_slots": code["block_slots"],
+        "slots_per_day": 24 * 60 // code["slot_minutes"],
         "day_count": code["day_count"],
         "free": len(code["blocks"]),
     }
+    # D146: each day as a dial, and where each evening goes, from the app's rule.
+    evenings = _garden_evenings(model)
+    names = {key: name for key, name, _s, _ago in GARDEN_TOPICS}
+    colours = {key: k for k, (key, *_rest) in enumerate(GARDEN_TOPICS)}
+    week["dials"] = _garden_dials(week, evenings, names, colours)
+    week["water"] = _garden_water(evenings, names, colours)
     return {
         "week": week,
         "target": round(100 * target),

@@ -47,7 +47,8 @@ def _motion(css: str) -> str:
     return css[start : css.index("\n}\n", start)]
 
 
-@pytest.mark.parametrize(("path", "stories"), [("/garden", 6), ("/science", 3), ("/how", 4)])
+# How it works has seven pinned scenes since D146 added "Each evening".
+@pytest.mark.parametrize(("path", "stories"), [("/garden", 7), ("/science", 3), ("/how", 4)])
 def test_every_pinned_scene_is_a_panel_with_its_words(web, path, stories):
     page = web.get(path).text
     assert len(re.findall(r'<div class="code-pin[ "]', page)) == stories

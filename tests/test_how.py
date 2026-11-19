@@ -213,8 +213,8 @@ def test_the_pages_wear_the_apps_look(web, view):
 
 def test_the_landscape_and_the_layers_are_the_numbers(web, view):
     """D111: a tower per cell of the value table, as tall as its value (the largest
-    twenty steps), the topics' towers marked in their colours; the week in three
-    layers, sleep, classes and the study blocks, that are one calendar when flat."""
+    twenty steps), the topics' towers marked in their colours; the week's lights, lit
+    by the sleep and classes masks, with the study blocks cut from what stays off (D146)."""
     values = [float(c["value"]) for row in view["table"] for c in row["cells"]]
     heights = [c["z"] for row in view["table"] for c in row["cells"]]
     assert max(heights) == 20 and all(1 <= z <= 20 for z in heights)
@@ -226,8 +226,12 @@ def test_the_landscape_and_the_layers_are_the_numbers(web, view):
     page = web.get("/how").text
     assert page.count('class="code-tower ') == len(values) == 25
     assert 'on-c0"' in page and 'on-c1"' in page
-    for layer in ("code-layer-base", "code-layer-classes", "code-layer-study"):
-        assert f"code-layer {layer}" in page
+    # D146 (the owner's choice) drew the week as a card of lights, D111's three layers before
+    # it: a light per half hour, lit where a mask set its bit, a block where three stay off.
+    leds = page.split('class="code-chart code-leds"', 1)[1].split("</svg>", 1)[0]
+    assert leds.count('class="led0"') == view["slots"]
+    assert leds.count('class="led-sleep"') + leds.count('class="led-classes"') == view["busy_slots"]
+    assert leds.count('class="led-block"') == len(view["blocks"])
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     assert all(f".tz{n} {{ --h: calc({n} * var(--u)); }}" in css for n in range(1, 21))
     # A tower never fades while it grows (D112): opacity below 1 would flatten it.

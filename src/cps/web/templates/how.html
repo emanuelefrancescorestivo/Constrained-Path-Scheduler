@@ -62,38 +62,25 @@
     <p>{{ _("Each half hour is one bit: 1 when it is taken (sleep, classes), 0 when it is free. {days} days are {n} bits; {busy} are taken, {free} are free.", days=h.day_count, n=h.slots, busy=h.busy_slots, free=h.free_slots) }}</p>
     <p>{{ _("Whether a stretch of time is free is one AND with a mask, however long the stretch. Free time is then cut into study blocks of {hours} hours, here at most one an evening.", hours=h.block_hours) }}</p>
   </div>
-  {# The week as the code builds it (D111, run as it is scrolled since D112): every bit
-     0, then the sleep mask's bits set, then the classes', each layer apart in depth,
-     then the blocks cut from what is still 0, and the three layers fall into one
-     calendar. Flat, the three layers are simply the calendar. #}
+  {# The week as the code builds it (D146, the owner's choice, 2026-11-18: a card of lights;
+     D111's three layers before it): a light per half hour, every one off (0, free); the
+     sleep mask lights its bits, then the classes mask, each an OR; then every three dark
+     lights in a row fuse into a study block. Day 1's bits are written under it. #}
   <div class="code-pin">
   <div class="code-pin-stage">
-  <figure class="card code-fig code-stack-fig">
-    <div class="code-stack">
-    <svg class="code-chart code-layer code-layer-base" viewBox="0 0 330 244" role="img" aria-label="{{ _('{days} days of half-hour slots: taken, free, and the study blocks cut from what is free', days=h.day_count) }}">
-      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
-      {% for hour in (0, 6, 12, 18, 24) %}<text class="code-tick" x="24" y="{{ 32 + hour * 8 + 4 }}" text-anchor="end">{{ '%02d' % hour }}</text>{% endfor %}
-      {% for d in h.days %}{% set x0 = 32 + d.day * 59 %}
-      <text class="code-tick" x="{{ x0 + 25 }}" y="20" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
-      <rect class="cal-col" x="{{ x0 }}" y="32" width="40" height="192" rx="7"></rect>
-      {% for bit in d.bits %}<rect class="bit0" x="{{ x0 + 44 }}" y="{{ 32 + loop.index0 * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}
+  <figure class="card code-fig code-leds-fig">
+    <svg class="code-chart code-leds" viewBox="0 0 330 190" role="img" aria-label="{{ _('{days} days of half-hour lights: off when free, lit by sleep and classes, and the study blocks cut from what stays off', days=h.day_count) }}">
+      {% for hour in (0, 6, 12, 18, 24) %}<text class="code-tick" x="{{ 40 + hour * 12 }}" y="14" text-anchor="middle">{{ '%02d' % hour }}</text>{% endfor %}
+      {% for d in h.days %}{% set y = 24 + d.day * 32 %}
+      <text class="code-tick" x="0" y="{{ y + 16 }}">{{ _("Day {n}", n=d.day + 1) }}</text>
+      {% for bit in d.bits %}<rect class="led0" x="{{ 40 + loop.index0 * 6 }}" y="{{ y }}" width="4.4" height="22" rx="1.6"></rect>{% endfor %}
       {% endfor %}
-      <g class="lay-sleep">{% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "sleep" %}<rect class="ev-sleep" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% endfor %}{% for s in d.set if s.kind == "sleep" %}{% for k in s.slots %}<rect class="bit1" x="{{ x0 + 44 }}" y="{{ 32 + k * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
-      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("sleep") }}</text>
+      <g class="lay-sleep">{% for d in h.days %}{% set y = 24 + d.day * 32 %}{% for s in d.set if s.kind == "sleep" %}{% for k in s.slots %}<rect class="led-sleep" x="{{ 40 + k * 6 }}" y="{{ y }}" width="4.4" height="22" rx="1.6"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
+      <g class="lay-classes">{% for d in h.days %}{% set y = 24 + d.day * 32 %}{% for s in d.set if s.kind == "classes" %}{% for k in s.slots %}<rect class="led-classes" x="{{ 40 + k * 6 }}" y="{{ y }}" width="4.4" height="22" rx="1.6"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
+      <g class="lay-study">{% for b in h.blocks %}{% set y = 24 + b.day * 32 %}<rect class="led-glow" x="{{ 40 + b.slot * 6 - 1.5 }}" y="{{ y - 1.5 }}" width="{{ h.block_slots * 6 + 1.4 }}" height="25" rx="5"></rect><rect class="led-block" x="{{ 40 + b.slot * 6 }}" y="{{ y }}" width="{{ h.block_slots * 6 - 1.6 }}" height="22" rx="3"></rect>{% endfor %}</g>
     </svg>
-    <svg class="code-chart code-layer code-layer-classes" viewBox="0 0 330 244" aria-hidden="true">
-      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
-      <g class="lay-classes">{% for d in h.days %}{% set x0 = 32 + d.day * 59 %}{% for r in d.runs if r.kind == "classes" %}<rect class="ev-classes" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect><rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endfor %}{% for s in d.set if s.kind == "classes" %}{% for k in s.slots %}<rect class="bit1" x="{{ x0 + 44 }}" y="{{ 32 + k * 4 }}" width="7" height="3.2" rx="1"></rect>{% endfor %}{% endfor %}{% endfor %}</g>
-      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("classes") }}</text>
-    </svg>
-    <svg class="code-chart code-layer code-layer-study" viewBox="0 0 330 244" aria-hidden="true">
-      <rect class="code-sheet" x="0" y="0" width="330" height="244" rx="14"></rect>
-      <g class="lay-study">{% for b in h.blocks %}<rect class="ev-study" x="{{ 33 + b.day * 59 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ h.block_slots * 4 - 1 }}" rx="5"></rect>{% endfor %}</g>
-      <text class="code-layer-name" x="322" y="238" text-anchor="end">{{ _("a study block") }}</text>
-    </svg>
-    </div>
     <p class="code-bits"><span class="code-label">{{ _("Day 1") }}</span>{% for g in h.days[0].groups %}<code>{{ g }}</code>{% endfor %}</p>
-    <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span><span><i class="code-key bit1"></i>{{ _("a bit set: taken") }}</span></figcaption>
+    <figcaption class="sci-key"><span><i class="code-key led-key-off"></i>{{ _("a light off: free (0)") }}</span><span><i class="code-key led-key-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key led-key-classes"></i>{{ _("classes") }}</span><span><i class="code-key ev-study"></i>{{ _("a study block") }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
     <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("{n} bits, one per half hour, every one 0: the week starts empty.", n=h.slots) }}</span></li>

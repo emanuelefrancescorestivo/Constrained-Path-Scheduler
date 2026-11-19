@@ -29,7 +29,7 @@
 {% set f = g.fine %}
 {% set c = g.cram %}
 {% set base = "/p/" ~ token if token else "" %}
-{% set chapters = (("plant", _("Forgetting")), ("pace", _("Its own pace")), ("time", _("Timing")), ("cram", _("Cramming")), ("evenings", _("Your evenings")), ("morning", _("Telling it")), ("month", _("Plan a month"))) %}
+{% set chapters = (("plant", _("Forgetting")), ("pace", _("Its own pace")), ("time", _("Timing")), ("cram", _("Cramming")), ("evenings", _("Your evenings")), ("water", _("Each evening")), ("morning", _("Telling it")), ("month", _("Plan a month"))) %}
 <div class="code-progress" aria-hidden="true"></div>
 {{ defs() }}
 {% if token %}<p class="back"><a href="/p/{{ token }}/you">{{ _("You") }}</a></p>{% endif %}
@@ -182,8 +182,7 @@
   {{ limit(_("In the app, that last revision is the exam practice it plans in the final days. And a whole semester wouldn't fit in the last evenings.")) }}
 </section>
 
-{# 5. A few free evenings: the code page's week (D109), its layers falling into one
-   (D111, D112). #}
+{# 5. A few free evenings: the code page's week (D109), each day a dial (D146). #}
 {% set w = g.week %}
 <section class="code-scene code-scene-pin gd-chapter" id="evenings">
   <div class="code-story">
@@ -195,30 +194,29 @@
     <h2>{{ _("But you only have so many evenings") }}</h2>
     <p>{{ _("Lectures, sleep, work and the gym take most of your week. Maybe {n} evenings are really free, and each is enough to revise one topic properly. So every evening the app asks one question: which topic is closest to slipping?", n=w.free) }}</p>
   </div>
-  <figure class="card code-fig code-stack-fig gd-week">
-    <div class="code-stack">
-    <svg class="code-chart code-layer code-layer-base" viewBox="0 0 300 244" role="img" aria-label="{{ _('A week of {n} days: sleep, lectures, and the free evenings left', n=w.day_count) }}">
-      <rect class="code-sheet" x="0" y="0" width="300" height="244" rx="14"></rect>
-      {% for hour in (0, 6, 12, 18, 24) %}<text class="code-tick" x="24" y="{{ 32 + hour * 8 + 4 }}" text-anchor="end">{{ '%02d' % hour }}</text>{% endfor %}
-      {% for d in w.days %}{% set x0 = 34 + d.day * 52 %}
-      <text class="code-tick" x="{{ x0 + 20 }}" y="20" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
-      <rect class="cal-col" x="{{ x0 }}" y="32" width="40" height="192" rx="7"></rect>
+  {# D146: each day a 24-hour dial (the owner's choice, 2026-11-18): the nights, the
+     lectures, the free evening glowing, and the topic it goes to, from the app's rule. #}
+  <figure class="card code-fig gd-dials-fig">
+    <svg class="code-chart gd-dials" viewBox="0 0 300 250" role="img" aria-label="{{ _('{n} days as 24-hour dials: sleep, lectures, the free evening, and the topic each evening goes to', n=w.day_count) }}">
+      {% for d in w.dials %}
+      <text class="code-tick" x="{{ d.cx }}" y="{{ d.cy - 56 }}" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
+      <circle class="dial-ring" cx="{{ d.cx }}" cy="{{ d.cy }}" r="40"></circle>
+      {% for t in d.ticks %}<line class="dial-tick" x1="{{ t.x1 }}" y1="{{ t.y1 }}" x2="{{ t.x2 }}" y2="{{ t.y2 }}"></line>{% endfor %}
       {% endfor %}
-      <g class="lay-sleep">{% for d in w.days %}{% set x0 = 34 + d.day * 52 %}{% for r in d.runs if r.kind == "sleep" %}<rect class="ev-sleep" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect>{% endfor %}{% endfor %}</g>
-      <text class="code-layer-name" x="292" y="238" text-anchor="end">{{ _("sleep") }}</text>
+      <g class="lay-sleep">{% for d in w.dials %}{% for a in d.arcs if a.kind == "sleep" %}<path class="dial-arc dial-sleep" d="{{ a.d }}"></path>{% endfor %}{% endfor %}</g>
+      <g class="lay-classes">{% for d in w.dials %}{% for a in d.arcs if a.kind == "classes" %}<path class="dial-arc dial-classes" d="{{ a.d }}"></path>{% endfor %}{% endfor %}</g>
+      <g class="lay-study">{% for d in w.dials if d.evening %}<path class="dial-glow" d="{{ d.evening }}"></path><path class="dial-arc dial-evening" d="{{ d.evening }}"></path>{% endfor %}</g>
+      {% for d in w.dials %}
+      <g class="dial-say eb{{ 20 + d.day }}{% if d.color is not none %} c{{ d.color }}{% endif %}">
+        {% if d.topic %}<circle class="dial-dot" cx="{{ d.cx }}" cy="{{ d.cy - 15 }}" r="4"></circle>
+        <text class="dial-topic" x="{{ d.cx }}" y="{{ d.cy + 3 }}" text-anchor="middle">{{ d.topic }}</text>
+        <text class="code-tick" x="{{ d.cx }}" y="{{ d.cy + 18 }}" text-anchor="middle">{{ _("tonight") }}</text>
+        {% else %}<text class="dial-topic dial-off" x="{{ d.cx }}" y="{{ d.cy + 3 }}" text-anchor="middle">{{ _("Free") }}</text>
+        <text class="code-tick" x="{{ d.cx }}" y="{{ d.cy + 18 }}" text-anchor="middle">{{ _("night off") }}</text>{% endif %}
+      </g>
+      {% endfor %}
     </svg>
-    <svg class="code-chart code-layer code-layer-classes" viewBox="0 0 300 244" aria-hidden="true">
-      <rect class="code-sheet" x="0" y="0" width="300" height="244" rx="14"></rect>
-      <g class="lay-classes">{% for d in w.days %}{% set x0 = 34 + d.day * 52 %}{% for r in d.runs if r.kind == "classes" %}<rect class="ev-classes" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="38" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="5"></rect><rect class="ev-bar" x="{{ x0 + 1 }}" y="{{ 32 + r.start * 4 }}" width="3" height="{{ (r.end - r.start) * 4 - 1.5 }}" rx="1.5"></rect>{% endfor %}{% endfor %}</g>
-      <text class="code-layer-name" x="292" y="238" text-anchor="end">{{ _("lectures") }}</text>
-    </svg>
-    <svg class="code-chart code-layer code-layer-study" viewBox="0 0 300 244" aria-hidden="true">
-      <rect class="code-sheet" x="0" y="0" width="300" height="244" rx="14"></rect>
-      <g class="lay-study">{% for b in w.blocks %}<rect class="ev-study" x="{{ 35 + b.day * 52 }}" y="{{ 32 + b.slot * 4 }}" width="38" height="{{ w.block_slots * 4 - 1 }}" rx="5"></rect><path class="gd-week-drop" d="M{{ 54 + b.day * 52 }} {{ 36 + b.slot * 4 }}c2 3.4 4 5.4 4 7.6a4 4 0 0 1-8 0c0-2.2 2-4.2 4-7.6z"></path>{% endfor %}</g>
-      <text class="code-layer-name" x="292" y="238" text-anchor="end">{{ _("free evenings") }}</text>
-    </svg>
-    </div>
-    <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key ev-classes"></i>{{ _("lectures") }}</span><span><i class="code-key ev-study"></i>{{ _("a free evening: one topic") }}</span></figcaption>
+    <figcaption class="sci-key"><span><i class="code-key ev-sleep"></i>{{ _("sleep") }}</span><span><i class="code-key dial-key-classes"></i>{{ _("lectures") }}</span><span><i class="code-key dial-key-evening"></i>{{ _("a free evening: one topic") }}</span></figcaption>
   </figure>
   <ol class="code-caps" aria-label="{{ _('Step by step') }}">
     <li class="cap1of4"><span class="sci-step">1</span><span>{{ _("Here's a week: {n} days, midnight to midnight.", n=w.day_count) }}</span></li>
@@ -233,7 +231,69 @@
   {{ limit(_("How the app picks: anything with a deadline goes first. After that, whichever topic has faded the most, as long as it's down to {t} %. If nothing is, you get the evening off.", t=g.target)) }}
 </section>
 
-{# 6. Telling it: the question after a session; remembered, the topic lasts longer;
+{# 6. Where each evening goes (D146, the owner's choice): the same week, a wire from each
+   evening to the topic it goes to, and the three topics' tubes evening by evening, from the
+   app's rule with FSRS-6. #}
+{% set wa = w.water %}
+<section class="code-scene code-scene-pin gd-chapter" id="water">
+  <div class="code-story">
+  <div class="code-panel">
+  <div class="code-pin">
+  <div class="code-pin-stage">
+  <div class="code-copy">
+    <p class="code-kicker"><span class="sci-step">6</span></p>
+    <h2>{{ _("Each evening goes where it's needed most") }}</h2>
+    <p>{{ _("Here are the same evenings and three topics. Each tube shows how likely you are to remember a topic as the evening begins.") }} {{ _("The lowest gets the evening, once it's down to {t} %.", t=wa.target) }}</p>
+  </div>
+  <figure class="card code-fig gd-water-fig">
+    <svg class="code-chart gd-water" viewBox="0 0 300 290" role="img" aria-label="{{ _('{n} evenings, each going to the topic least likely to be remembered, once it is down to {t} %', n=w.day_count, t=wa.target) }}">
+      {% for d in w.days %}{% set x = 90 + d.day * 48 %}
+      <text class="code-tick" x="{{ x }}" y="14" text-anchor="middle">{{ _("Day {n}", n=d.day + 1) }}</text>
+      <rect class="cal-col" x="{{ x - 17 }}" y="24" width="34" height="80" rx="7"></rect>
+      {% for r in d.runs %}{% set y0 = 24 + ([r.start / 2, 6] | max - 6) * 80 / 18 %}{% set y1 = 24 + (r.end / 2 - 6) * 80 / 18 %}{% if y1 > y0 %}<rect class="{{ 'ev-sleep' if r.kind == 'sleep' else 'ev-classes' }}" x="{{ x - 16 }}" y="{{ y0 | round(1) }}" width="32" height="{{ (y1 - y0 - 1) | round(1) }}" rx="4"></rect>{% endif %}{% endfor %}
+      {% endfor %}
+      <text class="code-tick" x="4" y="{{ 24 + 4 }}">06</text><text class="code-tick" x="4" y="{{ 24 + 80 }}">24</text>
+      {% for t in wa.topics %}{% set y = 122 + loop.index0 * 56 %}
+      <g class="c{{ t.color }}">
+        <circle class="code-cdot" cx="8" cy="{{ y + 26 }}" r="4"></circle>
+        <text class="code-text" x="16" y="{{ y + 30 }}">{{ t.name }}</text>
+        {% for v in t.levels %}{% set x = 90 + v.day * 48 %}{% set h = [0, 36 * (v.level - 80) / 20] | max %}
+        <rect class="water-tube" x="{{ x - 12 }}" y="{{ y + 8 }}" width="24" height="36" rx="6"></rect>
+        <line class="water-target" x1="{{ x - 12 }}" y1="{{ y + 26 }}" x2="{{ x + 12 }}" y2="{{ y + 26 }}"></line>
+        <g class="water-on eb{{ 5 * v.day }}">
+          <rect class="water-level" x="{{ x - 12 }}" y="{{ (y + 44 - h) | round(1) }}" width="24" height="{{ h | round(1) }}" rx="6"></rect>
+          <text class="water-num" x="{{ x }}" y="{{ y + 39 }}" text-anchor="middle">{{ v.level }}</text>
+        </g>
+        {% if v.watered %}<g class="water-on eb{{ 5 * v.day + 2 }}">
+          <rect class="water-refill" x="{{ x - 12 }}" y="{{ y + 8 }}" width="24" height="36" rx="6"></rect>
+          <text class="water-num water-num-on" x="{{ x }}" y="{{ y + 39 }}" text-anchor="middle">100</text>
+          <path class="water-drop" d="M{{ x }} {{ y - 3 }}c2.6 3.6 4.4 5.8 4.4 8.2a4.4 4.4 0 0 1-8.8 0c0-2.4 1.8-4.6 4.4-8.2z"></path>
+        </g>{% endif %}
+        {% endfor %}
+      </g>
+      {% endfor %}
+      {% for r in wa.rows %}{% set x = 90 + r.day * 48 %}
+      <g class="water-on eb{{ 5 * r.day + 1 }}{% if r.color is not none %} c{{ r.color }}{% endif %}">
+        <rect class="{{ 'water-evening' if r.pick else 'water-free' }}" x="{{ x - 16 }}" y="77.8" width="32" height="5.7" rx="2.5"></rect>
+        {% if r.pick %}{% set ty = 122 + r.color * 56 + 16 %}<path class="water-wire" d="M{{ x }} 84v6h{{ 20 }}V{{ ty }}h-8"></path>{% endif %}
+      </g>
+      {% endfor %}
+    </svg>
+    <figcaption class="sci-key"><span><i class="code-key dial-key-evening"></i>{{ _("the evening's revision") }}</span><span><i class="code-key water-key-target"></i>{{ _("{t} %, the target", t=wa.target) }}</span><span>{{ _("each tube from 80 to 100 %") }}</span></figcaption>
+  </figure>
+  <ol class="code-caps" aria-label="{{ _('Step by step') }}">
+    {% for r in wa.rows %}
+    <li class="cap{{ loop.index }}of{{ wa.rows | length }}"><span class="sci-step">{{ loop.index }}</span><span>{% if r.pick %}{{ _("Day {n}: {topic} is down to {r} %, the lowest, so it gets the evening.", n=r.day + 1, topic=r.pick, r=r.level) }}{% else %}{{ _("Day {n}: every topic is still above {t} %, so the evening is yours.", n=r.day + 1, t=wa.target) }}{% endif %}</span></li>
+    {% endfor %}
+  </ol>
+  </div>
+  </div>
+  </div>
+  </div>
+  {{ limit(_("The tubes are the memory model's estimate with average weights, and every revision here works. A forgotten one comes back sooner.")) }}
+</section>
+
+{# 7. Telling it: the question after a session; remembered, the topic lasts longer;
    forgotten, it comes back soon. #}
 {% set rp = g.report %}
 <section class="code-scene code-scene-pin gd-chapter" id="morning">
@@ -242,7 +302,7 @@
   <div class="code-pin">
   <div class="code-pin-stage">
   <div class="code-copy">
-    <p class="code-kicker"><span class="sci-step">6</span></p>
+    <p class="code-kicker"><span class="sci-step">7</span></p>
     <h2>{{ _("Tell it how it went") }}</h2>
     <p>{{ _("After each session the app asks one thing: did you remember it? If you did, that topic can wait longer next time. If you didn't, it comes back within a day or two. Tomorrow's plan starts from your answer.") }}</p>
   </div>
