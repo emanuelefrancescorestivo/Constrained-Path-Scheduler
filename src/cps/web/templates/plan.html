@@ -50,9 +50,9 @@
       <p>{{ _h("<strong>Your week.</strong> Your timetable is here, and the plan with it. Drag a study session to move it; drag across empty time, or tap it on a phone, to keep it free.") }}</p>
       <p><a class="btn btn-primary" href="/p/{{ token }}" data-tour="setup-next">{{ _("Looks good") }}</a></p>
     </div>
-    {% elif hint and tab == 'calendar' %}
-    <p class="section-hint board-hint" role="note">{{ hint }}</p>
     {% endif %}
+    {# No first-visit line over the grid either (the owner, 2026-11-19: "this thing is still
+       bothering"): Spark's tour of the calendar (D141) says the same, once. #}
     {# D135 put planning's tip in a line above the grid; the owner found it pushed the
        calendar down (2026-11-19), so the calendar has none: planning's tips are on the
        tips page and Today's. #}

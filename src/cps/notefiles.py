@@ -72,7 +72,7 @@ def text(name: str, data: bytes) -> Extracted:
     head = data[:16]
     if b"%PDF-" in data[:1024]:
         try:
-            found = pdftext.text(data)
+            found = pdftext.text(data, maths=True)
         except pdftext.PdfError as exc:
             raise NotesError(exc.reason) from exc
         return _done(found.text, "pdf", found.pages, found.read, indent=False)

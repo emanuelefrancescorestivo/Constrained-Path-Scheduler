@@ -5984,3 +5984,57 @@ haircuts and features for personalisation".
 **Disclosed.** The shapes are a choice of taste, drawn at the avatar's 120 units; checked in
 Chromium only, light and dark, on four skin tones and four hair colours.
 
+## D151. Mathematics in flashcards made from a PDF
+
+**Asked.** The owner, on 2026-11-19, with two cards from their LaTeX lecture notes: "the maths
+need to be properly rendered in the flashcards or else it is impossible to learn anything from
+them" (AUDIT item 111).
+
+**Chosen.**
+- *A page of notes is built from pypdf's pieces* (`pdftext.maths_text`), in the order the PDF
+  draws them, as notes made into cards only (`notefiles`). A piece joins the one before with a
+  space where pypdf's layout reading separates those two words and never writes them together
+  (the layout reading spaces words from the fonts' widths, but reads two columns across, so it
+  is the judge, not the text). A piece set at most 82 % of the line's size, raised or lowered by
+  12 to 70 % of it, is a superscript `^{…}` or a subscript `_{…}`; two pieces of one script are
+  one. A mark drawn alone over the next sign is put on it (TeX's slash and "=" make "≠"). TeX's
+  big sum, product and integral, written with letters' codes in a font without Unicode names,
+  are named again. A page's number alone on its last line goes. Anything that fails gives the
+  page's plain text.
+- *A card draws the marks* (the `maths` filter): `R^{n}` as R with n raised, `x_{i}` lowered,
+  and a superscript and a subscript on the same sign stacked (x with i and 2, a fraction's 1
+  over 2, a sum's limits), never apart from their sign at a line's end. Everything else is
+  escaped, and a mark left open stays as typed. A student may type the marks too.
+- *The card rules*: an "=" with a variable on its left and a number, a sign or a variable on
+  its right is an equation, not a term ("In dimension n = 1, …"; "Vitamin C = ascorbic acid"
+  stays a term); a long statement is cut at a sentence's end past half its length, else at a
+  word, never inside a mark.
+- *The model writes the same marks* when it writes or checks cards (D138).
+
+**Rejected.**
+- *pypdf's layout reading alone*: it spaces words right but flattens the scripts and reads two
+  columns as one line.
+- *A drawing of the PDF's page on the card*: it needs a PDF renderer (a dependency to approve,
+  MuPDF's licence is the AGPL) and a crop no rule finds reliably.
+- *KaTeX*: it draws LaTeX, and the text from a PDF is not LaTeX; superscripts and subscripts
+  cover what the reading recovers. A dependency to approve, if typed LaTeX is wanted later.
+- *A program's PDF read the same way* (D90): "1^{er} octobre" would stop its dates being read.
+
+**Disclosed.** Tried on one page made by pdfTeX, not on the owner's file (not kept) nor on
+XeLaTeX, LuaLaTeX, Word or a scan; the thresholds are what that page needs, not measured on
+many. pypdf can give two scripts in one piece (a sum's "n" above and "i" below as "ni").
+Cards made before D151 keep their old text: they are made again from the file.
+
+## D152. No line above a page on its first visit
+
+**Asked.** The owner, on 2026-11-19, of the calendar's first-visit line ("Fais glisser une
+séance…"): "this thing is still bothering"; and of pages in general, that a band above each
+pushed it down.
+
+**Chosen.** No section draws its first-visit line (D97) any more: Spark's tour of the section
+(D141) says what it is for, once. The first visit is still recorded, so a tour left half way
+does not come back. With D149's planning tip, the calendar now opens on its grid.
+
+**Disclosed.** Without a script there is no tour, so a page opened without one no longer says
+what its section is for.
+

@@ -25,8 +25,8 @@
 {# The answer to the question the session opened with (D128). #}
 <div class="card section opener-answer">
   <p class="kicker">{{ _("The question you started with") }}</p>
-  <p class="flash-front">{{ question.front }}</p>
-  <p class="flash-back">{{ question.back }}</p>
+  <p class="flash-front">{{ question.front | maths }}</p>
+  <p class="flash-back">{{ question.back | maths }}</p>
   {% if question.week %}<p class="hint"><a href="/p/{{ token }}/cards/review?course={{ question.course | urlencode }}&amp;week={{ question.week }}">{{ _("Practise this week's cards") }}</a></p>{% endif %}
 </div>
 {% endif %}

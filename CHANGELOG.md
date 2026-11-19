@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Mathematics in flashcards (DECISIONS.md D151): notes from a LaTeX PDF keep their words apart
+  from the mathematics, and a card draws powers and indices raised and lowered (Rⁿ, C¹, xᵢ, f⁻¹),
+  "≠" as one sign, and a long theorem cut at a sentence. Pages open without the line above them
+  on a first visit; Spark's tour says it (D152).
+
 - More avatar (DECISIONS.md D150): a fade, a mullet, curtains, a French crop, a wolf cut, locs,
   space buns, a pixie and cornrows; lashes, sleepy eyes, a slit brow, a smirk, lipstick; a nose
   ring, ear studs, dimples; a bandana, a bucket hat, a headband; a jacket and a turtleneck. The

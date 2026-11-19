@@ -59,7 +59,7 @@
     <li>
       <input type="hidden" name="front" value="{{ c.front }}"><input type="hidden" name="back" value="{{ c.back }}"><input type="hidden" name="cardweek" value="{{ c.week }}">
       <label class="made-card grow"><input type="checkbox" name="pick" value="{{ loop.index0 }}" checked>
-        <span class="made-text"><span class="made-front">{{ c.front }}</span><span class="made-back">{{ c.back }}</span><small class="made-kind">{{ c.word }}{% if c.week_label %} · {{ c.week_label }}{% endif %}</small></span>
+        <span class="made-text"><span class="made-front">{{ c.front | maths }}</span><span class="made-back">{{ c.back | maths }}</span><small class="made-kind">{{ c.word }}{% if c.week_label %} · {{ c.week_label }}{% endif %}</small></span>
       </label>
     </li>
     {% endfor %}

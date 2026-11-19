@@ -28,8 +28,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1464 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1481 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1469 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1486 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -333,8 +333,11 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   word missed. Whether the climb motivates more than the weekly columns is for the pilot.
 - Cards from notes by Claude (D138) are written and then checked by a second call; both ran
   against a fake provider only (no key here): no real answer has been tried on real notes. At most
-  0.023 USD a file with Haiku (`benchmarks/syllabus_cost.py`). The rules' cards from a LaTeX PDF keep
-  words run together (AUDIT 99).
+  0.023 USD a file with Haiku (`benchmarks/syllabus_cost.py`). Since D151 a PDF of notes is read with its
+  words spaced and its mathematics marked (`R^{n}`, `x_{i}`), drawn on cards as superscripts and
+  subscripts; tried on one page made by pdfTeX (`tests/data/latex-notes.tex`), not on the owner's file nor
+  other TeX engines; fractions and a sum's limits are stacked scripts, and pypdf can hand two limits as one
+  piece (∑ with "ni" over "=1").
 - Flashcards from a file of notes (D134) are read by rules, for free: prose gives few cards;
   tried on files written by the tests and by LibreOffice, not by Microsoft Office, Google Docs or
   note-taking apps; photos, scans, equations and tables' layout are not read. Checked in

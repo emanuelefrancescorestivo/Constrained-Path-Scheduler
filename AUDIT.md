@@ -1251,3 +1251,14 @@ the map's card, its first card being the feed's child and not the map card's sib
 the owner's screenshots, then the pages in Chromium. Status: fixed with D149
 (`tests/test_layout_pass.py`).
 
+**111. Cards from a LaTeX PDF ran words into the mathematics and flattened it.** Reported by the
+owner on 2026-11-19 with screenshots of two cards made on the demo: "In dimensionn", "a
+functionf : I→R of classC1", "f'(c)/= 0", "R n", "(f| U )−1", and a theorem cut at "for ev".
+"Like what is this, come on." AUDIT 99 had named the run-together words and left them to the
+model. How found: the owner's screenshots, then a page made with pdfTeX 1.40.25 like their
+notes, which reproduces every one with pypdf 6.21.4 (`tests/data/latex-notes.tex`). pypdf joins
+a word to the mathematics after it when the font changes, flattens what TeX raises or lowers,
+writes TeX's slash for "not" apart from its sign, and reads TeX's big sum as "P" (its font has
+no Unicode names). The card rules then took "n = 1" as a term and its definition, and cut a
+long statement at a fixed length. Status: fixed with D151 (`tests/test_maths_cards.py`).
+

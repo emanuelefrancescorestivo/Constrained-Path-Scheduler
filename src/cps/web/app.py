@@ -354,6 +354,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["password_min"] = service.PASSWORD_MIN
     templates.env.globals["password_max"] = service.PASSWORD_MAX
     templates.env.filters["linkify"] = _linkify
+    templates.env.filters["maths"] = _maths
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -515,8 +516,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             subscription = subscription or service.load_subscription(store, token)
             context["run"] = subscription is not None and service.first_run(subscription) is not None
         if token and "hint" not in context and not (context.get("setup") or context.get("new")):
-            # Every other section's line, the first time it is opened (D97): shown
-            # once, so it is remembered as the page goes out.
+            # A section's first visit (D97): remembered as the page goes out, so its
+            # tour (D141) shows once. Its line is no longer drawn (D152).
             subscription = subscription or service.load_subscription(store, token)
             tab = context.get("tab")
             joined = tab == "community" and service.profile_of(store, token) is not None
@@ -4964,6 +4965,29 @@ def _linkify(text: str) -> Markup:
         for part in parts
     )
     return Markup(str(html).replace("\n", "<br>"))
+
+
+# D151: a card's mathematics, as notes read from a LaTeX PDF mark it (`pdftext.maths_text`)
+# and as a student may type it: `R^{n}` a superscript, `x_{i}` a subscript, and the two on
+# the same sign stacked (`x^{2}_{i}`, a fraction's `^{1}_{2}`, a sum's limits). Everything
+# else is escaped; a mark left open stays as typed.
+_SCRIPT = re.compile(r"([\^_])\{([^{}<>]{1,60})\}")
+_JOIN = "\u2060"  # a word joiner: a line never breaks between a sign and its script
+_STACKED = re.compile(r"\^\{([^{}<>]{1,60})\}_\{([^{}<>]{1,60})\}|_\{([^{}<>]{1,60})\}\^\{([^{}<>]{1,60})\}")
+
+
+def _maths(text: str) -> Markup:
+    html = str(Markup.escape(str(text)))
+
+    def stacked(m: re.Match[str]) -> str:
+        up, down = (m.group(1), m.group(2)) if m.group(1) is not None else (m.group(4), m.group(3))
+        return f'{_JOIN}<span class="msub-sup"><sup>{up}</sup><sub>{down}</sub></span>'
+
+    def single(m: re.Match[str]) -> str:
+        tag = "sup" if m.group(1) == "^" else "sub"
+        return f"{_JOIN}<{tag}>{m.group(2)}</{tag}>"
+
+    return Markup(_SCRIPT.sub(single, _STACKED.sub(stacked, html)))
 
 
 def _device(request: Request) -> str:

@@ -9,10 +9,10 @@
 {% set c = view.card %}
 <p class="review-count">{{ c.course }}{% if view.week %} · {{ view.week_label }}{% endif %} · {{ _n("{n} card left", "{n} cards left", view.left) }}{% if c.new %} · <span class="badge badge-accent">{{ _("new") }}</span>{% endif %}</p>
 <section class="card flashcard" aria-label="{{ _('Card') }}">
-  <p class="flash-front">{{ c.front }}</p>
+  <p class="flash-front">{{ c.front | maths }}</p>
   <details class="flash-answer" id="flash-answer">
     <summary class="btn btn-tinted btn-block">{{ _("Show the answer") }}</summary>
-    <p class="flash-back">{{ c.back }}</p>
+    <p class="flash-back">{{ c.back | maths }}</p>
     <form method="post" action="/p/{{ token }}/cards/{{ c.id }}/answer" class="flash-grades">
       <input type="hidden" name="course" value="{{ view.course }}">
       {% if view.week %}<input type="hidden" name="week" value="{{ view.week }}">{% endif %}

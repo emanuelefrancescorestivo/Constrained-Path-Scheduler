@@ -62,7 +62,14 @@ _A = re.compile(
     r"(?P<rest>.*)$",
     re.IGNORECASE,
 )
-_SEPARATOR = re.compile(r"^(?P<term>[^:=→]{1,80}?)\s*(?:::|:|\s[–—-]\s|\s=\s|\s?→\s?|\s->\s)\s*(?P<back>.+)$")
+_SEPARATOR = re.compile(
+    r"^(?P<term>[^:=→]{1,80}?)\s*(?P<sep>::|:|\s[–—-]\s|\s=\s|\s?→\s?|\s->\s)\s*(?P<back>.+)$"
+)
+# D151: "In dimension n = 1, consider…" is an equation, not a term and its definition: an
+# "=" with a variable on its left (one letter, or one with its marks) and a number, a sign
+# or another variable on its right makes no card; "Vitamin C = ascorbic acid" stays one.
+_VARIABLE_END = re.compile(r"(?:^|\s)[A-Za-zα-ωΑ-Ω](?:[_^]\{[^{}]*\}|′)*$")
+_MATHS_START = re.compile(r"^\s*(?:[\d−+\-(∞√∑∫|]|[A-Za-zα-ωΑ-Ω](?![A-Za-zà-ÿ]))")
 _MARK = (
     r"\{\{c\d+::(?P<a>[^}]+?)(?:::[^}]*)?\}\}"  # an Anki cloze
     r"|\*\*(?P<b>[^*]+?)\*\*|__(?P<c>[^_]+?)__"  # bold
@@ -140,6 +147,20 @@ _PROOF = re.compile(r"^(?:proof|preuve|démonstration|dimostrazione|prova|demost
 
 def _clean(text: str) -> str:
     return " ".join(text.split()).strip(" \t-–—:;,.·|")
+
+
+def _trim(text: str, most: int) -> str:
+    """`text` cut to `most` characters at a sentence's end, else at a word's (D151): the
+    owner's card stopped at "for ev"; never inside a superscript's or a subscript's marks."""
+    if len(text) <= most:
+        return text
+    cut = text[:most]
+    end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "))
+    cut = cut[: end + 1] if end >= most // 2 else cut[: cut.rfind(" ")] if " " in cut else cut
+    opened = max(cut.rfind("^{"), cut.rfind("_{"))
+    if opened > cut.rfind("}"):
+        cut = cut[:opened]
+    return cut.rstrip(" ,;:") + ("" if cut.rstrip().endswith((".", "?", "!")) else " …")
 
 
 def _unmark(text: str) -> str:
@@ -230,7 +251,7 @@ def read(text: str) -> list[Candidate]:
             kind_word = block["kind"][0].upper() + block["kind"][1:].lower()
             back = _clean(_unmark(" ".join(statement)))
             if back and len(back.split()) >= 3:
-                card = _card(f"{kind_word}: {name}", back[:BACK_MOST], "definition")
+                card = _card(f"{kind_word}: {name}", _trim(back, BACK_MOST), "definition")
                 out += [card] if card else []
             i = j
             continue
@@ -296,6 +317,11 @@ def read(text: str) -> list[Candidate]:
             and _is_term(_clean(sep["term"]))
             and not sep["back"].strip().startswith("//")
             and not _TITLE.match(sep["back"].strip())
+            and not (
+                sep["sep"].strip() == "="
+                and _VARIABLE_END.search(sep["term"].strip())
+                and _MATHS_START.match(sep["back"])
+            )
         ):
             card = _card(sep["term"], sep["back"], "term")
             found = [card] if card else []

@@ -1,0 +1,22 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}\newtheorem{remark}[theorem]{Remark}
+\begin{document}
+\section{Inverse functions}
+In dimension $n=1$, consider a function $f\colon I\to\mathbb{R}$ of class $C^1$, where $I\subseteq\mathbb{R}$ is an open interval. If $f'(c)\neq 0$, $c\in I$, then $f$ is strictly monotone in some neighbourhood of $c$. Consequently, it is invertible in some neighbourhood of $c$.
+
+\begin{theorem}[Inverse Function Theorem]
+Let $A\subseteq\mathbb{R}^n$ be open, let $c\in A$, and let $f\colon A\to\mathbb{R}^n$ be a function of class $C^1$ such that $J_f(c)\neq 0$. Then there exist open neighbourhoods $U\subseteq A$ of $c$ and $W\subseteq\mathbb{R}^n$ of $f(c)$ such that $f(U)=W$ and the restriction $f|_U\colon U\to W$ is a bijection whose inverse $(f|_U)^{-1}\colon W\to U$ is of class $C^1$. Moreover, for $y\in W$ and $x=(f|_U)^{-1}(y)\in U$, we have
+\begin{equation}
+D(f|_U)^{-1}(y)=Df(x)^{-1}.
+\end{equation}
+Furthermore, if $f$ is of class $C^p$, where $p\geq 1$, then $(f|_U)^{-1}$ is also of class $C^p$.
+\end{theorem}
+
+\begin{definition}[External direct product of two groups]
+Let $G$ and $H$ be groups. Their (external) direct product is the set $G\oplus H=\{(g,h)\mid g\in G,\ h\in H\}$ with component-wise operation $(g_1,h_1)(g_2,h_2)=(g_1g_2,h_1h_2)$.
+\end{definition}
+The sum $\sum_{i=1}^{n} x_i^2$ is at most $\frac{1}{2}\|x\|^2$ when $x\in\mathbb{R}^n$.
+\end{document}
