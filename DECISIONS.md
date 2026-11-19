@@ -5952,3 +5952,35 @@ that file is not known; it stays under AUDIT item 99 until the file can be tried
 **Disclosed.** Checked in Chromium only, at 2000, 1440, 1280 and 1200px and a phone's size, light
 and dark; the list of countries (AUDIT 109) was not tried on Windows, where it was seen.
 
+## D150. The avatar: no line through the hair, a lower quiff, more cuts and features
+
+**Asked.** The owner, on 2026-11-19, with screenshots of the avatar maker: "you can still see the
+border of the head", "hair is too tall", then "add the fade haircut, the mullet, more trendy
+haircuts and features for personalisation".
+
+**Found first.**
+- *The line was the sheen*, a white arc D115 drew over every haircut. The ink drawing (D143)
+  hides it on a saved avatar, but on the maker the sheen carried every haircut's class, so the
+  rule that shows the chosen cut in the preview showed it too, across the hair.
+- *The swept cut stood 17 units above the head* (its crown at 6, the head's top at 23); the
+  others stand 1 to 2 above.
+
+**Chosen.**
+- The sheen is gone from the drawing and the style sheet, and the swept cut's crown is at 16.
+- Nine more cuts, each at the end of the list, so no saved avatar changes: a fade (a short top,
+  the sides faded to the skin), a mullet (short on top and at the sides, the ears showing, long
+  at the nape), curtains (a middle parting to the jaw), a French crop (a straight fringe), a
+  wolf cut (shaggy layers), locs, space buns, a pixie and cornrows.
+- Lashes and sleepy eyes, a slit in the brow, a smirk and lipstick; a nose ring, ear studs and
+  dimples; a bandana, a bucket hat and a headband; a jacket and a turtleneck. Each drawn in the
+  ink of D143, in the clothes' or the hair's colour where it has one.
+
+**Rejected.**
+- *More than one detail at a time* (earrings and a nose ring): the details are one part with one
+  choice; making them a set changes how an avatar is saved, for every student. Later, if asked.
+- *A second hair colour* (dyed tips, highlights): a colour per part is how the drawing is
+  tinted; a second one means a second set of swatches.
+
+**Disclosed.** The shapes are a choice of taste, drawn at the avatar's 120 units; checked in
+Chromium only, light and dark, on four skin tones and four hair colours.
+

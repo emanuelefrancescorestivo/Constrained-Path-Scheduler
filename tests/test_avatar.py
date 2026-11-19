@@ -186,3 +186,23 @@ def test_a_flag_is_where_you_are_from_on_your_avatar_and_your_initial(web, token
     assert re.search(badge("fr"), web.get(f"/p/{token}/u/flagged").text)  # and after
     web.post(f"/p/{token}/avatar", data={**MINE, "flag": "none"})
     assert 'class="avatar-flag"' not in web.get(f"/p/{token}/u/flagged").text  # none shows none
+
+
+def test_every_option_is_drawn_and_the_hair_has_no_line_through_it():
+    # D150 (the owner, 2026-11-19): "you can still see the border of the head" was the
+    # sheen, shown on the maker by the hair's own rule; "hair is too tall" was the swept
+    # cut, its crown at 6 over a head at 23. Every option of a shape is drawn, tagged.
+    drawing = (STATIC.parent / "templates" / "_avatar.html").read_text(encoding="utf-8")
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    assert "av-sheen" not in drawing and "av-sheen" not in css
+    swept = re.search(r'hs-swept"><path class="av-hair" d="([^"]+)"', drawing).group(1)
+    ys = [float(y) for y in re.findall(r"[-\d.]+ ([-\d.]+)", swept)]
+    assert min(ys) >= 16
+    shapes = (("hair", "hs"), ("face", "fh"), ("glasses", "gl"), ("eyes", "ey"), ("brows", "br"))
+    shapes += (("mouth", "mo"), ("head", "hd"), ("detail", "dt"), ("outfit", "ot"))
+    for part, prefix in shapes:
+        for name in service.AVATAR_PARTS[part]:
+            if name != "none":
+                assert re.search(rf'class="avo [^"]*\b{prefix}-{name}\b', drawing), (part, name)
+    for name in ("fade", "mullet", "curtains", "crop", "wolf", "locs", "spacebuns", "pixie", "cornrows"):
+        assert name in service.AVATAR_PARTS["hair"]

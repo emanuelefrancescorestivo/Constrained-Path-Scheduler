@@ -3430,7 +3430,12 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 .av-hair { fill: var(--av-hair); }
 .av-hair-deep { fill: var(--av-brow); }
 .av-stubble { opacity: 0.32; }
-.av-sheen { fill: #fff; opacity: 0.18; }
+/* D150's parts: lashes, a nose ring, dimples, lipstick, cornrows' rows. */
+.av-lash { fill: none; stroke: #3a2418; stroke-width: 1.2; stroke-linecap: round; }
+.av-ring { fill: none; stroke: #c9a227; stroke-width: 1.2; }
+.av-dimple { fill: none; stroke: var(--av-deep); stroke-width: 1.1; stroke-linecap: round; opacity: 0.7; }
+.av-lips { fill: #c4575a; }
+.av-rows { fill: none; stroke: var(--av-brow); stroke-width: 1.4; stroke-linecap: round; }
 .av-light { fill: #fff; opacity: 0.14; }
 .av-blush { fill: #f29a8a; opacity: 0.3; }
 .av-top { fill: var(--av-top); }
@@ -4432,6 +4437,28 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 .av-maker:has(#av-bg-b4:checked) .av-preview { --av-bg: #cfe6ff; }
 .av-maker:has(#av-bg-b5:checked) .av-preview { --av-bg: #f3e6c4; }
 .av-maker:has(#av-bg-b6:checked) .av-preview { --av-bg: #3c4356; }
+.av-maker:has(#av-hair-fade:checked) .hs-fade,
+.av-maker:has(#av-hair-mullet:checked) .hs-mullet,
+.av-maker:has(#av-hair-curtains:checked) .hs-curtains,
+.av-maker:has(#av-hair-crop:checked) .hs-crop,
+.av-maker:has(#av-hair-wolf:checked) .hs-wolf,
+.av-maker:has(#av-hair-locs:checked) .hs-locs,
+.av-maker:has(#av-hair-spacebuns:checked) .hs-spacebuns,
+.av-maker:has(#av-hair-pixie:checked) .hs-pixie,
+.av-maker:has(#av-hair-cornrows:checked) .hs-cornrows,
+.av-maker:has(#av-eyes-lashes:checked) .ey-lashes,
+.av-maker:has(#av-eyes-sleepy:checked) .ey-sleepy,
+.av-maker:has(#av-brows-slit:checked) .br-slit,
+.av-maker:has(#av-mouth-smirk:checked) .mo-smirk,
+.av-maker:has(#av-mouth-lips:checked) .mo-lips,
+.av-maker:has(#av-head-bandana:checked) .hd-bandana,
+.av-maker:has(#av-head-bucket:checked) .hd-bucket,
+.av-maker:has(#av-head-headband:checked) .hd-headband,
+.av-maker:has(#av-detail-nosering:checked) .dt-nosering,
+.av-maker:has(#av-detail-studs:checked) .dt-studs,
+.av-maker:has(#av-detail-dimples:checked) .dt-dimples,
+.av-maker:has(#av-outfit-jacket:checked) .ot-jacket,
+.av-maker:has(#av-outfit-turtleneck:checked) .ot-turtleneck,
 .av-maker:has(#av-hair-bald:checked) .hs-bald,
 .av-maker:has(#av-hair-afro:checked) .hs-afro,
 .av-maker:has(#av-hair-bob:checked) .hs-bob,
@@ -4793,7 +4820,9 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
   fill: color-mix(in srgb, var(--av-top) 78%, #fffdf9); filter: none; stroke: var(--av-ink); stroke-width: 2; stroke-linejoin: round;
 }
 .av .av-shirt { stroke: var(--av-ink); stroke-width: 1.8; }
-.av :is(.av-light, .av-sheen) { display: none; }
+.av .av-light { display: none; }
+.av :is(.av-lash, .av-rows) { stroke: var(--av-ink); }
+.av .av-lips { stroke: var(--av-ink); stroke-width: 1.6; stroke-linejoin: round; }
 .av .av-blush { opacity: 0.16; }
 .av .av-eye { fill: var(--av-ink); }
 .av :is(.av-eye-arc, .av-brow, .av-mouth, .av-line, .av-collar, .av-rib) { stroke: var(--av-ink); }

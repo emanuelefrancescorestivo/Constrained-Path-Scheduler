@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- More avatar (DECISIONS.md D150): a fade, a mullet, curtains, a French crop, a wolf cut, locs,
+  space buns, a pixie and cornrows; lashes, sleepy eyes, a slit brow, a smirk, lipstick; a nose
+  ring, ear studs, dimples; a bandana, a bucket hat, a headband; a jacket and a turtleneck. The
+  line that showed through the hair on the maker is gone, and the swept cut sits lower.
+
 - A tidier layout (DECISIONS.md D149), from the owner's screenshots. On a laptop the top bar is the
   sidebar's head, so pages start at the top; the calendar loses the tip line above its grid;
   Today's widgets fill the space under shorter ones. Fixed: a class under way drawn over the next
