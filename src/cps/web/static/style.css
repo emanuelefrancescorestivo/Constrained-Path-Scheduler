@@ -5160,3 +5160,44 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .pill-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 .course-choice { display: grid; gap: 8px; }
 /* -- end of D159 */
+
+/* -- D160: each tip's picture, and shorter cards ------------------------------------------
+   A drawing of what the advice asks on a soft tile, and under it the study's number where
+   it gives one; beside them the label, the advice and its evidence; limits, the app and the
+   sources in a fold. Two cards to a row from 900px; on a phone the tile sits beside the
+   advice, smaller. */
+.tip-topic { display: grid; gap: 12px; align-items: start; }
+@media (min-width: 900px) {
+  main.site.tips-wide { max-width: 72rem; }
+  .tip-topic { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.tip-topic > .tip { margin: 0; }
+.tip { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; align-items: start; }
+.tip-body { min-width: 0; }
+.tip-body h3 { margin-top: 6px; }
+.tip-thumb {
+  margin: 0; display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px;
+  border-radius: 14px; background: var(--fill-3); color: var(--text);
+}
+.tip-art { width: 60px; height: 60px; display: block; }
+.tip-art .a { stroke: var(--accent); }
+.tip-art .f { fill: var(--accent); stroke: var(--accent); }
+.tip-art .w { stroke: var(--on-accent); }
+.tip-art .s { fill: var(--surface); }
+.tip-art .m { opacity: 0.45; }
+.tip-thumb figcaption {
+  font-size: 0.75rem; font-weight: 700; line-height: 1.2; text-align: center; color: var(--accent-ink);
+  font-variant-numeric: tabular-nums; text-wrap: balance;
+}
+.tip-more { margin-top: 2px; }
+.tip-more > summary {
+  cursor: pointer; list-style: none; font-size: 0.9rem; font-weight: 600; color: var(--accent-ink);
+  min-height: 32px; display: inline-flex; align-items: center;
+}
+.tip-more > summary::-webkit-details-marker { display: none; }
+.tip-more .tip-note:first-of-type { margin-top: 4px; }
+@media (max-width: 480px) {
+  .tip { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; }
+  .tip-art { width: 46px; height: 46px; }
+}
+/* -- end of D160 */

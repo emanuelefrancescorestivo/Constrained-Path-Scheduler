@@ -60,7 +60,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon, icons, sky
+from . import charts, forms, icon, icons, sky, thumbs
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -365,6 +365,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
     templates.env.globals["lucide"] = icons.icon
     templates.env.globals["other_course"] = forms.OTHER_COURSE  # the sheet's "Other…" (D159)
+    templates.env.globals["tip_art"] = thumbs.drawing  # each tip's picture (D160)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a

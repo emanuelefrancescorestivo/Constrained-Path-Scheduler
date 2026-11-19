@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A picture for each study tip (DECISIONS.md D160): a small drawing of what the advice asks, with
+  the study's number under it where it gives one ("138 studies"); the limits and sources fold
+  under each tip, and a topic's tips sit two to a row on a laptop.
+
 - The new-task sheet's own day and time (DECISIONS.md D159): on a computer, the app's month and the
   usual times instead of the system's grey picker; the course is a list of your courses with
   "Other…" for any other.

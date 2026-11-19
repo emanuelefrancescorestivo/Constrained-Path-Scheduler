@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% from "_art.html" import art %}
+{# D160: a topic's tips two to a row on a laptop, on a wider page. #}
+{% block site_class %}{% if view.topic %} tips-wide{% endif %}{% endblock %}
 {% block title %}{% if view.topic %}{{ view.name }} · {% endif %}{{ _("Study tips") }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 {# Each topic's picture (D99). #}
@@ -23,17 +25,27 @@
   {% for t in view.topics %}<a href="/p/{{ token }}/tips?topic={{ t.key }}"{% if t.current %} aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}
 </nav>
 
+{# D160: each tip with its picture, a drawing of what the advice asks, and under it the
+   study's number where it gives one (the owner's choice, 2026-11-19: "a mix of A and B,
+   especially B"); the advice and its evidence first, the limits, the app and the sources
+   in a fold under them, which opens without a script. Two to a row on a laptop. #}
 <section class="section tip-topic" id="topic-{{ view.topic }}" aria-label="{{ view.name }}">
   {% for tip in view.tips %}
   <article class="card tip" id="tip-{{ tip.key }}">
-    <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
-    <h3>{{ tip.advice }}</h3>
-    <p>{{ tip.why }}</p>
-    <p class="tip-note"><b>{{ _("Limits") }}</b> {{ tip.limits }}</p>
-    {% if tip.in_app %}<p class="tip-note tip-app"><b>{{ _("In this app") }}</b> {{ tip.in_app }}</p>{% endif %}
-    <ul class="tip-sources" aria-label="{{ _('Sources') }}">
-      {% for s in tip.sources %}<li><a href="{{ s.url }}" rel="noopener noreferrer" target="_blank">{{ s.cite }}</a>, <i>{{ s.venue }}</i> <span class="muted">· {{ _("read on {day}", day=s.checked) }}</span></li>{% endfor %}
-    </ul>
+    <figure class="tip-thumb">{{ tip_art(tip.key) }}{% if tip.figure %}<figcaption>{{ tip.figure }}</figcaption>{% endif %}</figure>
+    <div class="tip-body">
+      <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
+      <h3>{{ tip.advice }}</h3>
+      <p>{{ tip.why }}</p>
+      <details class="tip-more">
+        <summary>{% if tip.in_app %}{{ _("Limits, in this app, sources") }}{% else %}{{ _("Limits and sources") }}{% endif %}</summary>
+        <p class="tip-note"><b>{{ _("Limits") }}</b> {{ tip.limits }}</p>
+        {% if tip.in_app %}<p class="tip-note tip-app"><b>{{ _("In this app") }}</b> {{ tip.in_app }}</p>{% endif %}
+        <ul class="tip-sources" aria-label="{{ _('Sources') }}">
+          {% for s in tip.sources %}<li><a href="{{ s.url }}" rel="noopener noreferrer" target="_blank">{{ s.cite }}</a>, <i>{{ s.venue }}</i> <span class="muted">· {{ _("read on {day}", day=s.checked) }}</span></li>{% endfor %}
+        </ul>
+      </details>
+    </div>
   </article>
   {% endfor %}
 </section>

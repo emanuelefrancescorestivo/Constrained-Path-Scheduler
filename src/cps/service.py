@@ -9664,10 +9664,34 @@ def post_explanation(
 # Tips with their sources (DECISIONS.md D62)
 
 
+# The words under a tip's picture (D160), by the unit of its figure (`tips.FIGURES`).
+FIGURE_WORDS = {
+    "studies": ("{n} study", "{n} studies"),
+    "experiments": ("{n} experiment", "{n} experiments"),
+    "trials": ("{n} trial", "{n} trials"),
+    "tests": ("{n} test", "{n} tests"),
+    "people": ("{n} person", "{n} people"),
+    "students": ("{n} student", "{n} students"),
+}
+
+
+def tip_figure(key: str) -> str:
+    """The number under a tip's picture (D160), in the page's language: "138 studies",
+    "18 to 254 days"; "" for a tip whose study gives no one number."""
+    figure = _tips.FIGURES.get(key)
+    if figure is None:
+        return ""
+    if len(figure) == 3:
+        return _("{low} to {high} days", low=figure[1], high=figure[2])
+    one, many = FIGURE_WORDS[figure[0]]
+    return _n(one, many, figure[1])
+
+
 def _tip(tip: _tips.Tip) -> dict:
     label, meaning = _tips.STRENGTHS[tip.strength]
     return {
         "key": tip.key,
+        "figure": tip_figure(tip.key),
         "topic": tip.topic,
         "strength": tip.strength,
         "strength_label": _(label),

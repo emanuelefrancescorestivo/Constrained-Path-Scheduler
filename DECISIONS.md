@@ -6319,3 +6319,32 @@ Chips of every course instead of a list: seven long names took three rows of the
 **Disclosed.** The month and the times were checked in Chromium only, at 1280px dark and phone size
 light. The rule that hides the field's own button is WebKit's and Chromium's; Firefox and Safari
 were not tried, and may show their own button beside the app's. The times are a choice.
+
+## D160. A picture for each study tip, and shorter tip cards
+
+**Asked.** The owner, on 2026-11-19, of the tips page: "let's start working on the thumbnails for
+the studies like i mentioned earlier, make proposals" (the streamlining with icons and figures
+deferred earlier). Of three options (A, the study's own number drawn; B, a small scene of the
+advice; C, the source at a glance), the owner chose "a mix of A and B, especially B".
+
+**Chosen.** Each of the 26 tips has a picture on a soft tile beside it: a line drawing of what the
+advice asks (a checklist ticked off, a calendar with a clock and a place, days in a row with one
+missed, a cup with steam and a clock…), in the weight of the app's icons (D139), the accent on the
+part that matters (`web/thumbs.py`, drawn inline by the server, classes only). Under the drawing,
+A's part: the study's number where its text gives one, "138 studies", "94 tests", "18 to 254
+days", in the page's language (`tips.FIGURES`, `service.tip_figure`). Fourteen tips have one.
+Eleven do not because their text gives no count (a review, a laboratory study, a study in cells);
+the mindset tip gives two meta-analyses, which one number would misrepresent.
+
+The card is shorter: the label, the advice and its evidence stay in view; the limits, what the app
+does about it and the sources fold under "Limits, in this app, sources", which opens without a
+script. On a laptop the topic's page is wider (72rem) and its tips two to a row.
+
+**Rejected.** Pictures from a stock set: none says what each tip asks. C's source cards: the owner
+chose A and B. Shortening the evidence itself: each line was written under the tips' rules (D62),
+and a shorter version would need the same review in three languages.
+
+**Disclosed.** The drawings are a matter of taste, and a drawing can only suggest the advice; the
+words carry it. Every number under a picture is checked against its tip's own text
+(`tests/test_tip_pictures.py`). Folding the limits puts them one tap away, where before they were
+read with the rest. Checked in Chromium only, at 1440px light and dark and at phone size.

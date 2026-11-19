@@ -3388,4 +3388,18 @@ MESSAGES: dict[str, str] = {
     "No course": "Aucun cours",
     "Other…": "Autre…",
     "Choose the day and the time": "Choisir le jour et l'heure",
+    # D160: the tips' pictures and their numbers
+    "{n} study": "{n} étude",
+    "{n} studies": "{n} études",
+    "{n} experiment": "{n} expérience",
+    "{n} experiments": "{n} expériences",
+    "{n} trial": "{n} essai",
+    "{n} trials": "{n} essais",
+    "{n} test": "{n} test",
+    "{n} tests": "{n} tests",
+    "{n} student": "{n} étudiant",
+    "{n} students": "{n} étudiants",
+    "{low} to {high} days": "{low} à {high} jours",
+    "Limits, in this app, sources": "Limites, dans l'appli, sources",
+    "Limits and sources": "Limites et sources",
 }
