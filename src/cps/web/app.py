@@ -1746,7 +1746,9 @@ def create_app(config: Config | None = None) -> FastAPI:
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
 
     @app.get("/p/{token}/log", response_class=HTMLResponse)
-    def log_form(request: Request, token: str) -> HTMLResponse:
+    def log_form(request: Request, token: str, sid: str = "") -> HTMLResponse:
+        """The diary's form: the session just timed, or (D158) a session of the plan,
+        shared from the calendar to prove it."""
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -1754,7 +1756,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "log.html",
             token=token,
-            draft=service.log_draft(subscription, config.clock()),
+            draft=service.log_draft(subscription, config.clock(), sid=sid[:32]),
+            proof_points=service.POINTS_PROOF,
             # The session's opening question, answered now (D128).
             question=service.opener_view(store, subscription, service.log_draft(subscription).get("opener")),
             profile=service.profile_of(store, token),
@@ -1799,13 +1802,17 @@ def create_app(config: Config | None = None) -> FastAPI:
 
             service.update_subscription(store, token, change)
         except service.ServiceError as error:
-            draft = {**service.log_draft(subscription, config.clock()), **fields}
+            draft = {
+                **service.log_draft(subscription, config.clock(), sid=fields.get("sid", "")[:32]),
+                **fields,
+            }
             return page(
                 request,
                 "log.html",
                 400,
                 token=token,
                 draft=draft,
+                proof_points=service.POINTS_PROOF,
                 question=service.opener_view(store, subscription, draft.get("opener")),
                 profile=service.profile_of(store, token),
                 share=service.share_default(subscription),
@@ -3501,7 +3508,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             return JSONResponse({"message": "no such plan"}, 404)
         try:
             first, count = days_shown(start, days)
-            view = service.calendar_view(subscription, first, count, config.clock())
+            view = service.calendar_view(
+                subscription, first, count, config.clock(), service.proof_posts(store, token)
+            )
         except service.ServiceError as error:
             return JSONResponse(error.to_dict(), 400)
         return JSONResponse({**view, "sun": _sun_colours(view["sun"])})
@@ -3530,7 +3539,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
             if fresh is None:
                 return JSONResponse({"message": "no such plan"}, 404)
-            view = service.calendar_view(fresh, first, count, config.clock())
+            view = service.calendar_view(
+                fresh, first, count, config.clock(), service.proof_posts(store, token)
+            )
         except ValueError:  # the body is not JSON
             return JSONResponse({"message": "not a list of busy times"}, 400)
         except service.ServiceError as error:
@@ -3563,7 +3574,9 @@ def create_app(config: Config | None = None) -> FastAPI:
             fresh = service.update_subscription(store, token, lambda current: change(current, body))
             if fresh is None:
                 return JSONResponse({"message": "no such plan"}, 404)
-            view = service.calendar_view(fresh, first, count, config.clock())
+            view = service.calendar_view(
+                fresh, first, count, config.clock(), service.proof_posts(store, token)
+            )
         except ValueError:
             return JSONResponse({"message": "not a change to a session"}, 400)
         except service.ServiceError as error:

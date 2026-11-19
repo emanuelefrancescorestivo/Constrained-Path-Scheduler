@@ -4878,13 +4878,87 @@ def course_names(subscription: Subscription) -> list[str]:
     return [name for name, _ in course_colours(PlanReport.from_dict(subscription.plan), drawn)]
 
 
+# --------------------------------------------------------------------------- #
+# Points and proof of work (D158)
+# --------------------------------------------------------------------------- #
+
+# A study session's points (the owner, 2026-11-19: "how many points it will give you if you
+# do it ... and you get those points if you post what you did and your peers validate it like
+# a proof of work, on top of an inherent bonus for completing it (because a lazy student could
+# simply say they studied even if they have not)"). Doing it, on the student's word: 10. Its
+# proof, a post saying or showing what was done that another student vouched for: 20 more.
+POINTS_DONE = 10
+POINTS_PROOF = 20
+# The answers that say a session happened; "skipped" does not (D25, D44).
+DONE_REPORTS = frozenset({"done", "struggled", "forgot", "some", "most", "all"})
+
+
+def proof_posts(store: str | os.PathLike, token: str) -> list[dict]:
+    """The student's session posts that prove a session (D158): each says what was done (a
+    note or a line for anyone) or shows it (a photo), and at least one other student vouched
+    for it, someone blocked either way not counted. Each as its session's id (a session
+    timed with Focus, or shared from the calendar), its day and its course."""
+    where = _store(store)
+    posts = [
+        p
+        for p in social.posts_of(where, token, "session")
+        if not p.hidden
+        and (
+            str(p.data.get("simple") or "").strip()
+            or str(p.data.get("note") or "").strip()
+            or p.data.get("photos")
+        )
+    ]
+    vouched = social.checks_of(where, [p.id for p in posts], token)
+    return [
+        {"sid": str(p.data.get("sid") or ""), "day": p.day, "course": str(p.data.get("course") or "")}
+        for p in posts
+        if vouched.get(p.id, (0, False))[0] > 0
+    ]
+
+
+def session_points(
+    items: Sequence[dict], outcomes: Mapping[str, str], proofs: Sequence[dict]
+) -> dict[str, dict]:
+    """Each study session's points (D158), by its id: what it can give (`possible`), what it
+    gave (`earned`) and why (`state`: "to do", "done", "proven", "skipped"). A proof names its
+    session, or, logged without one, the first session of its day and course not yet proven."""
+    by_id = {p["sid"] for p in proofs if p["sid"]}
+    loose = [(p["day"], p["course"].casefold()) for p in proofs if not p["sid"]]
+    out: dict[str, dict] = {}
+    for item in sorted(items, key=lambda x: x["at"]):
+        sid = item["id"]
+        proven = sid in by_id
+        key = (item["at"][:10], str(item.get("course") or "").casefold())
+        if not proven and key in loose:
+            loose.remove(key)
+            proven = True
+        report = outcomes.get(sid)
+        if proven:
+            state, earned = "proven", POINTS_DONE + POINTS_PROOF
+        elif report in DONE_REPORTS:
+            state, earned = "done", POINTS_DONE
+        elif report == "skipped":
+            state, earned = "skipped", 0
+        else:
+            state, earned = "to do", 0
+        out[sid] = {"possible": POINTS_DONE + POINTS_PROOF, "earned": earned, "state": state}
+    return out
+
+
 def calendar_view(
-    subscription: Subscription, first: date | None = None, count: int = 7, now: datetime | None = None
+    subscription: Subscription,
+    first: date | None = None,
+    count: int = 7,
+    now: datetime | None = None,
+    proofs: Sequence[dict] = (),
 ) -> dict:
     """What the calendar page draws: `count` days from `first` (today by default)
     with the timetable, exams and study sessions (done and to come) as items, and
     the student's own busy times as editable activities, in the shape the week
-    calendar widget takes. Works before there is a plan, from the timetable alone."""
+    calendar widget takes. Works before there is a plan, from the timetable alone.
+    Each study session carries its points and each day their sum (D158), from the
+    student's reports and `proofs` (`proof_posts`)."""
     options = subscription.options
     zone = _zone(options["tz"])
     first = first or (now or datetime.now(UTC)).astimezone(zone).date()
@@ -4937,8 +5011,19 @@ def calendar_view(
             item["done"] = _local(item["until"], zone) <= moment
             item["reported"] = subscription.outcomes.get(item["id"])
             item["movable"] = not started and item["id"] in upcoming
+    studies = [item for item in week["items"] if item["kind"] == "study"]
+    points = session_points(studies, subscription.outcomes, proofs)
+    for item in studies:
+        item["points"] = points[item["id"]]
+    for index, day in enumerate(week["days"]):
+        mine = [points[item["id"]] for item in studies if item["day"] == index]
+        day["points"] = {
+            "earned": sum(p["earned"] for p in mine),
+            "possible": sum(p["possible"] for p in mine),
+        }
     return {
         **week,
+        "points_rule": {"done": POINTS_DONE, "proof": POINTS_PROOF},
         "now": {"date": moment.date().isoformat(), "minute": moment.hour * 60 + moment.minute},
         "legend": [{"course": name, "color": index} for name, index in legend],
         "activities": [
@@ -7520,12 +7605,14 @@ def _focus_rewards(goal: int, focused: int) -> list[dict]:
     return rewards
 
 
-def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
-    """The log form's starting values: the session just timed, or an empty one."""
+def log_draft(subscription: Subscription, now: datetime | None = None, sid: str = "") -> dict:
+    """The log form's starting values: the session just timed; or a session of the plan
+    that has started, shared from the calendar to prove it (D158), its course, length and
+    day; or an empty one."""
     draft = subscription.options.get("focus_draft")
     if draft:
         return {**draft}
-    return {
+    empty = {
         "course": "",
         "sid": "",
         "minutes": 60,
@@ -7535,6 +7622,14 @@ def log_draft(subscription: Subscription, now: datetime | None = None) -> dict:
         "interruptions": 0,
         "goal": 0,
     }
+    found = find_session(subscription, sid) if sid else None
+    if found is not None:
+        zone = _zone(subscription.options["tz"])
+        start, end = _local(found.start, zone), _local(found.end, zone)
+        if start <= (now or datetime.now(UTC)).astimezone(zone):
+            minutes = max(1, round((end - start).total_seconds() / 60))
+            empty.update(course=found.subject, sid=sid, minutes=minutes, day=start.date().isoformat())
+    return empty
 
 
 def _sharing(store: str | os.PathLike, token: str, chosen: str | None, default: str) -> str:
@@ -7564,7 +7659,8 @@ def log_session(
     from the plan reports that session done."""
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
-    draft = log_draft(subscription, now)
+    # A session of the plan shared from the calendar (D158) names itself in the form.
+    draft = log_draft(subscription, now, sid=str(form.get("sid") or "")[:32])
     minutes = str(form.get("minutes") or draft["minutes"])
     timed = draft["timed"] and minutes == str(draft["minutes"])
     data = {
@@ -7588,6 +7684,8 @@ def log_session(
     day = (
         datetime.fromisoformat(draft["started"]).astimezone(zone).date()
         if draft.get("started")
+        else date.fromisoformat(draft["day"])
+        if draft.get("day")
         else now.astimezone(zone).date()
     )
     try:
@@ -7990,7 +8088,9 @@ def _cards(
     reactions = social.reactions_of(store, [p.id for p in posts if p.kind == "session"], viewer)
     comments = social.comment_counts(store, [p.id for p in posts])
     checked = [p.id for p in posts if p.kind in social.CHECKED]  # peer checks (D141)
-    checks = social.checks_of(store, checked, viewer)
+    # A session that says or shows what was done is vouched for (D158), with the same mark.
+    vouched = [p.id for p in posts if p.kind in social.VOUCHED and social.says_what_was_done(p)]
+    checks = social.checks_of(store, checked + vouched, viewer)
     fixes = social.fixes_of(store, checked)
     tops = social.top_notes(store, _month_start(now)) if any(p.kind == "notes" for p in posts) else {}
     authors: dict[str, dict | None] = {}

@@ -5100,3 +5100,24 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
   .board-bar [data-go] { order: 2; }
 }
 /* -- end of D157's calendar */
+
+/* -- D158: points and proof of work ------------------------------------------------------
+   Under each day's name, how much of it is done: the points its sessions gave against what
+   they can give, a slim bar in the accent (C's bar of D157, made a progress at the owner's
+   word). Beside a session's time, what doing it gives, then what it gave; in its popover,
+   why, and the way to share it for a classmate to vouch for. */
+.cal-day { position: relative; }
+.cal-day-pts {
+  position: absolute; left: 50%; bottom: 3px; width: 44px; height: 3px; margin-left: -22px;
+  border-radius: 3px; background: var(--fill-2); overflow: hidden;
+}
+.cal-day-pts i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+/* The time stays whole; in a narrow column the points go under it rather than be cut. */
+.ev .t { white-space: normal; }
+.ev .t .tm, .ev .t .pts { display: inline-block; white-space: nowrap; }
+.ev .t .pts { font-weight: 650; }
+.pop-points { margin: 10px 0 2px; padding: 10px 12px; border-radius: 10px; background: var(--fill-4); }
+.pop-points .label { margin: 0; font-weight: 650; }
+.pop-points .hint { margin: 2px 0 8px; }
+.pop-points .hint:last-child { margin-bottom: 0; }
+/* -- end of D158 */

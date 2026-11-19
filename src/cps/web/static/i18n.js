@@ -20,6 +20,13 @@ const FR = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Semaine {n}",
   "Courses shown": "Cours affichés",
+  // D158: points and proof of work
+  "{earned} of {possible} points": "{earned} sur {possible} points",
+  "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} points pour l'avoir faite, {proof} de plus dès qu'une personne de ta classe confirme ce que tu en partages.",
+  "Done: {done} points. Share what you did: {proof} more once a classmate vouches for it.": "Faite : {done} points. Partage ce que tu as fait : {proof} de plus dès qu'une personne de ta classe le confirme.",
+  "Done, and a classmate vouched for what you shared.": "Faite, et une personne de ta classe a confirmé ce que tu as partagé.",
+  "Skipped: no points.": "Sautée : aucun point.",
+  "Share what you did": "Partager ce que tu as fait",
   "On the calendar": "Dans le calendrier",
   "Busy": "Occupé",
   "Moved. It stays there; the rest of the plan has made room.": "Déplacée. Elle reste là ; le reste du plan s'est adapté.",
@@ -147,6 +154,13 @@ const IT = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Settimana {n}",
   "Courses shown": "Corsi mostrati",
+  // D158: points and proof of work
+  "{earned} of {possible} points": "{earned} su {possible} punti",
+  "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} punti per averla fatta, {proof} in più quando una persona del tuo corso conferma ciò che ne condividi.",
+  "Done: {done} points. Share what you did: {proof} more once a classmate vouches for it.": "Fatta: {done} punti. Condividi ciò che hai fatto: {proof} in più quando una persona del tuo corso lo conferma.",
+  "Done, and a classmate vouched for what you shared.": "Fatta, e una persona del tuo corso ha confermato ciò che hai condiviso.",
+  "Skipped: no points.": "Saltata: nessun punto.",
+  "Share what you did": "Condividi ciò che hai fatto",
   "On the calendar": "Nel calendario",
   "Busy": "Occupato",
   "Moved. It stays there; the rest of the plan has made room.": "Spostata. Resta lì; il resto del piano ha fatto spazio.",

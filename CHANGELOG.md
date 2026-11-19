@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Points and proof of work (DECISIONS.md D158): a study session gives 10 points for doing it and
+  20 more once a classmate vouches for a post that says or shows what you did. Under each day on
+  the calendar a bar fills with its points; "Share what you did" opens the diary on that session;
+  a session post that says what was done has a Vouch button. Points are yours alone.
+
 - A cleaner calendar (DECISIONS.md D157): the month and the week's number over one menu for the
   days shown; days as "Thu 19"; each title first in its course's colour, with a mark for its kind;
   what is over faded; the courses as switches, in the sidebar on a laptop; and beside the hours a

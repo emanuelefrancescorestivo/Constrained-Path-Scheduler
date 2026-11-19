@@ -1105,9 +1105,22 @@ class Comment:
 
 
 # Peer checks (D141): a reader of an explanation or of notes says "It's right" with one
-# tap, or suggests a fix, a comment its author may accept. A session is not checked: it
-# says what someone did, not what is true.
+# tap, or suggests a fix, a comment its author may accept. A session is vouched for
+# instead (D158): a reader who saw what it says or shows was done believes it happened,
+# its proof of work, worth points to its author. Both are the same mark, in `checks`.
 CHECKED = ("explain", "notes")
+VOUCHED = ("session",)
+
+
+def says_what_was_done(post: Post) -> bool:
+    """Whether a session post can be vouched for (D158): it says what was done, in its
+    note or its line for anyone, or shows it, in a photo. Minutes alone prove nothing."""
+    data = post.data
+    return bool(
+        str(data.get("simple") or "").strip() or str(data.get("note") or "").strip() or data.get("photos")
+    )
+
+
 COMMENT_KINDS = ("comment", "fix")
 
 
@@ -1185,10 +1198,12 @@ def delete_comment(store: Store, token: str, comment_id: str) -> bool:
 
 
 def toggle_check(store: Store, token: str, post: Post, now: datetime | None = None) -> bool:
-    """Say an explanation or notes are right, or take it back; True if said (D141).
-    One per person per post; not one's own."""
-    if post.kind not in CHECKED:
+    """Say an explanation or notes are right, or vouch for a session (D158), or take it
+    back; True if said (D141). One per person per post; not one's own."""
+    if post.kind not in CHECKED + VOUCHED:
         raise SocialError(_("explanations and notes are checked; a session is not"))
+    if post.kind in VOUCHED and not says_what_was_done(post):
+        raise SocialError(_("a session is vouched for when its post says or shows what was done"))
     if not may_see(store, token, post):
         raise SocialError(_("this post is not, or no longer, visible to you"))
     if get_profile(store, token) is None:

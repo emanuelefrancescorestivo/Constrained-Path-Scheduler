@@ -6246,3 +6246,47 @@ and lists the courses already.
 city (D76). The kinds' marks are a choice; a session's kind is still said in full in its popover.
 The courses hidden are kept on the device only. Checked in Chromium only, at 1440 × 900, 1280 ×
 800 and phone size, light and dark.
+
+## D158. Points for a session, and its proof of work
+
+**Asked.** The owner, on 2026-11-19, of option C's bar under each day (D157): "more in a
+progression way like how much you got done in the day and how many points it will give you if
+you do it (like a study session, and you get those points if you post what you did and your
+peers validate it like a proof of work, on top of an inherent bonus for completing it (because a
+lazy student could simply say they studied even if they have not))".
+
+**Chosen.** Each study session of the plan is worth points:
+
+- 10 for doing it, on the student's word: any answer but Skipped (D25's recall answers
+  included, "Nothing" too: the session happened);
+- 20 more for its proof: a session post that says what was done (its note, or its line for
+  anyone) or shows it (a photo), vouched for by at least one other student. A post logged from
+  the session (timed with Focus, or shared from the calendar) names it; one logged by hand goes to
+  the first session of its day and course not yet proven. A proven session counts as done for
+  its points.
+
+Vouching is D141's mark on a new kind of post: a reader who can see the post (its followers or
+everyone, as it was shared) taps Vouch, "I believe this session happened: my word is its proof",
+and can take it back; not on one's own posts, not without a handle, not on a post that says or
+shows nothing (minutes alone prove nothing), and someone blocked either way is not counted. The
+author sees "Vouched for by 1 classmate". The points are the student's own: no one else sees them,
+and there is no ranking.
+
+On the calendar, under each day's name, a slim bar fills with the points the day's sessions gave
+against what they can give; beside each session's time, "+10" while it is to do, then what it
+gave. Its popover says why and offers "Share what you did", which opens the diary's form on that
+session (its course, its length, its day): saving it reports the session done, and posts it.
+
+**Rejected.** Points for minutes: the plan sets a session's length, and a longer one is no more
+proof. Points without a report: D44 counts an unreported session as done for the plan, but points
+ask for the student's word. A proof from any reaction (D108): a reaction says "nice", not "I
+believe it". Two vouches: a first class of the pilot may have few classmates on the app. A public
+score or a ranking: the stakes (D128) and the study network (D16) are about the work, not about
+beating others; a ranking invites collusion and shame.
+
+**Disclosed.** A vouch is a classmate's word, not a check: two friends can vouch for each other's
+sessions that never happened, and a post's words or photo can be borrowed. It raises the cost of
+claiming a session, it does not prove it. The 10 and 20 are choices, not measured; whether points
+bring more sessions, or more honest reports, is for the pilot. A post logged by hand on a day
+without a session of its course proves nothing. Checked in Chromium only, at 1440 × 900 and phone
+size, light and dark.

@@ -3376,4 +3376,12 @@ MESSAGES: dict[str, str] = {
     "Amber": "Ambre",
     "Rose": "Rose",
     "Violet": "Violet",
+    # D158: points and proof of work
+    "a session is vouched for when its post says or shows what was done": "une séance se confirme quand sa publication dit ou montre ce qui a été fait",
+    "Vouched for by {n} classmate": "Confirmée par {n} camarade",
+    "Vouched for by {n} classmates": "Confirmée par {n} camarades",
+    "Not vouched for yet": "Pas encore confirmée",
+    "I believe this session happened: my word is its proof": "Je crois que cette séance a eu lieu : ma parole en est la preuve",
+    "Vouch": "Je confirme",
+    "Say or show what you did, and share it with your followers or everyone: once a classmate vouches for it, this session earns {n} more points.": "Dis ou montre ce que tu as fait, et partage-le avec tes abonnés ou avec tout le monde : dès qu'une personne de ta classe le confirme, cette séance rapporte {n} points de plus.",
 }

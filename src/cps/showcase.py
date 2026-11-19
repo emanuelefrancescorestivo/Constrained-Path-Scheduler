@@ -195,6 +195,14 @@ def page_png(rng: random.Random, width: int = 480, height: int = 640) -> bytes:
 # The store
 # --------------------------------------------------------------------------- #
 
+# What a classmate's session says was done, every other one (D158: what can be vouched
+# for); chosen by the session's place in turn, so the seeded draws stay as they were.
+DONE_LINES = (
+    "Exercises 1 to 6 of the sheet; stuck on the fifth.",
+    "Went through the lecture again and rewrote the two proofs.",
+    "One past paper, timed, then marked against the solutions.",
+    "Read the chapter and wrote a one-page summary.",
+)
 SIMPLE = (
     "A matrix can stretch some directions without turning them; those are its eigenvectors.",
     "A p-value is how surprising the data would be if nothing were going on.",
@@ -281,7 +289,7 @@ def _logged(
     rate: float = 0.45,
 ) -> tuple[service.Subscription, list[social.Post]]:
     """Sessions logged on about `rate` of the days, shared as `share` says."""
-    posts = []
+    posts: list[social.Post] = []
     day, end = days
     while day < end:
         if rng.random() < rate:
@@ -292,6 +300,7 @@ def _logged(
                 "progress": str(rng.randint(2, 5)),
                 "minutes": str(rng.choice([40, 50, 60, 90, 120])),
                 "visibility": rng.choice(share),
+                "note": DONE_LINES[len(posts) // 2 % len(DONE_LINES)] if len(posts) % 2 == 0 else "",
             }
             sub, post = service.log_session(where, sub, form, now=_at(day, rng.randint(8, 18)))
             posts.append(post)
@@ -575,6 +584,17 @@ def add_student(
         social.mark_present(Store(where), people[other], course, started, started + timedelta(minutes=70))
     if shared:
         service.add_comment(where, people["marco"], shared[0].id, "Nice one. Same sheet tomorrow for me.")
+    # Proof of work (D158): two of their sessions that say what was done, vouched for, on
+    # days the plan had a session of their course, so the calendar shows them proven.
+    latest = service.load_subscription(where, you.token)
+    plan = latest.plan if latest is not None else None
+    planned = (
+        {(x.start[:10], x.subject) for x in service.PlanReport.from_dict(plan).history} if plan else set()
+    )
+    said = [p for p in shared if social.says_what_was_done(p)]
+    for post in sorted(said, key=lambda p: (p.day, str(p.data.get("course"))) not in planned)[:2]:
+        with contextlib.suppress(service.InvalidInput):
+            service.toggle_check(where, people["marco"], post.id, now=now - timedelta(hours=2))
 
     # A study group of their own, four weeks old, with three teammates who keep their
     # sessions to themselves; its goal is what the group usually does, so some weeks

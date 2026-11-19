@@ -398,7 +398,8 @@ export class Calendar {
       head.append(
         h("div", {
           class: `cal-day${day.date === data.now.date ? " today" : ""}${day.in_horizon ? "" : " out"}${weekend ? " weekend" : ""}`,
-        }, h("span", { class: "cal-day-in" }, h("span", { class: "wd" }, wd), " ", h("span", { class: "dn" }, dn))),
+        }, h("span", { class: "cal-day-in" }, h("span", { class: "wd" }, wd), " ", h("span", { class: "dn" }, dn)),
+        this.dayPoints(day.points)),
       );
     });
 
@@ -506,6 +507,16 @@ export class Calendar {
     }
     this.announce(shown);
     if (before) this.slide(before);
+  }
+
+  // How much of the day is done (D158), C's bar under the day's name: the points its
+  // sessions gave against what they can give; none on a day without sessions.
+  dayPoints(points) {
+    if (!points || !points.possible) return null;
+    const said = t("{earned} of {possible} points", points);
+    const fill = h("i");
+    fill.style.width = `${Math.round((100 * points.earned) / points.possible)}%`;
+    return h("span", { class: `cal-day-pts${points.earned ? " has" : ""}`, role: "img", "aria-label": said, title: said }, fill);
   }
 
   // -- a month (DECISIONS.md D79) ---------------------------------------------------
@@ -688,14 +699,15 @@ export class Calendar {
       "data-full": label,
       "data-short": short || null,
       "data-key": box.kind === "study" ? `${box.session_kind || ""}|${box.title || label}` : null,
-      "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) }),
+      "aria-label": t("{label}, {day}, {start} to {end}", { label, day: this.data.days[d].label, start: toClock(box.start), end: toClock(box.end) })
+        + (box.points ? `, ${t("{earned} of {possible} points", box.points)}` : ""),
     },
     // D157: the title first, the time under it, smaller; D59 to D156 had the time first.
     h("span", {
       class: "l",
       "data-glyph": box.kind === "study" ? (DONE.includes(box.reported) ? "✓" : GLYPHS[box.session_kind] || null) : null,
     }, label),
-    h("span", { class: "t" }, span));
+    h("span", { class: "t" }, h("span", { class: "tm" }, span), this.pointsMark(box.points)));
     node.style.top = `${(from - this.top) * PX}px`;
     node.style.height = `${Math.max(tall - 2, 16)}px`;
     node.style.left = `calc(${(100 * box.lane) / box.lanes}% + 2px)`;
@@ -736,6 +748,13 @@ export class Calendar {
       this.drag(event, node, box, d, open);
     });
     return node;
+  }
+
+  // A session's points beside its time (D158): what doing it gives, then what it gave.
+  pointsMark(points) {
+    if (!points || points.state === "skipped") return null;
+    const text = points.state === "to do" ? `+${this.data.points_rule.done}` : String(points.earned);
+    return h("span", { class: `pts is-${points.state.replace(" ", "-")}` }, " · ", text);
   }
 
   kindLabel(kind) {
@@ -1066,6 +1085,7 @@ export class Calendar {
       box.detail ? h("p", {}, box.detail) : null,
       box.why ? h("p", { class: "hint" }, box.why) : null,
     ];
+    if (box.points) parts.push(this.pointsPart(box));
     if (box.started) {
       const recall = SELF_TESTS.includes(box.session_kind);
       parts.push(h("hr"), h("p", { class: "label" }, recall ? t("How much could you recall, without your notes?") : t("How did it go?")),
@@ -1100,6 +1120,24 @@ export class Calendar {
     }
     parts.push(h("p", { class: "hint" }, h("a", { href: `/s/${this.token}/${box.id}` }, t("Open this session's page"))));
     this.openPop(anchor, parts, box.label);
+  }
+
+  // What a session gives (D158): points for doing it, on the student's word, and more
+  // once a classmate vouches for a post that says or shows what was done.
+  pointsPart(box) {
+    const p = box.points;
+    const rule = this.data.points_rule;
+    const lines = {
+      "to do": t("{done} points for doing it, {proof} more once a classmate vouches for what you share of it.", rule),
+      done: t("Done: {done} points. Share what you did: {proof} more once a classmate vouches for it.", rule),
+      proven: t("Done, and a classmate vouched for what you shared."),
+      skipped: t("Skipped: no points."),
+    };
+    const share = box.started && (p.state === "to do" || p.state === "done");
+    return h("div", { class: "pop-points" },
+      h("p", { class: "label" }, t("{earned} of {possible} points", p)),
+      h("p", { class: "hint" }, lines[p.state]),
+      share ? h("a", { class: "btn btn-sm btn-tinted", href: `/p/${this.token}/log?sid=${encodeURIComponent(box.id)}` }, t("Share what you did")) : null);
   }
 
   activityForm(row, d, isNew, anchor) {
