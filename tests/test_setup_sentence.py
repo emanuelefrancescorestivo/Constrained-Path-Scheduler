@@ -259,9 +259,9 @@ def test_every_time_of_day_gets_the_apps_own_clock():
     fields = [
         tag
         for path in templates.glob("*.html")
-        for tag in re.findall(r'<input[^>]*type="time"[^>]*>', path.read_text())
+        for tag in re.findall(r'<input[^>]*type="time"[^>]*>', path.read_text(encoding="utf-8"))
     ]
     assert len(fields) >= 10 and all("data-clock" in tag for tag in fields)
-    ui = (ROOT / "src" / "cps" / "web" / "static" / "ui.js").read_text()
+    ui = (ROOT / "src" / "cps" / "web" / "static" / "ui.js").read_text(encoding="utf-8")
     assert 'querySelectorAll("input[data-clock]")' in ui and '"(pointer: fine)"' in ui
     assert 'for (const mm of ["00", "15", "30", "45"])' in ui

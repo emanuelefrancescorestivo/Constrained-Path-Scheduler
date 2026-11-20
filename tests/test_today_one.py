@@ -93,7 +93,7 @@ def test_today_is_one_band_one_button_and_the_day_across(tmp_path):
 
 
 def test_the_css_places_every_percent():
-    css = (ROOT / "src/cps/web/static/style.css").read_text()
+    css = (ROOT / "src/cps/web/static/style.css").read_text(encoding="utf-8")
     assert all(f".dl-x{i}{{left:{i}%}}" in css for i in range(101))
     assert all(f".dl-w{i}{{width:{i}%}}" in css for i in range(1, 101))
 
