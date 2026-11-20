@@ -95,3 +95,27 @@ def test_each_widget_is_turned_on_or_off_and_the_five_come_back(web, tmp_path):
     keys = re.findall(r'name="widget" value="(\w+)"', back.group(1))
     web.post(f"/p/{sub.token}/today/edit", data={"widget": keys})
     assert service.today_widgets(service.load_subscription(tmp_path, sub.token)) == service.TODAY_START
+
+
+def test_each_switch_shows_its_widgets_picture_and_saves_itself(web, tmp_path):
+    """D165 (the owner, 2026-11-20: "icons here too? our absolute most important pillar is
+    frictionless and ease of use"): every row has its widget's picture, the one Today's head
+    shows, no two alike; with the script a switch saves as it is flipped."""
+    from cps.web import icons
+
+    pictures = service.TODAY_PICTURES
+    assert set(pictures) == {k for k, _n, _l in service.TODAY_WIDGETS}
+    assert len(set(pictures.values())) == len(pictures) and set(pictures.values()) <= set(icons.ART)
+    sub = _plan(tmp_path)
+    page = unescape(web.get(f"/p/{sub.token}/today/edit").text)
+    rows = re.findall(r'<label class="widget-row" for="w-([a-z]+)">\s*<span class="art art-([a-z]+)"', page)
+    assert dict(rows) == pictures
+    assert re.search(r'<form method="post" action="/p/[^"]+/today/edit" data-autosave>', page)
+    assert 'data-saved role="status" hidden' in page
+    # Today's heads show the same pictures: Up next a target, On your mind the notebook.
+    panel = (Path(__file__).resolve().parent.parent / "src/cps/web/templates/_panel.html").read_text()
+    assert 'head(_("Up next"), "target"' in panel and 'art("summary", "xs") }}<h2 id="mind-title">' in panel
+    for picture in pictures.values():
+        assert f'"{picture}"' in panel, picture
+    ui = (Path(__file__).resolve().parent.parent / "src/cps/web/static/ui.js").read_text()
+    assert 'closest("form[data-autosave]")' in ui and 'redirect: "manual"' in ui

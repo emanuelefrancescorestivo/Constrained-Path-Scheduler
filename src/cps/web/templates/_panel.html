@@ -72,19 +72,19 @@
 {% if "next" in shown %}
 <section class="w w-next section next-step" data-tour="next">
 {% if view.now %}
-{{ head(_("Now"), "focus") }}
+{{ head(_("Now"), "target") }}
 {% with card=view.now, show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
 {% elif view.done %}
 {# Done for today (D125): every session planned today reported, at least one kept.
    The win is stopping; the next session is named, and nothing asks for more. #}
-{{ head(_("Done for today"), "focus") }}
+{{ head(_("Done for today"), "target") }}
 <div class="card done-today">
   <p class="done-line"><b>{{ _n("{n} session kept", "{n} sessions kept", view.done.kept) }}</b>{% if view.done.added %} · <b>{{ _n("+{n} memory day", "+{n} memory days", view.done.added) }}</b>{% endif %}</p>
   <p class="muted">{{ _("That is today's plan. The next session adds more than a second pass tonight would.") }}</p>
   {% if view.next %}<p class="done-next">{{ _("Next: {when}, {what}.", when=view.next[0].when, what=view.next[0].label) }}</p>{% endif %}
 </div>
 {% elif view.next %}
-{{ head(_("Up next"), "focus", "/p/" ~ token ~ "/focus", _("Focus")) }}
+{{ head(_("Up next"), "target", "/p/" ~ token ~ "/focus", _("Focus")) }}
 {% with card=view.next[0], show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
 {% else %}
 <div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
@@ -291,7 +291,7 @@
    "Close the day" asks for tomorrow's first three (Scullin et al., 2018). #}
 {% if mind %}
 <section class="w w-mind" aria-labelledby="mind-title" data-tour="mind">
-  <div class="w-head">{{ art("tasks", "xs") }}<h2 id="mind-title">{{ _("On your mind") }}</h2>{% if mind.tip %}<a class="w-link" href="/p/{{ token }}/tips?topic={{ mind.tip.topic }}#tip-{{ mind.tip.key }}">{{ _("Why") }} ›</a>{% endif %}</div>
+  <div class="w-head">{{ art("summary", "xs") }}<h2 id="mind-title">{{ _("On your mind") }}</h2>{% if mind.tip %}<a class="w-link" href="/p/{{ token }}/tips?topic={{ mind.tip.topic }}#tip-{{ mind.tip.key }}">{{ _("Why") }} ›</a>{% endif %}</div>
   <div class="card">
     {% if mind.close %}
     <form method="post" action="/p/{{ token }}/mind/close" class="close-day" data-async data-quiet>

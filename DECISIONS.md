@@ -6489,3 +6489,33 @@ days" over the last days), so it has its own band.
 checked against its tip's advice, not with students. The number's band makes a cover with a
 number about 28px taller than one without. Checked in Chromium only, at phone size and two laptop
 sizes, light and dark, with the default accent and amber.
+
+## D165. Edit Today: each switch with its picture, and saved as it is flipped
+
+**Asked.** The owner, on 2026-11-20, with a screenshot of Edit Today: "icons here too? our
+absolute most important pillar is frictionless and ease of use for the app anywhere we can".
+
+**Chosen.** Each row of Edit Today shows the picture its widget's head shows on Today, on the
+same soft tile as You's rows (D139), so a switch and the widget it turns on look alike
+(`service.TODAY_PICTURES`, in `today_widgets_view`). Two heads shared a picture with another
+widget, so they changed on Today too: Up next is a target (it was the stopwatch, Focus's) and On
+your mind a page with a pencil (it was the list, Tasks'); no two widgets now look alike.
+
+Each switch is saved the moment it is flipped (`data-autosave`, `ui.js`): the form is sent in the
+background, "Saved." says so under the list, and a failure says "That did not work. Try again."
+Saves are sent one after another, so the last flip is the one kept. Done stays and goes back to
+Today; without a script it is still what saves the page.
+
+The owner's pillar is written in CLAUDE.md's conventions, so that it weighs on every slice: fewer
+steps, nothing to confirm that need not be.
+
+**Rejected.** Pictures of their own for the switches: a switch then looks like nothing on Today,
+and the student has to learn two pictures for one thing. Saving the whole page on Done only, as
+D155 did: a student who flips a switch and leaves with the back arrow or the tab bar lost the
+change. A toast for each save: a flip is small, and a toast over the page for each would be
+louder than the change; one quiet line is enough.
+
+**Disclosed.** A student who flips switches and leaves before the answer comes back may lose the
+last flip; the line says "Saved." only once the server has answered. Checked in Chromium only, at
+phone size (dark, French) and 1280px (light): a switch flipped, the page reloaded, the switch as
+left.

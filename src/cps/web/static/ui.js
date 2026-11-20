@@ -7,6 +7,9 @@
 // - Ticking a task off says so at once, and offers to undo.
 // - The new-task sheet gets one-tap due dates, and the N key opens it.
 // - A "cps:changed" event tells the plan screen to redraw its calendar.
+// - Forms marked data-autosave keep each change as it is made (D165): a switch flipped
+//   is sent at once, in the background, one after another so the last one wins, and a
+//   line says it is saved. Their button still sends them, and does without this script.
 //
 // Layout and input only: what a change means is decided by the server.
 
@@ -71,6 +74,31 @@ async function send(form, submitter, data = new FormData(form, submitter)) {
   const notice = page.querySelector(".notice-ok");
   return { ok: response.ok, message: response.ok ? notice && notice.textContent.trim() : alert && alert.textContent.trim() };
 }
+
+const saving = new WeakMap();
+document.addEventListener("change", (event) => {
+  const form = event.target.closest("form[data-autosave]");
+  if (!form) return;
+  const said = form.querySelector("[data-saved]");
+  const save = async () => {
+    try {
+      // The server answers a saved form with a redirect, which is not followed here.
+      const answer = await fetch(form.action, {
+        method: "POST",
+        body: new URLSearchParams(new FormData(form)),
+        redirect: "manual",
+      });
+      if (answer.type !== "opaqueredirect" && !answer.ok) throw new Error(String(answer.status));
+      if (said) {
+        said.textContent = t("Saved.");
+        said.hidden = false;
+      }
+    } catch {
+      toast(t("That did not work. Try again."), { bad: true });
+    }
+  };
+  saving.set(form, (saving.get(form) || Promise.resolve()).then(save));
+});
 
 document.addEventListener("submit", async (event) => {
   const form = event.target.closest("form[data-async]");

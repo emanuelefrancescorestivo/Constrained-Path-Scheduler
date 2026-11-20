@@ -5,19 +5,22 @@
 {# D155: Today's widgets, each on or off, as a phone's home screen (the owner's choice
    2-B). Five are on to start; the order stays the page's, most urgent first. What asks
    for an answer is always shown, so it is not on this list. #}
+{# D165: each row with its widget's picture, the one Today shows; with the script, a
+   switch saves itself as it is flipped (data-autosave) and Done only goes back. #}
 <p class="back"><a href="/p/{{ token }}">{{ _("Today") }}</a></p>
 <div class="page-title"><h1>{{ _("Edit Today") }}</h1></div>
 <p class="muted">{{ _("Choose what Today shows. What needs an answer from you, like how a session went, always shows.") }}</p>
 {% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
-<form method="post" action="/p/{{ token }}/today/edit">
+<form method="post" action="/p/{{ token }}/today/edit" data-autosave>
   <ul class="card list widget-list">
     {% for w in widgets %}
     <li><label class="widget-row" for="w-{{ w.key }}">
-      <span class="grow"><b>{{ w.name }}</b><small>{{ w.line }}</small></span>
+      {{ art(w.picture) }}<span class="grow"><b>{{ w.name }}</b><small>{{ w.line }}</small></span>
       <input type="checkbox" id="w-{{ w.key }}" name="widget" value="{{ w.key }}"{% if w.on %} checked{% endif %}>
     </label></li>
     {% endfor %}
   </ul>
+  <p class="hint saved-line" data-saved role="status" hidden></p>
   <p class="hint">{{ _("Everything stays a tap away in the sections, whatever Today shows.") }}</p>
   <div class="sticky-actions"><button type="submit" class="btn btn-primary btn-block">{{ _("Done") }}</button></div>
 </form>
