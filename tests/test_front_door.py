@@ -86,6 +86,7 @@ def test_the_feeds_first_line_does_not_ask_a_member_to_choose_a_handle(web):
     first = unescape(web.get(f"/p/{member}/community").text)
     assert "Choose a handle to join your classmates. Each post" not in first
     assert "What your classmates studied, explained and shared." not in first
-    plan = service.load_subscription(web.root, newcomer)
+    # A section's line waits for the first run to reach Today (D170).
+    plan = service.first_run_at(service.load_subscription(web.root, newcomer), "today")
     assert service.section_hint(plan, "community", joined=False).startswith("Choose a handle")
     assert service.section_hint(plan, "community", joined=True).startswith("What your classmates")
