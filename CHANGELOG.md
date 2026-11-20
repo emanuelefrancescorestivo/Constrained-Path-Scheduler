@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Focus as one sentence (DECISIONS.md D169): "I test myself on *Algebra 3* for *1 h 30*", the course
+  and the length tapped to change, one button to start; under it what staying earns, today's
+  minutes and the streak, the tip as one row.
+
 - Fractions and limits from LaTeX notes (DECISIONS.md D166): cards made from a LaTeX PDF keep
   fractions as fractions (inline, displayed, one inside another), a limit under its lim, big
   parentheses, and words spaced by the page's own gaps; a map's colon no longer makes a card

@@ -31,6 +31,7 @@ ART: dict[str, str] = {
     "tasks": "list-checks",
     "focus": "timer",
     "tips": "lightbulb",
+    "place": "map-pin",  # D169: the study map's row on Focus
     "science": "flask-conical",
     "garden": "sprout",
     "code": "code",

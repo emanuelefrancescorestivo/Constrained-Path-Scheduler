@@ -783,7 +783,13 @@ details.inline > summary::before { content: none; }
   .pick:has(.pill:nth-child(5) > input:checked) .pick-now > span:nth-child(5),
   .pick:has(.pill:nth-child(6) > input:checked) .pick-now > span:nth-child(6),
   .pick:has(.pill:nth-child(7) > input:checked) .pick-now > span:nth-child(7),
-  .pick:has(.pill:nth-child(8) > input:checked) .pick-now > span:nth-child(8) { display: inline; }
+  .pick:has(.pill:nth-child(8) > input:checked) .pick-now > span:nth-child(8),
+  .pick:has(.pill:nth-child(9) > input:checked) .pick-now > span:nth-child(9),
+  .pick:has(.pill:nth-child(10) > input:checked) .pick-now > span:nth-child(10),
+  .pick:has(.pill:nth-child(11) > input:checked) .pick-now > span:nth-child(11),
+  .pick:has(.pill:nth-child(12) > input:checked) .pick-now > span:nth-child(12),
+  .pick:has(.pill:nth-child(13) > input:checked) .pick-now > span:nth-child(13),
+  .pick:has(.pill:nth-child(14) > input:checked) .pick-now > span:nth-child(14) { display: inline; }
 }
 .busy-chip { display: inline-block; margin: 0 4px 4px 0; padding: 2px 10px; border-radius: 999px; background: var(--fill-2);
   font-size: 0.95rem; line-height: 1.6; }
@@ -1109,6 +1115,55 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .grade-good { background: var(--accent-soft); color: var(--accent-ink); }
 .grade-easy { background: var(--ok-soft); color: var(--ok); }
 .cards-link { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none !important; }
+/* D169: Focus as one sentence (the owner's B). The course and the length are words to tap;
+   "Other…" opens a field; under the button, what staying earns for the length chosen (each
+   length's list is in the page, the chosen one shown through :has), today, the tip as a row. */
+.focus-start { display: grid; gap: 14px; }
+.focus-start .kicker { margin: 0; }
+.focus-sentence { margin: 0; font-size: 1.35rem; font-weight: 700; line-height: 1.45; letter-spacing: -0.01em; text-wrap: pretty; }
+.focus-sentence .pick-panel { font-size: 0.95rem; font-weight: 500; letter-spacing: 0; }
+.focus-other { margin: 0; display: none; }
+.focus-start:has(input[name="course_pick"][value="__other__"]:checked) .focus-other { display: block; }
+@supports not selector(:has(*)) { .focus-other { display: block; } }
+.focus-start .stakes { margin: 0; }
+.focus-ahead-wrap { display: grid; gap: 8px; }
+.focus-ahead-wrap .tile-label { margin: 0; }
+.focus-ahead { list-style: none; margin: 0; padding: 0; display: none; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; }
+.focus-ahead.is-default { display: grid; }
+@supports selector(:has(*)) {
+  .focus-ahead.is-default { display: none; }
+  main:has(input[name="goal"][value="25"]:checked) .focus-ahead.g25 { display: grid; }
+  main:has(input[name="goal"][value="45"]:checked) .focus-ahead.g45 { display: grid; }
+  main:has(input[name="goal"][value="60"]:checked) .focus-ahead.g60 { display: grid; }
+  main:has(input[name="goal"][value="90"]:checked) .focus-ahead.g90 { display: grid; }
+  main:has(input[name="goal"][value="120"]:checked) .focus-ahead.g120 { display: grid; }
+  main:has(input[name="goal"][value="180"]:checked) .focus-ahead.g180 { display: grid; }
+  main:has(input[name="goal"][value="0"]:checked) .focus-ahead.g0 { display: grid; }
+}
+.focus-ahead > li, .focus-ahead > li.card + li.card { margin: 0; padding: 12px 8px; display: grid; justify-items: center; gap: 2px; text-align: center; }
+.focus-ahead .ahead-mark { color: var(--t-amber); font-size: 0.95rem; letter-spacing: 0.1em; }
+.focus-ahead .is-goal .ahead-mark { color: var(--ok); }
+.focus-ahead b { font-size: 1.05rem; }
+.focus-ahead small { color: var(--muted); font-size: 0.8rem; }
+.focus-today { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.focus-today > .card, .focus-today > .card + .card { margin: 0; padding: 12px 14px; display: grid; gap: 2px; }
+.focus-today b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.focus-today small { color: var(--muted); }
+.why-row > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text); font-weight: 400; }
+.why-row > summary::-webkit-details-marker { display: none; }
+.why-row > summary::before { content: none; }
+.why-row > summary::after { content: none; }
+.why-row > summary .chev { margin-left: auto; flex: none; color: var(--muted); font-size: 1.2rem; transition: transform 0.15s; }
+.why-row[open] > summary .chev { transform: rotate(90deg); }
+.why-row .mascot { width: 40px; height: 40px; flex: none; }
+.why-row .mascot-words { margin: 0; display: grid; gap: 2px; min-width: 0; }
+.why-row .mascot-words b { font-weight: 600; line-height: 1.35; }
+.why-row .mascot-words > .tip-reason { color: var(--muted); font-size: 0.85rem; font-weight: 500; }
+.why-row .why-strength-line { margin: 10px 0 0; }
+.focus-more li { align-items: center; }
+.focus-more a.grow { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none !important; min-width: 0; }
+.focus-more small { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .why-row > summary .chev { transition: none; } }
 .cards-link span { color: var(--muted); font-size: 0.9rem; }
 /* Cards from a course's materials (D101). */
 .materials-head { display: flex; align-items: center; gap: 12px; }
@@ -1191,6 +1246,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art-tasks { --hue: var(--t-orange); }
 .art-focus { --hue: var(--t-blue); }
 .art-tips { --hue: var(--t-amber); }
+.art-place { --hue: var(--t-red); }
 .art-science { --hue: var(--t-pink); }
 .art-code { --hue: var(--t-indigo); }
 .art-garden { --hue: var(--t-green); }

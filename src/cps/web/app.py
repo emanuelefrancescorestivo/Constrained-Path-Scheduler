@@ -1507,6 +1507,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, subscription, (subscription.options.get("focus") or {}).get("opener")
             ),
             cards_due=service.cards_due(store, subscription, config.clock()),
+            # D169: today's minutes and the streak, under the sentence.
+            day=None if running else service.focus_day(store, subscription, config.clock()),
             tip=service.focus_tip(subscription),
             # While the timer runs: who the student follows is studying too (D108).
             alongside=service.studying_now_view(store, subscription, config.clock())
@@ -1624,9 +1626,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         def change(current: service.Subscription, form: Any) -> service.Subscription:
             sid = str(form.get("sid") or "") or None
             goal = service.focus_goal(form.get("goal"))
+            course = str(form.get("course") or "")
+            # D169: the sentence's course: the plan's session, another course, or one typed.
+            pick = str(form.get("course_pick") or "")
+            if pick and pick != "plan":
+                sid = None  # another course than the plan's session is a session of its own
+                course = str(form.get("course_other") or "") if pick == "__other__" else pick
             return service.start_focus(
                 current,
-                str(form.get("course") or ""),
+                course,
                 sid=sid,
                 goal=goal,
                 repair=str(form.get("repair") or "") or None,

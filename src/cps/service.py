@@ -7852,8 +7852,65 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
                 # The length offered first: the one nearest the session's own.
                 "goal": min(FOCUS_GOALS, key=lambda g: (abs(g - length), g)),
                 "stakes": card.get("stakes"),
+                # D169: what the sentence names, the task's title or the course.
+                "course": (session.title if session.kind == "task" else session.subject)
+                if session is not None
+                else card["title"],
             }
+    if not focus:
+        # D169: the sentence's choices (the plan's session first), and for each length the
+        # rewards staying earns, as the page shows them before the timer starts.
+        view["goal"] = view["suggested"]["goal"] if view["suggested"] else view["goal"]
+        kind = view["suggested"]["kind"] if view["suggested"] else ""
+        view["verb"] = _FOCUS_VERBS.get(kind, _FOCUS_VERBS[""])
+        view["ahead"] = {g["minutes"]: focus_ahead(g["minutes"]) for g in view["goals"]}
     return view
+
+
+# D169: the focus page's sentence, by the kind of the plan's session; `{course}` and
+# `{length}` are the student's to change with a tap.
+_FOCUS_VERBS = {
+    "review": "I test myself on {course} for {length}.",
+    "first review": "I test myself on {course} for {length}.",
+    "practice": "I practise exam questions in {course} for {length}.",
+    "task": "I work on {course} for {length}.",
+    "": "I study {course} for {length}.",
+}
+FOCUS_AHEAD_MOST = 3  # rewards shown ahead of a session: the first two and the last
+
+
+def focus_ahead(goal: int) -> list[dict]:
+    """The rewards a session of `goal` minutes earns if the student stays (D67), as the
+    focus page shows them before it starts (D169): at most three, the first two and the
+    goal (or, with no length, the ladder's first three)."""
+    points = reward_points(goal, goal or FOCUS_LADDER[2])
+    if len(points) > FOCUS_AHEAD_MOST:
+        points = [*points[: FOCUS_AHEAD_MOST - 1], points[-1]]
+    return [{"minutes": m, "label": duration_words(m), "goal": bool(goal) and m == goal} for m in points]
+
+
+def focus_day(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """What the student has done today, for the focus page (D169): the minutes studied
+    (sessions reported done and sessions logged) and the streak, as Progress counts it
+    (D8, D126). None without a plan."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    first = min([PlanReport.from_dict(subscription.plan).settings.start, *(x.start.date() for x in sessions)])
+    paused = _progress.pause_days(pauses_of(subscription.options.get("preferences", {})))
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, today, paused, repaired)
+    minutes = sum(x.minutes for x in sessions if x.confirmed and x.start.date() == today)
+    return {
+        "minutes": minutes,
+        "words": duration_words(minutes) if minutes else "",
+        "streak": run.current,
+        "today_done": run.today_done,
+    }
 
 
 def _focus_rewards(goal: int, focused: int) -> list[dict]:

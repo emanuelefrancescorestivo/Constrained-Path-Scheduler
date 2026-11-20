@@ -1100,7 +1100,7 @@ def test_a_focus_session_with_a_length_lists_its_rewards(web, planned, clock):
 
 def test_a_focus_session_is_timed_logged_and_kept_in_the_diary(web, planned, clock):
     page = unescape(web.get(f"/p/{planned}/focus").text)
-    assert "Start this session" in page or "Start the timer" in page
+    assert "Let's go" in page  # D169: one button under the sentence
     web.post(f"/p/{planned}/focus/start", data={"course": "Algebra 3"})
     running = _unversioned(unescape(web.get(f"/p/{planned}/focus").text))
     assert "Finish" in running and "/static/focus.js" in running and "Algebra 3" in running

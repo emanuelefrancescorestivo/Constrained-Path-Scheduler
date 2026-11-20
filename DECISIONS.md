@@ -6630,3 +6630,32 @@ below a row could still be read as a fraction. Roots, matrices and accents drawn
 overline's bar) are not read; a root's sign is named, not its extent. Relies on a module of pypdf
 that is not its public interface (tested with 6.21.4), with D151's reading behind it.
 
+## D169. Focus as one sentence
+
+**Asked.** The owner, on 2026-11-20: "the focus page is a bit ugly, any suggestions? i want it to
+be welcoming and empowering for a student". Of three proposals on a page of mock-ups (A, a ring
+and one gesture; B, the sentence the student chooses; C, the quiet room with others), the owner
+chose B: "i like B".
+
+**Chosen.** Before a session, Focus is one sentence the student writes by tapping its words, as
+setting up is (D154): "I test myself on *Advanced Statistics* for *1 h 30*." The verb follows the
+plan's session (a self-test, exam practice, a task, or plain study); the course is the plan's
+session's first, then the other courses, then "Other…", which opens a field; the length is one
+of the lengths offered (D67). One button, "Let's go", starts it; the session's stakes (D128) are
+under it. Choosing another course than the plan's starts a session of its own, not the plan's.
+Under the sentence: what staying earns for the length chosen (the first two rewards and the
+length, D67), each length's list in the page and the chosen one shown through CSS; today's
+minutes and the streak (as Progress counts them, `service.focus_day`); the tip for the session
+as one row, its research opening in place (`why_row`); and one list for the rest: a session
+logged by hand, the study map, the flashcards, the tips. Each word is a `<details>`, so the page
+works without a script.
+
+**Rejected.** A (the ring before the session): calmer, but the course and the length still
+needed a second control. C (the room with others): a page that shows an empty room to a student
+who follows nobody. Keeping "Or something else" as a second form: two ways to start, the
+confusion the owner's screenshot showed.
+
+**Disclosed.** The rewards shown are those of D67, unchanged; the verbs are the app's words for
+each kind of session. Checked in Chromium only, at phone size, dark and French; without `:has`
+the "Other…" field always shows and the default length's rewards stay shown.
+

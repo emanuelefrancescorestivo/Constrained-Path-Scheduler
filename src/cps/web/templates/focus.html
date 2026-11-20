@@ -64,43 +64,65 @@
   <form method="post" action="/p/{{ token }}/focus/cancel" class="focus-cancel"><button class="btn btn-sm btn-plain">{{ _("Stop without saving") }}</button></form>
 </section>
 {% else %}
+{# D169: the owner's B (2026-11-20, "i like B"): the session as one sentence the student
+   writes by tapping its words, the course and the length, as setting up does (D154); one
+   button to start; under it what staying earns, what today already holds, and the tip for
+   it as one row. Each word is a <details>: it opens without a script; the value shown
+   follows the choice through CSS (`:has`), and ui.js closes it once chosen. #}
+{% from "_why.html" import why_row with context %}
+{% macro pick(name, choices, current, label) -%}
+<details class="pick" name="focus"><summary><span class="visually-hidden">{{ label }}: </span><span class="pick-now">{% for value, words in choices %}<span{% if value | string == current | string %} class="is-saved"{% endif %}>{{ words }}</span>{% endfor %}</span></summary><span class="pick-panel pills" role="radiogroup" aria-label="{{ label }}">{% for value, words in choices %}<label class="pill"><input type="radio" name="{{ name }}" value="{{ value }}"{% if value | string == current | string %} checked{% endif %}><span>{{ words }}</span></label>{% endfor %}</span></details>
+{%- endmacro %}
+{% set sg = focus.suggested %}
+{% set courses = [] %}
+{% if sg %}{% set _x = courses.append(("plan", sg.course)) %}{% endif %}
+{% for c in focus.courses if not sg or c | lower != sg.course | lower %}{% set _x = courses.append((c, c)) %}{% endfor %}
+{% set _x = courses.append(("__other__", _("Other…"))) %}
+{% set course_now = courses[0][0] %}
+{% set goals = [] %}{% for g in focus.goals %}{% set _x = goals.append((g.minutes, g.label)) %}{% endfor %}
 <div class="page-title">
   <h1>{{ _("Focus") }}</h1>
-  <p>{{ _("Start the timer, study, then log what you did.") }}</p>
 </div>
-{% if focus.suggested %}
-<form method="post" action="/p/{{ token }}/focus/start" class="card start-planned" data-tour="focus-start">
-  <input type="hidden" name="sid" value="{{ focus.suggested.id }}">
+<form method="post" action="/p/{{ token }}/focus/start" class="card focus-start" data-tour="focus-start">
+  {% if sg %}<input type="hidden" name="sid" value="{{ sg.id }}">
+  <p class="kicker">{{ _("From your plan") }} · {{ sg.when }}</p>{% endif %}
   {% if place %}<input type="hidden" name="place" value="{{ place.id }}">{% endif %}
-  <p class="kicker">{{ _("From your plan") }} · {{ focus.suggested.when }}</p>
-  <h2>{{ focus.suggested.label }}</h2>
-  {% if focus.suggested.stakes %}<p class="stakes">{{ focus.suggested.stakes.words }}</p>{% endif %}
-  {{ lengths(focus.goals, focus.suggested.goal) }}
-  <button class="btn btn-primary btn-lg btn-block">{{ _("Start this session") }}</button>
-</form>
-{% endif %}
-{# D135: the tip for the session about to start, with its evidence folded. #}
-{% if why_tip %}{{ why(why_tip) }}{% endif %}
-<form method="post" action="/p/{{ token }}/focus/start" class="card section" data-tour="focus-start">
-  {% if place %}<input type="hidden" name="place" value="{{ place.id }}">{% endif %}
-  <label for="focus-course">{{ _("Or something else: what are you studying?") }}</label>
-  <input id="focus-course" name="course" list="focus-courses" required autocomplete="off" placeholder="{{ _('Course') }}">
+  <div class="focus-sentence">{{ _h(focus.verb,
+    course=pick("course_pick", courses, course_now, _("Course")),
+    length=pick("goal", goals, focus.goal, _("How long?"))) }}</div>
+  <p class="focus-other"><label for="focus-course-other" class="visually-hidden">{{ _("What are you studying?") }}</label><input id="focus-course-other" name="course_other" list="focus-courses" autocomplete="off" maxlength="80" placeholder="{{ _('What are you studying?') }}"></p>
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
-  {{ lengths(focus.goals, focus.goal) }}
-  <p><button class="btn btn-tinted btn-block">{{ _("Start the timer") }}</button></p>
-  <p class="hint">{{ _("Rewards come at 30 minutes, at an hour, then every 45 minutes, and when you reach your length; only for time on this page.") }}</p>
+  <button class="btn btn-primary btn-lg btn-block focus-go">{{ _("Let's go") }}</button>
+  {% if sg and sg.stakes %}<p class="stakes">{{ sg.stakes.words }}</p>{% endif %}
 </form>
-{# The study map (D133): the place chosen there comes with the session started here. #}
-<p class="section hint focus-where">{% if place %}{{ _("At {place}", place=place.name) }} · <a href="/p/{{ token }}/focus">{{ _("no place") }}</a>{% else %}<a href="/p/{{ token }}/map">{{ _("Studying somewhere? Choose the place on the map") }}</a>{% endif %}</p>
-<p class="section hint" data-tour="focus-log"><a href="/p/{{ token }}/log">{{ _("Log a session you did without the timer") }}</a></p>
-{# The same pictures as under You (D99). #}
-<a class="card link-card cards-link with-art" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}" data-tour="focus-cards">
-  {{ art("cards") }}<span class="grow"><b>{{ _("Flashcards") }}</b>
-  <span>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Write your own; each comes back just before you would forget it.") }}{% endif %}</span></span>
-</a>
-<a class="card link-card cards-link with-art" href="/p/{{ token }}/tips">
-  {{ art("tips") }}<span class="grow"><b>{{ _("Study tips") }}</b>
-  <span>{{ _("What research says about studying well, with its sources.") }}</span></span>
-</a>
+
+<section class="section focus-ahead-wrap" aria-labelledby="ahead-title">
+  <h2 class="tile-label" id="ahead-title">{{ _("What you earn by staying") }}</h2>
+  {% for g in focus.goals %}
+  <ol class="focus-ahead g{{ g.minutes }}{% if g.minutes == focus.goal %} is-default{% endif %}">
+    {% for a in focus.ahead[g.minutes] %}<li class="card{% if a.goal %} is-goal{% endif %}"><span class="ahead-mark" aria-hidden="true">{% if a.goal %}⚑{% else %}{{ "✦" * loop.index }}{% endif %}</span><b>{{ a.label }}</b><small>{% if a.goal %}{{ _("your length") }}{% else %}{{ _("a reward") }}{% endif %}</small></li>{% endfor %}
+  </ol>
+  {% endfor %}
+</section>
+
+{% if day %}
+<section class="section focus-today" aria-label="{{ _('Today') }}">
+  <div class="card"><b>{% if day.minutes %}{{ day.words }}{% else %}0 min{% endif %}</b><small>{% if day.minutes %}{{ _("already today") }}{% else %}{{ _("first session of the day") }}{% endif %}</small></div>
+  <div class="card"><b>{{ day.streak }}</b><small>{{ _n("day in a row", "days in a row", day.streak) }}</small></div>
+</section>
+{% endif %}
+
+{# D135: the tip for the session about to start, one row; its research opens in place. #}
+{% if why_tip %}{{ why_row(why_tip) }}{% endif %}
+
+{# What else the page leads to, one list (D169): the study map (D133), a session logged
+   by hand, the flashcards, the tips. #}
+{% from "_art.html" import art %}
+<ul class="card list you-list focus-more section">
+  <li data-tour="focus-log"><a class="grow with-art" href="/p/{{ token }}/log">{{ art("summary") }}<span>{{ _("Log a session you did without the timer") }}</span></a></li>
+  <li class="focus-where">{% if place %}<a class="grow with-art" href="/p/{{ token }}/map?at={{ place.id }}">{{ art("place") }}<span>{{ _("At {place}", place=place.name) }}</span></a><a class="btn btn-sm btn-plain" href="/p/{{ token }}/focus">{{ _("no place") }}</a>{% else %}<a class="grow with-art" href="/p/{{ token }}/map">{{ art("place") }}<span>{{ _("Studying somewhere? Choose the place on the map") }}</span></a>{% endif %}</li>
+  <li data-tour="focus-cards"><a class="grow with-art" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">{{ art("cards") }}<span>{{ _("Flashcards") }}{% if cards_due %} · <small>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</small>{% endif %}</span></a></li>
+  <li><a class="grow with-art" href="/p/{{ token }}/tips">{{ art("tips") }}<span>{{ _("Study tips") }}</span></a></li>
+</ul>
 {% endif %}
 {% endblock %}
