@@ -10103,6 +10103,22 @@ TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
     ("friends", "Classmates", "Who is studying now, and what classmates shared."),
 )
 TODAY_START = ("next", "day", "focus", "tasks", "exams")
+# D165: each widget's picture, the one its head on Today shows (`web/icons.ART`'s names),
+# so a switch on Edit Today and its widget look alike; no two alike, to tell rows apart.
+TODAY_PICTURES = {
+    "next": "target",
+    "day": "calendar",
+    "focus": "focus",
+    "tasks": "tasks",
+    "exams": "cap",
+    "mind": "summary",
+    "time": "daytime",
+    "tips": "tips",
+    "work": "reading",
+    "week": "progress",
+    "cards": "cards",
+    "friends": "group",
+}
 
 
 def today_widgets(subscription: Subscription) -> tuple[str, ...]:
@@ -10130,7 +10146,14 @@ def today_widgets_view(subscription: Subscription) -> list[dict]:
     """Edit Today's list (D155): each widget, what it shows, and whether it is on."""
     shown = today_widgets(subscription)
     return [
-        {"key": key, "name": _(name), "line": _(line), "on": key in shown, "start": key in TODAY_START}
+        {
+            "key": key,
+            "name": _(name),
+            "line": _(line),
+            "on": key in shown,
+            "start": key in TODAY_START,
+            "picture": TODAY_PICTURES[key],
+        }
         for key, name, line in TODAY_WIDGETS
     ]
 

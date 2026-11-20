@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Edit Today, frictionless (DECISIONS.md D165): each switch shows the picture of its widget on
+  Today and is saved as soon as it is flipped, with "Saved." under the list; no need to tap
+  Done. Up next and On your mind have pictures of their own.
+
 - A cover for each tip (DECISIONS.md D164): every study tip opens with a small illustrated scene
   of what its advice asks, in your theme's colours, the study's number in a band under it; the
   text now runs the card's full width on a phone. The number no longer runs out of its picture
