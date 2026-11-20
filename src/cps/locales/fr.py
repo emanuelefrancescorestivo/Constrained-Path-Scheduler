@@ -3643,4 +3643,14 @@ MESSAGES: dict[str, str] = {
     "{n} answer with AI left today.": "{n} réponse avec l'IA restante aujourd'hui.",
     "{n} answers with AI left today.": "{n} réponses avec l'IA restantes aujourd'hui.",
     "{uses} of {most} used": "{uses} sur {most} utilisés",
+    # D177: the end of a session celebrated; Community on Today
+    "Choose a handle, follow them, and see who is studying now.": "Choisis un pseudo, suis-les, et vois qui étudie en ce moment.",
+    "Find classmates to follow: what they study and share shows here.": "Trouve des camarades à suivre : ce qu'ils étudient et partagent s'affiche ici.",
+    "Nobody you follow is studying right now": "Personne que tu suis n'étudie en ce moment",
+    "Session complete!": "Séance terminée !",
+    "Share what you did: once a classmate vouches for it, {n} more.": "Partage ce que tu as fait : dès qu'un camarade le confirme, {n} de plus.",
+    "Study alongside your classmates": "Étudie avec tes camarades",
+    "You reached your length: {time}.": "Tu as atteint ta durée : {time}.",
+    "You stayed with it the whole time.": "Concentration du début à la fin.",
+    "points": "points",
 }

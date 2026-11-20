@@ -5768,6 +5768,13 @@ def day_strip(subscription: Subscription, now: datetime | None = None) -> dict |
 CLASSMATES_POSTS = 2  # the newest posts of people followed on Today (D140)
 
 
+def community_way(store: str | os.PathLike, subscription: Subscription) -> str:
+    """D177: what Today's Community says when there is nothing to show yet: "handle" for a
+    student without one (Community starts with choosing it), else "quiet" (nobody followed
+    is studying or has shared lately)."""
+    return "quiet" if social.get_profile(_store(store), subscription.token) is not None else "handle"
+
+
 def classmates_glance(
     store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
 ) -> dict | None:
@@ -8116,6 +8123,35 @@ def focus_day(
     }
 
 
+def session_done_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """The end of a timed session, celebrated (D177, the owner: "quando finisci una sessione
+    non ti dà la celebrazione a modo di Duolingo"): what the timer measured, the streak with
+    today counted (the session counts once its log is saved, the button under it), whether
+    the length chosen was reached and whether the student stayed on the page throughout,
+    and the points a session of the plan gives (D158). Only what the timer and the plan
+    hold; the key makes the confetti fly once per session. None without a timed session."""
+    draft = subscription.options.get("focus_draft")
+    if not draft or not draft.get("timed"):
+        return None
+    day = focus_day(store, subscription, now)
+    minutes = int(draft.get("minutes") or 0)
+    goal = int(draft.get("goal") or 0)
+    streak = (day["streak"] + (0 if day["today_done"] else 1)) if day else 0
+    return {
+        "key": f"session-{draft.get('started', '')}",
+        "minutes": minutes,
+        "course": str(draft.get("course") or ""),
+        "streak": streak,
+        "streak_new": day is not None and not day["today_done"],
+        "goal": duration_words(goal) if goal and minutes >= goal else "",
+        "whole": bool(draft.get("checked")) and not int(draft.get("interruptions") or 0),
+        "points": POINTS_DONE if draft.get("sid") else 0,
+        "proof": POINTS_PROOF,
+    }
+
+
 def _focus_rewards(goal: int, focused: int) -> list[dict]:
     """The rewards a running session lists (D67): each at its focused second, with
     what the spark says when it comes; those reached, and the next, are shown."""
@@ -10348,8 +10384,12 @@ TIP_SETTINGS = ("on", "off")
 # control"). Five are on to start; the order is the page's own, most urgent first, so
 # nothing moves under a student's thumb. What asks for an answer (a session to report,
 # an answered self-test, the day's one message) is always shown: it is not a widget.
+# D177 (the owner, 2026-11-20: "la prima cosa che hai è il focus ... ci aggiungerei
+# immediatamente sotto la comunità, così ti incoraggia a studiare"): Community comes right
+# after the next step, and is on to start; seeing classmates study is the nudge.
 TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
     ("next", "Up next", "The session going on, or the next one, with Focus a tap away."),
+    ("friends", "Community", "Who is studying now, and what classmates shared."),
     ("day", "Today", "Your classes, sessions and busy times today."),
     ("focus", "Focus", "Time anything besides the plan's next session, in one tap."),
     ("tasks", "Tasks", "What is due next, and how far each has come."),
@@ -10360,11 +10400,10 @@ TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
     ("work", "Workspace", "Each course's links, and your learning platform."),
     ("week", "This week", "The week's sessions and your days in a row."),
     ("cards", "Flashcards", "The cards waiting for you today."),
-    ("friends", "Classmates", "Who is studying now, and what classmates shared."),
 )
 # D171 (the owner's A): the next step's band starts any session, so Focus gave way to On
 # your mind; a student who chose keeps their choice.
-TODAY_START = ("next", "day", "tasks", "exams", "mind")
+TODAY_START = ("next", "friends", "day", "tasks", "exams", "mind")
 # D165: each widget's picture, the one its head on Today shows (`web/icons.ART`'s names),
 # so a switch on Edit Today and its widget look alike; no two alike, to tell rows apart.
 TODAY_PICTURES = {
@@ -10384,8 +10423,8 @@ TODAY_PICTURES = {
 
 
 def today_widgets(subscription: Subscription) -> tuple[str, ...]:
-    """The widgets a student keeps on Today (D155), in the page's order; the five to start
-    until they choose."""
+    """The widgets a student keeps on Today (D155), in the page's order; the ones to start
+    (`TODAY_START`, six since D177) until they choose."""
     chosen = subscription.options.get("today_widgets")
     keys = [k for k, _name, _line in TODAY_WIDGETS]
     if not isinstance(chosen, list):

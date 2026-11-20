@@ -146,7 +146,8 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
         and '<section class="board"' not in today
         and 'id="calendar"' not in today
     )
-    widgets = ("next", "day", "tasks", "time", "tips", "week", "friends")  # D171: tasks after the day
+    # D171: tasks after the day; D177: Community right under the next step.
+    widgets = ("next", "friends", "day", "tasks", "time", "tips", "week")
     order = [today.index(f'class="w w-{name}') for name in widgets]
     assert order == sorted(order)  # the most urgent first, as a phone reads it
     for section in ("/week", "/progress", "/tasks", "/community", "/focus"):
