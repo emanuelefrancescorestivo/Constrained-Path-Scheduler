@@ -6459,3 +6459,33 @@ source, and a site that changed its pages or put Moodle behind another sign-in m
 differently. On the focus screen the materials open in another tab, which the focus clock counts
 as time away (D17), as any other tab: whether reading the course's own materials should count is
 the owner's to decide. Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D164. A cover for each tip
+
+**Asked.** The owner, on 2026-11-19, sent screenshots of the tips on their phone, "what i think
+should be done properly in terms of graphics and ideas for the thumbnails". Of three options
+("Finishing Choices", part 2: A, a cover strip with the drawing and the number; B, the number as
+the headline; C, illustrated covers), the owner chose C.
+
+**Chosen.** Each of the 26 tips has a small scene across the top of its card, of what its advice
+asks: a book faded beside a card asked and ticked (test yourself), a week of tiles with sessions
+spread and growing arcs between them (spacing), seven nights of the same sleep (keep it regular),
+a list with its last item drawn into a calendar's slot (write down what is left), a balance at
+rest (a mindset alone did little for grades), and so on (`web/covers.py`). The scenes are filled
+shapes in the theme's classes only, the accent the student chose (D156) and the card's surface, so
+they follow light, dark and every accent, and keep the Content-Security-Policy. A scene keeps its
+proportions, centred, at most 148px tall; where the card is wider, the accent's faint ground fills
+the sides. The text then runs the card's full width under it, two cards to a row on a laptop as
+before. A study's number, where the tip's text gives one (`tips.FIGURES`, D160), is the cover's
+caption in its own band under the scene: translated, never drawn in the picture, never over it.
+D160's line drawings and their 68px tile are gone (`web/thumbs.py`).
+
+**Rejected.** A, the strip with D160's drawings made larger: the owner chose C. B, the number
+alone: tips without a number would have kept almost no picture. The number laid over the scene's
+corner, as first built: it covered the drawing ("128 experiments" over the gift, "18 to 254
+days" over the last days), so it has its own band.
+
+**Disclosed.** The scenes are a matter of taste, drawn by hand in this repository; each was
+checked against its tip's advice, not with students. The number's band makes a cover with a
+number about 28px taller than one without. Checked in Chromium only, at phone size and two laptop
+sizes, light and dark, with the default accent and amber.

@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- A cover for each tip (DECISIONS.md D164): every study tip opens with a small illustrated scene
+  of what its advice asks, in your theme's colours, the study's number in a band under it; the
+  text now runs the card's full width on a phone. The number no longer runs out of its picture
+  (AUDIT 113).
+
 - Moodle within reach (DECISIONS.md D163): each course's page links to the course on Moodle,
   its materials, its assignments and your grades, once you paste its address (or "Find it on
   Moodle" searches for it); the focus screen shows the course's materials, and Moodle has its row

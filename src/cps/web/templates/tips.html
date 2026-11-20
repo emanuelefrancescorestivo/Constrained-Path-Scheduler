@@ -25,14 +25,15 @@
   {% for t in view.topics %}<a href="/p/{{ token }}/tips?topic={{ t.key }}"{% if t.current %} aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}
 </nav>
 
-{# D160: each tip with its picture, a drawing of what the advice asks, and under it the
-   study's number where it gives one (the owner's choice, 2026-11-19: "a mix of A and B,
-   especially B"); the advice and its evidence first, the limits, the app and the sources
-   in a fold under them, which opens without a script. Two to a row on a laptop. #}
+{# D164: each tip with its cover, a small scene of what the advice asks across the top of
+   its card, and on it the study's number where it gives one (the owner's "2C", 2026-11-19;
+   D160's tile beside the text left it a narrow column on a phone); then the advice and its
+   evidence, the limits, the app and the sources in a fold, which opens without a script.
+   Two to a row on a laptop. #}
 <section class="section tip-topic" id="topic-{{ view.topic }}" aria-label="{{ view.name }}">
   {% for tip in view.tips %}
   <article class="card tip" id="tip-{{ tip.key }}">
-    <figure class="tip-thumb">{{ tip_art(tip.key) }}{% if tip.figure %}<figcaption>{{ tip.figure }}</figcaption>{% endif %}</figure>
+    <figure class="tip-cover-wrap">{{ tip_cover(tip.key) }}{% if tip.figure %}<figcaption>{{ tip.figure }}</figcaption>{% endif %}</figure>
     <div class="tip-body">
       <span class="strength strength-{{ tip.strength }}">{{ tip.strength_label }}</span>
       <h3>{{ tip.advice }}</h3>
