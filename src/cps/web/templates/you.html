@@ -15,6 +15,9 @@
   <li><a href="/p/{{ token }}/progress">{{ art("progress") }}<span class="grow"><b>{{ _("Progress") }}</b><small>{{ _("Your week, your streak, how ready each exam is") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
   <li><a href="/p/{{ token }}/cards">{{ art("cards") }}<span class="grow"><b>{{ _("Flashcards") }}</b><small>{% if cards_due %}{{ _n("{n} card to review", "{n} cards to review", cards_due) }}{% else %}{{ _("Your own cards, each back just before you would forget it") }}{% endif %}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
   <li><a href="/p/{{ token }}/tasks">{{ art("tasks") }}<span class="grow"><b>{{ _("Tasks") }}</b><small>{{ _("Homework, reports, readings: what is due") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  {# D163: the student's Moodle, or where to link it. #}
+  {% if moodle %}<li><a href="{{ moodle.courses }}" rel="noopener noreferrer" target="_blank">{{ art("cap") }}<span class="grow"><b>{{ _("Moodle") }} ↗</b><small>{{ _("Your courses on {site}: materials, assignments, grades", site=moodle.host) }}</small></span></a></li>
+  {% else %}<li><a href="/p/{{ token }}/settings/exams#deadlines">{{ art("cap") }}<span class="grow"><b>{{ _("Moodle") }}</b><small>{{ _("Link your university's Moodle: its deadlines here, its courses one tap away") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>{% endif %}
   <li><a href="/p/{{ token }}/focus">{{ art("focus") }}<span class="grow"><b>{{ _("Focus and diary") }}</b><small>{{ _("Time a session, or write down one you did") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
 </ul>
 <h2 class="section">{{ _("Learning to learn") }}</h2>

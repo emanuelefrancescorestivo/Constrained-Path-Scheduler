@@ -1,9 +1,11 @@
 """
-D160: each study tip with a picture, a drawing of what its advice asks, and under it the
-study's number where it gives one (the owner, 2026-11-19: "a mix of A and B, especially
-B"). What must hold: every tip has a drawing and no drawing is left without a tip; each is
-plain SVG in the app's classes, with no inline style (the Content-Security-Policy); every
-number under a picture is one its tip's own words state; the page shows them, translated.
+D160 and D164: each study tip with a picture of what its advice asks, and the study's number
+where it gives one. D160 drew it on a tile beside the text ("a mix of A and B, especially B");
+D164 made it a cover across the top of the card (the owner's "2C", 2026-11-19), after the tile
+let a number spill out of it on a phone (AUDIT 113). What must hold: every tip has a cover and
+no cover is left without a tip; each is plain SVG in the theme's classes, with no inline style
+(the Content-Security-Policy); every number on a cover is one its tip's own words state, as a
+caption in the page, translated, never drawn inside the picture.
 """
 
 from __future__ import annotations
@@ -17,12 +19,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cps import service, tips
-from cps.web import Config, create_app, thumbs
+from cps.web import Config, covers, create_app
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 NOW = datetime(2026, 9, 29, 7, 0, tzinfo=UTC)
-SHAPES = {"svg", "path", "circle", "rect", "line", "polyline", "ellipse"}
-CLASSES = {"a", "f", "w", "s", "m"}
+SHAPES = {"svg", "path", "circle", "rect", "ellipse"}
+CLASSES = {"g", "c", "a", "l", "w", "k", "m", "h"}
 # How each unit may be worded in a tip's English text.
 UNITS = {
     "studies": ("stud",),
@@ -35,19 +37,23 @@ UNITS = {
 }
 
 
-def test_every_tip_has_a_drawing_in_the_apps_classes():
+def test_every_tip_has_a_cover_in_the_themes_classes():
     keys = {t.key for t in tips.TIPS}
-    assert set(thumbs.DRAWINGS) == keys and len(keys) == 26
+    assert set(covers.COVERS) == keys and len(keys) == 26
     for key in keys:
-        svg = str(thumbs.drawing(key))
+        svg = str(covers.cover(key))
         root = ET.fromstring(svg)
-        assert root.get("aria-hidden") == "true" and root.get("viewBox") == "0 0 64 64", key
+        assert root.get("aria-hidden") == "true" and root.get("viewBox") == "0 0 300 112", key
+        assert root.get("class") == "tip-cover"
         for node in root.iter():
             tag = node.tag.split("}")[-1]
             assert tag in SHAPES, (key, tag)
             assert "style" not in node.attrib, key
-            assert set((node.get("class") or "").split()) <= CLASSES | {"tip-art"}, (key, node.get("class"))
-    assert str(thumbs.drawing("no-such-tip")) == ""
+            assert node is root or "fill" not in node.attrib, key  # colours are classes
+            assert set((node.get("class") or "").split()) <= CLASSES | {"tip-cover"}, (key, node.get("class"))
+        # A number belongs in the caption, translated: none is drawn as text.
+        assert "<text" not in svg, key
+    assert str(covers.cover("no-such-tip")) == ""
 
 
 def test_every_number_under_a_picture_is_its_tips_own():
@@ -71,7 +77,7 @@ def web(tmp_path):
         yield client
 
 
-def test_the_page_draws_each_tip_with_its_number_and_folds_the_rest(web, tmp_path):
+def test_the_page_covers_each_tip_with_its_number_and_folds_the_rest(web, tmp_path):
     sub = service.new_subscription(
         subjects=[service.SubjectSpec("Algebra 3", None, familiarity=3)],
         start=date(2026, 9, 29),
@@ -83,7 +89,7 @@ def test_the_page_draws_each_tip_with_its_number_and_folds_the_rest(web, tmp_pat
     )
     service.save_subscription(tmp_path, service.finish_first_run(sub))
     page = web.get(f"/p/{sub.token}/tips?topic=habits").text
-    assert page.count('class="tip-art"') == 4
+    assert page.count('class="tip-cover"') == 4 and page.count('<figure class="tip-cover-wrap">') == 4
     captions = re.findall(r"<figcaption>([^<]+)</figcaption>", page)
     assert captions == ["138 studies", "94 tests", "18 to 254 days"]
     assert page.count('<details class="tip-more">') == 4 and "Limits, in this app, sources" in page
@@ -94,3 +100,17 @@ def test_the_page_draws_each_tip_with_its_number_and_folds_the_rest(web, tmp_pat
         "94 tests",
         "18 à 254 jours",
     ]
+
+
+def test_the_caption_stays_on_its_cover():
+    """AUDIT 113: on a phone, "128 experiments" ran out of D160's 68px tile into the title.
+    The caption now has its own band under the scene: as wide as the cover at most, wrapped
+    if it must, and never laid over the drawing."""
+    css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text()
+    rule = re.search(r"\.tip-cover-wrap figcaption \{([^}]*)\}", css)
+    assert (
+        rule and "position: absolute" not in rule.group(1) and "max-width: calc(100% - 20px)" in rule.group(1)
+    )
+    assert "white-space: nowrap" not in rule.group(1)
+    assert re.search(r"\.tip-cover-wrap \{[^}]*overflow: hidden", css)
+    assert ".tip-thumb" not in css  # D160's tile is gone

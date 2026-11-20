@@ -13,6 +13,41 @@
 {% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 
+{# D163: the course on Moodle, one tap from here. Linked once by pasting its address;
+   Moodle keeps its own sign-in, the app keeps the address only. #}
+{% from "_art.html" import art %}
+{% set m = v.moodle %}{% set md = moodle_draft or {} %}
+<section class="card moodle-card" id="moodle" aria-labelledby="moodle-title">
+  <div class="materials-head">{{ art("cap") }}<div class="grow">
+    <h2 class="card-make-title" id="moodle-title">{{ _("On Moodle") }}</h2>
+    <small>{% if m.linked %}{{ _("{site} · course {n}", site=m.host, n=m.id) }}{% else %}{{ _("Its materials, assignments and grades, one tap from here.") }}{% endif %}</small>
+  </div></div>
+  {% if m.linked %}
+  <div class="moodle-pages">
+    <a href="{{ m.pages.course }}" rel="noopener noreferrer" target="_blank"><b>{{ _("Course page") }} ↗</b><small>{{ _("Sections and news") }}</small></a>
+    <a href="{{ m.pages.materials }}" rel="noopener noreferrer" target="_blank"><b>{{ _("All materials") }} ↗</b><small>{{ _("Slides, files, pages") }}</small></a>
+    <a href="{{ m.pages.assignments }}" rel="noopener noreferrer" target="_blank"><b>{{ _("Assignments") }} ↗</b><small>{{ _("What to hand in") }}</small></a>
+    <a href="{{ m.pages.grades }}" rel="noopener noreferrer" target="_blank"><b>{{ _("Grades") }} ↗</b><small>{{ _("Your marks") }}</small></a>
+  </div>
+  <details class="moodle-change"{% if md %} open{% endif %}>
+    <summary>{{ _("Change") }}</summary>
+    <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle" class="row-input">
+      <label for="moodle-address" class="visually-hidden">{{ _("The course's address on Moodle") }}</label>
+      <input id="moodle-address" name="address" required maxlength="500" autocomplete="off" inputmode="url" value="{{ md.address or '' }}" placeholder="https://…/course/view.php?id=…">
+      <button type="submit" class="btn">{{ _("Save") }}</button>
+    </form>
+    <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle"><input type="hidden" name="action" value="unlink"><button type="submit" class="btn btn-plain btn-sm">{{ _("Unlink from Moodle") }}</button></form>
+  </details>
+  {% else %}
+  {% if m.find %}<p><a class="btn btn-tinted" href="{{ m.find }}" rel="noopener noreferrer" target="_blank">{{ _("Find it on Moodle") }} ↗</a></p>{% endif %}
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle" class="inline-form moodle-link">
+    <label for="moodle-address">{% if m.find %}{{ _("Then paste the course's address here") }}{% else %}{{ _("Open the course on Moodle and paste its address here") }}{% endif %}</label>
+    <div class="row-input"><input id="moodle-address" name="address" required maxlength="500" autocomplete="off" inputmode="url" value="{{ md.address or '' }}" placeholder="https://…/course/view.php?id=…"><button type="submit" class="btn">{{ _("Link") }}</button></div>
+  </form>
+  <p class="hint">{% if not m.find %}{{ _("Or paste your Moodle's address alone, such as moodle.example.edu, and the app searches it for this course.") }} {% endif %}{{ _("Moodle keeps your sign-in: the app keeps only the address.") }}</p>
+  {% endif %}
+</section>
+
 {# Where the course stands: weeks taught, reviewed, and this week #}
 {% if v.weeks %}
 <section class="card course-progress">

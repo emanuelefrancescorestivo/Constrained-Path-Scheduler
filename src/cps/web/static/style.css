@@ -5161,34 +5161,15 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .course-choice { display: grid; gap: 8px; }
 /* -- end of D159 */
 
-/* -- D160: each tip's picture, and shorter cards ------------------------------------------
-   A drawing of what the advice asks on a soft tile, and under it the study's number where
-   it gives one; beside them the label, the advice and its evidence; limits, the app and the
-   sources in a fold. Two cards to a row from 900px; on a phone the tile sits beside the
-   advice, smaller. */
+/* -- D160: shorter tip cards ---------------------------------------------------------------
+   The label, the advice and its evidence first; limits, the app and the sources in a fold.
+   Two cards to a row from 900px. (D160's tile beside the text gave way to D164's cover.) */
 .tip-topic { display: grid; gap: 12px; align-items: start; }
 @media (min-width: 900px) {
   main.site.tips-wide { max-width: 72rem; }
   .tip-topic { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .tip-topic > .tip { margin: 0; }
-.tip { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; align-items: start; }
-.tip-body { min-width: 0; }
-.tip-body h3 { margin-top: 6px; }
-.tip-thumb {
-  margin: 0; display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px;
-  border-radius: 14px; background: var(--fill-3); color: var(--text);
-}
-.tip-art { width: 60px; height: 60px; display: block; }
-.tip-art .a { stroke: var(--accent); }
-.tip-art .f { fill: var(--accent); stroke: var(--accent); }
-.tip-art .w { stroke: var(--on-accent); }
-.tip-art .s { fill: var(--surface); }
-.tip-art .m { opacity: 0.45; }
-.tip-thumb figcaption {
-  font-size: 0.75rem; font-weight: 700; line-height: 1.2; text-align: center; color: var(--accent-ink);
-  font-variant-numeric: tabular-nums; text-wrap: balance;
-}
 .tip-more { margin-top: 2px; }
 .tip-more > summary {
   cursor: pointer; list-style: none; font-size: 0.9rem; font-weight: 600; color: var(--accent-ink);
@@ -5196,11 +5177,38 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 }
 .tip-more > summary::-webkit-details-marker { display: none; }
 .tip-more .tip-note:first-of-type { margin-top: 4px; }
-@media (max-width: 480px) {
-  .tip { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; }
-  .tip-art { width: 46px; height: 46px; }
-}
 /* -- end of D160 */
+
+/* -- D164: each tip's cover --------------------------------------------------------------
+   A scene across the top of the card on the accent's faint ground, the text the card's full
+   width under it. The scene keeps its proportions and is centred; where the card is wider,
+   the ground fills the sides. The study's number has its own band under the scene, so it
+   never covers the drawing and never leaves the cover (AUDIT 113). */
+.tip { display: grid; gap: 10px; align-content: start; }
+.tip-body { min-width: 0; }
+.tip-body h3 { margin-top: 6px; }
+.tip-cover-wrap {
+  margin: 0; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.tip-cover {
+  display: block; width: 100%; aspect-ratio: 300 / 112; max-height: 148px; color: var(--text);
+}
+.tip-cover .g { fill: color-mix(in srgb, var(--accent) 24%, var(--surface)); stroke: none; }
+.tip-cover .c { fill: var(--surface); }
+.tip-cover .a { fill: var(--accent); stroke: var(--accent); }
+.tip-cover .l { stroke: var(--accent); }
+.tip-cover .w { stroke: var(--on-accent); }
+.tip-cover .k { fill: currentColor; stroke: none; }
+.tip-cover .m { opacity: 0.42; }
+.tip-cover .h { opacity: 0.65; }
+.tip-cover-wrap figcaption {
+  align-self: flex-end; max-width: calc(100% - 20px); margin: -4px 10px 10px;
+  padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--accent-ink);
+  font-size: 0.78rem; font-weight: 700; line-height: 1.3; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* -- end of D164 */
 
 /* -- D161: Settings as a dashboard -----------------------------------------------------
    Six cards, each with what its part is set to under its head, the head the link to the
@@ -5256,3 +5264,26 @@ main.site:has(.settings-dash) { max-width: 72rem; }
   .with-context > .context-col { grid-area: context; }
 }
 /* -- end of D162 */
+
+/* -- D163: Moodle within reach -----------------------------------------------------------
+   A course's card: its four pages on Moodle as tiles, two to a row, each saying what it
+   holds; before it is linked, the search on Moodle and the field to paste the address.
+   On the focus screen, the materials under the course's name. */
+.moodle-card { display: grid; gap: 12px; }
+.moodle-card > * { margin: 0; }
+.moodle-card .materials-head small { line-height: 1.4; }
+.moodle-pages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.moodle-pages a {
+  display: grid; gap: 2px; min-height: 56px; padding: 10px 12px; border-radius: 12px;
+  background: var(--fill-3); color: var(--text); text-decoration: none;
+}
+.moodle-pages a:hover { background: var(--fill-2); }
+.moodle-pages b { font-weight: 650; }
+.moodle-pages small { color: var(--muted); font-size: 0.8rem; }
+.moodle-change > summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; font-size: 0.9rem; min-height: 32px; display: inline-flex; align-items: center; }
+.moodle-change[open] { display: grid; gap: 8px; }
+.moodle-link { margin: 0; }
+.focus-moodle { margin: 0; text-align: center; font-size: 0.92rem; }
+.focus-moodle small { color: var(--muted); font-size: 0.78rem; }
+.side-out { color: var(--muted); font-size: 0.85rem; }
+/* -- end of D163 */

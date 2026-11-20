@@ -60,7 +60,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, forms, icon, icons, sky, thumbs
+from . import charts, covers, forms, icon, icons, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -365,7 +365,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
     templates.env.globals["lucide"] = icons.icon
     templates.env.globals["other_course"] = forms.OTHER_COURSE  # the sheet's "Other…" (D159)
-    templates.env.globals["tip_art"] = thumbs.drawing  # each tip's picture (D160)
+    templates.env.globals["tip_cover"] = covers.cover  # each tip's cover (D164)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a
@@ -2648,6 +2648,10 @@ def create_app(config: Config | None = None) -> FastAPI:
         "credits": "Credits saved.",
         "link": "Link added.",
         "unlinked": "Link removed.",
+        # D163
+        "moodle": "Linked to its page on Moodle.",
+        "moodle_site": "Your Moodle is saved: now find the course on it.",
+        "moodle_off": "No longer linked to Moodle.",
     }
 
     @app.get("/p/{token}/courses", response_class=HTMLResponse)
@@ -2925,6 +2929,36 @@ def create_app(config: Config | None = None) -> FastAPI:
         return await course_change(
             request, token, index, lambda current, f: service.add_course_link(current, index, f), "link"
         )
+
+    @app.post("/p/{token}/courses/{index}/moodle")
+    async def course_moodle(request: Request, token: str, index: int) -> Response:
+        """A course linked to its page on Moodle, or no longer (D163). The address pasted
+        may be the site alone: it is kept, and the course search can then find the course."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        fields = {k: str(v) for k, v in form.items()}
+        unlink = fields.get("action") == "unlink"
+        try:
+            saved = service.update_subscription(
+                store,
+                token,
+                lambda current: (
+                    service.unlink_moodle_course(current, index)
+                    if unlink
+                    else service.link_moodle_course(current, index, fields)
+                ),
+            )
+        except service.ServiceError as error:
+            return course_page(request, subscription, index, 400, error=str(error), moodle_draft=fields)
+        if saved is None:
+            return missing(request)
+        linked = service.moodle_course(saved, service.topic_courses(saved)[index])["linked"]
+        done = "moodle_off" if unlink else ("moodle" if linked else "moodle_site")
+        return RedirectResponse(f"/p/{token}/courses/{index}?saved={done}#moodle", 303)
 
     @app.post("/p/{token}/courses/{index}/links/{link_id}/delete")
     async def course_unlink(request: Request, token: str, index: int, link_id: str) -> Response:
@@ -4830,6 +4864,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             tab="you",
             cards_due=service.cards_due(store, subscription, config.clock()),
             my_avatar=service.avatar_of(subscription),
+            moodle=service.moodle_home(subscription),  # D163
         )
 
     @app.post("/p/{token}/fit")

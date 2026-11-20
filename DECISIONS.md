@@ -6421,3 +6421,71 @@ keyboard reaches Studying now and the groups before the feed, as a phone always 
 time for tasks counts sessions the plan has moved to its past; a session whose time has gone by
 but which the plan has not yet read again counts as planned, not done. Checked in Chromium only,
 at phone size and at 1000, 1100 and 1440px, light and dark.
+
+## D163. Moodle within reach
+
+**Asked.** The owner, on 2026-11-19: "the moodle input should be accessible so one can check
+their study materials, make proposals". Of three options ("Finishing Choices", part 1: A,
+buttons where they are needed; B, one Moodle page; C, the materials inside the app), the owner
+chose A.
+
+**Chosen.** Each course's page has an "On Moodle" card. Once the course is linked, it holds
+four tiles: the course page, all its materials, its assignments and the student's grades, each
+opening on Moodle in another tab. Before that, "Find it on Moodle" opens Moodle's own course
+search with the course's name, and a field takes the course's address pasted back. The same
+field takes the site alone (`moodle.example.edu`), which is kept as the student's Moodle so the
+search can be offered. The focus screen shows the running course's materials and page; the
+sidebar and You have a Moodle row (the dashboard, or all courses, once the site is known; before
+that, Settings' Moodle in three steps, D154). Today's "Open Moodle" (D140) and the Tasks column
+(D162) now use the same site.
+
+The site is the one given, else the one of the deadlines' calendar link (D92), else a linked
+course's (`service.moodle_site`). The four pages are Moodle's standard addresses with the
+course's number: `course/view.php`, `course/resources.php`, `mod/assign/index.php` and
+`grade/report/user/index.php`, each taking the course as `id`, as Moodle 4.5's own files read
+it (checked in its source, MOODLE_405_STABLE). The app builds every address from the site and
+the number; the text pasted is only read for those two. A file's or an activity's page
+(`mod/resource/view.php?id=…`) is refused: its number is not the course's.
+
+**Rejected.** B as the only way in: a page a student has to remember to visit, when the need
+comes on a course or in a session. C, files listed inside the app: it means holding a key that
+reads the student's whole Moodle, and D92 keeps sign-in out until a university agrees. Reading
+the course's number from the calendar export: Moodle 4.5's export (`calendar/export_execute.php`)
+writes each event's course as its short name (`CATEGORIES`), never its number or address, so the
+student pastes it once.
+
+**Disclosed.** Not tried on a real university's Moodle: the addresses come from Moodle 4.5's
+source, and a site that changed its pages or put Moodle behind another sign-in may answer
+differently. On the focus screen the materials open in another tab, which the focus clock counts
+as time away (D17), as any other tab: whether reading the course's own materials should count is
+the owner's to decide. Checked in Chromium only, at phone size and 1280px, light and dark.
+
+## D164. A cover for each tip
+
+**Asked.** The owner, on 2026-11-19, sent screenshots of the tips on their phone, "what i think
+should be done properly in terms of graphics and ideas for the thumbnails". Of three options
+("Finishing Choices", part 2: A, a cover strip with the drawing and the number; B, the number as
+the headline; C, illustrated covers), the owner chose C.
+
+**Chosen.** Each of the 26 tips has a small scene across the top of its card, of what its advice
+asks: a book faded beside a card asked and ticked (test yourself), a week of tiles with sessions
+spread and growing arcs between them (spacing), seven nights of the same sleep (keep it regular),
+a list with its last item drawn into a calendar's slot (write down what is left), a balance at
+rest (a mindset alone did little for grades), and so on (`web/covers.py`). The scenes are filled
+shapes in the theme's classes only, the accent the student chose (D156) and the card's surface, so
+they follow light, dark and every accent, and keep the Content-Security-Policy. A scene keeps its
+proportions, centred, at most 148px tall; where the card is wider, the accent's faint ground fills
+the sides. The text then runs the card's full width under it, two cards to a row on a laptop as
+before. A study's number, where the tip's text gives one (`tips.FIGURES`, D160), is the cover's
+caption in its own band under the scene: translated, never drawn in the picture, never over it.
+D160's line drawings and their 68px tile are gone (`web/thumbs.py`).
+
+**Rejected.** A, the strip with D160's drawings made larger: the owner chose C. B, the number
+alone: tips without a number would have kept almost no picture. The number laid over the scene's
+corner, as first built: it covered the drawing ("128 experiments" over the gift, "18 to 254
+days" over the last days), so it has its own band.
+
+**Disclosed.** The scenes are a matter of taste, drawn by hand in this repository; each was
+checked against its tip's advice, not with students. The number's band makes a cover with a
+number about 28px taller than one without. Checked in Chromium only, at phone size and two laptop
+sizes, light and dark, with the default accent and amber.

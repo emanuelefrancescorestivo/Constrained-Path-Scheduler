@@ -117,6 +117,7 @@ def test_the_sidebar_the_tab_bar_and_the_pictures_are_lucides(web, tmp_path):
         assert len(drawn) >= count and all(d.startswith(LUCIDE[:-1]) for d in drawn), drawn
     assert str(icons.icon("list-checks")) in side and str(icons.icon("settings")) in side
     pictures = re.findall(r'<span class="art art-([a-z]+)" aria-hidden="true">(<svg[^>]*>)', you)
-    assert len(pictures) == 11 and all(svg.startswith(LUCIDE[:-1]) for _, svg in pictures)
+    # Twelve rows since D163 added Moodle's.
+    assert len(pictures) == 12 and all(svg.startswith(LUCIDE[:-1]) for _, svg in pictures)
     progress = unescape(web.get(f"/p/{token}/progress").text)
     assert "badge-art" not in progress or LUCIDE[:40] in progress[progress.index("badge-art") :]

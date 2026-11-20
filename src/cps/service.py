@@ -53,7 +53,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
@@ -6003,13 +6003,139 @@ _MOODLE_EXPORT = re.compile(
 
 
 def learning_platform(subscription: Subscription) -> str | None:
-    """The learning platform's own page, from the calendar link the student gave for its
-    deadlines (D92): every Moodle site exports its calendar at
-    `<site>/calendar/export_execute.php` and keeps a student's dashboard at `<site>/my/`,
-    in a subfolder too. None for another platform or without the link: the app does not
-    guess an address."""
-    found = _MOODLE_EXPORT.match(str(subscription.options.get("deadlines_url") or "").strip())
-    return f"{found.group(1)}/my/" if found else None
+    """The learning platform's own page: a student's dashboard is at `<site>/my/` on every
+    Moodle site, in a subfolder too. The site is the student's Moodle (`moodle_site`,
+    D163), first known from the calendar link they gave for its deadlines (D92). None
+    without one: the app does not guess an address."""
+    site = moodle_site(subscription)
+    return f"{site}/my/" if site else None
+
+
+# --------------------------------------------------------------------------- #
+# Moodle within reach (DECISIONS.md D163)
+# --------------------------------------------------------------------------- #
+
+# A course's pages on Moodle, each its standard address with the course's number, as
+# Moodle 4.5's own files read it (`required_param('id', PARAM_INT)`, the course):
+# course/view.php, course/resources.php (every file and page of the course),
+# mod/assign/index.php (its assignments), grade/report/user/index.php (the student's
+# marks). They open in the student's browser, where Moodle asks for its own sign-in:
+# the app keeps addresses, never a password or a key (D92).
+MOODLE_PAGES = (
+    ("course", "/course/view.php?id={id}"),
+    ("materials", "/course/resources.php?id={id}"),
+    ("assignments", "/mod/assign/index.php?id={id}"),
+    ("grades", "/grade/report/user/index.php?id={id}"),
+)
+# A course's address as a student copies it from Moodle: its page, or one of the pages
+# above, the course's number as `id`, in a subfolder too (`https://x.edu/moodle/...`).
+_MOODLE_COURSE = re.compile(
+    r"^(https?://[^/?#\s@]+(?:/[^?#\s]*?)?)"
+    r"/(?:course/view|course/resources|mod/assign/index|grade/report/user/index)\.php"
+    r"\?(?:[^#\s]*?&)?id=(\d{1,10})(?:[&#][^\s]*)?$",
+    re.IGNORECASE,
+)
+# The site alone (`moodle.example.edu`, with or without https://, or a page at its root
+# such as its dashboard), so "Find it on Moodle" can search it before any course is linked.
+_MOODLE_HOME = re.compile(
+    r"^(?:(https?)://)?([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d{1,5})?)"
+    r"((?:/[^?#\s/]+){0,2}?)/?(?:/(?:my(?:/courses\.php|/index\.php)?|index\.php|login/index\.php)/?)?$",
+    re.IGNORECASE,
+)
+
+
+def moodle_site(subscription: Subscription) -> str | None:
+    """The student's Moodle (D163): the one they gave, else the site of their deadlines'
+    calendar link (D92), else the site of a course they linked. None without one."""
+    options = subscription.options
+    if options.get("moodle_site"):
+        return str(options["moodle_site"])
+    found = _MOODLE_EXPORT.match(str(options.get("deadlines_url") or "").strip())
+    if found:
+        return found.group(1)
+    for entry in (options.get("moodle_courses") or {}).values():
+        return str(entry["site"])
+    return None
+
+
+def read_moodle_address(text: str) -> tuple[str, int | None]:
+    """A Moodle address as a student pastes it: a course's page (its site and number), or
+    the site alone (its number None). Anything else is refused: the app builds every
+    address it opens from these two, never from the text."""
+    text = text.strip()
+    found = _MOODLE_COURSE.match(text)
+    if found:
+        return found.group(1).rstrip("/"), int(found.group(2))
+    home = _MOODLE_HOME.match(text)
+    if home and len(text) <= 300:
+        scheme = (home.group(1) or "https").lower()
+        return f"{scheme}://{home.group(2).lower()}{home.group(3)}", None
+    raise InvalidInput(
+        _("a course's address on Moodle, such as https://moodle.example.edu/course/view.php?id=123")
+    )
+
+
+def _host(site: str | None) -> str:
+    return (urlsplit(site).hostname or "") if site else ""
+
+
+def moodle_course(subscription: Subscription, course: str) -> dict:
+    """A course on the student's Moodle (D163): once linked, its four pages; before, the
+    address of Moodle's own course search with the course's name, when the site is
+    known."""
+    entry = (subscription.options.get("moodle_courses") or {}).get(course_key(course))
+    if entry:
+        site, number = str(entry["site"]), int(entry["id"])
+        return {
+            "linked": True,
+            "host": _host(site),
+            "id": number,
+            "pages": {key: site + path.format(id=number) for key, path in MOODLE_PAGES},
+            "find": None,
+        }
+    known = moodle_site(subscription)
+    return {
+        "linked": False,
+        "host": _host(known),
+        "id": None,
+        "pages": {},
+        "find": f"{known}/course/search.php?{urlencode({'search': course})}" if known else None,
+    }
+
+
+def moodle_home(subscription: Subscription) -> dict | None:
+    """The student's Moodle for the sidebar and You (D163): the dashboard and every
+    course; None until the site is known."""
+    site = moodle_site(subscription)
+    if not site:
+        return None
+    return {"dashboard": f"{site}/my/", "courses": f"{site}/my/courses.php", "host": _host(site)}
+
+
+def link_moodle_course(subscription: Subscription, index: int, form: Mapping[str, str]) -> Subscription:
+    """A course linked to its page on Moodle, from the address pasted (D163). The site
+    alone is kept as the student's Moodle, so its course search can find the course."""
+    course = _topic_course(subscription, index)
+    text = str(form.get("address") or "").strip()
+    if len(text) > 500:
+        raise InvalidInput(_("at most {n} characters here", n=500))
+    site, number = read_moodle_address(text)
+    options = dict(subscription.options)
+    if number is None:
+        options["moodle_site"] = site
+    else:
+        options["moodle_courses"] = {
+            **(options.get("moodle_courses") or {}),
+            course_key(course): {"site": site, "id": number},
+        }
+    return replace(subscription, options=options)
+
+
+def unlink_moodle_course(subscription: Subscription, index: int) -> Subscription:
+    course = _topic_course(subscription, index)
+    linked = dict(subscription.options.get("moodle_courses") or {})
+    linked.pop(course_key(course), None)
+    return replace(subscription, options={**subscription.options, "moodle_courses": linked})
 
 
 # D154: Moodle's own words for the way to its calendar's link, in the app's languages,
@@ -7686,7 +7812,11 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
         started = datetime.fromisoformat(focus["started"])
         elapsed = round((now - started).total_seconds())
         goal = int(focus.get("goal", 0))
+        known = {course_key(c): c for c in topic_courses(subscription)}
+        running = known.get(course_key(str(focus["course"])))
         view.update(
+            # D163: the course's pages on Moodle beside the clock, once it is linked.
+            moodle=moodle_course(subscription, running) if running else None,
             course=focus["course"],
             started=_iso(started),
             started_local=f"{started.astimezone(zone):%H:%M}",
@@ -13324,6 +13454,7 @@ def sidebar_view(store: str | os.PathLike, subscription: Subscription, now: date
         "weeks": [days[k : k + 7] for k in range(0, len(days), 7)],
         "courses": courses,
         "more_courses": max(0, len(topic_courses(subscription)) - SIDEBAR_COURSES),
+        "moodle": moodle_home(subscription),  # D163
         "cards_due": cards_due(store, subscription, now),
     }
 
@@ -13423,6 +13554,7 @@ def course_view(
         "unfiled": sum(1 for c in cards if not c.week),
         "notes": _course_notes(store, subscription, course),
         "links": [x for x in _links(subscription, course) if not x.get("week")],
+        "moodle": moodle_course(subscription, course),  # D163
         "all_links": len(_links(subscription, course)),
         "links_most": LINKS_MOST,
         "week_options": _week_choice(subscription, course, now)["weeks"],

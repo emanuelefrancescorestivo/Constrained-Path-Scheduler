@@ -1268,3 +1268,11 @@ them"; since D98 the next step is the week with its plan, and the questions abou
 on Today from the second day. How found: the owner's screenshots of setting up (2026-11-19), read
 against the flow. Status: fixed with D154: setting up asks about busy times itself, in its
 sentence, and the line is gone (`tests/test_setup_sentence.py`).
+
+**113. A study's number ran out of its tile on a phone.** Reported by the owner on 2026-11-19
+with screenshots of the tips on their phone: "128 experiments" and "317 experiments" ran out of
+the picture's tile into the tip's title. How found: the owner's screenshots, then the page in
+Chromium at phone size: D160's tile was 68px wide there, and the number's unit, bold and not
+allowed to break, was wider. D160 had been checked at phone size on a topic whose captions fit.
+Status: fixed with D164: the number has its own band under the tip's cover, as wide as the
+cover at most and wrapped if it must (`tests/test_tip_pictures.py`).
