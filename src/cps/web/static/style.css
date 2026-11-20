@@ -1254,6 +1254,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art-settings { --hue: var(--t-grey); }
 .art-calendar { --hue: var(--t-red); }
 .art-feedback { --hue: var(--t-teal); }
+.art-connections { --hue: var(--t-indigo); }  /* D175 */
 .art-cap { --hue: var(--t-indigo); }
 .art-brain { --hue: var(--t-pink); }
 .art-trophy { --hue: var(--t-amber); }
@@ -5634,3 +5635,25 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .focus-materials { list-style: none; margin: 8px auto 0; padding: 0; display: grid; gap: 2px; max-width: 420px; text-align: left; }
 .focus-materials a { display: flex; gap: 8px; align-items: center; min-height: 36px; color: inherit; text-decoration: none; }
 .focus-materials a span { min-width: 0; overflow-wrap: anywhere; }
+
+
+/* -- Connections (D175) ------------------------------------------------------------------
+   Every link with the outside as a row: a dot for its state (green works, amber needs the
+   student, grey not linked), the words saying the same, one button. */
+.cx-list > li { align-items: center; }
+.cx-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 2px; background: var(--muted); opacity: 0.45; }
+.cx-dot.is-ok { background: var(--ok); opacity: 1; }
+.cx-dot.is-warn { background: var(--warn); opacity: 1; }
+.cx-list small { display: block; }
+.cx-list .grow { min-width: 0; overflow-wrap: anywhere; }
+.cx-courses { display: block; }
+.cx-courses > details > summary { cursor: pointer; display: flex; gap: 12px; align-items: center; min-height: 32px; }
+.cx-course-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.cx-course-list a { display: flex; gap: 12px; align-items: center; justify-content: space-between; min-height: 36px; color: inherit; text-decoration: none; }
+.cx-course-list small { color: var(--muted); text-align: right; }
+@media (hover: hover) { .cx-course-list a:hover .grow { color: var(--accent-ink); } }
+/* The Moodle calendar link, once linked: said, not shown (D175). */
+.linked-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin: 6px 0 10px; border-radius: 12px; background: var(--ok-soft); }
+.linked-row .grow { min-width: 0; flex: 1 1 200px; }
+.linked-row small { display: block; color: var(--muted); }
+.linked-icon { width: 20px; height: 20px; flex: none; color: var(--ok); }

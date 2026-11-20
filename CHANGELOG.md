@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Connections (DECISIONS.md D175): one page under You for every link with the outside (Moodle,
+  the timetable, the plan's calendar, passkeys, reminders), each with its state and one button;
+  how the student's Moodle signs in, asked of the site itself; Moodle's calendar link kept sealed,
+  never shown again, replaced or unlinked from Settings.
+
 - A course's materials (DECISIONS.md D174): a course's page saved from Moodle, its teacher's site
   or a shared reading list is read item by item, each placed on its week of the timetable, else for
   the whole course or for exam practice; each week of the course lists its own, the focus screen
