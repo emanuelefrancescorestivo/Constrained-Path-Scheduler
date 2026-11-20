@@ -122,11 +122,12 @@ def test_today_puts_the_next_step_first_and_folds_the_rest(web, clock):
     page = unescape(web.get(f"/p/{token}").text)
     assert "<h1>Good afternoon</h1>" in page
     # The next step, then what needs an answer, then the widgets (D140: the tasks are one,
-    # where D73 folded them), then the rest under "More".
+    # where D73 folded them), then the rest under "More". Since D171 the next step is one
+    # band across the page, its reasons folded under "How, and why now".
     tasks = page.index('class="w w-tasks"')
-    assert page.index('class="w w-next section next-step"') < page.index('id="reports"') < tasks
+    assert page.index('class="w w-next w-wide nx section next-step') < page.index('id="reports"') < tasks
     assert tasks < page.index("<h2>Tasks</h2>") < page.index("data-more")
-    assert '<details class="why-now"><summary>Why now</summary>' in page
+    assert '<details class="nx-how">\n    <summary>How, and why now</summary>' in page
     # One session to report, the latest (D97); the ones before it count as done.
     asked = page[page.index('id="reports"') : page.index("data-more")]
     assert asked.count('class="mini-outcomes"') == 1 and "more-asked" not in page
