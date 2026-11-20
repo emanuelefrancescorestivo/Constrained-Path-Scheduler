@@ -15,7 +15,8 @@
   <textarea id="coach-question" name="question" rows="3" maxlength="{{ limit }}" required placeholder="{{ _('I have two exams next week. How should I split my time?') }}">{{ asked or "" }}</textarea>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <div class="row-end"><button type="submit" class="btn btn-primary">{{ _("Ask") }}</button></div>
-  <p class="hint">{% if by_ai %}{{ _("AI is on: Claude, a model by Anthropic, answers, using only the tips. Your question is not kept.") }}{% else %}{{ _("AI is off: the coach matches your question to the tips.") }}{% if ai_available %} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn AI on in Settings") }}</a>{% endif %}{% endif %}</p>
+  <p class="hint">{% if by_ai %}{{ _("AI is on: Claude, a model by Anthropic, answers from the tips and from what your plan says today: your next exams, the topics you may remember least, today's sessions. Your question is not kept.") }}
+    {% if allowance %}<span class="coach-left">{% if allowance.left %}{{ _n("{n} answer with AI left today.", "{n} answers with AI left today.", allowance.left) }}{% else %}{{ _("Today's answers with AI are used: until midnight the coach answers from the tips.") }}{% if not allowance.premium %} <a href="/p/{{ token }}/settings/data#premium">{{ _("A premium code gives more") }}</a>{% endif %}{% endif %}</span>{% endif %}{% else %}{{ _("AI is off: the coach matches your question to the tips.") }}{% if ai_available %} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn AI on in Settings") }}</a>{% endif %}{% endif %}</p>
 </form>
 
 {% if answer %}

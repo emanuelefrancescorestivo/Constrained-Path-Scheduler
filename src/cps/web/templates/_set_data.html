@@ -3,9 +3,23 @@
 {% if ai.available %}
 <form method="post" action="/p/{{ token }}/ai" class="card">
   <p>{% if ai.on %}{{ _("AI is on. It reads the tasks you type in one line, writes your weekly review's paragraph, and answers your questions to the coach.") }}{% else %}{{ _("AI is off. Tasks typed in one line are read by rules, the weekly review is written from a template, and the coach answers from the tips by matching your words.") }}{% endif %}</p>
-  <p class="hint">{{ _("When it is on, the line you type (with today's date, your time zone and your course names), your weekly review's numbers (with course and exam names), your questions to the coach and the materials you make flashcards from with AI (notes you can open and a course's topics) are sent to Anthropic, which makes the Claude models. Nothing else: not your timetable, not your plan's address, nothing else from the network.") }}</p>
+  <p class="hint">{{ _("When it is on, the line you type (with today's date, your time zone and your course names), your weekly review's numbers (with course and exam names), your questions to the coach with what your plan says that day (your next exams and their dates, the topics the app estimates you remember least, today's sessions) and the materials you make flashcards from with AI (notes you can open and a course's topics) are sent to Anthropic, which makes the Claude models. Nothing else: not your timetable, not your plan's address, nothing else from the network.") }}</p>
   <div class="row-end"><button type="submit" name="on" value="{{ '0' if ai.on else '1' }}" class="btn{% if not ai.on %} btn-primary{% endif %}">{% if ai.on %}{{ _("Turn AI off") }}{% else %}{{ _("Turn AI on") }}{% endif %}</button></div>
 </form>
+{# D176: the coach's answers with AI a day, and premium by a code from the owner. #}
+<h2 class="section" id="premium">{{ _("The coach with AI") }}</h2>
+<div class="card premium-card">
+  {% if premium.on %}
+  <p><b>{{ _("Premium") }}</b> · {{ _n("the coach answers with AI up to {n} time a day.", "the coach answers with AI up to {n} times a day.", premium.most) }}{% if premium.since %} {{ _("Since {date}.", date=premium.since) }}{% endif %}</p>
+  {% else %}
+  <p>{{ _n("Free: the coach answers with AI {n} time a day, then from the tips.", "Free: the coach answers with AI {n} times a day, then from the tips.", premium.free) }}</p>
+  <form method="post" action="/p/{{ token }}/premium" class="premium-form">
+    <label for="premium-code">{{ _("Premium code") }}</label>
+    <div class="row-input"><input id="premium-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60" placeholder="ABCD-EFGH-JKLM" required><button type="submit" class="btn btn-tinted">{{ _("Use it") }}</button></div>
+    <p class="hint">{{ _n("During the pilot, codes come from the person who makes the app. Premium: up to {n} answer a day.", "During the pilot, codes come from the person who makes the app. Premium: up to {n} answers a day.", premium.most) }}</p>
+  </form>
+  {% endif %}
+</div>
 {% else %}
 <p class="hint">{{ _("AI is not set up on this server. Tasks typed in one line are read by rules, and the weekly review is written from a template.") }}</p>
 {% endif %}

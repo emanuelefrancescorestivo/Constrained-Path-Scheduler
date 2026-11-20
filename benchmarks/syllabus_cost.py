@@ -1,7 +1,7 @@
 """
 What reading a syllabus with a model would cost (docs/CURRICULUM.md §3a),
 flashcards made from notes by the model at most (DECISIONS.md D84), and flashcards
-from a whole course's materials (D101).
+from a whole course's materials (D101), and an answer of the coach (D176).
 
 Nothing is called: this multiplies documented token counts by the price list the
 app already keeps (`cps.ai.PRICES`, Anthropic's list as cached on 2026-10-06 and
@@ -40,7 +40,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from cps import ai, cardmaker, service  # noqa: E402
+from cps import ai, cardmaker, service, tips  # noqa: E402
 from cps.console import ensure_utf8_output  # noqa: E402
 
 TEXT_PER_PAGE = (1_500, 3_000)  # documented range, text of one PDF page
@@ -94,6 +94,7 @@ def main() -> None:
         )
     cards()
     materials()
+    coach()
 
 
 def materials_cost(model: str) -> tuple[float, float, float]:
@@ -158,6 +159,59 @@ def cards() -> None:
         print(
             f"  {model:<20} {both:.4f} USD; {int(ai.DEFAULT_MONTHLY_CAP // both)} files under the monthly cap"
         )
+
+
+def coach_prompt() -> tuple[str, str]:
+    """The coach's longest call (D176): a question at the box's limit, every tip's
+    summary as the app sends them, and the plan's facts at their most (the next exams,
+    the weakest topics, each with four of its program's topics, and six sessions)."""
+    library = [{"key": t.key, "advice": t.advice, "why": t.why, "limits": t.limits} for t in tips.TIPS]
+    plan = {
+        "today": "2026-10-01 (Thursday)",
+        "exams": [
+            {"course": "x" * 40, "date": "2027-01-26", "days_left": 117}
+            for _ in range(service.COACH_PLAN_EXAMS)
+        ],
+        "weakest_topics": [
+            {"course": "x" * 40, "topic": "week of 05 Oct", "covers": ["x" * 60] * 4, "recall_now": "70 %"}
+            for _ in range(service.COACH_PLAN_TOPICS)
+        ],
+        "today_sessions": [
+            {"time": "08:00-09:30", "kind": "First review", "of": "x" * 40, "over": False} for _ in range(6)
+        ],
+    }
+    return ai.coach_prompt("x" * service.COACH_MAX, "English", library, plan)
+
+
+def coach_cost(model: str) -> tuple[float, float, float]:
+    """One answer of the coach: the lowest and highest estimate at `CHARS_PER_TOKEN`,
+    with the answer's whole cap; and the worst case counted against the monthly cap."""
+    system, prompt = coach_prompt()
+    chars = len(system + prompt)
+    low, high = (ai.cost(model, round(chars / per), ai.COACH_MAX_TOKENS) for per in reversed(CHARS_PER_TOKEN))
+    return low, high, ai.cost(model, len((system + prompt).encode()), ai.COACH_MAX_TOKENS)
+
+
+def coach() -> None:
+    system, prompt = coach_prompt()
+    print(
+        f"\nAn answer of the coach (D176), at its longest ({len(system + prompt):,} characters sent,"
+        f" up to {ai.COACH_MAX_TOKENS:,} tokens back), US dollars:"
+    )
+    print(f"  {'model':<20}{'lowest':>9}{'highest':>9}{'cap reserves':>14}")
+    for model in ai.PRICES:
+        low, high, worst = coach_cost(model)
+        mark = "  (the coach's model)" if model == ai.COACH_MODEL else ""
+        print(f"  {model:<20}{low:>9.4f}{high:>9.4f}{worst:>14.4f}{mark}")
+    _low, high, worst = coach_cost(ai.COACH_MODEL)
+    month = 30 * service.COACH_FREE_A_DAY
+    print(
+        f"  Under the {ai.DEFAULT_MONTHLY_CAP:.0f} USD monthly cap, at the highest estimate:"
+        f" {int(ai.DEFAULT_MONTHLY_CAP // high):,} answers, or"
+        f" {int(ai.DEFAULT_MONTHLY_CAP // (high * month))} students asking all"
+        f" {service.COACH_FREE_A_DAY} free answers every day of a month"
+        f" ({int(ai.DEFAULT_MONTHLY_CAP // (worst * month))} at the worst case the cap reserves)."
+    )
 
 
 if __name__ == "__main__":
