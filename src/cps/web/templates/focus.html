@@ -19,6 +19,12 @@
 <section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
   {% set fm = focus.moodle %}
+  {% if focus.materials %}
+  {# D174: this week's materials of the course, read from its page, beside the clock. #}
+  <ul class="focus-materials" aria-label="{{ _('This week') }}">
+    {% for m in focus.materials %}<li><a href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ lucide(material_icons[m.kind], "mat-icon") }}<span>{{ m.title }}</span></a></li>{% endfor %}
+  </ul>
+  {% endif %}
   {% if fm and fm.linked %}
   {# D163: the course's pages on Moodle beside the clock. Another tab is time away (D17). #}
   <p class="focus-moodle"><a href="{{ fm.pages.materials }}" rel="noopener noreferrer" target="_blank">{{ _("Materials on Moodle") }} ↗</a> · <a href="{{ fm.pages.course }}" rel="noopener noreferrer" target="_blank">{{ _("Course page") }} ↗</a><br><small>{{ _("They open in another tab, which the clock counts as time away.") }}</small></p>

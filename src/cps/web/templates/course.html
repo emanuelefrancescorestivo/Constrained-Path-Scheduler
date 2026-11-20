@@ -77,11 +77,12 @@
         {% if w.assessments %}<p class="week-assessments">{% for a in w.assessments %}<span class="mtag mtag-exam">{{ a }}</span>{% endfor %}</p>{% endif %}
         {% if w.topics %}<ul class="week-topics">{% for t in w.topics %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
         {% if w.readings %}<p class="week-readings"><span class="muted">{{ _("To read") }}:</span> {{ w.readings | join("; ") }}</p>{% endif %}
+        {# D174: the week's materials, read from the course's pages, and the links added by hand. #}
+        {% if w.links %}<ul class="week-materials">{% for l in w.links %}<li><a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ lucide(material_icons[l.kind or "link"], "mat-icon") }}<span>{{ l.title }}</span></a></li>{% endfor %}</ul>{% endif %}
         <p class="week-meta">
           {% if w.memory %}<span class="mtag lvl-{{ w.memory.level }}">{{ _("{n} % recall today", n=w.memory.recall) }}</span>{% endif %}
           {% if w.ahead %}<span>{{ _n("{n} review planned", "{n} reviews planned", w.ahead) }}</span>{% endif %}
           {% if w.cards %}<a href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _n("Practise its {n} card", "Practise its {n} cards", w.cards) }}</a>{% elif w.state != "ahead" %}<a href="/p/{{ token }}/cards/make?from=course&amp;course={{ v.course | urlencode }}&amp;week={{ w.monday }}">{{ _("Make cards for this week") }}</a>{% endif %}
-          {% for l in w.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.title }} ↗</a>{% endfor %}
           {# D141: explaining a week's idea opens with its course and first topic filled in. #}
           {% if w.state != "ahead" %}<a href="/p/{{ token }}/explain?course={{ v.course | urlencode }}{% if w.topics %}&amp;concept={{ w.topics[0] | truncate(120, true, '') | urlencode }}{% endif %}">{{ _("Explain it simply") }}</a>{% endif %}
         </p>
@@ -206,6 +207,11 @@
 <div class="section" id="material" data-tour="course-material">
   <div class="section-title"><h2>{{ _("Material") }}</h2></div>
   <ul class="card list material-list">
+    {# D174: the course's materials, read from where its teacher keeps them. #}
+    <li>
+      <a class="grow" href="/p/{{ token }}/courses/{{ v.index }}/materials"><b>{{ _("Materials") }}</b><br><small>{% if v.materials.count %}{{ _n("{n} item", "{n} items", v.materials.count) }} · {{ _n("on {n} week", "on {n} weeks", v.materials.weeks) }}{% else %}{{ _("Bring them in from Moodle or the teacher's site, week by week.") }}{% endif %}</small></a>
+      {% if not v.materials.count %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/courses/{{ v.index }}/materials">{{ _("Bring them in") }}</a>{% endif %}
+    </li>
     <li>
       <a class="grow" href="/p/{{ token }}/cards?course={{ v.course | urlencode }}"><b>{{ _("Flashcards") }}</b><br><small>{% if v.cards %}{{ _n("{n} card", "{n} cards", v.cards) }}{% if v.due %} · {{ _n("{n} to review", "{n} to review", v.due) }}{% endif %}{% if v.unfiled %} · {{ _n("{n} without a week", "{n} without a week", v.unfiled) }}{% endif %}{% else %}{{ _("No cards yet") }}{% endif %}</small></a>
       {% if v.due %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/cards/review?course={{ v.course | urlencode }}">{{ _("Review") }}</a>{% endif %}<a class="btn btn-sm btn-plain" href="/p/{{ token }}/cards/make?from=course&amp;course={{ v.course | urlencode }}">{{ _("Make cards") }}</a>

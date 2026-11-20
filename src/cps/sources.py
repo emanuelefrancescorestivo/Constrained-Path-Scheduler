@@ -95,6 +95,38 @@ class _Redirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def fetch_page(url: str, *, allow_private: bool = False, timeout: float = TIMEOUT) -> tuple[bytes, str]:
+    """A public web page's body and its address after redirects (for its relative
+    links): a teacher's course site, a shared document's export (D174). The same
+    refusals as a calendar's; a page that is not text is refused too."""
+    url = normalise(url)
+    if not allow_private:
+        check_public(url)
+    opener = urllib.request.build_opener(_Redirects(allow_private))
+    request = urllib.request.Request(
+        url, headers={"User-Agent": USER_AGENT, "Accept": "text/html, text/plain;q=0.8, */*;q=0.1"}
+    )
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            body = response.read(MAX_BYTES + 1)
+            final = response.geturl()
+            kind = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    except SourceError:
+        raise
+    except urllib.error.HTTPError as exc:
+        raise SourceError(
+            _("the link answered with an error ({code} {reason})", code=exc.code, reason=exc.reason)
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raise SourceError(_("the link could not be read ({reason})", reason=reason)) from exc
+    if len(body) > MAX_BYTES:
+        raise SourceError(_("the page behind the link is larger than {mb} MB", mb=MAX_BYTES // (1024 * 1024)))
+    if kind and not kind.startswith("text/") and kind != "application/xhtml+xml":
+        raise SourceError(_("the link does not lead to a web page"))
+    return body, final
+
+
 def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TIMEOUT) -> bytes:
     """The body behind `url`, which should be an `.ics`. See the module docs for
     what is refused and why. Raises `SourceError` with a readable message."""

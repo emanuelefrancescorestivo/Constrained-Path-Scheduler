@@ -512,6 +512,38 @@ def _date(line: str) -> tuple[str, int] | None:
     return _day_iso(found), match.start("rest")
 
 
+def marked(line: str) -> Topic | None:
+    """The week, lecture or day a line starts with, as a topic titled with the rest:
+    "Week 3: Limits", "L5. Compactness", "Session 2", "Mon 14 Sep Turing machines",
+    "01 Mon 14 Sep Turing machines" (the class's number and its day); None when it names
+    none. For the readers of a course's materials (D174), which place what comes under
+    such a line."""
+    line = " ".join(line.split()).strip(" ·")
+    if not line:
+        return None
+    marker = _marker(line)
+    if marker is not None:
+        n = int(marker["n"])
+        return Topic(_title(marker["rest"]), n if marker["week"] else None, None if marker["week"] else n)
+    dated = _dated(line)
+    if dated is not None:
+        match, found = dated
+        return Topic(_title(match["rest"]), None, int(match["w0"]) if match["w0"] else None, _day_iso(found))
+    return None
+
+
+def day_in(text: str) -> str | None:
+    """The first date written in a text, as `Topic.day` keeps it: "Session 1 (18 Nov.)"
+    gives "11-18". A date without a month's name needs its year or a weekday, as in a
+    schedule; None without one (D174)."""
+    starts = [0] + [i + 1 for i, c in enumerate(text[:-1]) if c in " ([,;:–—-" and text[i + 1].isalnum()]
+    for at in starts:
+        dated = _dated(text[at:])
+        if dated is not None and dated[0]["w0"] is None:
+            return _day_iso(dated[1])
+    return None
+
+
 def _order(lines: Sequence[str]) -> bool:
     """Whether the schedule writes the day before the month: a number above 12 says
     which comes first, else the weekdays given, else day first."""

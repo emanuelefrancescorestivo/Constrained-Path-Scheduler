@@ -62,6 +62,7 @@ from . import accounts as _accounts
 from . import ai as _ai
 from . import cardmaker as _cardmaker
 from . import cards as flashcards
+from . import coursepages as _coursepages
 from . import daylight as _daylight
 from . import fitting
 from . import i18n as _i18n
@@ -74,6 +75,7 @@ from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
 from . import social as social
+from . import sources as _sources
 from . import syllabus as _syllabus
 from . import tips as _tips
 from . import trends as _trends
@@ -6426,7 +6428,11 @@ def workspace_view(subscription: Subscription, now: datetime | None = None) -> d
     colours = {name.casefold(): index for name, index in course_colours(plan)} if plan else {}
     rows = []
     for index, name in enumerate(courses[:WORKSPACE_COURSES]):
-        links = [x for x in _links(subscription, name) if x.get("week") in ("", None, monday)]
+        links = [
+            x
+            for x in _links(subscription, name)
+            if x.get("week") == monday or (not x.get("week") and not x.get("source"))
+        ]
         links.sort(key=lambda x: x.get("week") != monday)
         rows.append(
             {
@@ -7943,6 +7949,7 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
         view.update(
             # D163: the course's pages on Moodle beside the clock, once it is linked.
             moodle=moodle_course(subscription, running) if running else None,
+            materials=week_materials(subscription, running, now) if running else [],  # D174
             course=focus["course"],
             started=_iso(started),
             started_local=f"{started.astimezone(zone):%H:%M}",
@@ -13523,7 +13530,7 @@ def add_course_link(subscription: Subscription, index: int, form: Mapping[str, s
             _("at most {n} characters here", n=LINK_LIMITS["title"] if len(title) > 80 else 500)
         )
     links = _links(subscription, course)
-    if len(links) >= LINKS_MOST:
+    if len(_hand_links(subscription, course)) >= LINKS_MOST:
         raise InvalidInput(_("at most {n} links for a course", n=LINKS_MOST))
     week = str(form.get("week") or "")
     known = {m.isoformat() for m in _teaching(subscription, course)[0]}
@@ -13544,6 +13551,273 @@ def remove_course_link(subscription: Subscription, index: int, link_id: str) -> 
     links = [x for x in _links(subscription, course) if x.get("id") != link_id]
     materials = {**(subscription.options.get("materials") or {}), course_key(course): links}
     return replace(subscription, options={**subscription.options, "materials": materials})
+
+
+# --------------------------------------------------------------------------- #
+# A course's materials from where its teacher keeps them (D174)
+# --------------------------------------------------------------------------- #
+
+MATERIALS_FILE_MOST = 4 * 1024 * 1024  # bytes of a page saved from the browser
+MATERIALS_MOST = 2 * _coursepages.MAX_ITEMS  # one course's materials read from pages, every source
+MATERIALS_ON_FOCUS = 6  # the week's materials on the focus screen
+_GOOGLE_DOC = re.compile(r"^https://docs\.google\.com/document/d/([\w-]{20,})", re.IGNORECASE)
+
+
+def _hand_links(subscription: Subscription, course: str) -> list[dict]:
+    """The links the student added by hand (D88), not those read from a page."""
+    return [x for x in _links(subscription, course) if not x.get("source")]
+
+
+def _decoded(body: bytes) -> str:
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return body.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return body.decode("latin-1")
+
+
+def _material_places(
+    subscription: Subscription, course: str, items: Sequence[_coursepages.Material]
+) -> list[str]:
+    """Each item's place: the Monday of the teaching week it falls in, else "course"
+    (the whole course) or "exams" (exam practice)."""
+    mondays, hours, weeks = _teaching(subscription, course)
+    placed = [i for i in items if i.placed]
+    weeks_of = iter(_syllabus.place([i.topic() for i in placed], hours, weeks, mondays) if placed else [])
+    out = []
+    for item in items:
+        week = next(weeks_of) if item.placed else None
+        out.append(mondays[week - 1].isoformat() if week is not None else item.shelf)
+    return out
+
+
+def _source_key(reading: _coursepages.Reading, address: str | None) -> str:
+    if reading.source == "moodle" and reading.site:
+        return f"moodle:{reading.site}#{reading.course_id or ''}"
+    return f"page:{address or reading.name}"
+
+
+def import_course_materials(
+    subscription: Subscription,
+    index: int,
+    *,
+    page: bytes | None = None,
+    address: str | None = None,
+    fetch: Callable[[str], tuple[bytes, str]] | None = None,
+) -> tuple[Subscription, dict]:
+    """A course's materials read from where its teacher keeps them (D174): a page saved
+    from Moodle or from the teacher's site (`page`, the file's bytes), or the address of
+    a public page or a shared document (`address`), which the server reads. Each item is
+    placed on a teaching week of the timetable, else kept for the whole course or for
+    exam practice. Reading the same source again replaces what it gave, keeping where
+    the student moved an item. A Moodle page links the course to its page there (D163)
+    when it was not; a Moodle address alone links it and asks for the page, which Moodle
+    shows only after its own sign-in."""
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    options = dict(subscription.options)
+    if address is not None:
+        address = address.strip()
+        if not address:
+            raise InvalidInput(_("a file, or a page's address"))
+        if len(address) > 500:
+            raise InvalidInput(_("at most {n} characters here", n=500))
+        moodle_address = None
+        with contextlib.suppress(InvalidInput):
+            moodle_address = read_moodle_address(address)
+        if moodle_address is not None and moodle_address[1] is not None:
+            site, number = moodle_address
+            options["moodle_courses"] = {
+                **(options.get("moodle_courses") or {}),
+                key: {"site": site, "id": number},
+            }
+            return replace(subscription, options=options), {"needs_file": True, "host": _host(site)}
+        doc = _GOOGLE_DOC.match(address)
+        target = f"https://docs.google.com/document/d/{doc.group(1)}/export?format=html" if doc else address
+        try:
+            body, final = (fetch or _sources.fetch_page)(target)
+        except _sources.SourceError as exc:
+            raise InvalidInput(str(exc)) from exc
+        html, base, label = _decoded(body), final, address
+    elif page is not None:
+        if len(page) > MATERIALS_FILE_MOST:
+            raise InvalidInput(_("the page is larger than {mb} MB", mb=MATERIALS_FILE_MOST // (1024 * 1024)))
+        html, base, label = _decoded(page), None, None
+    else:
+        raise InvalidInput(_("a file, or a page's address"))
+    if "<" not in html[:4096]:
+        raise InvalidInput(_("this is not a web page: save the course's page from the browser (Ctrl+S)"))
+    reading = _coursepages.read(html, base)
+    if reading.source == "moodle" and not reading.items and not reading.course_id:
+        raise InvalidInput(_("this is not a course's page on Moodle: open the course, then save its page"))
+    source = _source_key(reading, label)
+    places = _material_places(subscription, course, reading.items)
+    old = [x for x in _links(subscription, course) if x.get("source") == source]
+    moved = {x["url"]: x for x in old if x.get("moved")}
+    others = [x for x in _links(subscription, course) if x.get("source") != source]
+    room = MATERIALS_MOST - sum(1 for x in others if x.get("source"))
+    fresh = []
+    for item, where in list(zip(reading.items, places, strict=True))[: max(0, room)]:
+        kept = moved.get(item.url)
+        where = (kept.get("week") or kept.get("shelf") or where) if kept else where
+        fresh.append(
+            {
+                "id": secrets.token_urlsafe(6),
+                "title": item.title,
+                "url": item.url,
+                "kind": item.kind,
+                "group": item.group,
+                "week": where if where not in _coursepages.SHELVES else "",
+                "shelf": where if where in _coursepages.SHELVES else "",
+                "source": source,
+                **({"moved": True} if kept else {}),
+            }
+        )
+    options["materials"] = {**(options.get("materials") or {}), key: others + fresh}
+    sources = dict((options.get("material_sources") or {}).get(key) or {})
+    sources[source] = {"name": reading.name, "from": reading.source, "address": label or ""}
+    options["material_sources"] = {**(options.get("material_sources") or {}), key: sources}
+    linked = False
+    if reading.site and reading.course_id and key not in (options.get("moodle_courses") or {}):
+        options["moodle_courses"] = {
+            **(options.get("moodle_courses") or {}),
+            key: {"site": reading.site, "id": reading.course_id},
+        }
+        linked = True
+    summary = {
+        "count": len(fresh),
+        "weeks": len({x["week"] for x in fresh if x["week"]}),
+        "course": sum(1 for x in fresh if x["shelf"] == "course"),
+        "exams": sum(1 for x in fresh if x["shelf"] == "exams"),
+        "name": reading.name,
+        "unresolved": reading.unresolved,
+        "linked": linked,
+        "needs_file": False,
+    }
+    return replace(subscription, options=options), summary
+
+
+def move_course_material(subscription: Subscription, index: int, item_id: str, where: str) -> Subscription:
+    """An item of a course's materials moved to a teaching week (its Monday), to the
+    whole course or to exam practice; kept there when its page is read again."""
+    course = _topic_course(subscription, index)
+    known = {m.isoformat() for m in _teaching(subscription, course)[0]}
+    if where not in known and where not in _coursepages.SHELVES:
+        raise InvalidInput(_("Choose a week of the course."))
+    links = []
+    found = False
+    for x in _links(subscription, course):
+        if x.get("id") == item_id:
+            found = True
+            x = {
+                **x,
+                "week": where if where in known else "",
+                "shelf": "" if where in known else where,
+                "moved": True,
+            }
+        links.append(x)
+    if not found:
+        raise InvalidInput(_("This item is no longer there."))
+    materials = {**(subscription.options.get("materials") or {}), course_key(course): links}
+    return replace(subscription, options={**subscription.options, "materials": materials})
+
+
+def remove_course_materials(subscription: Subscription, index: int, source: str) -> Subscription:
+    """Every item one page gave, removed; the links added by hand stay."""
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    links = [x for x in _links(subscription, course) if x.get("source") != source]
+    sources = dict((subscription.options.get("material_sources") or {}).get(key) or {})
+    sources.pop(source, None)
+    options = {
+        **subscription.options,
+        "materials": {**(subscription.options.get("materials") or {}), key: links},
+        "material_sources": {**(subscription.options.get("material_sources") or {}), key: sources},
+    }
+    return replace(subscription, options=options)
+
+
+def _material_row(x: Mapping) -> dict:
+    return {
+        "id": x["id"],
+        "title": x["title"],
+        "url": x["url"],
+        "kind": x.get("kind") or "link",
+        "group": x.get("group") or "",
+        "where": x.get("week") or x.get("shelf") or "course",
+        "host": (urlsplit(x["url"]).hostname or "").removeprefix("www."),
+    }
+
+
+def course_materials_view(subscription: Subscription, index: int, now: datetime | None = None) -> dict:
+    """A course's materials page (D174): what each page gave, week by week, then for the
+    whole course and for exam practice; each item can be moved, and each page read
+    again or removed."""
+    now = now or datetime.now(UTC)
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    mondays = _teaching(subscription, course)[0]
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    read = [x for x in _links(subscription, course) if x.get("source")]
+    weeks = []
+    for number, monday in enumerate(mondays, start=1):
+        items = [_material_row(x) for x in read if x.get("week") == monday.isoformat()]
+        if items:
+            weeks.append(
+                {
+                    "monday": monday.isoformat(),
+                    "number": number,
+                    "label": _("Week {n}", n=number),
+                    "day": format_date(monday, "day_short"),
+                    "now": monday <= today < monday + timedelta(days=7),
+                    "items": items,
+                }
+            )
+    sources = (subscription.options.get("material_sources") or {}).get(key) or {}
+    return {
+        "index": index,
+        "course": course,
+        "weeks": weeks,
+        "course_items": [_material_row(x) for x in read if not x.get("week") and x.get("shelf") != "exams"],
+        "exam_items": [_material_row(x) for x in read if not x.get("week") and x.get("shelf") == "exams"],
+        "count": len(read),
+        "sources": [
+            {
+                "key": source,
+                "name": meta.get("name") or "",
+                "moodle": meta.get("from") == "moodle",
+                "address": meta.get("address") or "",
+                "host": _host(meta.get("address")) if meta.get("address") else "",
+                "count": sum(1 for x in read if x.get("source") == source),
+            }
+            for source, meta in sources.items()
+        ],
+        "choices": [
+            {"value": m.isoformat(), "label": _("Week {n} · {day}", n=k, day=format_date(m, "day_short"))}
+            for k, m in enumerate(mondays, start=1)
+        ]
+        + [
+            {"value": "course", "label": _("For the whole course")},
+            {"value": "exams", "label": _("Exam practice")},
+        ],
+        "timetable": bool(mondays),
+        "moodle": moodle_course(subscription, course),
+    }
+
+
+def week_materials(subscription: Subscription, course: str, now: datetime | None = None) -> list[dict]:
+    """The materials of the course's teaching week now, else of the last one taught:
+    for the focus screen (D174)."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    mondays = [m for m in _teaching(subscription, course)[0] if m <= today]
+    if not mondays:
+        return []
+    week = mondays[-1].isoformat()
+    return [_material_row(x) for x in _links(subscription, course) if x.get("week") == week][
+        :MATERIALS_ON_FOCUS
+    ]
 
 
 def _course_note_posts(
@@ -13767,9 +14041,16 @@ def course_view(
         "due": sum(1 for c in cards if c.new or (c.due is not None and c.due <= due_stamp)),
         "unfiled": sum(1 for c in cards if not c.week),
         "notes": _course_notes(store, subscription, course),
-        "links": [x for x in _links(subscription, course) if not x.get("week")],
+        "links": [x for x in _hand_links(subscription, course) if not x.get("week")],
         "moodle": moodle_course(subscription, course),  # D163
-        "all_links": len(_links(subscription, course)),
+        "all_links": len(_hand_links(subscription, course)),
+        # D174: what the pages the student brought in gave
+        "materials": {
+            "count": sum(1 for x in _links(subscription, course) if x.get("source")),
+            "weeks": len(
+                {x["week"] for x in _links(subscription, course) if x.get("source") and x.get("week")}
+            ),
+        },
         "links_most": LINKS_MOST,
         "week_options": _week_choice(subscription, course, now)["weeks"],
     }
