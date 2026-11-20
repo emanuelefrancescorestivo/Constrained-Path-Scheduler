@@ -5594,3 +5594,43 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .busy-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .busy-card-foot .check { margin-left: auto; }
 .busy-adds { margin-top: 12px; }
+
+
+/* -- A course's materials (D174) ---------------------------------------------------------
+   Read from where the teacher keeps them: each item a row with its kind's icon, on its
+   week; on the course page each week lists its own; the focus screen the week's. */
+.mat-icon { width: 18px; height: 18px; flex: none; color: var(--accent-ink); }
+.mat-list > li { align-items: center; flex-wrap: wrap; }
+.mat-link { display: flex; gap: 10px; align-items: center; flex: 1 1 220px; min-width: 0; color: inherit; text-decoration: none; min-height: 32px; }
+.mat-link .grow { min-width: 0; overflow-wrap: anywhere; }
+.mat-link small { display: block; }
+@media (hover: hover) { .mat-link:hover .grow { color: var(--accent-ink); } }
+.mat-move { flex: none; }
+.mat-move > summary { cursor: pointer; color: var(--accent-ink); font-size: 0.875rem; min-height: 32px; display: flex; align-items: center; list-style: none; }
+.mat-move > summary::-webkit-details-marker { display: none; }
+.mat-move[open] { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mat-move[open] > summary { flex-basis: 100%; }
+.mat-move form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mat-move select { max-width: 100%; }
+.mat-week.is-now .section-title h2 { color: var(--accent-ink); }
+.mat-sources > li { align-items: center; }
+.mat-sources small { display: block; }
+.mat-summary p { margin: 0 0 4px; }
+.mat-add > summary { cursor: pointer; list-style: none; }
+.mat-add > summary::-webkit-details-marker { display: none; }
+.mat-add > summary h2 { display: inline; margin: 0; }
+.mat-form { display: grid; gap: 8px; margin: 12px 0; }
+.mat-form p { margin: 0; }
+.mat-steps { margin: 0; padding-left: 1.3em; font-size: 0.9375rem; }
+.mat-steps li { margin: 2px 0; }
+.mat-form .row-input { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.mat-form .row-input input { flex: 1 1 220px; min-width: 0; }
+/* A file field is as wide as its words: on its own line, it never pushes the page sideways. */
+.mat-form .row-input input[type="file"] { flex-basis: 100%; width: 100%; max-width: 100%; }
+.week-materials { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+.week-materials a { display: flex; gap: 8px; align-items: center; min-height: 32px; color: inherit; text-decoration: none; font-size: 0.9375rem; }
+.week-materials a span { min-width: 0; overflow-wrap: anywhere; }
+@media (hover: hover) { .week-materials a:hover span { color: var(--accent-ink); } }
+.focus-materials { list-style: none; margin: 8px auto 0; padding: 0; display: grid; gap: 2px; max-width: 420px; text-align: left; }
+.focus-materials a { display: flex; gap: 8px; align-items: center; min-height: 36px; color: inherit; text-decoration: none; }
+.focus-materials a span { min-width: 0; overflow-wrap: anywhere; }

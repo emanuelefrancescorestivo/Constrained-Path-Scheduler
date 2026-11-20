@@ -6767,3 +6767,64 @@ filled a phone's screen four times over (the owner on D167's pages: "heavy to sc
 **Disclosed.** Busy times of the same name and hours on several days become one card; the same name
 with other hours stays a card of its own. Saved with the page's button, as the rest of the week's
 settings. Checked in Chromium only, at 1280 px and phone size, light and dark, in French.
+
+## D174. A course's materials, from where its teacher keeps them
+
+**Asked.** The owner, on 2026-11-20: "a most important thing is connection and download of
+materials from official moodle because not all courses are managed the same way by teachers so it
+will need to be handled situation by situation"; then, with six of their courses' pages saved from
+their university's Moodle, one course's site kept by its teacher and another's reading list in a
+shared document: "comincia" (start the first phase of the plan they chose).
+
+**Found.** Their university's Moodle, asked through its public `tool_mobile_get_public_config`
+(no sign-in), has web services and the mobile service on, and signs students in through a federation
+(Shibboleth), Microsoft (OpenID Connect) or a form of its own. Through the federation, Moodle hands
+the sign-in's key to its own app only: `admin/tool/mobile/launch.php` sends it to the
+`moodlemobile://` scheme, which a site forces by default (read in Moodle 4.5's source). The six
+courses kept their materials six ways: sections by kind with numbered files ("L3." under Lectures,
+"3. … SOLVED" under Tutorials, a mock exam under Exams); a section per session, two of them named
+without their number after the sixth; subsections, one dated ("Session 1 (18 Nov.)"); one link to
+the teacher's site, whose programme is a table of dated classes with each one's exercises; a reading
+list, week by week with its dates, most references' addresses written as text; nothing at all. None
+offered Moodle's "Download course content".
+
+**Chosen.** Materials, on each course's page: the student saves the course's page from Moodle
+(Ctrl+S, "Web page, HTML only") and chooses the file, or pastes the address of the teacher's site or
+of a shared document, which the server reads (a public page only, through the calendar's checks
+against private addresses, `sources.fetch_page`; a Google Docs link through its HTML export).
+`coursepages` reads the page: Moodle's sections and subsections in order, each activity's kind, name
+and address (forums, assignments, feedback, external tools and grades left out); any other page's
+headings, table rows and short lines, each link under the week, class or day written last, an
+address written in the text a link too, named by the reference before it. An item is placed by its
+section's day or week first (a weekly course names its sections by their dates), else by its own
+number ("L3.", "Lecture 3", "Tutorial 3", "3. …", "Econ_AI_03"), else by its section's ("Session 3");
+sessions named without a number after numbered ones go on counting; what names an exam, a mock or a
+quiz is exam practice; the rest is for the whole course. `syllabus.place` puts each placed item on a
+teaching week of the timetable, as a program's topics are (D81, D90). The items are kept as the
+course's links (D88), with their kind, section and page: each week of the course's page lists its
+own, the focus screen this week's beside the clock, Today's links this week's first. Each moves to
+another week or shelf with one choice, saved as it is made (D165), or is removed; the same page read
+again replaces what it gave and keeps what was moved. A Moodle page also links the course to its
+page there (D163); a Moodle address alone links it and says to save the page, since Moodle shows a
+course only after its own sign-in.
+
+**Rejected.** Signing in to Moodle for the student: their password would be held by the app (D92),
+and the mobile service's key is handed to Moodle's own app only; an agreement with the university is
+the way to that (the owner's choice, still open). A script or a browser extension run on Moodle's
+pages to download the files: code of ours inside the university's site, with the student's session.
+Downloading and keeping the files: they are the teachers', and they open where they live. Spreading
+items without a number over the weeks, as a program's list is (D81): a book or a syllabus is the
+whole course's, not a week's.
+
+**Disclosed.** Saving a page is a computer's step: a phone's browser saves pages poorly. The rules
+place a tutorial with the lecture of its number, and two lectures a week put L1 and L2 in one week.
+Tried on the owner's six course pages, the teacher's site and the reading list (none in the
+repository): every item landed where its page puts it once four shapes were added to the rules
+(sessions without their number, addresses written as text, a lone address under its reference, a
+class's date in brackets). The tests and `tests/test_generality.py` use pages written for them in
+those shapes and in Italian, German, French and Spanish ones. Moodle 4's markup was read from one
+university's pages (subsections included); Moodle 3's names (`instancename`) are read too but were
+not tried on a real page. A Google Doc is read only when shared with a link. A teacher's site saved
+as a file loses its relative links, said with their count; its address keeps them. Only names and
+addresses are kept, never the page. Checked in Chromium only, at 1280 px and phone size, light and
+dark.

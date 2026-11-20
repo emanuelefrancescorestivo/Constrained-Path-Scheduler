@@ -308,6 +308,9 @@ class Config:
     backup_every: timedelta = timedelta(days=1)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     fetch: Callable[[str], bytes] = service.fetch_calendar
+    # A course's public page or shared document, read for its materials (D174); None:
+    # `sources.fetch_page` (tests give their own).
+    fetch_page: Callable[[str], tuple[bytes, str]] | None = None
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     # New plans per address per hour. A class on one university network shares one
     # public address: two hundred lets a whole lecture start together (D94; forty
@@ -369,6 +372,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["busy_quick"] = service.quick_busy_view()
     templates.env.globals["tip_cover"] = covers.cover  # each tip's cover (D164)
     templates.env.globals["art_icons"] = icons.ART
+    templates.env.globals["material_icons"] = icons.MATERIAL  # a course's materials (D174)
     templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a
     # feed draws the same person's avatar once per post.
@@ -2666,6 +2670,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         "moodle_site": "Your Moodle is saved: now find the course on it.",
         "moodle_off": "No longer linked to Moodle.",
     }
+    # D174: a course's materials page.
+    MATERIAL_NOTICES = {
+        "moved": "Moved.",
+        "removed": "Removed.",
+        "source_off": "Those materials are removed; your own links stay.",
+    }
 
     @app.get("/p/{token}/courses", response_class=HTMLResponse)
     def courses_list(request: Request, token: str, imported: int = -1, saved: str = "") -> HTMLResponse:
@@ -2982,6 +2992,126 @@ def create_app(config: Config | None = None) -> FastAPI:
             lambda current, f: service.remove_course_link(current, index, link_id[:20]),
             "unlinked",
         )
+
+    # D174: a course's materials, read from where its teacher keeps them.
+    def materials_page(
+        request: Request, subscription: service.Subscription, index: int, status: int = 200, **extra: Any
+    ) -> HTMLResponse:
+        try:
+            view = service.course_materials_view(subscription, index, config.clock())
+        except service.ServiceError:
+            return missing(request)
+        return page(
+            request,
+            "course_materials.html",
+            status,
+            token=subscription.token,
+            view=view,
+            tab="courses",
+            **extra,
+        )
+
+    @app.get("/p/{token}/courses/{index}/materials", response_class=HTMLResponse)
+    def course_materials(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        notice = service.translate(MATERIAL_NOTICES[saved]) if saved in MATERIAL_NOTICES else None
+        return materials_page(request, subscription, index, saved=notice)
+
+    @app.post("/p/{token}/courses/{index}/materials", response_class=HTMLResponse)
+    async def course_materials_read(request: Request, token: str, index: int) -> Response:
+        """A page saved from Moodle or the teacher's site, or a page's address: its
+        materials placed on the course's weeks. The file is read in memory, never
+        written anywhere: only its items' names and addresses are kept."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=1, max_fields=4)
+        upload = form.get("page")
+        address = str(form.get("address") or "").strip()
+        data = None
+        if isinstance(upload, UploadFile) and upload.filename:
+            data = await upload.read(service.MATERIALS_FILE_MOST + 1)
+            await upload.close()
+        if data is None and not address:
+            message = service.translate("Choose the page you saved, or paste its address.")
+            return materials_page(request, subscription, index, 400, error=message)
+        found: dict = {}
+
+        def read(current: service.Subscription) -> service.Subscription:
+            changed, summary = service.import_course_materials(
+                current,
+                index,
+                page=data,
+                address=None if data is not None else address,
+                fetch=config.fetch_page,
+            )
+            found.update(summary)
+            return changed
+
+        try:
+            saved = service.update_subscription(store, token, read)
+        except service.ServiceError as error:
+            return materials_page(request, subscription, index, 400, error=str(error), draft=address)
+        if saved is None:
+            return missing(request)
+        service.log_event(store, token, "materials")
+        return materials_page(request, saved, index, summary=found)
+
+    @app.post("/p/{token}/courses/{index}/materials/{item_id}/move")
+    async def course_material_move(request: Request, token: str, index: int, item_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        where = str(form.get("where") or "")
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.move_course_material(current, index, item_id[:20], where),
+            )
+        except service.ServiceError as error:
+            return materials_page(request, subscription, index, 400, error=str(error))
+        return RedirectResponse(f"/p/{token}/courses/{index}/materials?saved=moved#m-{item_id[:20]}", 303)
+
+    @app.post("/p/{token}/courses/{index}/materials/{item_id}/delete")
+    async def course_material_delete(request: Request, token: str, index: int, item_id: str) -> Response:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.remove_course_link(current, index, item_id[:20])
+            )
+        except service.ServiceError as error:
+            return materials_page(request, subscription, index, 400, error=str(error))
+        return RedirectResponse(f"/p/{token}/courses/{index}/materials?saved=removed", 303)
+
+    @app.post("/p/{token}/courses/{index}/materials/source")
+    async def course_materials_source(request: Request, token: str, index: int) -> Response:
+        """Every item one page gave, removed."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        source = str(form.get("source") or "")[:600]
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.remove_course_materials(current, index, source)
+            )
+        except service.ServiceError as error:
+            return materials_page(request, subscription, index, 400, error=str(error))
+        return RedirectResponse(f"/p/{token}/courses/{index}/materials?saved=source_off", 303)
 
     def course_topics_page(
         request: Request,

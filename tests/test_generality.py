@@ -586,3 +586,114 @@ def test_a_learning_platform_s_deadlines_are_read_in_each_language(shape):
         ("Week 4 quiz", "STAT301", "10-07 23:59"),
         ("Problem sheet 3", "STAT301", "10-12 23:59"),
     ]
+
+
+# A course's materials (D174): read from the page a teacher keeps them on, in another
+# system's or country's shape. Each case: the page, its address, and each item's title
+# with its week, lecture, day and shelf.
+def _moodle(sections: list[tuple[int, str, list[tuple[str, str]]]], fmt: str = "topics") -> str:
+    """A course page in Moodle 4's markup: sections of (activity type, name)."""
+    body = []
+    for number, name, items in sections:
+        rows = "".join(
+            f'<li class="activity activity-wrapper {kind} modtype_{kind}" id="module-{number}{i}">'
+            f'<div class="activity-item" data-activityname="{title}">'
+            f'<a href="https://lms.example.org/mod/{kind}/view.php?id={number}{i}">{title}</a></div></li>'
+            for i, (kind, title) in enumerate(items)
+        )
+        body.append(
+            f'<li id="section-{number}" class="section course-section main" data-number="{number}" '
+            f'data-sectionname="{name}"><ul class="section">{rows}</ul></li>'
+        )
+    return (
+        "<html><head><title>Corso: X | Moodle</title>"
+        '<script>M.cfg={"wwwroot":"https:\\/\\/lms.example.org"};</script>'
+        f'</head><body class="format-{fmt} course-7"><ul>{"".join(body)}</ul></body></html>'
+    )
+
+
+MATERIAL_PAGES = {
+    # Moodle's weekly format, in Italian: each section is named by its dates, which
+    # outrank an exercise sheet's own number.
+    "Moodle weeks, Italy": (
+        _moodle(
+            [
+                (0, "Generale", [("resource", "Programma del corso"), ("forum", "Annunci")]),
+                (1, "28 settembre - 4 ottobre", [("resource", "Slide della prima lezione")]),
+                (
+                    2,
+                    "5 ottobre - 11 ottobre",
+                    [("resource", "Esercitazione 2"), ("resource", "Esame 2025 svolto")],
+                ),
+            ],
+            "weeks",
+        ),
+        None,
+        [
+            ("Programma del corso", None, None, None, "course"),
+            ("Slide della prima lezione", None, None, "09-28", "course"),
+            ("Esercitazione 2", None, None, "10-05", "course"),
+            ("Esame 2025 svolto", None, None, None, "exams"),
+        ],
+    ),
+    # Moodle's topics format, in German: lectures and exercise sheets numbered.
+    "Moodle topics, Germany": (
+        _moodle(
+            [
+                (0, "Allgemeines", [("resource", "Modulhandbuch")]),
+                (
+                    1,
+                    "Vorlesungen",
+                    [("resource", "Vorlesung 1 - Einführung"), ("resource", "Vorlesung 2 - Graphen")],
+                ),
+                (2, "Übungen", [("resource", "Übungsblatt 2"), ("resource", "Klausur 2025")]),
+            ]
+        ),
+        None,
+        [
+            ("Modulhandbuch", None, None, None, "course"),
+            ("Vorlesung 1 - Einführung", None, 1, None, "course"),
+            ("Vorlesung 2 - Graphen", None, 2, None, "course"),
+            ("Übungsblatt 2", None, 2, None, "course"),
+            ("Klausur 2025", None, None, None, "exams"),
+        ],
+    ),
+    # A teacher's own site in France: each class a heading with its number and date.
+    "Teacher's site, France": (
+        "<html><head><title>Algorithmique</title></head><body><h1>Algorithmique</h1>"
+        "<h2>Séance 1 : Tris (5 octobre 2026)</h2><p><a href='poly/tris.pdf'>Polycopié</a> "
+        "<a href='td/td1.pdf'>TD</a></p>"
+        "<h2>Séance 2 : Graphes (12 octobre 2026)</h2><p><a href='poly/graphes.pdf'>Polycopié</a></p>"
+        "<h2>Bibliographie</h2><p><a href='https://example.fr/cormen'>Cormen et al., Algorithmique</a></p>"
+        "</body></html>",
+        "https://enseignant.example.fr/algo/",
+        [
+            ("Tris · Polycopié", None, 1, "2026-10-05", "course"),
+            ("Tris · TD", None, 1, "2026-10-05", "course"),
+            ("Graphes · Polycopié", None, 2, "2026-10-12", "course"),
+            ("Cormen et al., Algorithmique", None, None, None, "course"),
+        ],
+    ),
+    # A reading list in Spain, week by week, the addresses written after each reference.
+    "Reading list, Spain": (
+        "<html><head><title>Lecturas</title></head><body>"
+        "<p><b>Semana 3: Ética de la IA (14/10/2026)</b></p>"
+        "<p>Floridi, L. (2019). Translating principles into practices. https://doi.org/10.1007/s13347-019-00354-x</p>"
+        "<p><b>Semana cuatro: Sesgos</b></p>"
+        "<p>Noble, S. (2018). Algorithms of oppression. https://example.es/noble.pdf</p></body></html>",
+        None,
+        [
+            ("Floridi, L. (2019). Translating principles into practices.", 3, None, "2026-10-14", "course"),
+            ("Noble, S. (2018). Algorithms of oppression.", 4, None, None, "course"),
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", MATERIAL_PAGES)
+def test_a_course_s_materials_are_read_in_each_system_s_shape(shape):
+    from cps import coursepages
+
+    html, base, expected = MATERIAL_PAGES[shape]
+    found = coursepages.read(html, base)
+    assert [(m.title, m.week, m.lecture, m.day, m.shelf) for m in found.items] == expected

@@ -136,6 +136,16 @@ def icon(name: str, cls: str = "") -> Markup:
     )
 
 
+# D174: each kind of a course's materials, as the page it came from says it.
+MATERIAL: dict[str, str] = {
+    "file": "file-text",
+    "folder": "folder",
+    "page": "book-open-text",
+    "link": "link",
+    "quiz": "list-checks",
+}
+
+
 def shipped() -> set[str]:
     """Every icon the app may draw."""
-    return set(ART.values()) | set(GLYPHS.values()) | set(PLACES)
+    return set(ART.values()) | set(GLYPHS.values()) | set(PLACES) | set(MATERIAL.values())

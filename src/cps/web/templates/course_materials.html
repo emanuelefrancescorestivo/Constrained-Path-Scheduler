@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{# A course's materials (D174), read from where its teacher keeps them: a page saved
+   from Moodle, the teacher's own site, a shared reading list. Each item on its week,
+   else for the whole course or for exam practice; moved with one choice, saved as it
+   is made (D165). Only names and addresses are kept: the files open where they live. #}
+{% block title %}{{ view.course }} · {{ _("Materials") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% macro item_row(m) %}
+<li class="mat-row" id="m-{{ m.id }}">
+  <a class="mat-link" href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ lucide(material_icons[m.kind], "mat-icon") }}<span class="grow">{{ m.title }}{% if m.group %}<small class="muted">{{ m.group }}</small>{% endif %}</span></a>
+  <details class="mat-move">
+    <summary aria-label="{{ _('Move or remove {title}', title=m.title) }}">{{ _("Move") }}</summary>
+    <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials/{{ m.id }}/move" data-autosave>
+      <label for="w-{{ m.id }}" class="visually-hidden">{{ _("Where it goes") }}</label>
+      <select id="w-{{ m.id }}" name="where">
+        {% for c in view.choices %}<option value="{{ c.value }}"{% if c.value == m.where %} selected{% endif %}>{{ c.label }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="btn btn-sm">{{ _("Move") }}</button></noscript>
+      <span class="hint saved-line" data-saved role="status" hidden></span>
+    </form>
+    <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials/{{ m.id }}/delete">
+      <button type="submit" class="btn btn-sm btn-plain">{{ _("Remove") }}</button>
+    </form>
+  </details>
+</li>
+{% endmacro %}
+<p class="back"><a href="/p/{{ token }}/courses/{{ view.index }}">{{ view.course }}</a></p>
+<h1>{{ _("Materials") }}</h1>
+{% if saved %}<p class="notice notice-ok" role="status">{{ saved }}</p>{% endif %}
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+{% if summary %}
+<div class="card mat-summary" role="status">
+  {% if summary.needs_file %}
+  <p><b>{{ _("Linked to its page on Moodle.") }}</b> {{ _("Moodle shows a course only after you sign in, so the app cannot read it from the address: open the course there, save its page and choose the file below.") }}</p>
+  {% elif summary.count %}
+  <p><b>{{ _n("{n} item read", "{n} items read", summary.count) }}</b>{% if summary.name %} · {{ summary.name }}{% endif %}</p>
+  <p class="muted">{{ _n("on {n} week", "on {n} weeks", summary.weeks) }}{% if summary.course %} · {{ _n("{n} for the whole course", "{n} for the whole course", summary.course) }}{% endif %}{% if summary.exams %} · {{ _n("{n} for exam practice", "{n} for exam practice", summary.exams) }}{% endif %}</p>
+  {% if summary.linked %}<p class="hint">{{ _("The course is linked to its page on Moodle too.") }}</p>{% endif %}
+  {% else %}
+  <p><b>{{ _("No materials found on this page.") }}</b> {{ _("If the course keeps them elsewhere, on the teacher's site or in a shared document, paste that page's address.") }}</p>
+  {% endif %}
+  {% if summary.unresolved %}<p class="hint">{{ _n("{n} link leads inside the page's own site and was left out: paste the page's address instead of the file.", "{n} links lead inside the page's own site and were left out: paste the page's address instead of the file.", summary.unresolved) }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if view.count %}
+{% if not view.timetable %}<p class="hint">{{ _("Your timetable has no lectures for this course, so its materials are kept for the whole course.") }}</p>{% endif %}
+{% for w in view.weeks %}
+<section class="section mat-week{% if w.now %} is-now{% endif %}" aria-labelledby="mw-{{ w.number }}">
+  <div class="section-title"><h2 id="mw-{{ w.number }}">{{ w.label }}</h2><small>{% if w.now %}{{ _("This week") }} · {% endif %}{{ w.day }}</small></div>
+  <ul class="card list mat-list">{% for m in w["items"] %}{{ item_row(m) }}{% endfor %}</ul>
+</section>
+{% endfor %}
+{% if view.course_items %}
+<section class="section" aria-labelledby="mw-course">
+  <div class="section-title"><h2 id="mw-course">{{ _("For the whole course") }}</h2></div>
+  <ul class="card list mat-list">{% for m in view.course_items %}{{ item_row(m) }}{% endfor %}</ul>
+</section>
+{% endif %}
+{% if view.exam_items %}
+<section class="section" aria-labelledby="mw-exams">
+  <div class="section-title"><h2 id="mw-exams">{{ _("Exam practice") }}</h2></div>
+  <ul class="card list mat-list">{% for m in view.exam_items %}{{ item_row(m) }}{% endfor %}</ul>
+</section>
+{% endif %}
+<section class="section" aria-labelledby="mw-sources">
+  <div class="section-title"><h2 id="mw-sources">{{ _("Read from") }}</h2></div>
+  <ul class="card list mat-sources">
+    {% for s in view.sources %}
+    <li><span class="grow">{% if s.moodle %}Moodle{% if view.moodle.host %} · {{ view.moodle.host }}{% endif %}{% else %}{{ s.host or s.name }}{% endif %}<small class="muted">{{ _n("{n} item", "{n} items", s.count) }}</small></span>
+      <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials/source"><input type="hidden" name="source" value="{{ s.key }}"><button type="submit" class="btn btn-sm btn-plain" aria-label="{{ _('Remove what this page gave') }}">{{ _("Remove") }}</button></form></li>
+    {% endfor %}
+  </ul>
+  <p class="hint">{{ _("Read the same page again when the teacher adds to it: what it gave is replaced, and the items you moved stay where you put them.") }}</p>
+</section>
+{% endif %}
+
+{% if view.count %}<details class="card section mat-add"{% if error or draft %} open{% endif %}><summary><h2>{{ _("Bring in more") }}</h2></summary>{% else %}<div class="card section mat-add">{% endif %}
+  {% if not view.count %}<h2>{{ _("Bring in the materials") }}</h2>{% endif %}
+  <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials" enctype="multipart/form-data" class="mat-form">
+    <p><b>{{ _("From Moodle") }}</b></p>
+    <ol class="mat-steps">
+      <li>{% if view.moodle.linked %}<a href="{{ view.moodle.pages.course }}" rel="noopener noreferrer" target="_blank">{{ _("Open the course on Moodle") }} ↗</a>{% else %}{{ _("Open the course on Moodle.") }}{% endif %}</li>
+      <li>{{ _("Save the page: Ctrl+S on a computer (Cmd+S on a Mac), as «Web page, HTML only».") }}</li>
+      <li><label for="mat-page">{{ _("Choose the file here.") }}</label></li>
+    </ol>
+    <div class="row-input"><input id="mat-page" name="page" type="file" accept=".html,.htm,text/html"><button type="submit" class="btn btn-primary">{{ _("Read it") }}</button></div>
+  </form>
+  <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials" class="mat-form">
+    <p><b><label for="mat-address">{{ _("From the teacher's site or a shared document") }}</label></b></p>
+    <div class="row-input"><input id="mat-address" name="address" type="url" inputmode="url" maxlength="500" value="{{ draft or '' }}" placeholder="https://"><button type="submit" class="btn">{{ _("Read it") }}</button></div>
+    <p class="hint">{{ _("A public page or a document shared with a link. Its weeks, dates and classes place each link on its week.") }}</p>
+  </form>
+  <p class="hint">{{ _("Only each item's name and address are kept, never the page itself. The files open on Moodle, which asks for your own sign-in.") }}</p>
+{% if view.count %}</details>{% else %}</div>{% endif %}
+{% endblock %}
