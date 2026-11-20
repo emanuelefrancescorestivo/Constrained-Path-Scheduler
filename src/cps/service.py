@@ -3472,13 +3472,20 @@ def first_run_at(subscription: Subscription, step: str) -> Subscription:
 
 
 def finish_first_run(subscription: Subscription) -> Subscription:
-    """The question about reminders answered (D107): the first run is over, and
-    Today's tour, which it stood in for, is not shown afterwards."""
+    """The question about reminders answered (D107): the first run is over. Today's
+    tour is left as it was: it shows once the first run reaches Today (D170)."""
     state = first_run(subscription)
     if state is None:
         return subscription
-    done = replace(subscription, options={**subscription.options, "first_run": {**state, "finished": True}})
-    return see_tour(done, "today")
+    return replace(subscription, options={**subscription.options, "first_run": {**state, "finished": True}})
+
+
+def _touring(subscription: Subscription) -> bool:
+    """Whether tours may show (D170): not while a first run's steps are still ahead
+    (D107), and from the moment it reaches Today. Before D170 a first run stood in for
+    every tour and its end marked Today's seen, so a new student never had one (AUDIT 116)."""
+    state = first_run(subscription)
+    return state is None or state.get("step") == "today"
 
 
 def share_default(subscription: Subscription) -> str:
@@ -7318,9 +7325,9 @@ def tour_for(
     subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
 ) -> str | None:
     """The tour a page shows: Today's, once, after setting up (D77, D97), and each
-    section's the first time it is opened (D141); none while setting up, and during a
-    first run (D107) Spark says one line on Today instead."""
-    if subscription is None or setup or new or first_run(subscription) is not None:
+    section's the first time it is opened (D141); none while setting up, nor while a
+    first run's steps are ahead (D107), from the moment it reaches Today (D170)."""
+    if subscription is None or setup or new or not _touring(subscription):
         return None
     if tab != "today" and tab not in SECTION_TOURS:
         return None
@@ -7332,6 +7339,8 @@ def section_hint(subscription: Subscription | None, tab: str | None, *, joined: 
     Community's says what the feed is to a student who has joined (AUDIT 82)."""
     if subscription is None or tab not in SECTION_HINTS or tab in tours_seen(subscription):
         return None
+    if not _touring(subscription):
+        return None  # not recorded as visited: its tour shows once tours may (D170)
     return _(JOINED_HINT) if tab == "community" and joined else _(SECTION_HINTS[tab])
 
 

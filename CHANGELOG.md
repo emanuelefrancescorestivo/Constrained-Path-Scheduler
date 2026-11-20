@@ -7,6 +7,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Spark's tour for a new student (DECISIONS.md D170): the tours show once a new plan's first
+  run reaches Today, instead of never (AUDIT 116).
+
 - Focus as one sentence (DECISIONS.md D169): "I test myself on *Algebra 3* for *1 h 30*", the course
   and the length tapped to change, one button to start; under it what staying earns, today's
   minutes and the streak, the tip as one row.

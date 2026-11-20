@@ -1302,3 +1302,16 @@ not reproduced by any of the four: their PDF was made some other way, and is not
 repository. Status: fixed with D166 for what was reproduced (`tests/test_maths_fractions.py`);
 the run-together words remain to check on the owner's file.
 
+
+**116. A new student never had Spark's tour.** Reported by the owner on 2026-11-20, after
+making a plan with an account and their own timetable: "i received no tutorial upon
+initialising with my own account and inputting my own calendar". How found: reading
+`tour_for` against the first run (D107). While a first run lasted, no page showed a tour, Today's
+line from Spark standing in for it; a first run lasts until the first session is done and the
+question about reminders answered; its end then marked Today's tour as seen; and a section opened
+meanwhile was recorded as visited (`section_hint`), so its tour was spent unseen. A test asserted
+the first of these (`test_a_first_run_has_no_tour_and_settings_bring_it_back_after`), so the
+tests kept the defect. Status: fixed with D170: tours wait for the first run to reach Today, then
+show; a section opened before that is not recorded (`tests/test_first_run.py`,
+`tests/test_tour.py`). A plan whose tours were spent this way gets them back from Settings,
+Appearance, Spark's tour: Show it again.

@@ -6659,3 +6659,23 @@ confusion the owner's screenshot showed.
 each kind of session. Checked in Chromium only, at phone size, dark and French; without `:has`
 the "Other…" field always shows and the default length's rewards stay shown.
 
+
+## D170. Spark's tour for a new student
+
+**Asked.** The owner, on 2026-11-20, after making a plan with an account and their own
+timetable: "i received no tutorial upon initialising with my own account and inputting my own
+calendar" (AUDIT 116).
+
+**Chosen.** The tours wait for a first run (D107) to reach Today, then show as for anyone: Today's
+on the first visit after the sharing step, with Spark's line about the first day beside it, and
+each section's the first time it is opened. While the first run's steps are ahead, no tour shows
+and a section opened is not recorded as visited (`service._touring`), so its tour is kept for
+later. The first run's end no longer marks Today's tour as seen.
+
+**Rejected.** Showing the tours only once the first run ends: it ends with the question about
+reminders after the first session, which a student who does not study on day one never reaches,
+so they would still have no tour. Spark's line alone, as D107 had it: one sentence does not show
+where the calendar, the courses or the flashcards are.
+
+**Disclosed.** Plans whose tours were spent unseen before D170 do not get them back by themselves:
+Settings, Appearance, Spark's tour, Show it again. Checked in Chromium only.
