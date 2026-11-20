@@ -4944,6 +4944,10 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 :is(.flash-front, .flash-back, .card-front, .made-front, .made-back, .focus-question-front) sub { top: 0.25em; }
 .msub-sup { display: inline-flex; flex-direction: column; vertical-align: -0.35em; line-height: 1; margin: 0 0.05em; }
 .msub-sup :is(sup, sub) { position: static !important; font-size: 0.68em !important; line-height: 1.05 !important; }
+/* D166: a fraction, its numerator over its denominator on a rule, on the line's axis. */
+.mfrac { display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: middle; text-align: center; font-size: 0.88em; line-height: 1.2; margin: 0 0.15em; }
+.mfrac > .mnum { border-bottom: 1px solid currentColor; padding: 0 0.25em 0.05em; }
+.mfrac > .mden { padding: 0.08em 0.25em 0; }
 
 /* D155: Edit Today. The button sits with the greeting; the list is a phone's settings, each
    widget a row with its switch. */

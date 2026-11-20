@@ -6586,3 +6586,47 @@ images: they would not follow the student's accent or dark mode.
 eye against each tip's advice, not with students. Checked in Chromium only, at 520px wide (twice
 the pixels), light and dark, with the default accent.
 
+## D166. Fractions and limits from LaTeX notes, read from where they are drawn
+
+**Asked.** The owner, on 2026-11-20, with a card made from their notes: "we still have not fixed
+the latex rendering in the flashcards?" (AUDIT 115).
+
+**Chosen.** A PDF of notes is read from where each piece of text is drawn: pypdf's layout
+reading already works out each operation's start, end, baseline and size
+(`recurse_to_target_op`), and keeps them only for itself; `pdftext._runs` asks it for them. Then:
+
+- a gap wider than 0.15 of the size is a space, whatever made the PDF, so words never depend on
+  pypdf's guess (D151 borrowed its layout reading's spaces);
+- a thin horizontal line the page draws (a stroke, or a box under 1.5 points tall), with text
+  just above and just below it, each alone on its baseline, is a fraction,
+  `\frac{numerator}{denominator}`, inline or displayed, the narrowest first so that one inside
+  another is read first; a rule wider than 0.45 of the page, rules sharing their ends (a table),
+  an overline and an underline (text runs on beside them) are not;
+- a smaller piece beside a sign, raised or lowered, is its script as before, and one drawn in
+  several pieces stays one; under "lim", "max", "sup", a sum or a product, it is its limit;
+- TeX's big signs, whose fonts carry no Unicode names, are named: the sum, product and integral
+  (D151) and now the big delimiters `\left(` … `\right)` at their four sizes; they sit on the
+  baseline of what follows them, as they hang from their top;
+- a prime stays with what it marks, however high it is set.
+
+A card draws `\frac{a}{b}` as a fraction, its numerator over a rule over its denominator, a
+fraction inside another too (`_maths`); a long statement is never cut inside one (`_trim`). A
+map's colon or an arrow between a variable and mathematics makes no card ("Recall that a
+function f : (a, b) → R" was one), as an "=" did not since D151. Anything that fails, or a pypdf
+whose layout reading changed, falls back to D151's reading.
+
+**Rejected.** Reading the content stream and decoding each font in this repository: pypdf
+already does both, and a second decoder is a second place for a font to be read wrongly.
+Pinning pypdf to one version for its internal function: the extra already allows 6.x, and the
+fall-back keeps the app working if a later 6.x moves it. Drawing the mathematics with a
+library (MathJax, KaTeX): a dependency the owner has not chosen, and scripts the cards do not
+need; superscripts, subscripts and fractions in HTML and CSS cover what the notes hold.
+
+**Disclosed.** Tried on pages set by pdfTeX 1.40.25, LuaTeX and dvipdfmx here
+(`tests/data/latex-fractions.tex`), not on the owner's file: its run-together words were not
+reproduced, and whether this reading separates them is for the owner to try. The rule for a
+fraction is a choice measured on those pages; a table of one column with a single rule above and
+below a row could still be read as a fraction. Roots, matrices and accents drawn as lines (an
+overline's bar) are not read; a root's sign is named, not its extent. Relies on a module of pypdf
+that is not its public interface (tested with 6.21.4), with D151's reading behind it.
+

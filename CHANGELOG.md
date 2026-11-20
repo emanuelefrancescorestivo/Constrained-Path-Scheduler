@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Fractions and limits from LaTeX notes (DECISIONS.md D166): cards made from a LaTeX PDF keep
+  fractions as fractions (inline, displayed, one inside another), a limit under its lim, big
+  parentheses, and words spaced by the page's own gaps; a map's colon no longer makes a card
+  (AUDIT 115).
+
 - The tips' covers drawn again (DECISIONS.md D168): every cover is a small illustration in
   filled colours, with shade and depth, each object whole (a sun with all its beams, AUDIT 114).
 

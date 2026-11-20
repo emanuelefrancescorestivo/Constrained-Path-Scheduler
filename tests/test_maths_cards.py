@@ -42,7 +42,7 @@ def test_a_latex_page_keeps_its_words_apart_and_its_mathematics_marked():
         "D(f|_{U})^{−1}(y) = Df(x)^{−1}",
         "(g_{1}, h_{1})(g_{2}, h_{2}) = (g_{1}g_{2}, h_{1}h_{2})",
         "x^{2}_{i}",  # x with i below and 2 above
-        "at most ^{1}_{2}∥x∥^{2}",  # a fraction, its 1 over its 2
+        "at most \\frac{1}{2}∥x∥^{2}",  # a fraction, its 1 over its 2 (D166; D151 stacked them)
         "∑",  # TeX's sum, written with a letter's code in its own font
     ):
         assert part in text, part

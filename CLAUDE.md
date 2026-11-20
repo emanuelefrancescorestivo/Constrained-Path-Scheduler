@@ -30,8 +30,8 @@ more than an impressive number.
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1520 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1537 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1527 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1544 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -74,7 +74,7 @@ more than an impressive number.
 | `insights.py` | D80: what a student's own data says, each shown once there is enough of it: starting on time, focus, when they remember best, memory against the forecast; the pace against their own limit and usual weeks, which never asks for more: pure functions |
 | `learning.py` | D82: Your memory, progress only spaced recall can grow: the median stability of the taught topics over the weeks, today's map in four levels of predicted recall, the memory days the week's reviews added, recall reps: pure functions over the plan's FSRS replay |
 | `syllabus.py` | D81: a course's program pasted as text, read by rules into topics (a week or a lecture named in English, French, Italian, Spanish, Portuguese, German, Dutch; bullets, numbering, headings and links dropped), and placed on the course's weeks of lectures, a list without weeks spread by lecture hours: pure functions; D83: a whole course page cut at its headings (content, outcomes, assessment, prerequisites, reading, methods, as the ECTS guide lists them), the topics from its content, the assessment's weights and the ECTS credits with their hours; D90: a whole semester's program cut into its courses (contents page, the plan's names, repeated headings; page furniture dropped), dated or numbered schedules row by row (weekday-checked dates, wrapped cells, readings, "Continuation" and days off skipped), assessments in their weeks, hours of classes, prose and group labels skipped |
-| `pdftext.py` | D90: a PDF's text with pypdf (the `web` extra), within 10 MB, 80 pages and 200,000 characters; the file is not kept; why a PDF gave no text (a scan, a password, damage); D95: a PDF of notes written again without its metadata and what runs, with its text |
+| `pdftext.py` | D90: a PDF's text with pypdf (the `web` extra), within 10 MB, 80 pages and 200,000 characters; the file is not kept; why a PDF gave no text (a scan, a password, damage); D95: a PDF of notes written again without its metadata and what runs, with its text; D166: a page of notes read from where each piece is drawn (pypdf's layout reading, D151's behind it), words spaced by the page's gaps, fractions from their bars, limits under lim and sums, TeX's big delimiters named |
 | `cardmaker.py` | D84: flashcards read by rules from a student's notes: questions and answers, terms and definitions, lists, words in bold or a cloze, definition sentences, in seven languages; each card picked by the student before it is kept: pure functions |
 | `notefiles.py` | D134: a file of notes as text for `cardmaker`: PDF (pypdf), Word, PowerPoint, LibreOffice's text and slides (the standard library's zip and XML), Markdown, text; headings, items, bold and slide titles kept; DOCTYPEs, swelling zips, photos and old Office files refused; the file not kept |
 | `tips.py` | D62: the study tips, each with how strong its evidence is, its limits and its sources (only entries of docs/REFERENCES.md marked checked, with the day they were read); `service` picks the one the day calls for (an exam close, a skipped class, an evening session…, D63) or one in turn; D91: six topics, each with a line about it, How the brain learns and Motivation and reward among them; D160: each tip's number for its picture, as its text gives it (`FIGURES`), the caption under its cover since D164 |
@@ -339,7 +339,9 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   0.023 USD a file with Haiku (`benchmarks/syllabus_cost.py`). Since D151 a PDF of notes is read with its
   words spaced and its mathematics marked (`R^{n}`, `x_{i}`), drawn on cards as superscripts and
   subscripts; tried on one page made by pdfTeX (`tests/data/latex-notes.tex`), not on the owner's file nor
-  other TeX engines; fractions and a sum's limits are stacked scripts, and pypdf can hand two limits as one
+  other TeX engines; since D166 fractions (`\frac{a}{b}`, drawn on cards over a rule), limits and big
+  delimiters are read from where they are drawn, tried on pdfTeX, LuaTeX and dvipdfmx (`tests/data/latex-fractions.tex`)
+  but not on the owner's file, whose run-together words were not reproduced (AUDIT 115); fractions and a sum's limits are stacked scripts, and pypdf can hand two limits as one
   piece (∑ with "ni" over "=1").
 - Flashcards from a file of notes (D134) are read by rules, for free: prose gives few cards;
   tried on files written by the tests and by LibreOffice, not by Microsoft Office, Google Docs or

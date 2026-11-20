@@ -1288,3 +1288,17 @@ beam is easy to miss, and no test looked at a sun. Status: fixed with D168: ever
 again in filled colours, each sun by one function that draws all eight beams, and a test that
 every sun has them (`tests/test_tip_pictures.py`).
 
+**115. A LaTeX fraction was flattened, its limit lost, and a map's colon made a card.**
+Reported by the owner on 2026-11-20 with a screenshot of a card made from their notes: "Recall
+that a functionf" on its front, "(a,b)→Ris differentiable atc∈(a,b)if lim x→c f(x)–f(c) x–c
+exists" on its back ("we still have not fixed the latex rendering in the flashcards?"). How
+found: the same sentence set by pdfTeX, LuaTeX and dvipdfmx in four document classes, read as
+the demo reads a PDF of notes: D151 read pypdf's pieces, which run several drawing operations
+together when they share a font (a limit's "c" and the "f" opening a fraction's numerator came
+as one piece), and had no rule for a fraction, so its numerator and denominator were set as
+scripts inline and on separate lines when displayed; the card rule then took "Recall that a
+function f" before the map's colon as a term. The run-together words of the owner's card were
+not reproduced by any of the four: their PDF was made some other way, and is not in the
+repository. Status: fixed with D166 for what was reproduced (`tests/test_maths_fractions.py`);
+the run-together words remain to check on the owner's file.
+
