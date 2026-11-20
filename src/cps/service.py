@@ -11011,7 +11011,12 @@ def coach(
     """A question about studying, answered from the tips (D65): by the model when AI
     is on and allowed, and its answer keeps the rules (`ai.coach_from_answer`);
     otherwise by matching the question's words to the tips. The question is not
-    kept; that one was asked, and how, is logged for the pilot's measures."""
+    kept; that one was asked, and how, is logged for the pilot's measures.
+
+    D176: the model is Claude Haiku unless the server names another, within the
+    student's answers of the day (`coach_allowance`); past them the rules answer and
+    `spent` says why. The model is given what the plan says about now
+    (`_coach_plan`), so its advice can name an exam, a topic or today's session."""
     now = now or datetime.now(UTC)
     question = " ".join(str(question).split())
     if len(question) < 3:
@@ -11019,11 +11024,12 @@ def coach(
     if len(question) > COACH_MAX:
         raise InvalidInput(_("at most {n} characters, please", n=COACH_MAX))
     by_key = {t.key: t for t in _tips.TIPS}
-    model = (provider or _ai.from_env()) if ai_on(subscription) else None
-    if model is not None:
+    model = (provider or _ai.coach_from_env()) if ai_on(subscription) else None
+    spent = model is not None and coach_allowance(store, subscription, now)["left"] <= 0
+    if model is not None and not spent:
         language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
         library = [{"key": t.key, "advice": t.advice, "why": t.why, "limits": t.limits} for t in _tips.TIPS]
-        system, prompt = _ai.coach_prompt(question, language, library)
+        system, prompt = _ai.coach_prompt(question, language, library, _coach_plan(subscription, now))
         data = _ai.ask(
             _store(store),
             subscription.token,
@@ -11032,7 +11038,7 @@ def coach(
             system=system,
             prompt=prompt,
             schema=_ai.COACH_SCHEMA,
-            max_tokens=1500,
+            max_tokens=_ai.COACH_MAX_TOKENS,
             now=now,
         )
         answer = _ai.coach_from_answer(data, list(by_key)) if data else None
@@ -11045,6 +11051,7 @@ def coach(
                 "declined": answer["kind"] == "declined",
                 "tips": [_tip(by_key[k]) for k in answer["tips"]],
                 "mood": "idle" if answer["kind"] == "declined" else "think",
+                "spent": False,
             }
     matched = _coach_rules(question)
     log_event(store, subscription.token, "coach", "rules")
@@ -11057,7 +11064,235 @@ def coach(
         "declined": False,
         "tips": [_tip(by_key[k]) for k in matched],
         "mood": "think" if matched else "idle",
+        "spent": spent,
     }
+
+
+# The coach's answers with AI a day (D176): five for everyone, the owner paying for the
+# model during the pilot (a university project); two hundred with premium, which the
+# owner gives by a code made on the admin page (nothing is sold yet). A day is the
+# student's own, from midnight in the plan's time zone. Every call counts, a failed one
+# too: it may have cost. The month's cap (`ai.monthly_cap`) still stops every call.
+COACH_FREE_A_DAY = 5
+COACH_PREMIUM_A_DAY = 200
+
+
+def premium(subscription: Subscription) -> dict | None:
+    """The plan's premium (D176): since when, and which code gave it; None without."""
+    kept = subscription.options.get("premium")
+    return kept if isinstance(kept, dict) else None
+
+
+def _day_began(subscription: Subscription, now: datetime) -> datetime:
+    zone = _zone(subscription.options.get("tz") or "UTC")
+    return datetime.combine(now.astimezone(zone).date(), time(0, 0), tzinfo=zone)
+
+
+def coach_allowance(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict:
+    """The coach's answers with AI today (D176): how many a day, how many asked, how
+    many left, and whether the plan has premium."""
+    now = now or datetime.now(UTC)
+    most = COACH_PREMIUM_A_DAY if premium(subscription) else COACH_FREE_A_DAY
+    used = _ai.calls_today(
+        _store(store), subscription.token, now, "coach", since=_day_began(subscription, now)
+    )
+    return {
+        "most": most,
+        "used": min(used, most),
+        "left": max(most - used, 0),
+        "premium": bool(premium(subscription)),
+    }
+
+
+_WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+COACH_PLAN_EXAMS = 4  # the next exams the coach is told of
+COACH_PLAN_TOPICS = 5  # the taught topics with the least chance of recall now
+
+
+def _coach_plan(subscription: Subscription, now: datetime) -> dict | None:
+    """What the coach is told of the plan (D176), and nothing else: today's date and
+    weekday; the next exams, each course's first one ahead, with the days left; the
+    taught topics the memory model gives the least chance of recall today (FSRS with
+    average weights, rounded to 5 %); today's study sessions, their times, kind and
+    course or task, and whether each is over. Never the timetable's other events, a
+    place, a note, a classmate or the plan's address. None without a plan."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    zone = _zone(plan.settings.tz)
+    local = now.astimezone(zone)
+    exams: dict[str, datetime] = {}
+    for spec in plan.specs:
+        if not spec.get("exam"):
+            continue
+        when = datetime.fromisoformat(spec["exam"]).astimezone(zone)
+        course = spec.get("subject", spec["name"])
+        if when.date() >= local.date() and (course not in exams or when < exams[course]):
+            exams[course] = when
+    ahead = sorted(exams.items(), key=lambda kv: kv[1])[:COACH_PLAN_EXAMS]
+    model = model_of(plan.settings)
+    today = _days_after(plan.settings.start, local)
+    _snapshots, _gains, state = _memory_timeline(plan, model, [today])
+    syllabus = _syllabus_index(subscription)
+    taught = []
+    for spec in plan.specs:
+        if spec.get("available_day", 0.0) > today or spec["name"] not in state:
+            continue
+        memory, last = state[spec["name"]]
+        course = spec.get("subject", spec["name"])
+        recall = model.retrievability(max(today - last, 0.0), memory.stability)
+        taught.append((recall, course, spec["name"]))
+    taught.sort()
+    sessions = [
+        {
+            "time": f"{i['start']}-{i['end']}",
+            "kind": i["what"],
+            "of": i["label"],
+            "over": i["state"] == "past",
+        }
+        for i in day_agenda(subscription, now)
+        if i["kind"] == "study"
+    ]
+    return {
+        "today": f"{local.date().isoformat()} ({_WEEKDAY_NAMES[local.weekday()]})",
+        "exams": [
+            {
+                "course": course,
+                "date": when.date().isoformat(),
+                "days_left": (when.date() - local.date()).days,
+            }
+            for course, when in ahead
+        ],
+        "weakest_topics": [
+            {
+                "course": course,
+                "topic": _topic_label(name, course),
+                # The course program's topics for that week, when the student gave it (D81).
+                "covers": _syllabus_of_name(name, course, syllabus)[:4],
+                "recall_now": f"{5 * round(20 * recall)} %",
+            }
+            for recall, course, name in taught[:COACH_PLAN_TOPICS]
+        ],
+        "today_sessions": sessions,
+    }
+
+
+# Premium codes (D176): made by the owner, shown once, kept as a digest. A code may be
+# used by as many plans as the owner says (one student, or a class); closing it stops
+# new uses and leaves the plans that used it as they are.
+PREMIUM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0, O, 1 or I to misread
+PREMIUM_MOST_USES = 1000
+
+
+def _premium_digest(code: str) -> str:
+    return hashlib.sha256(re.sub(r"[^A-Z0-9]", "", str(code).upper()).encode()).hexdigest()
+
+
+def make_premium_code(store: str | os.PathLike, label: str, most: int, now: datetime | None = None) -> str:
+    """A new code, in three groups of four (60 bits), for `most` plans; the owner's
+    `label` says for whom. Only its digest is kept: the code is shown once."""
+    label = " ".join(str(label).split())[:80]
+    if not label:
+        raise InvalidInput(_("say who the code is for"))
+    if not 1 <= int(most) <= PREMIUM_MOST_USES:
+        raise InvalidInput(_("between 1 and {n} uses", n=PREMIUM_MOST_USES))
+    code = "-".join("".join(secrets.choice(PREMIUM_ALPHABET) for _ in range(4)) for _ in range(3))
+    with _store(store).connection() as db:
+        db.execute(
+            "INSERT INTO premium_codes (digest, label, uses, most, created) VALUES (?, ?, 0, ?, ?)",
+            (
+                _premium_digest(code),
+                label,
+                int(most),
+                (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds"),
+            ),
+        )
+    return code
+
+
+def premium_codes_view(store: str | os.PathLike, now: datetime | None = None) -> dict:
+    """The owner's codes, newest first, each with its uses; and the month's AI spending
+    against the cap, with the coach's answers this month."""
+    now = now or datetime.now(UTC)
+    with _store(store).connection() as db:
+        rows = db.execute(
+            "SELECT digest, label, uses, most, created FROM premium_codes ORDER BY created DESC"
+        ).fetchall()
+        (coach_calls,) = db.execute(
+            "SELECT COUNT(*) FROM ai_usage WHERE feature = 'coach' AND created >= ?", (_ai._month_start(now),)
+        ).fetchone()
+    return {
+        "codes": [
+            {
+                "id": str(digest)[:12],
+                "label": label,
+                "uses": int(uses),
+                "most": int(most),
+                "open": int(uses) < int(most),
+                "created": format_date(datetime.fromisoformat(created).date(), "long"),
+            }
+            for digest, label, uses, most, created in rows
+        ],
+        "spent": format_number(round(_ai.spent_this_month(_store(store), now), 2)),
+        "cap": format_number(round(_ai.monthly_cap(), 2)),
+        "coach_calls": int(coach_calls),
+        "free": COACH_FREE_A_DAY,
+        "premium": COACH_PREMIUM_A_DAY,
+    }
+
+
+def close_premium_code(store: str | os.PathLike, ident: str) -> bool:
+    """No more uses of the code whose digest starts with `ident`; the plans that used
+    it keep their premium."""
+    if not re.fullmatch(r"[0-9a-f]{12}", ident):
+        return False
+    with _store(store).connection() as db:
+        return bool(
+            db.execute(
+                "UPDATE premium_codes SET most = uses WHERE substr(digest, 1, 12) = ?", (ident,)
+            ).rowcount
+        )
+
+
+def redeem_premium(
+    store: str | os.PathLike, token: str, code: str, now: datetime | None = None
+) -> Subscription | None:
+    """A student's code (D176): one use of it claimed, then premium kept with the plan.
+    A plan with premium already uses none. None if the plan does not exist."""
+    now = now or datetime.now(UTC)
+    current = load_subscription(store, token)
+    if current is None:
+        return None
+    if premium(current):
+        return current
+    plain = re.sub(r"[^A-Z0-9]", "", str(code).upper())
+    if not 8 <= len(plain) <= 40:
+        raise InvalidInput(_("that code is not known"))
+    digest = _premium_digest(plain)
+    with _store(store).connection() as db:
+        if db.execute("SELECT 1 FROM premium_codes WHERE digest = ?", (digest,)).fetchone() is None:
+            raise InvalidInput(_("that code is not known"))
+        claimed = db.execute(
+            "UPDATE premium_codes SET uses = uses + 1 WHERE digest = ? AND uses < most", (digest,)
+        ).rowcount
+    if not claimed:
+        raise InvalidInput(_("that code has been used as many times as it can be"))
+    given = {"since": now.astimezone(UTC).isoformat(timespec="seconds"), "code": digest[:12]}
+    return update_subscription(
+        store, token, lambda s: s if premium(s) else replace(s, options={**s.options, "premium": given})
+    )
+
+
+def premium_view(subscription: Subscription) -> dict:
+    """What Settings says of premium (D176)."""
+    kept = premium(subscription)
+    since = None
+    if kept and kept.get("since"):
+        with contextlib.suppress(ValueError):
+            since = format_date(datetime.fromisoformat(kept["since"]).date(), "long")
+    return {"on": bool(kept), "since": since, "free": COACH_FREE_A_DAY, "most": COACH_PREMIUM_A_DAY}
 
 
 # --------------------------------------------------------------------------- #
@@ -11065,8 +11300,9 @@ def coach(
 
 
 def ai_available() -> bool:
-    """Whether this server can ask a model at all: a key, the SDK, a priced model."""
-    return _ai.from_env() is not None
+    """Whether this server can ask a model at all: a key, the SDK, a priced model
+    (the tasks' and the review's, or the coach's, D176)."""
+    return _ai.from_env() is not None or _ai.coach_from_env() is not None
 
 
 def ai_on(subscription: Subscription) -> bool:

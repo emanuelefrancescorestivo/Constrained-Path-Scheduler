@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The coach on Haiku (DECISIONS.md D176): five answers with AI a day for everyone, two hundred with
+  premium, which comes from a code the owner makes on the admin page; the coach is told the next
+  exams, the topics the memory model gives the least chance now and today's sessions; the coach's
+  page says how many answers are left today.
+
 - Connections (DECISIONS.md D175): one page under You for every link with the outside (Moodle,
   the timetable, the plan's calendar, passkeys, reminders), each with its state and one button;
   how the student's Moodle signs in, asked of the site itself; Moodle's calendar link kept sealed,

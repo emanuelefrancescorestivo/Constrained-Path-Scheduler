@@ -5657,3 +5657,16 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .linked-row .grow { min-width: 0; flex: 1 1 200px; }
 .linked-row small { display: block; color: var(--muted); }
 .linked-icon { width: 20px; height: 20px; flex: none; color: var(--ok); }
+
+
+/* -- The coach with AI and premium (D176) ------------------------------------------------
+   The answers left today on a line of their own under the coach's box; the premium code
+   field in Settings; a new code on the owner's page, large enough to copy by eye. */
+.coach-left { display: block; margin-top: 4px; }
+.premium-form { margin-top: 10px; }
+.premium-form .row-input { flex-wrap: wrap; }
+.premium-form .row-input input { flex: 1 1 200px; text-transform: uppercase; letter-spacing: 0.04em; }
+.premium-list > li { align-items: center; }
+.premium-list .grow { min-width: 0; overflow-wrap: anywhere; }
+.premium-list small { display: block; color: var(--muted); }
+.premium-code { font-size: 1.5rem; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }

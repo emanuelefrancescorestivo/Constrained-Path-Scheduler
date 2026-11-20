@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Premium codes") }}{% endblock %}
+{% block main %}
+{# The owner's premium codes (D176): each made here and shown once; only its digest is
+   kept. A code gives the coach's answers with AI a day of premium to as many plans as
+   it allows; closing it stops new uses. #}
+<div class="page-title">
+  <h1>{{ _("Premium codes") }}</h1>
+  <p><a href="/admin/{{ key }}">{{ _("Reports to review") }}</a> · <a href="/admin/{{ key }}/inbox">{{ _("Messages and errors") }}</a> · <a href="/admin/{{ key }}/usage">{{ _("What students use") }}</a></p>
+</div>
+<div class="card">
+  <p>{{ _("This month: {spent} of {cap} US dollars spent on AI.", spent=view.spent, cap=view.cap) }} {{ _n("The coach answered with AI {n} time.", "The coach answered with AI {n} times.", view.coach_calls) }}</p>
+  <p class="hint">{{ _("The coach answers with AI {free} times a day for free, {premium} with premium; past the month's cap, every feature answers by its rules.", free=view.free, premium=view.premium) }}</p>
+</div>
+{% if made %}
+<div class="card notice-ok premium-made" role="status">
+  <p>{{ _("The new code, shown only now: copy it for the student.") }}</p>
+  <p class="premium-code"><b>{{ made }}</b></p>
+</div>
+{% endif %}
+<h2 class="section">{{ _("A new code") }}</h2>
+<form method="post" action="/admin/{{ key }}/premium" class="card">
+  <label for="premium-label">{{ _("For whom") }}</label>
+  <input id="premium-label" name="label" maxlength="80" required placeholder="{{ _('Analysis 3 class, pilot') }}">
+  <label for="premium-most">{{ _("How many plans may use it") }}</label>
+  <input id="premium-most" name="most" type="number" min="1" max="1000" value="1" inputmode="numeric">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <div class="row-end"><button type="submit" class="btn btn-primary">{{ _("Make the code") }}</button></div>
+</form>
+<h2 class="section">{{ _("Codes") }}</h2>
+{% if view.codes %}
+<ul class="card list premium-list">
+  {% for c in view.codes %}
+  <li><span class="grow"><b>{{ c.label }}</b><small>{{ c.created }} · {{ _("{uses} of {most} used", uses=c.uses, most=c.most) }}{% if not c.open %} · {{ _("closed") }}{% endif %}</small></span>
+    {% if c.open %}<form method="post" action="/admin/{{ key }}/premium/{{ c.id }}/close"><button type="submit" class="btn btn-sm btn-plain">{{ _("Close") }}</button></form>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="card empty"><b>{{ _("No code yet") }}</b>{{ _("A code made here gives premium to the plans that type it in Settings.") }}</div>
+{% endif %}
+{% endblock %}

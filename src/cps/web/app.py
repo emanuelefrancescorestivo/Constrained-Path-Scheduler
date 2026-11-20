@@ -1542,13 +1542,16 @@ def create_app(config: Config | None = None) -> FastAPI:
     def coach_page(
         request: Request, token: str, subscription: service.Subscription, **context: Any
     ) -> HTMLResponse:
+        by_ai = service.ai_available() and service.ai_on(subscription)
         return page(
             request,
             "coach.html",
             token=token,
             limit=service.COACH_MAX,
-            by_ai=service.ai_available() and service.ai_on(subscription),
+            by_ai=by_ai,
             ai_available=service.ai_available(),
+            # D176: the answers with AI left today, said under the box.
+            allowance=service.coach_allowance(store, subscription, config.clock()) if by_ai else None,
             tab="tips",
             **context,
         )
@@ -3506,6 +3509,39 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         return page(request, "admin_usage.html", key=key, report=service.usage_report(store, config.clock()))
 
+    @app.get("/admin/{key}/premium", response_class=HTMLResponse)
+    def admin_premium(request: Request, key: str) -> HTMLResponse:
+        """The owner's premium codes and the month's AI spending (D176)."""
+        if not admin_key(key):
+            return missing(request)
+        view = service.premium_codes_view(store, config.clock())
+        return page(request, "admin_premium.html", key=key, view=view)
+
+    @app.post("/admin/{key}/premium", response_class=HTMLResponse)
+    async def admin_premium_make(request: Request, key: str) -> HTMLResponse:
+        """A new code, shown once on the page that answers (D176)."""
+        if not admin_key(key):
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        made, error = None, None
+        most = str(form.get("most") or "1").strip()
+        try:
+            uses = int(most) if most.isdigit() else 0  # anything else is refused below
+            made = service.make_premium_code(store, str(form.get("label") or ""), uses, config.clock())
+        except service.ServiceError as failed:
+            error = str(failed)
+        view = service.premium_codes_view(store, config.clock())
+        return page(
+            request, "admin_premium.html", 400 if error else 200, key=key, view=view, made=made, error=error
+        )
+
+    @app.post("/admin/{key}/premium/{ident}/close")
+    def admin_premium_close(request: Request, key: str, ident: str) -> Response:
+        if not admin_key(key):
+            return missing(request)
+        service.close_premium_code(store, ident)
+        return RedirectResponse(f"/admin/{key}/premium", 303)
+
     @app.post("/admin/{key}/review")
     async def admin_review(request: Request, key: str) -> Response:
         if not admin_key(key):
@@ -3903,6 +3939,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             empty_rows=forms.EMPTY_ROWS,
             tab="settings",
             ai={"available": service.ai_available(), "on": service.ai_on(subscription)},
+            premium=service.premium_view(subscription),
             account=service.account_view(store, subscription, config.clock()),
             login=service.email_account_view(store, owner) if owner else None,
             show_mail=config.show_mail,
@@ -5071,6 +5108,22 @@ def create_app(config: Config | None = None) -> FastAPI:
             return RedirectResponse(f"/p/{token}/{back}?saved=ai", 303)
         return RedirectResponse(f"/p/{token}/settings/data?saved=ai#ai", 303)
 
+    @app.post("/p/{token}/premium")
+    async def premium_code(request: Request, token: str) -> Response:
+        """A premium code typed in Settings (D176): the coach's answers with AI a day
+        go from the free number to premium's."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
+        try:
+            service.redeem_premium(store, token, str(form.get("code") or "")[:60], config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "premium", "code")
+        return RedirectResponse(f"/p/{token}/settings/data?saved=premium#premium", 303)
+
     @app.post("/p/{token}/tasks/done", response_class=HTMLResponse)
     async def task_done(request: Request, token: str) -> Response:
         return await task_change(request, token, "done")
@@ -5262,6 +5315,8 @@ def _notice(saved: str) -> str | None:
         return service.translate(NETWORK_NOTICES[saved])
     if saved in ("ai", "theme", "usage", "pause"):
         return service.translate("Saved.")
+    if saved == "premium":
+        return service.translate("Premium is on: the coach can answer with AI many more times a day.")
     if saved == "today":
         return service.translate("Today shows what you chose. Edit Today changes it again.")
     if saved == "usage-yes":

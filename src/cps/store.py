@@ -235,6 +235,15 @@ CREATE TABLE IF NOT EXISTS server_keys (
     value   TEXT NOT NULL,
     created TEXT NOT NULL
 );
+-- Premium codes (D176): made by the owner, kept as the code's digest, with how many
+-- plans may use it and how many have. Which plan used one is kept with the plan.
+CREATE TABLE IF NOT EXISTS premium_codes (
+    digest  TEXT PRIMARY KEY,
+    label   TEXT NOT NULL,
+    uses    INTEGER NOT NULL DEFAULT 0,
+    most    INTEGER NOT NULL,
+    created TEXT NOT NULL
+);
 -- What reaches the owner (D43): students' messages from the feedback form, which
 -- belong to the plan that sent them and go with it; and the error log, one row per
 -- kind of error with how often and when it last happened, which names no plan.

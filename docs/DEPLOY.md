@@ -127,7 +127,11 @@ With `ANTHROPIC_API_KEY` set (your key from Anthropic's console), each student s
 chooses in Settings. `CPS_AI_MONTHLY_CAP_USD` (10 in `render.yaml`) stops calls for
 the rest of the month once the month's spending would pass it; `CPS_AI_MODEL`
 (default `claude-opus-5-5`; `claude-haiku-5-5` costs a fortieth as much per token)
-picks the model. Set a spending limit in Anthropic's console as well: the cap here
+picks the model of the typed tasks and the weekly review, `CPS_AI_COACH_MODEL` the
+coach's and `CPS_AI_CARDS_MODEL` the flashcards' (both `claude-haiku-5-5` by default,
+D101, D176). The coach answers with AI five times a day per student, 200 with premium:
+premium codes are made at `/admin/<CPS_ADMIN_TOKEN>/premium`, each shown once, and a
+student types theirs in Settings. Set a spending limit in Anthropic's console as well: the cap here
 counts what this server asked for, not what Anthropic billed. The coach and the
 typed tasks have only answered a fake model so far (CLAUDE.md, known limits): read
 their first real answers before telling students about them.

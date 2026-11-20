@@ -6865,3 +6865,46 @@ The timetable's own link (an ADE export, say) is not sealed yet; it carries no a
 systems seen, but some do. The sign-in words come from Moodle's own answer; a site that hides its
 providers is said as "your university's page". Checked against the owner's university's Moodle's
 public answer (federation and Microsoft, apps open), in Chromium only, at 1280 px and phone size.
+
+## D176. The coach on Haiku, its answers a day, premium, and the plan it is told of
+
+**Asked.** The owner, on 2026-11-20: the coach "can help a lot so we can use a cheap but effective
+model and have people pay for the premium to use it limitlessly but we put an initial cap and for
+now i can pay for it as long as it is a university project"; then "ok, intanto fai la fase 2: coach
+su Haiku". The choices document left the coach's options to my recommendation.
+
+**Chosen.** The coach asks Claude Haiku 5.5 (`ai.COACH_MODEL`, `CPS_AI_COACH_MODEL` names another),
+as the flashcards do since D101: its answer is held to the tips' summaries and checked by rules
+before it is shown (`coach_from_answer`, D65), so a smaller model's risk is a plainer answer, not a
+wrong one shown. Its longest call (17,622 characters: a question at the box's limit, every tip, the
+plan's facts at their most) costs at most 0.0016 USD at the highest estimate, against 0.0652 with
+Opus (`benchmarks/syllabus_cost.py`). Each student has five answers with AI a day for free
+(`COACH_FREE_A_DAY`), their own day from midnight in the plan's time zone; past them the tips answer,
+and the page says so and how many are left. Premium gives 200 a day (`COACH_PREMIUM_A_DAY`):
+nothing is sold yet, so premium comes from a code the owner makes on the admin page
+(`/admin/<key>/premium`), shown once and kept as a digest, for as many plans as the owner says (one
+student or a class), closed when they choose; a student types it in Settings, under Your data. The
+coach's calls count against its own allowance, the other features' twenty a day against theirs
+(`ai.OWN_ALLOWANCE`); the month's cap (10 USD by default) still stops every call: at the highest
+estimate it pays for 6,130 answers, or 40 students asking all five every day of a month. The coach
+is now told what the plan says about now (`service._coach_plan`): the next exams with their days
+left, the five taught topics the memory model gives the least chance of recall today (rounded to
+5 %, with the program's topics of that week when the student gave it, D81) and today's sessions,
+so its advice can name them; its instructions say these are estimates and that it adds nothing
+about the plan that is not there. What Settings says is sent to Anthropic names them.
+
+**Rejected.** Opus for the coach: about forty times the price for an answer of at most 100 words kept
+to summaries it is given. A monthly allowance: a day's is easier to understand and to keep, and a
+student who leaves it for a week loses nothing they knew they had. Payments now: the owner pays
+during the pilot, and a shop is a decision of its own (scope, accounts, terms). Premium for every AI
+feature: the owner named the coach; the others keep their limit. Sending the whole plan: the
+question needs the near future, not the timetable, its rooms, its personal events or the diary.
+
+**Disclosed.** No model answer has been tried: the coach has run against a fake provider only, as
+every AI feature here (no key in this environment). Whether five answers a day are enough, and
+whether the plan's facts make answers better, is for the pilot. Every call counts against the
+allowance, one that failed too, since it may have cost. A code is 60 bits from a 32-letter alphabet,
+typed at the rate of the plan's other changes; whoever holds one can give it on. The tips' library
+is sent with every question; prompt caching could make it cheaper and was not tried. Checked in
+Chromium only.
+
