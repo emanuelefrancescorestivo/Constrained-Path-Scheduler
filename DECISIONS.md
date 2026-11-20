@@ -6519,3 +6519,114 @@ louder than the change; one quiet line is enough.
 last flip; the line says "Saved." only once the server has answered. Checked in Chromium only, at
 phone size (dark, French) and 1280px (light): a switch flipped, the page reloaded, the switch as
 left.
+
+## D167. Lighter pages: the diary's older weeks and a course's page
+
+**Asked.** The owner, on 2026-11-20, with screenshots on their phone. Of the diary on Progress:
+"what is that list crap": its older weeks were six folds on the page's background, under them
+a second "Last week" (the weekly review) that read as part of the same list. Of a course's page:
+"heavy heavy heavy to watch and scroll through": every week showed all its topics and links,
+and the exam's settings, the credits and the form to add a link were always open.
+
+**Chosen.** On Progress, the diary's weeks still open (this week and the last, or the latest)
+show their sessions as before; the older weeks are one card, "Earlier weeks", a row each with
+its plant, its name and its sum, opening in place, the chevron at the row's end as in the app's
+other lists. The weekly review comes before the diary, as "Last week, in review".
+
+On a course's page each week is one row: its name, where it stands, its recall as a number and
+its topics on one line; its readings and what to do with it (cards, links, explaining it) open
+in place, and this week opens by itself. The exam shows its date; its settings fold under
+"Change" and are saved as each field changes (`data-autosave`, D165), the button kept only where
+scripts do not run (`<noscript>`). Stopping the course's plan is its own button under them,
+never a switch that a stray tap would save. The credits, once known, fold under a row that says
+them, and are saved as typed. Adding a link is one row until it is wanted. Sharing notes,
+explaining an idea and classmates' notes are buttons in the material card, not a line on the
+page's background.
+
+**Rejected.** Taking the older weeks off Progress to a page of their own: one more page to find,
+for a list a student opens rarely but expects to find there. A summary of the exam's settings
+in its closed row: saved in the background, it would show the old values until the page is
+opened again. Keeping "Save and plan" beside fields saved as they change: two ways to do one
+thing.
+
+**Disclosed.** Measured in Chromium at an iPhone 13's size on the demo's @alex (scrollHeight):
+a course's page went from 3,926 to 3,046 pixels, 5.9 to 4.6 screens; Progress with "More detail"
+open went from 8,292 to 8,421, a little longer, the older weeks' card having a title and two
+lines a row: the diary is tidier, not shorter. Checked by eye in Chromium only, at phone size,
+dark and French. A field of the exam changed and left before the server answers may be lost, as
+on Edit Today (D165).
+
+## D168. The tips' covers, drawn again with care
+
+**Asked.** The owner, on 2026-11-20, of D164's covers, with screenshots of nine: "these drawing
+could be done better", "these too", "this also", "same", "idem", and of the caffeine cover's sun:
+"bro just pay attention when you make these drawings it's not that hard to draw a sun with all
+its beams am i wrong?" (AUDIT 114).
+
+**Chosen.** All 26 covers are drawn again as small illustrations rather than diagrams: whole
+objects in filled colours (paper, wood, a yellow sun, green leaves, pink for the brain and a
+neuron, the student's accent for what the advice is about), each shaded by a darker tone of its
+own colour and set on a soft shadow, with soft rounds of the accent behind for depth, and no
+outlines. The things in a scene keep their colours in light and dark, as an illustration's do;
+the ground, the shadows and what stands on the ground (a flag's pole, a screen's legs, a
+calendar's rings) follow the theme. Pieces drawn in several scenes are drawn once (`_sun`,
+`_moon`, `_star`, `_sheet`, `_calendar`, `_pencil`, `_person`, `_plant`…), so a sun always has
+its eight beams. The scenes say the same things as D164's, more plainly: a classroom of
+students at their desks, you among them; a bed with someone asleep and the day's books on the
+nightstand; a signpost where a path splits; a mountain climbed with its flag. Every cover was
+drawn at three times its size in light and dark and looked at one by one before it was kept;
+five were drawn a third time (the classroom, the neuron, the book's light, the signpost's grass,
+the bar of effort).
+
+**Rejected.** Pictures from a library of illustrations: none is shipped, and adding one is a
+dependency the owner has not chosen; and their scenes would not say what each tip says. Raster
+images: they would not follow the student's accent or dark mode.
+
+**Disclosed.** The covers are a matter of taste, drawn by hand in this repository and checked by
+eye against each tip's advice, not with students. Checked in Chromium only, at 520px wide (twice
+the pixels), light and dark, with the default accent.
+
+## D166. Fractions and limits from LaTeX notes, read from where they are drawn
+
+**Asked.** The owner, on 2026-11-20, with a card made from their notes: "we still have not fixed
+the latex rendering in the flashcards?" (AUDIT 115).
+
+**Chosen.** A PDF of notes is read from where each piece of text is drawn: pypdf's layout
+reading already works out each operation's start, end, baseline and size
+(`recurse_to_target_op`), and keeps them only for itself; `pdftext._runs` asks it for them. Then:
+
+- a gap wider than 0.15 of the size is a space, whatever made the PDF, so words never depend on
+  pypdf's guess (D151 borrowed its layout reading's spaces);
+- a thin horizontal line the page draws (a stroke, or a box under 1.5 points tall), with text
+  just above and just below it, each alone on its baseline, is a fraction,
+  `\frac{numerator}{denominator}`, inline or displayed, the narrowest first so that one inside
+  another is read first; a rule wider than 0.45 of the page, rules sharing their ends (a table),
+  an overline and an underline (text runs on beside them) are not;
+- a smaller piece beside a sign, raised or lowered, is its script as before, and one drawn in
+  several pieces stays one; under "lim", "max", "sup", a sum or a product, it is its limit;
+- TeX's big signs, whose fonts carry no Unicode names, are named: the sum, product and integral
+  (D151) and now the big delimiters `\left(` … `\right)` at their four sizes; they sit on the
+  baseline of what follows them, as they hang from their top;
+- a prime stays with what it marks, however high it is set.
+
+A card draws `\frac{a}{b}` as a fraction, its numerator over a rule over its denominator, a
+fraction inside another too (`_maths`); a long statement is never cut inside one (`_trim`). A
+map's colon or an arrow between a variable and mathematics makes no card ("Recall that a
+function f : (a, b) → R" was one), as an "=" did not since D151. Anything that fails, or a pypdf
+whose layout reading changed, falls back to D151's reading.
+
+**Rejected.** Reading the content stream and decoding each font in this repository: pypdf
+already does both, and a second decoder is a second place for a font to be read wrongly.
+Pinning pypdf to one version for its internal function: the extra already allows 6.x, and the
+fall-back keeps the app working if a later 6.x moves it. Drawing the mathematics with a
+library (MathJax, KaTeX): a dependency the owner has not chosen, and scripts the cards do not
+need; superscripts, subscripts and fractions in HTML and CSS cover what the notes hold.
+
+**Disclosed.** Tried on pages set by pdfTeX 1.40.25, LuaTeX and dvipdfmx here
+(`tests/data/latex-fractions.tex`), not on the owner's file: its run-together words were not
+reproduced, and whether this reading separates them is for the owner to try. The rule for a
+fraction is a choice measured on those pages; a table of one column with a single rule above and
+below a row could still be read as a fraction. Roots, matrices and accents drawn as lines (an
+overline's bar) are not read; a root's sign is named, not its extent. Relies on a module of pypdf
+that is not its public interface (tested with 6.21.4), with D151's reading behind it.
+

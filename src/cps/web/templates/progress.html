@@ -202,26 +202,42 @@
 
 <p class="section"><a class="btn btn-primary btn-block" href="/p/{{ token }}/focus">{{ _("Start a focus session") }}</a></p>
 
-<div class="section" id="diary">
-  <div class="section-title"><h2>{{ _("Your diary") }}</h2>{% if diary.week.sessions %}<small>{{ _n("{n} session this week", "{n} sessions this week", diary.week.sessions) }} · {{ diary.week.hours }} h{% if diary.week.effort %} · {{ _("effort {n}/10", n=diary.week.effort) }}{% endif %}</small>{% endif %}</div>
-  {# D100: week by week, the older weeks folded, each with its sum and its best progress. #}
-  {% from "_art.html" import grow %}
-  {% for wk in diary.weeks %}
-  <details class="diary-week"{% if wk.open %} open{% endif %}>
-    <summary><span class="diary-week-name">{{ wk.name }}</span><span class="diary-week-sum">{% if wk.sessions %}{{ _n("{n} session", "{n} sessions", wk.sessions) }} · {{ wk.hours }} h{% else %}{{ _n("{n} entry", "{n} entries", wk.posts | length) }}{% endif %}</span>{% if wk.biggest %}<span class="badge badge-accent">{{ _("Biggest week") }}</span>{% endif %}{{ grow(wk.best) }}</summary>
-    {% for p in wk.posts %}{% include "_post.html" %}{% endfor %}
-  </details>
-  {% else %}
-  <div class="card empty"><b>{{ _("Nothing logged yet") }}</b>{{ _("Time a session, then say how it went: it lands here, with your notes and photos.") }}</div>
-  {% endfor %}
-</div>
-
+{# D167: last week's review before the diary, named apart from the diary's own "Last week". #}
 {% if review and review.planned %}
 <div class="section" id="review">
-  <div class="section-title"><h2>{{ _("Last week") }}</h2></div>
+  <div class="section-title"><h2>{{ _("Last week, in review") }}</h2></div>
   {% include "_review.html" %}
 </div>
 {% endif %}
+
+<div class="section" id="diary">
+  <div class="section-title"><h2>{{ _("Your diary") }}</h2>{% if diary.week.sessions %}<small>{{ _n("{n} session this week", "{n} sessions this week", diary.week.sessions) }} · {{ diary.week.hours }} h{% if diary.week.effort %} · {{ _("effort {n}/10", n=diary.week.effort) }}{% endif %}</small>{% endif %}</div>
+  {# D100: week by week, each with its sum and its best progress. D167: the weeks open (this
+     week and the last, or the latest) show their sessions; the older ones are one card of
+     rows, each opening in place, rather than a list of folds on the page's background. #}
+  {% from "_art.html" import grow %}
+  {% macro week_sum(wk) %}<span class="diary-week-sum">{% if wk.sessions %}{{ _n("{n} session", "{n} sessions", wk.sessions) }} · {{ wk.hours }} h{% else %}{{ _n("{n} entry", "{n} entries", wk.posts | length) }}{% endif %}</span>{% if wk.biggest %}<span class="badge badge-accent">{{ _("Biggest week") }}</span>{% endif %}{% endmacro %}
+  {% for wk in diary.weeks if wk.open %}
+  <details class="diary-week" open>
+    <summary><span class="diary-week-name">{{ wk.name }}</span>{{ week_sum(wk) }}{{ grow(wk.best) }}</summary>
+    {% for p in wk.posts %}{% include "_post.html" %}{% endfor %}
+  </details>
+  {% else %}{% if not diary.weeks %}
+  <div class="card empty"><b>{{ _("Nothing logged yet") }}</b>{{ _("Time a session, then say how it went: it lands here, with your notes and photos.") }}</div>
+  {% endif %}{% endfor %}
+  {% set earlier = diary.weeks | rejectattr("open") | list %}
+  {% if earlier %}
+  <div class="card diary-earlier">
+    <h3 class="diary-earlier-head">{{ _("Earlier weeks") }}</h3>
+    {% for wk in earlier %}
+    <details class="diary-week diary-row">
+      <summary>{{ grow(wk.best) or '<span class="plant"></span>' | safe }}<span class="grow"><span class="diary-week-name">{{ wk.name }}</span><br>{{ week_sum(wk) }}</span></summary>
+      <div class="diary-row-posts">{% for p in wk.posts %}{% include "_post.html" %}{% endfor %}</div>
+    </details>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
 
 <div class="section" id="badges" data-tour="progress-badges">
   <div class="section-title"><h2>{{ _("Badges") }}</h2><small>{{ _("{n} of {total}", n=badges.earned, total=badges.total) }}</small></div>

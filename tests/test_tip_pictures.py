@@ -5,7 +5,9 @@ D164 made it a cover across the top of the card (the owner's "2C", 2026-11-19), 
 let a number spill out of it on a phone (AUDIT 113). What must hold: every tip has a cover and
 no cover is left without a tip; each is plain SVG in the theme's classes, with no inline style
 (the Content-Security-Policy); every number on a cover is one its tip's own words state, as a
-caption in the page, translated, never drawn inside the picture.
+caption in the page, translated, never drawn inside the picture. D168 drew the covers again
+(the owner, 2026-11-20: "it's not that hard to draw a sun with all its beams"): every class a
+cover uses has its colour in the style sheet, and every sun has all its eight beams.
 """
 
 from __future__ import annotations
@@ -23,8 +25,12 @@ from cps.web import Config, covers, create_app
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 NOW = datetime(2026, 9, 29, 7, 0, tzinfo=UTC)
-SHAPES = {"svg", "path", "circle", "rect", "ellipse"}
-CLASSES = {"g", "c", "a", "l", "w", "k", "m", "h"}
+SHAPES = {"svg", "g", "path", "circle", "rect", "ellipse"}
+CLASSES = {
+    *("g", "sh", "p", "p2", "p2l", "ln", "lnd", "ink", "inkl", "tf", "tl", "a", "a2", "a3", "al", "wl", "wf"),
+    *("y", "y2", "yl", "r", "r2", "rl", "gr", "gr2", "gr2l", "pu", "sk", "pk", "pkl", "pk2l", "bd"),
+    *("br", "br2", "sn", "hr", "nt", "m", "h"),
+}
 # How each unit may be worded in a tip's English text.
 UNITS = {
     "studies": ("stud",),
@@ -114,3 +120,21 @@ def test_the_caption_stays_on_its_cover():
     assert "white-space: nowrap" not in rule.group(1)
     assert re.search(r"\.tip-cover-wrap \{[^}]*overflow: hidden", css)
     assert ".tip-thumb" not in css  # D160's tile is gone
+
+
+def test_every_colour_a_cover_uses_is_in_the_style_sheet_and_every_sun_is_whole():
+    css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text()
+    used = set()
+    for key in covers.COVERS:
+        for node in ET.fromstring(str(covers.cover(key))).iter():
+            used |= set((node.get("class") or "").split()) - {"tip-cover"}
+    for cls in used:
+        assert re.search(rf"\.tip-cover \.{cls}\b[^{{]*\{{", css), cls
+    # D164's sun had six beams; a sun is drawn whole, its eight beams evenly round it.
+    for key in ("caffeine", "sleep-regular", "reward-memory", "effort-reward"):
+        beams = [
+            node.get("d", "")
+            for node in ET.fromstring(str(covers.cover(key))).iter()
+            if node.get("class") == "yl" and node.get("d", "").count("M") == 8
+        ]
+        assert len(beams) == 1 and beams[0].count("L") == 8, key

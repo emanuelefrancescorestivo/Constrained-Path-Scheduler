@@ -5153,16 +5153,17 @@ def _linkify(text: str) -> Markup:
 
 # D151: a card's mathematics, as notes read from a LaTeX PDF mark it (`pdftext.maths_text`)
 # and as a student may type it: `R^{n}` a superscript, `x_{i}` a subscript, and the two on
-# the same sign stacked (`x^{2}_{i}`, a fraction's `^{1}_{2}`, a sum's limits). Everything
-# else is escaped; a mark left open stays as typed.
+# the same sign stacked (`x^{2}_{i}`, a sum's limits). D166: `\\frac{a}{b}` a fraction, its
+# numerator over its denominator, a fraction inside another drawn first. Everything else is
+# escaped; a mark left open stays as typed.
 _SCRIPT = re.compile(r"([\^_])\{([^{}<>]{1,60})\}")
 _JOIN = "\u2060"  # a word joiner: a line never breaks between a sign and its script
 _STACKED = re.compile(r"\^\{([^{}<>]{1,60})\}_\{([^{}<>]{1,60})\}|_\{([^{}<>]{1,60})\}\^\{([^{}<>]{1,60})\}")
+_PART = r"((?:[^{}<>\x00\\]|\\(?!frac)|\x00\d+\x00|\{[^{}<>]{0,60}\}){1,160})"
+_FRAC = re.compile(r"\\frac\{" + _PART + r"\}\{" + _PART + r"\}")
 
 
-def _maths(text: str) -> Markup:
-    html = str(Markup.escape(str(text)))
-
+def _scripts(html: str) -> str:
     def stacked(m: re.Match[str]) -> str:
         up, down = (m.group(1), m.group(2)) if m.group(1) is not None else (m.group(4), m.group(3))
         return f'{_JOIN}<span class="msub-sup"><sup>{up}</sup><sub>{down}</sub></span>'
@@ -5171,7 +5172,29 @@ def _maths(text: str) -> Markup:
         tag = "sup" if m.group(1) == "^" else "sub"
         return f"{_JOIN}<{tag}>{m.group(2)}</{tag}>"
 
-    return Markup(_SCRIPT.sub(single, _STACKED.sub(stacked, html)))
+    return _SCRIPT.sub(single, _STACKED.sub(stacked, html))
+
+
+def _maths(text: str) -> Markup:
+    html = str(Markup.escape(str(text)))
+    drawn: list[str] = []
+
+    def fraction(m: re.Match[str]) -> str:
+        drawn.append(
+            f'{_JOIN}<span class="mfrac"><span class="mnum">{_scripts(m.group(1))}</span>'
+            f'<span class="mden">{_scripts(m.group(2))}</span></span>{_JOIN}'
+        )
+        return f"\x00{len(drawn) - 1}\x00"
+
+    for _ in range(3):  # a fraction inside a fraction, inside a fraction at most
+        html, found = _FRAC.subn(fraction, html)
+        if not found:
+            break
+    html = _scripts(html)
+    for _ in range(3):
+        html = re.sub(r"\x00(\d+)\x00", lambda m: drawn[int(m.group(1))], html)
+    # A prime stays on the line of what it marks: "(u/v)′" was broken before its prime.
+    return Markup(re.sub(r"(?<=\S)(?=[′″‴])", _JOIN, html))
 
 
 def _device(request: Request) -> str:

@@ -987,6 +987,22 @@ td.d { display: table-cell; padding: 0; }
 .diary-week-name { font-weight: 700; }
 .diary-week-sum { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
 .diary-week > summary .plant { width: 28px; height: 28px; }
+/* D167: the older weeks, one card of rows; each row opens its sessions in place, the
+   chevron at the row's end as in the app's other lists. */
+.diary-earlier { margin-top: 14px; padding-top: 4px; padding-bottom: 4px; }
+.diary-earlier-head { margin: 10px 0 2px; font-size: 0.78rem; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.diary-week.diary-row { margin: 0; }
+.diary-row + .diary-row { border-top: 0.5px solid var(--line); }
+.diary-row > summary { flex-wrap: nowrap; gap: 12px; margin: 0; padding: 11px 0; min-height: 44px; }
+.diary-row > summary::before { content: none; }
+.diary-row > summary::after { content: "›"; flex: none; color: var(--muted); font-size: 1.2rem; transition: transform 0.15s; }
+.diary-row[open] > summary::after { transform: rotate(90deg); }
+.diary-row > summary .grow { flex: 1; min-width: 0; line-height: 1.35; }
+.diary-row > summary .plant { margin: 0; vertical-align: 0; }
+.diary-row > summary .badge { margin-left: 6px; }
+.diary-row-posts { padding: 0 0 12px; }
+.diary-row-posts > .card { background: var(--fill, transparent); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .diary-row > summary::after { transition: none; } }
 .post-note { margin: 10px 0 0; white-space: pre-line; }
 .post-simple { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
 .post-simple .kicker { margin: 0 0 2px; font-size: 0.75rem; font-weight: 650; color: var(--accent-ink); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -4106,6 +4122,35 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 .link-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .material-list a.grow { min-width: 0; }
 .link-form h3 { margin: 0 0 4px; }
+/* D167: the course page's forms folded until wanted: the exam's settings and the credits
+   under a "Change" row, saved as they change; adding a link one row; the three ways to share
+   or find notes inside the material card. */
+.exam-when { margin: 0; font-weight: 600; }
+.exam-change, .credits-change { margin-top: 10px; }
+.exam-change > summary, .credits-change > summary, .link-add > summary { color: var(--accent-ink); font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.exam-change[open] > summary { margin-bottom: 4px; }
+.exam-stop { margin-top: 14px; padding-top: 10px; border-top: 0.5px solid var(--line); }
+.exam-stop .btn { color: var(--danger, #d93a2f); }
+.credits-change .credits-form { margin-top: 4px; }
+.link-add { padding-top: 6px; padding-bottom: 6px; }
+.link-add[open] { padding-bottom: 16px; }
+.link-add .link-form label:first-of-type { margin-top: 2px; }
+.material-list > li.material-more { flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+/* D167: each week of a course one row, opened in place; the chevron at the row's end. */
+.course-weeks > li { display: block; padding: 0; }
+.course-weeks > li + li::before { left: 34px; }
+.week-fold > summary { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 44px; color: var(--text); font-weight: 400; }
+.week-fold > summary::before { content: none; }
+.week-fold > summary::after { content: "›"; flex: none; color: var(--muted); font-size: 1.2rem; transition: transform 0.15s; }
+.week-fold[open] > summary::after { transform: rotate(90deg); }
+.week-fold > summary .grow { flex: 1; min-width: 0; }
+.week-fold .week-name { display: flex; }
+.week-topics-line { display: block; font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-fold[open] .week-topics-line { display: none; }
+.week-fold > summary .mtag { flex: none; }
+.week-body { padding: 0 0 12px 34px; }
+.week-body > :first-child { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .week-fold > summary::after { transition: none; } }
 /* Cards from notes (D84) */
 .card-make { display: block; color: inherit; text-decoration: none; }
 .card-make small { color: var(--muted); }
@@ -4899,6 +4944,10 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 :is(.flash-front, .flash-back, .card-front, .made-front, .made-back, .focus-question-front) sub { top: 0.25em; }
 .msub-sup { display: inline-flex; flex-direction: column; vertical-align: -0.35em; line-height: 1; margin: 0 0.05em; }
 .msub-sup :is(sup, sub) { position: static !important; font-size: 0.68em !important; line-height: 1.05 !important; }
+/* D166: a fraction, its numerator over its denominator on a rule, on the line's axis. */
+.mfrac { display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: middle; text-align: center; font-size: 0.88em; line-height: 1.2; margin: 0 0.15em; }
+.mfrac > .mnum { border-bottom: 1px solid currentColor; padding: 0 0.25em 0.05em; }
+.mfrac > .mden { padding: 0.08em 0.25em 0; }
 
 /* D155: Edit Today. The button sits with the greeting; the list is a phone's settings, each
    widget a row with its switch. */
@@ -5194,14 +5243,57 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .tip-cover {
   display: block; width: 100%; aspect-ratio: 300 / 112; max-height: 148px; color: var(--text);
 }
-.tip-cover .g { fill: color-mix(in srgb, var(--accent) 24%, var(--surface)); stroke: none; }
-.tip-cover .c { fill: var(--surface); }
-.tip-cover .a { fill: var(--accent); stroke: var(--accent); }
-.tip-cover .l { stroke: var(--accent); }
-.tip-cover .w { stroke: var(--on-accent); }
-.tip-cover .k { fill: currentColor; stroke: none; }
-.tip-cover .m { opacity: 0.42; }
-.tip-cover .h { opacity: 0.65; }
+/* D168: the covers' palette. Objects keep their colours in light and dark (an illustration's
+   things, not the page's ink); the ground, the shadows and what stands on the ground follow
+   the theme. Shapes are filled, shaded by a darker tone of their own, never outlined. */
+.tip-cover .g { fill: color-mix(in srgb, var(--accent) 17%, var(--surface)); }
+.tip-cover .sh { fill: #0f1726; opacity: 0.13; }
+.tip-cover .p { fill: #fdfdff; }
+.tip-cover .p2 { fill: #d3dae6; }
+.tip-cover .p2l { stroke: #d3dae6; }
+.tip-cover .ln, .tip-cover .lnd { stroke: #9da8ba; }
+.tip-cover .ink { fill: #263041; }
+.tip-cover .inkl { stroke: #263041; }
+.tip-cover .tf { fill: currentColor; }
+.tip-cover .tl { stroke: currentColor; }
+.tip-cover .a { fill: var(--accent); }
+.tip-cover .a2 { fill: color-mix(in srgb, var(--accent) 70%, #000); }
+.tip-cover .a3 { fill: color-mix(in srgb, var(--accent) 42%, #fff); }
+.tip-cover .al { stroke: var(--accent); }
+.tip-cover .wl { stroke: #fff; }
+.tip-cover .wf { fill: #fff; }
+.tip-cover .y { fill: #ffc93c; }
+.tip-cover .y2 { fill: #f2a227; }
+.tip-cover .yl { stroke: #ffc93c; }
+.tip-cover .r { fill: #ff6b6b; }
+.tip-cover .r2 { fill: #d64848; }
+.tip-cover .rl { stroke: #ff6b6b; }
+.tip-cover .gr { fill: #3fc27a; }
+.tip-cover .gr2 { fill: #279a5a; }
+.tip-cover .gr2l { stroke: #279a5a; }
+.tip-cover .pu { fill: #9b87f5; }
+.tip-cover .sk { fill: #7cc7ff; }
+.tip-cover .pk { fill: #ff9ec2; }
+.tip-cover .pkl { stroke: #ff9ec2; }
+.tip-cover .pk2l { stroke: #e0689a; }
+.tip-cover .bd { fill: #2f5e52; }
+.tip-cover .br { fill: #c98d5e; }
+.tip-cover .br2 { fill: #9a6337; }
+.tip-cover .sn { fill: #f4c4a0; }
+.tip-cover .hr { fill: #4a3426; }
+.tip-cover .nt { fill: #34437e; }
+.tip-cover .m { opacity: 0.45; }
+.tip-cover .h { opacity: 0.7; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tip-cover .sh { fill: #000; opacity: 0.32; }
+  :root:not([data-theme="light"]) .tip-cover .p2 { fill: #aeb8ca; }
+  :root:not([data-theme="light"]) .tip-cover .ln, :root:not([data-theme="light"]) .tip-cover .lnd { stroke: #8d98ac; }
+  :root:not([data-theme="light"]) .tip-cover .nt { fill: #5466b0; }
+}
+:root[data-theme="dark"] .tip-cover .sh { fill: #000; opacity: 0.32; }
+:root[data-theme="dark"] .tip-cover .p2 { fill: #aeb8ca; }
+:root[data-theme="dark"] .tip-cover .ln, :root[data-theme="dark"] .tip-cover .lnd { stroke: #8d98ac; }
+:root[data-theme="dark"] .tip-cover .nt { fill: #5466b0; }
 .tip-cover-wrap figcaption {
   align-self: flex-end; max-width: calc(100% - 20px); margin: -4px 10px 10px;
   padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--accent-ink);

@@ -1276,3 +1276,29 @@ Chromium at phone size: D160's tile was 68px wide there, and the number's unit, 
 allowed to break, was wider. D160 had been checked at phone size on a topic whose captions fit.
 Status: fixed with D164: the number has its own band under the tip's cover, as wide as the
 cover at most and wrapped if it must (`tests/test_tip_pictures.py`).
+
+**114. The tips' covers were drawn carelessly: a sun with six beams.** Reported by the owner on
+2026-11-20 with screenshots of nine covers on their phone: "these drawing could be done better",
+then "bro just pay attention when you make these drawings it's not that hard to draw a sun with
+all its beams am i wrong?". The caffeine cover's sun had six beams, two diagonals missing; the
+covers were outlines in white ink on dark, one colour, objects flat and some hard to read (a
+balance, a bulb). How found: the owner's screenshots, then each cover drawn at three times its
+size in light and dark: D164 had checked the covers at their size on the page, where a missing
+beam is easy to miss, and no test looked at a sun. Status: fixed with D168: every cover drawn
+again in filled colours, each sun by one function that draws all eight beams, and a test that
+every sun has them (`tests/test_tip_pictures.py`).
+
+**115. A LaTeX fraction was flattened, its limit lost, and a map's colon made a card.**
+Reported by the owner on 2026-11-20 with a screenshot of a card made from their notes: "Recall
+that a functionf" on its front, "(a,b)→Ris differentiable atc∈(a,b)if lim x→c f(x)–f(c) x–c
+exists" on its back ("we still have not fixed the latex rendering in the flashcards?"). How
+found: the same sentence set by pdfTeX, LuaTeX and dvipdfmx in four document classes, read as
+the demo reads a PDF of notes: D151 read pypdf's pieces, which run several drawing operations
+together when they share a font (a limit's "c" and the "f" opening a fraction's numerator came
+as one piece), and had no rule for a fraction, so its numerator and denominator were set as
+scripts inline and on separate lines when displayed; the card rule then took "Recall that a
+function f" before the map's colon as a term. The run-together words of the owner's card were
+not reproduced by any of the four: their PDF was made some other way, and is not in the
+repository. Status: fixed with D166 for what was reproduced (`tests/test_maths_fractions.py`);
+the run-together words remain to check on the owner's file.
+

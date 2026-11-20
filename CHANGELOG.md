@@ -7,6 +7,18 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Fractions and limits from LaTeX notes (DECISIONS.md D166): cards made from a LaTeX PDF keep
+  fractions as fractions (inline, displayed, one inside another), a limit under its lim, big
+  parentheses, and words spaced by the page's own gaps; a map's colon no longer makes a card
+  (AUDIT 115).
+
+- The tips' covers drawn again (DECISIONS.md D168): every cover is a small illustration in
+  filled colours, with shade and depth, each object whole (a sun with all its beams, AUDIT 114).
+
+- Lighter pages (DECISIONS.md D167): a course's page shows each week as one row (this week open),
+  its exam's date with the rest under "Change" and saved as it changes, the credits and adding a
+  link folded; the diary's older weeks are one card of rows, and last week's review comes before it.
+
 - Edit Today, frictionless (DECISIONS.md D165): each switch shows the picture of its widget on
   Today and is saved as soon as it is flipped, with "Saved." under the list; no need to tap
   Done. Up next and On your mind have pictures of their own.

@@ -120,7 +120,7 @@ def _joined(text: str) -> str:
             and stripped
             and not _NEW_LINE.match(line)
             and not last.endswith((".", ":", ";", "?", "!"))
-            and (stripped[0].islower() or last.endswith((",", "-")))
+            and (stripped[0].islower() or stripped.startswith("\\frac") or last.endswith((",", "-")))
         ):
             out[-1] = (
                 last[:-1] + stripped if last.endswith("-") and stripped[0].islower() else f"{last} {stripped}"

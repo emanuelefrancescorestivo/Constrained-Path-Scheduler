@@ -68,6 +68,8 @@ _SEPARATOR = re.compile(
 # D151: "In dimension n = 1, consider…" is an equation, not a term and its definition: an
 # "=" with a variable on its left (one letter, or one with its marks) and a number, a sign
 # or another variable on its right makes no card; "Vitamin C = ascorbic acid" stays one.
+# D166: so is a map, "a function f : (a, b) → R", and an arrow between two variables: the
+# owner's card asked "Recall that a function f" (2026-11-20).
 _VARIABLE_END = re.compile(r"(?:^|\s)[A-Za-zα-ωΑ-Ω](?:[_^]\{[^{}]*\}|′)*$")
 _MATHS_START = re.compile(r"^\s*(?:[\d−+\-(∞√∑∫|]|[A-Za-zα-ωΑ-Ω](?![A-Za-zà-ÿ]))")
 _MARK = (
@@ -157,10 +159,29 @@ def _trim(text: str, most: int) -> str:
     cut = text[:most]
     end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "))
     cut = cut[: end + 1] if end >= most // 2 else cut[: cut.rfind(" ")] if " " in cut else cut
-    opened = max(cut.rfind("^{"), cut.rfind("_{"))
-    if opened > cut.rfind("}"):
-        cut = cut[:opened]
+    cut = cut[: _closed(cut)]
     return cut.rstrip(" ,;:") + ("" if cut.rstrip().endswith((".", "?", "!")) else " …")
+
+
+def _closed(text: str) -> int:
+    """Where `text` must end so that no mark is left open (D151, D166): before the first
+    superscript, subscript or fraction whose braces it does not close."""
+    depth, first = 0, -1
+    for i, c in enumerate(text):
+        if c == "{":
+            if depth == 0:
+                first = i
+            depth += 1
+        elif c == "}" and depth:
+            depth -= 1
+    if depth == 0:
+        return len(text)
+    if text[max(first - 5, 0) : first] == "\\frac":
+        return first - 5
+    if first > 0 and text[first - 1] in "^_":
+        return first - 1
+    frac = text.rfind("\\frac", 0, first)  # a fraction's second part left open
+    return frac if frac >= 0 else first
 
 
 def _unmark(text: str) -> str:
@@ -318,7 +339,7 @@ def read(text: str) -> list[Candidate]:
             and not sep["back"].strip().startswith("//")
             and not _TITLE.match(sep["back"].strip())
             and not (
-                sep["sep"].strip() == "="
+                sep["sep"].strip() in ("=", ":", "→", "->")
                 and _VARIABLE_END.search(sep["term"].strip())
                 and _MATHS_START.match(sep["back"])
             )
