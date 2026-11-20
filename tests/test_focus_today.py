@@ -157,8 +157,9 @@ def test_focus_from_today_starts_in_one_tap_with_the_last_course_first(tmp_path)
 def test_today_draws_the_focus_card_and_the_week_and_the_card_starts_the_timer(tmp_path):
     sub = _plan(tmp_path)
     _log(tmp_path, sub, "2026-09-28", 60, at="09:00")
-    # Time and attention is on, as a student turns it on (D155 starts with five).
-    time = [*service.TODAY_START, "time"]
+    # Focus and Time and attention are on, as a student turns them on (D155 starts with
+    # five; since D171 Focus is not among them).
+    time = [*service.TODAY_START, "focus", "time"]
     sub = service.update_subscription(tmp_path, sub.token, lambda s: service.set_today_widgets(s, time))
     config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None, remind_every=None)
     with TestClient(create_app(config)) as client:
@@ -170,8 +171,8 @@ def test_today_draws_the_focus_card_and_the_week_and_the_card_starts_the_timer(t
         assert re.search(r'name="course" value="Algebra 3" checked', form)
         assert re.search(r'name="goal" value="25" checked', form)
         assert "#tip-breaks" in form
-        # The card stands in for the link to the focus page under the next step.
-        assert "Study something else" not in page
+        # The plan's first day: the next step's band is its short session (D171).
+        assert 'class="nx-main first-day"' in page
         # The week's attention: one column (Monday's), seven day letters.
         week = re.search(r'<div class="focus-week".*?</div>', page, re.S).group(0)
         assert week.count('class="fw-col') == 1 and week.count('class="fw-day') == 7

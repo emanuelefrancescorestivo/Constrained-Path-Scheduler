@@ -1341,6 +1341,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "recalled": service.recall_week(subscription, now),
             # Today as the app's home (D140): the day at a glance, and classmates.
             "day": service.day_agenda(subscription, now),
+            # The day as one strip across Today (D171).
+            "strip": service.day_strip(subscription, now) if "day" in shown else None,
             "classmates": service.classmates_glance(store, subscription, now) if "friends" in shown else None,
             # The student's time today and attention this week (D140).
             "time": service.time_and_attention(store, subscription, now) if "time" in shown else None,

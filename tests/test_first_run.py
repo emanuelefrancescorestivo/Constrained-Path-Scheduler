@@ -134,7 +134,7 @@ def test_the_first_run_goes_step_by_step_to_today(tmp_path):
         today = unescape(web.get(f"/p/{token}").text)
         # Spark's one line, the tour of Today (D170), and the first day's short session.
         assert "Your plan is ready. One session today is enough" in today and 'id="tour"' in today
-        assert "Start today: 25 minutes on" in today
+        assert 'class="nx-main first-day"' in today and "Your first day · 25 minutes" in today
         # The session, timed, then its summary: the diary's page, with the default chosen.
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3", "goal": "25"})
         clock.now = EVENING + timedelta(minutes=26)
@@ -160,7 +160,7 @@ def test_the_first_run_goes_step_by_step_to_today(tmp_path):
         assert "Same time tomorrow?" in remind and f'data-save="/p/{token}/push?then=first-run"' in remind
         # Until it is answered, Today asks; and the first day's session is not offered again.
         today = unescape(web.get(f"/p/{token}").text)
-        assert "Your first session is done" in today and "Start today: 25 minutes on" not in today
+        assert "Your first session is done" in today and 'class="nx-main first-day"' not in today
         answer = web.post(f"/p/{token}/start/remind", data={"answer": "later"}, follow_redirects=False)
         assert answer.headers["location"] == f"/p/{token}"
         after = unescape(web.get(f"/p/{token}").text)

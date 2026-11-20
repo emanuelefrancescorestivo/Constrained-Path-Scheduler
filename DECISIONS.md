@@ -6677,5 +6677,44 @@ reminders after the first session, which a student who does not study on day one
 so they would still have no tour. Spark's line alone, as D107 had it: one sentence does not show
 where the calendar, the courses or the flashcards are.
 
-**Disclosed.** Plans whose tours were spent unseen before D170 do not get them back by themselves:
-Settings, Appearance, Spark's tour, Show it again. Checked in Chromium only.
+**Disclosed.** `benchmarks/screen_load.mjs`: a new student's first Today opened 0 steps of Spark's
+tour before, 3 after. Plans whose tours were spent unseen before D170 do not get them back by
+themselves: Settings, Appearance, Spark's tour, Show it again. Checked in Chromium only.
+
+## D171. Today as one thing
+
+**Asked.** The owner, on 2026-11-20, with a screenshot of Today on a laptop: "i think it could take
+on the whole space, and for some reason it still feels overwhelming, any ideas?". The screenshot
+had three buttons that start the same focus session (Up next, the Focus widget, the first day's
+card), and the page stopped at 1160 px whatever the window. Of three layouts on
+a page of mock-ups (A, one thing: the next step as a band, the day as a strip, three quiet tiles;
+B, the day as a column of hours; C, a calm grid of equal tiles), the owner chose A, "keeping the
+playfulness of icons and colours to draw attention where it is needed" ("sí facciamo A, ma
+manteniamo la giocosita' di icone e colori per attirare l'attenzione dove serve").
+
+**Chosen.** Today takes the window's width, up to 1680 px. The next step is one band across the
+page, in its course's colour with the target's picture: the kind and time, the course large, its
+week, one button (Start focus), "Study something else" beside it; how to do it and why now fold
+under "How, and why now"; what is at stake (D128) stands beside it as two numbers, the day the topic
+stays above 90 % until if recalled now and the days to the exam. On a plan's first day the band is
+the first day's short session (D106, D107), with "Not now", and the first planned session's day
+beside it. What asks for an answer runs across under it. The day is one strip of time across the
+page from the hour before getting up to the hour after bed, each class, session and busy time where
+it falls in its course's colour, a red line at now (`service.day_strip`; on a phone the same items
+as a list). Then the widgets three by three, Exams, Tasks and On your mind to start: Focus is no
+longer among the five a plan starts with, since the band starts any session; a student who chose
+keeps their choice. What does not fit in the plan is one card, "N things do not fit in the plan",
+its lines folded under it, the week's hours a tap away (AUDIT 117). Each item of the strip is
+placed by whole-percent classes, as the page's Content-Security-Policy allows no style attribute.
+
+**Rejected.** B (the day as a column): close to the calendar, and empty on a day without classes.
+C (equal tiles): tidier, but still six places for the eye to go. Keeping "Coming up" under the day:
+the band names the next session and the calendar the rest, a tap away. A strip on a phone: at 360
+px a fourteen-hour day gives a class about forty pixels.
+
+**Disclosed.** `benchmarks/screen_load.mjs` at a phone's size, on main before and after: a new
+student's Today 309 words and 33 controls over 3.0 screens before, 178 words and 25 controls over
+2.1 screens after; @alex's 352 words, 41 controls and 3.6 screens before, 213, 33 and 2.6 after; the
+taps to Today (10) and to a first session saved (16) are unchanged. The strip's labels are cut short
+when a block is narrow; the full words are on the calendar. Checked in Chromium only, at 1600 and
+1280 px and phone size, light and dark, in French.

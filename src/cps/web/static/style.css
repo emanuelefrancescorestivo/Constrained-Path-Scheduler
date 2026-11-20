@@ -1247,6 +1247,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art-focus { --hue: var(--t-blue); }
 .art-tips { --hue: var(--t-amber); }
 .art-place { --hue: var(--t-red); }
+.art-spark { --hue: var(--t-amber); }
 .art-science { --hue: var(--t-pink); }
 .art-code { --hue: var(--t-indigo); }
 .art-garden { --hue: var(--t-green); }
@@ -4673,7 +4674,9 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
    the section it opens) above its card, as the grouped lists of the rest of the app. */
 .plan[data-tab="today"], .plan[data-tab="calendar"] { grid-template-columns: minmax(0, 1fr); }
 .plan[data-tab="today"] .panel { padding: 22px clamp(16px, 3.2vw, 40px) 40px; }
-.plan[data-tab="today"] .panel > * { max-width: 1160px; margin-inline: auto; }
+/* D171: the whole width the window gives (the owner: "it could take on the whole space"),
+   up to a wide monitor's, where lines would get too long to follow. */
+.plan[data-tab="today"] .panel > * { max-width: 1680px; margin-inline: auto; }
 .plan[data-tab="calendar"] .board { border-left: 0; }
 .hub { --hub-gap: 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--hub-gap) 18px; align-items: start; margin-top: 4px; }
 /* Packed by app.js (the owner, 2026-11-19): rows of 2px, each widget spanning its height
@@ -4732,12 +4735,10 @@ body[data-sky] .study-map { -webkit-backdrop-filter: none; backdrop-filter: none
 
 @media (min-width: 720px) {
   .hub { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; }
-  .w-next { grid-column: 1 / -1; }
 }
+/* D171: the next step and the day across the page, then the widgets three by three. */
 @media (min-width: 1100px) {
   .hub { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .w-next { grid-column: 1 / span 2; grid-row: 1; }
-  .w-day { grid-column: 3; grid-row: 1 / span 2; }
   .w-friends { grid-column: span 2; }
 }
 
@@ -5435,3 +5436,123 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .focus-moodle small { color: var(--muted); font-size: 0.78rem; }
 .side-out { color: var(--muted); font-size: 0.85rem; }
 /* -- end of D163 */
+
+/* -- Today as one thing (D171, the owner's A) ------------------------------------------
+   The owner, 2026-11-20: "i think it could take on the whole space, and for some reason it
+   still feels overwhelming". Of three layouts the owner chose A, "keeping the playfulness of
+   icons and colours to draw attention where it is needed": the next step as one band across
+   the page, in its course's colour with the target's picture, one button; the day as one strip
+   of time under it; then the widgets. */
+.nx {
+  display: grid; gap: 18px 36px; padding: clamp(20px, 2.6vw, 32px); border-radius: 18px;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--cc, var(--accent)) 20%, var(--glass-solid, var(--surface))) 0%, var(--glass-solid, var(--surface)) 62%);
+  border: 1px solid color-mix(in srgb, var(--cc, var(--accent)) 40%, var(--line));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+@media (min-width: 900px) { .nx:has(.nx-side) { grid-template-columns: minmax(0, 1.8fr) minmax(200px, 1fr); align-items: center; } }
+.nx-main { display: grid; gap: 8px; justify-items: start; min-width: 0; margin: 0; }
+.nx-kicker { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 0.88rem; font-weight: 650; color: var(--muted); }
+.nx-title {
+  display: flex; align-items: center; gap: 12px; margin: 2px 0 0; font-size: clamp(1.7rem, 3.2vw, 2.5rem);
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; text-wrap: balance; overflow-wrap: anywhere;
+}
+.nx-title .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--cc, var(--accent)); flex: none; }
+.nx-sub { margin: 0; font-size: 1.05rem; }
+.nx-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin: 10px 0 2px; }
+.nx-go { min-height: 48px; padding: 0 26px; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 8px; }
+.nx-go svg { width: 18px; height: 18px; }
+.nx-else { color: var(--muted); font-weight: 600; text-decoration: none; }
+.nx-else:hover, .nx-else:focus-visible { color: var(--accent-ink); }
+.nx .outcomes { margin: 4px 0 0; }
+.nx-how { margin-top: 4px; }
+.nx-how > summary { color: var(--muted); font-weight: 600; font-size: 0.92rem; cursor: pointer; }
+.nx-how[open] > summary { margin-bottom: 6px; }
+.nx-how p { max-width: 70ch; margin: 0 0 8px; }
+.nx-side { display: grid; gap: 14px; align-content: center; }
+.nx-stat { margin: 0; padding-left: 14px; border-left: 3px solid color-mix(in srgb, var(--cc, var(--accent)) 60%, transparent); display: grid; gap: 2px; }
+.nx-stat b { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.nx-stat span { color: var(--muted); font-size: 0.88rem; }
+.nx-note { margin: 0; padding-left: 17px; font-size: 0.78rem; color: var(--muted); }
+.nx .done-line { font-size: clamp(1.4rem, 2.6vw, 2rem); }
+.nx .done-next { margin: 0; color: var(--muted); }
+
+/* What asks for an answer (how a session went, an answer just given) runs across the page
+   under the band, so the widgets below keep their rows of three. */
+@media (min-width: 720px) { .hub > .w-ask { grid-column: 1 / -1; } }
+@media (min-width: 900px) {
+  .w-ask .list .grow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: center; }
+  .w-ask .list .grow > :not(form) { grid-column: 1; }
+  .w-ask .list .grow > form { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+}
+
+/* The day as one strip: on a phone a list in time order, each item's course a bar on its
+   left; from 720px each item where it falls on the day, in its course's colour (a class
+   dashed, as the calendar draws it), overlapping items in lanes, a red line at now. Each
+   item's left edge and width are whole percents from the server (`service.day_strip`), as
+   classes: the page's Content-Security-Policy allows no style attribute. */
+.dayline { position: relative; }
+.dl-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.dl-item { display: grid; grid-template-columns: 3.1em minmax(0, 1fr); gap: 10px; padding: 6px 0 6px 10px; border-left: 3px solid var(--cc, var(--busy)); }
+.dl-item.day-class, .dl-item.day-typed { border-left-style: dashed; }
+.dl-item.day-exam, .dl-item.day-quiz, .dl-item.day-mock, .dl-item.day-partial { --cc: var(--danger); }
+.dl-item time { font-size: 0.82rem; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dl-item.at-now time { color: var(--now); }
+.dl-text { min-width: 0; }
+.dl-text b { display: block; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.dl-text small { display: block; color: var(--muted); font-size: 0.8rem; }
+.dl-item.day-skipped b { text-decoration: line-through; }
+.dl-now, .dl-hours { display: none; }
+@media (min-width: 720px) {
+  .dayline { --lane: 62px; --lanes: 1; height: calc(var(--lanes) * var(--lane) + 24px); margin-top: 2px; }
+  .dayline.lanes2 { --lanes: 2; } .dayline.lanes3 { --lanes: 3; }
+  .dl-items { display: block; position: absolute; inset: 0 0 24px; }
+  .dl-item {
+    display: block; position: absolute; top: calc(var(--l, 0) * var(--lane)); height: calc(var(--lane) - 6px);
+    padding: 5px 8px; border-radius: 8px; overflow: hidden;
+    background: color-mix(in srgb, var(--cc, var(--busy)) 24%, transparent);
+  }
+  .dl-item.day-class, .dl-item.day-typed { background: color-mix(in srgb, var(--cc, var(--busy)) 11%, var(--fill-4)); }
+  .dl-l1 { --l: 1; } .dl-l2 { --l: 2; }
+  .dl-item time { display: block; font-size: 0.75rem; line-height: 1.2; }
+  .dl-text b, .dl-text small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl-text b { font-size: 0.86rem; overflow-wrap: normal; }
+  .dl-text small { font-size: 0.75rem; }
+  .dl-now { display: block; position: absolute; top: -5px; bottom: 20px; width: 2px; margin-left: -1px; background: var(--now); border-radius: 1px; z-index: 1; }
+  .dl-now::before { content: ""; position: absolute; top: -3px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--now); }
+  .dl-hours { display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 18px; }
+  .dl-hours span { position: absolute; transform: translateX(-50%); font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dl-hours span.dl-x0 { transform: none; } .dl-hours span.dl-x100 { transform: translateX(-100%); }
+  .dl-x0{left:0%}.dl-x1{left:1%}.dl-x2{left:2%}.dl-x3{left:3%}.dl-x4{left:4%}.dl-x5{left:5%}.dl-x6{left:6%}.dl-x7{left:7%}.dl-x8{left:8%}.dl-x9{left:9%}
+  .dl-x10{left:10%}.dl-x11{left:11%}.dl-x12{left:12%}.dl-x13{left:13%}.dl-x14{left:14%}.dl-x15{left:15%}.dl-x16{left:16%}.dl-x17{left:17%}.dl-x18{left:18%}.dl-x19{left:19%}
+  .dl-x20{left:20%}.dl-x21{left:21%}.dl-x22{left:22%}.dl-x23{left:23%}.dl-x24{left:24%}.dl-x25{left:25%}.dl-x26{left:26%}.dl-x27{left:27%}.dl-x28{left:28%}.dl-x29{left:29%}
+  .dl-x30{left:30%}.dl-x31{left:31%}.dl-x32{left:32%}.dl-x33{left:33%}.dl-x34{left:34%}.dl-x35{left:35%}.dl-x36{left:36%}.dl-x37{left:37%}.dl-x38{left:38%}.dl-x39{left:39%}
+  .dl-x40{left:40%}.dl-x41{left:41%}.dl-x42{left:42%}.dl-x43{left:43%}.dl-x44{left:44%}.dl-x45{left:45%}.dl-x46{left:46%}.dl-x47{left:47%}.dl-x48{left:48%}.dl-x49{left:49%}
+  .dl-x50{left:50%}.dl-x51{left:51%}.dl-x52{left:52%}.dl-x53{left:53%}.dl-x54{left:54%}.dl-x55{left:55%}.dl-x56{left:56%}.dl-x57{left:57%}.dl-x58{left:58%}.dl-x59{left:59%}
+  .dl-x60{left:60%}.dl-x61{left:61%}.dl-x62{left:62%}.dl-x63{left:63%}.dl-x64{left:64%}.dl-x65{left:65%}.dl-x66{left:66%}.dl-x67{left:67%}.dl-x68{left:68%}.dl-x69{left:69%}
+  .dl-x70{left:70%}.dl-x71{left:71%}.dl-x72{left:72%}.dl-x73{left:73%}.dl-x74{left:74%}.dl-x75{left:75%}.dl-x76{left:76%}.dl-x77{left:77%}.dl-x78{left:78%}.dl-x79{left:79%}
+  .dl-x80{left:80%}.dl-x81{left:81%}.dl-x82{left:82%}.dl-x83{left:83%}.dl-x84{left:84%}.dl-x85{left:85%}.dl-x86{left:86%}.dl-x87{left:87%}.dl-x88{left:88%}.dl-x89{left:89%}
+  .dl-x90{left:90%}.dl-x91{left:91%}.dl-x92{left:92%}.dl-x93{left:93%}.dl-x94{left:94%}.dl-x95{left:95%}.dl-x96{left:96%}.dl-x97{left:97%}.dl-x98{left:98%}.dl-x99{left:99%}
+  .dl-x100{left:100%}
+  .dl-w1{width:1%}.dl-w2{width:2%}.dl-w3{width:3%}.dl-w4{width:4%}.dl-w5{width:5%}.dl-w6{width:6%}.dl-w7{width:7%}.dl-w8{width:8%}.dl-w9{width:9%}
+  .dl-w10{width:10%}.dl-w11{width:11%}.dl-w12{width:12%}.dl-w13{width:13%}.dl-w14{width:14%}.dl-w15{width:15%}.dl-w16{width:16%}.dl-w17{width:17%}.dl-w18{width:18%}.dl-w19{width:19%}
+  .dl-w20{width:20%}.dl-w21{width:21%}.dl-w22{width:22%}.dl-w23{width:23%}.dl-w24{width:24%}.dl-w25{width:25%}.dl-w26{width:26%}.dl-w27{width:27%}.dl-w28{width:28%}.dl-w29{width:29%}
+  .dl-w30{width:30%}.dl-w31{width:31%}.dl-w32{width:32%}.dl-w33{width:33%}.dl-w34{width:34%}.dl-w35{width:35%}.dl-w36{width:36%}.dl-w37{width:37%}.dl-w38{width:38%}.dl-w39{width:39%}
+  .dl-w40{width:40%}.dl-w41{width:41%}.dl-w42{width:42%}.dl-w43{width:43%}.dl-w44{width:44%}.dl-w45{width:45%}.dl-w46{width:46%}.dl-w47{width:47%}.dl-w48{width:48%}.dl-w49{width:49%}
+  .dl-w50{width:50%}.dl-w51{width:51%}.dl-w52{width:52%}.dl-w53{width:53%}.dl-w54{width:54%}.dl-w55{width:55%}.dl-w56{width:56%}.dl-w57{width:57%}.dl-w58{width:58%}.dl-w59{width:59%}
+  .dl-w60{width:60%}.dl-w61{width:61%}.dl-w62{width:62%}.dl-w63{width:63%}.dl-w64{width:64%}.dl-w65{width:65%}.dl-w66{width:66%}.dl-w67{width:67%}.dl-w68{width:68%}.dl-w69{width:69%}
+  .dl-w70{width:70%}.dl-w71{width:71%}.dl-w72{width:72%}.dl-w73{width:73%}.dl-w74{width:74%}.dl-w75{width:75%}.dl-w76{width:76%}.dl-w77{width:77%}.dl-w78{width:78%}.dl-w79{width:79%}
+  .dl-w80{width:80%}.dl-w81{width:81%}.dl-w82{width:82%}.dl-w83{width:83%}.dl-w84{width:84%}.dl-w85{width:85%}.dl-w86{width:86%}.dl-w87{width:87%}.dl-w88{width:88%}.dl-w89{width:89%}
+  .dl-w90{width:90%}.dl-w91{width:91%}.dl-w92{width:92%}.dl-w93{width:93%}.dl-w94{width:94%}.dl-w95{width:95%}.dl-w96{width:96%}.dl-w97{width:97%}.dl-w98{width:98%}.dl-w99{width:99%}
+  .dl-w100{width:100%}
+}
+
+/* What does not fit in the plan: one card, its lines folded under it (AUDIT 117). */
+.plan-notes > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.plan-notes > summary::-webkit-details-marker { display: none; }
+.plan-notes > summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.2rem; transition: rotate 0.2s; }
+.plan-notes[open] > summary::after { rotate: 90deg; }
+.plan-notes .grow b { display: block; }
+.plan-notes .grow small { display: block; color: var(--muted); font-size: 0.84rem; }
+.plan-notes ul { margin: 12px 0 10px; padding-left: 1.2em; display: grid; gap: 6px; font-size: 0.9rem; }
+.plan-notes p { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .plan-notes > summary::after { transition: none; } }

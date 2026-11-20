@@ -1315,3 +1315,15 @@ tests kept the defect. Status: fixed with D170: tours wait for the first run to 
 show; a section opened before that is not recorded (`tests/test_first_run.py`,
 `tests/test_tour.py`). A plan whose tours were spent this way gets them back from Settings,
 Appearance, Spark's tour: Show it again.
+
+**117. A French plan listed every course short of its target twice, in a list.** Reported by the
+owner on 2026-11-20 with a screenshot of Today: "what is this very ugly list?", a notice per course
+("Analysis 3 : 1 sujets sur 11 sont prévus en dessous de 90 %…", "3 créneau(x) d'entraînement
+n'ont pas tenu…"). How found: reading `today_view`'s filter against the French catalogue. A plan's
+warnings are written in its language when it is made (D10); the filter kept off Today those of a
+course whose exam line already says it is short, by the course's name and ": ", and French writes
+" : ", so in French none was kept off. The sentences had no plural ("1 sujets") and wrote "(x)"
+and "(s)" for one. Status: fixed with D171: the filter knows both colons, the sentences have a
+singular and a plural (`_n`), and what remains is one card, its lines folded under it
+(`tests/test_today_one.py`). Warnings already written keep their old words until the plan is made
+again, which happens at the next change or the background refresh.

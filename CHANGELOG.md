@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Today as one thing (DECISIONS.md D171): the whole width, the next step as one band in its
+  course's colour with one button, the day as one strip of time across the page, then the widgets;
+  what does not fit in the plan is one card, said once and in the right number (AUDIT 117).
+
 - Spark's tour for a new student (DECISIONS.md D170): the tours show once a new plan's first
   run reaches Today, instead of never (AUDIT 116).
 

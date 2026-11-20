@@ -3421,7 +3421,9 @@ def first_day(
     when = (
         format_date(datetime.fromisoformat(ahead[0].start).astimezone(zone).date(), "short") if ahead else ""
     )
-    return {"course": course, "minutes": FIRST_DAY_MINUTES, "when": when}
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    color = colours.get(course.casefold())
+    return {"course": course, "minutes": FIRST_DAY_MINUTES, "when": when, "color": color}
 
 
 def first_day_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
@@ -4796,7 +4798,12 @@ def _stakes(gain: Mapping | None, answer: str | None, day: date) -> dict | None:
             "Recalled in this session, it stays above 90 % until {day} (a model's estimate).",
             day=format_date(gain["holds"], "short"),
         )
-    return {"days": days, "to_exam": gain["holds"] >= gain["exam"], "words": f"{exam} {holds}"}
+    return {
+        "days": days,
+        "to_exam": gain["holds"] >= gain["exam"],
+        "holds": format_date(gain["holds"], "short"),
+        "words": f"{exam} {holds}",
+    }
 
 
 def _topic_monday(topic: str, before: date) -> str | None:
@@ -5548,8 +5555,11 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["exams"] = _exam_rows(plan, now, colours)
     # A subject short of its target already says so in its status line; other
     # warnings (practice that does not fit, work that does not fit) stay.
-    shown = tuple(f"{x.name}: " for x in plan.subjects)
-    said = ("predicted below", "does not reach the target", _("are predicted below"))
+    # A warning is written in the plan's language when the plan is made (D10): French
+    # puts a space before the colon, which the filter missed, so every course short of
+    # its target was said twice on Today, once more in a list (AUDIT 117).
+    shown = tuple(f"{x.name}{colon}" for x in plan.subjects for colon in (": ", " : "))
+    said = ("predicted below", "does not reach the target", _("are predicted below"), _("is predicted below"))
     view["warnings"] = [w for w in plan.warnings if not (w.startswith(shown) and any(x in w for x in said))]
     return view
 
@@ -5620,6 +5630,67 @@ def day_agenda(subscription: Subscription, now: datetime | None = None) -> list[
             }
         )
     return sorted(items, key=lambda i: (i["start"], i["end"]))
+
+
+# The day as one strip across Today (D171, the owner's A): from the hour before getting up
+# to the hour after going to bed, wider when the day's items are; items that overlap take
+# the next lane, at most three.
+DAY_STRIP_LANES = 3
+DAY_STRIP_HOURS = (8, 22)  # when the student's day cannot be read
+
+
+def day_strip(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's items (`day_agenda`) placed on one line of time (D171), as `blocks`: each
+    item's left edge and width in whole percents of the strip (`x`, `w`, at least 1), its
+    lane; the hours to label, and where now is (None outside the strip). None without a
+    plan."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    items = day_agenda(subscription, now)
+    day = day_view(subscription)
+    try:
+        up, down = _hours_of(day["wake"], _("Get up")), _hours_of(day["bed"], _("Go to bed"))
+    except InvalidInput:
+        up, down = DAY_STRIP_HOURS
+    if down <= up:
+        down = 24.0  # to bed after midnight: the strip stops at the day's end
+
+    def minute(text: str) -> int:
+        hours, minutes = text.split(":")
+        return int(hours) * 60 + int(minutes)
+
+    spans = []
+    for i in items:
+        start, end = minute(i["start"]), minute(i["end"])
+        spans.append((start, end if end > start else 24 * 60))
+    first = min([int(up) * 60, *(a for a, _b in spans)]) // 60 * 60
+    last = min(24 * 60, -(-max([round(down * 60), *(b for _a, b in spans)]) // 60) * 60)
+    width = max(last - first, 60)
+
+    def at(m: float) -> int:
+        return max(0, min(100, round(100 * (m - first) / width)))
+
+    lanes: list[int] = []
+    placed = []
+    for i, (start, end) in zip(items, spans, strict=True):
+        lane = next((k for k, free in enumerate(lanes) if free <= start), None)
+        if lane is None:
+            if len(lanes) < DAY_STRIP_LANES:
+                lanes.append(0)
+            lane = len(lanes) - 1
+        lanes[lane] = max(lanes[lane], end)
+        x = at(start)
+        placed.append({**i, "x": min(x, 99), "w": max(1, min(at(end), 100) - x), "lane": lane})
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    clock = local.hour * 60 + local.minute
+    step = 2 if width > 10 * 60 else 1
+    return {
+        "blocks": placed,
+        "lanes": max(1, len(lanes)),
+        "hours": [{"x": at(h * 60), "label": f"{h:02d}"} for h in range(first // 60, last // 60 + 1, step)],
+        "now": at(clock) if first <= clock <= last else None,
+    }
 
 
 CLASSMATES_POSTS = 2  # the newest posts of people followed on Today (D140)
@@ -10168,7 +10239,9 @@ TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
     ("cards", "Flashcards", "The cards waiting for you today."),
     ("friends", "Classmates", "Who is studying now, and what classmates shared."),
 )
-TODAY_START = ("next", "day", "focus", "tasks", "exams")
+# D171 (the owner's A): the next step's band starts any session, so Focus gave way to On
+# your mind; a student who chose keeps their choice.
+TODAY_START = ("next", "day", "tasks", "exams", "mind")
 # D165: each widget's picture, the one its head on Today shows (`web/icons.ART`'s names),
 # so a switch on Edit Today and its widget look alike; no two alike, to tell rows apart.
 TODAY_PICTURES = {
@@ -12229,21 +12302,25 @@ def _assist(
         )
         if not ready:
             warnings.append(
-                _(
-                    "{name}: {below} of {n} topics are predicted below {target} at the exam. "
+                _n(
+                    "{name}: {below} of {total} topics is predicted below {target} at the exam. "
                     "More hours a week, or fewer days off, would change that.",
+                    "{name}: {below} of {total} topics are predicted below {target} at the exam. "
+                    "More hours a week, or fewer days off, would change that.",
+                    len(members) - sum(ok),
                     name=name,
                     below=len(members) - sum(ok),
-                    n=len(members),
+                    total=len(members),
                     target=f"{settings.retention:.0%}",
                 )
             )
         if result.practice_left.get(name):
             warnings.append(
-                _(
-                    "{name}: {n} block(s) of exam practice did not fit before the exam.",
+                _n(
+                    "{name}: {n} block of exam practice did not fit before the exam.",
+                    "{name}: {n} blocks of exam practice did not fit before the exam.",
+                    result.practice_left[name],
                     name=name,
-                    n=result.practice_left[name],
                 )
             )
 
@@ -12258,11 +12335,13 @@ def _assist(
         )
         if left:
             warnings.append(
-                _(
-                    "{name}: {n} block(s) of work do not fit before it is due ({when}). "
+                _n(
+                    "{name}: {n} block of work does not fit before it is due ({when}). "
                     "More hours a week, fewer days off or an earlier start would change that.",
+                    "{name}: {n} blocks of work do not fit before it is due ({when}). "
+                    "More hours a week, fewer days off or an earlier start would change that.",
+                    left,
                     name=t.name,
-                    n=left,
                     when=t.due[:16].replace("T", " "),
                 )
             )
