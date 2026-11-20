@@ -6828,3 +6828,40 @@ not tried on a real page. A Google Doc is read only when shared with a link. A t
 as a file loses its relative links, said with their count; its address keeps them. Only names and
 addresses are kept, never the page. Checked in Chromium only, at 1280 px and phone size, light and
 dark.
+
+## D175. Connections, and the Moodle calendar link kept sealed
+
+**Asked.** The owner, on 2026-11-20, after D174: "ok, intanto fai la D175", the second half of the
+first phase they chose: one page for every link the app keeps with the outside, Moodle's calendar
+link kept as a secret, and the login case of the student's Moodle recognised.
+
+**Chosen.** Connections (`/p/<plan>/connections`, under You): Moodle (how it signs in; its calendar
+link, when it was last read and how many deadlines it brought, or why it failed; each course linked
+to its page and its materials, D163, D174), the timetable (a link, a file or drawn), the plan's own
+calendar for Google Calendar or a phone, the passkeys and recovery code, and reminders. Each row has
+a dot for its state (green works, amber needs the student, grey not linked), the words saying the
+same, and one button. How the student's Moodle signs in is asked of the site itself through the web
+service its own app asks first (`tool_mobile_get_public_config`, public, no sign-in;
+`sources.moodle_public_config`, refused like a calendar link at a private address), once a month,
+a day after a site that did not answer, and said in plain words: through the university's sign-in
+(a federation, Microsoft), its own form, or closed to apps, and what that means for what the app can
+read. Moodle's calendar link, which holds the student's `authtoken`, is kept sealed (`sealed.py`:
+Fernet from `cryptography`, already the web extra's for passkeys, D35), read in clear only to fetch
+the deadlines; the page says "Linked to moodle.example.edu" and never shows it again; an empty field
+keeps it, Unlink removes it, a new one replaces it. The key is `CPS_SEAL_KEY` when the deployment
+gives one, else made once and kept in the store's `server_keys`, as the reminders' key is (D38). A
+link kept in clear before is read as it was and sealed at its next read; a link whose key is lost
+says to paste it again.
+
+**Rejected.** A digest of the link: the app must read the calendar again each day. Keeping the
+link in a table of its own: the plan's document already goes through one compare-and-swap, and a
+sealed value there is opaque to its copy (D43) and its logs. Asking the Moodle on every page:
+once a month is enough for a setting a university changes rarely. A health check of the plan's own
+calendar feed: whether Google Calendar reads it is not visible to the app; the page says so.
+
+**Disclosed.** A key kept in the same database protects a plan's document, its copy and the logs,
+not a stolen database: `CPS_SEAL_KEY` set on the host keeps them apart (the owner's step, optional).
+The timetable's own link (an ADE export, say) is not sealed yet; it carries no account's key on the
+systems seen, but some do. The sign-in words come from Moodle's own answer; a site that hides its
+providers is said as "your university's page". Checked against the owner's university's Moodle's
+public answer (federation and Microsoft, apps open), in Chromium only, at 1280 px and phone size.

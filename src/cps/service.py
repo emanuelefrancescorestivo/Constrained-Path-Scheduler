@@ -74,6 +74,7 @@ from . import notefiles as _notefiles
 from . import pdftext as _pdftext
 from . import progress as _progress
 from . import reminders as _reminders
+from . import sealed as _sealed
 from . import social as social
 from . import sources as _sources
 from . import syllabus as _syllabus
@@ -2667,9 +2668,22 @@ def revise_subscription(
         subjects=subscription.subjects if subjects is None else tuple(_spec_dict(s) for s in subjects),
         busy_rows=subscription.busy_rows if busy_rows is None else _rows(busy_rows),
     )
-    if deadlines_url is not None and deadlines_url.strip() != (merged.get("deadlines_url") or ""):
+    if deadlines_url is not None and deadlines_url.strip() != (_deadlines_link(merged) or ""):
         url = deadlines_url.strip() or None
-        changed = replace(changed, options={**changed.options, "deadlines_url": url, "deadlines_error": None})
+        # D175: the link carries Moodle's key to the student's calendar: kept sealed,
+        # never shown again; its site, which is no secret, beside it.
+        site = _MOODLE_EXPORT.match(url) if url else None
+        changed = replace(
+            changed,
+            options={
+                **changed.options,
+                "deadlines_url": _sealed.seal(url) if url else None,
+                "deadlines_site": site.group(1) if site else None,  # a Moodle's, for its pages
+                "deadlines_host": (urlsplit(url).hostname or "") if url else None,
+                "deadlines_error": None,
+                "deadlines_read": None,
+            },
+        )
         if url:
             changed = sync_deadlines(changed, now=now, fetch=fetch)
             if changed.options.get("deadlines_error"):
@@ -2701,9 +2715,15 @@ def sync_deadlines(
     deadlines are skipped. A link that cannot be read leaves the tasks as they
     were and says why in `options["deadlines_error"]`."""
     options = subscription.options
-    url = options.get("deadlines_url")
-    if not url:
+    if not options.get("deadlines_url"):
         return subscription
+    url = _deadlines_link(options)
+    if not url:
+        # D175: sealed with a key the server no longer has (a new deployment's).
+        return replace(
+            subscription,
+            options={**options, "deadlines_error": _("the link was lost on the server: paste it again")},
+        )
     now = now or datetime.now(UTC)
     zone = _zone(options["tz"])
     try:
@@ -2733,8 +2753,53 @@ def sync_deadlines(
         names[name.casefold()] = task
         imported[key] = name
     return replace(
-        subscription, options={**options, "tasks": tasks, "imported": imported, "deadlines_error": None}
+        subscription,
+        options={
+            **options,
+            "tasks": tasks,
+            "imported": imported,
+            "deadlines_error": None,
+            "deadlines_read": now.astimezone(UTC).isoformat(timespec="seconds"),  # D175
+            # A link kept in clear before D175, sealed at its first read since.
+            **(
+                {}
+                if _sealed.is_sealed(options.get("deadlines_url"))
+                else {
+                    "deadlines_url": _sealed.seal(url),
+                    "deadlines_site": _deadlines_site(options),
+                    "deadlines_host": _deadlines_host(options),
+                }
+            ),
+        },
     )
+
+
+def seal_with(store: str | os.PathLike) -> None:
+    """Seal plans' secrets with the deployment's key (D175, `sealed.configure`): the
+    web app and the feed's refresher call it as they start."""
+    _sealed.configure(_store(store))
+
+
+def _deadlines_link(options: Mapping) -> str | None:
+    """The learning platform's calendar link in clear (D175): sealed since D175, in
+    clear before; None without one or when its key is lost."""
+    return _sealed.unseal(options.get("deadlines_url"))
+
+
+def _deadlines_site(options: Mapping) -> str | None:
+    """The Moodle site of the learning platform's calendar link: kept apart since D175,
+    read from a link kept in clear before; None for a calendar that is not Moodle's."""
+    if options.get("deadlines_site"):
+        return str(options["deadlines_site"])
+    found = _MOODLE_EXPORT.match(str(_deadlines_link(options) or "").strip())
+    return found.group(1) if found else None
+
+
+def _deadlines_host(options: Mapping) -> str:
+    """Where the calendar link leads, to say it is linked without showing it."""
+    if options.get("deadlines_host"):
+        return str(options["deadlines_host"])
+    return (urlsplit(_deadlines_link(options) or "").hostname or "").removeprefix("www.")
 
 
 # What a student can block out on the calendar. Every kind is busy time to the
@@ -4251,6 +4316,7 @@ class Refresher:
         self.background = background
         self.clock = clock
         self.fetch = fetch
+        seal_with(store)  # a refresh reads the sealed links (D175)
         self._running: set[str] = set()
         self._lock = threading.Lock()
 
@@ -5266,7 +5332,11 @@ def setup_view(subscription: Subscription) -> dict:
         "block_minutes": options["block_minutes"],
         "tz": options["tz"],
         "source_url": subscription.source_url,
-        "deadlines_url": options.get("deadlines_url") or "",
+        # D175: the link is never shown again; the page says it is linked, and where.
+        "deadlines_url": "",
+        "deadlines_linked": bool(options.get("deadlines_url")),
+        "deadlines_host": _deadlines_host(options),
+        "deadlines_site": _deadlines_site(options) or "",
         "deadlines_error": options.get("deadlines_error"),
         "imported": sorted(set(options.get("imported", {}).values())),
         "weekdays": list(WEEKDAY_NAMES),
@@ -6130,9 +6200,9 @@ def moodle_site(subscription: Subscription) -> str | None:
     options = subscription.options
     if options.get("moodle_site"):
         return str(options["moodle_site"])
-    found = _MOODLE_EXPORT.match(str(options.get("deadlines_url") or "").strip())
+    found = _deadlines_site(options)
     if found:
-        return found.group(1)
+        return found
     for entry in (options.get("moodle_courses") or {}).values():
         return str(entry["site"])
     return None
@@ -6386,7 +6456,7 @@ def setup_sentence(values: Mapping) -> dict:
             continue
         busy.setdefault((a.get("label") or "", a.get("start"), a.get("end")), []).append(_(a["weekday"]))
     words = MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
-    site = _MOODLE_EXPORT.match(str(values.get("deadlines_url") or "").strip())
+    site = values.get("deadlines_site") or None
     # Each choice as (value, words), for the radio and for the sentence.
     return {
         "wake": [(t, t) for t in among(WAKE_CHOICES, wake)],
@@ -6410,7 +6480,7 @@ def setup_sentence(values: Mapping) -> dict:
         # The export page of the Moodle whose link was given, to give it again; else the
         # student finds it by Moodle's own words (the page has the same address on every
         # site, but which site is theirs the app does not guess).
-        "export_page": f"{site.group(1)}/calendar/export.php" if site else None,
+        "export_page": f"{site}/calendar/export.php" if site else None,
     }
 
 
@@ -13818,6 +13888,157 @@ def week_materials(subscription: Subscription, course: str, now: datetime | None
     return [_material_row(x) for x in _links(subscription, course) if x.get("week") == week][
         :MATERIALS_ON_FOCUS
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Connections: every link a plan keeps with the outside, and its state (D175)
+# --------------------------------------------------------------------------- #
+
+moodle_public_config = _sources.moodle_public_config  # for the web app, which calls only service
+MOODLE_ACCESS_DAYS = 30  # how long what a Moodle says about its sign-in is kept
+MOODLE_ACCESS_RETRY = timedelta(days=1)  # how long before asking again one that did not answer
+
+
+def moodle_access_due(subscription: Subscription, now: datetime | None = None) -> str | None:
+    """The student's Moodle when it should be asked how it signs in: never asked, asked
+    as another site, asked more than `MOODLE_ACCESS_DAYS` ago, or a day after it did not
+    answer. None otherwise, and without a Moodle."""
+    site = moodle_site(subscription)
+    if not site:
+        return None
+    kept = subscription.options.get("moodle_access") or {}
+    if kept.get("site") != site or not kept.get("at"):
+        return site
+    age = (now or datetime.now(UTC)) - datetime.fromisoformat(str(kept["at"]))
+    wait = timedelta(days=MOODLE_ACCESS_DAYS) if kept.get("ok") else MOODLE_ACCESS_RETRY
+    return site if age > wait else None
+
+
+def ask_moodle_access(site: str, probe: Callable[[str], Mapping], now: datetime | None = None) -> dict:
+    """What `site` says about its sign-in, asked through `probe`
+    (`sources.moodle_public_config`), to keep as the plan's `moodle_access`. A site
+    that does not answer is kept as such, and asked again a day later."""
+    at = (now or datetime.now(UTC)).astimezone(UTC).isoformat(timespec="seconds")
+    try:
+        found = probe(site)
+        providers = [
+            " ".join(str(p.get("name")).split())[:80]
+            for p in (found.get("identityproviders") or [])
+            if isinstance(p, Mapping) and p.get("name")
+        ][:5]
+        return {
+            "site": site,
+            "at": at,
+            "ok": True,
+            "login": int(found.get("typeoflogin") or 1),
+            "apps": bool(found.get("enablewebservices")) and bool(found.get("enablemobilewebservice")),
+            "providers": providers,
+        }
+    except (SourceError, ValueError, TypeError, AttributeError):
+        return {"site": site, "at": at, "ok": False}
+
+
+def keep_moodle_access(subscription: Subscription, found: Mapping) -> Subscription:
+    return replace(subscription, options={**subscription.options, "moodle_access": dict(found)})
+
+
+def _access_view(kept: Mapping, site: str) -> dict:
+    """What the student's Moodle said about its sign-in, in the student's words, and
+    what that means for what the app can read (D174, D175)."""
+    if kept.get("site") != site:
+        return {"kind": "unknown", "says": _("Not asked yet.")}
+    if not kept.get("ok"):
+        return {"kind": "unknown", "says": _("Your Moodle did not answer when asked how it signs in.")}
+    if not kept.get("apps"):
+        return {
+            "kind": "closed",
+            "says": _(
+                "Your Moodle is closed to apps: this app reads the course pages you save, "
+                "and the calendar link."
+            ),
+        }
+    if int(kept.get("login") or 1) in (2, 3):
+        providers = ", ".join(kept.get("providers") or ()) or _("your university's page")
+        return {
+            "kind": "sso",
+            "says": _(
+                "Your Moodle signs in through {providers}. It gives its key to its own app only, so this app "
+                "reads the course pages you save; reading it by itself needs your university's agreement.",
+                providers=providers,
+            ),
+        }
+    return {
+        "kind": "own",
+        "says": _(
+            "Your Moodle signs in with its own form. Reading it by itself would need your password, which "
+            "this app never asks for: it reads the course pages you save."
+        ),
+    }
+
+
+def _when_read(stamp: str | None, zone: ZoneInfo, now: datetime) -> str:
+    if not stamp:
+        return ""
+    at = datetime.fromisoformat(stamp).astimezone(zone)
+    if at.date() == now.astimezone(zone).date():
+        return _("today at {time}", time=f"{at:%H:%M}")
+    return format_date(at.date(), "day_short")
+
+
+def connections_view(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict:
+    """Connections (D175): every link the plan keeps with the outside, each with its
+    state and the one thing to do about it: Moodle (how it signs in, its calendar link,
+    each course linked and its materials, D163, D174), the timetable, the plan's own
+    calendar for Google Calendar or another, the passkeys and the devices reminded."""
+    now = now or datetime.now(UTC)
+    options = subscription.options
+    zone = _zone(options["tz"])
+    site = moodle_site(subscription)
+    linked = options.get("moodle_courses") or {}
+    courses = [
+        {
+            "index": index,
+            "name": name,
+            "linked": course_key(name) in linked,
+            "materials": sum(1 for x in _links(subscription, name) if x.get("source")),
+        }
+        for index, name in enumerate(topic_courses(subscription))
+    ]
+    calendar = {
+        "linked": bool(options.get("deadlines_url")),
+        "host": _deadlines_host(options),
+        "read": _when_read(options.get("deadlines_read"), zone, now),
+        "error": options.get("deadlines_error"),
+        "brought": len(set((options.get("imported") or {}).values())),
+    }
+    source = subscription.source_url
+    timetable = {
+        "kind": "link" if source else "file" if subscription.ics_text is not None else "drawn",
+        "host": (urlsplit(source).hostname or "").removeprefix("www.") if source else "",
+        "read": _when_read(subscription.refreshed, zone, now) if source else "",
+        "error": subscription.error if source else None,
+    }
+    account = account_view(store, subscription, now)
+    reminders = reminders_view(store, subscription)
+    return {
+        "moodle": {
+            "site": site or "",
+            "host": _host(site),
+            "access": _access_view(options.get("moodle_access") or {}, site) if site else None,
+            "calendar": calendar,
+            "courses": courses,
+            "linked": sum(1 for c in courses if c["linked"]),
+            "with_materials": sum(1 for c in courses if c["materials"]),
+        },
+        "timetable": timetable,
+        "passkeys": len(account.get("passkeys") or []),
+        "recovery": bool(account.get("recovery")),
+        "devices": len(reminders.get("devices") or []),
+        # What needs the student now: a link that failed to read.
+        "attention": int(bool(calendar["error"])) + int(bool(timetable["error"])),
+    }
 
 
 def _course_note_posts(

@@ -85,7 +85,10 @@ def settings_values(form: Mapping[str, str], rest_days: list[str]) -> dict[str, 
             for r in _rows(form, "a", ("label", "kind", "weekday", "date", "start", "end"))
             if r["label"] or r["start"]
         ],
-        "deadlines_url": form.get("deadlines_url", "").strip(),
+        # D175: the link is never shown again, so an empty field keeps it; "Unlink"
+        # removes it.
+        "deadlines_url": form.get("deadlines_url", "").strip()
+        or ("" if form.get("deadlines_remove") else None),
         "weekly_hours": form.get("weekly_hours", "").strip(),
         "rest_days": rest_days,
         "practice_hours": form.get("practice_hours", "").strip(),

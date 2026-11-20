@@ -30,6 +30,7 @@ network level. That is stated here rather than claimed away.
 from __future__ import annotations
 
 import ipaddress
+import json
 import socket
 import urllib.error
 import urllib.request
@@ -125,6 +126,47 @@ def fetch_page(url: str, *, allow_private: bool = False, timeout: float = TIMEOU
     if kind and not kind.startswith("text/") and kind != "application/xhtml+xml":
         raise SourceError(_("the link does not lead to a web page"))
     return body, final
+
+
+MOODLE_CONFIG_BYTES = 256 * 1024  # what a Moodle says about itself is a few kilobytes
+
+
+def moodle_public_config(site: str, *, allow_private: bool = False, timeout: float = 8.0) -> dict:
+    """What a Moodle says about itself before any sign-in (D175): its web service
+    `tool_mobile_get_public_config`, the one Moodle's own app asks first, which names
+    how the site signs people in (`typeoflogin`: 1 its own form, 2 and 3 a browser),
+    the sign-in services it offers and whether it is open to apps. No password, no key:
+    the same answer for anyone who asks. Refused as a calendar's link is."""
+    url = normalise(site.rstrip("/") + "/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config")
+    if not allow_private:
+        check_public(url)
+    opener = urllib.request.build_opener(_Redirects(allow_private))
+    body = json.dumps([{"index": 0, "methodname": "tool_mobile_get_public_config", "args": {}}]).encode()
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={"User-Agent": USER_AGENT, "Content-Type": "application/json", "Accept": "application/json"},
+    )
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            answer = response.read(MOODLE_CONFIG_BYTES + 1)
+    except SourceError:
+        raise
+    except urllib.error.HTTPError as exc:
+        raise SourceError(
+            _("the link answered with an error ({code} {reason})", code=exc.code, reason=exc.reason)
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raise SourceError(_("the link could not be read ({reason})", reason=reason)) from exc
+    try:
+        found = json.loads(answer[:MOODLE_CONFIG_BYTES])
+        data = found[0]["data"] if isinstance(found, list) and found and not found[0].get("error") else None
+    except (ValueError, KeyError, TypeError, AttributeError):
+        data = None
+    if not isinstance(data, dict):
+        raise SourceError(_("this Moodle did not say how it signs in"))
+    return data
 
 
 def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TIMEOUT) -> bytes:

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{# Connections (D175): every link the plan keeps with the outside, each with its state
+   and the one thing to do about it. A dot says the state (green works, amber needs the
+   student, grey not linked); the words say it too, for whoever does not see colours. #}
+{% block title %}{{ _("Connections") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% macro dot(state) %}<span class="cx-dot is-{{ state }}" aria-hidden="true"></span>{% endmacro %}
+{% set m = view.moodle %}
+<p class="back"><a href="/p/{{ token }}/you">{{ _("You") }}</a></p>
+<h1>{{ _("Connections") }}</h1>
+<p class="lede">{% if view.attention %}{{ _n("{n} link needs you.", "{n} links need you.", view.attention) }}{% else %}{{ _("What the app is linked to, and whether each link works.") }}{% endif %}</p>
+
+<section class="section" aria-labelledby="cx-moodle">
+  <div class="section-title"><h2 id="cx-moodle">Moodle</h2>{% if m.host %}<small>{{ m.host }}</small>{% endif %}</div>
+  <ul class="card list cx-list">
+    {% if not m.site %}
+    <li>{{ dot("off") }}<span class="grow"><b>{{ _("Not linked yet") }}</b><small>{{ _("Paste your Moodle's calendar link, or a course's address, and the app knows your Moodle.") }}</small></span><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/settings/exams#deadlines">{{ _("Link it") }}</a></li>
+    {% else %}
+    {% if m.access %}
+    <li>{{ dot("ok" if m.access.kind in ("sso", "own", "closed") else "off") }}<span class="grow"><b>{{ _("How it signs in") }}</b><small>{{ m.access.says }}</small></span></li>
+    {% endif %}
+    {% set c = m.calendar %}
+    <li>{{ dot("warn" if c.error else ("ok" if c.linked else "off")) }}<span class="grow"><b>{{ _("Deadlines") }}</b>
+      <small>{% if c.error %}{{ _("The calendar link could not be read: {error}", error=c.error) }}{% elif c.linked %}{{ _("Linked to {host}", host=c.host or "Moodle") }}{% if c.read %} · {{ _("read {when}", when=c.read) }}{% endif %} · {{ _n("{n} deadline brought", "{n} deadlines brought", c.brought) }}{% else %}{{ _("Not linked: assignments and quizzes due would come by themselves.") }}{% endif %}</small></span>
+      <a class="btn btn-sm {% if c.error or not c.linked %}btn-tinted{% else %}btn-plain{% endif %}" href="/p/{{ token }}/settings/exams#deadlines">{% if c.linked %}{{ _("Change") }}{% else %}{{ _("Link it") }}{% endif %}</a></li>
+    {% endif %}
+    {% if m.courses %}
+    <li class="cx-courses"><details>
+      <summary><span class="grow"><b>{{ _("Courses") }}</b><small>{{ _("{linked} of {n} linked to their page", linked=m.linked, n=m.courses | length) }} · {{ _n("materials for {n} course", "materials for {n} courses", m.with_materials) }}</small></span></summary>
+      <ul class="cx-course-list">
+        {% for k in m.courses %}<li><a href="/p/{{ token }}/courses/{{ k.index }}/materials"><span class="grow">{{ k.name }}</span><small>{% if k.linked %}{{ _("on Moodle") }}{% else %}{{ _("not linked") }}{% endif %} · {% if k.materials %}{{ _n("{n} item", "{n} items", k.materials) }}{% else %}{{ _("no materials yet") }}{% endif %}</small></a></li>{% endfor %}
+      </ul>
+    </details></li>
+    {% endif %}
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="cx-timetable">
+  <div class="section-title"><h2 id="cx-timetable">{{ _("Timetable") }}</h2></div>
+  {% set t = view.timetable %}
+  <ul class="card list cx-list">
+    <li>{{ dot("warn" if t.error else "ok") }}<span class="grow"><b>{% if t.kind == "link" %}{{ _("From a link") }}{% elif t.kind == "file" %}{{ _("From a file") }}{% else %}{{ _("Drawn by hand") }}{% endif %}</b>
+      <small>{% if t.error %}{{ _("The last read failed: {error}", error=t.error) }}{% elif t.kind == "link" %}{{ t.host }}{% if t.read %} · {{ _("read {when}", when=t.read) }}{% endif %}{% elif t.kind == "file" %}{{ _("A file does not change by itself: a link follows your timetable.") }}{% else %}{{ _("Your classes, drawn on the calendar.") }}{% endif %}</small></span>
+      <a class="btn btn-sm btn-plain" href="/p/{{ token }}/settings/exams#timetable">{{ _("Change") }}</a></li>
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="cx-calendar">
+  <div class="section-title"><h2 id="cx-calendar">{{ _("Your plan in your calendar") }}</h2></div>
+  <ul class="card list cx-list">
+    <li>{{ dot("off") }}<span class="grow"><b>{{ _("Google Calendar, your phone's calendar") }}</b><small>{{ _("Your sessions as a calendar that updates itself. The app cannot see whether a calendar reads it.") }}</small></span><a class="btn btn-sm btn-plain" href="/p/{{ token }}/feed">{{ _("Open") }}</a></li>
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="cx-devices">
+  <div class="section-title"><h2 id="cx-devices">{{ _("Your devices") }}</h2></div>
+  <ul class="card list cx-list">
+    <li>{{ dot("ok" if view.passkeys or view.recovery else "warn") }}<span class="grow"><b>{{ _("Opening your plan elsewhere") }}</b><small>{{ _n("{n} passkey", "{n} passkeys", view.passkeys) }} · {% if view.recovery %}{{ _("recovery code saved") }}{% else %}{{ _("no recovery code yet") }}{% endif %}</small></span><a class="btn btn-sm btn-plain" href="/p/{{ token }}/settings/account">{{ _("Change") }}</a></li>
+    <li>{{ dot("ok" if view.devices else "off") }}<span class="grow"><b>{{ _("Reminders") }}</b><small>{% if view.devices %}{{ _n("on, on {n} device", "on, on {n} devices", view.devices) }}{% else %}{{ _("off") }}{% endif %}</small></span><a class="btn btn-sm btn-plain" href="/p/{{ token }}/settings/phone">{{ _("Change") }}</a></li>
+  </ul>
+</section>
+
+<p class="hint">{{ _("A link that opens one of your accounts, such as Moodle's calendar link, is kept sealed and never shown again: whoever has it can read your calendar.") }}</p>
+{% endblock %}

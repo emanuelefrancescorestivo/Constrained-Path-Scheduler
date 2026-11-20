@@ -39,6 +39,7 @@ ART: dict[str, str] = {
     "settings": "settings",
     "calendar": "calendar",
     "feedback": "message-square-heart",
+    "connections": "link",  # D175
     # Settings' rows (D103).
     "week": "calendar-days",
     "key": "key-round",

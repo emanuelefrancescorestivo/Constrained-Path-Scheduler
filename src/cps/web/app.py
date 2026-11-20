@@ -311,6 +311,8 @@ class Config:
     # A course's public page or shared document, read for its materials (D174); None:
     # `sources.fetch_page` (tests give their own).
     fetch_page: Callable[[str], tuple[bytes, str]] | None = None
+    # What a Moodle says about its sign-in (D175); None: `sources.moodle_public_config`.
+    moodle_probe: Callable[[str], Any] | None = None
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     # New plans per address per hour. A class on one university network shares one
     # public address: two hundred lets a whole lecture start together (D94; forty
@@ -4024,7 +4026,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 typed = (
                     {k: values[k] for k in WEEK_VALUES if values.get(k) is not None}
                     if part == "week"
-                    else {"tasks": values["tasks"], "deadlines_url": values["deadlines_url"]}
+                    else {"tasks": values["tasks"], "deadlines_url": values["deadlines_url"] or ""}
                     if part == "deadlines"
                     else {}
                 )
@@ -5100,6 +5102,25 @@ def create_app(config: Config | None = None) -> FastAPI:
         notice = "deleted" if kind == "delete" else ("finished" if finished else "reopened")
         service.log_event(store, token, notice)
         return RedirectResponse(back_to(token, where, saved=notice), 303)
+
+    @app.get("/p/{token}/connections", response_class=HTMLResponse)
+    def connections(request: Request, token: str) -> HTMLResponse:
+        """Every link the plan keeps with the outside, and its state (D175). The student's
+        Moodle is asked how it signs in once a month, here where the answer is shown: a
+        public question, no sign-in, the same answer for anyone."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        now = config.clock()
+        site = service.moodle_access_due(subscription, now)
+        if site:
+            found = service.ask_moodle_access(site, config.moodle_probe or service.moodle_public_config, now)
+            saved = service.update_subscription(
+                store, token, lambda current: service.keep_moodle_access(current, found)
+            )
+            subscription = saved or subscription
+        view = service.connections_view(store, subscription, now)
+        return page(request, "connections.html", token=token, view=view, tab="you")
 
     @app.get("/p/{token}/feed", response_class=HTMLResponse)
     def feed_page(request: Request, token: str, new: int = 0) -> HTMLResponse:
