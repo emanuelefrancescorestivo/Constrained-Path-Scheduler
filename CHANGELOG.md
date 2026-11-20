@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Busy times, flexible (DECISIONS.md D172): each busy time added while setting up holds several
+  shifts, each its own days and hours and, for another job, its own name; a night shift ends the next
+  morning; on a computer every time of day is picked with the app's own clock.
+
 - Today as one thing (DECISIONS.md D171): the whole width, the next step as one band in its
   course's colour with one button, the day as one strip of time across the page, then the widgets;
   what does not fit in the plan is one card, said once and in the right number (AUDIT 117).

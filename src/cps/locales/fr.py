@@ -3500,4 +3500,9 @@ MESSAGES: dict[str, str] = {
     "{n} minutes": "{n} minutes",
     "{n} thing does not fit in the plan": "{n} chose ne tient pas dans le plan",
     "{n} things do not fit in the plan": "{n} choses ne tiennent pas dans le plan",
+    # D172: busy times, flexible.
+    "(the next day)": "(le lendemain)",
+    "A night shift: give the hour it ends, and it ends the next morning.": "Un service de nuit : donne l'heure où il finit, et il finit le lendemain matin.",
+    "Other days, other hours": "D'autres jours, d'autres heures",
+    "{name}: it ends when it starts": "{name} : ça finit à l'heure où ça commence",
 }

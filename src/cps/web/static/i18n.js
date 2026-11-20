@@ -24,6 +24,9 @@ const FR = {
   "Previous month": "Mois précédent",
   "Next month": "Mois suivant",
   "Time": "Heure",
+  // D172: the app's own clock for a time of day
+  "Hour": "Heure",
+  "Minutes": "Minutes",
   // D158: points and proof of work
   "{earned} of {possible} points": "{earned} sur {possible} points",
   "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} points pour l'avoir faite, {proof} de plus dès qu'une personne de ta classe confirme ce que tu en partages.",
@@ -162,6 +165,9 @@ const IT = {
   "Previous month": "Mese precedente",
   "Next month": "Mese successivo",
   "Time": "Ora",
+  // D172: the app's own clock for a time of day
+  "Hour": "Ora",
+  "Minutes": "Minuti",
   // D158: points and proof of work
   "{earned} of {possible} points": "{earned} su {possible} punti",
   "{done} points for doing it, {proof} more once a classmate vouches for what you share of it.": "{done} punti per averla fatta, {proof} in più quando una persona del tuo corso conferma ciò che ne condividi.",

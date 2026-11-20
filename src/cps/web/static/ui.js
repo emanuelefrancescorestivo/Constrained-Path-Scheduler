@@ -582,3 +582,103 @@ if (anchored) {
   );
   if (row) window.location.replace(`${row.getAttribute("href")}#${anchored}`);
 }
+
+// -- the app's own clock for a time of day (D172) -------------------------------------
+// The system's list of times is grey and unlike the app (the owner's screenshot of
+// setting up's busy times, 2026-11-20: "could be done better"). On a computer each time
+// field marked data-clock becomes a text field with the day's hours and the quarters as
+// chips under it, as the new-task sheet's times are (D159); typing still works, and the
+// server reads "HH:MM" either way. A phone keeps its own wheel. Layout and input only.
+const CLOCK_TIME = /^([01]?\d|2[0-3]):?([0-5]\d)$/;
+
+function clockField(input) {
+  if (input.dataset.clockReady || !window.matchMedia("(pointer: fine)").matches) return;
+  input.dataset.clockReady = "1";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+  input.maxLength = 5;
+  input.placeholder = input.placeholder || "18:00";
+  input.parentElement.classList.add("clock-field");
+  const panel = document.createElement("div");
+  panel.className = "clock-pick";
+  panel.hidden = true;
+  input.setAttribute("aria-controls", (panel.id = `${input.id || input.name}-clock`));
+  input.setAttribute("aria-expanded", "false");
+  input.after(panel);
+  // A tap on a chip keeps the field focused, so the panel stays until a quarter is chosen.
+  panel.addEventListener("pointerdown", (event) => event.preventDefault());
+  const now = () => {
+    const found = CLOCK_TIME.exec(input.value.trim());
+    return found ? { h: found[1].padStart(2, "0"), m: found[2] } : { h: "", m: "" };
+  };
+  const set = (h, m) => {
+    input.value = `${h}:${m}`;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    draw();
+  };
+  const chip = (label, pressed, onclick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pill-btn";
+    b.textContent = label;
+    b.setAttribute("aria-pressed", pressed ? "true" : "false");
+    b.addEventListener("click", onclick);
+    return b;
+  };
+  function draw() {
+    const { h, m } = now();
+    const hours = document.createElement("div");
+    hours.className = "clock-hours";
+    hours.setAttribute("role", "group");
+    hours.setAttribute("aria-label", t("Hour"));
+    for (let n = 0; n < 24; n++) {
+      const hh = String(n).padStart(2, "0");
+      hours.append(chip(hh, hh === h, () => set(hh, m || "00")));
+    }
+    const quarters = document.createElement("div");
+    quarters.className = "clock-minutes";
+    quarters.setAttribute("role", "group");
+    quarters.setAttribute("aria-label", t("Minutes"));
+    for (const mm of ["00", "15", "30", "45"]) {
+      quarters.append(chip(`:${mm}`, mm === m, () => {
+        set(h || "09", mm);
+        close();
+        input.focus();
+      }));
+    }
+    panel.replaceChildren(hours, quarters);
+  }
+  const open = () => {
+    if (!panel.hidden) return;
+    draw();
+    panel.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    // Under a field low on the screen, brought up, once the browser has done its own
+    // scrolling for the focused field (done at once, its smooth scroll was cut short).
+    requestAnimationFrame(() => panel.scrollIntoView({ block: "nearest" }));
+  };
+  const close = () => {
+    panel.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+  };
+  input.addEventListener("focus", open);
+  input.addEventListener("click", open);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
+  });
+  input.addEventListener("blur", () => {
+    // Typed as 1830 or 9:5: written the way the server reads it.
+    const found = CLOCK_TIME.exec(input.value.trim());
+    if (found) input.value = `${found[1].padStart(2, "0")}:${found[2]}`;
+  });
+  input.parentElement.addEventListener("focusout", (event) => {
+    if (!input.parentElement.contains(event.relatedTarget)) close();
+  });
+}
+
+document.querySelectorAll("input[data-clock]").forEach(clockField);
+document.addEventListener("focusin", (event) => {
+  if (event.target instanceof HTMLInputElement && event.target.matches("input[data-clock]")) clockField(event.target);
+});

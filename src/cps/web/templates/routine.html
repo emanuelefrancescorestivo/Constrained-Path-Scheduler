@@ -68,9 +68,9 @@
     </div>
     <div class="row">
       <div><label for="x{{ i }}_start">{{ _("From") }}</label>
-      <input id="x{{ i }}_start" name="x{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
+      <input id="x{{ i }}_start" name="x{{ i }}_start" type="time" value="{{ a.start or '' }}" data-clock></div>
       <div><label for="x{{ i }}_end">{{ _("to") }}</label>
-      <input id="x{{ i }}_end" name="x{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
+      <input id="x{{ i }}_end" name="x{{ i }}_end" type="time" value="{{ a.end or '' }}" data-clock></div>
     </div>
   {% if k > 0 %}</details>{% else %}</div>{% endif %}
   {% endfor %}

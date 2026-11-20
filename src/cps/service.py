@@ -6294,6 +6294,10 @@ QUICK_BUSY: tuple[tuple[str, str, str, str], ...] = (
     ("work", "Work", "09:00", "13:00"),
     ("other", "Busy", "17:00", "18:00"),
 )
+# D172 (the owner: "one may have more jobs and shifts so it needs to be more flexible"):
+# each busy time added in setting up's sentence holds up to this many shifts, each its own
+# days and hours, and its own name if it is another job.
+QUICK_SHIFTS = 4
 
 
 def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
@@ -6314,6 +6318,10 @@ def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
             raise InvalidInput(_("{name}: choose the days", name=name))
         if not start or not end:
             raise InvalidInput(_("{name}: give the hours", name=name))
+        if start == end:
+            # Ending earlier than it starts is a night shift, ending the next day (D172);
+            # ending when it starts would be a whole day taken.
+            raise InvalidInput(_("{name}: it ends when it starts", name=name))
         rows += [
             {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
             for day in days
@@ -6352,12 +6360,14 @@ def setup_sentence(values: Mapping) -> dict:
         "minutes": [(m, _("{n} min", n=m)) for m in among(MINUTE_CHOICES, int(values["block_minutes"]))],
         "commute": values["commute_choices"],
         "busy": [
-            {"label": label, "days": days, "start": start, "end": end}
+            # A shift that ends earlier than it starts ends the next day (D172).
+            {"label": label, "days": days, "start": start, "end": end, "overnight": str(end) <= str(start)}
             for (label, start, end), days in busy.items()
         ],
         "quick": [
             {"kind": kind, "name": name, "start": start, "end": end} for kind, name, start, end in QUICK_BUSY
         ],
+        "shifts": QUICK_SHIFTS,
         "moodle": words,
         # The export page of the Moodle whose link was given, to give it again; else the
         # student finds it by Moodle's own words (the page has the same address on every

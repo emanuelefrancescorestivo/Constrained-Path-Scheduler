@@ -131,19 +131,27 @@ def _lunch_picked(day: dict[str, str], form: Mapping[str, str]) -> dict[str, str
 def quick_busy(form: Any) -> list[dict[str, Any]]:
     """The busy times added in setting up's sentence (D154), as the questions about the
     week take them (`service.routine_rows`): a kind, a name, the days, the hours. Their
-    hours come filled in, so one with no day chosen is no answer."""
+    hours come filled in, so one with no day chosen is no answer. Since D172 each holds
+    up to `service.QUICK_SHIFTS` shifts, `q{i}` then `q{i}_{k}`, each its own days and
+    hours, named as the first unless given a name of its own (another job)."""
     answers = []
     index = 0
     while f"q{index}_kind" in form and index < 10:
-        days = [str(d) for d in form.getlist(f"q{index}_days")]
-        if days:
+        kind = str(form.get(f"q{index}_kind") or "")
+        name = str(form.get(f"q{index}_label") or "").strip()
+        for shift in range(service.QUICK_SHIFTS):
+            prefix = f"q{index}" if shift == 0 else f"q{index}_{shift}"
+            days = [str(d) for d in form.getlist(f"{prefix}_days")]
+            if not days:
+                continue
+            own = str(form.get(f"{prefix}_label") or "").strip() if shift else ""
             answers.append(
                 {
-                    "kind": str(form.get(f"q{index}_kind") or ""),
-                    "label": str(form.get(f"q{index}_label") or "").strip(),
+                    "kind": kind,
+                    "label": own or name,
                     "days": days,
-                    "start": str(form.get(f"q{index}_start") or "").strip(),
-                    "end": str(form.get(f"q{index}_end") or "").strip(),
+                    "start": str(form.get(f"{prefix}_start") or "").strip(),
+                    "end": str(form.get(f"{prefix}_end") or "").strip(),
                 }
             )
         index += 1

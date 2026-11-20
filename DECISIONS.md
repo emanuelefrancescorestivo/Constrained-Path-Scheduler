@@ -6718,3 +6718,30 @@ student's Today 309 words and 33 controls over 3.0 screens before, 178 words and
 taps to Today (10) and to a first session saved (16) are unchanged. The strip's labels are cut short
 when a block is narrow; the full words are on the calendar. Checked in Chromium only, at 1600 and
 1280 px and phone size, light and dark, in French.
+
+## D172. Busy times, flexible
+
+**Asked.** The owner, on 2026-11-20, with a screenshot of setting up's busy times, the system's
+grey list of times open under a field: "could be done better", then "also one may have more jobs
+and shifts so it needs to be more flexible".
+
+**Chosen.** Each busy time added in setting up's sentence (training, work, busy) holds up to four
+shifts (`service.QUICK_SHIFTS`), each its own days and hours: the first under the busy time's
+name, each next one folded under the one before as "Other days, other hours", with a name of its
+own if it is another job. A shift that ends earlier than it starts is a night shift and ends the
+next morning, as the calendar's rows always did (`calendar_io.busy_from_table`); the sentence says
+"(the next day)" beside it, and the panel says so before it is filled. One that ends when it starts
+is refused with its name ("Training: it ends when it starts"), where it was a whole day taken. On
+a computer, every time-of-day field (setting up, Settings, the questions about the week, the day's
+hours) becomes a text field with the app's own clock under it: the day's hours six by four, then
+the quarters, as chips, as the new-task sheet's times are (D159); typing still works ("1830" is
+read as 18:30), and a phone keeps its own wheel.
+
+**Rejected.** A row per shift with a day each, as Settings' typed rows are: seven rows for a job of
+seven days. A list that grows by script alone: without it a second shift could not be given, where
+folds work everywhere. Overriding the phone's wheel: it is the phone's own, and large enough.
+
+**Disclosed.** Four shifts per busy time is a choice; more are added in Settings. The clock opens
+under its field and pushes what follows down: floating over the page, it was drawn under the
+sentence's later lines. Checked in Chromium only, at 1280 px with a mouse and at phone size with
+touch, light and dark, in French.

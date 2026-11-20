@@ -5556,3 +5556,27 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .plan-notes ul { margin: 12px 0 10px; padding-left: 1.2em; display: grid; gap: 6px; font-size: 0.9rem; }
 .plan-notes p { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .plan-notes > summary::after { transition: none; } }
+
+/* -- Busy times, flexible (D172) -----------------------------------------------------
+   Setting up's busy times hold several shifts, each its own days and hours, the next one
+   folded under the one before; a later shift may have its own name (another job). The
+   app's own clock opens under a time field on a computer (ui.js): the day's hours six by
+   four, then the quarters, as chips; a phone keeps its own wheel. */
+.clock-field { min-width: 0; }
+.add-panel .shift { display: grid; gap: 6px; }
+.more-shift { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.more-shift > summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); list-style: none; min-height: 32px; display: flex; align-items: center; }
+.more-shift > summary::-webkit-details-marker { display: none; }
+.more-shift[open] > summary { margin-bottom: 6px; }
+/* In the flow under its field, pushing what follows down: floating over the page, it was
+   drawn under the sentence's later lines and the sticky buttons. */
+.clock-pick {
+  width: 100%; max-width: 300px; margin-top: 6px;
+  display: grid; gap: 8px; padding: 10px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--glass-solid, var(--surface)); box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
+}
+.clock-pick[hidden] { display: none; }
+.clock-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.clock-minutes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.clock-pick .pill-btn { min-width: 0; min-height: 34px; padding: 0; font-variant-numeric: tabular-nums; }
+

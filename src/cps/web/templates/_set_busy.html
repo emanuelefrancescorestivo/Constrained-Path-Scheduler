@@ -23,9 +23,9 @@
     </div>
     <div class="row">
       <div><label for="a{{ i }}_start">{{ _("From") }}</label>
-      <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}"></div>
+      <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}" data-clock></div>
       <div><label for="a{{ i }}_end">{{ _("to") }}</label>
-      <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}"></div>
+      <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}" data-clock></div>
     </div>
     <label for="a{{ i }}_kind">{{ _("Kind") }}</label>
     <select id="a{{ i }}_kind" name="a{{ i }}_kind">

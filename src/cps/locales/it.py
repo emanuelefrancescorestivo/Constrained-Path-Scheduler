@@ -3473,4 +3473,9 @@ MESSAGES: dict[str, str] = {
     "{n} minutes": "{n} minuti",
     "{n} thing does not fit in the plan": "{n} cosa non ci sta nel piano",
     "{n} things do not fit in the plan": "{n} cose non ci stanno nel piano",
+    # D172: busy times, flexible.
+    "(the next day)": "(il giorno dopo)",
+    "A night shift: give the hour it ends, and it ends the next morning.": "Un turno di notte: indica l'ora in cui finisce, e finisce la mattina dopo.",
+    "Other days, other hours": "Altri giorni, altri orari",
+    "{name}: it ends when it starts": "{name}: finisce all'ora in cui comincia",
 }

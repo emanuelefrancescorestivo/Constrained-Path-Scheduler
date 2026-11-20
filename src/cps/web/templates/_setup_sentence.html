@@ -23,7 +23,7 @@
     minutes=pick("block_minutes", sentence.minutes, values.block_minutes, _("Session length"))) }}</div>
 
   <div class="sentence-line">{% if sentence.busy %}{{ _("Outside your classes, you are busy:") }}
-    {% for b in sentence.busy %}<span class="busy-chip">{{ b.label }} · {{ b.days | join(", ") }} · {{ b.start }}–{{ b.end }}</span>{% endfor %}
+    {% for b in sentence.busy %}<span class="busy-chip">{{ b.label }} · {{ b.days | join(", ") }} · {{ b.start }}–{{ b.end }}{% if b.overnight %} {{ _("(the next day)") }}{% endif %}</span>{% endfor %}
     {%- else %}{{ _("Outside your classes, you are free all the time.") }}{% endif %}
     {% if values.commute %}{{ _n("And {n} minute to get to university.", "And {n} minutes to get to university.", values.commute) }}{% endif %}</div>
   <div class="sentence-adds">
@@ -34,16 +34,27 @@
         <input type="hidden" name="q{{ i }}_kind" value="{{ q.kind }}">
         <label for="q{{ i }}_label">{{ _("What") }}</label>
         <input id="q{{ i }}_label" name="q{{ i }}_label" placeholder="{{ _(q.name) }}" maxlength="60">
-        <p class="label" id="q{{ i }}-days">{{ _("Which days") }}</p>
-        <div class="pills" role="group" aria-labelledby="q{{ i }}-days">
-          {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="q{{ i }}_days" value="{{ d }}"><span>{{ _(d) }}</span></label>{% endfor %}
-        </div>
-        <div class="row">
-          <div><label for="q{{ i }}_start">{{ _("From") }}</label>
-          <input id="q{{ i }}_start" name="q{{ i }}_start" type="time" step="900" value="{{ q.start }}"></div>
-          <div><label for="q{{ i }}_end">{{ _("to") }}</label>
-          <input id="q{{ i }}_end" name="q{{ i }}_end" type="time" step="900" value="{{ q.end }}"></div>
-        </div>
+        {# D172: up to `sentence.shifts` shifts, each its own days and hours, the next one
+           folded under the one before (no script needed); a later shift can have its own
+           name, for another job. One that ends earlier than it starts ends the next day. #}
+        {% for k in range(sentence.shifts) %}{% set p = "q" ~ i ~ ("_" ~ k if k else "") %}
+        {% if k %}<details class="more-shift"><summary>{{ _("Other days, other hours") }}</summary>{% endif %}
+        <div class="shift">
+          {% if k %}<label for="{{ p }}_label">{{ _("What") }}</label>
+          <input id="{{ p }}_label" name="{{ p }}_label" placeholder="{{ _(q.name) }}" maxlength="60">{% endif %}
+          <p class="label" id="{{ p }}-days">{{ _("Which days") }}</p>
+          <div class="pills" role="group" aria-labelledby="{{ p }}-days">
+            {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="{{ p }}_days" value="{{ d }}"><span>{{ _(d) }}</span></label>{% endfor %}
+          </div>
+          <div class="row">
+            <div class="clock-field"><label for="{{ p }}_start">{{ _("From") }}</label>
+            <input id="{{ p }}_start" name="{{ p }}_start" type="time" step="900" value="{{ q.start }}" data-clock></div>
+            <div class="clock-field"><label for="{{ p }}_end">{{ _("to") }}</label>
+            <input id="{{ p }}_end" name="{{ p }}_end" type="time" step="900" value="{{ q.end }}" data-clock></div>
+          </div>
+        {% endfor %}
+        {# closed from the innermost out #}{% for k in range(sentence.shifts) | reverse %}</div>{% if k %}</details>{% endif %}{% endfor %}
+        <p class="hint">{{ _("A night shift: give the hour it ends, and it ends the next morning.") }}</p>
       </div>
     </details>
     {% endfor %}
