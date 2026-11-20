@@ -194,14 +194,17 @@ def test_the_calendar_offers_a_month_once_set_up(web):
     assert 'id="calendar-view"' not in web.get(f"/p/{token}").text
 
 
-def test_a_first_run_has_no_tour_and_settings_bring_it_back_after(web):
-    """D107: Spark's one line stands in for the tour during a first run; once it is
-    over, the tour is not shown by itself, and Settings show it again."""
+def test_a_first_run_shows_the_tour_once_it_reaches_today_and_settings_bring_it_back(web):
+    """D107 kept the tours away while a first run lasted, and its end marked Today's
+    seen: a new student never had one (AUDIT 116). Since D170 there is none while its
+    steps are ahead, Today's once it reaches Today or ends, and Settings show it again."""
     files = {"file": ("timetable.ics", SEMESTER.read_bytes(), "text/calendar")}
     start = web.post("/start", data={"tz": "Europe/Paris"}, files=files, follow_redirects=False)
     token = start.headers["location"].split("/")[2]
-    assert 'id="tour"' not in web.get(f"/p/{token}").text
+    assert 'id="tour"' not in web.get(f"/p/{token}").text  # its steps are ahead
     service.update_subscription(web.root, token, service.finish_first_run)
+    assert 'id="tour"' in web.get(f"/p/{token}").text
+    service.update_subscription(web.root, token, lambda current: service.see_tour(current, "today"))
     assert 'id="tour"' not in web.get(f"/p/{token}").text
     service.update_subscription(web.root, token, service.reset_tours)
     assert 'id="tour"' in web.get(f"/p/{token}").text

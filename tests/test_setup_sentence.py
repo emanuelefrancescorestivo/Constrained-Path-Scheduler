@@ -197,3 +197,71 @@ def test_a_pasted_link_shows_what_it_brings_before_it_is_saved(web):
     assert "Nothing could be read from this link" in wrong
     assert web.post(f"/p/{token}/deadlines/preview", data={"url": ""}).text.strip() == ""
     assert web.post("/p/nope/deadlines/preview", data={"url": LINK}).status_code == 404
+
+
+def test_a_busy_time_holds_shifts_another_job_and_a_night(web):
+    """D172 (the owner: "one may have more jobs and shifts so it needs to be more
+    flexible"): each busy time holds up to four shifts, each its own days and hours, each
+    folded under the one before so no script is needed; a later shift may name another
+    job; one that ends earlier than it starts ends the next morning; one that ends when it
+    starts is a mistake, said."""
+    token = _start(web)
+    page = web.get(f"/p/{token}/settings?new=1").text
+    kinds = len(service.QUICK_BUSY)
+    assert page.count('<details class="more-shift">') == kinds * (service.QUICK_SHIFTS - 1)
+    assert 'name="q1_3_days"' in page and 'name="q1_4_days"' not in page
+    saved = _save(
+        web,
+        token,
+        q1_label="Bar",
+        q1_days=["Mon", "Wed"],
+        q1_start="18:00",
+        q1_end="22:00",
+        q1_1_label="Library",
+        q1_1_days=["Sat"],
+        q1_1_start="10:00",
+        q1_1_end="16:00",
+        q1_2_days=["Fri"],
+        q1_2_start="22:00",
+        q1_2_end="06:00",
+    )
+    rows = {(r["label"], r["kind"], r["weekday"], r["start"], r["end"]) for r in saved.busy_rows}
+    assert rows == {
+        ("Bar", "work", 0, "18:00", "22:00"),
+        ("Bar", "work", 2, "18:00", "22:00"),
+        ("Library", "work", 5, "10:00", "16:00"),
+        ("Bar", "work", 4, "22:00", "06:00"),
+    }
+    # The night shift ends the next morning: Saturday until 06:00 is busy.
+    from datetime import date, time
+
+    from cps.calendar_io import busy_from_table
+
+    night = [r for r in saved.busy_rows if r["start"] == "22:00"]
+    events = busy_from_table(night, date(2026, 9, 28), 7, "Europe/Paris")
+    assert [(e.start.strftime("%a %H:%M"), e.end.strftime("%a %H:%M")) for e in events] == [
+        ("Fri 22:00", "Sat 06:00")
+    ]
+    assert events[0].end.time() == time(6, 0)
+    page = unescape(web.get(f"/p/{token}/settings?new=1").text)
+    assert "Bar · Mon, Wed · 18:00–22:00" in page and "Bar · Fri · 22:00–06:00 (the next day)" in page
+    # Ending when it starts would be a whole day taken: said, and nothing saved.
+    form = {**_form(web.get(f"/p/{token}/settings?new=1").text), "q0_days": ["Mon"], "q0_end": "18:00"}
+    answer = web.post(f"/p/{token}/settings", data=form)
+    assert answer.status_code == 400 and "Training: it ends when it starts" in unescape(answer.text)
+    assert len(service.load_subscription(web.root, token).busy_rows) == 4
+
+
+def test_every_time_of_day_gets_the_apps_own_clock():
+    """D172: the system's grey list of times gave way to the app's clock on a computer;
+    every time-of-day field is marked for it, and a phone keeps its wheel."""
+    templates = ROOT / "src" / "cps" / "web" / "templates"
+    fields = [
+        tag
+        for path in templates.glob("*.html")
+        for tag in re.findall(r'<input[^>]*type="time"[^>]*>', path.read_text(encoding="utf-8"))
+    ]
+    assert len(fields) >= 10 and all("data-clock" in tag for tag in fields)
+    ui = (ROOT / "src" / "cps" / "web" / "static" / "ui.js").read_text(encoding="utf-8")
+    assert 'querySelectorAll("input[data-clock]")' in ui and '"(pointer: fine)"' in ui
+    assert 'for (const mm of ["00", "15", "30", "45"])' in ui

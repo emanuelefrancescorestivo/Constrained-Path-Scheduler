@@ -27,3 +27,14 @@
   </details>
 </aside>
 {%- endmacro %}
+
+
+{# D169: the same tip as one row, for a page that leads somewhere else (Focus): its
+   advice beside the spark; tapped, the research opens in place. #}
+{% macro why_row(t) -%}
+<details class="card why-row section" data-why="{{ t.key }}">
+  <summary class="mascot-tip">{{ mascot(t.mood, "why-" ~ t.key) }}<span class="mascot-words"><b>{{ t.advice }}</b><span class="tip-reason">{{ t.here }}</span></span><span class="chev" aria-hidden="true">›</span></summary>
+  <p class="why-strength-line"><span class="why-strength is-{{ t.strength }}">{{ t.strength_label }}</span></p>
+  {{ research(t) }}
+</details>
+{%- endmacro %}

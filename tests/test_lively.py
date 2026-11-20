@@ -97,7 +97,9 @@ def test_the_lengths_on_focus_are_no_pane_of_their_own(web):
     # AUDIT 80: the glass gave the lengths' fieldset a pane with nothing padded inside.
     token = _start(web)
     focus = web.get(f"/p/{token}/focus").text
-    assert focus.count('<fieldset class="focus-lengths bare">') == focus.count("<fieldset") >= 1
+    # D169: the length is a word of the sentence now, and no fieldset is left to frame.
+    assert focus.count('<fieldset class="focus-lengths bare">') == focus.count("<fieldset") == 0
+    assert '<details class="pick" name="focus">' in focus
     css = (WEB / "static" / "style.css").read_text()
     rule = re.search(r"\nfieldset\.bare, (.*?) \{(.*?)\}", css, re.S)
     assert rule, "no rule for a bare fieldset"

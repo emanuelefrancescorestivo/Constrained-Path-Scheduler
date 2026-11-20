@@ -1341,6 +1341,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "recalled": service.recall_week(subscription, now),
             # Today as the app's home (D140): the day at a glance, and classmates.
             "day": service.day_agenda(subscription, now),
+            # The day as one strip across Today (D171).
+            "strip": service.day_strip(subscription, now) if "day" in shown else None,
             "classmates": service.classmates_glance(store, subscription, now) if "friends" in shown else None,
             # The student's time today and attention this week (D140).
             "time": service.time_and_attention(store, subscription, now) if "time" in shown else None,
@@ -1507,6 +1509,8 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, subscription, (subscription.options.get("focus") or {}).get("opener")
             ),
             cards_due=service.cards_due(store, subscription, config.clock()),
+            # D169: today's minutes and the streak, under the sentence.
+            day=None if running else service.focus_day(store, subscription, config.clock()),
             tip=service.focus_tip(subscription),
             # While the timer runs: who the student follows is studying too (D108).
             alongside=service.studying_now_view(store, subscription, config.clock())
@@ -1624,9 +1628,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         def change(current: service.Subscription, form: Any) -> service.Subscription:
             sid = str(form.get("sid") or "") or None
             goal = service.focus_goal(form.get("goal"))
+            course = str(form.get("course") or "")
+            # D169: the sentence's course: the plan's session, another course, or one typed.
+            pick = str(form.get("course_pick") or "")
+            if pick and pick != "plan":
+                sid = None  # another course than the plan's session is a session of its own
+                course = str(form.get("course_other") or "") if pick == "__other__" else pick
             return service.start_focus(
                 current,
-                str(form.get("course") or ""),
+                course,
                 sid=sid,
                 goal=goal,
                 repair=str(form.get("repair") or "") or None,

@@ -20,22 +20,69 @@
         </div>
       </li>
 {% endmacro %}
-{# The plan's first day with nothing left that day (D106): a short session now. #}
-{% macro first_day_card(f) %}
-<form method="post" action="/p/{{ token }}/focus/start" class="card nudge-card section first-day">
-  <input type="hidden" name="course" value="{{ f.course }}">
-  <input type="hidden" name="goal" value="{{ f.minutes }}">
-  <span class="tip-reason">{{ _("Your first day") }}</span>
-  <b>{{ _("Start today: {n} minutes on {course}", n=f.minutes, course=f.course) }}</b>
-  <span class="muted">{% if f.when %}{{ _("Your first planned session is on {when}. A short one now starts your streak today.", when=f.when) }}{% else %}{{ _("A short session now starts your streak today.") }}{% endif %}</span>
-  <div class="row-end"><button type="submit" formaction="/p/{{ token }}/first-day/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
-</form>
-{% endmacro %}
 {% from "_art.html" import art %}
 {# A widget's head: its picture, its name, and the section it opens. #}
 {% macro head(title, picture, href="", link="", id="") -%}
 <div class="w-head"{% if id %} id="{{ id }}"{% endif %}>{{ art(picture, "xs") }}<h2>{{ title }}</h2>{% if href %}<a class="w-link" href="{{ href }}">{{ link }} ›</a>{% endif %}</div>
 {%- endmacro %}
+{# The next step as the page's one thing (D171, the owner's A): across the page, its
+   course's colour and the target's picture to catch the eye, one button. How to do it and
+   why now fold under it; what is at stake stands beside it. #}
+{% macro nx_session(card, is_now) %}
+<div class="nx-main">
+  <p class="nx-kicker">{{ art("target", "sm") }}<span>{% if is_now %}{{ _("Now") }} · {% endif %}{{ card.kind }} · {{ card.when }}–{{ card.until }}</span></p>
+  <h2 class="nx-title"><span class="dot" aria-hidden="true"></span>{{ card.title }}</h2>
+  {% if card.topic or card.pinned %}<p class="nx-sub">{{ card.topic }}{% if card.pinned %} <span class="badge badge-accent">{{ _("Placed by you") }}</span>{% endif %}</p>{% endif %}
+  {% if card.memory %}{% from "_banked.html" import banked %}{{ banked(card.memory, card) }}{% endif %}
+  {% if not card.reported %}
+  <form method="post" action="/p/{{ token }}/focus/start" class="nx-acts">
+    <input type="hidden" name="sid" value="{{ card.id }}">
+    <button class="btn btn-primary nx-go">{{ lucide('play') }}{{ _("Start focus") }}</button>
+    <a class="nx-else" href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a>
+  </form>
+  {% endif %}
+  {% if card.started %}
+  {% if card.self_test %}<p class="label recall-ask">{{ _("How much could you recall, without your notes?") }}</p>{% endif %}
+  <form method="post" action="/s/{{ token }}/{{ card.id }}" class="outcomes{% if card.self_test %} recall{% endif %}" data-report{% if card.self_test %} data-recall{% endif %}>
+    {% for value, word in (recall_words if card.self_test else outcome_words).items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ _(word) }}</button>{% endfor %}
+  </form>
+  {% endif %}
+  {% if card.what or card.why or card.syllabus or card.week or (card.gain and card.reported != "skipped") %}
+  <details class="nx-how">
+    <summary>{{ _("How, and why now") }}</summary>
+    {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
+    {% if card.syllabus %}<div class="syllabus"><span class="muted">{{ _("In the syllabus:") }}</span><ul>{% for t in card.syllabus %}<li>{{ t }}</li>{% endfor %}</ul></div>{% endif %}
+    {% if card.week and not card.reported %}<p class="syllabus-add"><a href="/p/{{ token }}/cards/review?course={{ card.title | urlencode }}&amp;week={{ card.week }}">{{ _("Your cards for this week") }}</a></p>{% endif %}
+    {% if card.why %}<p class="why">{{ card.why }}</p>{% endif %}
+    {% if card.gain and card.reported != "skipped" and card.reported not in recall_words %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}
+  </details>
+  {% endif %}
+</div>
+{% if card.stakes %}
+{# The stakes (D128), as the two numbers they are: how long a recall now keeps the topic
+   above 90 %, and how far off the exam is. #}
+<div class="nx-side">
+  {% if not card.stakes.to_exam %}<p class="nx-stat"><b>{{ card.stakes.holds }}</b><span>{{ _("above 90 % until then, if you recall it now") }}</span></p>{% endif %}
+  <p class="nx-stat"><b>{% if card.stakes.days %}{{ _n("{n} day", "{n} days", card.stakes.days) }}{% else %}{{ _("Today") }}{% endif %}</b><span>{% if card.stakes.to_exam %}{{ _("to the exam, above 90 % until then if you recall it now") }}{% else %}{{ _("to the exam") }}{% endif %}</span></p>
+  <p class="nx-note">{{ _("The memory model's estimate.") }}</p>
+</div>
+{% endif %}
+{% endmacro %}
+{# The plan's first day (D106, D107): its short session is the one thing, until done or put off. #}
+{% macro nx_first(f) %}
+<form method="post" action="/p/{{ token }}/focus/start" class="nx-main first-day">
+  <input type="hidden" name="course" value="{{ f.course }}">
+  <input type="hidden" name="goal" value="{{ f.minutes }}">
+  <p class="nx-kicker">{{ art("spark", "sm") }}<span>{{ _("Your first day") }} · {{ _n("{n} minute", "{n} minutes", f.minutes) }}</span></p>
+  <h2 class="nx-title"><span class="dot" aria-hidden="true"></span>{{ f.course }}</h2>
+  <p class="nx-sub">{{ _("A short session now starts your streak today.") }}</p>
+  <div class="nx-acts">
+    <button type="submit" class="btn btn-primary nx-go">{{ lucide('play') }}{{ _("Start focus") }}</button>
+    <button type="submit" formaction="/p/{{ token }}/first-day/later" class="btn btn-plain">{{ _("Not now") }}</button>
+  </div>
+</form>
+{% if f.when %}<div class="nx-side"><p class="nx-stat"><b>{{ f.when }}</b><span>{{ _("your first planned session") }}</span></p></div>{% endif %}
+{% endmacro %}
 {% set greetings = {"morning": _("Good morning"), "afternoon": _("Good afternoon"), "evening": _("Good evening"), "night": _("Good evening")} %}
 <div class="hello">
   <h1>{{ greetings[sky] if sky in greetings else _("Today") }}</h1>
@@ -46,8 +93,8 @@
 {% if view.error %}<p class="alert" role="alert">{{ view.error }}{% if view.planned %} {{ _("The plan shown is the last one that could be made.") }}{% endif %}</p>{% endif %}
 
 {% if spark_line %}
-{# A first run's Today (D107): Spark's one line stands in for the tour, until the
-   first session is done. #}
+{# A first run's Today (D107): Spark's one line, until the first session is done; the
+   tour shows beside it since D170. #}
 {% from "_mascot.html" import mascot %}
 <div class="mascot-tip run-line">{{ mascot("wave", uid="line") }}<p>{{ _("Your plan is ready. One session today is enough: I’ll plan the rest.") }}</p></div>
 {% endif %}
@@ -63,57 +110,33 @@
 
 <div class="hub">
 {% if view.planned %}
-{# A first run's first day (D107): its short session is the next step, before the
-   plan's next one. #}
-{% if spark_line and message == "first" %}<div class="w-wide">{{ first_day_card(first_day) }}</div>{% endif %}
-{# The next step, large: the session going on, or the next one. Each widget below is
-   drawn when the student keeps it on Today (D155: `shown`); what asks for an answer is
-   always drawn. #}
-{% if "next" in shown %}
-<section class="w w-next section next-step" data-tour="next">
+{# The one thing (D171): the first day's short session when offered, else the session
+   going on, the day done, or the next one. Each widget below is drawn when the student
+   keeps it on Today (D155: `shown`); what asks for an answer is always drawn. #}
+{% set first = first_day if message == "first" else none %}
+{% if first %}
+<section class="w w-next w-wide nx section next-step {% if first.color is not none %}c{{ first.color }}{% else %}cn{% endif %}" data-tour="next">{{ nx_first(first) }}</section>
+{% elif "next" in shown %}
+{% set nx_card = view.now or (view.next[0] if view.next and not view.done else none) %}
+<section class="w w-next w-wide nx section next-step {% if nx_card and nx_card.color is not none %}c{{ nx_card.color }}{% else %}cn{% endif %}" data-tour="next"{% if nx_card %} data-vt="s{{ nx_card.id }}"{% endif %}>
 {% if view.now %}
-{{ head(_("Now"), "target") }}
-{% with card=view.now, show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
+{{ nx_session(view.now, true) }}
 {% elif view.done %}
 {# Done for today (D125): every session planned today reported, at least one kept.
    The win is stopping; the next session is named, and nothing asks for more. #}
-{{ head(_("Done for today"), "target") }}
-<div class="card done-today">
-  <p class="done-line"><b>{{ _n("{n} session kept", "{n} sessions kept", view.done.kept) }}</b>{% if view.done.added %} · <b>{{ _n("+{n} memory day", "+{n} memory days", view.done.added) }}</b>{% endif %}</p>
-  <p class="muted">{{ _("That is today's plan. The next session adds more than a second pass tonight would.") }}</p>
+<div class="nx-main done-today">
+  <p class="nx-kicker">{{ art("target", "sm") }}<span>{{ _("Done for today") }}</span></p>
+  <p class="nx-title done-line">{{ _n("{n} session kept", "{n} sessions kept", view.done.kept) }}{% if view.done.added %} · {{ _n("+{n} memory day", "+{n} memory days", view.done.added) }}{% endif %}</p>
+  <p class="nx-sub">{{ _("That is today's plan. The next session adds more than a second pass tonight would.") }}</p>
   {% if view.next %}<p class="done-next">{{ _("Next: {when}, {what}.", when=view.next[0].when, what=view.next[0].label) }}</p>{% endif %}
 </div>
 {% elif view.next %}
-{{ head(_("Up next"), "target", "/p/" ~ token ~ "/focus", _("Focus")) }}
-{% with card=view.next[0], show_why=true, calm=true %}{% include "_session.html" %}{% endwith %}
+{{ nx_session(view.next[0], false) }}
 {% else %}
-<div class="card"><h3>{{ _("Nothing planned after now") }}</h3><p class="muted">{{ _("Add a task or an exam to plan for.") }}</p></div>
+<div class="nx-main"><p class="nx-kicker">{{ art("target", "sm") }}<span>{{ _("Up next") }}</span></p><h2 class="nx-title">{{ _("Nothing planned after now") }}</h2><p class="nx-sub">{{ _("Add a task or an exam to plan for.") }}</p></div>
 {% endif %}
-{# Focus is no longer a tab (D97): a session's Start, or this; with a course to name, the
-   focus card below starts anything else in one tap (D144). #}
-{% if not quick_focus %}<p class="next-else"><a href="/p/{{ token }}/focus">{{ _("Study something else") }} ›</a></p>{% endif %}
 </section>
 {% endif %}
-
-{# Focus from Today (D144): anything besides the plan's next session, in one tap: the course
-   last timed and the shortest length are chosen already. #}
-{% if quick_focus %}
-<section class="w w-focus" aria-labelledby="focus-title" data-tour="focus-quick">
-  <div class="w-head">{{ art("focus", "xs") }}<h2 id="focus-title">{{ _("Focus") }}</h2><a class="w-link" href="/p/{{ token }}/focus">{{ _("Other courses and lengths") }} ›</a></div>
-  <form method="post" action="/p/{{ token }}/focus/start" class="card quick-focus">
-    <fieldset class="bare"><legend>{{ _("What are you studying?") }}</legend>
-      <div class="pills">{% for c in quick_focus.courses %}<label class="pill"><input type="radio" name="course" value="{{ c }}"{% if loop.first %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}</div>
-    </fieldset>
-    <fieldset class="bare"><legend>{{ _("How long?") }}</legend>
-      <div class="pills">{% for g in quick_focus.goals %}<label class="pill"><input type="radio" name="goal" value="{{ g.minutes }}"{% if g.minutes == quick_focus.goal %} checked{% endif %}><span>{{ g.label }}</span></label>{% endfor %}</div>
-    </fieldset>
-    <button class="btn btn-primary btn-block">{{ lucide('timer') }}{{ _("Start the timer") }}</button>
-    {% if quick_focus.tip %}<p class="hint quick-tip"><a href="/p/{{ token }}/tips?topic={{ quick_focus.tip.topic }}#tip-{{ quick_focus.tip.key }}">{{ quick_focus.tip.advice }} <span class="nowrap">{{ _("Why, and the evidence") }} ›</span></a></p>{% endif %}
-  </form>
-</section>
-{% endif %}
-
-
 
 {% if view.banked and not (view.now and view.now.id == view.banked.id) %}
 <section class="w w-ask section banked-today" data-vt="b{{ view.banked.id }}">
@@ -181,8 +204,7 @@
   <span class="muted">{{ _("If you did study that day, report its session on the calendar instead: a late report counts on its day.") }}</span>
   <div class="row-end"><button type="submit" formaction="/p/{{ token }}/repair/later" class="btn btn-plain btn-sm">{{ _("Not now") }}</button><button type="submit" class="btn btn-primary btn-sm">{{ _("Start focus") }}</button></div>
 </form>
-{% elif message == "first" %}
-{% if not spark_line %}{{ first_day_card(first_day) }}{% endif %}
+{% elif message == "first" %}{# the next step's band (D171) #}
 {% elif message == "hours" %}
 {# Hours that fit the exams (D147): what this week's hours keep at the target on exam day,
    and what a few more would, weeks ahead; offered, never applied without a tap. #}
@@ -250,38 +272,64 @@
 {% endset %}
 {% if said | trim %}<div class="w-wide hub-message">{{ said }}</div>{% endif %}
 
-{# The day at a glance (D140): classes, sessions and busy times, the calendar a tap away.
-   After what needs an answer in the page's order, as a phone reads it; at the top right
-   on a laptop (style.css). #}
+{# The day as one strip across the page (D171): classes, sessions and busy times where
+   they fall between getting up and going to bed, each in its course's colour, a red line
+   at now; on a phone, a list in time order. The calendar is a tap away. #}
 {% if view.planned and "day" in shown %}
-<section class="w w-day" aria-labelledby="day-title">
+<section class="w w-day w-wide" aria-labelledby="day-title">
   <div class="w-head">{{ art("calendar", "xs") }}<h2 id="day-title">{{ _("Today") }}</h2><a class="w-link" href="/p/{{ token }}/week">{{ _("Calendar") }} ›</a></div>
   <div class="card day-card">
-  {% if day %}
-  <ol class="day-list">
-  {% set ns = namespace(line=false) %}
-  {% for d in day %}
-    {% if d.state == "later" and not ns.line %}{% set ns.line = true %}<li class="day-now" aria-hidden="true"></li>{% endif %}
-    <li class="day-item day-{{ d.kind }} at-{{ d.state }} {% if d.color is not none %}c{{ d.color }}{% else %}cn{% endif %}">
-      <time>{{ d.start }}</time><span class="day-bar" aria-hidden="true"></span>
-      <span class="grow"><b>{{ d.label }}</b><small>{{ d.what }} · {{ d.start }}–{{ d.end }}{% if d.reported %} · {{ _(outcome_words.get(d.reported) or recall_words.get(d.reported) or d.reported) }}{% endif %}</small></span>
-    </li>
-  {% endfor %}
-  {% if not ns.line %}<li class="day-now" aria-hidden="true"></li>{% endif %}
-  </ol>
+  {% if strip and strip.blocks %}
+  <div class="dayline lanes{{ strip.lanes }}">
+    <ol class="dl-items">
+    {% for d in strip.blocks %}
+      <li class="dl-item day-{{ d.kind }} at-{{ d.state }} {% if d.color is not none %}c{{ d.color }}{% else %}cn{% endif %} dl-x{{ d.x }} dl-w{{ d.w }} dl-l{{ d.lane }}">
+        <time>{{ d.start }}</time><span class="dl-text"><b>{{ d.label }}</b><small>{{ d.what }}{% if d.reported %} · {{ _(outcome_words.get(d.reported) or recall_words.get(d.reported) or d.reported) }}{% endif %}</small></span>
+      </li>
+    {% endfor %}
+    </ol>
+    {% if strip.now is not none %}<span class="dl-now dl-x{{ strip.now }}" aria-hidden="true"></span>{% endif %}
+    <div class="dl-hours" aria-hidden="true">{% for h in strip.hours %}<span class="dl-x{{ h.x }}">{{ h.label }}</span>{% endfor %}</div>
+  </div>
   {% else %}<p class="muted">{{ _("Nothing on the calendar today.") }}</p>{% endif %}
-{% set later = (view.next if view.now else view.next[1:])[:3] %}
-{% if later %}
-  <h3 class="w-sub">{{ _("Coming up") }}</h3>
+  </div>
+</section>
+{% endif %}
+
+{% if view.exams and "exams" in shown %}
+<section class="w w-exams">
+  {{ head(_("Exams"), "cap", "/p/" ~ token ~ "/settings/exams", _("Edit")) }}
+  <div class="card">
     <ul class="list">
-    {% for card in later %}
-      <li class="{% if card.color is not none %}c{{ card.color }}{% else %}cn{% endif %}" data-vt="l{{ card.id }}">
+    {% for e in view.exams[:3] %}
+      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
         <span class="dot"></span>
-        <div class="grow"><div class="title">{{ card.label }}{% if card.pinned %} <span class="badge badge-accent">{{ _("placed") }}</span>{% endif %}</div><div class="meta">{{ card.when }}–{{ card.until }}</div></div>
+        <div class="grow">
+          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
+          <div class="meta">{{ e.when }} · {{ _n("{ready} of {n} topic on track", "{ready} of {n} topics on track", e.topics, ready=e.topics_ready) }}</div>
+          <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
+        </div>
       </li>
     {% endfor %}
     </ul>
+  </div>
+  <p class="hint">{{ _("\"On track\": predicted at your target recall on exam day, if the plan is followed.") }}</p>
+</section>
 {% endif %}
+
+
+{% if "tasks" in shown %}
+<section class="w w-tasks">
+  {{ head(_("Tasks"), "tasks", "/p/" ~ token ~ "/tasks", _("See all")) }}
+  <div class="card">
+    {% set upcoming = view.tasks | rejectattr("past") | list %}
+    {% if upcoming %}
+    <ul class="tasks">
+    {% for t in upcoming[:3] %}{% with back='today' %}{% include "_task.html" %}{% endwith %}{% endfor %}
+    </ul>
+    {% else %}<p class="muted">{{ _("No task due. Homework, a report, a project: add it and the plan finds the time.") }}</p>{% endif %}
+    {% if task_error %}<p class="error" role="alert">{{ task_error }}</p>{% endif %}
+    <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
   </div>
 </section>
 {% endif %}
@@ -339,6 +387,26 @@
   </div>
 </section>
 {% endif %}
+
+{# Focus from Today (D144): anything besides the plan's next session, in one tap: the course
+   last timed and the shortest length are chosen already. #}
+{% if quick_focus %}
+<section class="w w-focus" aria-labelledby="focus-title" data-tour="focus-quick">
+  <div class="w-head">{{ art("focus", "xs") }}<h2 id="focus-title">{{ _("Focus") }}</h2><a class="w-link" href="/p/{{ token }}/focus">{{ _("Other courses and lengths") }} ›</a></div>
+  <form method="post" action="/p/{{ token }}/focus/start" class="card quick-focus">
+    <fieldset class="bare"><legend>{{ _("What are you studying?") }}</legend>
+      <div class="pills">{% for c in quick_focus.courses %}<label class="pill"><input type="radio" name="course" value="{{ c }}"{% if loop.first %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}</div>
+    </fieldset>
+    <fieldset class="bare"><legend>{{ _("How long?") }}</legend>
+      <div class="pills">{% for g in quick_focus.goals %}<label class="pill"><input type="radio" name="goal" value="{{ g.minutes }}"{% if g.minutes == quick_focus.goal %} checked{% endif %}><span>{{ g.label }}</span></label>{% endfor %}</div>
+    </fieldset>
+    <button class="btn btn-primary btn-block">{{ lucide('timer') }}{{ _("Start the timer") }}</button>
+    {% if quick_focus.tip %}<p class="hint quick-tip"><a href="/p/{{ token }}/tips?topic={{ quick_focus.tip.topic }}#tip-{{ quick_focus.tip.key }}">{{ quick_focus.tip.advice }} <span class="nowrap">{{ _("Why, and the evidence") }} ›</span></a></p>{% endif %}
+  </form>
+</section>
+{% endif %}
+
+
 
 {# Your time today and your attention this week (D140): what was planned and what was
    logged, so the student sees where the day goes and what is left for them. #}
@@ -442,44 +510,6 @@
 </section>
 {% endif %}
 
-{% if "tasks" in shown %}
-<section class="w w-tasks">
-  {{ head(_("Tasks"), "tasks", "/p/" ~ token ~ "/tasks", _("See all")) }}
-  <div class="card">
-    {% set upcoming = view.tasks | rejectattr("past") | list %}
-    {% if upcoming %}
-    <ul class="tasks">
-    {% for t in upcoming[:3] %}{% with back='today' %}{% include "_task.html" %}{% endwith %}{% endfor %}
-    </ul>
-    {% else %}<p class="muted">{{ _("No task due. Homework, a report, a project: add it and the plan finds the time.") }}</p>{% endif %}
-    {% if task_error %}<p class="error" role="alert">{{ task_error }}</p>{% endif %}
-    <p><button type="button" class="btn btn-tinted btn-block" popovertarget="quick-add">{{ _("New task") }}</button></p>
-  </div>
-</section>
-{% endif %}
-
-{% if view.exams and "exams" in shown %}
-<section class="w w-exams">
-  {{ head(_("Exams"), "cap", "/p/" ~ token ~ "/settings/exams", _("Edit")) }}
-  <div class="card">
-    <ul class="list">
-    {% for e in view.exams[:3] %}
-      <li class="{% if e.color is not none %}c{{ e.color }}{% else %}cn{% endif %}">
-        <span class="dot"></span>
-        <div class="grow">
-          <div class="title">{{ e.name }} <span class="badge">{{ _n("in {n} day", "in {n} days", e.days | round | int) }}</span></div>
-          <div class="meta">{{ e.when }} · {{ _n("{ready} of {n} topic on track", "{ready} of {n} topics on track", e.topics, ready=e.topics_ready) }}</div>
-          <div class="progress"><span class="w{{ (e.percent // 10) * 10 }}"></span></div>
-        </div>
-      </li>
-    {% endfor %}
-    </ul>
-  </div>
-  <p class="hint">{{ _("\"On track\": predicted at your target recall on exam day, if the plan is followed.") }}</p>
-</section>
-{% endif %}
-
-
 {# Classmates (D140): who is studying now (D108) and what the people followed shared. #}
 {% if classmates %}
 <section class="w w-friends">
@@ -509,7 +539,15 @@
 </section>
 {% endif %}
 
-{% for w in view.warnings %}<p class="notice section w-wide">{{ w }}</p>{% endfor %}
+{# What did not fit in the plan (D171, AUDIT 117): one card, its lines folded under it,
+   the week's hours a tap away; it was a list of notices, one per line. #}
+{% if view.warnings %}
+<details class="card plan-notes section w-wide">
+  <summary>{{ art("hourglass", "xs") }}<span class="grow"><b>{{ _n("{n} thing does not fit in the plan", "{n} things do not fit in the plan", view.warnings | length) }}</b><small>{{ _("More hours a week, or fewer days off, make room.") }}</small></span></summary>
+  <ul>{% for w in view.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  <p><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/settings/week">{{ _("Change your week") }}</a></p>
+</details>
+{% endif %}
 
 {# Everything else, one tap away (D73). Its summary names what is inside. #}
 {% set more = [] %}

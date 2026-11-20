@@ -93,7 +93,8 @@ def test_the_first_today_is_the_plan_and_the_next_day_asks_about_counting(tmp_pa
     with _web(tmp_path, clock) as web:
         token = _start(web)
         today = unescape(web.get(f"/p/{token}").text)
-        assert "Your first day" in today and "Start today: 25 minutes on" in today
+        # The next step's band (D171): the first day's 25 minutes, one button.
+        assert 'class="nx-main first-day"' in today and "Your first day · 25 minutes" in today
         assert 'name="goal" value="25"' in today and f'action="/p/{token}/focus/start"' in today
         assert "May the app count which of its parts you use?" not in today
         started = web.post(

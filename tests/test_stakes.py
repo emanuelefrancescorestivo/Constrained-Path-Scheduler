@@ -158,7 +158,12 @@ def test_the_stakes_on_today_and_the_question_from_start_to_log(web, tmp_path):
     shown = service.today_view(sub, _before(test))
     nxt = shown.get("now") or shown["next"][0]
     assert nxt["id"] == sid and nxt["stakes"]
-    assert nxt["stakes"]["words"] in unescape(web.get(f"/p/{sub.token}/panel").text)
+    # On Today the stakes are the band's two numbers (D171): the day the topic holds until
+    # if recalled now, and the days to the exam.
+    panel = unescape(web.get(f"/p/{sub.token}/panel").text)
+    stakes = nxt["stakes"]
+    assert not stakes["to_exam"] and f'<p class="nx-stat"><b>{stakes["holds"]}</b>' in panel
+    assert f'<p class="nx-stat"><b>{stakes["days"]} days</b><span>to the exam</span>' in panel
     assert nxt["stakes"]["words"] in unescape(web.get(f"/p/{sub.token}/focus").text)
     # Started, the session opens with the week's card; its answer is kept for the end.
     started = web.post(f"/p/{sub.token}/focus/start", data={"sid": sid, "goal": "45"}, follow_redirects=False)

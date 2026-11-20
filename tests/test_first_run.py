@@ -1,7 +1,7 @@
 """
 A new student's first run (DECISIONS.md D107), after Strava's: three welcome cards on a
 phone, then the account and the timetable; who is studying, the courses, the class, who
-sees the sessions; Today with Spark's one line instead of the tour; the first session's
+sees the sessions; Today with Spark's one line and, since D170, the tour; the first session's
 summary; the question about reminders once a session is done. What must hold: every
 step can be skipped and leads to the next; a class link opened before the plan existed
 is offered at the class step; the default chosen for sessions is the diary's; a plan
@@ -98,7 +98,8 @@ def test_a_plan_made_on_the_home_page_begins_its_first_run():
     with pytest.raises(service.InvalidInput):
         service.set_share_default(begun, "the world")
     over = service.finish_first_run(service.first_run_at(begun, "today"))
-    assert service.first_run(over) is None and "today" in service.tours_seen(over)
+    # Its end leaves Today's tour to show (D170; before, it was marked seen: AUDIT 116).
+    assert service.first_run(over) is None and "today" not in service.tours_seen(over)
     assert service.first_run_at(made, "class") == made  # no first run: nothing to move
 
 
@@ -131,9 +132,9 @@ def test_the_first_run_goes_step_by_step_to_today(tmp_path):
         )
         assert answer.headers["location"] == f"/p/{token}"
         today = unescape(web.get(f"/p/{token}").text)
-        # Spark's one line instead of the tour, and the first day's short session.
-        assert "Your plan is ready. One session today is enough" in today and 'id="tour"' not in today
-        assert "Start today: 25 minutes on" in today
+        # Spark's one line, the tour of Today (D170), and the first day's short session.
+        assert "Your plan is ready. One session today is enough" in today and 'id="tour"' in today
+        assert 'class="nx-main first-day"' in today and "Your first day · 25 minutes" in today
         # The session, timed, then its summary: the diary's page, with the default chosen.
         web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3", "goal": "25"})
         clock.now = EVENING + timedelta(minutes=26)
@@ -159,7 +160,7 @@ def test_the_first_run_goes_step_by_step_to_today(tmp_path):
         assert "Same time tomorrow?" in remind and f'data-save="/p/{token}/push?then=first-run"' in remind
         # Until it is answered, Today asks; and the first day's session is not offered again.
         today = unescape(web.get(f"/p/{token}").text)
-        assert "Your first session is done" in today and "Start today: 25 minutes on" not in today
+        assert "Your first session is done" in today and 'class="nx-main first-day"' not in today
         answer = web.post(f"/p/{token}/start/remind", data={"answer": "later"}, follow_redirects=False)
         assert answer.headers["location"] == f"/p/{token}"
         after = unescape(web.get(f"/p/{token}").text)
@@ -330,3 +331,24 @@ def test_the_first_days_session_stops_once_a_session_is_logged(tmp_path):
         sub = service.load_subscription(web.root, token)
         assert service.first_day(sub, EVENING, web.root) is None
         assert service.first_day(sub, EVENING) is not None  # without the diary, as before
+
+
+def test_tours_wait_for_the_first_run_to_reach_today_and_are_not_lost_before(tmp_path):
+    """AUDIT 116: a first run stood in for every tour (D107) and its end marked Today's
+    seen, while a section opened during it was recorded as visited, its tour unseen: a
+    new student never had one. Since D170 the tours wait for Today, then show."""
+    made = service.start_subscription(tz="Europe/Paris", ics=SEMESTER.read_bytes(), now=MORNING)
+    begun = service.begin_first_run(made)
+    for tab in ("today", *service.SECTION_TOURS):
+        assert service.tour_for(begun, tab) is None
+        assert service.section_hint(begun, tab) is None  # not recorded as visited
+    there = service.first_run_at(begun, "today")
+    assert service.tour_for(there, "today") == "today"
+    assert all(service.tour_for(there, tab) == tab for tab in service.SECTION_TOURS)
+    with _web(tmp_path, Clock(MORNING)) as web:
+        token = _start(web).split("/")[2]
+        web.get(f"/p/{token}/week")  # opened while the first run's steps are ahead
+        assert "calendar" not in service.tours_seen(service.load_subscription(web.root, token))
+        service.update_subscription(web.root, token, lambda current: service.first_run_at(current, "today"))
+        week = web.get(f"/p/{token}/week").text
+        assert 'id="tour"' in week and 'data-name="calendar"' in week

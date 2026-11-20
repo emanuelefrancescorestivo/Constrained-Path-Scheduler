@@ -146,18 +146,19 @@ def test_today_is_the_widgets_and_calendar_the_calendar(web, tmp_path):
         and '<section class="board"' not in today
         and 'id="calendar"' not in today
     )
-    widgets = ("next", "day", "time", "tips", "week", "tasks", "friends")
+    widgets = ("next", "day", "tasks", "time", "tips", "week", "friends")  # D171: tasks after the day
     order = [today.index(f'class="w w-{name}') for name in widgets]
     assert order == sorted(order)  # the most urgent first, as a phone reads it
     for section in ("/week", "/progress", "/tasks", "/community", "/focus"):
         assert f'class="w-link" href="/p/{ben.token}{section}"' in today, section
-    day = today[today.index('class="w w-day"') :]
+    day = today[today.index('class="w w-day w-wide"') :]
     day = day[: day.index("</section>")]
-    assert day.count('class="day-item') == len(service.day_agenda(ben, NOW)) and 'class="day-now"' in day
+    # The day as one strip (D171): each item once, a now line of its own.
+    assert day.count('<li class="dl-item ') == len(service.day_agenda(ben, NOW)) and 'class="dl-now' in day
     # An item's state never takes the now line's class (AUDIT 106): an item under way
     # was drawn as a line of no height, over the next one.
-    items = re.findall(r'<li class="(day-item [^"]*)"', day)
-    assert items and all("day-now" not in c.split() for c in items)
+    items = re.findall(r'<li class="(dl-item [^"]*)"', day)
+    assert items and all("dl-now" not in c.split() for c in items)
     assert {c.split()[2] for c in items} <= {"at-past", "at-now", "at-later"}
     assert "@ada" in today and "explained Eigenvalues" in today
     # The page's redraw is the same widgets.
@@ -321,13 +322,26 @@ def test_an_item_under_way_is_drawn_as_an_item_with_the_now_line_after_it(tmp_pa
     )
     with TestClient(create_app(config)) as web:
         page = unescape(web.get(f"/p/{sub.token}").text)
-    day = page[page.index('class="w w-day"') :]
-    day = day[: day.index("</ol>")]
+    day = page[page.index('class="w w-day') :]
+    day = day[: day.index("</section>")]
     rows = re.findall(r'<li class="([^"]*)"', day)
     under_way = [r for r in rows if "at-now" in r.split()]
-    assert len(under_way) >= 1 and all(r.startswith("day-item ") for r in under_way)
-    # One now line, after what is under way and before what is to come.
-    assert rows.count("day-now") == 1
-    line = rows.index("day-now")
-    assert all("at-later" not in r.split() for r in rows[:line])
-    assert all("at-now" not in r.split() and "at-past" not in r.split() for r in rows[line + 1 :])
+    assert len(under_way) >= 1 and all(r.startswith("dl-item ") for r in under_way)
+    # One now line (D171: placed on the strip), inside what is under way, after what is
+    # over and before what is to come; each place a whole percent, so within one.
+    lines = re.findall(r'class="dl-now dl-x(\d+)"', day)
+    assert len(lines) == 1
+    now = int(lines[0])
+
+    def span(row: str) -> tuple[int, int]:
+        x = int(re.search(r"\bdl-x(\d+)\b", row).group(1))
+        return x, x + int(re.search(r"\bdl-w(\d+)\b", row).group(1))
+
+    for row in rows:
+        start, end = span(row)
+        if "at-now" in row.split():
+            assert start <= now <= end + 1
+        elif "at-past" in row.split():
+            assert end <= now + 1
+        else:
+            assert start >= now - 1

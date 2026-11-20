@@ -50,11 +50,13 @@ def _widgets(page: str) -> list[str]:
 
 def test_today_starts_with_five_widgets_and_says_where_to_choose(web, tmp_path):
     sub = _plan(tmp_path)
-    assert service.today_widgets(sub) == ("next", "day", "focus", "tasks", "exams")
+    # D171 (the owner's A): the next step's band starts any session, so Focus gave way
+    # to On your mind; the band and the day across the page, then exams, tasks, the mind.
+    assert service.today_widgets(sub) == ("next", "day", "tasks", "exams", "mind")
     today = web.get(f"/p/{sub.token}").text
     shown = _widgets(today)
-    assert shown[:2] == ["next", "focus"] and {"day", "tasks", "exams"} <= set(shown)
-    assert not {"mind", "time", "tips", "work", "week", "cards", "friends"} & set(shown)
+    assert shown == ["next", "day", "exams", "tasks", "mind"]
+    assert not {"focus", "time", "tips", "work", "week", "cards", "friends"} & set(shown)
     assert f'href="/p/{sub.token}/today/edit" data-tour="edit-today"' in today
     # Today's tour points at it (tour.js passes over a step whose part is hidden).
     assert 'data-target="[data-tour=edit-today]"' in today
@@ -80,8 +82,8 @@ def test_each_widget_is_turned_on_or_off_and_the_five_come_back(web, tmp_path):
     assert "Today shows what you chose." in unescape(today)
     shown = _widgets(today)
     assert "week" in shown and "tips" in shown and "focus" not in shown
-    # Off, Focus leaves the way to the focus page under the next step.
-    assert "Study something else" in today
+    # Off, Focus leaves the way to the focus page in the next step's band (D171).
+    assert 'class="nx-else"' in today and "Study something else" in today
     # A name Today does not draw is refused, and nothing changes.
     wrong = web.post(f"/p/{sub.token}/today/edit", data={"widget": ["next", "weather"]})
     assert wrong.status_code == 400 and "choose among Today" in unescape(wrong.text)
@@ -112,9 +114,11 @@ def test_each_switch_shows_its_widgets_picture_and_saves_itself(web, tmp_path):
     assert dict(rows) == pictures
     assert re.search(r'<form method="post" action="/p/[^"]+/today/edit" data-autosave>', page)
     assert 'data-saved role="status" hidden' in page
-    # Today's heads show the same pictures: Up next a target, On your mind the notebook.
+    # Today's heads show the same pictures: the next step's band a target (D171), On your
+    # mind the notebook.
     panel = (Path(__file__).resolve().parent.parent / "src/cps/web/templates/_panel.html").read_text()
-    assert 'head(_("Up next"), "target"' in panel and 'art("summary", "xs") }}<h2 id="mind-title">' in panel
+    assert '<p class="nx-kicker">{{ art("target", "sm") }}' in panel
+    assert 'art("summary", "xs") }}<h2 id="mind-title">' in panel
     for picture in pictures.values():
         assert f'"{picture}"' in panel, picture
     ui = (Path(__file__).resolve().parent.parent / "src/cps/web/static/ui.js").read_text()

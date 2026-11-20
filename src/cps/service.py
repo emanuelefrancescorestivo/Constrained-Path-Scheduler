@@ -3421,7 +3421,9 @@ def first_day(
     when = (
         format_date(datetime.fromisoformat(ahead[0].start).astimezone(zone).date(), "short") if ahead else ""
     )
-    return {"course": course, "minutes": FIRST_DAY_MINUTES, "when": when}
+    colours = {name.casefold(): index for name, index in course_colours(plan)}
+    color = colours.get(course.casefold())
+    return {"course": course, "minutes": FIRST_DAY_MINUTES, "when": when, "color": color}
 
 
 def first_day_later(subscription: Subscription, now: datetime | None = None) -> Subscription:
@@ -3472,13 +3474,20 @@ def first_run_at(subscription: Subscription, step: str) -> Subscription:
 
 
 def finish_first_run(subscription: Subscription) -> Subscription:
-    """The question about reminders answered (D107): the first run is over, and
-    Today's tour, which it stood in for, is not shown afterwards."""
+    """The question about reminders answered (D107): the first run is over. Today's
+    tour is left as it was: it shows once the first run reaches Today (D170)."""
     state = first_run(subscription)
     if state is None:
         return subscription
-    done = replace(subscription, options={**subscription.options, "first_run": {**state, "finished": True}})
-    return see_tour(done, "today")
+    return replace(subscription, options={**subscription.options, "first_run": {**state, "finished": True}})
+
+
+def _touring(subscription: Subscription) -> bool:
+    """Whether tours may show (D170): not while a first run's steps are still ahead
+    (D107), and from the moment it reaches Today. Before D170 a first run stood in for
+    every tour and its end marked Today's seen, so a new student never had one (AUDIT 116)."""
+    state = first_run(subscription)
+    return state is None or state.get("step") == "today"
 
 
 def share_default(subscription: Subscription) -> str:
@@ -4789,7 +4798,12 @@ def _stakes(gain: Mapping | None, answer: str | None, day: date) -> dict | None:
             "Recalled in this session, it stays above 90 % until {day} (a model's estimate).",
             day=format_date(gain["holds"], "short"),
         )
-    return {"days": days, "to_exam": gain["holds"] >= gain["exam"], "words": f"{exam} {holds}"}
+    return {
+        "days": days,
+        "to_exam": gain["holds"] >= gain["exam"],
+        "holds": format_date(gain["holds"], "short"),
+        "words": f"{exam} {holds}",
+    }
 
 
 def _topic_monday(topic: str, before: date) -> str | None:
@@ -5541,8 +5555,11 @@ def today_view(subscription: Subscription, now: datetime | None = None) -> dict:
     view["exams"] = _exam_rows(plan, now, colours)
     # A subject short of its target already says so in its status line; other
     # warnings (practice that does not fit, work that does not fit) stay.
-    shown = tuple(f"{x.name}: " for x in plan.subjects)
-    said = ("predicted below", "does not reach the target", _("are predicted below"))
+    # A warning is written in the plan's language when the plan is made (D10): French
+    # puts a space before the colon, which the filter missed, so every course short of
+    # its target was said twice on Today, once more in a list (AUDIT 117).
+    shown = tuple(f"{x.name}{colon}" for x in plan.subjects for colon in (": ", " : "))
+    said = ("predicted below", "does not reach the target", _("are predicted below"), _("is predicted below"))
     view["warnings"] = [w for w in plan.warnings if not (w.startswith(shown) and any(x in w for x in said))]
     return view
 
@@ -5613,6 +5630,67 @@ def day_agenda(subscription: Subscription, now: datetime | None = None) -> list[
             }
         )
     return sorted(items, key=lambda i: (i["start"], i["end"]))
+
+
+# The day as one strip across Today (D171, the owner's A): from the hour before getting up
+# to the hour after going to bed, wider when the day's items are; items that overlap take
+# the next lane, at most three.
+DAY_STRIP_LANES = 3
+DAY_STRIP_HOURS = (8, 22)  # when the student's day cannot be read
+
+
+def day_strip(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's items (`day_agenda`) placed on one line of time (D171), as `blocks`: each
+    item's left edge and width in whole percents of the strip (`x`, `w`, at least 1), its
+    lane; the hours to label, and where now is (None outside the strip). None without a
+    plan."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    items = day_agenda(subscription, now)
+    day = day_view(subscription)
+    try:
+        up, down = _hours_of(day["wake"], _("Get up")), _hours_of(day["bed"], _("Go to bed"))
+    except InvalidInput:
+        up, down = DAY_STRIP_HOURS
+    if down <= up:
+        down = 24.0  # to bed after midnight: the strip stops at the day's end
+
+    def minute(text: str) -> int:
+        hours, minutes = text.split(":")
+        return int(hours) * 60 + int(minutes)
+
+    spans = []
+    for i in items:
+        start, end = minute(i["start"]), minute(i["end"])
+        spans.append((start, end if end > start else 24 * 60))
+    first = min([int(up) * 60, *(a for a, _b in spans)]) // 60 * 60
+    last = min(24 * 60, -(-max([round(down * 60), *(b for _a, b in spans)]) // 60) * 60)
+    width = max(last - first, 60)
+
+    def at(m: float) -> int:
+        return max(0, min(100, round(100 * (m - first) / width)))
+
+    lanes: list[int] = []
+    placed = []
+    for i, (start, end) in zip(items, spans, strict=True):
+        lane = next((k for k, free in enumerate(lanes) if free <= start), None)
+        if lane is None:
+            if len(lanes) < DAY_STRIP_LANES:
+                lanes.append(0)
+            lane = len(lanes) - 1
+        lanes[lane] = max(lanes[lane], end)
+        x = at(start)
+        placed.append({**i, "x": min(x, 99), "w": max(1, min(at(end), 100) - x), "lane": lane})
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    clock = local.hour * 60 + local.minute
+    step = 2 if width > 10 * 60 else 1
+    return {
+        "blocks": placed,
+        "lanes": max(1, len(lanes)),
+        "hours": [{"x": at(h * 60), "label": f"{h:02d}"} for h in range(first // 60, last // 60 + 1, step)],
+        "now": at(clock) if first <= clock <= last else None,
+    }
 
 
 CLASSMATES_POSTS = 2  # the newest posts of people followed on Today (D140)
@@ -6216,6 +6294,10 @@ QUICK_BUSY: tuple[tuple[str, str, str, str], ...] = (
     ("work", "Work", "09:00", "13:00"),
     ("other", "Busy", "17:00", "18:00"),
 )
+# D172 (the owner: "one may have more jobs and shifts so it needs to be more flexible"):
+# each busy time added in setting up's sentence holds up to this many shifts, each its own
+# days and hours, and its own name if it is another job.
+QUICK_SHIFTS = 4
 
 
 def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
@@ -6236,6 +6318,10 @@ def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
             raise InvalidInput(_("{name}: choose the days", name=name))
         if not start or not end:
             raise InvalidInput(_("{name}: give the hours", name=name))
+        if start == end:
+            # Ending earlier than it starts is a night shift, ending the next day (D172);
+            # ending when it starts would be a whole day taken.
+            raise InvalidInput(_("{name}: it ends when it starts", name=name))
         rows += [
             {"label": name, "kind": kind, "weekday": day, "date": None, "start": start, "end": end}
             for day in days
@@ -6274,12 +6360,14 @@ def setup_sentence(values: Mapping) -> dict:
         "minutes": [(m, _("{n} min", n=m)) for m in among(MINUTE_CHOICES, int(values["block_minutes"]))],
         "commute": values["commute_choices"],
         "busy": [
-            {"label": label, "days": days, "start": start, "end": end}
+            # A shift that ends earlier than it starts ends the next day (D172).
+            {"label": label, "days": days, "start": start, "end": end, "overnight": str(end) <= str(start)}
             for (label, start, end), days in busy.items()
         ],
         "quick": [
             {"kind": kind, "name": name, "start": start, "end": end} for kind, name, start, end in QUICK_BUSY
         ],
+        "shifts": QUICK_SHIFTS,
         "moodle": words,
         # The export page of the Moodle whose link was given, to give it again; else the
         # student finds it by Moodle's own words (the page has the same address on every
@@ -7318,9 +7406,9 @@ def tour_for(
     subscription: Subscription | None, tab: str | None, *, setup: bool = False, new: bool = False
 ) -> str | None:
     """The tour a page shows: Today's, once, after setting up (D77, D97), and each
-    section's the first time it is opened (D141); none while setting up, and during a
-    first run (D107) Spark says one line on Today instead."""
-    if subscription is None or setup or new or first_run(subscription) is not None:
+    section's the first time it is opened (D141); none while setting up, nor while a
+    first run's steps are ahead (D107), from the moment it reaches Today (D170)."""
+    if subscription is None or setup or new or not _touring(subscription):
         return None
     if tab != "today" and tab not in SECTION_TOURS:
         return None
@@ -7332,6 +7420,8 @@ def section_hint(subscription: Subscription | None, tab: str | None, *, joined: 
     Community's says what the feed is to a student who has joined (AUDIT 82)."""
     if subscription is None or tab not in SECTION_HINTS or tab in tours_seen(subscription):
         return None
+    if not _touring(subscription):
+        return None  # not recorded as visited: its tour shows once tours may (D170)
     return _(JOINED_HINT) if tab == "community" and joined else _(SECTION_HINTS[tab])
 
 
@@ -7852,8 +7942,65 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
                 # The length offered first: the one nearest the session's own.
                 "goal": min(FOCUS_GOALS, key=lambda g: (abs(g - length), g)),
                 "stakes": card.get("stakes"),
+                # D169: what the sentence names, the task's title or the course.
+                "course": (session.title if session.kind == "task" else session.subject)
+                if session is not None
+                else card["title"],
             }
+    if not focus:
+        # D169: the sentence's choices (the plan's session first), and for each length the
+        # rewards staying earns, as the page shows them before the timer starts.
+        view["goal"] = view["suggested"]["goal"] if view["suggested"] else view["goal"]
+        kind = view["suggested"]["kind"] if view["suggested"] else ""
+        view["verb"] = _FOCUS_VERBS.get(kind, _FOCUS_VERBS[""])
+        view["ahead"] = {g["minutes"]: focus_ahead(g["minutes"]) for g in view["goals"]}
     return view
+
+
+# D169: the focus page's sentence, by the kind of the plan's session; `{course}` and
+# `{length}` are the student's to change with a tap.
+_FOCUS_VERBS = {
+    "review": "I test myself on {course} for {length}.",
+    "first review": "I test myself on {course} for {length}.",
+    "practice": "I practise exam questions in {course} for {length}.",
+    "task": "I work on {course} for {length}.",
+    "": "I study {course} for {length}.",
+}
+FOCUS_AHEAD_MOST = 3  # rewards shown ahead of a session: the first two and the last
+
+
+def focus_ahead(goal: int) -> list[dict]:
+    """The rewards a session of `goal` minutes earns if the student stays (D67), as the
+    focus page shows them before it starts (D169): at most three, the first two and the
+    goal (or, with no length, the ladder's first three)."""
+    points = reward_points(goal, goal or FOCUS_LADDER[2])
+    if len(points) > FOCUS_AHEAD_MOST:
+        points = [*points[: FOCUS_AHEAD_MOST - 1], points[-1]]
+    return [{"minutes": m, "label": duration_words(m), "goal": bool(goal) and m == goal} for m in points]
+
+
+def focus_day(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict | None:
+    """What the student has done today, for the focus page (D169): the minutes studied
+    (sessions reported done and sessions logged) and the streak, as Progress counts it
+    (D8, D126). None without a plan."""
+    if subscription.plan is None:
+        return None
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    sessions = _progress.merge_logged(progress_sessions(subscription), logged_sessions(store, subscription))
+    first = min([PlanReport.from_dict(subscription.plan).settings.start, *(x.start.date() for x in sessions)])
+    paused = _progress.pause_days(pauses_of(subscription.options.get("preferences", {})))
+    repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
+    run = _progress.streak(sessions, first, today, paused, repaired)
+    minutes = sum(x.minutes for x in sessions if x.confirmed and x.start.date() == today)
+    return {
+        "minutes": minutes,
+        "words": duration_words(minutes) if minutes else "",
+        "streak": run.current,
+        "today_done": run.today_done,
+    }
 
 
 def _focus_rewards(goal: int, focused: int) -> list[dict]:
@@ -10102,7 +10249,9 @@ TODAY_WIDGETS: tuple[tuple[str, str, str], ...] = (
     ("cards", "Flashcards", "The cards waiting for you today."),
     ("friends", "Classmates", "Who is studying now, and what classmates shared."),
 )
-TODAY_START = ("next", "day", "focus", "tasks", "exams")
+# D171 (the owner's A): the next step's band starts any session, so Focus gave way to On
+# your mind; a student who chose keeps their choice.
+TODAY_START = ("next", "day", "tasks", "exams", "mind")
 # D165: each widget's picture, the one its head on Today shows (`web/icons.ART`'s names),
 # so a switch on Edit Today and its widget look alike; no two alike, to tell rows apart.
 TODAY_PICTURES = {
@@ -12163,21 +12312,25 @@ def _assist(
         )
         if not ready:
             warnings.append(
-                _(
-                    "{name}: {below} of {n} topics are predicted below {target} at the exam. "
+                _n(
+                    "{name}: {below} of {total} topics is predicted below {target} at the exam. "
                     "More hours a week, or fewer days off, would change that.",
+                    "{name}: {below} of {total} topics are predicted below {target} at the exam. "
+                    "More hours a week, or fewer days off, would change that.",
+                    len(members) - sum(ok),
                     name=name,
                     below=len(members) - sum(ok),
-                    n=len(members),
+                    total=len(members),
                     target=f"{settings.retention:.0%}",
                 )
             )
         if result.practice_left.get(name):
             warnings.append(
-                _(
-                    "{name}: {n} block(s) of exam practice did not fit before the exam.",
+                _n(
+                    "{name}: {n} block of exam practice did not fit before the exam.",
+                    "{name}: {n} blocks of exam practice did not fit before the exam.",
+                    result.practice_left[name],
                     name=name,
-                    n=result.practice_left[name],
                 )
             )
 
@@ -12192,11 +12345,13 @@ def _assist(
         )
         if left:
             warnings.append(
-                _(
-                    "{name}: {n} block(s) of work do not fit before it is due ({when}). "
+                _n(
+                    "{name}: {n} block of work does not fit before it is due ({when}). "
                     "More hours a week, fewer days off or an earlier start would change that.",
+                    "{name}: {n} blocks of work do not fit before it is due ({when}). "
+                    "More hours a week, fewer days off or an earlier start would change that.",
+                    left,
                     name=t.name,
-                    n=left,
                     when=t.due[:16].replace("T", " "),
                 )
             )

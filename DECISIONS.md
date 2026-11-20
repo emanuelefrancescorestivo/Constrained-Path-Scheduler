@@ -6630,3 +6630,118 @@ below a row could still be read as a fraction. Roots, matrices and accents drawn
 overline's bar) are not read; a root's sign is named, not its extent. Relies on a module of pypdf
 that is not its public interface (tested with 6.21.4), with D151's reading behind it.
 
+## D169. Focus as one sentence
+
+**Asked.** The owner, on 2026-11-20: "the focus page is a bit ugly, any suggestions? i want it to
+be welcoming and empowering for a student". Of three proposals on a page of mock-ups (A, a ring
+and one gesture; B, the sentence the student chooses; C, the quiet room with others), the owner
+chose B: "i like B".
+
+**Chosen.** Before a session, Focus is one sentence the student writes by tapping its words, as
+setting up is (D154): "I test myself on *Advanced Statistics* for *1 h 30*." The verb follows the
+plan's session (a self-test, exam practice, a task, or plain study); the course is the plan's
+session's first, then the other courses, then "Other…", which opens a field; the length is one
+of the lengths offered (D67). One button, "Let's go", starts it; the session's stakes (D128) are
+under it. Choosing another course than the plan's starts a session of its own, not the plan's.
+Under the sentence: what staying earns for the length chosen (the first two rewards and the
+length, D67), each length's list in the page and the chosen one shown through CSS; today's
+minutes and the streak (as Progress counts them, `service.focus_day`); the tip for the session
+as one row, its research opening in place (`why_row`); and one list for the rest: a session
+logged by hand, the study map, the flashcards, the tips. Each word is a `<details>`, so the page
+works without a script.
+
+**Rejected.** A (the ring before the session): calmer, but the course and the length still
+needed a second control. C (the room with others): a page that shows an empty room to a student
+who follows nobody. Keeping "Or something else" as a second form: two ways to start, the
+confusion the owner's screenshot showed.
+
+**Disclosed.** The rewards shown are those of D67, unchanged; the verbs are the app's words for
+each kind of session. Checked in Chromium only, at phone size, dark and French; without `:has`
+the "Other…" field always shows and the default length's rewards stay shown.
+
+
+## D170. Spark's tour for a new student
+
+**Asked.** The owner, on 2026-11-20, after making a plan with an account and their own
+timetable: "i received no tutorial upon initialising with my own account and inputting my own
+calendar" (AUDIT 116).
+
+**Chosen.** The tours wait for a first run (D107) to reach Today, then show as for anyone: Today's
+on the first visit after the sharing step, with Spark's line about the first day beside it, and
+each section's the first time it is opened. While the first run's steps are ahead, no tour shows
+and a section opened is not recorded as visited (`service._touring`), so its tour is kept for
+later. The first run's end no longer marks Today's tour as seen.
+
+**Rejected.** Showing the tours only once the first run ends: it ends with the question about
+reminders after the first session, which a student who does not study on day one never reaches,
+so they would still have no tour. Spark's line alone, as D107 had it: one sentence does not show
+where the calendar, the courses or the flashcards are.
+
+**Disclosed.** `benchmarks/screen_load.mjs`: a new student's first Today opened 0 steps of Spark's
+tour before, 3 after. Plans whose tours were spent unseen before D170 do not get them back by
+themselves: Settings, Appearance, Spark's tour, Show it again. Checked in Chromium only.
+
+## D171. Today as one thing
+
+**Asked.** The owner, on 2026-11-20, with a screenshot of Today on a laptop: "i think it could take
+on the whole space, and for some reason it still feels overwhelming, any ideas?". The screenshot
+had three buttons that start the same focus session (Up next, the Focus widget, the first day's
+card), and the page stopped at 1160 px whatever the window. Of three layouts on
+a page of mock-ups (A, one thing: the next step as a band, the day as a strip, three quiet tiles;
+B, the day as a column of hours; C, a calm grid of equal tiles), the owner chose A, "keeping the
+playfulness of icons and colours to draw attention where it is needed" ("sí facciamo A, ma
+manteniamo la giocosita' di icone e colori per attirare l'attenzione dove serve").
+
+**Chosen.** Today takes the window's width, up to 1680 px. The next step is one band across the
+page, in its course's colour with the target's picture: the kind and time, the course large, its
+week, one button (Start focus), "Study something else" beside it; how to do it and why now fold
+under "How, and why now"; what is at stake (D128) stands beside it as two numbers, the day the topic
+stays above 90 % until if recalled now and the days to the exam. On a plan's first day the band is
+the first day's short session (D106, D107), with "Not now", and the first planned session's day
+beside it. What asks for an answer runs across under it. The day is one strip of time across the
+page from the hour before getting up to the hour after bed, each class, session and busy time where
+it falls in its course's colour, a red line at now (`service.day_strip`; on a phone the same items
+as a list). Then the widgets three by three, Exams, Tasks and On your mind to start: Focus is no
+longer among the five a plan starts with, since the band starts any session; a student who chose
+keeps their choice. What does not fit in the plan is one card, "N things do not fit in the plan",
+its lines folded under it, the week's hours a tap away (AUDIT 117). Each item of the strip is
+placed by whole-percent classes, as the page's Content-Security-Policy allows no style attribute.
+
+**Rejected.** B (the day as a column): close to the calendar, and empty on a day without classes.
+C (equal tiles): tidier, but still six places for the eye to go. Keeping "Coming up" under the day:
+the band names the next session and the calendar the rest, a tap away. A strip on a phone: at 360
+px a fourteen-hour day gives a class about forty pixels.
+
+**Disclosed.** `benchmarks/screen_load.mjs` at a phone's size, on main before and after: a new
+student's Today 309 words and 33 controls over 3.0 screens before, 178 words and 25 controls over
+2.1 screens after; @alex's 352 words, 41 controls and 3.6 screens before, 213, 33 and 2.6 after; the
+taps to Today (10) and to a first session saved (16) are unchanged. The strip's labels are cut short
+when a block is narrow; the full words are on the calendar. Checked in Chromium only, at 1600 and
+1280 px and phone size, light and dark, in French.
+
+## D172. Busy times, flexible
+
+**Asked.** The owner, on 2026-11-20, with a screenshot of setting up's busy times, the system's
+grey list of times open under a field: "could be done better", then "also one may have more jobs
+and shifts so it needs to be more flexible".
+
+**Chosen.** Each busy time added in setting up's sentence (training, work, busy) holds up to four
+shifts (`service.QUICK_SHIFTS`), each its own days and hours: the first under the busy time's
+name, each next one folded under the one before as "Other days, other hours", with a name of its
+own if it is another job. A shift that ends earlier than it starts is a night shift and ends the
+next morning, as the calendar's rows always did (`calendar_io.busy_from_table`); the sentence says
+"(the next day)" beside it, and the panel says so before it is filled. One that ends when it starts
+is refused with its name ("Training: it ends when it starts"), where it was a whole day taken. On
+a computer, every time-of-day field (setting up, Settings, the questions about the week, the day's
+hours) becomes a text field with the app's own clock under it: the day's hours six by four, then
+the quarters, as chips, as the new-task sheet's times are (D159); typing still works ("1830" is
+read as 18:30), and a phone keeps its own wheel.
+
+**Rejected.** A row per shift with a day each, as Settings' typed rows are: seven rows for a job of
+seven days. A list that grows by script alone: without it a second shift could not be given, where
+folds work everywhere. Overriding the phone's wheel: it is the phone's own, and large enough.
+
+**Disclosed.** Four shifts per busy time is a choice; more are added in Settings. The clock opens
+under its field and pushes what follows down: floating over the page, it was drawn under the
+sentence's later lines. Checked in Chromium only, at 1280 px with a mouse and at phone size with
+touch, light and dark, in French.

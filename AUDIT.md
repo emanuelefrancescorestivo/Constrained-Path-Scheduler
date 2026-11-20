@@ -1302,3 +1302,28 @@ not reproduced by any of the four: their PDF was made some other way, and is not
 repository. Status: fixed with D166 for what was reproduced (`tests/test_maths_fractions.py`);
 the run-together words remain to check on the owner's file.
 
+
+**116. A new student never had Spark's tour.** Reported by the owner on 2026-11-20, after
+making a plan with an account and their own timetable: "i received no tutorial upon
+initialising with my own account and inputting my own calendar". How found: reading
+`tour_for` against the first run (D107). While a first run lasted, no page showed a tour, Today's
+line from Spark standing in for it; a first run lasts until the first session is done and the
+question about reminders answered; its end then marked Today's tour as seen; and a section opened
+meanwhile was recorded as visited (`section_hint`), so its tour was spent unseen. A test asserted
+the first of these (`test_a_first_run_has_no_tour_and_settings_bring_it_back_after`), so the
+tests kept the defect. Status: fixed with D170: tours wait for the first run to reach Today, then
+show; a section opened before that is not recorded (`tests/test_first_run.py`,
+`tests/test_tour.py`). A plan whose tours were spent this way gets them back from Settings,
+Appearance, Spark's tour: Show it again.
+
+**117. A French plan listed every course short of its target twice, in a list.** Reported by the
+owner on 2026-11-20 with a screenshot of Today: "what is this very ugly list?", a notice per course
+("Analysis 3 : 1 sujets sur 11 sont prévus en dessous de 90 %…", "3 créneau(x) d'entraînement
+n'ont pas tenu…"). How found: reading `today_view`'s filter against the French catalogue. A plan's
+warnings are written in its language when it is made (D10); the filter kept off Today those of a
+course whose exam line already says it is short, by the course's name and ": ", and French writes
+" : ", so in French none was kept off. The sentences had no plural ("1 sujets") and wrote "(x)"
+and "(s)" for one. Status: fixed with D171: the filter knows both colons, the sentences have a
+singular and a plural (`_n`), and what remains is one card, its lines folded under it
+(`tests/test_today_one.py`). Warnings already written keep their old words until the plan is made
+again, which happens at the next change or the background refresh.
