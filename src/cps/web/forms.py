@@ -158,6 +158,40 @@ def quick_busy(form: Any) -> list[dict[str, Any]]:
     return answers
 
 
+def weekly_busy(form: Any) -> list[dict[str, Any]]:
+    """Settings' weekly busy times (D173), one card each, `b{i}`: its name, kind, days and
+    hours, back to one row a day as they are kept. A card with Remove ticked, or with no
+    day left, is gone; one that ends when it starts is refused, as in setting up (D172),
+    where it would take the whole day."""
+    rows = []
+    index = 0
+    while f"b{index}_start" in form and index < 60:
+        prefix = f"b{index}"
+        index += 1
+        if form.get(f"{prefix}_remove"):
+            continue
+        label = str(form.get(f"{prefix}_label") or "").strip()
+        start = str(form.get(f"{prefix}_start") or "").strip()
+        end = str(form.get(f"{prefix}_end") or "").strip()
+        days = list(dict.fromkeys(str(d) for d in form.getlist(f"{prefix}_days")))
+        if days and start and start == end:
+            raise service.InvalidInput(
+                service.translate("{name}: it ends when it starts", name=label or "Busy")
+            )
+        rows += [
+            {
+                "label": label,
+                "kind": str(form.get(f"{prefix}_kind") or "other"),
+                "weekday": day,
+                "date": "",
+                "start": start,
+                "end": end,
+            }
+            for day in days
+        ]
+    return rows
+
+
 def _subjects(rows: list[Mapping[str, Any]]) -> list[service.SubjectSpec]:
     subjects = []
     for s in rows:

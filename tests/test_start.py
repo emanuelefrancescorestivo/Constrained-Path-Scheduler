@@ -180,10 +180,14 @@ def test_classes_can_be_typed_without_scripts(web):
     page = web.get(f"/p/{token}/timetable").text
     assert "Type your classes instead" in unescape(page)
     form = _inputs(web.get(f"/p/{token}/settings?new=1").text)
-    assert form["a0_kind"] == "class"  # a drawn week's typed rows are classes at first
-    form.update({"a0_label": "Chemistry", "a0_weekday": "Fri", "a0_start": "08:00", "a0_end": "10:00"})
+    # A drawn week's typed class is one card, its days as boxes (D173): a class at first.
+    assert form["b0_kind"] == "class"
+    form.update({"b0_label": "Chemistry", "b0_days": ["Tue", "Fri"], "b0_start": "08:00", "b0_end": "10:00"})
     form.update({"s0_name": "Chemistry", "s0_exam": "2026-12-18T09:00"})
     answer = web.post(f"/p/{token}/settings", data={**form, "new": "1"}, follow_redirects=False)
     assert answer.status_code == 303, re.findall(r'role="alert">([^<]*)', answer.text)
-    values = _inputs(web.get(f"/p/{token}/settings/week").text)
-    assert values["a0_label"] == "Chemistry" and values["a0_kind"] == "class"
+    page = web.get(f"/p/{token}/settings/week").text
+    values = _inputs(page)
+    assert values["b0_label"] == "Chemistry" and values["b0_kind"] == "class"
+    days = re.findall(r'name="b0_days" value="(\w+)" checked', page)
+    assert days == ["Tue", "Fri"]

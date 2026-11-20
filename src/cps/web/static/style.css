@@ -5580,3 +5580,17 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .clock-minutes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
 .clock-pick .pill-btn { min-width: 0; min-height: 34px; padding: 0; font-variant-numeric: tabular-nums; }
 
+
+/* -- Busy times in Settings (D173) -------------------------------------------------------
+   Each weekly busy time one card, as setting up adds them (D172): its name and kind, its
+   days as chips, its hours with the app's clock; a day on a date the same, without chips;
+   new ones added below with their shifts. */
+.busy-card { display: grid; gap: 8px; padding: 10px 14px; margin: 8px 0; border-radius: 14px; background: var(--fill-4); }
+/* The page's own marker for a fold stands before it, as on every other fold. */
+.busy-card > summary { min-height: 32px; cursor: pointer; }
+.busy-card > summary .muted { margin-left: 8px; }
+.busy-card[open] > summary { margin-bottom: 4px; }
+.busy-card .row > div { min-width: 0; }
+.busy-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.busy-card-foot .check { margin-left: auto; }
+.busy-adds { margin-top: 12px; }

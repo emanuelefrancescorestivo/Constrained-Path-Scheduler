@@ -1,38 +1,124 @@
 {# One part of the settings (D103), shown on its own page and, for the plan's
-   form, while setting up. #}
+   form, while setting up. D173 (the owner: "do the busy times in Settings too", after
+   D172): each weekly busy time is one card, its name, kind, days as chips and hours, as
+   setting up adds them, where it was a row a day under "Type them instead"; one on a
+   date stays a row; new ones are added with their shifts, as in setting up. Read by
+   `forms.weekly_busy` (`b{i}`), `forms.settings_values` (`a{i}`, the dated ones) and
+   `forms.quick_busy` (`q{i}`). #}
+{% from "_busy_quick.html" import quick_panel %}
+{% set split = busy_groups(values.activities) %}
 <fieldset id="busy">
   <legend>{% if values.drawn %}{{ _("Your classes, and when you are not free") }}{% else %}{{ _("When you are not free, outside your timetable") }}{% endif %}</legend>
   <p class="hint">{% if values.drawn %}{{ _h("Classes, training, a job: nothing is planned then. Change them <a href=\"{url}\">on the calendar</a>;", url="/p/" ~ token ~ "/timetable") }}{% else %}{{ _h("Training, a job, a commute: nothing is planned then. <a href=\"{questions}\">Answer a few questions</a> or draw them on the <a href=\"{url}\">calendar</a>;", questions="/p/" ~ token ~ "/routine", url="/p/" ~ token ~ "/week") }}{% endif %}
   {% if values.activities %}{{ _n("you have {n}.", "you have {n}.", values.activities | length) }}{% else %}{{ _("you have none yet.") }}{% endif %}</p>
-  <details>
-  <summary>{{ _("Type them instead") }}</summary>
-  {% set rows = values.activities | length + empty_rows %}
-  {% for i in range(rows) %}
-  {% set a = values.activities[i] if i < values.activities | length else {} %}
-  <div class="item{% if not a %} new{% endif %}">
-    <label for="a{{ i }}_label">{{ _("What") }}</label>
-    <input id="a{{ i }}_label" name="a{{ i }}_label" value="{{ a.label or '' }}" placeholder="{{ _('Training') }}">
+
+  {# Each one a row that says it ("Bar · Mon, Wed · 18:00–22:00"), opened with a tap to change
+     it: open, the cards made the page long (the owner, D167: "heavy to scroll through"). #}
+  {% for g in split.weekly %}{% set i = loop.index0 %}
+  <details class="busy-card">
+    <summary><b>{{ g.label or _("Busy") }}</b><span class="muted">{{ g.days | map("translate_day") | join(", ") }} · {{ g.start }}–{{ g.end }}{% if g.overnight %} {{ _("(the next day)") }}{% endif %}</span></summary>
     <div class="row">
-      <div><label for="a{{ i }}_weekday">{{ _("Every") }}</label>
-      <select id="a{{ i }}_weekday" name="a{{ i }}_weekday">
-        <option value="">{{ _("(one day)") }}</option>
-        {% for d in values.weekdays %}<option value="{{ d }}"{% if a.weekday == d %} selected{% endif %}>{{ _(d) }}</option>{% endfor %}
+      <div><label for="b{{ i }}_label">{{ _("What") }}</label>
+      <input id="b{{ i }}_label" name="b{{ i }}_label" value="{{ g.label }}" maxlength="60"></div>
+      <div><label for="b{{ i }}_kind">{{ _("Kind") }}</label>
+      <select id="b{{ i }}_kind" name="b{{ i }}_kind">
+        {% for k, word in values.kinds %}<option value="{{ k }}"{% if g.kind == k %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
       </select></div>
-      <div><label for="a{{ i }}_date">{{ _("or on") }}</label>
+    </div>
+    <p class="label" id="b{{ i }}-days">{{ _("Which days") }}</p>
+    <div class="pills" role="group" aria-labelledby="b{{ i }}-days">
+      {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="b{{ i }}_days" value="{{ d }}"{% if d in g.days %} checked{% endif %}><span>{{ _(d) }}</span></label>{% endfor %}
+    </div>
+    <div class="row">
+      <div class="clock-field"><label for="b{{ i }}_start">{{ _("From") }}</label>
+      <input id="b{{ i }}_start" name="b{{ i }}_start" type="time" step="900" value="{{ g.start }}" data-clock></div>
+      <div class="clock-field"><label for="b{{ i }}_end">{{ _("to") }}</label>
+      <input id="b{{ i }}_end" name="b{{ i }}_end" type="time" step="900" value="{{ g.end }}" data-clock></div>
+    </div>
+    <div class="busy-card-foot">
+      {% if g.overnight %}<span class="hint">{{ _("A night shift: give the hour it ends, and it ends the next morning.") }}</span>{% endif %}
+      <label class="check"><input type="checkbox" name="b{{ i }}_remove" value="1"> {{ _("Remove") }}</label>
+    </div>
+  </details>
+  {% endfor %}
+
+  {% for a in split.dated %}{% set i = loop.index0 %}
+  <details class="busy-card busy-dated">
+    <summary><b>{{ a.label or _("Busy") }}</b><span class="muted">{{ a.date | nice_date if a.date else "" }} · {{ a.start }}–{{ a.end }}</span></summary>
+    <div class="row">
+      <div><label for="a{{ i }}_label">{{ _("What") }}</label>
+      <input id="a{{ i }}_label" name="a{{ i }}_label" value="{{ a.label or '' }}" maxlength="60"></div>
+      <div><label for="a{{ i }}_date">{{ _("Which day") }}</label>
       <input id="a{{ i }}_date" name="a{{ i }}_date" type="date" value="{{ a.date or '' }}"></div>
     </div>
     <div class="row">
-      <div><label for="a{{ i }}_start">{{ _("From") }}</label>
+      <div class="clock-field"><label for="a{{ i }}_start">{{ _("From") }}</label>
       <input id="a{{ i }}_start" name="a{{ i }}_start" type="time" value="{{ a.start or '' }}" data-clock></div>
-      <div><label for="a{{ i }}_end">{{ _("to") }}</label>
+      <div class="clock-field"><label for="a{{ i }}_end">{{ _("to") }}</label>
       <input id="a{{ i }}_end" name="a{{ i }}_end" type="time" value="{{ a.end or '' }}" data-clock></div>
     </div>
-    <label for="a{{ i }}_kind">{{ _("Kind") }}</label>
-    <select id="a{{ i }}_kind" name="a{{ i }}_kind">
-      {% for k, word in values.kinds %}<option value="{{ k }}"{% if (a.kind or ('class' if values.drawn else 'other')) == k %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
-    </select>
-    {% if a %}<label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> {{ _("Remove") }}</label>{% endif %}
-  </div>
-  {% endfor %}
+    <input type="hidden" name="a{{ i }}_kind" value="{{ a.kind or 'other' }}">
+    <input type="hidden" name="a{{ i }}_weekday" value="">
+    <div class="busy-card-foot"><label class="check"><input type="checkbox" name="a{{ i }}_remove" value="1"> {{ _("Remove") }}</label></div>
   </details>
+  {% endfor %}
+
+  {# New ones: with their shifts, as in setting up (whose own panels stand in for these
+     while setting up), and a day off on a date. #}
+  <div class="sentence-adds busy-adds">
+    {% if not new %}
+    {% for q in busy_quick.kinds %}{% set i = loop.index0 %}
+    <details class="add-busy" name="busy-add">
+      <summary class="btn btn-sm btn-tinted">+ {{ _(q.name) }}</summary>
+      {{ quick_panel(i, q, busy_quick.shifts, values.weekdays) }}
+    </details>
+    {% endfor %}
+    {% endif %}
+    {% if values.drawn %}{% set i = split.weekly | length %}
+    {# A week drawn by hand (D32): a class typed without a script, one card for its days. #}
+    <details class="add-busy" name="busy-add">
+      <summary class="btn btn-sm btn-tinted">+ {{ _("A class every week") }}</summary>
+      <div class="add-panel">
+        <div class="row">
+          <div><label for="b{{ i }}_label">{{ _("What") }}</label>
+          <input id="b{{ i }}_label" name="b{{ i }}_label" maxlength="60"></div>
+          <div><label for="b{{ i }}_kind">{{ _("Kind") }}</label>
+          <select id="b{{ i }}_kind" name="b{{ i }}_kind">
+            {% for k, word in values.kinds %}<option value="{{ k }}"{% if k == "class" %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+          </select></div>
+        </div>
+        <p class="label" id="b{{ i }}-days">{{ _("Which days") }}</p>
+        <div class="pills" role="group" aria-labelledby="b{{ i }}-days">
+          {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="b{{ i }}_days" value="{{ d }}"><span>{{ _(d) }}</span></label>{% endfor %}
+        </div>
+        <div class="row">
+          <div class="clock-field"><label for="b{{ i }}_start">{{ _("From") }}</label>
+          <input id="b{{ i }}_start" name="b{{ i }}_start" type="time" step="900" data-clock></div>
+          <div class="clock-field"><label for="b{{ i }}_end">{{ _("to") }}</label>
+          <input id="b{{ i }}_end" name="b{{ i }}_end" type="time" step="900" data-clock></div>
+        </div>
+      </div>
+    </details>
+    {% endif %}
+    {% set n = split.dated | length %}
+    <details class="add-busy" name="busy-add">
+      <summary class="btn btn-sm btn-tinted">+ {{ _("One day only") }}</summary>
+      <div class="add-panel">
+        <div class="row">
+          <div><label for="a{{ n }}_label">{{ _("What") }}</label>
+          <input id="a{{ n }}_label" name="a{{ n }}_label" maxlength="60" placeholder="{{ _('Training') }}"></div>
+          <div><label for="a{{ n }}_date">{{ _("Which day") }}</label>
+          <input id="a{{ n }}_date" name="a{{ n }}_date" type="date"></div>
+        </div>
+        <div class="row">
+          <div class="clock-field"><label for="a{{ n }}_start">{{ _("From") }}</label>
+          <input id="a{{ n }}_start" name="a{{ n }}_start" type="time" step="900" data-clock></div>
+          <div class="clock-field"><label for="a{{ n }}_end">{{ _("to") }}</label>
+          <input id="a{{ n }}_end" name="a{{ n }}_end" type="time" step="900" data-clock></div>
+        </div>
+        <input type="hidden" name="a{{ n }}_kind" value="{{ 'class' if values.drawn else 'other' }}">
+        <input type="hidden" name="a{{ n }}_weekday" value="">
+      </div>
+    </details>
+  </div>
 </fieldset>
