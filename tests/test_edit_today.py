@@ -48,15 +48,18 @@ def _widgets(page: str) -> list[str]:
     return re.findall(r'<section class="w w-(\w+)', page)
 
 
-def test_today_starts_with_five_widgets_and_says_where_to_choose(web, tmp_path):
+def test_today_starts_with_six_widgets_and_says_where_to_choose(web, tmp_path):
     sub = _plan(tmp_path)
     # D171 (the owner's A): the next step's band starts any session, so Focus gave way
     # to On your mind; the band and the day across the page, then exams, tasks, the mind.
-    assert service.today_widgets(sub) == ("next", "day", "tasks", "exams", "mind")
+    # D177 (the owner): Community right under the next step, on to start; a student without
+    # a handle yet sees the way in.
+    assert service.today_widgets(sub) == ("next", "friends", "day", "tasks", "exams", "mind")
     today = web.get(f"/p/{sub.token}").text
     shown = _widgets(today)
-    assert shown == ["next", "day", "exams", "tasks", "mind"]
-    assert not {"focus", "time", "tips", "work", "week", "cards", "friends"} & set(shown)
+    assert shown == ["next", "friends", "day", "exams", "tasks", "mind"]
+    assert "Study alongside your classmates" in unescape(today)
+    assert not {"focus", "time", "tips", "work", "week", "cards"} & set(shown)
     assert f'href="/p/{sub.token}/today/edit" data-tour="edit-today"' in today
     # Today's tour points at it (tour.js passes over a step whose part is hidden).
     assert 'data-target="[data-tour=edit-today]"' in today

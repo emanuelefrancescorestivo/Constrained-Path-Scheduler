@@ -6908,3 +6908,35 @@ typed at the rate of the plan's other changes; whoever holds one can give it on.
 is sent with every question; prompt caching could make it cheaper and was not tried. Checked in
 Chromium only.
 
+## D177. Community right under the next step, and the end of a session celebrated
+
+**Asked.** The owner, on 2026-11-20, after trying the demo on a phone: "ora come ora quando apri
+la prima cosa che hai è il focus ... ci aggiungerei immediatamente sotto la comunità, così ti
+incoraggia a studiare"; and "quando finisci una sessione non ti dà la celebrazione a modo di
+Duolingo, come avevamo un poco tempo fa. Tipo, congratulazioni, hai completato la tua sessione".
+
+**Chosen.** On Today, Community (the widget D140 called Classmates) comes right after the next
+step's band and is on to start (`TODAY_START`, six since D177): who of the people followed is
+studying now, with Join (D108), and what they shared. With nothing to show yet it is one card that
+leads in (`community_way`): a student without a handle is asked to choose one and follow their
+classmates; one with a handle and nobody studying or sharing is sent to find classmates. A student
+who already chose their widgets keeps the choice (D155); Community now sits second when on. The end of
+a session: what the owner remembered was D107's "First session done!", shown only after a first
+run's first session. Every session timed with Focus now ends that way, as a lesson ends in
+Duolingo (`session_done_view`, the log page): "Session complete!", the minutes the timer measured,
+the streak with today counted (the session counts once its log is saved, the button under it), the
+length reached or the whole time on the page when true, the 10 points a session of the plan gives
+and the 20 a classmate's vouch would add (D158), confetti once per session (`data-celebrate`, D30),
+the headline and the tiles popping in once. The diary's questions follow as before.
+
+**Rejected.** A screen of its own between the timer and the diary: one more tap after every
+session (D165); the summary sits above the questions instead. A streak or points that do not count
+yet (a session not saved): the streak says today is counted because the save is the next tap, and a
+session besides the plan shows no points, as D158 gives none. A count of everyone studying now for
+a student who follows nobody: Studying now is seen by followers only (D108), and a small pilot's
+count could tell who.
+
+**Disclosed.** The streak shown assumes the log is saved; a student who leaves the page instead keeps
+the streak they had. Whether Community on top brings more sessions is for the pilot. Checked in
+Chromium only, at phone size (light) and 1280 px (dark).
+

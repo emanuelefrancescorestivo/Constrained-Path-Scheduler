@@ -138,6 +138,44 @@
 </section>
 {% endif %}
 
+{# Community (D140, D177): who is studying now (D108) and what the people followed shared,
+   right under the next step; with nothing to show yet, the way in. #}
+{% if classmates %}
+<section class="w w-friends">
+  {{ head(_("Community"), "group", "/p/" ~ token ~ "/community", _("See all")) }}
+  {% from "_people.html" import avatar %}
+  <div class="card">
+  {% if classmates.now %}
+  <h3 class="w-sub"><span class="live-dot" aria-hidden="true"></span>{{ _("Studying now") }}</h3>
+  <ul class="glance">
+    {% for s in classmates.now %}
+    <li>{{ avatar(s) }}<a class="grow" href="/p/{{ token }}/u/{{ s.handle }}"><b>@{{ s.handle }}</b><small>{{ _n("{course} · for {n} minute", "{course} · for {n} minutes", s.minutes, course=s.course) }}</small></a>
+      {% if not focus %}<form method="post" action="/p/{{ token }}/focus/start"><input type="hidden" name="course" value="{{ s.join }}"><input type="hidden" name="goal" value="{{ classmates.join_minutes }}"><button type="submit" class="btn btn-sm btn-tinted" aria-label="{{ _('Join @{handle}: {n} minutes on {course}', handle=s.handle, n=classmates.join_minutes, course=s.join) }}">{{ _("Join") }}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if classmates.posts %}
+  <ul class="glance">
+    {% for p in classmates.posts %}
+    <li>{% if p.author %}{{ avatar(p.author) }}{% endif %}<a class="grow" href="/p/{{ token }}/post/{{ p.id }}"><b>{% if p.author %}@{{ p.author.handle }}{% endif %} <span class="glance-says">{{ p.says }}</span></b><small>{% if p.course %}{{ p.course }} · {% endif %}{{ p.when }}</small></a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {# D141: sharing from home, the course being studied already picked. #}
+  <p class="glance-share"><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ lucide('lightbulb') }} {{ _("Explain an idea") }}</a> <a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes/new">{{ lucide('notebook-pen') }} {{ _("Share notes") }}</a></p>
+  </div>
+</section>
+{% elif community_way %}
+<section class="w w-friends">
+  {{ head(_("Community"), "group", "/p/" ~ token ~ "/community", _("See all")) }}
+  <a class="card link-card community-way" href="/p/{{ token }}/{% if community_way == 'handle' %}community{% else %}people{% endif %}">
+    <b>{% if community_way == "handle" %}{{ _("Study alongside your classmates") }}{% else %}{{ _("Nobody you follow is studying right now") }}{% endif %}</b>
+    <span>{% if community_way == "handle" %}{{ _("Choose a handle, follow them, and see who is studying now.") }}{% else %}{{ _("Find classmates to follow: what they study and share shows here.") }}{% endif %} ›</span>
+  </a>
+</section>
+{% endif %}
+
 {% if view.banked and not (view.now and view.now.id == view.banked.id) %}
 <section class="w w-ask section banked-today" data-vt="b{{ view.banked.id }}">
   {{ head(_("Just answered"), "brain") }}
@@ -510,34 +548,7 @@
 </section>
 {% endif %}
 
-{# Classmates (D140): who is studying now (D108) and what the people followed shared. #}
-{% if classmates %}
-<section class="w w-friends">
-  {{ head(_("Classmates"), "group", "/p/" ~ token ~ "/community", _("Community")) }}
-  {% from "_people.html" import avatar %}
-  <div class="card">
-  {% if classmates.now %}
-  <h3 class="w-sub"><span class="live-dot" aria-hidden="true"></span>{{ _("Studying now") }}</h3>
-  <ul class="glance">
-    {% for s in classmates.now %}
-    <li>{{ avatar(s) }}<a class="grow" href="/p/{{ token }}/u/{{ s.handle }}"><b>@{{ s.handle }}</b><small>{{ _n("{course} · for {n} minute", "{course} · for {n} minutes", s.minutes, course=s.course) }}</small></a>
-      {% if not focus %}<form method="post" action="/p/{{ token }}/focus/start"><input type="hidden" name="course" value="{{ s.join }}"><input type="hidden" name="goal" value="{{ classmates.join_minutes }}"><button type="submit" class="btn btn-sm btn-tinted" aria-label="{{ _('Join @{handle}: {n} minutes on {course}', handle=s.handle, n=classmates.join_minutes, course=s.join) }}">{{ _("Join") }}</button></form>{% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {% if classmates.posts %}
-  <ul class="glance">
-    {% for p in classmates.posts %}
-    <li>{% if p.author %}{{ avatar(p.author) }}{% endif %}<a class="grow" href="/p/{{ token }}/post/{{ p.id }}"><b>{% if p.author %}@{{ p.author.handle }}{% endif %} <span class="glance-says">{{ p.says }}</span></b><small>{% if p.course %}{{ p.course }} · {% endif %}{{ p.when }}</small></a></li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {# D141: sharing from home, the course being studied already picked. #}
-  <p class="glance-share"><a class="btn btn-sm btn-tinted" href="/p/{{ token }}/explain">{{ lucide('lightbulb') }} {{ _("Explain an idea") }}</a> <a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes/new">{{ lucide('notebook-pen') }} {{ _("Share notes") }}</a></p>
-  </div>
-</section>
-{% endif %}
+
 
 {# What did not fit in the plan (D171, AUDIT 117): one card, its lines folded under it,
    the week's hours a tap away; it was a list of notices, one per line. #}

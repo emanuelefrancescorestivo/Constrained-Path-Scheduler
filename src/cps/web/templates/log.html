@@ -2,23 +2,29 @@
 {% block title %}{{ _("Log a session") }} · {{ _("Study plan") }}{% endblock %}
 {% block head %}<script type="module" src="{{ asset('log.js') }}"></script>{% endblock %}
 {% block main %}
-{% if first %}
+{% if first or done %}
 {# The first session of a first run (D107): its summary before the diary's
-   questions, as Strava shows a saved activity. #}
+   questions, as Strava shows a saved activity. Since D177 every timed session ends
+   so, as a lesson ends in Duolingo: "Session complete!", the minutes, the streak with
+   today counted, the points of a session of the plan (D158), and confetti once. #}
 {% from "_mascot.html" import mascot %}
-<div class="run-done">
+<div class="run-done"{% if done %} data-celebrate="{{ done.key }}"{% endif %}>
   <div class="run-hero">{{ mascot("cheer", uid="done") }}</div>
-  <h1 class="run-big">{{ _("First session done!") }}</h1>
+  <h1 class="run-big">{% if first %}{{ _("First session done!") }}{% else %}{{ _("Session complete!") }}{% endif %}</h1>
+  {% if done and not first and (done.goal or done.whole) %}<p class="run-cheer">{% if done.goal %}{{ _("You reached your length: {time}.", time=done.goal) }}{% else %}{{ _("You stayed with it the whole time.") }}{% endif %}</p>{% endif %}
   <div class="run-stats">
     <p><b>{{ draft.minutes }}</b><small>{{ _n("minute", "minutes", draft.minutes | int) }}</small></p>
-    <p><b>{{ _("Day 1") }}</b><small>{{ _("of your streak") }}</small></p>
-    {% if draft.course %}<p><b class="run-course">{{ draft.course }}</b><small>{{ _("studied") }}</small></p>{% endif %}
+    {% if first %}<p><b>{{ _("Day 1") }}</b><small>{{ _("of your streak") }}</small></p>
+    {% elif done.streak %}<p class="run-streak{% if done.streak_new %} is-new{% endif %}"><b>{{ lucide("flame", "run-flame") }}{{ done.streak }}</b><small>{{ _n("day in a row", "days in a row", done.streak) }}</small></p>{% endif %}
+    {% if done and done.points and not first %}<p class="run-points"><b>+{{ done.points }}</b><small>{{ _("points") }}</small></p>
+    {% elif draft.course %}<p><b class="run-course">{{ draft.course }}</b><small>{{ _("studied") }}</small></p>{% endif %}
   </div>
+  {% if done and done.points and not first %}<p class="hint">{{ _("Share what you did: once a classmate vouches for it, {n} more.", n=done.proof) }}</p>{% endif %}
   <p class="muted">{{ _("Two taps say how it went, then save it.") }}</p>
 </div>
 {% endif %}
 <div class="page-title">
-  {% if first %}<h2>{{ _("How was it?") }}</h2>{% else %}<h1>{{ _("How was it?") }}</h1>{% endif %}
+  {% if first or done %}<h2>{{ _("How was it?") }}</h2>{% else %}<h1>{{ _("How was it?") }}</h1>{% endif %}
   {% if draft.timed %}<p>{{ _n("{n} minute focused", "{n} minutes focused", draft.minutes | int) }}{% if draft.checked %} · {% if draft.interruptions %}{{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", draft.interruptions | int, minutes=draft.away_minutes) }}{% else %}{{ _("focused the whole time") }}{% endif %}{% else %} · {{ _("timed, focus not checked") }}{% endif %}</p>{% endif %}
 </div>
 {% if question %}

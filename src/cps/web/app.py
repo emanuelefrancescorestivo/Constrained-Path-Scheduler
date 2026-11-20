@@ -1353,6 +1353,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             # The day as one strip across Today (D171).
             "strip": service.day_strip(subscription, now) if "day" in shown else None,
             "classmates": service.classmates_glance(store, subscription, now) if "friends" in shown else None,
+            # D177: Community right under the next step; with nothing to show yet, the way in.
+            "community_way": service.community_way(store, subscription) if "friends" in shown else None,
             # The student's time today and attention this week (D140).
             "time": service.time_and_attention(store, subscription, now) if "time" in shown else None,
             # Each course's links and the learning platform, a tap away (D140).
@@ -1787,6 +1789,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             profile=service.profile_of(store, token),
             share=service.share_default(subscription),
             first=service.first_session(store, subscription),
+            # D177: every timed session ends celebrated, as a lesson does in Duolingo.
+            done=service.session_done_view(store, subscription, config.clock()),
             tab="focus",
         )
 

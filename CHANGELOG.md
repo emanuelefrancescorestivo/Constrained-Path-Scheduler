@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The end of a session celebrated (DECISIONS.md D177): every session timed with Focus ends on
+  "Session complete!", with the minutes, the streak with today counted, the points and confetti
+  once; on Today, Community comes right under the next step and is on to start.
+
 - The coach on Haiku (DECISIONS.md D176): five answers with AI a day for everyone, two hundred with
   premium, which comes from a code the owner makes on the admin page; the coach is told the next
   exams, the topics the memory model gives the least chance now and today's sessions; the coach's
