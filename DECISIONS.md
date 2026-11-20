@@ -6519,3 +6519,39 @@ louder than the change; one quiet line is enough.
 last flip; the line says "Saved." only once the server has answered. Checked in Chromium only, at
 phone size (dark, French) and 1280px (light): a switch flipped, the page reloaded, the switch as
 left.
+
+## D167. Lighter pages: the diary's older weeks and a course's page
+
+**Asked.** The owner, on 2026-11-20, with screenshots on their phone. Of the diary on Progress:
+"what is that list crap": its older weeks were six folds on the page's background, under them
+a second "Last week" (the weekly review) that read as part of the same list. Of a course's page:
+"heavy heavy heavy to watch and scroll through": every week showed all its topics and links,
+and the exam's settings, the credits and the form to add a link were always open.
+
+**Chosen.** On Progress, the diary's weeks still open (this week and the last, or the latest)
+show their sessions as before; the older weeks are one card, "Earlier weeks", a row each with
+its plant, its name and its sum, opening in place, the chevron at the row's end as in the app's
+other lists. The weekly review comes before the diary, as "Last week, in review".
+
+On a course's page each week is one row: its name, where it stands, its recall as a number and
+its topics on one line; its readings and what to do with it (cards, links, explaining it) open
+in place, and this week opens by itself. The exam shows its date; its settings fold under
+"Change" and are saved as each field changes (`data-autosave`, D165), the button kept only where
+scripts do not run (`<noscript>`). Stopping the course's plan is its own button under them,
+never a switch that a stray tap would save. The credits, once known, fold under a row that says
+them, and are saved as typed. Adding a link is one row until it is wanted. Sharing notes,
+explaining an idea and classmates' notes are buttons in the material card, not a line on the
+page's background.
+
+**Rejected.** Taking the older weeks off Progress to a page of their own: one more page to find,
+for a list a student opens rarely but expects to find there. A summary of the exam's settings
+in its closed row: saved in the background, it would show the old values until the page is
+opened again. Keeping "Save and plan" beside fields saved as they change: two ways to do one
+thing.
+
+**Disclosed.** Measured in Chromium at an iPhone 13's size on the demo's @alex (scrollHeight):
+a course's page went from 3,926 to 3,046 pixels, 5.9 to 4.6 screens; Progress with "More detail"
+open went from 8,292 to 8,421, a little longer, the older weeks' card having a title and two
+lines a row: the diary is tidier, not shorter. Checked by eye in Chromium only, at phone size,
+dark and French. A field of the exam changed and left before the server answers may be lost, as
+on Edit Today (D165).

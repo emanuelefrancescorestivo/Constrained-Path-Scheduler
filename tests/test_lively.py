@@ -205,8 +205,11 @@ def test_the_diary_is_week_by_week_with_effort_and_progress_drawn(web, clock):
     assert [w["biggest"] for w in weeks] == [False, False, True]
     assert weeks[0]["posts"][0]["work"] == "exercises" and weeks[0]["posts"][0]["color"] is not None
     page = unescape(web.get(f"/p/{token}/progress?more=1").text)  # inside "More detail" (D106)
-    assert page.count('<details class="diary-week"') == 3
+    assert page.count('<details class="diary-week') == 3
     assert page.count('<details class="diary-week" open>') == 1
+    # D167: the two older weeks are rows of one card, not folds on the page's background.
+    earlier = page[page.index('<div class="card diary-earlier">') :]
+    assert "Earlier weeks" in earlier and earlier.count('<details class="diary-week diary-row">') == 2
     assert "Biggest week" in page
     start = page.rfind("<article", 0, page.index("Past paper"))
     paper = page[start : page.index("</article>", start)]

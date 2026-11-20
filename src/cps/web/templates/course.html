@@ -61,10 +61,19 @@
   <div class="section-title"><h2>{{ _("Week by week") }}</h2><a href="/p/{{ token }}/topics/{{ v.index }}">{% if v.topics %}{{ _("Change the topics") }}{% else %}{{ _("Add the topics") }}{% endif %}</a></div>
   <ol class="card list course-weeks">
     {% for w in v.weeks %}
+    {# D167: a week is one row (its name, where it stands, its recall, its topics); its
+       readings and what to do with it open in place. This week opens by itself. #}
     <li class="week-{{ w.state }}" id="w{{ w.n }}">
+      <details class="week-fold"{% if w.state == "now" %} open{% endif %}>
+      <summary>
       <span class="week-mark" aria-hidden="true">{% if w.state == "ahead" %}○{% elif w.done %}✓{% else %}●{% endif %}</span>
-      <div class="grow">
-        <p class="week-name"><b>{{ w.label }}</b> <small class="week-state">{% if w.state == "now" %}{{ _("this week") }}{% elif w.state == "ahead" %}{{ _("to come") }}{% elif w.done %}{{ _n("reviewed {n} time", "reviewed {n} times", w.done) }}{% else %}{{ _("taught, not reviewed yet") }}{% endif %}</small></p>
+      <span class="grow">
+        <span class="week-name"><b>{{ w.label }}</b> <small class="week-state">{% if w.state == "now" %}{{ _("this week") }}{% elif w.state == "ahead" %}{{ _("to come") }}{% elif w.done %}{{ _n("reviewed {n} time", "reviewed {n} times", w.done) }}{% else %}{{ _("taught, not reviewed yet") }}{% endif %}</small></span>
+        {% if w.topics %}<span class="week-topics-line">{{ w.topics | join(" · ") }}</span>{% endif %}
+      </span>
+      {% if w.memory %}<span class="mtag lvl-{{ w.memory.level }}">{{ w.memory.recall }} %</span>{% endif %}
+      </summary>
+      <div class="week-body">
         {% if w.assessments %}<p class="week-assessments">{% for a in w.assessments %}<span class="mtag mtag-exam">{{ a }}</span>{% endfor %}</p>{% endif %}
         {% if w.topics %}<ul class="week-topics">{% for t in w.topics %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
         {% if w.readings %}<p class="week-readings"><span class="muted">{{ _("To read") }}:</span> {{ w.readings | join("; ") }}</p>{% endif %}
@@ -77,6 +86,7 @@
           {% if w.state != "ahead" %}<a href="/p/{{ token }}/explain?course={{ v.course | urlencode }}{% if w.topics %}&amp;concept={{ w.topics[0] | truncate(120, true, '') | urlencode }}{% endif %}">{{ _("Explain it simply") }}</a>{% endif %}
         </p>
       </div>
+      </details>
     </li>
     {% endfor %}
   </ol>
@@ -96,20 +106,30 @@
 {% endif %}
 
 {# Its exam, changed here (D103): the date, how well it is known, its weight and its
-   practice; or no longer planned for. The same fields as the exams while setting up. #}
+   practice; or no longer planned for. The same fields as the exams while setting up.
+   D167: its date shown, the rest folded under "Change" and saved as each field changes
+   (`data-autosave`, D165); the button only where scripts do not run. Stopping is its own
+   button, never a switch saved by a stray tap. #}
 {% if exam_row %}{% set s = exam_row %}
 {% if why_tip %}{{ why(why_tip) }}{% endif %}
 <div class="section" id="exam">
   <div class="section-title"><h2>{{ _("Exam") }}</h2></div>
-  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/exam" class="card exam-card">
+  <div class="card exam-card">
+  {% set opened = error %}
+  {% if s.found and s.found_when and not s.exam %}
+  <p class="exam-when">{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}</p>
+  {% elif s.exam %}
+  <p class="exam-when">{{ _("Exam: {date}, {when}", date=v.exam.date, when=v.exam.says) if v.exam else s.exam | nice_date }}</p>
+  {% endif %}
+  <details class="exam-change"{% if opened %} open{% endif %}>
+    <summary>{{ _("Change") }}</summary>
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/exam" data-autosave>
     <input type="hidden" name="s0_name" value="{{ s.name }}">
     <input type="hidden" name="s0_found" value="{{ '1' if s.found else '' }}">
     <input type="hidden" name="s0_found_when" value="{{ s.found_when }}">
     {% if s.found and s.found_when and not s.exam %}
-    <p>{{ _("Exam {when} · from your timetable", when=s.found_when | nice_date) }}</p>
-    <details class="inline"><summary>{{ _("Different date") }}</summary>
-      <input id="s0_exam" name="s0_exam" type="datetime-local" aria-label="{{ _('Exam date') }}">
-    </details>
+    <label for="s0_exam">{{ _("Different date") }}</label>
+    <input id="s0_exam" name="s0_exam" type="datetime-local">
     {% else %}
     <label for="s0_exam">{{ _("Date") }}</label>
     <input id="s0_exam" name="s0_exam" type="datetime-local" value="{{ s.exam | replace(' ', 'T') }}">
@@ -130,9 +150,22 @@
         {% for h in values.practice_choices %}<option value="{{ h }}"{% if s.practice != "" and s.practice | float == h %} selected{% endif %}>{% if h == 0 %}{{ _("No practice") }}{% else %}{{ _("Exam practice: {hours} h", hours=h | hours) }}{% endif %}</option>{% endfor %}
       </select></div>
     </div>
-    <label class="check"><input type="checkbox" name="s0_remove" value="1"> {{ _("Stop planning for this course") }}</label>
-    <div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Save and plan") }}</button></div>
+    <p class="hint saved-line" data-saved role="status" hidden></p>
+    <noscript><div class="form-actions"><button type="submit" class="btn btn-primary">{{ _("Save and plan") }}</button></div></noscript>
   </form>
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/exam?stop=1" class="exam-stop">
+    <input type="hidden" name="s0_name" value="{{ s.name }}">
+    <input type="hidden" name="s0_found" value="{{ '1' if s.found else '' }}">
+    <input type="hidden" name="s0_found_when" value="{{ s.found_when }}">
+    <input type="hidden" name="s0_exam" value="{{ s.exam | replace(' ', 'T') }}">
+    <input type="hidden" name="s0_familiarity" value="{{ s.familiarity }}">
+    <input type="hidden" name="s0_weight" value="{{ s.weight or 1.0 }}">
+    <input type="hidden" name="s0_practice" value="{{ s.practice }}">
+    <input type="hidden" name="s0_remove" value="1">
+    <button type="submit" class="btn btn-sm btn-plain">{{ _("Stop planning for this course") }}</button>
+  </form>
+  </details>
+  </div>
 </div>
 {% endif %}
 
@@ -157,11 +190,15 @@
     {% else %}
     <p class="hint">{{ _("Give the course's ECTS credits to compare them with the hours of your timetable and your plan.") }}</p>
     {% endif %}
-    <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/credits" class="inline-form credits-form">
+    {# D167: the credits, once known, folded; saved as they are typed (D165). #}
+    {% if w %}<details class="credits-change"{% if d.credits %} open{% endif %}><summary>{{ _("ECTS credits") }}: {{ v.credits }}</summary>{% endif %}
+    <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/credits" class="inline-form credits-form" data-autosave>
       <label for="c-credits">{{ _("ECTS credits") }}</label>
-      <div class="row-input"><input id="c-credits" name="credits" inputmode="decimal" maxlength="4" value="{{ d.credits or (v.credits if v.typed_credits else '') }}" placeholder="{{ v.credits or '6' }}"><button type="submit" class="btn btn-sm">{{ _("Save") }}</button></div>
+      <div class="row-input"><input id="c-credits" name="credits" inputmode="decimal" maxlength="4" value="{{ d.credits or (v.credits if v.typed_credits else '') }}" placeholder="{{ v.credits or '6' }}"><noscript><button type="submit" class="btn btn-sm">{{ _("Save") }}</button></noscript></div>
       {% if v.credits and not v.typed_credits %}<p class="hint">{{ _("Read from the course page you pasted.") }}</p>{% endif %}
+      <p class="hint saved-line" data-saved role="status" hidden></p>
     </form>
+    {% if w %}</details>{% endif %}
   </div>
 </div>
 
@@ -185,11 +222,13 @@
       <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links/{{ l.id }}/delete"><button type="submit" class="btn btn-sm btn-plain" aria-label="{{ _('Remove {title}', title=l.title) }}">{{ _("Remove") }}</button></form>
     </li>
     {% endfor %}
+    <li class="material-more"><a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes/new?course={{ v.course | urlencode }}">{{ _("Share notes") }}</a><a class="btn btn-sm btn-plain" href="/p/{{ token }}/explain?course={{ v.course | urlencode }}">{{ _("Explain an idea") }}</a><a class="btn btn-sm btn-plain" href="/p/{{ token }}/notes?course={{ v.course | urlencode }}">{{ _("Classmates' notes for this course") }}</a></li>
   </ul>
-  <p class="hint"><a href="/p/{{ token }}/notes/new?course={{ v.course | urlencode }}">{{ _("Share notes") }}</a> · <a href="/p/{{ token }}/explain?course={{ v.course | urlencode }}">{{ _("Explain an idea") }}</a> · <a href="/p/{{ token }}/notes?course={{ v.course | urlencode }}">{{ _("Classmates' notes for this course") }}</a></p>
+  {# D167: adding a link is one row until it is wanted. #}
   {% if v.all_links < v.links_most %}
-  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links" class="card section link-form" id="link">
-    <h3>{{ _("Add a link") }}</h3>
+  <details class="card section link-add" id="link"{% if d.url or d.title %} open{% endif %}>
+  <summary>{{ _("Add a link") }}</summary>
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/links" class="link-form">
     <p class="hint">{{ _("The course on your learning platform, its slides, a shared folder: one tap away from here. Only you see them.") }}</p>
     <label for="l-url">{{ _("Address") }}</label>
     <input id="l-url" name="url" type="url" required maxlength="500" placeholder="https://" value="{{ d.url or '' }}">
@@ -201,6 +240,7 @@
     {% endif %}
     <div class="form-actions"><button type="submit" class="btn btn-primary btn-sm">{{ _("Add") }}</button></div>
   </form>
+  </details>
   {% endif %}
 </div>
 {% endblock %}

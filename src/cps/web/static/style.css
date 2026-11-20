@@ -987,6 +987,22 @@ td.d { display: table-cell; padding: 0; }
 .diary-week-name { font-weight: 700; }
 .diary-week-sum { color: var(--muted); font-weight: 500; font-size: 0.9rem; }
 .diary-week > summary .plant { width: 28px; height: 28px; }
+/* D167: the older weeks, one card of rows; each row opens its sessions in place, the
+   chevron at the row's end as in the app's other lists. */
+.diary-earlier { margin-top: 14px; padding-top: 4px; padding-bottom: 4px; }
+.diary-earlier-head { margin: 10px 0 2px; font-size: 0.78rem; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.diary-week.diary-row { margin: 0; }
+.diary-row + .diary-row { border-top: 0.5px solid var(--line); }
+.diary-row > summary { flex-wrap: nowrap; gap: 12px; margin: 0; padding: 11px 0; min-height: 44px; }
+.diary-row > summary::before { content: none; }
+.diary-row > summary::after { content: "›"; flex: none; color: var(--muted); font-size: 1.2rem; transition: transform 0.15s; }
+.diary-row[open] > summary::after { transform: rotate(90deg); }
+.diary-row > summary .grow { flex: 1; min-width: 0; line-height: 1.35; }
+.diary-row > summary .plant { margin: 0; vertical-align: 0; }
+.diary-row > summary .badge { margin-left: 6px; }
+.diary-row-posts { padding: 0 0 12px; }
+.diary-row-posts > .card { background: var(--fill, transparent); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .diary-row > summary::after { transition: none; } }
 .post-note { margin: 10px 0 0; white-space: pre-line; }
 .post-simple { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
 .post-simple .kicker { margin: 0 0 2px; font-size: 0.75rem; font-weight: 650; color: var(--accent-ink); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -4106,6 +4122,35 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 .link-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .material-list a.grow { min-width: 0; }
 .link-form h3 { margin: 0 0 4px; }
+/* D167: the course page's forms folded until wanted: the exam's settings and the credits
+   under a "Change" row, saved as they change; adding a link one row; the three ways to share
+   or find notes inside the material card. */
+.exam-when { margin: 0; font-weight: 600; }
+.exam-change, .credits-change { margin-top: 10px; }
+.exam-change > summary, .credits-change > summary, .link-add > summary { color: var(--accent-ink); font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.exam-change[open] > summary { margin-bottom: 4px; }
+.exam-stop { margin-top: 14px; padding-top: 10px; border-top: 0.5px solid var(--line); }
+.exam-stop .btn { color: var(--danger, #d93a2f); }
+.credits-change .credits-form { margin-top: 4px; }
+.link-add { padding-top: 6px; padding-bottom: 6px; }
+.link-add[open] { padding-bottom: 16px; }
+.link-add .link-form label:first-of-type { margin-top: 2px; }
+.material-list > li.material-more { flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+/* D167: each week of a course one row, opened in place; the chevron at the row's end. */
+.course-weeks > li { display: block; padding: 0; }
+.course-weeks > li + li::before { left: 34px; }
+.week-fold > summary { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 44px; color: var(--text); font-weight: 400; }
+.week-fold > summary::before { content: none; }
+.week-fold > summary::after { content: "›"; flex: none; color: var(--muted); font-size: 1.2rem; transition: transform 0.15s; }
+.week-fold[open] > summary::after { transform: rotate(90deg); }
+.week-fold > summary .grow { flex: 1; min-width: 0; }
+.week-fold .week-name { display: flex; }
+.week-topics-line { display: block; font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-fold[open] .week-topics-line { display: none; }
+.week-fold > summary .mtag { flex: none; }
+.week-body { padding: 0 0 12px 34px; }
+.week-body > :first-child { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .week-fold > summary::after { transition: none; } }
 /* Cards from notes (D84) */
 .card-make { display: block; color: inherit; text-decoration: none; }
 .card-make small { color: var(--muted); }

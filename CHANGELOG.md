@@ -7,6 +7,10 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Lighter pages (DECISIONS.md D167): a course's page shows each week as one row (this week open),
+  its exam's date with the rest under "Change" and saved as it changes, the credits and adding a
+  link folded; the diary's older weeks are one card of rows, and last week's review comes before it.
+
 - Edit Today, frictionless (DECISIONS.md D165): each switch shows the picture of its widget on
   Today and is saved as soon as it is flipped, with "Saved." under the list; no need to tap
   Done. Up next and On your mind have pictures of their own.

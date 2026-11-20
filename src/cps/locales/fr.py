@@ -2242,6 +2242,8 @@ MESSAGES: dict[str, str] = {
     "Biggest week: {hours} h, week of {day}": "Plus grosse semaine : {hours} h, semaine du {day}",
     "Week of {day}: {hours} h, {total} h in all": "Semaine du {day} : {hours} h, {total} h en tout",
     "Biggest week": "Plus grosse semaine",
+    "Last week, in review": "La semaine dernière, en bref",
+    "Earlier weeks": "Semaines précédentes",
     "{n} session": "{n} séance",
     "{n} sessions": "{n} séances",
     "{n} entry": "{n} entrée",

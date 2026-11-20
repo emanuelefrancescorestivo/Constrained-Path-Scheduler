@@ -134,7 +134,10 @@ def test_more_detail_opens_for_a_link_into_it_and_after_a_diary_change(web):
     templates = ROOT / "src" / "cps" / "web" / "templates"
     assert "/progress?more=1#insights" in (templates / "_panel.html").read_text()
     assert "/progress?more=1#review" in (templates / "_review.html").read_text()
-    assert 'id="review"' in (templates / "progress.html").read_text()  # its anchor exists
+    progress = (templates / "progress.html").read_text()
+    assert 'id="review"' in progress  # its anchor exists
+    # D167: the review comes before the diary, under its own name, not a second "Last week".
+    assert progress.index('id="review"') < progress.index('id="diary"') and "Last week, in review" in progress
 
 
 # --------------------------------------------------------------------------- #
