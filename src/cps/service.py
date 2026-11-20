@@ -6329,6 +6329,42 @@ def routine_rows(answers: Iterable[Mapping]) -> list[dict]:
     return rows
 
 
+def busy_groups(activities: Iterable[Mapping]) -> dict:
+    """Settings' busy times as setting up adds them (D173, after D172): the weekly ones one
+    card each, by name, kind and hours, with their days in the week's order (a night shift
+    marked, ending the next day); the ones on a date as they are, one row each."""
+    weekly: dict[tuple, dict] = {}
+    dated = []
+    for a in activities:
+        day = str(a.get("weekday") or "")
+        if a.get("date") or day not in WEEKDAY_NAMES:
+            dated.append(dict(a))
+            continue
+        key = (
+            str(a.get("label") or ""),
+            str(a.get("kind") or "other"),
+            str(a.get("start") or ""),
+            str(a.get("end") or ""),
+        )
+        group = weekly.setdefault(
+            key, {"label": key[0], "kind": key[1], "start": key[2], "end": key[3], "days": []}
+        )
+        if day not in group["days"]:
+            group["days"].append(day)
+    for group in weekly.values():
+        group["days"].sort(key=WEEKDAY_NAMES.index)
+        group["overnight"] = bool(group["start"] and group["end"]) and group["end"] <= group["start"]
+    return {"weekly": list(weekly.values()), "dated": dated}
+
+
+def quick_busy_view() -> dict:
+    """The busy times a student can add with their shifts (D172), for Settings (D173)."""
+    return {
+        "kinds": [{"kind": k, "name": n, "start": a, "end": b} for k, n, a, b in QUICK_BUSY],
+        "shifts": QUICK_SHIFTS,
+    }
+
+
 def setup_sentence(values: Mapping) -> dict:
     """The sentence setting up shows (D154), from `setup_view`'s values (or the form's,
     sent back with a mistake): each value's choices, the current one among them, the busy

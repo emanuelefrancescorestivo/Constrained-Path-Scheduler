@@ -6745,3 +6745,25 @@ folds work everywhere. Overriding the phone's wheel: it is the phone's own, and 
 under its field and pushes what follows down: floating over the page, it was drawn under the
 sentence's later lines. Checked in Chromium only, at 1280 px with a mouse and at phone size with
 touch, light and dark, in French.
+
+## D173. Busy times in Settings, as in setting up
+
+**Asked.** The owner, on 2026-11-20, after D172: "ok, intanto fai gli orari impegnati anche nelle
+impostazioni" (do the busy times in Settings too).
+
+**Chosen.** Settings' "When you are not free" shows each weekly busy time as one row that says it,
+"Bar · Mon, Wed · 18:00–22:00", a night shift with "(the next day)"; tapped, it opens to its name,
+kind, days as chips, hours with the app's clock (D172) and Remove (`service.busy_groups`: the days of
+one name, kind and hours together, in the week's order). A day on a date is a row of its own. New
+ones are added below with their shifts, as in setting up (`_busy_quick.html`, shared), and "One day
+only" adds a day on a date; a week drawn by hand (D32) adds a class a week as one card, so its
+classes can still be typed without a script. On saving, each card goes back to one row a day
+(`forms.weekly_busy`); one that ends when it starts is refused, as in setting up.
+
+**Rejected.** The rows of D103, one a day under "Type them instead", which D172 left: seven rows for
+a shift of seven days, and a day's change in one place only. Cards always open: three busy times
+filled a phone's screen four times over (the owner on D167's pages: "heavy to scroll through").
+
+**Disclosed.** Busy times of the same name and hours on several days become one card; the same name
+with other hours stays a card of its own. Saved with the page's button, as the rest of the week's
+settings. Checked in Chromium only, at 1280 px and phone size, light and dark, in French.

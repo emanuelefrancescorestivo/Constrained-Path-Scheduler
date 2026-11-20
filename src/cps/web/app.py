@@ -365,6 +365,8 @@ def create_app(config: Config | None = None) -> FastAPI:
     # Lucide's icons, drawn inline (D139): `lucide(name)`, and each picture's icon.
     templates.env.globals["lucide"] = icons.icon
     templates.env.globals["other_course"] = forms.OTHER_COURSE  # the sheet's "Other…" (D159)
+    templates.env.globals["busy_groups"] = service.busy_groups  # Settings' busy times (D173)
+    templates.env.globals["busy_quick"] = service.quick_busy_view()
     templates.env.globals["tip_cover"] = covers.cover  # each tip's cover (D164)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["badge_icons"] = icons.GLYPHS
@@ -373,6 +375,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     ids = itertools.count(1)
     templates.env.globals["fresh_id"] = lambda prefix: f"{prefix}{next(ids)}"
     templates.env.filters["nice_date"] = _nice_date
+    templates.env.filters["translate_day"] = lambda day: service.translate(str(day))  # "Mon" (D173)
     templates.env.filters["hours"] = service.format_number
     templates.env.globals["_"] = service.translate
     templates.env.globals["_n"] = service.translate_plural
@@ -3854,10 +3857,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         # D103: a page of Settings saves its part alone; setting up saves it all.
         part = raw.get("part", "")
         try:
-            if new:
-                # D154: the busy times added in setting up's sentence, one row a day.
-                quick = service.routine_rows(forms.quick_busy(form))
-                values["activities"] += [{**r, "date": ""} for r in quick]
+            # D173: Settings' weekly busy times, one card each, back to one row a day.
+            values["activities"] += forms.weekly_busy(form)
+            # D154: the busy times added with their shifts (D172), in setting up's sentence
+            # and, since D173, in Settings: one row a day.
+            quick = service.routine_rows(forms.quick_busy(form))
+            values["activities"] += [{**r, "date": ""} for r in quick]
             if part == "add":
                 rows = values["subjects"]
 

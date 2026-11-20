@@ -3478,4 +3478,8 @@ MESSAGES: dict[str, str] = {
     "A night shift: give the hour it ends, and it ends the next morning.": "Un turno di notte: indica l'ora in cui finisce, e finisce la mattina dopo.",
     "Other days, other hours": "Altri giorni, altri orari",
     "{name}: it ends when it starts": "{name}: finisce all'ora in cui comincia",
+    # D173: busy times in Settings.
+    "Which day": "Quale giorno",
+    "A class every week": "Una lezione ogni settimana",
+    "One day only": "Un giorno solo",
 }

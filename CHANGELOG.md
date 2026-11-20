@@ -7,6 +7,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- Busy times in Settings (DECISIONS.md D173): each weekly busy time is one row that says it, opened
+  to change its days as chips and its hours; new ones are added with their shifts, as in setting up.
+
 - Busy times, flexible (DECISIONS.md D172): each busy time added while setting up holds several
   shifts, each its own days and hours and, for another job, its own name; a night shift ends the next
   morning; on a computer every time of day is picked with the app's own clock.

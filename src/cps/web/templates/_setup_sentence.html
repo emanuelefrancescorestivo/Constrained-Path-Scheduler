@@ -8,6 +8,7 @@
 {% macro pick(name, choices, current, label) -%}
 <details class="pick" name="sentence"><summary><span class="visually-hidden">{{ label }}: </span><span class="pick-now">{% for value, words in choices %}<span{% if value | string == current | string %} class="is-saved"{% endif %}>{{ words }}</span>{% endfor %}</span></summary><span class="pick-panel pills" role="radiogroup" aria-label="{{ label }}">{% for value, words in choices %}<label class="pill"><input type="radio" name="{{ name }}" value="{{ value }}"{% if value | string == current | string %} checked{% endif %}><span>{{ words }}</span></label>{% endfor %}</span></details>
 {%- endmacro %}
+{% from "_busy_quick.html" import quick_panel %}
 {% set day = values.day %}
 <section class="card sentence" aria-labelledby="sentence-title">
   <h2 id="sentence-title">{{ _("Your week, as the plan sees it") }}</h2>
@@ -30,32 +31,7 @@
     {% for q in sentence.quick %}{% set i = loop.index0 %}
     <details class="add-busy" name="sentence">
       <summary class="btn btn-sm btn-tinted">+ {{ _(q.name) }}</summary>
-      <div class="add-panel">
-        <input type="hidden" name="q{{ i }}_kind" value="{{ q.kind }}">
-        <label for="q{{ i }}_label">{{ _("What") }}</label>
-        <input id="q{{ i }}_label" name="q{{ i }}_label" placeholder="{{ _(q.name) }}" maxlength="60">
-        {# D172: up to `sentence.shifts` shifts, each its own days and hours, the next one
-           folded under the one before (no script needed); a later shift can have its own
-           name, for another job. One that ends earlier than it starts ends the next day. #}
-        {% for k in range(sentence.shifts) %}{% set p = "q" ~ i ~ ("_" ~ k if k else "") %}
-        {% if k %}<details class="more-shift"><summary>{{ _("Other days, other hours") }}</summary>{% endif %}
-        <div class="shift">
-          {% if k %}<label for="{{ p }}_label">{{ _("What") }}</label>
-          <input id="{{ p }}_label" name="{{ p }}_label" placeholder="{{ _(q.name) }}" maxlength="60">{% endif %}
-          <p class="label" id="{{ p }}-days">{{ _("Which days") }}</p>
-          <div class="pills" role="group" aria-labelledby="{{ p }}-days">
-            {% for d in values.weekdays %}<label class="pill"><input type="checkbox" name="{{ p }}_days" value="{{ d }}"><span>{{ _(d) }}</span></label>{% endfor %}
-          </div>
-          <div class="row">
-            <div class="clock-field"><label for="{{ p }}_start">{{ _("From") }}</label>
-            <input id="{{ p }}_start" name="{{ p }}_start" type="time" step="900" value="{{ q.start }}" data-clock></div>
-            <div class="clock-field"><label for="{{ p }}_end">{{ _("to") }}</label>
-            <input id="{{ p }}_end" name="{{ p }}_end" type="time" step="900" value="{{ q.end }}" data-clock></div>
-          </div>
-        {% endfor %}
-        {# closed from the innermost out #}{% for k in range(sentence.shifts) | reverse %}</div>{% if k %}</details>{% endif %}{% endfor %}
-        <p class="hint">{{ _("A night shift: give the hour it ends, and it ends the next morning.") }}</p>
-      </div>
+      {{ quick_panel(i, q, sentence.shifts, values.weekdays) }}
     </details>
     {% endfor %}
     <details class="add-busy" name="sentence">
