@@ -6555,3 +6555,34 @@ open went from 8,292 to 8,421, a little longer, the older weeks' card having a t
 lines a row: the diary is tidier, not shorter. Checked by eye in Chromium only, at phone size,
 dark and French. A field of the exam changed and left before the server answers may be lost, as
 on Edit Today (D165).
+
+## D168. The tips' covers, drawn again with care
+
+**Asked.** The owner, on 2026-11-20, of D164's covers, with screenshots of nine: "these drawing
+could be done better", "these too", "this also", "same", "idem", and of the caffeine cover's sun:
+"bro just pay attention when you make these drawings it's not that hard to draw a sun with all
+its beams am i wrong?" (AUDIT 114).
+
+**Chosen.** All 26 covers are drawn again as small illustrations rather than diagrams: whole
+objects in filled colours (paper, wood, a yellow sun, green leaves, pink for the brain and a
+neuron, the student's accent for what the advice is about), each shaded by a darker tone of its
+own colour and set on a soft shadow, with soft rounds of the accent behind for depth, and no
+outlines. The things in a scene keep their colours in light and dark, as an illustration's do;
+the ground, the shadows and what stands on the ground (a flag's pole, a screen's legs, a
+calendar's rings) follow the theme. Pieces drawn in several scenes are drawn once (`_sun`,
+`_moon`, `_star`, `_sheet`, `_calendar`, `_pencil`, `_person`, `_plant`…), so a sun always has
+its eight beams. The scenes say the same things as D164's, more plainly: a classroom of
+students at their desks, you among them; a bed with someone asleep and the day's books on the
+nightstand; a signpost where a path splits; a mountain climbed with its flag. Every cover was
+drawn at three times its size in light and dark and looked at one by one before it was kept;
+five were drawn a third time (the classroom, the neuron, the book's light, the signpost's grass,
+the bar of effort).
+
+**Rejected.** Pictures from a library of illustrations: none is shipped, and adding one is a
+dependency the owner has not chosen; and their scenes would not say what each tip says. Raster
+images: they would not follow the student's accent or dark mode.
+
+**Disclosed.** The covers are a matter of taste, drawn by hand in this repository and checked by
+eye against each tip's advice, not with students. Checked in Chromium only, at 520px wide (twice
+the pixels), light and dark, with the default accent.
+

@@ -1276,3 +1276,15 @@ Chromium at phone size: D160's tile was 68px wide there, and the number's unit, 
 allowed to break, was wider. D160 had been checked at phone size on a topic whose captions fit.
 Status: fixed with D164: the number has its own band under the tip's cover, as wide as the
 cover at most and wrapped if it must (`tests/test_tip_pictures.py`).
+
+**114. The tips' covers were drawn carelessly: a sun with six beams.** Reported by the owner on
+2026-11-20 with screenshots of nine covers on their phone: "these drawing could be done better",
+then "bro just pay attention when you make these drawings it's not that hard to draw a sun with
+all its beams am i wrong?". The caffeine cover's sun had six beams, two diagonals missing; the
+covers were outlines in white ink on dark, one colour, objects flat and some hard to read (a
+balance, a bulb). How found: the owner's screenshots, then each cover drawn at three times its
+size in light and dark: D164 had checked the covers at their size on the page, where a missing
+beam is easy to miss, and no test looked at a sun. Status: fixed with D168: every cover drawn
+again in filled colours, each sun by one function that draws all eight beams, and a test that
+every sun has them (`tests/test_tip_pictures.py`).
+

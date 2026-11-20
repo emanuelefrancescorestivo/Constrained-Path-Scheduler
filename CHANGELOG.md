@@ -7,6 +7,9 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The tips' covers drawn again (DECISIONS.md D168): every cover is a small illustration in
+  filled colours, with shade and depth, each object whole (a sun with all its beams, AUDIT 114).
+
 - Lighter pages (DECISIONS.md D167): a course's page shows each week as one row (this week open),
   its exam's date with the rest under "Change" and saved as it changes, the credits and adding a
   link folded; the diary's older weeks are one card of rows, and last week's review comes before it.

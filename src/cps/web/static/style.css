@@ -5239,14 +5239,57 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
 .tip-cover {
   display: block; width: 100%; aspect-ratio: 300 / 112; max-height: 148px; color: var(--text);
 }
-.tip-cover .g { fill: color-mix(in srgb, var(--accent) 24%, var(--surface)); stroke: none; }
-.tip-cover .c { fill: var(--surface); }
-.tip-cover .a { fill: var(--accent); stroke: var(--accent); }
-.tip-cover .l { stroke: var(--accent); }
-.tip-cover .w { stroke: var(--on-accent); }
-.tip-cover .k { fill: currentColor; stroke: none; }
-.tip-cover .m { opacity: 0.42; }
-.tip-cover .h { opacity: 0.65; }
+/* D168: the covers' palette. Objects keep their colours in light and dark (an illustration's
+   things, not the page's ink); the ground, the shadows and what stands on the ground follow
+   the theme. Shapes are filled, shaded by a darker tone of their own, never outlined. */
+.tip-cover .g { fill: color-mix(in srgb, var(--accent) 17%, var(--surface)); }
+.tip-cover .sh { fill: #0f1726; opacity: 0.13; }
+.tip-cover .p { fill: #fdfdff; }
+.tip-cover .p2 { fill: #d3dae6; }
+.tip-cover .p2l { stroke: #d3dae6; }
+.tip-cover .ln, .tip-cover .lnd { stroke: #9da8ba; }
+.tip-cover .ink { fill: #263041; }
+.tip-cover .inkl { stroke: #263041; }
+.tip-cover .tf { fill: currentColor; }
+.tip-cover .tl { stroke: currentColor; }
+.tip-cover .a { fill: var(--accent); }
+.tip-cover .a2 { fill: color-mix(in srgb, var(--accent) 70%, #000); }
+.tip-cover .a3 { fill: color-mix(in srgb, var(--accent) 42%, #fff); }
+.tip-cover .al { stroke: var(--accent); }
+.tip-cover .wl { stroke: #fff; }
+.tip-cover .wf { fill: #fff; }
+.tip-cover .y { fill: #ffc93c; }
+.tip-cover .y2 { fill: #f2a227; }
+.tip-cover .yl { stroke: #ffc93c; }
+.tip-cover .r { fill: #ff6b6b; }
+.tip-cover .r2 { fill: #d64848; }
+.tip-cover .rl { stroke: #ff6b6b; }
+.tip-cover .gr { fill: #3fc27a; }
+.tip-cover .gr2 { fill: #279a5a; }
+.tip-cover .gr2l { stroke: #279a5a; }
+.tip-cover .pu { fill: #9b87f5; }
+.tip-cover .sk { fill: #7cc7ff; }
+.tip-cover .pk { fill: #ff9ec2; }
+.tip-cover .pkl { stroke: #ff9ec2; }
+.tip-cover .pk2l { stroke: #e0689a; }
+.tip-cover .bd { fill: #2f5e52; }
+.tip-cover .br { fill: #c98d5e; }
+.tip-cover .br2 { fill: #9a6337; }
+.tip-cover .sn { fill: #f4c4a0; }
+.tip-cover .hr { fill: #4a3426; }
+.tip-cover .nt { fill: #34437e; }
+.tip-cover .m { opacity: 0.45; }
+.tip-cover .h { opacity: 0.7; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tip-cover .sh { fill: #000; opacity: 0.32; }
+  :root:not([data-theme="light"]) .tip-cover .p2 { fill: #aeb8ca; }
+  :root:not([data-theme="light"]) .tip-cover .ln, :root:not([data-theme="light"]) .tip-cover .lnd { stroke: #8d98ac; }
+  :root:not([data-theme="light"]) .tip-cover .nt { fill: #5466b0; }
+}
+:root[data-theme="dark"] .tip-cover .sh { fill: #000; opacity: 0.32; }
+:root[data-theme="dark"] .tip-cover .p2 { fill: #aeb8ca; }
+:root[data-theme="dark"] .tip-cover .ln, :root[data-theme="dark"] .tip-cover .lnd { stroke: #8d98ac; }
+:root[data-theme="dark"] .tip-cover .nt { fill: #5466b0; }
 .tip-cover-wrap figcaption {
   align-self: flex-end; max-width: calc(100% - 20px); margin: -4px 10px 10px;
   padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--accent-ink);
