@@ -163,8 +163,15 @@ def folded(text: str) -> str:
 _folded = folded
 
 
+# A compound a justified PDF line split before its hyphen ("matrix -vector", "Mid -semester",
+# "Units 5 –10"): a space before the hyphen and none after, between two letters or two
+# digits (D180). A dash with spaces on both sides ("Unit 1 - Prosperity") is left alone.
+_BROKEN_HYPHEN = re.compile(r"(?<=[^\W\d_])\s+-(?=[^\W\d_])|(?<=\d)\s+(?=[–-]\d)")
+
+
 def _title(text: str) -> str:
-    text = " ".join(text.split()).strip(" \t-–—:;,.·|")
+    text = _BROKEN_HYPHEN.sub(lambda m: "-" if "-" in m[0] else "", " ".join(text.split()))
+    text = text.strip(" \t-–—:;,.·|")
     if len(text) > MAX_TITLE:
         text = text[: MAX_TITLE - 1].rsplit(" ", 1)[0].rstrip(" ,;:-–—") + "…"
     return text
@@ -238,13 +245,39 @@ def _prose(line: str) -> bool:
     return sentences >= 1 or len(line.split()) >= 16
 
 
+# A chapter, a unit or a module that heads what follows it, numbered: "Chapter 2 —
+# Conditional Probability", "CHAPTER 1: PRELIMINARIES", "Module 3. Graphs". With items
+# bulleted under it, it is their label; with a paragraph under it, it is the topic and the
+# paragraph its description, not topics of its own (D180).
+_CHAPTER = re.compile(
+    r"^(?:chapters?|chapitres?|capitolo|capitoli|cap[ií]tulos?|kapitel|hoofdstuk|units?|unit[eéàa]s?|"
+    r"unidad(?:es)?|unidades?|modules?|modulo|m[oó]dulo|modul|parts?|partie|parte|teil|deel|themes?|"
+    r"th[eè]mes?|tema|thema)\s+(?P<n>\d{1,2}|[ivx]{1,5})\s*[—–:.)-]\s*(?P<rest>\S.*)$",
+    re.IGNORECASE,
+)
+
+
 def _listed(lines: Sequence[str]) -> list[Topic]:
     topics: list[Topic] = []
     week: int | None = None
     lecture: int | None = None
     logical = _logical(lines)
+    describing = False  # the lines under a chapter written as a paragraph (D180)
     for i, line in enumerate(logical):
-        if not line or _LINK.search(line) or _prose(line):
+        if not line:
+            describing = False
+            continue
+        chapter = _CHAPTER.match(_BULLET.sub("", line, count=1))
+        if describing and chapter is None and not _BULLET.match(line) and _marker(line) is None:
+            continue
+        describing = False
+        if chapter is not None and _marker(line) is None and not _labels(logical[i + 1 :]):
+            title = _title(chapter["rest"])
+            if sum(c.isalpha() for c in title) >= 3:
+                topics.append(Topic(title, week, lecture, None, kind=_kind(title)))
+            describing = True
+            continue
+        if _LINK.search(line) or _prose(line):
             continue
         if all(_folded(cell.strip()) in _COLUMNS for cell in line.split(" · ")):
             continue
@@ -404,10 +437,30 @@ _MATERIAL = re.compile(
     r"hoofdstuk(?:ken)?|sections?|pp?\.|pages?|pagine|p[aá]ginas?|seiten?)\s*\d"
 )
 _CONTINUED = re.compile(
-    r"^(?:continuation|continued|cont\.|suite|seguito|continuazione|continuacion|continuacao|"
+    r"^(?:continuation|continued|cont\.|suite|seguito|continuazione|continuaci[oó]n|continua[cç][aã]o|"
     r"fortsetzung|vervolg)\b[\s.:,;–-]*",
     re.IGNORECASE,
 )
+# What a "Continuation" goes on from, left once the word is taken off: "of last course",
+# "du cours précédent", "della lezione precedente" (D180).
+_CONTINUED_REST = re.compile(
+    r"^(?:of|from|du|de|des|della|del|dello|dalla|dal|da|von|vom|van)\b", re.IGNORECASE
+)
+# A schedule's objective column, run into its topic by a PDF: from "Students will be able to"
+# on, in the languages read; a row starts with its topic, never with this (D180).
+_OBJECTIVE = re.compile(
+    # after a stop or a comma, or written with its capital: "how students learn" is a topic
+    r"(?:[,;.]\s+|\s+(?=[A-ZÀ-Ý]))"
+    r"(?=(?i:students?|learners?|participants?|les [eé]tudiant(?:e|s|es)?|l'[eé]tudiant|"
+    r"les [eé]l[eè]ves|gli studenti|lo studente|le studentesse|los estudiantes|los alumnos|"
+    r"el estudiante|os alunos|os estudantes|o aluno|die studierenden|studierende|de studenten|"
+    r"studenten)\s+(?i:will|should|can|are able|learn|demonstrate|show|seront|sauront|doivent|"
+    r"pourront|saranno|dovranno|sapranno|potranno|podr[aá]n|ser[aá]n|deber[aá]n|ser[aã]o|"
+    r"poder[aã]o|dever[aã]o|k[oö]nnen|werden|sollen|kunnen|zullen|moeten)\b)"
+)
+# A phrase said twice at a title's start, as two columns of a row that say the same thing:
+# "Review & Presentations Review & Presentations" (D180).
+_REPEATED = re.compile(r"^(.{3,}?)\s+\1(?=\s|$)")
 # A day without class, or a note about one: not a topic.
 _OFF = re.compile(
     r"\b(?:no class(?:es)?|no lectures?|holidays?|bank holiday|reading week|"
@@ -420,13 +473,16 @@ _OFF = re.compile(
 # An assessment's name, the whole of a row's first sentence: "Mock Exam # 1",
 # "Midterm", "Partiel", "Esonero 2", "Presentation session one", accents removed.
 _ASSESSMENT = re.compile(
-    r"^(?:(?:mock|final|partial|practice|written|oral|in-class|in class|second|first|class)\s+)?"
+    r"^(?:(?:mock|final|partial|practice|written|oral|in-class|in class|second|first|class|mid-?term|"
+    r"mid-?semester|mid semester|end-of-term|end of term)\s+)?"
     r"(?:exam|examen|esame|test|quiz|klausur|tentamen|toets|prova|prueba|midterm|mid-term|partiel|"
     r"parziale|esonero|compitino|parcial|zwischenprufung|deeltoets|interrogation|controle|devoir|"
     r"presentation|soutenance|expose|presentazione|presentacion|referat)(?:s|es|zes|en|i)?"
-    r"(?:\s+(?:blanc|partiel|final|finale|scritto|orale|intermedio|intermedia|session|sessions|day))?"
+    r"(?:\s+(?:blanc|partiel|parcial|parziale|final|finale|scritto|orale|intermedio|intermedia|session|sessions|day))?"
     r"(?:\s*(?:n[o°]\.?|#)?\s*(?:\d{1,2}|one|two|three|four|i{1,3}|iv))?"
-    r"(?:\s*\(\s*[^)]*\))?$"
+    r"(?:\s*\(\s*[^)]*\))?"
+    # what it covers (D180): "covering Units 1-4", "on chapters 3-5", "sur les chapitres 1 à 3"
+    r"(?:\s+(?:covering|on|about|over|sur|su|sobre|uber|chapters?|units?)\b.*)?$"
 )
 
 
@@ -580,9 +636,19 @@ def _rows(lines: Sequence[str]) -> list[Topic] | None:
         if dated is not None:
             match, found = dated
             week = match["w0"] or match["n"]
-            rows.append((int(week) if week else None, _day_iso(found), [match["rest"]]))
+            parts = [match["rest"]]
+            label = _label_lines(rows) if week is None else []
+            if label:
+                parts = [" ".join(label), match["rest"]]  # "Final" / "Exam" above the date (D180)
+            rows.append((int(week) if week else None, _day_iso(found), parts))
             started = True
             continue
+        year = re.fullmatch(r"(\d{4}),?", line.strip())
+        if year is not None and rows and started and len(rows[-1][0:3][2]) == 1 and rows[-1][1]:
+            week, day, parts = rows[-1]
+            if day and len(day) == 5 and 1990 <= int(year[1]) <= 2100:
+                rows[-1] = (week, _with_year(day, int(year[1])), parts)  # "Sep 17th," / "2026" (D180)
+                continue
         numbered = _NUMBERED.match(line) if weeks_column else None
         if numbered is not None and 1 <= int(numbered["n"]) <= 30:
             rows.append((int(numbered["n"]), None, [numbered["rest"]]))
@@ -596,6 +662,7 @@ def _rows(lines: Sequence[str]) -> list[Topic] | None:
     dated_rows = sum(1 for _, day, _ in rows if day)
     if dated_rows < 2 and sum(1 for _, day, _ in rows if not day) < 3:
         return None
+    rows = _forward(rows)
     # A number after the date is the week's when most rows have one, in order.
     numbers = [w for w, day, _ in rows if day and w is not None]
     weeks_given = weeks_column or (
@@ -610,6 +677,53 @@ def _rows(lines: Sequence[str]) -> list[Topic] | None:
     return topics
 
 
+def _label_lines(rows: list[tuple[int | None, str | None, list[str]]]) -> list[str]:
+    """The last lines of the row above that are the next row's own first cell, taken off
+    it: in a schedule whose rows start with their number, a row named instead ("Final" /
+    "Exam") has its name written above its date, one or two capitalised words a line (D180)."""
+    if not rows or rows[-1][0] is None:
+        return []
+    parts = rows[-1][2]
+    label: list[str] = []
+    while len(parts) > 1 and len(label) < 2:
+        words = parts[-1].split()
+        if not (0 < len(words) <= 2 and all(w.isalpha() for w in words) and words[0][0].isupper()):
+            break
+        label.insert(0, parts.pop())
+    if label and not parts[-1].strip():
+        parts.extend(label)  # nothing left of the row above: the lines were its own
+        return []
+    return label
+
+
+def _with_year(day: str, year: int) -> str:
+    """A day kept as "MM-DD" with its year, when that day exists in it."""
+    try:
+        return date(year, int(day[:2]), int(day[3:])).isoformat()
+    except ValueError:
+        return day
+
+
+def _forward(
+    rows: list[tuple[int | None, str | None, list[str]]],
+) -> list[tuple[int | None, str | None, list[str]]]:
+    """A schedule's dates run forward: a full date more than two months before the row
+    above it, whose next year's day is not, was written with the old year (a January
+    written "2026" in a 2026-27 schedule), and is moved to the next year (D180)."""
+    out: list[tuple[int | None, str | None, list[str]]] = []
+    last: date | None = None
+    for week, day, parts in rows:
+        if day and len(day) == 10:
+            when = date.fromisoformat(day)
+            if last is not None and when < last - timedelta(days=60):
+                later = _with_year(day[5:], when.year + 1)
+                if len(later) == 10 and date.fromisoformat(later) >= last - timedelta(days=60):
+                    day, when = later, date.fromisoformat(later)
+            last = when
+        out.append((week, day, parts))
+    return out
+
+
 def _row_topics(text: str, week: int | None, day: str | None) -> list[Topic]:
     """A row's topic, and its assessment ahead of it when the row starts with one
     ("Midterm. Regular expressions"); none for "Continuation" or a day off."""
@@ -618,8 +732,12 @@ def _row_topics(text: str, week: int | None, day: str | None) -> list[Topic]:
     cut = _MATERIAL.search(text)
     if cut is not None and cut.start() > 0:
         text, material = text[: cut.start()], _title(text[cut.start() :]).rstrip(" .") or None
-    text = _CONTINUED.sub("", " ".join(text.split()))
-    title = _title(text)
+    joined = " ".join(text.split())
+    text = _CONTINUED.sub("", joined)
+    if text != joined and _CONTINUED_REST.match(text) and len(text.split()) <= 6:
+        return []  # "Continuation of last course": what it continues has its own row (D180)
+    text = _OBJECTIVE.split(text, maxsplit=1)[0]  # the row's objective column, not its topic
+    title = _REPEATED.sub(r"\1", _title(text))
     if sum(c.isalpha() for c in title) < 3 or (_OFF.search(title) and len(title.split()) <= 5):
         return []
     out = []
@@ -971,11 +1089,28 @@ def _heading(line: str) -> tuple[str, str] | None:
     return name, line[start:].strip()
 
 
+def _wrapped_cell(previous: str, line: str) -> bool:
+    """Whether a heading word without a colon ("Exam") goes on from the line above, a table's
+    cell a PDF wrapped ("Final" / "Exam"): a line of one or two words, without a stop (D180)."""
+    words = previous.split()
+    return (
+        ":" not in line
+        and 0 < len(words) <= 2
+        and all(w.isalpha() for w in words)
+        and _heading(previous) is None
+        and not _NOT_HEADING.match(previous)
+    )
+
+
 def _cut(text: str) -> list[tuple[str, str]]:
     """A course page cut at its headings: each heading's kind and its text, in order."""
     found: list[tuple[str, list[str]]] = []
+    previous = ""
     for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         heading = _heading(line)
+        if heading is not None and _wrapped_cell(previous, line):
+            heading = None
+        previous = line
         if heading is not None:
             name, rest = heading
             found.append((name, [rest] if rest else []))
@@ -989,8 +1124,14 @@ def sections(text: str) -> dict[str, str]:
     kind ("Exam: 15 January" above "Assessment methods" and their list keeps the
     list); nothing when the text has none of the headings."""
     out: dict[str, str] = {}
+
+    def rank(name: str, body: str) -> tuple[bool, int]:
+        # D180: an assessment section with its weights before a longer one without them
+        # ("Exam" over a schedule's last row, "Assessment Methods: … 50%").
+        return (name == "assessment" and "%" in body, len(body))
+
     for name, body in _cut(text):
-        if name in SECTIONS and len(body) > len(out.get(name, "")):
+        if name in SECTIONS and (name not in out or rank(name, body) > rank(name, out[name])):
             out[name] = body
     return out
 
@@ -1035,6 +1176,16 @@ _WEEKS = re.compile(
 )
 
 
+# What a weight in brackets goes on to say when it is the part's own: "(20% of the final
+# grade)", "(30 % de la note)", "(40% del voto finale)" (D180).
+_OF_GRADE = re.compile(
+    r"^\s*(?:of|de|du|del|della|dell'|do|da|der|des|van|het)\s+(?:the\s+|la\s+|il\s+|el\s+|a\s+|die\s+|het\s+)?"
+    r"(?:final\s+|overall\s+|total\s+|finale?\s+)?(?:grade|mark|score|note|voto|valutazione|nota|"
+    r"calificaci[oó]n|cijfer|eindcijfer|gesamtnote|note finale|total)\b",
+    re.IGNORECASE,
+)
+
+
 def _clause(text: str, last: bool) -> str:
     """The last (or first) clause of `text`, its asides in brackets dropped:
     "(short quiz…), midterm" gives "midterm"."""
@@ -1061,6 +1212,16 @@ def assessment(text: str) -> list[Part]:
             before = line[pos : m.start()]
             percent = round(float(m["p"].replace(",", ".")))
             bracket = (m[0].lstrip().startswith("("), m[0].rstrip().endswith(")"))
+            closing = line.find(")", m.end())
+            if bracket == (True, False) and closing != -1 and _OF_GRADE.match(line[m.end() : closing]):
+                # "(20% of the final grade)": this part's weight, said in brackets (D180)
+                label = _clause(before, last=True)
+                if 0 < percent <= 100 and sum(c.isalpha() for c in label) >= 3:
+                    weeks = _WEEKS.search(before)
+                    found_weeks = tuple(int(n) for n in re.findall(r"\d{1,2}", weeks[1])) if weeks else ()
+                    parts.append(Part(label[0].upper() + label[1:], percent, found_weeks))
+                pos = closing + 1
+                continue
             if before.count("(") > before.count(")") or bracket in ((True, False), (False, True)):
                 pos = m.end()  # "(10% + 10%)", "(of which oral 20 %)": inside another part
                 continue
@@ -1104,7 +1265,12 @@ def hours(text: str) -> float | None:
         line = next((x for x in body.split("\n") if x.strip()), "")
         if _PER_WEEK.search(_folded(line)):
             return None
-        values = [float(v.replace(",", ".")) for v in _HOUR_VALUES.findall(line)]
+        # "84h / semester (42h of lectures, 42h of tutorials)": the total, its split in
+        # brackets not added to it (D180).
+        outside = _PARENS.sub(" ", line)
+        values = [
+            float(v.replace(",", ".")) for v in _HOUR_VALUES.findall(outside) or _HOUR_VALUES.findall(line)
+        ]
         if not values:
             bare = re.match(r"^\s*(\d{1,3})\b(?!\s*%)", line)
             values = [float(bare[1])] if bare else []
