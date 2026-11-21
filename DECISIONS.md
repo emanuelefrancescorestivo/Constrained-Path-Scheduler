@@ -7059,3 +7059,50 @@ without it, shows less often. The twelve leaves and the labels' place
 are choices. The chevron's fix was checked in Chromium only: no Safari here, so whether an iPhone
 now draws it on the right is for the owner's phone. Checked in Chromium only, at phone size, 320 px
 and 1280 px, light and dark, in Italian, with the page hidden and shown again under a fake clock.
+
+## D180. A first year's program read whole
+
+**Asked.** The owner, on 2026-11-21, with the PDF of their school's first-year syllabus (six
+courses, not in the repository): "dobbiamo solo adattarla anche al syllabus degli Year1". The
+semester import (D90) was built on another year's program; this one writes its courses in six
+shapes: a dated table with two rows a week, a table of numbered weeks, chapters with bullets,
+chapters each with a paragraph, a list of thematic modules, and a table of sessions with an
+objective column.
+
+**Chosen.** The import read most of it already. What it missed, each fixed by a rule for any
+program of that shape (AUDIT 122), each with a case written for another course in
+`tests/test_program_shapes.py` and a Spanish program in `tests/test_generality.py`:
+- A compound a justified PDF line split before its hyphen ("matrix -vector", "Mid -semester",
+  "Units 5 –10") is one word again in a title; a dash with spaces on both sides stays.
+- "Continuation of last course" is no topic: "Continuation" was taken off and "of last course"
+  kept. What is left after the word, when it only says what it continues, drops the row.
+- A numbered chapter, unit, module or part with a paragraph under it is one topic, the
+  paragraph its description; over bulleted items it stays their label (D90).
+- A total of hours with its split in brackets ("84h / semester (42h of lectures, 42h of
+  tutorials)") is the total, not their sum (168).
+- A weight in brackets that is the part's own ("quizzes (20% of the final grade)") and one after
+  a colon ("Presentation: 20%.") are read. Of several assessment sections, one with weights is
+  read before a longer one without them.
+- A table's cell a PDF wrapped into one word a line ("Final" / "Exam") is no heading: "Exam" had
+  cut the course's content there, losing the final exam's row, and been read as the assessment.
+- A session table's objective column, run into each row by the PDF, is cut at "Students will be
+  able to" (and the same in the six other languages read), when it starts a sentence or is
+  written with its capital; a phrase said twice at a title's start (two columns alike) is said
+  once.
+- "Mid-term Exam" and an exam "covering Units 1–4" are assessments; a row named instead of
+  numbered ("Final Exam" above its date) keeps its name and its date.
+- A schedule's dates run forward: a January written with the old year after a December is the
+  next year's. A year alone on the line under its date is read as the date's.
+
+**Rejected.** Reading the file's own layout (columns by position): the reader works on text, so
+that a pasted program and a PDF are read alike (D90). Fitting rules to the six course names: the
+rules name shapes, not courses (invariant 13). Keeping a chapter's paragraph as topics split at
+its semicolons: a chapter is the unit the plan spreads over the weeks, and a paragraph's clauses
+are not of one size.
+
+**Disclosed.** Tried on the owner's first-year PDF and the shapes written for the tests, not on
+another university's; the objective cut knows the phrasing listed, not every way an objective is
+written. In this PDF a year alone on its line is taken for a page number and dropped, so the
+sessions' days keep no year and take their teaching week's, as before. A final exam's date said
+only in the assessment's text (the programming course's) is not read as its day. Checked in
+Chromium at phone size and 1280 px: the import page with the PDF, six courses found.

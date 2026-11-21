@@ -420,6 +420,34 @@ PROGRAMS = {
             (3, None, "topic", "Normalformen"),
         ],
     ),
+    # D180, after a first year's program (AUDIT 122): a session table whose objective column
+    # runs into its topics, a continuation, a partial exam "on" its themes, the hours' total
+    # with its split in brackets, weights after a colon or said "of the final grade", and
+    # chapters written with a paragraph under each.
+    "Spanish, sessions with their objectives and chapters": (
+        "Programa del primer semestre\nMicroeconomía I\nProfesor: Dr. Ejemplo\nObjetivos:\n"
+        "- Entender los mercados.\nContenidos:\nSesión Fecha Contenido Objetivo\n"
+        "1 15 sep. 2026 Tema 1 - Mercados y precios Los estudiantes serán capaces de explicar la oferta.\n"
+        "2 22 sep. 2026 Tema 2 - Elasticidad Los estudiantes podrán calcular elasticidades.\n"
+        "3 29 sep. 2026 Continuación de la clase anterior\n"
+        "4 6 oct. 2026 Examen parcial sobre los temas 1 –2\n"
+        "Horas totales: 30h / semestre (20h de clases, 10h de prácticas)\nCréditos: 4\n"
+        "Evaluación: Examen parcial: 40%., Examen final: 60%.\n"
+        "Estadística I\nProfesor: Dra. Otra\nObjetivos:\n- Razonar con probabilidades.\nContenidos:\n"
+        "Capítulo 1 — Probabilidad\nEspacios muestrales; axiomas;\nprobabilidad condicionada.\n\n"
+        "Capítulo 2 — Variables aleatorias\nDistribuciones discretas; esperanza y varianza.\n"
+        "Horas totales: 45 horas\nCréditos: 6\n"
+        "Evaluación: Prácticas (20% de la nota final) y examen final (80% de la nota final).\n",
+        {
+            "Microeconomía I": (4.0, 30.0, [("Examen parcial", 40), ("Examen final", 60)]),
+            "Estadística I": (6.0, 45.0, [("Prácticas", 20), ("Examen final", 80)]),
+        },
+        [
+            (1, "2026-09-15", "topic", "Tema 1 - Mercados y precios"),
+            (2, "2026-09-22", "topic", "Tema 2 - Elasticidad"),
+            (4, "2026-10-06", "assessment", "Examen parcial sobre los temas 1–2"),
+        ],
+    ),
 }
 
 
@@ -435,6 +463,9 @@ def test_a_semester_program_is_cut_into_its_courses_in_each_system(shape):
         assert [(p.label, p.percent) for p in syllabus.assessment(course.text)] == parts
     topics = read_syllabus(syllabus.course_text(found[0].text))
     assert [(t.week, t.day, t.kind, t.title) for t in topics] == first
+    if shape.startswith("Spanish"):  # each chapter, its paragraph not a topic of its own
+        second = read_syllabus(syllabus.course_text(found[1].text))
+        assert [t.title for t in second] == ["Probabilidad", "Variables aleatorias"]
     if shape.startswith("French"):  # a week without class is not a topic
         second = read_syllabus(syllabus.course_text(found[1].text))
         assert [(t.week, t.title) for t in second] == [(1, "Dénombrement"), (3, "Variables aléatoires")]

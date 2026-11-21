@@ -1356,3 +1356,15 @@ summary's `::after`, and the list's own marker and `::before` rules were overrid
 specificity. Status: changed with D179, not verified on Safari: the chevron is an element of the
 page, the summary a plain block with its marker and pseudo-elements turned off, the pill inside it.
 
+**122. A first-year program read with gaps.** Found on 2026-11-21 by reading the owner's
+first-year syllabus PDF (six courses, not in the repository) through the semester import. What it
+missed: rows "Continuation of last course" kept as topics "of last course"; the programming
+course's hours read as 168 (the total and its split in brackets added up), not 84; the probability
+course's chapters cut at the PDF's line breaks, two description lines as topics for one chapter
+and none for another; the weights "(20% of the final grade)" and "Presentation: 20%." not read;
+in the economics course, each session's objective column in its title, "Mid-term Exam" not an
+assessment, and a wrapped "Final" / "Exam" cell read as a heading that cut off the final exam's
+row and hid the weights; words split at their hyphen ("matrix -vector"). Status: fixed with
+D180, each by a rule for any program of the shape (`tests/test_program_shapes.py`, the Spanish
+case in `tests/test_generality.py`).
+
