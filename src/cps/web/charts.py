@@ -175,3 +175,40 @@ def climb(totals: Sequence[float], passed: Sequence[tuple[int, float]], next_fla
         "next": {"m": next_flag, "y": y(next_flag)} if next_flag else None,
         "hits": [{"x": round(CLIMB_W * i / n, 1), "w": round(CLIMB_W / n, 1)} for i in range(len(totals))],
     }
+
+
+# D179 (the owner's B, "l'anello è il rampicante"): the focus clock's ring is the vine. It
+# starts at the top and grows clockwise with the minutes on the page; a full turn is the
+# session's stem (its length or an hour, whichever is longer, `service._focus_stem`). The
+# drawing is a square of 260 units round a ring of radius 92 centred at (100, 100), room
+# for the labels outside it.
+VINE_R = 92.0
+VINE_LABEL = 20.0  # how far outside the ring a bud's label sits
+VINE_CLEAR = 0.035  # no leaf this close (a share of the ring) to a bud
+
+
+def _on_ring(share: float, radius: float = VINE_R) -> tuple[float, float]:
+    turn = 2 * math.pi * share
+    return 100 + radius * math.sin(turn), 100 - radius * math.cos(turn)
+
+
+def vine(stem: dict) -> dict:
+    """Where the vine's buds, their labels and its leaves sit on the ring (D179), from a
+    running session's stem: each bud at its reward's share of the turn (the last just short
+    of the top, where the vine starts), its label outside it; each leaf at its share, turned
+    along the ring, out and in by turns, none on a bud."""
+    buds = []
+    for bud in stem["buds"]:
+        share = min(float(bud["share"]), 0.993)
+        x, y = _on_ring(share)
+        lx, ly = _on_ring(share, VINE_R + VINE_LABEL)
+        buds.append({**bud, "x": round(x, 1), "y": round(y, 1), "lx": round(lx, 1), "ly": round(ly + 4, 1)})
+    leaves = []
+    for leaf in stem["leaves"]:
+        share = float(leaf["share"])
+        if any(abs(share - float(b["share"])) < VINE_CLEAR for b in stem["buds"]):
+            continue
+        x, y = _on_ring(share)
+        angle = 360 * share + (-45 if leaf["side"] else 45)
+        leaves.append({**leaf, "x": round(x, 1), "y": round(y, 1), "angle": round(angle, 1)})
+    return {"buds": buds, "leaves": leaves, "percent": stem["percent"]}

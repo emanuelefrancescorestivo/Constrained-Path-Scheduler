@@ -1768,19 +1768,34 @@ html:not(.settled) :is(.feed, .library, .group-list, .tiles) > :nth-child(n+5) {
 .toast { animation: toast-in 0.34s var(--ease-spring) both; }
 .toast.leaving { animation: toast-out 0.2s var(--ease-in) both; }
 
-/* Focus: the clock breathes, and a ring goes round once a minute. */
+/* Focus: the clock breathes, inside the vine that grows round it (D179). */
 .focus-dial { position: relative; display: grid; place-items: center; width: min(86vw, 30rem); aspect-ratio: 1; margin: 4px 0 8px; }
-.focus-dial .focus-timer { position: relative; font-size: clamp(3.2rem, 14.5vw, 6rem); }
+.focus-face { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.focus-dial .focus-timer { position: relative; font-size: clamp(2.8rem, 13vw, 5.4rem); }
 .focus-dial::before {
   content: ""; position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(closest-side, var(--accent-soft), transparent);
   animation: breathe 5s ease-in-out infinite;
 }
-.focus-orbit { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.focus-vine { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* No non-scaling stroke here: it measures dashes in screen pixels, not in pathLength. */
-.focus-orbit circle { fill: none; stroke-width: 0.55; }
-.focus-orbit .track { stroke: var(--fill-3); }
-.focus-orbit .sweep { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100 100; } /* turned by focus.js */
+.vine-track { fill: none; stroke: var(--fill-3); stroke-width: 1.6; stroke-dasharray: 0.5 5; stroke-linecap: round; }
+.vine-grow { fill: none; stroke: var(--ok); stroke-width: 4.5; stroke-linecap: round; transition: stroke-dasharray 900ms linear; }
+.vine-leaf { fill: var(--ok); opacity: 0; transition: opacity 600ms ease; }
+.vine-leaf.is-out { opacity: 0.9; }
+.vine-bud .bud { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.6; }
+.vine-bud .bud-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.vine-bud .flower { display: none; }
+.vine-bud.is-open .bud { display: none; }
+.vine-bud.is-open .flower { display: inline; }
+.vine-bud .flower circle { fill: #f59abf; }
+.vine-bud.is-goal .flower circle { fill: #8da8f5; }
+.vine-bud .flower .heart { fill: #f5c542; }
+.vine-label { font-size: 12px; font-weight: 700; fill: var(--muted); }
+.vine-bud.is-goal .vine-label { fill: var(--accent-ink); }
+.vine-next { margin: 0; color: var(--ok); font-size: 0.95rem; font-weight: 650; }
+@media (prefers-reduced-motion: reduce) { .vine-grow, .vine-leaf { transition: none; } }
+:root[data-motion="reduce"] :is(.vine-grow, .vine-leaf) { transition: none; }
 
 /* Flashcards: the answer rises in, the four answers after it. */
 .flash-answer[open] .flash-back { animation: rise 0.35s var(--ease-out) both; }
@@ -5718,23 +5733,7 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .aim-add { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; }
 .aim-add input { flex: 1 1 200px; min-width: 0; }
 
-.focus-stem { width: 100%; max-width: 460px; margin: 12px auto 0; padding: 12px 12px 10px; }
-.focus-stem svg { display: block; width: 100%; height: auto; overflow: visible; }
-.focus-stem figcaption { margin: 4px 4px 0; font-size: 0.95rem; text-align: left; }
-:is(.focus-stem, .focus-garden) + .focus-goal { margin-top: 12px; }
-.stem-track { stroke: var(--fill-2); stroke-width: 5; stroke-linecap: round; }
-.stem-grow { stroke: var(--ok); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 900ms linear; }
-.stem-leaf { fill: var(--ok); opacity: 0; transition: opacity 600ms ease; }
-.stem-leaf.is-out { opacity: 0.85; }
-.stem-bud .bud { fill: var(--surface); stroke: var(--line-strong); stroke-width: 2; }
-.stem-bud.is-goal .bud { stroke: var(--accent); stroke-width: 2.5; }
-.stem-bud .flower { display: none; }
-.stem-bud.is-open .bud { display: none; }
-.stem-bud.is-open .flower { display: inline; animation: pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
-.stem-bud .flower circle { fill: #f59abf; }
-.stem-bud.is-goal .flower circle { fill: #8da8f5; }
-.stem-bud .flower .heart { fill: #f5c542; }
-.stem-label { font-size: 14px; font-weight: 700; fill: var(--muted); }
+.focus-garden + .focus-goal { margin-top: 12px; }
 /* D178 (the owner's 2B): the week's garden, a plant a day on a line of soil. */
 .focus-garden { width: 100%; max-width: 460px; margin: 12px auto 0; padding: 14px 16px 12px; text-align: left; }
 .garden-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -5754,14 +5753,15 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .fg-flower circle { fill: var(--cc); }
 .fg-flower .fg-heart { fill: #f5c542; }
 .garden-note { margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
-.stem-bud.is-goal .stem-label { fill: var(--accent-ink); }
 
 .focus-live { width: 100%; max-width: 460px; margin: 12px auto 0; text-align: left; }
-.focus-live > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 48px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 6px 16px 6px 14px; border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-sm); cursor: pointer; font-weight: 600; }
+.focus-live > summary { list-style: none; display: block; width: fit-content; max-width: 100%; margin: 0 auto; cursor: pointer; font-weight: 600; }
+.focus-live > summary::marker { content: ""; }
+.focus-live > summary::before, .focus-live > summary::after { content: none; display: none; }
+.live-pill { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 16px 6px 14px; border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.live-chev { color: var(--muted); transition: transform 0.15s; }
+.focus-live[open] .live-chev { transform: rotate(90deg); }
 .focus-live > summary::-webkit-details-marker { display: none; }
-.focus-live > summary::before { content: none; }
-.focus-live > summary::after { content: "›"; color: var(--muted); }
-.focus-live[open] > summary::after { content: "⌄"; }
 .live-faces { display: flex; padding-left: 8px; }
 .live-faces .avatar { margin-left: -8px; box-shadow: 0 0 0 2px var(--surface); }
 .focus-live .live-dot { margin-right: 0; }
@@ -5786,4 +5786,3 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .pause-ideas li + li { border-top: 1px solid var(--line); }
 .focus-pause .hint { margin: 0; }
 .focus-pause form { width: 100%; margin: 0; }
-@media (prefers-reduced-motion: reduce) { .stem-grow, .stem-leaf { transition: none; } }

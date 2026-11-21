@@ -7894,7 +7894,14 @@ def start_focus(
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
     if place:
         options["places_recent"] = _remember_place(options, place)
-    return replace(subscription, options={**options, "focus": focus})
+    # D179: the rhythm chosen is the student's next one too, where a session starts in one tap.
+    return replace(subscription, options={**options, "focus": focus, "focus_rhythm": bool(rhythm)})
+
+
+def focus_rhythm_default(subscription: Subscription) -> bool:
+    """Whether a session started in one tap (Today, Join, a session's card) keeps the 25 + 5
+    rhythm (D179): the student's last choice on the focus page, on until they turn it off."""
+    return bool(subscription.options.get("focus_rhythm", True))
 
 
 def _beat(focus: dict, now: datetime) -> dict:
@@ -8175,6 +8182,9 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
             started=_iso(started),
             started_local=f"{started.astimezone(zone):%H:%M}",
             elapsed=elapsed,
+            # D179: the clock shows the minutes on the page, the stem's and the diary's.
+            focused=focused,
+            grace=round(FOCUS_GRACE.total_seconds()),
             away=focus["away"],
             away_minutes=round(focus["away"] / 60),
             interruptions=focus["interruptions"],
@@ -8337,7 +8347,8 @@ def focus_garden(
 # D178 (the owner's 2C): the running session's rewards as a stem whose buds open as they are
 # reached, drawn to the length chosen or an hour, whichever is longer; its leaves come out as
 # the stem grows, at these shares of it.
-FOCUS_STEM_LEAVES = (0.1, 0.26, 0.42, 0.58, 0.74, 0.9)
+# D179: round the clock, a leaf every twelfth of the ring.
+FOCUS_STEM_LEAVES = tuple(round((k + 0.5) / 12, 3) for k in range(12))
 
 
 def _focus_stem(goal: int, focused: int) -> dict:

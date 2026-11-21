@@ -3,7 +3,7 @@
 // stop timers on a hidden page, so a gap between beats is time away from it
 // (DECISIONS.md D17). This script measures nothing itself; the server decides.
 import { t } from "./i18n.js";
-import { celebrate, resting } from "./motion.js";
+import { celebrate } from "./motion.js";
 import { toast } from "./ui.js";
 
 const section = document.querySelector(".focus");
@@ -16,7 +16,6 @@ let since = performance.now();
 let beatTimer = null;
 let lock = null;
 
-const sweep = document.getElementById("focus-sweep");
 // The break nudge (D63): the server says after how long; it is in the page,
 // hidden, and shown when the clock gets there.
 const nudge = document.querySelector(".focus-break[data-break-at]");
@@ -27,6 +26,16 @@ const rewards = [...document.querySelectorAll(".focus-rewards [data-at]")];
 const rewardCard = document.querySelector(".focus-reward");
 let awaySeconds = Number(section.dataset.away || 0);
 const pad = (n) => String(n).padStart(2, "0");
+// D179: the clock shows the minutes on the page, the vine's and the diary's: the time away
+// is taken off. While the page is hidden nothing runs; back on it, the time it was hidden
+// is taken off at once as the server will (more than a grace, less one heartbeat), until
+// the heartbeat's answer brings the server's own count.
+const grace = Number(section.dataset.grace || 75);
+let hiddenAt = null;
+let localAway = 0;
+const focusedNow = () => Math.max(0, now() - awaySeconds - localAway);
+const clockText = (s) =>
+  s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${Math.floor(s / 60)}:${pad(s % 60)}`;
 
 // The rhythm (D178, the owner's 3A): 25 minutes of work, then a 5-minute pause by itself.
 // The clock stops while the pause counts down; at either edge the page tells the server
@@ -72,13 +81,13 @@ function rhythmStep() {
   }
 }
 
-// The stem (D178, the owner's 2C): it grows with the focused time; leaves come out and buds
-// open as it passes them.
+// The vine round the clock (D179, the owner's B; D178's stem before it): it grows with the
+// minutes on the page; leaves come out and buds open as it passes them.
 const horizon = Number(section.dataset.horizon || 3600);
-const stemGrow = document.getElementById("stem-grow");
+const stemGrow = document.getElementById("vine-grow");
 const stemNext = document.getElementById("stem-next");
-const buds = [...document.querySelectorAll(".stem-bud[data-at]")];
-const leaves = [...document.querySelectorAll(".stem-leaf[data-share]")];
+const buds = [...document.querySelectorAll(".vine-bud[data-at]")];
+const leaves = [...document.querySelectorAll(".vine-leaf[data-share]")];
 function growStem(focused) {
   if (!stemGrow) return;
   const share = Math.min(1, Math.max(0, focused / horizon));
@@ -93,8 +102,7 @@ function growStem(focused) {
   if (stemNext) {
     if (ahead === null) stemNext.textContent = stemNext.dataset.all;
     else {
-      const n = Math.ceil((ahead - focused) / 60);
-      stemNext.textContent = (n === 1 ? stemNext.dataset.one : stemNext.dataset.many).replace("{n}", n);
+      stemNext.textContent = stemNext.dataset.many.replace("{n}", Math.ceil((ahead - focused) / 60));
     }
   }
 }
@@ -116,28 +124,6 @@ function sayCheers(handles) {
       : cheersLine.dataset.many.replace("{names}", names);
   cheersLine.hidden = false;
 }
-const still = () =>
-  document.documentElement.dataset.motion === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// The ring round the clock goes round once a minute (D30) and closes as the minute's
-// digits turn over: it is drawn from the same clock as the digits, on every frame, so
-// a beat that corrects the clock moves both together. (It was a CSS animation whose
-// start was shifted at every beat, which pushed it out of step, AUDIT 72.) Under
-// reduced motion it stays a still, full circle.
-// While the page rests (D93) it moves with the digits, once a second, instead of on
-// every frame: a session left open for an hour costs a slow device little.
-function sweepTo() {
-  if (sweep && !still()) sweep.style.strokeDashoffset = String(100 - ((now() % 60) / 60) * 100);
-}
-let sweeping = false;
-function sweepFrame() {
-  sweepTo();
-  sweeping = !resting();
-  if (sweeping) requestAnimationFrame(sweepFrame);
-}
-document.addEventListener("cps:wake", () => {
-  if (!sweeping) requestAnimationFrame(sweepFrame);
-});
 // The digits turn on the second itself, not up to a second late.
 function tick() {
   draw();
@@ -145,12 +131,11 @@ function tick() {
 }
 function draw() {
   rhythmStep();
-  if (!sweeping) sweepTo();
-  const seconds = Math.floor(now());
-  clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
-  if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
-  reward(seconds - awaySeconds);
-  growStem(seconds - awaySeconds);
+  const focused = Math.floor(focusedNow());
+  clock.textContent = clockText(focused);
+  if (nudge && nudge.hidden && Math.floor(now()) >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
+  reward(focused);
+  growStem(focused);
 }
 
 function reward(focused) {
@@ -174,6 +159,7 @@ async function beat() {
     const state = await answer.json();
     elapsed = state.elapsed;
     awaySeconds = Number(state.away || 0);
+    localAway = 0;
     since = performance.now();
     if (rhythm) {
       // The server's rhythm has the last word (D178).
@@ -213,9 +199,20 @@ async function keepAwake() {
   }
 }
 
-document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    hiddenAt = pausing ? null : performance.now();  // a pause is never time away (D178)
+    return stop();
+  }
+  if (hiddenAt !== null) {
+    const gone = (performance.now() - hiddenAt) / 1000;
+    if (gone > grace) localAway += Math.round(gone - beatEvery / 1000);  // whole seconds: the digits keep their beat
+    hiddenAt = null;
+    draw();
+  }
+  start();
+});
 tick();
-requestAnimationFrame(sweepFrame);
 start();
 
 const tools = document.querySelector(".focus-tools");

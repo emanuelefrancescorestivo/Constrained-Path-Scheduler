@@ -7003,11 +7003,59 @@ later the owner added "2 anche B": the week's garden too (2B).
 
 **Disclosed.** 25 and 5 minutes are the Pomodoro technique's usual lengths, a convention, not a
 measured optimum; the pause's three ideas are choices. The garden's half is a threshold chosen; a
-  session that stopped early droops though it may have been the right length for that day. Whether an aim and its steps make sessions
-end with more done, and whether cheers bring sessions, is for the pilot. A cheer is seen within a
+session that stopped early droops though it may have been the right length for that day. Whether an
+aim and its steps make sessions end with more done, and whether cheers bring sessions, is for the
+pilot. A cheer is seen within a
 heartbeat (30 seconds) while the page is open; the one cheered cannot answer it. The steps are
 saved one tap at a time, each reloading the page without its script. The aim's ideas are the same
 for every course. Checked in Chromium only, at phone size and 1280 px, light and dark, in Italian:
 the start form, the running page with an aim and steps, the stem, the garden (also at 320 px), the
 line opened, the pause and the diary.
 
+## D179. Focus: the ring is the vine, and the clock counts the minutes on the page
+
+**Asked.** The owner, on 2026-11-21, with two screenshots of a session on the demo: "non penso
+che il timer e la pianta che cresce stiano di pari passo. E mi piace l'idea della pianta che si
+allunga, però proponi altri design." The clock read 0:32:46 while the stem said a flower was a
+minute from its 25 (AUDIT 119). Four designs were sent as pictures: A, the stem growing inside the
+dial; B, the dial's ring itself the vine; C, a vine climbing the screen's edge with the minutes at
+its tip; D, a plant in a pot by stages. The owner picked "B".
+
+**Chosen.**
+- One number. The clock shows the minutes on the page, the time away taken off: the number the vine
+  grows by, the rewards are counted on (D67), the rhythm's blocks are measured in (D178) and the
+  diary saves. While the page is hidden nothing runs; back on it, the script takes the time off at
+  once as the server will (D17: more than 75 seconds away counts, less one heartbeat), and the
+  heartbeat's answer has the last word. The meta line still says how often and how long the student
+  was away. Under an hour the clock reads minutes and seconds, then hours first.
+- The ring is the vine (B). The dial's ring, which went round once a minute (D30), is gone; a vine
+  starts at the top and grows clockwise with the minutes on the page, a full turn being D178's stem
+  (the length or an hour, whichever is longer). Leaves come out every twelfth of the ring as it
+  passes, none on a bud; a bud sits at each reward and opens into a flower when it is reached, the
+  length's ringed in the accent, each labelled outside the ring (`charts.vine`, the geometry; the
+  stem's data stays `service._focus_stem`). Under the digits, "Next flower in 5 min". D178's
+  separate stem card is gone; the week's garden (2B) stays under the steps.
+- The rhythm from anywhere (AUDIT 120). A session started in one tap (Today's next step, the first
+  day's card, Join, a session's card, the make-up session) keeps the 25 + 5 rhythm the student last
+  chose on the focus page, on to start (`focus_rhythm_default`); the focus page's switch says which
+  (`rhythm_set` tells an unticked box from a form without one) and is remembered.
+- The line of classmates draws its chevron as a part of the page, not through the summary's
+  pseudo-elements, which an iPhone showed on the wrong side (AUDIT 121).
+
+**Rejected.**
+- The stem following the clock's time since the start instead: the rewards and the saved minutes
+  would then count time off the page, which D17 and D67 do not.
+- A (the stem inside the dial): the digits and the plant compete for the same middle. C (up the
+  screen's edge): it takes a column from every card below the clock on a phone. D (a pot by stages):
+  a stage says less than a vine where each reward sits. The owner's choice besides.
+- Keeping the minute sweep around the vine: two rings, two speeds.
+- A clock that freezes for every glance away: the server keeps a short glance as time on the page
+  (D17's grace), so the clock does too, or it would jump forward on the heartbeat's answer.
+
+**Disclosed.** Back on the page after more than 75 seconds the clock keeps one heartbeat (30
+seconds) of the absence, as the server does; a glance under 75 seconds is not taken off. A session
+started before D179 shows the new clock from its next page. With the rhythm on in one-tap starts, D63's breaks tip, which shows only
+without it, shows less often. The twelve leaves and the labels' place
+are choices. The chevron's fix was checked in Chromium only: no Safari here, so whether an iPhone
+now draws it on the right is for the owner's phone. Checked in Chromium only, at phone size, 320 px
+and 1280 px, light and dark, in Italian, with the page hidden and shown again under a fake clock.
