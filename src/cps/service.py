@@ -7841,15 +7841,20 @@ def start_focus(
     repair: str | None = None,
     opener: str | None = None,
     place: str | None = None,
+    aim: str = "",
+    rhythm: bool = False,
     now: datetime | None = None,
 ) -> Subscription:
     """Start the timer for `course`, or for the plan's session `sid`, meant to last
     `goal` minutes (0: no length chosen, D67). `repair` names the missed day this
     session makes up for (D126): one of the last two days, checked when it is
     saved. `opener` is the card the session opens with (D128, `opening_card`); `place`
-    the place on the map it is studied at (D133), checked by the caller."""
+    the place on the map it is studied at (D133), checked by the caller. D178: `aim` is
+    what the student means to finish, in a line; with `rhythm`, a 5-minute pause comes by
+    itself after every 25 minutes of work (`_rhythm`)."""
     now = now or datetime.now(UTC)
     goal = focus_goal(goal)
+    aim = " ".join(str(aim or "").split())[:FOCUS_AIM_MOST]
     if sid:
         session = find_session(subscription, sid)
         if session is None:
@@ -7877,6 +7882,13 @@ def start_focus(
         "repair": repair or "",
         "opener": opener or "",
         "place": place or "",
+        "aim": aim,
+        "steps": [],
+        "rhythm": bool(rhythm),
+        "block": 0,
+        "rest": 0,
+        "rounds": 0,
+        "pause_from": "",
     }
     focus["beats"] = 0
     options = {k: v for k, v in subscription.options.items() if k != "focus_draft"}
@@ -7886,11 +7898,23 @@ def start_focus(
 
 
 def _beat(focus: dict, now: datetime) -> dict:
-    gap = now - datetime.fromisoformat(focus["last"])
+    last = datetime.fromisoformat(focus["last"])
+    gap = now - last
     away, interruptions = focus["away"], focus["interruptions"]
+    added = 0
     if focus["beats"] and gap > FOCUS_GRACE:
-        away += round((gap - FOCUS_BEAT).total_seconds())
-        interruptions += 1
+        # D178: a pause is time off the page by design: its part of the gap is not away.
+        paused = timedelta(0)
+        if focus.get("pause_from"):
+            begun = datetime.fromisoformat(focus["pause_from"])
+            ends = begun + timedelta(seconds=RHYTHM_PAUSE)
+            paused = max(timedelta(0), min(now, ends) - max(last, begun))
+        added = max(0, round((gap - FOCUS_BEAT - paused).total_seconds()))
+        if added:
+            away += added
+            interruptions += 1
+    if focus.get("rhythm"):
+        focus = _rhythm(focus, now, away=added)
     return {
         **focus,
         "last": _instant(now),
@@ -7898,6 +7922,112 @@ def _beat(focus: dict, now: datetime) -> dict:
         "interruptions": interruptions,
         "beats": focus["beats"] + 1,
     }
+
+
+# D178 (the owner's 3A, "ritmo 25 + 5, da solo"): the session's rhythm, 25 minutes of work
+# and a 5-minute pause that comes by itself; the clock stops while the pause counts down,
+# leaving the page during it is not time away, and the work starts again when it ends or
+# when the student taps to go on. 25 and 5 are the usual "Pomodoro" lengths, a convention
+# rather than a measured optimum; the breaks tip's study used 6 minutes every 24 (D62).
+RHYTHM_WORK = 25 * 60  # seconds of work before a pause
+RHYTHM_PAUSE = 5 * 60  # seconds of a pause
+
+
+def _rhythm(focus: dict, now: datetime, away: int = 0) -> dict:
+    """A session's rhythm brought from its last heartbeat to `now` (D178): the work block so
+    far (`block`, seconds), the pauses ended (`rest`, seconds), the pause going on
+    (`pause_from`, an instant, or ""), and the work blocks done (`rounds`). `away` is the
+    time away measured since the last heartbeat, which is not work. Pure: a heartbeat keeps
+    what it returns; a page only shows it."""
+    if not focus.get("rhythm"):
+        return focus
+    moment = datetime.fromisoformat(focus["last"])
+    block, rest, rounds = int(focus.get("block", 0)), int(focus.get("rest", 0)), int(focus.get("rounds", 0))
+    pause = str(focus.get("pause_from") or "")
+    left_away = max(0, int(away))
+    while True:
+        if pause:
+            ends = datetime.fromisoformat(pause) + timedelta(seconds=RHYTHM_PAUSE)
+            if now < ends:
+                break
+            rest += RHYTHM_PAUSE
+            moment, pause = max(moment, ends), ""
+            continue
+        available = (now - moment).total_seconds() - left_away
+        room = RHYTHM_WORK - block
+        if available < room:
+            block += max(0, round(available))
+            break
+        moment += timedelta(seconds=room + left_away)
+        left_away, block, rounds, pause = 0, 0, rounds + 1, _instant(moment)
+    return {**focus, "block": block, "rest": rest, "rounds": rounds, "pause_from": pause}
+
+
+def _paused_now(focus: dict, now: datetime) -> int:
+    """Seconds of the pause going on at `now` (D178); 0 at work."""
+    if not focus.get("pause_from"):
+        return 0
+    return max(
+        0, min(RHYTHM_PAUSE, round((now - datetime.fromisoformat(focus["pause_from"])).total_seconds()))
+    )
+
+
+def resume_focus(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
+    """Back to work before the pause ends (D178): the pause counts as long as it lasted."""
+    now = now or datetime.now(UTC)
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    focus = _rhythm(focus, now)
+    if focus.get("pause_from"):
+        focus = {**focus, "rest": int(focus["rest"]) + _paused_now(focus, now), "pause_from": "", "block": 0}
+    focus = {**focus, "last": _instant(now)}
+    return replace(subscription, options={**subscription.options, "focus": focus})
+
+
+# D178 (the owner's 1A and 1B): what the session means to finish, in a line, and the steps
+# it is cut into while the timer runs, ticked as they are done; at the end the diary asks
+# whether it was finished, its answer already given by the steps ticked.
+FOCUS_AIM_MOST = 120  # characters
+FOCUS_STEPS_MOST = 5
+FOCUS_STEP_MOST = 80  # characters
+FOCUS_FINISHED = ("yes", "partly", "no")
+
+
+def add_focus_step(subscription: Subscription, text: str) -> Subscription:
+    """A step of the running session (D178), at most `FOCUS_STEPS_MOST`."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    text = " ".join(str(text or "").split())[:FOCUS_STEP_MOST]
+    if not text:
+        raise InvalidInput(_("say what the step is"))
+    steps = list(focus.get("steps") or [])
+    if len(steps) >= FOCUS_STEPS_MOST:
+        raise InvalidInput(_("at most {n} steps", n=FOCUS_STEPS_MOST))
+    steps.append({"text": text, "done": False})
+    return replace(subscription, options={**subscription.options, "focus": {**focus, "steps": steps}})
+
+
+def tick_focus_step(subscription: Subscription, index: int, done: bool) -> Subscription:
+    """A step done, or not after all (D178)."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        raise InvalidInput(_("there is no session running"))
+    steps = [dict(x) for x in focus.get("steps") or []]
+    if not 0 <= index < len(steps):
+        raise InvalidInput(_("that step is not in this session"))
+    steps[index]["done"] = bool(done)
+    return replace(subscription, options={**subscription.options, "focus": {**focus, "steps": steps}})
+
+
+def _finished_guess(steps: Sequence[Mapping]) -> str:
+    """The diary's answer the steps already give (D178): every step ticked, yes; some, in
+    part; none, no; no steps, none yet."""
+    if not steps:
+        return ""
+    done = sum(1 for x in steps if x.get("done"))
+    return "yes" if done == len(steps) else "partly" if done else "no"
 
 
 def focus_beat(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
@@ -7919,11 +8049,13 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
     focus = subscription.options.get("focus")
     if not focus:
         raise InvalidInput(_("there is no session running"))
-    if focus["beats"]:
-        focus = _beat(focus, now)
+    focus = _beat(focus, now) if focus["beats"] else _rhythm(focus, now)
     started = datetime.fromisoformat(focus["started"])
     elapsed = min(now - started, FOCUS_LONGEST)
-    focused = max(elapsed - timedelta(seconds=focus["away"]), timedelta(minutes=1))
+    # D178: the rhythm's pauses are not studied time.
+    paused = timedelta(seconds=int(focus.get("rest", 0)) + _paused_now(focus, now))
+    focused = max(elapsed - timedelta(seconds=focus["away"]) - paused, timedelta(minutes=1))
+    steps = [dict(x) for x in focus.get("steps") or []]
     draft = {
         "course": focus["course"],
         "sid": focus["sid"],
@@ -7937,6 +8069,13 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "goal": int(focus.get("goal", 0)),
         "repair": str(focus.get("repair") or ""),
         "opener": str(focus.get("opener") or ""),
+        # D178: what it meant to finish, its steps, and the answer they already give; the
+        # aim is the diary's "What did you do?" unless the student writes otherwise.
+        "aim": str(focus.get("aim") or ""),
+        "title": str(focus.get("aim") or ""),
+        "steps": steps,
+        "finished": _finished_guess(steps),
+        "rounds": int(focus.get("rounds", 0)),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
     return replace(subscription, options={**options, "focus_draft": draft})
@@ -8019,8 +8158,13 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
     }
     if focus:
         started = datetime.fromisoformat(focus["started"])
-        elapsed = round((now - started).total_seconds())
         goal = int(focus.get("goal", 0))
+        # D178: the rhythm brought to now; its pauses stop the clock.
+        rhythm = _rhythm(focus, now)
+        pausing = _paused_now(rhythm, now)
+        elapsed = round((now - started).total_seconds()) - int(rhythm.get("rest", 0)) - pausing
+        focused = max(0, elapsed - focus["away"])
+        steps = [dict(x) for x in focus.get("steps") or []]
         known = {course_key(c): c for c in topic_courses(subscription)}
         running = known.get(course_key(str(focus["course"])))
         view.update(
@@ -8037,8 +8181,25 @@ def focus_view(subscription: Subscription, now: datetime | None = None, *, brief
             beat=round(FOCUS_BEAT.total_seconds()),
             goal=goal,
             goal_words=duration_words(goal) if goal else "",
-            rewards=_focus_rewards(goal, max(0, elapsed - focus["away"])),
+            rewards=_focus_rewards(goal, focused),
             opener=str(focus.get("opener") or ""),
+            # D178: what the session means to finish, its steps, the stem of its rewards,
+            # and its rhythm: at work or pausing, the seconds left of a pause, the work
+            # block so far, the blocks done and those its length makes.
+            aim=str(focus.get("aim") or ""),
+            steps=steps,
+            steps_done=sum(1 for x in steps if x.get("done")),
+            steps_most=FOCUS_STEPS_MOST,
+            stem=_focus_stem(goal, focused),
+            rhythm=bool(focus.get("rhythm")),
+            pausing=bool(rhythm.get("pause_from")),
+            pause_left=RHYTHM_PAUSE - pausing if rhythm.get("pause_from") else 0,
+            block=int(rhythm.get("block", 0)),
+            work=RHYTHM_WORK,
+            pause=RHYTHM_PAUSE,
+            round=int(rhythm.get("rounds", 0)) + (0 if rhythm.get("pause_from") else 1),
+            rounds=-(-goal * 60 // RHYTHM_WORK) if goal else 0,
+            goal_reached=bool(goal) and focused >= goal * 60,
         )
         if focus.get("sid") and not brief:
             card = session_card(subscription, focus["sid"], now)
@@ -8087,6 +8248,122 @@ _FOCUS_VERBS = {
     "": "I study {course} for {length}.",
 }
 FOCUS_AHEAD_MOST = 3  # rewards shown ahead of a session: the first two and the last
+# D178: a few aims to tap, by the kind of the plan's session, the field always the student's.
+_AIM_IDEAS = {
+    "review": ("10 flashcards", "the week's summary", "the exercises I got wrong"),
+    "first review": ("10 flashcards", "the week's summary", "the exercises I got wrong"),
+    "practice": ("a past paper", "3 exam questions", "the exercises I got wrong"),
+    "task": ("the first step", "a first draft", "the last part"),
+    "": ("the exercises", "a chapter", "the summary"),
+}
+
+
+def aim_ideas(suggested: Mapping | None) -> list[str]:
+    """What the focus page offers to finish in one tap (D178), by the plan's session's kind."""
+    kind = str((suggested or {}).get("kind") or "")
+    return [_(x) for x in _AIM_IDEAS.get(kind, _AIM_IDEAS[""])]
+
+
+# D178 (the owner's 2B): the week's garden on the focus page, a plant a day from Monday. The
+# states rank from nothing to a flower; a day shows its best session's.
+FOCUS_GARDEN = ("seed", "wilt", "sprout", "leaf", "bloom")
+
+
+def _garden_state(post: social.Post) -> str:
+    """A saved session's plant: in flower once it reached the length chosen, drooping when it
+    stopped before half of it, leafy otherwise (and when no length was chosen)."""
+    minutes = _minutes_of(post)
+    try:
+        goal = max(0, int(post.data.get("goal") or 0))
+    except (TypeError, ValueError):
+        goal = 0
+    if goal and minutes >= goal:
+        return "bloom"
+    if goal and 2 * minutes < goal:
+        return "wilt"
+    return "leaf"
+
+
+def focus_garden(
+    store: Path,
+    subscription: Subscription,
+    now: datetime | None = None,
+    running: Mapping | None = None,
+) -> dict:
+    """The week's garden (D178, the owner's 2B): from Monday, a plant for each day from the
+    sessions timed with Focus that day, in the course's colour, the best of the day kept; a
+    seed on a day without one, and on the days ahead. Today's is also the running session's
+    (`focus_view`): a sprout, in flower once its length is reached."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    monday = today - timedelta(days=today.weekday())
+    rank = {state: i for i, state in enumerate(FOCUS_GARDEN)}
+    best: dict[str, tuple[str, str]] = {}
+
+    def plant(day: str, state: str, course: str) -> None:
+        if rank[state] > rank[best.get(day, ("seed", ""))[0]]:
+            best[day] = (state, course)
+
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        if post.data.get("timed") and monday.isoformat() <= post.day <= today.isoformat():
+            plant(post.day, _garden_state(post), str(post.data.get("course") or ""))
+    if running and running.get("running"):
+        plant(
+            today.isoformat(),
+            "bloom" if running.get("goal_reached") else "sprout",
+            str(running.get("course")),
+        )
+    names = {"seed": _("no session"), "wilt": _("drooping"), "sprout": _("growing now")}
+    names |= {"leaf": _("grown"), "bloom": _("in flower")}
+    days = []
+    for k in range(7):
+        day = monday + timedelta(days=k)
+        state, course = best.get(day.isoformat(), ("seed", ""))
+        index = _course_index(subscription, course) if course else None
+        days.append(
+            {
+                "label": _("today") if day == today else _i18n.weekday_name(day, short=True),
+                "name": _i18n.weekday_name(day),
+                "state": state,
+                "said": names[state],
+                "colour": f"c{index % 7}" if index is not None else "cn",
+                "today": day == today,
+                "ahead": day > today,
+            }
+        )
+    return {"days": days, "flowers": sum(1 for d in days if d["state"] == "bloom")}
+
+
+# D178 (the owner's 2C): the running session's rewards as a stem whose buds open as they are
+# reached, drawn to the length chosen or an hour, whichever is longer; its leaves come out as
+# the stem grows, at these shares of it.
+FOCUS_STEM_LEAVES = (0.1, 0.26, 0.42, 0.58, 0.74, 0.9)
+
+
+def _focus_stem(goal: int, focused: int) -> dict:
+    """The stem of a running session (D178): how far it has grown (`share`, 0 to 1), each
+    reward's bud by its share of the stem, open once reached, and the minutes to the next."""
+    horizon = max(goal, 60) * 60
+    share = min(1.0, focused / horizon)
+    buds = [
+        {
+            "at": m * 60,
+            "share": m * 60 / horizon,
+            "label": duration_words(m),
+            "goal": bool(goal) and m == goal,
+            "open": focused >= m * 60,
+        }
+        for m in reward_points(goal, horizon // 60)
+    ]
+    ahead = next((int(str(b["at"])) for b in buds if not b["open"]), None)
+    return {
+        "share": share,
+        "percent": round(100 * share),
+        "buds": buds,
+        "leaves": [{"share": f, "out": share >= f, "side": i % 2} for i, f in enumerate(FOCUS_STEM_LEAVES)],
+        "next": -(-(ahead - focused) // 60) if ahead is not None else 0,
+        "horizon": horizon,
+    }
 
 
 def focus_ahead(goal: int) -> list[dict]:
@@ -8253,6 +8530,12 @@ def log_session(
         # When the timer started, for "starting on time" (D80); kept from 2026-10-21.
         "started": draft.get("started", "") if timed else "",
     }
+    # D178: what the session meant to finish, its steps, and whether it was finished.
+    if draft.get("aim"):
+        finished = str(form.get("finished") or draft.get("finished") or "")
+        data["aim"] = draft["aim"]
+        data["finished"] = finished if finished in FOCUS_FINISHED else ""
+        data["steps"] = [{"text": x["text"], "done": bool(x.get("done"))} for x in draft.get("steps") or []]
     visibility = _sharing(store, subscription.token, form.get("visibility"), "followers")
     day = (
         datetime.fromisoformat(draft["started"]).astimezone(zone).date()
@@ -10106,6 +10389,30 @@ def studying_now_view(
             }
         )
     return out
+
+
+def cheer_classmate(
+    store: str | os.PathLike, subscription: Subscription, handle: str, now: datetime | None = None
+) -> bool:
+    """A cheer to a classmate studying now, by handle (D178): False when one was sent to them
+    a moment ago."""
+    where = _store(store)
+    target = social.profile_by_handle(where, str(handle or "").lstrip("@")[:40])
+    if target is None:
+        raise InvalidInput(_("they are not studying now"))
+    try:
+        return social.cheer(where, subscription.token, target.token, now)
+    except social.SocialError as error:
+        raise InvalidInput(str(error)) from None
+
+
+def cheers_view(store: str | os.PathLike, subscription: Subscription) -> list[dict]:
+    """Who cheered the student during the session running (D178), the latest first."""
+    focus = subscription.options.get("focus")
+    if not focus:
+        return []
+    since = datetime.fromisoformat(focus["started"])
+    return [p.public() for p in social.cheers_for(_store(store), subscription.token, since)]
 
 
 def delete_comment(store: str | os.PathLike, token: str, comment_id: str) -> bool:

@@ -212,7 +212,8 @@ def test_community_shows_who_is_studying_with_a_join(web):
     joined = web.post(f"/p/{ben.token}/focus/start", data={"course": "Algebra 3", "goal": "25"})
     assert joined.status_code == 200
     focus = unescape(web.get(f"/p/{ben.token}/focus").text)
-    assert "Also studying now:" in focus and "@ada" in focus
+    # D178 (the owner's 4C): one line that opens on the list, each with a cheer.
+    assert "1 classmate studying with you" in focus and "@ada" in focus
     again = unescape(web.get(f"/p/{ben.token}/community").text)
     assert "You are studying too." in again and f'href="/p/{ben.token}/focus"' in again
     # Stopped: gone from the feed.
