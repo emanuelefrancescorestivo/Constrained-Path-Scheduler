@@ -1327,3 +1327,10 @@ and "(s)" for one. Status: fixed with D171: the filter knows both colons, the se
 singular and a plural (`_n`), and what remains is one card, its lines folded under it
 (`tests/test_today_one.py`). Warnings already written keep their old words until the plan is made
 again, which happens at the next change or the background refresh.
+
+**118. The focus page's length line sat under the week's garden.** Found on the live demo on
+2026-11-21, right after D178 was merged, at phone size: "Your length: 1 h 30" was half hidden by the
+garden's card. How found: a screenshot of a session started on the demo. `.focus-goal` keeps a
+negative top margin from before D178, which D178 undid only after the stem; the garden, added later
+in the same change, came between them. Status: fixed: the margin is undone after either card
+(`tests/test_focus_rhythm.py` checks the rule).

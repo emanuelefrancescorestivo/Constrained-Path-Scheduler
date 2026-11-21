@@ -5721,7 +5721,7 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .focus-stem { width: 100%; max-width: 460px; margin: 12px auto 0; padding: 12px 12px 10px; }
 .focus-stem svg { display: block; width: 100%; height: auto; overflow: visible; }
 .focus-stem figcaption { margin: 4px 4px 0; font-size: 0.95rem; text-align: left; }
-.focus-stem + .focus-goal { margin-top: 12px; }
+:is(.focus-stem, .focus-garden) + .focus-goal { margin-top: 12px; }
 .stem-track { stroke: var(--fill-2); stroke-width: 5; stroke-linecap: round; }
 .stem-grow { stroke: var(--ok); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 900ms linear; }
 .stem-leaf { fill: var(--ok); opacity: 0; transition: opacity 600ms ease; }
