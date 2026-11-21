@@ -5735,6 +5735,25 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .stem-bud.is-goal .flower circle { fill: #8da8f5; }
 .stem-bud .flower .heart { fill: #f5c542; }
 .stem-label { font-size: 14px; font-weight: 700; fill: var(--muted); }
+/* D178 (the owner's 2B): the week's garden, a plant a day on a line of soil. */
+.focus-garden { width: 100%; max-width: 460px; margin: 12px auto 0; padding: 14px 16px 12px; text-align: left; }
+.garden-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.garden-head h2 { margin: 0; font-size: 1.05rem; }
+.garden-head span { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.garden-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 10px 0 0; padding: 0; list-style: none; border-bottom: 3px solid color-mix(in srgb, #b8946a 60%, transparent); }
+.garden-week li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.garden-week svg { width: 32px; height: 48px; overflow: visible; }
+.garden-day { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.garden-week .is-today .garden-day { color: var(--accent-ink); font-weight: 750; }
+.fg-seed { fill: color-mix(in srgb, #b8946a 75%, transparent); }
+.is-ahead .fg-seed { opacity: 0.55; }
+.fg-stem { fill: none; stroke: var(--ok); stroke-width: 2.6; stroke-linecap: round; }
+.fg-leaf { fill: var(--ok); }
+.fg-dry { fill: none; stroke: #a8865c; stroke-width: 2.4; stroke-linecap: round; }
+.fg-dry-leaf { fill: #a8865c; }
+.fg-flower circle { fill: var(--cc); }
+.fg-flower .fg-heart { fill: #f5c542; }
+.garden-note { margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
 .stem-bud.is-goal .stem-label { fill: var(--accent-ink); }
 
 .focus-live { width: 100%; max-width: 460px; margin: 12px auto 0; text-align: left; }

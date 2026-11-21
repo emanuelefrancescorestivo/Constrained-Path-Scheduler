@@ -8264,6 +8264,76 @@ def aim_ideas(suggested: Mapping | None) -> list[str]:
     return [_(x) for x in _AIM_IDEAS.get(kind, _AIM_IDEAS[""])]
 
 
+# D178 (the owner's 2B): the week's garden on the focus page, a plant a day from Monday. The
+# states rank from nothing to a flower; a day shows its best session's.
+FOCUS_GARDEN = ("seed", "wilt", "sprout", "leaf", "bloom")
+
+
+def _garden_state(post: social.Post) -> str:
+    """A saved session's plant: in flower once it reached the length chosen, drooping when it
+    stopped before half of it, leafy otherwise (and when no length was chosen)."""
+    minutes = _minutes_of(post)
+    try:
+        goal = max(0, int(post.data.get("goal") or 0))
+    except (TypeError, ValueError):
+        goal = 0
+    if goal and minutes >= goal:
+        return "bloom"
+    if goal and 2 * minutes < goal:
+        return "wilt"
+    return "leaf"
+
+
+def focus_garden(
+    store: Path,
+    subscription: Subscription,
+    now: datetime | None = None,
+    running: Mapping | None = None,
+) -> dict:
+    """The week's garden (D178, the owner's 2B): from Monday, a plant for each day from the
+    sessions timed with Focus that day, in the course's colour, the best of the day kept; a
+    seed on a day without one, and on the days ahead. Today's is also the running session's
+    (`focus_view`): a sprout, in flower once its length is reached."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    monday = today - timedelta(days=today.weekday())
+    rank = {state: i for i, state in enumerate(FOCUS_GARDEN)}
+    best: dict[str, tuple[str, str]] = {}
+
+    def plant(day: str, state: str, course: str) -> None:
+        if rank[state] > rank[best.get(day, ("seed", ""))[0]]:
+            best[day] = (state, course)
+
+    for post in social.posts_of(_store(store), subscription.token, "session"):
+        if post.data.get("timed") and monday.isoformat() <= post.day <= today.isoformat():
+            plant(post.day, _garden_state(post), str(post.data.get("course") or ""))
+    if running and running.get("running"):
+        plant(
+            today.isoformat(),
+            "bloom" if running.get("goal_reached") else "sprout",
+            str(running.get("course")),
+        )
+    names = {"seed": _("no session"), "wilt": _("drooping"), "sprout": _("growing now")}
+    names |= {"leaf": _("grown"), "bloom": _("in flower")}
+    days = []
+    for k in range(7):
+        day = monday + timedelta(days=k)
+        state, course = best.get(day.isoformat(), ("seed", ""))
+        index = _course_index(subscription, course) if course else None
+        days.append(
+            {
+                "label": _("today") if day == today else _i18n.weekday_name(day, short=True),
+                "name": _i18n.weekday_name(day),
+                "state": state,
+                "said": names[state],
+                "colour": f"c{index % 7}" if index is not None else "cn",
+                "today": day == today,
+                "ahead": day > today,
+            }
+        )
+    return {"days": days, "flowers": sum(1 for d in days if d["state"] == "bloom")}
+
+
 # D178 (the owner's 2C): the running session's rewards as a stem whose buds open as they are
 # reached, drawn to the length chosen or an hour, whichever is longer; its leaves come out as
 # the stem grows, at these shares of it.

@@ -3626,6 +3626,15 @@ MESSAGES: dict[str, str] = {
     "You reached your length: {time}.": "Hai raggiunto la tua durata: {time}.",
     "You stayed with it the whole time.": "Concentrazione dall'inizio alla fine.",
     "points": "punti",
+    # D178 (2B): the week's garden on the focus page
+    "Your garden": "Il tuo giardino",
+    "{day}: {state}": "{day}: {state}",
+    "no session": "nessuna sessione",
+    "drooping": "piegata",
+    "growing now": "sta crescendo",
+    "grown": "cresciuta",
+    "in flower": "in fiore",
+    "Each session timed plants its day: in flower when it reaches your length, drooping when it stops before half.": "Ogni sessione cronometrata pianta il suo giorno: fiorisce quando arriva alla tua durata, si piega se si ferma prima della metà.",
     # D178: the focus session's aim and steps, stem, rhythm and cheers
     "@{handle} is cheering you on.": "@{handle} fa il tifo per te.",
     "A 5-minute pause every 25 minutes": "Una pausa di 5 minuti ogni 25",

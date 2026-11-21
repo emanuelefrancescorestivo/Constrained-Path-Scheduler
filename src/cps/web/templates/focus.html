@@ -129,6 +129,28 @@
     <figcaption id="stem-next" data-one="{{ _('{n} more minute and the next flower opens.') }}" data-many="{{ _('{n} more minutes and the next flower opens.') }}" data-all="{{ _('Every flower of this session is open.') }}">{% if st.next %}{{ _n("{n} more minute and the next flower opens.", "{n} more minutes and the next flower opens.", st.next) }}{% else %}{{ _("Every flower of this session is open.") }}{% endif %}</figcaption>
   </figure>
 
+  {# The week's garden (D178, the owner's 2B): a plant a day from the sessions timed. #}
+  {% if week_garden %}
+  <section class="card focus-garden" aria-labelledby="garden-title">
+    <div class="garden-head"><h2 id="garden-title">{{ _("Your garden") }}</h2><span>{{ _("this week") }}</span></div>
+    <ol class="garden-week">
+      {% for d in week_garden.days %}
+      <li class="{{ d.colour }} is-{{ d.state }}{% if d.today %} is-today{% endif %}{% if d.ahead %} is-ahead{% endif %}">
+        <svg viewBox="0 0 32 48" aria-hidden="true" focusable="false">
+          {% if d.state == "seed" %}<circle class="fg-seed" cx="16" cy="44" r="2.6"/>
+          {% elif d.state == "wilt" %}<path class="fg-dry" d="M16 47c0-10 0-16 3-20c2-3 5-3 6 0"/><path class="fg-dry-leaf" d="M16 38c-5 0-8 2-8 6c4 0 7-2 8-6z"/>
+          {% elif d.state == "sprout" %}<path class="fg-stem" d="M16 47V36"/><path class="fg-leaf" d="M16 38c-1-5-5-7-9-6c1 4 4 6 9 6z"/><path class="fg-leaf" d="M16 38c1-5 5-7 9-6c-1 4-4 6-9 6z"/>
+          {% else %}<path class="fg-stem" d="M16 47V18"/><path class="fg-leaf" d="M16 36c-2-6-7-8-12-7c2 5 6 7 12 7z"/><path class="fg-leaf" d="M16 30c2-6 7-8 12-7c-2 5-6 7-12 7z"/>
+          {% if d.state == "bloom" %}<g class="fg-flower"><circle cx="16" cy="9" r="4.2"/><circle cx="22.2" cy="13.5" r="4.2"/><circle cx="19.8" cy="20.6" r="4.2"/><circle cx="12.2" cy="20.6" r="4.2"/><circle cx="9.8" cy="13.5" r="4.2"/><circle class="fg-heart" cx="16" cy="15.4" r="3.1"/></g>{% endif %}
+          {% endif %}
+        </svg>
+        <span class="garden-day">{{ d.label }}</span><span class="visually-hidden">{{ _("{day}: {state}", day=d.name, state=d.said) }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="garden-note">{{ _("Each session timed plants its day: in flower when it reaches your length, drooping when it stops before half.") }}</p>
+  </section>
+  {% endif %}
   {% set reached = focus.rewards | selectattr("reached") | list %}
   {% if focus.goal %}<p class="focus-goal">{{ _("Your length: {time}", time=focus.goal_words) }}</p>{% endif %}
   <ol class="focus-rewards visually-hidden" aria-label="{{ _('Rewards') }}">

@@ -6940,14 +6940,15 @@ count could tell who.
 the streak they had. Whether Community on top brings more sessions is for the pilot. Checked in
 Chromium only, at phone size (light) and 1280 px (dark).
 
-## D178. Focus: an aim and its steps, a stem of flowers, a pause every 25 minutes, cheers
+## D178. Focus: an aim and its steps, a stem of flowers, the week's garden, a pause every 25 minutes, cheers
 
 **Asked.** The owner, on 2026-11-20, after D177: "forse dobbiamo lavorare un po' su questa feature
 del focus, come possiamo migliorarla". Four groups of designs were drawn (sent as pictures, since the
 design canvas did not open on the owner's phone), and the owner picked, on 2026-11-21, "1A e B- 2C-
 3A- 4C": an aim in Focus's sentence with ideas to tap (1A), steps ticked while the timer runs (1B),
 the rewards as a stem whose flowers open (2C), a pause by itself every 25 minutes (3A), and the
-classmates studying now as one line that opens on the list, each with a cheer (4C).
+classmates studying now as one line that opens on the list, each with a cheer (4C). A message
+later the owner added "2 anche B": the week's garden too (2B).
 
 **Chosen.**
 - The aim (1A). Under Focus's sentence, "What do you want to finish?", one field, and three ideas
@@ -6965,6 +6966,12 @@ classmates studying now as one line that opens on the list, each with a cheer (4
   shares of it, a bud opens into a flower when its reward is reached, the length's bud ringed in the
   accent; under it, how many minutes until the next flower opens. The list of rewards stays for a
   screen reader and the script, hidden from sight.
+- The week's garden (2B). Under the stem, "Your garden · this week": from Monday a plant for each
+  day from the sessions timed with Focus that day (`focus_garden`), the best of the day kept: in
+  flower, in the course's colour, when one reached the length chosen; leafy when it stopped past
+  half of it, or had no length; drooping when every one stopped before half; a seed on a day
+  without one and on the days ahead. Today's is also the running session's: a sprout, in flower
+  once its length is reached. A sentence under it says how a day's plant is chosen.
 - The rhythm (3A). "A 5-minute pause every 25 minutes" is a switch on the start form, on unless
   turned off. After 25 minutes of work the page turns into the pause: its round of the session
   (dots), the minutes left of it, three things to do (stand up and walk, a glass of water, look
@@ -6984,8 +6991,8 @@ classmates studying now as one line that opens on the list, each with a cheer (4
 **Rejected.**
 - A plan of the session's parts with their own minutes (1C): more to fill before starting, and
   D169 made the start one sentence.
-- A ring of petals round the clock (2A) or the week's plants (2B): the clock's ring already turns
-  each minute (D30), and the week is on Progress.
+- A ring of petals round the clock (2A): the clock's ring already turns each minute (D30).
+- A garden of every session rather than of days: a long week would not fit a phone's width.
 - A pause offered after 25 minutes, to accept or not (3B): a question at the moment attention is
   wanted elsewhere; the switch says it once, before the start.
 - Avatars round the timer (4A) or a course's table with free seats (4B): either shows people who
@@ -6995,11 +7002,12 @@ classmates studying now as one line that opens on the list, each with a cheer (4
   on the page, the next time the page asks.
 
 **Disclosed.** 25 and 5 minutes are the Pomodoro technique's usual lengths, a convention, not a
-measured optimum; the pause's three ideas are choices. Whether an aim and its steps make sessions
+measured optimum; the pause's three ideas are choices. The garden's half is a threshold chosen; a
+  session that stopped early droops though it may have been the right length for that day. Whether an aim and its steps make sessions
 end with more done, and whether cheers bring sessions, is for the pilot. A cheer is seen within a
 heartbeat (30 seconds) while the page is open; the one cheered cannot answer it. The steps are
 saved one tap at a time, each reloading the page without its script. The aim's ideas are the same
 for every course. Checked in Chromium only, at phone size and 1280 px, light and dark, in Italian:
-the start form, the running page with an aim and steps, the stem, the line opened, the pause and the
-diary.
+the start form, the running page with an aim and steps, the stem, the garden (also at 320 px), the
+line opened, the pause and the diary.
 

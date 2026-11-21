@@ -1531,6 +1531,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             cheers=service.cheers_view(store, subscription),
             cheered=cheered[:40],
             aim_ideas=service.aim_ideas(focus_now.get("suggested")),
+            # D178 (2B): the week's garden while the timer runs.
+            week_garden=service.focus_garden(store, subscription, config.clock(), focus_now)
+            if running
+            else None,
             tab="focus",
         )
 

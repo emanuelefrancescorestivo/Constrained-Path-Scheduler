@@ -209,3 +209,48 @@ def test_the_pages_start_with_an_aim_and_the_rhythm_and_show_the_pause(tmp_path)
     post = service.social.posts_of(service._store(tmp_path), sub.token, "session")[0]
     assert post.data["aim"] == "chapter 4" and post.data["finished"] == "partly"
     assert post.data["steps"] == [{"text": "Read 4.1", "done": True}]
+
+
+def test_the_weeks_garden_has_a_plant_a_day(tmp_path):
+    """The owner's 2B: from Monday a plant a day, the day's best session kept; today's also
+    the running session's, a sprout until its length is reached."""
+    sub = _plan(tmp_path)  # NOW is a Tuesday
+
+    def log(day: str, minutes: int, goal: int, *, timed: bool = True) -> None:
+        data = {
+            "course": "Algebra 3",
+            "effort": 5,
+            "progress": 3,
+            "minutes": minutes,
+            "goal": goal,
+            "timed": timed,
+        }
+        service.social.create_post(
+            service._store(tmp_path), sub.token, "session", day=day, visibility="me", data=data, now=NOW
+        )
+
+    log("2026-09-28", 50, 45)  # Monday: its length reached
+    log("2026-09-28", 10, 45)  # a short one the same day does not undo it
+    log("2026-09-27", 60, 45)  # last week
+    log("2026-09-29", 10, 45)  # today: stopped before half
+    log("2026-09-29", 90, 45, timed=False)  # typed by hand: not the timer's
+    garden = service.focus_garden(tmp_path, sub, NOW)
+    assert [d["state"] for d in garden["days"]] == ["bloom", "wilt"] + ["seed"] * 5
+    assert garden["flowers"] == 1 and garden["days"][0]["colour"] == "c0"
+    assert garden["days"][1]["today"] and garden["days"][1]["label"] == "today" and garden["days"][6]["ahead"]
+    running = service.start_focus(sub, "Algebra 3", goal=25, now=NOW)
+    growing = service.focus_garden(
+        tmp_path, sub, NOW, service.focus_view(running, NOW + timedelta(minutes=10))
+    )
+    assert growing["days"][1]["state"] == "sprout"
+    reached = service.focus_garden(
+        tmp_path, sub, NOW, service.focus_view(running, NOW + timedelta(minutes=30))
+    )
+    assert reached["days"][1]["state"] == "bloom" and reached["flowers"] == 2
+
+    service.save_subscription(tmp_path, running)
+    clock = [NOW + timedelta(minutes=5)]
+    config = Config(store=tmp_path, clock=lambda: clock[0], background=False, sweep_every=None)
+    with TestClient(create_app(config)) as web:
+        page = unescape(web.get(f"/p/{sub.token}/focus").text)
+    assert 'class="card focus-garden"' in page and "c0 is-bloom" in page and "Monday: in flower" in page

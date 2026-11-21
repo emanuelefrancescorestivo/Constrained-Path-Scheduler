@@ -9,7 +9,8 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 - Focus, the owner's picks (DECISIONS.md D178): what the session means to finish, typed or tapped
   from three ideas, cut into steps ticked while the timer runs, and the diary asks whether it was
-  finished; the rewards as a stem whose flowers open; a 5-minute pause by itself every 25 minutes,
+  finished; the rewards as a stem whose flowers open; the week's garden, a plant a day
+  from the sessions timed; a 5-minute pause by itself every 25 minutes,
   never counted as time away; the classmates studying now as one line, each with a cheer.
 
 - The end of a session celebrated (DECISIONS.md D177): every session timed with Focus ends on
