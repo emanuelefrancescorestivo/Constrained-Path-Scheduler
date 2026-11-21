@@ -295,7 +295,9 @@ def test_the_spark_on_today_and_focus_and_the_switch(tmp_path):
         shown = re.search(r'data-why="([\w-]+)"', focus)
         assert shown is not None and shown[1] in {"recall-strengthens", "breaks", "if-then", "effort-feels"}
         assert f"/p/{token}/tips?topic=" in focus and 'class="mascot is-' in focus
-        web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3"})
+        # The breaks tip is for a session without the 25 + 5 rhythm, whose pause does its work
+        # (D178); since D179 a one-tap start keeps the rhythm, so the switch is turned off here.
+        web.post(f"/p/{token}/focus/start", data={"course": "Algebra 3", "rhythm_set": "1"})
         running = web.get(f"/p/{token}/focus").text
         assert 'data-break-at="1440" hidden' in running  # shown by the clock at 24 minutes
         assert 'class="mascot is-rest"' in running

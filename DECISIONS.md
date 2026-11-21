@@ -7054,7 +7054,8 @@ its tip; D, a plant in a pot by stages. The owner picked "B".
 
 **Disclosed.** Back on the page after more than 75 seconds the clock keeps one heartbeat (30
 seconds) of the absence, as the server does; a glance under 75 seconds is not taken off. A session
-started before D179 shows the new clock from its next page. The twelve leaves and the labels' place
+started before D179 shows the new clock from its next page. With the rhythm on in one-tap starts, D63's breaks tip, which shows only
+without it, shows less often. The twelve leaves and the labels' place
 are choices. The chevron's fix was checked in Chromium only: no Safari here, so whether an iPhone
 now draws it on the right is for the owner's phone. Checked in Chromium only, at phone size, 320 px
 and 1280 px, light and dark, in Italian, with the page hidden and shown again under a fake clock.
