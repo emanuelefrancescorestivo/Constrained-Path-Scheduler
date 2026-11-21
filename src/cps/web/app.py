@@ -1531,6 +1531,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             cheers=service.cheers_view(store, subscription),
             cheered=cheered[:40],
             aim_ideas=service.aim_ideas(focus_now.get("suggested")),
+            rhythm_default=service.focus_rhythm_default(subscription),  # D179
             # D178 (2B): the week's garden while the timer runs.
             week_garden=service.focus_garden(store, subscription, config.clock(), focus_now)
             if running
@@ -1666,10 +1667,13 @@ def create_app(config: Config | None = None) -> FastAPI:
                 opener=service.opening_card(store, current, sid, config.clock()),
                 # Where, if the student chose a place on the map (D133).
                 place=(service.place_info(store, str(form.get("place") or "")[:20]) or {}).get("id"),
-                # D178: what the session means to finish, and the 25 + 5 rhythm (the page's
-                # switch, on unless the student turns it off; a form without it, off).
+                # D178: what the session means to finish, and the 25 + 5 rhythm. D179: the focus
+                # page's switch says it (`rhythm_set`, as an unticked box sends nothing); a
+                # session started in one tap elsewhere keeps the student's last choice.
                 aim=str(form.get("aim") or ""),
-                rhythm=form.get("rhythm") == "1",
+                rhythm=form.get("rhythm") == "1"
+                if form.get("rhythm_set")
+                else service.focus_rhythm_default(current),
                 now=config.clock(),
             )
 

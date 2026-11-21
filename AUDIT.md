@@ -1334,3 +1334,25 @@ garden's card. How found: a screenshot of a session started on the demo. `.focus
 negative top margin from before D178, which D178 undid only after the stem; the garden, added later
 in the same change, came between them. Status: fixed: the margin is undone after either card
 (`tests/test_focus_rhythm.py` checks the rule).
+
+**119. The focus clock ran ahead of the stem by the time away.** Reported by the owner on
+2026-11-21 with a screenshot: the clock read 0:32:46 and the stem said its flower at 25 minutes was
+a minute away; the meta line said "left the app 3 times (8 min)". How found: the screenshot's
+numbers. The clock showed the time since the start (less the rhythm's pauses), while the stem, the
+rewards and the diary count the minutes on the page, the time away taken off (D17, D67). Status:
+fixed with D179: the clock shows the minutes on the page, stops while the page is hidden and keeps
+the server's rule on return (`tests/test_focus_vine.py`).
+
+**120. Sessions started in one tap had no 25 + 5 rhythm.** Found in the same screenshot: no round in
+the meta line. D178's rhythm is "on unless turned off" on the focus page's switch, but Today's next
+step, the first day's card, Join, a session's card and the make-up session post to the same start
+without the switch, which read as off. Status: fixed with D179: those starts keep the student's last
+choice, on to start, and the focus page's switch is remembered (`tests/test_focus_vine.py`).
+
+**121. On an iPhone the line of classmates drew its chevron on the left.** Seen in the same
+screenshots: a "›" at the left edge of the line and none at its right. How found: the screenshots;
+Chromium draws it on the right, and there is no Safari here to reproduce it. The chevron was the
+summary's `::after`, and the list's own marker and `::before` rules were overridden only by
+specificity. Status: changed with D179, not verified on Safari: the chevron is an element of the
+page, the summary a plain block with its marker and pseudo-elements turned off, the pill inside it.
+

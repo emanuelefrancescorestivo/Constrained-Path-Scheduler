@@ -168,7 +168,7 @@ def test_the_pages_start_with_an_aim_and_the_rhythm_and_show_the_pause(tmp_path)
         assert 'name="aim"' in start and 'name="rhythm" value="1" checked' in start
         # The plan's session is a first review: aims for one, to tap.
         assert 'data-fills="focus-aim-in" hidden' in start and 'data-fill="10 flashcards"' in start
-        form = {"course": "Algebra 3", "goal": "60", "aim": "chapter 4", "rhythm": "1"}
+        form = {"course": "Algebra 3", "goal": "60", "aim": "chapter 4", "rhythm": "1", "rhythm_set": "1"}
         web.post(f"/p/{sub.token}/focus/start", data=form)
         web.post(f"/p/{sub.token}/focus/step", data={"step": "Read 4.1"})
         web.post(f"/p/{sub.token}/focus/step/0", data={"done": "1"})
@@ -176,11 +176,9 @@ def test_the_pages_start_with_an_aim_and_the_rhythm_and_show_the_pause(tmp_path)
         running = unescape(web.get(f"/p/{sub.token}/focus").text)
         assert "chapter 4" in running and "1 of 1" in running and 'class="aim-step is-done"' in running
         assert 'class="focus"' in running and 'id="focus-pause" hidden' in running
-        assert (
-            'class="stem-bud is-open' not in running
-            and "15 more minutes and the next flower opens." not in running
-        )
-        assert "20 more minutes and the next flower opens." in running  # the first reward at 30 min
+        # D179: the stem is the vine round the clock now, its first flower at 30 minutes.
+        assert 'class="vine-bud is-open' not in running and "Next flower in 15 min" not in running
+        assert "Next flower in 20 min" in running and 'id="focus-timer" aria-live="off">10:00<' in running
         clock[0] = NOW + timedelta(minutes=27)
         pausing = unescape(web.get(f"/p/{sub.token}/focus").text)
         assert 'class="focus is-pausing"' in pausing and 'id="focus-pause">' in pausing
@@ -262,7 +260,8 @@ def test_the_length_line_clears_the_card_above_it():
     css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text(
         encoding="utf-8"
     )
-    assert ":is(.focus-stem, .focus-garden) + .focus-goal { margin-top: 12px; }" in css
+    # D179 took the stem's card away (the vine is round the clock); the garden comes last.
+    assert ".focus-garden + .focus-goal { margin-top: 12px; }" in css
     page = (Path(__file__).resolve().parent.parent / "src/cps/web/templates/focus.html").read_text(
         encoding="utf-8"
     )

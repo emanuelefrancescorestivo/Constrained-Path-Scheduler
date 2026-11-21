@@ -7,6 +7,11 @@ research planner becomes the reference behind them (AUDIT.md item 36).
 
 ### Added
 
+- The ring is the vine (DECISIONS.md D179): on the focus page the clock's ring is a vine that grows
+  round the numbers, with a bud at each reward that opens into a flower; the clock counts the minutes
+  on the page, the vine's and the diary's, and stops while the page is hidden (AUDIT 119); a session
+  started in one tap keeps the 25 + 5 rhythm last chosen (AUDIT 120).
+
 - Focus, the owner's picks (DECISIONS.md D178): what the session means to finish, typed or tapped
   from three ideas, cut into steps ticked while the timer runs, and the diary asks whether it was
   finished; the rewards as a stem whose flowers open; the week's garden, a plant a day

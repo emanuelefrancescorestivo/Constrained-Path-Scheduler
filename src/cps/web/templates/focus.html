@@ -22,7 +22,8 @@
    script moves the clock, the pause and the stem between heartbeats. #}
 {% from "_people.html" import avatar %}
 {% macro mmss(seconds) %}{{ '%d:%02d' % (seconds // 60, seconds % 60) }}{% endmacro %}
-<section class="focus{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
+{% macro clock(seconds) %}{% if seconds >= 3600 %}{{ '%d:%02d:%02d' % (seconds // 3600, (seconds % 3600) // 60, seconds % 60) }}{% else %}{{ mmss(seconds) }}{% endif %}{% endmacro %}
+<section class="focus{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-grace="{{ focus.grace }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
   {% if cheered %}<p class="notice notice-ok" role="status">{{ _("Cheer sent to @{handle}.", handle=cheered) }}</p>{% endif %}
 
@@ -65,9 +66,28 @@
     <form method="post" action="/p/{{ token }}/focus/question/skip"><button type="submit" class="btn btn-sm btn-plain">{{ _("Skip the question") }}</button></form>
   </div>
   {% endif %}
+  {# The ring is the vine (D179, the owner's B): it grows round the clock with the minutes on the
+     page, the clock's own number; a bud at each reward opens into a flower, the length's ringed.
+     A full turn is the session's stem (its length or an hour, whichever is longer). #}
+  {% set st = focus.stem %}{% set v = charts.vine(st) %}
   <div class="focus-dial">
-    <svg class="focus-orbit" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle class="track" cx="50" cy="50" r="49" pathLength="100"/><circle class="sweep" id="focus-sweep" cx="50" cy="50" r="49" pathLength="100" transform="rotate(-90 50 50)"/></svg>
-    <time class="focus-timer" id="focus-timer" aria-live="off">{{ '%d:%02d' % (focus.elapsed // 3600, (focus.elapsed % 3600) // 60) }}</time>
+    <svg class="focus-vine" viewBox="-30 -30 260 260" role="img" aria-label="{{ _('A vine that grows round the clock as you stay: a flower opens at each reward') }}" focusable="false">
+      <circle class="vine-track" cx="100" cy="100" r="92"/>
+      <path class="vine-grow" id="vine-grow" d="M100 8A92 92 0 0 1 100 192A92 92 0 0 1 100 8" pathLength="100" stroke-dasharray="{{ v.percent }} 100"/>
+      {% for l in v.leaves %}<path class="vine-leaf{% if l.out %} is-out{% endif %}" data-share="{{ l.share }}" transform="translate({{ l.x }} {{ l.y }}) rotate({{ l.angle }})" d="M0 0C3-5.5 10-7.5 16-6C12.5 0 6.5 3 0 0Z"/>{% endfor %}
+      {% for b in v.buds %}
+      <g class="vine-bud{% if b.open %} is-open{% endif %}{% if b.goal %} is-goal{% endif %}" data-at="{{ b.at }}">
+        {% if b.goal %}<circle class="bud-ring" cx="{{ b.x }}" cy="{{ b.y }}" r="9.5"/>{% endif %}
+        <circle class="bud" cx="{{ b.x }}" cy="{{ b.y }}" r="5.5"/>
+        <g class="flower" transform="translate({{ b.x }} {{ b.y }})"><circle cx="0" cy="-5.6" r="3.6"/><circle cx="5.3" cy="-1.7" r="3.6"/><circle cx="3.3" cy="4.5" r="3.6"/><circle cx="-3.3" cy="4.5" r="3.6"/><circle cx="-5.3" cy="-1.7" r="3.6"/><circle class="heart" r="2.5"/></g>
+        <text class="vine-label" x="{{ b.lx }}" y="{{ b.ly }}" text-anchor="middle">{{ b.label }}</text>
+      </g>
+      {% endfor %}
+    </svg>
+    <div class="focus-face">
+      <time class="focus-timer" id="focus-timer" aria-live="off">{{ clock(focus.focused) }}</time>
+      <p class="vine-next" id="stem-next" data-many="{{ _('Next flower in {n} min') }}" data-all="{{ _('Every flower is open') }}">{% if st.next %}{{ _("Next flower in {n} min", n=st.next) }}{% else %}{{ _("Every flower is open") }}{% endif %}</p>
+    </div>
   </div>
   <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}{% if focus.rhythm and focus.rounds %} · {{ _("Round {n} of {total}", n=focus.round, total=focus.rounds) }}{% endif %}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
 
@@ -75,7 +95,7 @@
   {# Studying now (D108) as one line (D178, the owner's 4C): who the student follows is
      studying too; it opens on the list, each with a cheer. #}
   <details class="focus-live">
-    <summary><span class="live-faces">{% for s in alongside[:3] %}{{ avatar(s, "sm") }}{% endfor %}</span><span class="live-dot" aria-hidden="true"></span><span>{{ _n("{n} classmate studying with you", "{n} classmates studying with you", alongside | length) }}</span></summary>
+    <summary><span class="live-pill"><span class="live-faces">{% for s in alongside[:3] %}{{ avatar(s, "sm") }}{% endfor %}</span><span class="live-dot" aria-hidden="true"></span><span>{{ _n("{n} classmate studying with you", "{n} classmates studying with you", alongside | length) }}</span><span class="live-chev" aria-hidden="true">›</span></span></summary>
     <ul class="list live-list">
       {% for s in alongside %}
       <li>{{ avatar(s) }}<span class="grow"><b>@{{ s.handle }}</b><small>{{ _n("{course} · for {n} minute", "{course} · for {n} minutes", s.minutes, course=s.course) }}</small></span>
@@ -108,26 +128,6 @@
     {% endif %}
   </div>
 
-  {# The rewards as a stem (D178, the owner's 2C): a bud for each, open once reached; the
-     list under it says the same to a screen reader and holds what the script reads. #}
-  {% set st = focus.stem %}
-  <figure class="card focus-stem" id="focus-stem">
-    <svg viewBox="0 26 330 112" role="img" aria-label="{{ _('A stem that grows as you stay: a flower opens at each reward') }}" focusable="false">
-      <line class="stem-track" x1="14" y1="104" x2="316" y2="60"/>
-      <line class="stem-grow" id="stem-grow" x1="14" y1="104" x2="316" y2="60" pathLength="100" stroke-dasharray="{{ st.percent }} 100"/>
-      {% for l in st.leaves %}{% set x = 14 + 302 * l.share %}{% set y = 104 - 44 * l.share %}
-      <path class="stem-leaf{% if l.out %} is-out{% endif %}" data-share="{{ l.share }}" d="{% if l.side %}M{{ '%.1f' % x }} {{ '%.1f' % y }}c4-11 12-14 19-11c-3 7-10 11-19 11z{% else %}M{{ '%.1f' % x }} {{ '%.1f' % y }}c-6-10-2-18 6-20c2 8-1 15-6 20z{% endif %}"/>
-      {% endfor %}
-      {% for b in st.buds %}{% set x = 14 + 302 * b.share %}{% set y = 104 - 44 * b.share %}
-      <g class="stem-bud{% if b.open %} is-open{% endif %}{% if b.goal %} is-goal{% endif %}" data-at="{{ b.at }}" transform="translate({{ '%.1f' % x }} {{ '%.1f' % y }})">
-        <circle class="bud" r="8"/>
-        <g class="flower"><circle cx="0" cy="-7" r="4.4"/><circle cx="6.7" cy="-2.2" r="4.4"/><circle cx="4.1" cy="5.7" r="4.4"/><circle cx="-4.1" cy="5.7" r="4.4"/><circle cx="-6.7" cy="-2.2" r="4.4"/><circle class="heart" r="3"/></g>
-        <text class="stem-label" y="{{ 28 if loop.index0 % 2 == 0 else -18 }}" text-anchor="middle">{{ b.label }}</text>
-      </g>
-      {% endfor %}
-    </svg>
-    <figcaption id="stem-next" data-one="{{ _('{n} more minute and the next flower opens.') }}" data-many="{{ _('{n} more minutes and the next flower opens.') }}" data-all="{{ _('Every flower of this session is open.') }}">{% if st.next %}{{ _n("{n} more minute and the next flower opens.", "{n} more minutes and the next flower opens.", st.next) }}{% else %}{{ _("Every flower of this session is open.") }}{% endif %}</figcaption>
-  </figure>
 
   {# The week's garden (D178, the owner's 2B): a plant a day from the sessions timed. #}
   {% if week_garden %}
@@ -204,8 +204,9 @@
   {# D178 (the owner's 1A): what the session means to finish, in a line; ideas to tap. #}
   <p class="focus-aim-field"><label for="focus-aim-in">{{ _("What do you want to finish?") }}</label><input id="focus-aim-in" name="aim" maxlength="120" autocomplete="off" placeholder="{{ _('optional') }}"></p>
   <p class="aim-ideas" data-fills="focus-aim-in" hidden>{% for idea in aim_ideas %}<button type="button" class="chip" data-fill="{{ idea }}">{{ idea }}</button>{% endfor %}</p>
-  {# D178 (the owner's 3A): the 25 + 5 rhythm, on unless the student turns it off. #}
-  <label class="focus-rhythm"><input type="checkbox" name="rhythm" value="1" checked><span>{{ _("A 5-minute pause every 25 minutes") }}</span></label>
+  {# D178 (the owner's 3A): the 25 + 5 rhythm; D179: as the student last chose, on to start. #}
+  <input type="hidden" name="rhythm_set" value="1">
+  <label class="focus-rhythm"><input type="checkbox" name="rhythm" value="1"{% if rhythm_default %} checked{% endif %}><span>{{ _("A 5-minute pause every 25 minutes") }}</span></label>
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
   <button class="btn btn-primary btn-lg btn-block focus-go">{{ _("Let's go") }}</button>
   {% if sg and sg.stakes %}<p class="stakes">{{ sg.stakes.words }}</p>{% endif %}
