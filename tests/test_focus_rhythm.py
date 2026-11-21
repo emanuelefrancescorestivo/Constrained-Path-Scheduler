@@ -254,3 +254,16 @@ def test_the_weeks_garden_has_a_plant_a_day(tmp_path):
     with TestClient(create_app(config)) as web:
         page = unescape(web.get(f"/p/{sub.token}/focus").text)
     assert 'class="card focus-garden"' in page and "c0 is-bloom" in page and "Monday: in flower" in page
+
+
+def test_the_length_line_clears_the_card_above_it():
+    """AUDIT 118: `.focus-goal` keeps its negative margin from before D178; after the stem or the
+    week's garden, whichever comes last, it must not slide under the card."""
+    css = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text(
+        encoding="utf-8"
+    )
+    assert ":is(.focus-stem, .focus-garden) + .focus-goal { margin-top: 12px; }" in css
+    page = (Path(__file__).resolve().parent.parent / "src/cps/web/templates/focus.html").read_text(
+        encoding="utf-8"
+    )
+    assert page.index('class="card focus-garden"') < page.index('class="focus-goal"')
