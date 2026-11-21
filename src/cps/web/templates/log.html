@@ -51,6 +51,18 @@
     {% if draft.timed %}<p class="hint">{{ _("From the timer. Change it and the session no longer says it was timed.") }}</p>{% endif %}
   </div>
 
+  {% if draft.aim %}
+  {# D178 (the owner's 1A): what the session meant to finish; the steps ticked already
+     answer, the student has the last word. It goes into the diary with the session. #}
+  <fieldset class="card section finished-q">
+    <legend>{{ _("Did you finish {aim}?", aim=draft.aim) }}</legend>
+    {% if draft.steps %}<p class="hint">{{ _n("{done} of {n} step ticked", "{done} of {n} steps ticked", draft.steps | length, done=draft.steps | selectattr("done") | list | length) }}</p>{% endif %}
+    <div class="pills" role="radiogroup" aria-label="{{ _('Did you finish it?') }}">
+      {% for value, word in (("yes", _("Yes")), ("partly", _("In part")), ("no", _("No"))) %}<label class="pill"><input type="radio" name="finished" value="{{ value }}"{% if draft.finished == value %} checked{% endif %}><span>{{ word }}</span></label>{% endfor %}
+    </div>
+  </fieldset>
+  {% endif %}
+
   <fieldset class="card section">
     <legend>{{ _("Perceived effort") }}</legend>
     <div class="scale" role="radiogroup" aria-label="{{ _('Perceived effort, 1 to 10') }}">

@@ -356,6 +356,13 @@ CREATE TABLE IF NOT EXISTS buddies (
     PRIMARY KEY (asker, asked)
 );
 CREATE INDEX IF NOT EXISTS buddies_by_asked ON buddies (asked);
+-- A cheer to someone studying now (D178): who, to whom, when; kept a day.
+CREATE TABLE IF NOT EXISTS cheers (
+    sender   TEXT NOT NULL,
+    receiver TEXT NOT NULL,
+    at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cheers_by_receiver ON cheers (receiver, at);
 CREATE TABLE IF NOT EXISTS errors (
     key     TEXT PRIMARY KEY,
     source  TEXT NOT NULL,
@@ -417,6 +424,7 @@ _FORGET = (
     "DELETE FROM kudos WHERE token = :t",
     "DELETE FROM checks WHERE token = :t",
     "DELETE FROM presence WHERE token = :t",
+    "DELETE FROM cheers WHERE sender = :t OR receiver = :t",  # D178
     # A place a student added stays on the map for others; it no longer names who (D133).
     "UPDATE places SET added_by = NULL WHERE added_by = :t",
     "DELETE FROM reports WHERE reporter = :t",
@@ -466,6 +474,11 @@ _EXPORT = {
     "studying_now": "SELECT x.course, x.started, x.until, COALESCE(p.name, '') AS place FROM presence x "
     "LEFT JOIN places p ON p.id = x.place WHERE x.token = :t",
     "places_added": "SELECT name, lat, lon, created FROM places WHERE added_by = :t ORDER BY created, rowid",
+    # D178: cheers sent and received, with the other's handle, for the day they are kept.
+    "cheers": "SELECT CASE WHEN c.sender = :t THEN 'you cheered' ELSE 'cheered you' END AS direction, "
+    "COALESCE(p.handle, '') AS handle, c.at FROM cheers c LEFT JOIN profiles p "
+    "ON p.token = CASE WHEN c.sender = :t THEN c.receiver ELSE c.sender END "
+    "WHERE c.sender = :t OR c.receiver = :t ORDER BY c.at",
     "follows": "SELECT CASE WHEN f.follower = :t THEN 'you follow' ELSE 'follows you' END AS direction, "
     "COALESCE(p.handle, '') AS handle, f.status, f.created FROM follows f LEFT JOIN profiles p "
     "ON p.token = CASE WHEN f.follower = :t THEN f.followed ELSE f.follower END "

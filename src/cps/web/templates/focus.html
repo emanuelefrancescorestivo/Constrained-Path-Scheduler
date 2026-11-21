@@ -16,8 +16,33 @@
 {% block spark_button %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}
 {% block main %}
 {% if focus.running %}
-<section class="focus" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" aria-label="{{ _('Focus session') }}">
+{# D178 (the owner's picks): the aim and its steps (1A, 1B), the rewards as a stem whose
+   buds open (2C), a 5-minute pause by itself every 25 minutes of work (3A), and the
+   classmates studying too as one line that opens (4C). Each works without the script; the
+   script moves the clock, the pause and the stem between heartbeats. #}
+{% from "_people.html" import avatar %}
+{% macro mmss(seconds) %}{{ '%d:%02d' % (seconds // 60, seconds % 60) }}{% endmacro %}
+<section class="focus{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
+  {% if cheered %}<p class="notice notice-ok" role="status">{{ _("Cheer sent to @{handle}.", handle=cheered) }}</p>{% endif %}
+
+  {% if focus.rhythm %}
+  <div class="focus-pause" id="focus-pause"{% if not focus.pausing %} hidden{% endif %}>
+    {% if focus.rounds %}<p class="pause-rounds"><span class="pause-dots" aria-hidden="true">{% for i in range(focus.rounds) %}<i class="{% if i < focus.round %}is-done{% endif %}"></i>{% endfor %}</span>{{ _("Round {n} of {total}", n=focus.round, total=focus.rounds) }}</p>{% endif %}
+    <p class="pause-title">{% if focus.goal_reached %}{{ _("Your length is reached: a pause, or finish here") }}{% else %}{{ _("Pause") }}{% endif %}</p>
+    <p class="pause-clock" id="pause-clock" aria-live="off">{{ mmss(focus.pause_left) }}</p>
+    <p class="pause-sub">{{ _("The clock starts again by itself.") }}</p>
+    <ul class="card pause-ideas">
+      <li>{{ _("Stand up and walk a little") }}</li>
+      <li>{{ _("Drink a glass of water") }}</li>
+      <li>{{ _("Look far away from the screen") }}</li>
+    </ul>
+    <p class="hint">{{ _("A pause is not time away: you can put the phone down.") }}</p>
+    <form method="post" action="/p/{{ token }}/focus/resume"><button class="btn btn-primary btn-lg btn-block pause-go">{{ _("Back to work now") }}</button></form>
+  </div>
+  {% endif %}
+
+  <div class="focus-work">
   {% set fm = focus.moodle %}
   {% if focus.materials %}
   {# D174: this week's materials of the course, read from its page, beside the clock. #}
@@ -44,26 +69,83 @@
     <svg class="focus-orbit" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle class="track" cx="50" cy="50" r="49" pathLength="100"/><circle class="sweep" id="focus-sweep" cx="50" cy="50" r="49" pathLength="100" transform="rotate(-90 50 50)"/></svg>
     <time class="focus-timer" id="focus-timer" aria-live="off">{{ '%d:%02d' % (focus.elapsed // 3600, (focus.elapsed % 3600) // 60) }}</time>
   </div>
-  <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+  <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}{% if focus.rhythm and focus.rounds %} · {{ _("Round {n} of {total}", n=focus.round, total=focus.rounds) }}{% endif %}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+
   {% if alongside %}
-  {# Studying now (D108): who the student follows is focusing too. #}
-  <p class="focus-alongside"><span class="live-dot" aria-hidden="true"></span>{{ _("Also studying now:") }} {% for s in alongside %}<b>@{{ s.handle }}</b> <span class="muted">{{ s.course }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {# Studying now (D108) as one line (D178, the owner's 4C): who the student follows is
+     studying too; it opens on the list, each with a cheer. #}
+  <details class="focus-live">
+    <summary><span class="live-faces">{% for s in alongside[:3] %}{{ avatar(s, "sm") }}{% endfor %}</span><span class="live-dot" aria-hidden="true"></span><span>{{ _n("{n} classmate studying with you", "{n} classmates studying with you", alongside | length) }}</span></summary>
+    <ul class="list live-list">
+      {% for s in alongside %}
+      <li>{{ avatar(s) }}<span class="grow"><b>@{{ s.handle }}</b><small>{{ _n("{course} · for {n} minute", "{course} · for {n} minutes", s.minutes, course=s.course) }}</small></span>
+        <form method="post" action="/p/{{ token }}/cheer"><input type="hidden" name="handle" value="{{ s.handle }}"><button type="submit" class="btn btn-sm btn-tinted" aria-label="{{ _('Cheer @{handle} on', handle=s.handle) }}">{{ _("Cheer") }}</button></form></li>
+      {% endfor %}
+    </ul>
+  </details>
   {% endif %}
+  {% set names = [] %}{% for c in cheers %}{% set _x = names.append('@' ~ c.handle) %}{% endfor %}
+  <p class="focus-cheers" id="focus-cheers" data-one="{{ _('@{handle} is cheering you on.') }}" data-many="{{ _('{names} are cheering you on.') }}"{% if not cheers %} hidden{% endif %}>{% if cheers | length == 1 %}{{ _("@{handle} is cheering you on.", handle=cheers[0].handle) }}{% elif cheers %}{{ _("{names} are cheering you on.", names=names | join(', ')) }}{% endif %}</p>
+
+  {# What the session means to finish, and its steps (D178, the owner's 1A and 1B). #}
+  {% set done_steps = focus.steps_done %}
+  <div class="card focus-aim" id="focus-aim">
+    <div class="aim-head"><b>{% if focus.aim %}{{ focus.aim }}{% else %}{{ _("Your steps") }}{% endif %}</b>{% if focus.steps %}<span class="aim-count">{{ _("{done} of {n}", done=done_steps, n=focus.steps | length) }}</span>{% endif %}</div>
+    {% if focus.steps %}
+    <div class="aim-bar" aria-hidden="true"><i class="w{{ ((10 * done_steps / (focus.steps | length)) | round | int) * 10 }}"></i></div>
+    <ul class="aim-steps">
+      {% for st in focus.steps %}
+      <li><form method="post" action="/p/{{ token }}/focus/step/{{ loop.index0 }}"><input type="hidden" name="done" value="{{ '0' if st.done else '1' }}"><button type="submit" class="aim-step{% if st.done %} is-done{% endif %}" aria-pressed="{{ 'true' if st.done else 'false' }}"><span class="aim-box" aria-hidden="true">{% if st.done %}{{ lucide("circle-check") }}{% endif %}</span><span>{{ st.text }}</span></button></form></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if focus.steps | length < focus.steps_most %}
+    <form method="post" action="/p/{{ token }}/focus/step" class="aim-add">
+      <label for="aim-step" class="visually-hidden">{{ _("A step") }}</label>
+      <input id="aim-step" name="step" maxlength="80" autocomplete="off" required placeholder="{% if focus.steps %}{{ _('Another step') }}{% else %}{{ _('Cut it into steps: the first one') }}{% endif %}">
+      <button type="submit" class="btn btn-sm btn-tinted">{{ _("Add") }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# The rewards as a stem (D178, the owner's 2C): a bud for each, open once reached; the
+     list under it says the same to a screen reader and holds what the script reads. #}
+  {% set st = focus.stem %}
+  <figure class="card focus-stem" id="focus-stem">
+    <svg viewBox="0 26 330 112" role="img" aria-label="{{ _('A stem that grows as you stay: a flower opens at each reward') }}" focusable="false">
+      <line class="stem-track" x1="14" y1="104" x2="316" y2="60"/>
+      <line class="stem-grow" id="stem-grow" x1="14" y1="104" x2="316" y2="60" pathLength="100" stroke-dasharray="{{ st.percent }} 100"/>
+      {% for l in st.leaves %}{% set x = 14 + 302 * l.share %}{% set y = 104 - 44 * l.share %}
+      <path class="stem-leaf{% if l.out %} is-out{% endif %}" data-share="{{ l.share }}" d="{% if l.side %}M{{ '%.1f' % x }} {{ '%.1f' % y }}c4-11 12-14 19-11c-3 7-10 11-19 11z{% else %}M{{ '%.1f' % x }} {{ '%.1f' % y }}c-6-10-2-18 6-20c2 8-1 15-6 20z{% endif %}"/>
+      {% endfor %}
+      {% for b in st.buds %}{% set x = 14 + 302 * b.share %}{% set y = 104 - 44 * b.share %}
+      <g class="stem-bud{% if b.open %} is-open{% endif %}{% if b.goal %} is-goal{% endif %}" data-at="{{ b.at }}" transform="translate({{ '%.1f' % x }} {{ '%.1f' % y }})">
+        <circle class="bud" r="8"/>
+        <g class="flower"><circle cx="0" cy="-7" r="4.4"/><circle cx="6.7" cy="-2.2" r="4.4"/><circle cx="4.1" cy="5.7" r="4.4"/><circle cx="-4.1" cy="5.7" r="4.4"/><circle cx="-6.7" cy="-2.2" r="4.4"/><circle class="heart" r="3"/></g>
+        <text class="stem-label" y="{{ 28 if loop.index0 % 2 == 0 else -18 }}" text-anchor="middle">{{ b.label }}</text>
+      </g>
+      {% endfor %}
+    </svg>
+    <figcaption id="stem-next" data-one="{{ _('{n} more minute and the next flower opens.') }}" data-many="{{ _('{n} more minutes and the next flower opens.') }}" data-all="{{ _('Every flower of this session is open.') }}">{% if st.next %}{{ _n("{n} more minute and the next flower opens.", "{n} more minutes and the next flower opens.", st.next) }}{% else %}{{ _("Every flower of this session is open.") }}{% endif %}</figcaption>
+  </figure>
+
   {% set reached = focus.rewards | selectattr("reached") | list %}
   {% if focus.goal %}<p class="focus-goal">{{ _("Your length: {time}", time=focus.goal_words) }}</p>{% endif %}
-  <ol class="focus-rewards" aria-label="{{ _('Rewards') }}">
+  <ol class="focus-rewards visually-hidden" aria-label="{{ _('Rewards') }}">
     {% for r in focus.rewards %}<li class="reward{% if r.reached %} is-reached{% endif %}{% if r.goal %} is-goal{% endif %}" data-at="{{ r.at }}" data-cheer="{{ r.cheer }}" data-next="{{ r.next }}"{% if not r.shown %} hidden{% endif %}>{{ r.label }}{% if r.goal %} · {{ _("goal") }}{% endif %}</li>{% endfor %}
   </ol>
   <div class="card mascot-tip focus-reward" aria-live="polite"{% if not reached %} hidden{% endif %}>
     {{ mascot("cheer", "mascot-reward") }}
     <span class="mascot-words"><b id="focus-reward-words">{{ reached[-1].cheer if reached else "" }}</b><span id="focus-reward-next">{{ reached[-1].next if reached else "" }}</span></span>
   </div>
+  </div>
+
   <form method="post" action="/p/{{ token }}/focus/finish"><button class="btn btn-primary btn-lg focus-finish">{{ _("Finish") }}</button></form>
   <p class="focus-tools" hidden>
     <button type="button" class="btn btn-sm" id="focus-full">{{ _("Full screen") }}</button>
   </p>
   <p class="hint focus-hint">{{ _("Stay on this page: leaving it is counted and shown on your session. Turn on your phone's Focus or Do Not Disturb mode to silence the rest.") }}</p>
-  {% if tip %}<a class="card link-card mascot-tip focus-break" href="/p/{{ token }}/tips?topic={{ tip.topic }}#tip-{{ tip.key }}" data-break-at="{{ tip.break_after }}"{% if focus.elapsed < tip.break_after %} hidden{% endif %}>
+  {% if tip and not focus.rhythm %}<a class="card link-card mascot-tip focus-break" href="/p/{{ token }}/tips?topic={{ tip.topic }}#tip-{{ tip.key }}" data-break-at="{{ tip.break_after }}"{% if focus.elapsed < tip.break_after %} hidden{% endif %}>
     {{ mascot(tip.break_mood, "mascot-break") }}
     <span class="mascot-words"><b>{{ _("A short break now?") }}</b><span>{{ _("In one study, students who stopped for 6 minutes every 24 felt less tired and more focused.") }}</span></span>
   </a>{% endif %}
@@ -97,6 +179,11 @@
     course=pick("course_pick", courses, course_now, _("Course")),
     length=pick("goal", goals, focus.goal, _("How long?"))) }}</div>
   <p class="focus-other"><label for="focus-course-other" class="visually-hidden">{{ _("What are you studying?") }}</label><input id="focus-course-other" name="course_other" list="focus-courses" autocomplete="off" maxlength="80" placeholder="{{ _('What are you studying?') }}"></p>
+  {# D178 (the owner's 1A): what the session means to finish, in a line; ideas to tap. #}
+  <p class="focus-aim-field"><label for="focus-aim-in">{{ _("What do you want to finish?") }}</label><input id="focus-aim-in" name="aim" maxlength="120" autocomplete="off" placeholder="{{ _('optional') }}"></p>
+  <p class="aim-ideas" data-fills="focus-aim-in" hidden>{% for idea in aim_ideas %}<button type="button" class="chip" data-fill="{{ idea }}">{{ idea }}</button>{% endfor %}</p>
+  {# D178 (the owner's 3A): the 25 + 5 rhythm, on unless the student turns it off. #}
+  <label class="focus-rhythm"><input type="checkbox" name="rhythm" value="1" checked><span>{{ _("A 5-minute pause every 25 minutes") }}</span></label>
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
   <button class="btn btn-primary btn-lg btn-block focus-go">{{ _("Let's go") }}</button>
   {% if sg and sg.stakes %}<p class="stakes">{{ sg.stakes.words }}</p>{% endif %}

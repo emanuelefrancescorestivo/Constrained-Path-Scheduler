@@ -4,6 +4,7 @@
 // (DECISIONS.md D17). This script measures nothing itself; the server decides.
 import { t } from "./i18n.js";
 import { celebrate, resting } from "./motion.js";
+import { toast } from "./ui.js";
 
 const section = document.querySelector(".focus");
 const token = section.dataset.token;
@@ -26,7 +27,95 @@ const rewards = [...document.querySelectorAll(".focus-rewards [data-at]")];
 const rewardCard = document.querySelector(".focus-reward");
 let awaySeconds = Number(section.dataset.away || 0);
 const pad = (n) => String(n).padStart(2, "0");
-const now = () => elapsed + (performance.now() - since) / 1000;
+
+// The rhythm (D178, the owner's 3A): 25 minutes of work, then a 5-minute pause by itself.
+// The clock stops while the pause counts down; at either edge the page tells the server
+// at once (a heartbeat), which keeps the same rule and has the last word.
+const rhythm = section.dataset.rhythm === "1";
+const workSeconds = Number(section.dataset.work || 1500);
+const pauseSeconds = Number(section.dataset.pause || 300);
+const pausePanel = document.getElementById("focus-pause");
+const pauseClock = document.getElementById("pause-clock");
+let pausing = section.classList.contains("is-pausing");
+let pauseEnds = performance.now() + Number(section.dataset.pauseLeft || 0) * 1000;
+let block = Number(section.dataset.block || 0);
+// The clock: work only. While pausing it stands still at `elapsed`.
+const now = () => (pausing ? elapsed : elapsed + (performance.now() - since) / 1000);
+
+function setPausing(on) {
+  pausing = on;
+  section.classList.toggle("is-pausing", on);
+  if (pausePanel) pausePanel.hidden = !on;
+}
+
+function rhythmStep() {
+  if (!rhythm) return;
+  const at = performance.now();
+  if (!pausing) {
+    const inBlock = block + (at - since) / 1000;
+    if (inBlock >= workSeconds) {
+      elapsed = now() - (inBlock - workSeconds);
+      since = at;
+      pauseEnds = at + (pauseSeconds - (inBlock - workSeconds)) * 1000;
+      setPausing(true);
+      beat();
+    }
+  } else {
+    const left = Math.max(0, Math.ceil((pauseEnds - at) / 1000));
+    if (pauseClock) pauseClock.textContent = `${Math.floor(left / 60)}:${pad(left % 60)}`;
+    if (left <= 0) {
+      since = at;
+      block = 0;
+      setPausing(false);
+      beat();
+    }
+  }
+}
+
+// The stem (D178, the owner's 2C): it grows with the focused time; leaves come out and buds
+// open as it passes them.
+const horizon = Number(section.dataset.horizon || 3600);
+const stemGrow = document.getElementById("stem-grow");
+const stemNext = document.getElementById("stem-next");
+const buds = [...document.querySelectorAll(".stem-bud[data-at]")];
+const leaves = [...document.querySelectorAll(".stem-leaf[data-share]")];
+function growStem(focused) {
+  if (!stemGrow) return;
+  const share = Math.min(1, Math.max(0, focused / horizon));
+  stemGrow.setAttribute("stroke-dasharray", `${(share * 100).toFixed(1)} 100`);
+  leaves.forEach((leaf) => leaf.classList.toggle("is-out", share >= Number(leaf.dataset.share)));
+  let ahead = null;
+  buds.forEach((bud) => {
+    const open = focused >= Number(bud.dataset.at);
+    bud.classList.toggle("is-open", open);
+    if (!open && ahead === null) ahead = Number(bud.dataset.at);
+  });
+  if (stemNext) {
+    if (ahead === null) stemNext.textContent = stemNext.dataset.all;
+    else {
+      const n = Math.ceil((ahead - focused) / 60);
+      stemNext.textContent = (n === 1 ? stemNext.dataset.one : stemNext.dataset.many).replace("{n}", n);
+    }
+  }
+}
+
+// Cheers (D178, the owner's 4C): who cheered the student on, said once each as it comes.
+const cheersLine = document.getElementById("focus-cheers");
+const cheered = new Set((section.dataset.cheers || "").split(" ").filter(Boolean));
+function sayCheers(handles) {
+  if (!Array.isArray(handles) || !cheersLine) return;
+  handles.filter((h) => !cheered.has(h)).forEach((h) => {
+    cheered.add(h);
+    toast(cheersLine.dataset.one.replace("{handle}", h));
+  });
+  if (!handles.length) return;
+  const names = handles.map((h) => `@${h}`).join(", ");
+  cheersLine.textContent =
+    handles.length === 1
+      ? cheersLine.dataset.one.replace("{handle}", handles[0])
+      : cheersLine.dataset.many.replace("{names}", names);
+  cheersLine.hidden = false;
+}
 const still = () =>
   document.documentElement.dataset.motion === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -55,11 +144,13 @@ function tick() {
   setTimeout(tick, 1000 - (now() % 1) * 1000 + 5);
 }
 function draw() {
+  rhythmStep();
   if (!sweeping) sweepTo();
   const seconds = Math.floor(now());
   clock.textContent = `${Math.floor(seconds / 3600)}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   if (nudge && nudge.hidden && seconds >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
   reward(seconds - awaySeconds);
+  growStem(seconds - awaySeconds);
 }
 
 function reward(focused) {
@@ -84,6 +175,13 @@ async function beat() {
     elapsed = state.elapsed;
     awaySeconds = Number(state.away || 0);
     since = performance.now();
+    if (rhythm) {
+      // The server's rhythm has the last word (D178).
+      block = Number(state.block || 0);
+      if (state.pausing) pauseEnds = since + Number(state.pause_left || 0) * 1000;
+      setPausing(Boolean(state.pausing));
+    }
+    sayCheers(state.cheers);
     draw();
     if (state.interruptions) {
       away.textContent = ` · ${t(state.interruptions === 1 ? "left the app {n} time ({minutes} min)" : "left the app {n} times ({minutes} min)", { n: state.interruptions, minutes: state.away_minutes })}`;

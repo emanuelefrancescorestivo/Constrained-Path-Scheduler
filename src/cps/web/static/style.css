@@ -5687,3 +5687,84 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .community-way { display: flex; flex-direction: column; gap: 4px; }
 .community-way span { color: var(--muted); }
 
+
+
+/* -- Focus, the owner's picks (D178) -------------------------------------------------------
+   The aim and its steps (1A, 1B), the rewards as a stem (2C), the pause by itself (3A), the
+   classmates as one line that opens (4C). The pause hides the work's parts, not the page:
+   without the script the server draws whichever is due. Nothing here loops; the stem's
+   leaves and flowers fade in once, and stand still under reduced motion. */
+.focus-aim-field { margin: 0; display: grid; gap: 6px; }
+.focus-aim-field label { font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+.focus-aim-field input { min-height: 48px; font-size: 1.05rem; }
+.aim-ideas { margin: -6px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.aim-ideas .chip { min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; }
+.focus-rhythm { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
+.focus-rhythm input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+
+.focus-aim { width: 100%; max-width: 460px; margin: 12px auto 0; text-align: left; display: grid; gap: 10px; }
+.aim-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.aim-head b { min-width: 0; overflow-wrap: anywhere; }
+.aim-count { flex: none; font-weight: 700; color: var(--ok); }
+.aim-bar { height: 6px; border-radius: 3px; background: var(--fill-3); overflow: hidden; }
+.aim-bar i { display: block; height: 6px; border-radius: 3px; background: var(--ok); }
+.aim-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.aim-steps form { margin: 0; }
+.aim-step { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 1.02rem; text-align: left; cursor: pointer; }
+.aim-step.is-done { color: var(--muted); text-decoration: line-through; }
+.aim-box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--line-strong); display: grid; place-items: center; color: var(--ok); }
+.aim-step.is-done .aim-box { border-color: var(--ok); background: var(--ok-soft); }
+.aim-box svg { width: 18px; height: 18px; }
+.aim-add { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; }
+.aim-add input { flex: 1 1 200px; min-width: 0; }
+
+.focus-stem { width: 100%; max-width: 460px; margin: 12px auto 0; padding: 12px 12px 10px; }
+.focus-stem svg { display: block; width: 100%; height: auto; overflow: visible; }
+.focus-stem figcaption { margin: 4px 4px 0; font-size: 0.95rem; text-align: left; }
+.focus-stem + .focus-goal { margin-top: 12px; }
+.stem-track { stroke: var(--fill-2); stroke-width: 5; stroke-linecap: round; }
+.stem-grow { stroke: var(--ok); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 900ms linear; }
+.stem-leaf { fill: var(--ok); opacity: 0; transition: opacity 600ms ease; }
+.stem-leaf.is-out { opacity: 0.85; }
+.stem-bud .bud { fill: var(--surface); stroke: var(--line-strong); stroke-width: 2; }
+.stem-bud.is-goal .bud { stroke: var(--accent); stroke-width: 2.5; }
+.stem-bud .flower { display: none; }
+.stem-bud.is-open .bud { display: none; }
+.stem-bud.is-open .flower { display: inline; animation: pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.stem-bud .flower circle { fill: #f59abf; }
+.stem-bud.is-goal .flower circle { fill: #8da8f5; }
+.stem-bud .flower .heart { fill: #f5c542; }
+.stem-label { font-size: 14px; font-weight: 700; fill: var(--muted); }
+.stem-bud.is-goal .stem-label { fill: var(--accent-ink); }
+
+.focus-live { width: 100%; max-width: 460px; margin: 12px auto 0; text-align: left; }
+.focus-live > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 48px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 6px 16px 6px 14px; border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-sm); cursor: pointer; font-weight: 600; }
+.focus-live > summary::-webkit-details-marker { display: none; }
+.focus-live > summary::before { content: none; }
+.focus-live > summary::after { content: "›"; color: var(--muted); }
+.focus-live[open] > summary::after { content: "⌄"; }
+.live-faces { display: flex; padding-left: 8px; }
+.live-faces .avatar { margin-left: -8px; box-shadow: 0 0 0 2px var(--surface); }
+.focus-live .live-dot { margin-right: 0; }
+.live-list { margin-top: 10px; }
+.live-list li { align-items: center; gap: 12px; }
+.live-list .grow { display: flex; flex-direction: column; min-width: 0; }
+.live-list small { color: var(--muted); }
+.live-list form { margin: 0; }
+.focus-cheers { margin: 10px auto 0; font-weight: 600; color: var(--accent-ink); text-align: center; }
+
+.focus.is-pausing .focus-work { display: none; }
+.focus-pause { width: 100%; max-width: 460px; margin: 8px auto 12px; padding: 22px 18px; border-radius: var(--radius-lg); background: var(--ok-soft); display: grid; gap: 12px; justify-items: center; text-align: center; }
+.pause-rounds { margin: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ok); }
+.pause-dots { display: flex; gap: 6px; }
+.pause-dots i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ok); box-sizing: border-box; }
+.pause-dots i.is-done { background: var(--ok); }
+.pause-title { margin: 4px 0 0; font-size: 1.3rem; font-weight: 700; }
+.pause-clock { margin: -6px 0 0; font-family: var(--font-display); font-size: clamp(3.6rem, 18vw, 5.2rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.pause-sub { margin: 0; color: var(--muted); }
+.pause-ideas { width: 100%; box-sizing: border-box; margin: 0; padding: 6px 16px; list-style: none; text-align: left; }
+.pause-ideas li { min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.pause-ideas li + li { border-top: 1px solid var(--line); }
+.focus-pause .hint { margin: 0; }
+.focus-pause form { width: 100%; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .stem-grow, .stem-leaf { transition: none; } }

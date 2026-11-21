@@ -1496,7 +1496,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     # ------------------------------------------------------------ focus sessions
 
     @app.get("/p/{token}/focus", response_class=HTMLResponse)
-    def focus(request: Request, token: str, place: str = "") -> HTMLResponse:
+    def focus(request: Request, token: str, place: str = "", cheered: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -1523,10 +1523,14 @@ def create_app(config: Config | None = None) -> FastAPI:
             # D169: today's minutes and the streak, under the sentence.
             day=None if running else service.focus_day(store, subscription, config.clock()),
             tip=service.focus_tip(subscription),
-            # While the timer runs: who the student follows is studying too (D108).
+            # While the timer runs: who the student follows is studying too (D108), and who
+            # cheered them on (D178).
             alongside=service.studying_now_view(store, subscription, config.clock())
             if subscription.options.get("focus")
             else [],
+            cheers=service.cheers_view(store, subscription),
+            cheered=cheered[:40],
+            aim_ideas=service.aim_ideas(focus_now.get("suggested")),
             tab="focus",
         )
 
@@ -1619,7 +1623,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=6)
+        form = await request.form(max_files=0, max_fields=12)
         try:
             fresh = service.update_subscription(store, token, lambda current: change(current, form))
         except service.ServiceError as error:
@@ -1658,11 +1662,68 @@ def create_app(config: Config | None = None) -> FastAPI:
                 opener=service.opening_card(store, current, sid, config.clock()),
                 # Where, if the student chose a place on the map (D133).
                 place=(service.place_info(store, str(form.get("place") or "")[:20]) or {}).get("id"),
+                # D178: what the session means to finish, and the 25 + 5 rhythm (the page's
+                # switch, on unless the student turns it off; a form without it, off).
+                aim=str(form.get("aim") or ""),
+                rhythm=form.get("rhythm") == "1",
                 now=config.clock(),
             )
 
         done = await focus_change(request, token, change, "focus")
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.post("/p/{token}/focus/step")
+    async def focus_step(request: Request, token: str) -> Response:
+        """A step of the running session (D178)."""
+        done = await focus_change(
+            request,
+            token,
+            lambda current, form: service.add_focus_step(current, str(form.get("step") or "")),
+            "focus step",
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus#focus-aim", 303)
+
+    @app.post("/p/{token}/focus/step/{index}")
+    async def focus_step_tick(request: Request, token: str, index: int) -> Response:
+        """A step ticked, or unticked (D178)."""
+        done = await focus_change(
+            request,
+            token,
+            lambda current, form: service.tick_focus_step(current, index, form.get("done") == "1"),
+            "focus step",
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus#focus-aim", 303)
+
+    @app.post("/p/{token}/focus/resume")
+    async def focus_resume(request: Request, token: str) -> Response:
+        """Back to work before the pause ends (D178)."""
+        done = await focus_change(
+            request,
+            token,
+            lambda current, form: service.resume_focus(current, now=config.clock()),
+            "focus resume",
+        )
+        return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
+
+    @app.post("/p/{token}/cheer")
+    async def cheer(request: Request, token: str) -> Response:
+        """A cheer to a classmate studying now (D178), from the focus page or Community."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        handle = str(form.get("handle") or "")[:40]
+        try:
+            service.cheer_classmate(store, subscription, handle, config.clock())
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "cheer")
+        target = back(form, token, f"/p/{token}/focus")
+        return RedirectResponse(
+            f"{target}{'&' if '?' in target else '?'}cheered={quote(handle.lstrip('@'))}", 303
+        )
 
     @app.post("/p/{token}/focus/beat")
     def focus_beat(request: Request, token: str) -> Response:
@@ -1678,7 +1739,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         if fresh is not None:
             service.sync_presence(store, fresh, config.clock())
         view = service.focus_view(fresh, config.clock(), brief=True) if fresh else {}
-        return JSONResponse({k: view.get(k) for k in ("elapsed", "away", "away_minutes", "interruptions")})
+        keys = ("elapsed", "away", "away_minutes", "interruptions", "pausing", "pause_left", "block", "round")
+        answer = {k: view.get(k) for k in keys}
+        # D178: who cheered the student during this session, for the page to say.
+        answer["cheers"] = [p["handle"] for p in service.cheers_view(store, fresh)] if fresh else []
+        return JSONResponse(answer)
 
     @app.post("/p/{token}/focus/finish")
     async def focus_finish(request: Request, token: str) -> Response:

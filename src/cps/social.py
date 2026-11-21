@@ -295,6 +295,24 @@ def create_post(
             # When the timer started (D80), for "starting on time": an instant, or nothing.
             with contextlib.suppress(ValueError):
                 clean["started"] = datetime.fromisoformat(str(data["started"])).isoformat(timespec="seconds")
+        if data.get("aim"):
+            # D178: what the session meant to finish, its steps, and whether it was finished.
+            clean["aim"] = " ".join(str(data["aim"]).split())[:120]
+            clean["finished"] = (
+                str(data.get("finished") or "")
+                if data.get("finished")
+                in (
+                    "yes",
+                    "partly",
+                    "no",
+                )
+                else ""
+            )
+            clean["steps"] = [
+                {"text": " ".join(str(x.get("text", "")).split())[:80], "done": bool(x.get("done"))}
+                for x in (data.get("steps") or [])[:5]
+                if isinstance(x, dict) and str(x.get("text", "")).strip()
+            ]
     elif kind == "notes":
         # A student's own notes, for the library (D26): a course and a title, a few
         # words about them, the pages as photos, and the student's word that they
@@ -964,6 +982,67 @@ def present_followed(
         profile = get_profile(store, token)
         if profile is not None:
             out.append((profile, course, datetime.fromisoformat(started)))
+    return out
+
+
+# A cheer (D178, the owner's 4C): a follower who sees a student in Studying now taps to
+# cheer them on, and the student sees who on their focus page while it runs. One a pair
+# every `CHEER_EVERY`; a cheer is kept a day, then swept.
+CHEER_EVERY = timedelta(minutes=10)
+CHEER_KEPT = timedelta(days=1)
+
+
+def cheer(store: Store, sender: str, receiver: str, now: datetime | None = None) -> bool:
+    """A cheer from `sender` to `receiver`, who must be studying now and seen by the sender
+    as Studying now shows them (followed, their yes, no block either way). False when the
+    pair's last cheer is too recent: it is not sent twice."""
+    moment = now or datetime.now(UTC)
+    stamp = _now(moment)
+    with store.connection() as db:
+        seen = db.execute(
+            """
+            SELECT 1 FROM presence x
+            JOIN follows f ON f.followed = x.token AND f.follower = :s AND f.status = 'accepted'
+            JOIN profiles p ON p.token = x.token AND p.studying_now = 1
+            WHERE x.token = :r AND x.until >= :now AND x.token != :s AND NOT EXISTS (
+                SELECT 1 FROM blocks b
+                WHERE (b.blocker = :s AND b.blocked = :r) OR (b.blocker = :r AND b.blocked = :s)
+            )
+            """,
+            {"s": sender, "r": receiver, "now": stamp},
+        ).fetchone()
+        if seen is None:
+            raise SocialError(_("they are not studying now"))
+        db.execute("DELETE FROM cheers WHERE at < ?", (_now(moment - CHEER_KEPT),))
+        recent = db.execute(
+            "SELECT 1 FROM cheers WHERE sender = ? AND receiver = ? AND at >= ?",
+            (sender, receiver, _now(moment - CHEER_EVERY)),
+        ).fetchone()
+        if recent is not None:
+            return False
+        db.execute("INSERT INTO cheers (sender, receiver, at) VALUES (?, ?, ?)", (sender, receiver, stamp))
+    return True
+
+
+def cheers_for(store: Store, receiver: str, since: datetime) -> list[Profile]:
+    """Who cheered `receiver` since `since`, the latest first, each once; nobody blocked."""
+    with store.connection() as db:
+        rows = db.execute(
+            """
+            SELECT c.sender, MAX(c.at) AS last FROM cheers c
+            WHERE c.receiver = :r AND c.at >= :since AND NOT EXISTS (
+                SELECT 1 FROM blocks b
+                WHERE (b.blocker = :r AND b.blocked = c.sender) OR (b.blocker = c.sender AND b.blocked = :r)
+            )
+            GROUP BY c.sender ORDER BY last DESC LIMIT 8
+            """,
+            {"r": receiver, "since": _now(since)},
+        ).fetchall()
+    out = []
+    for token, _last in rows:
+        profile = get_profile(store, token)
+        if profile is not None:
+            out.append(profile)
     return out
 
 

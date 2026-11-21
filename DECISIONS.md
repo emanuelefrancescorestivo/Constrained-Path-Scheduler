@@ -6940,3 +6940,66 @@ count could tell who.
 the streak they had. Whether Community on top brings more sessions is for the pilot. Checked in
 Chromium only, at phone size (light) and 1280 px (dark).
 
+## D178. Focus: an aim and its steps, a stem of flowers, a pause every 25 minutes, cheers
+
+**Asked.** The owner, on 2026-11-20, after D177: "forse dobbiamo lavorare un po' su questa feature
+del focus, come possiamo migliorarla". Four groups of designs were drawn (sent as pictures, since the
+design canvas did not open on the owner's phone), and the owner picked, on 2026-11-21, "1A e B- 2C-
+3A- 4C": an aim in Focus's sentence with ideas to tap (1A), steps ticked while the timer runs (1B),
+the rewards as a stem whose flowers open (2C), a pause by itself every 25 minutes (3A), and the
+classmates studying now as one line that opens on the list, each with a cheer (4C).
+
+**Chosen.**
+- The aim (1A). Under Focus's sentence, "What do you want to finish?", one field, and three ideas
+  to tap that fill it, by the kind of the plan's session (`aim_ideas`: flashcards, the week's
+  summary or the exercises got wrong for a review; a past paper for exam practice; a first draft
+  for a task). It may stay empty. It is kept with the session (`start_focus(aim=)`, 120
+  characters), heads the running page's card and is the diary's "What did you do?".
+- The steps (1B). That card cuts the aim into at most five steps of 80 characters, added and ticked
+  while the timer runs, each a form (`add_focus_step`, `tick_focus_step`), with a bar of how many
+  are done. The diary then asks "Did you finish …?" (Yes, In part, No), its answer already chosen
+  from the steps ticked (`_finished_guess`); the session's post keeps the aim, the answer and the
+  steps.
+- The stem (2C). The rewards (D67) are buds on a stem drawn to the length chosen or an hour,
+  whichever is longer (`_focus_stem`): it grows with the minutes focused, a leaf comes out at fixed
+  shares of it, a bud opens into a flower when its reward is reached, the length's bud ringed in the
+  accent; under it, how many minutes until the next flower opens. The list of rewards stays for a
+  screen reader and the script, hidden from sight.
+- The rhythm (3A). "A 5-minute pause every 25 minutes" is a switch on the start form, on unless
+  turned off. After 25 minutes of work the page turns into the pause: its round of the session
+  (dots), the minutes left of it, three things to do (stand up and walk, a glass of water, look
+  away from the screen) and "Back now". When the pause is over the clock starts again by itself.
+  The server keeps the time (`_rhythm`, from the session's start and the pauses taken): the clock
+  stops in a pause, a pause is never time away (D17) even with the phone put down, going back
+  early counts the pause as it lasted (`resume_focus`), and a page without its script shows the
+  pause when it is due. The minutes saved are the work's. Without the switch nothing changes, and
+  a caller that does not send it (the API, the tests before D178) keeps the session as it was.
+- The live line (4C). Studying now (D108) on the focus page is one line, the first three faces and
+  "N classmates studying with you", that opens on the list: each with their course, their minutes
+  and "Cheer". A cheer reaches only a classmate who is seen studying now, followed with their yes,
+  who said yes to Studying now, with no block either way (`social.cheer`); one per pair in ten
+  minutes (`CHEER_EVERY`), kept a day (`CHEER_KEPT`). The one cheered sees "@ben is cheering you
+  on." under the line, on the page and with each heartbeat, by name, as the list names them.
+
+**Rejected.**
+- A plan of the session's parts with their own minutes (1C): more to fill before starting, and
+  D169 made the start one sentence.
+- A ring of petals round the clock (2A) or the week's plants (2B): the clock's ring already turns
+  each minute (D30), and the week is on Progress.
+- A pause offered after 25 minutes, to accept or not (3B): a question at the moment attention is
+  wanted elsewhere; the switch says it once, before the start.
+- Avatars round the timer (4A) or a course's table with free seats (4B): either shows people who
+  are not followed, or empty seats when few study; D108 shows followers only.
+- A cheer to every classmate at once: a tap that says nothing to anyone in particular.
+- A cheer as a notification on the phone: reminders are for sessions (D38, D129); a cheer is seen
+  on the page, the next time the page asks.
+
+**Disclosed.** 25 and 5 minutes are the Pomodoro technique's usual lengths, a convention, not a
+measured optimum; the pause's three ideas are choices. Whether an aim and its steps make sessions
+end with more done, and whether cheers bring sessions, is for the pilot. A cheer is seen within a
+heartbeat (30 seconds) while the page is open; the one cheered cannot answer it. The steps are
+saved one tap at a time, each reloading the page without its script. The aim's ideas are the same
+for every course. Checked in Chromium only, at phone size and 1280 px, light and dark, in Italian:
+the start form, the running page with an aim and steps, the stem, the line opened, the pause and the
+diary.
+

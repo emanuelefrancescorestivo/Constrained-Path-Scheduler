@@ -97,6 +97,7 @@ def indirect_sentences() -> set[str]:
         *service.SECTION_HINTS.values(),  # each section's line on its first visit (D97)
         service.JOINED_HINT,  # Community's for a student with a handle (AUDIT 82)
         *(words for q in service.FIT_QUESTIONS for words in (q[1], q[2], q[4])),  # Today's questions (D98)
+        *(idea for ideas in service._AIM_IDEAS.values() for idea in ideas),  # aims to tap (D178)
     }
 
 

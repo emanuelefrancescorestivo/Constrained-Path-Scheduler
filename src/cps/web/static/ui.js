@@ -682,3 +682,17 @@ document.querySelectorAll("input[data-clock]").forEach(clockField);
 document.addEventListener("focusin", (event) => {
   if (event.target instanceof HTMLInputElement && event.target.matches("input[data-clock]")) clockField(event.target);
 });
+
+// D178: ideas to tap that fill a field (the focus page's aim): shown with this script only,
+// the field itself works without it.
+document.querySelectorAll("[data-fills]").forEach((group) => {
+  const field = document.getElementById(group.dataset.fills);
+  if (!field) return;
+  group.hidden = false;
+  group.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-fill]");
+    if (!chip) return;
+    field.value = chip.dataset.fill;
+    field.focus();
+  });
+});
