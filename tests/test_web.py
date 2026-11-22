@@ -475,6 +475,29 @@ def test_the_privacy_page_names_the_contact_and_the_retention(web):
     assert "run by" not in page and "hosted by" not in page  # neither was given
 
 
+def test_the_privacy_page_names_what_the_app_keeps_since_the_study_map(web):
+    """AUDIT 123 (D181): from D134 to D179 the app came to keep an avatar, a list on the
+    student's mind, a session's aim, points and vouches, cheers, a course's materials,
+    the Moodle links and a premium code, and the coach was told the plan's facts; the
+    privacy page, last changed with the study map (D133), named none of them."""
+    page = unescape(web.get("/privacy").text)
+    for words in (
+        "If you make an avatar",
+        "What you write in On your mind",
+        "what you meant to finish and whether you did",
+        "When you vouch for a classmate's session",
+        "A cheer you send to a classmate studying now",
+        "A course's materials: the name, kind and address of each",
+        "the calendar link you paste from it, kept encrypted",
+        "If you use a premium code",
+        "with what it is told of your plan: today's date, your next exams",
+        "Each call is noted with your plan",
+    ):
+        assert words in page, words
+    italian = unescape(web.get("/privacy?lang=it").text)
+    assert "Se crei un avatar" in italian and "Ogni chiamata viene annotata" in italian
+
+
 def test_the_privacy_page_names_the_controller_and_the_host(tmp_path, clock):
     """The GDPR asks a privacy notice to say who answers for the data; DEPLOY.md's
     blueprint names the host and the region (D72)."""

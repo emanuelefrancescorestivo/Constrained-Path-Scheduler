@@ -29,6 +29,7 @@ more than an impressive number.
     cps demo --public                        # the public demo: a fresh student per visitor (deploy/demo/render.yaml)
     streamlit run app.py                     # the workbench
     cps serve                                # the calendar feeds the Streamlit page publishes
+    deploy/hetzner/new-env.sh                # the server's settings from three answers, its two keys made (D181)
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
     pytest                                   # 1594 passed, 17 deselected, 1 xfailed, about 450 s
     pytest -m "slow or not slow" --cov=cps   # all 1611 + 1 xfailed, 94% coverage, about 8 min; CI runs this
@@ -215,8 +216,11 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - Sessions not reported count as done as planned, except a self-test a day after it
   ended, which counts as unknown and gains no memory (D44). In `cps web` a report reaches the
   feed; in the Streamlit page it does not. Nothing is hosted yet: deployment is the
-  owner's step (docs/HETZNER.md, checkpoint C1 of docs/ROADMAP.md; the server's files
-  were run here in Docker, not on a real server). Google Calendar
+  owner's step (docs/HETZNER.md, checkpoint C1 of docs/ROADMAP.md). The package (0.4.0, D181)
+  was run whole here in Docker, Caddy with a local certificate: an account, a first run to Today
+  at phone size, a restart, the backups; not on a real server, nor with Let's Encrypt, real DNS,
+  the GitHub deploy or an e-mail sent. The privacy page's lines since D133 (AUDIT 123) are the
+  owner's to approve (C2). Google Calendar
   refreshes a subscribed feed on its own schedule, often hours apart.
 - The exam forecast and each self-test's gain (D24) come from FSRS with population
   weights and a guessed starting state; they are estimates, rounded to 5 %, and say

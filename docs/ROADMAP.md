@@ -35,8 +35,11 @@ checkpoints marked **(owner)**. `docs/PRODUCT.md` says why; this page says what.
 - [ ] **C1 (owner)** Create the Hetzner account, a server and a domain, and set
       the settings (the contact address, the owner's name, the review page's key;
       D72, D75), following `docs/HETZNER.md`; go through setup on a phone with
-      one's own timetable. (Render, `docs/DEPLOY.md`, stays a second way.)
-- [ ] **C2 (owner)** Approve the privacy notice; two or three friends try it.
+      one's own timetable. (Render, `docs/DEPLOY.md`, stays a second way.) The package
+      is ready (0.4.0, D181): `deploy/hetzner/new-env.sh` writes the settings from three
+      answers and makes the keys.
+- [ ] **C2 (owner)** Approve the privacy notice (its lines since D133 are new, AUDIT 123);
+      two or three friends try it.
 
 ## Phase 1b: a reason to come back every day
 

@@ -142,15 +142,26 @@ the rules that shut out root and passwords were not applied.
 
 ```bash
 cd /srv/study-plan
-openssl rand -base64 24 | tr -d '/+='    # a key for your review page: copy it
-nano deploy/hetzner/.env
+deploy/hetzner/new-env.sh
 ```
 
-Fill in `CPS_DOMAIN` (for example `plan.yourname.eu`), `CPS_CONTACT`,
-`CPS_CONTROLLER` (your name) and `CPS_ADMIN_TOKEN` (the line just made). Leave
-`ANTHROPIC_API_KEY` empty unless you want AI (D12). Save with Ctrl+O, Enter, then
-Ctrl+X. This file stays on the server: Git ignores it, and it should never be pasted
-into a chat or an issue.
+It asks three things: the domain (for example `plan.yourname.eu`), the e-mail address
+students can write to about their data, and your name, as the one who answers for the
+data (the privacy page shows both). It makes the two keys itself: the one for your
+review page, and the one that seals what students link from outside, such as Moodle's
+calendar link (D175). It writes them into `deploy/hetzner/.env` and shows them once:
+**keep both in your password manager**. A lost seal key means each student pastes their
+Moodle link again. Run twice, the script stops rather than replace keys already in use.
+
+The file stays on the server: Git ignores it, only you can read it, and it should never
+be pasted into a chat or an issue. To change anything later (e-mail below, or AI, which
+stays off while `ANTHROPIC_API_KEY` is empty, D12): `nano deploy/hetzner/.env`, save
+with Ctrl+O, Enter, then Ctrl+X.
+
+*By hand instead*: `cp deploy/hetzner/env.example deploy/hetzner/.env`, then fill in
+`CPS_DOMAIN`, `CPS_CONTACT`, `CPS_CONTROLLER`, `CPS_ADMIN_TOKEN` (from
+`openssl rand -base64 24 | tr -d '/+='`) and `CPS_SEAL_KEY` (from
+`openssl rand -base64 32 | tr '+/' '-_'`).
 
 **E-mail (D94).** Students sign up with their e-mail and a password. The app sends
 e-mail for two things only: the link that confirms an address and the link that
@@ -181,6 +192,20 @@ caddy` says why; most often the DNS of step 4 has not reached everyone yet. Cadd
 tries again by itself.
 
 Then go through setup on your phone with your own timetable, as C1 asks.
+
+### Before the first students
+
+The package was run whole before this guide was last changed (D181): the two containers,
+HTTPS, an account made and a first run on a phone to Today, a restart, the backups. What
+only you can do before you share the address:
+
+- **Read the privacy page and the terms** (`/privacy`, `/terms`), in the languages your
+  students will use, and change what you would not sign (checkpoint C2). Before the app is
+  open to anyone who finds it, a lawyer reads them (docs/ROADMAP.md, E16).
+- **E-mail, or not**: without it, a student who forgets a password needs you (the inbox on
+  your review page makes the link).
+- **Your review page** (`/admin/<your key>`): open it once a day while the pilot runs (C4).
+- **A copy of your settings**: the two keys from step 6, in your password manager.
 
 ## 8. Updates from GitHub, by themselves
 

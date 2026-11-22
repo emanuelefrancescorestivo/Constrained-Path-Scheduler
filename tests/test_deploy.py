@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -126,3 +128,69 @@ def test_the_deploy_workflow_does_nothing_until_it_is_configured():
     assert "github.event.workflow_run.conclusion == 'success'" in workflow
     assert "StrictHostKeyChecking=yes" in workflow
     assert "permissions: {}" in workflow
+
+
+# D181: every setting the app reads has a place on the server, or a reason to have none.
+LEFT_OUT = {
+    "CPS_DB": "the image's command names the database (--db /data/cps.sqlite)",
+    "CPS_FEED_DIR": "`cps serve`'s, the Streamlit page's feeds; the hosted app serves its own",
+    "CPS_FEED_URL": "`cps serve`'s, as above",
+    "CPS_ALLOW_PRIVATE_LINKS": "never on a server: it lets a link reach the server's own network",
+    "CPS_AI_MODEL": "the models in ai.py are the ones priced; another is the owner's choice (docs/DEPLOY.md)",
+    "CPS_AI_COACH_MODEL": "as above",
+    "CPS_AI_CARDS_MODEL": "as above",
+    "CPS_VAPID_PRIVATE_KEY": "made once and kept in the store (D38); given only to move reminders elsewhere",
+}
+
+
+def test_every_setting_the_app_reads_has_a_place_on_the_server():
+    # AUDIT 123: CPS_SEAL_KEY (D175) was read by the app and named nowhere on the server.
+    read = set(re.findall(r'"((?:CPS_[A-Z0-9_]+)|ANTHROPIC_API_KEY)"', SOURCE))
+    here = _settings(_read(HETZNER / "env.example")) | set(
+        re.findall(r"\b(CPS_[A-Z_]+):", _read(HETZNER / "compose.yaml"))
+    )
+    assert "CPS_SEAL_KEY" in here
+    assert read - here - set(LEFT_OUT) == set(), read - here - set(LEFT_OUT)
+    assert set(LEFT_OUT) <= read, set(LEFT_OUT) - read  # no reason kept for a setting gone
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or not shutil.which("bash") or not shutil.which("openssl"),
+    reason="the server's script: bash and openssl, as on Ubuntu",
+)
+def test_the_settings_script_asks_three_things_and_makes_the_keys(tmp_path):
+    pytest.importorskip("cryptography")
+    from cryptography.fernet import Fernet
+
+    script = HETZNER / "new-env.sh"
+    assert os.access(script, os.X_OK)
+    here = tmp_path / "hetzner"
+    here.mkdir()
+    shutil.copy(script, here / "new-env.sh")
+    shutil.copy(HETZNER / "env.example", here / "env.example")
+    answers = '  https://Plan.Example.EU/  \n\nme+pilot@example.org\nAnna D\'Angelo "Nana" $HOME\n'
+    done = subprocess.run(
+        ["bash", str(here / "new-env.sh")], input=answers, capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 0, done.stderr
+    written = here / ".env"
+    assert written.stat().st_mode & 0o077 == 0  # the keys: readable by the owner alone
+    values = dict(line.split("=", 1) for line in _read(written).splitlines() if re.match(r"[A-Z]", line))
+    assert values["CPS_DOMAIN"] == "plan.example.eu"  # the address pasted whole, made a name
+    assert values["CPS_CONTACT"] == '"me+pilot@example.org"'
+    assert values["CPS_CONTROLLER"] == '"Anna D\'Angelo \\"Nana\\" $$HOME"'  # compose reads it as typed
+    assert len(values["CPS_ADMIN_TOKEN"]) >= 24 and values["CPS_ADMIN_TOKEN"].isalnum()
+    Fernet(values["CPS_SEAL_KEY"].encode("ascii"))  # a key the app can seal with
+    assert values["CPS_ADMIN_TOKEN"] in done.stdout and values["CPS_SEAL_KEY"] in done.stdout
+    # Every other line is the example's.
+    example = _read(HETZNER / "env.example").splitlines()
+    mine = _read(written).splitlines()
+    assert len(mine) == len(example)
+    changed = {"CPS_DOMAIN", "CPS_CONTACT", "CPS_CONTROLLER", "CPS_ADMIN_TOKEN", "CPS_SEAL_KEY"}
+    assert [a for a, b in zip(example, mine, strict=True) if a != b and a.split("=")[0] not in changed] == []
+    # Run again, it keeps the keys in use.
+    again = subprocess.run(
+        ["bash", str(here / "new-env.sh")], input="a.b\nx@y\nz\n", capture_output=True, text=True, check=False
+    )
+    assert again.returncode == 1 and "exists already" in again.stderr
+    assert _read(written).splitlines() == mine

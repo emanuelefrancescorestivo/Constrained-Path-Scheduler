@@ -7106,3 +7106,54 @@ written. In this PDF a year alone on its line is taken for a page number and dro
 sessions' days keep no year and take their teaching week's, as before. A final exam's date said
 only in the assessment's text (the programming course's) is not read as its day. Checked in
 Chromium at phone size and 1280 px: the import page with the PDF, six courses found.
+
+## D181. Packaged for the launch
+
+**Asked.** The owner, on 2026-11-22: "impacchettiamo l'app e lanciamola". The launch is
+checkpoint C1 of docs/ROADMAP.md on the server the owner chose (D75): their Hetzner account, the
+server, the domain and its DNS, an SMTP account if e-mail is wanted, and the GitHub secrets for
+updates. Those are the owner's steps: an account, a payment and a domain are never made on
+anyone's behalf. What could be done here was to make the package ready and prove it whole.
+
+**Chosen.**
+- **The package run whole.** The image built and the two containers of
+  `deploy/hetzner/compose.yaml` started here (the app and Caddy, Caddy with its local certificate
+  for `localhost` in place of Let's Encrypt), and checked through HTTPS as a student's phone would
+  reach them: http sent to https, `/health`, the security headers, the privacy page naming the
+  controller, the host and the contact; an account made, the sample semester's timetable uploaded,
+  the first run's steps through to Today in Chromium at phone size, no error in the page; the app
+  restarted and the student still signed in with their plan; the database copied at start into
+  the volume; the review page answering its key only; the app running as its own user. The build
+  here needed the session's proxy certificate, given to a copy of the Dockerfile kept outside the
+  repository; the repository's Dockerfile is the one the server builds.
+- **The settings in three answers.** `deploy/hetzner/new-env.sh` writes `deploy/hetzner/.env`:
+  it asks for the domain (an address pasted whole is made a name), the address students write to
+  and the owner's name, and makes the review page's key and the seal key itself; every other line
+  is env.example's. It writes the file readable by its owner alone, quotes what was typed so that
+  compose hands it to the app exactly (an apostrophe, quotes, a dollar sign: checked inside a
+  container), and never overwrites a `.env` that exists, whose keys may be in use. Typing the keys
+  by hand stays possible (docs/HETZNER.md).
+- **The seal key on the server.** `CPS_SEAL_KEY` (D175) is in env.example, made before the first
+  start (AUDIT 123). A test now fails when the app reads a setting the server's files give no place
+  and no written reason (`LEFT_OUT` in `tests/test_deploy.py`).
+- **The privacy page caught up.** It names what the app keeps since the study map (D133): the
+  avatar and its flag, On your mind and a task's steps, a focus session's aim and whether it was
+  finished, points and vouches (their author sees how many, never who), cheers (kept a day), a
+  course's materials (names, kinds and addresses, never the files; a page's address read once by
+  the server), the Moodle links (the calendar link encrypted) and the monthly question to a Moodle
+  about its sign-in, a premium code; and that the coach is told the plan's facts (D176) and each AI
+  call is noted with the plan, without what was sent or answered (AUDIT 123).
+- **Version 0.4.0**, the changelog's section since 0.3.0, the package the pilot starts from.
+
+**Rejected.** Deploying from here: the server, its account and its domain are the owner's
+(D75). Generating the seal key when the app first starts without one on the server: that is what
+it does already, in the database, which is what the key is meant to be apart from. Writing the
+settings script in Python: Ubuntu has bash and openssl from the start, and the script is short
+enough to read before running it. Tagging the release on GitHub from here: a tag is published, and
+this branch is the only place this work is pushed; the owner can tag `v0.4.0` on `main`.
+
+**Disclosed.** The containers ran in this session's Docker, not on a Hetzner server: Let's
+Encrypt, the real DNS, the firewall and the GitHub deploy were not tried, and no e-mail was sent
+(no SMTP account). The first run was walked in Chromium only. The privacy page's new lines are
+written from the code; whether they are complete in law, and their wording, are for the owner and,
+before a public launch, a lawyer (docs/ROADMAP.md, E16).
