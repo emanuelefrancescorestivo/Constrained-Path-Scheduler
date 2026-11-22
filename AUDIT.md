@@ -1368,3 +1368,19 @@ row and hid the weights; words split at their hyphen ("matrix -vector"). Status:
 D180, each by a rule for any program of the shape (`tests/test_program_shapes.py`, the Spanish
 case in `tests/test_generality.py`).
 
+
+**123. Before the launch: a setting with no place on the server, and a privacy page behind the
+app.** Found on 2026-11-22, checking the pilot's package before its launch (D181). The app reads
+`CPS_SEAL_KEY` (D175), the key that seals students' Moodle links, but `deploy/hetzner/env.example`
+and `docs/HETZNER.md` never named it, so the server would keep the key in the database it is meant
+to be apart from; set later, it would make every link sealed until then unreadable. The privacy
+page, last changed with the study map (D133), named nothing the app came to keep after it: the
+avatar and its flag, On your mind and a task's steps, a focus session's aim, points and vouches,
+cheers, a course's materials, the Moodle links and the sign-in question asked of a Moodle, a
+premium code, the AI ledger of calls per plan; and it said the coach is sent the questions, not
+the plan's facts it is told since D176. How found: by comparing the names the code reads with the
+server's files, and each decision since D133 with the page's list. Status: fixed with D181: the
+setting is in env.example and made by `deploy/hetzner/new-env.sh`, a test fails when the app reads
+a setting the server has no place or reason for (`tests/test_deploy.py`); the privacy page names
+each of them in the three languages (`tests/test_web.py`). The wording is the owner's to approve
+before students see it (checkpoint C2).

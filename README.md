@@ -420,8 +420,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1594 passed, 17 deselected (slow), 1 xfailed, ~450 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1611 passed, 1 xfailed, 94% coverage
+pytest                                    # 1597 passed, 17 deselected (slow), 1 xfailed, ~450 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1614 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above

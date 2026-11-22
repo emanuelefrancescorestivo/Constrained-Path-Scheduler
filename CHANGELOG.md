@@ -2,10 +2,19 @@
 
 ## Unreleased
 
-The project becomes a study assistant: the product schedules with rules, and the
-research planner becomes the reference behind them (AUDIT.md item 36).
+## 0.4.0 (2026-11-22)
+
+The package the pilot starts from. The project becomes a study assistant: the product
+schedules with rules, and the research planner becomes the reference behind them (AUDIT.md
+item 36).
 
 ### Added
+
+- Packaged for the launch (DECISIONS.md D181): the two containers run whole through HTTPS, from an
+  account to Today on a phone; `deploy/hetzner/new-env.sh` writes the server's settings from three
+  answers and makes the review page's key and the seal key; the seal key has its place on the
+  server, and the privacy page names everything the app keeps since the study map and what the
+  coach is told (AUDIT 123).
 
 - A first year's program read whole (DECISIONS.md D180): chapters written with a paragraph,
   weights "of the final grade" or after a colon, totals of hours with their split, session tables
