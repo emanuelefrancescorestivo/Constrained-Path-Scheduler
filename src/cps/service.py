@@ -7135,7 +7135,9 @@ def end_pause(subscription: Subscription, *, now: datetime | None = None) -> Sub
 # --------------------------------------------------------------------------- #
 
 HOLIDAY_DAYS = 7  # the fewest days in a row without classes asked about
-HOLIDAY_ASK_DAYS = 28  # asked from four weeks before the holiday begins
+# Asked from two weeks before the holiday begins: enough for the plan to move its sessions.
+# Four weeks crowded a semester's first week, whose first holiday is often a month in (D184).
+HOLIDAY_ASK_DAYS = 14
 HOLIDAY_ANSWERS = ("rest", "study")
 
 
@@ -7179,7 +7181,7 @@ def _holidays_found(plan: PlanReport) -> list[tuple[date, date]]:
 
 
 def holiday_ask(subscription: Subscription, now: datetime | None = None) -> dict | None:
-    """Today's question about the next holiday (D184), from four weeks before it
+    """Today's question about the next holiday (D184), from two weeks before it
     begins to its last day, until answered: its days, ISO and in words, how many,
     and whether it has begun. None when there is nothing to ask."""
     if subscription.plan is None:
@@ -13310,22 +13312,30 @@ def _topic_course(subscription: Subscription, index: int) -> str:
     return courses[index]
 
 
-def _teaching(subscription: Subscription, course: str) -> tuple[list[date], list[float], list[int]]:
-    """The course's teaching weeks in the timetable, in order: their Mondays and
-    their lecture hours, and the week (from 1) of each lecture. Lectures as
-    `_topics` counts them, by the day each ends; none without a timetable file."""
+def _lecture_spans(subscription: Subscription, course: str) -> list[tuple[str, str]]:
+    """The course's lectures in the timetable, as (start, end) in ISO, in order; none
+    without a timetable file."""
     if subscription.plan is None or subscription.ics_text is None:
-        return [], [], []
+        return []
     settings = PlanReport.from_dict(subscription.plan).settings
-    zone = _zone(settings.tz)
     changes = tuple(subscription.options.get("lecture_changes", ()))
-    taught = sorted(
+    return sorted(
         {
             (x.start, x.end)
             for x in _lectures(subscription.ics_text, settings.start, settings.tz, changes)
             if x.course.casefold() == course.casefold()
         }
     )
+
+
+def _teaching(subscription: Subscription, course: str) -> tuple[list[date], list[float], list[int]]:
+    """The course's teaching weeks in the timetable, in order: their Mondays and
+    their lecture hours, and the week (from 1) of each lecture. Lectures as
+    `_topics` counts them, by the day each ends; none without a timetable file."""
+    taught = _lecture_spans(subscription, course)
+    if not taught:
+        return [], [], []
+    zone = _zone(PlanReport.from_dict(subscription.plan or {}).settings.tz)
     mondays: list[date] = []
     hours: list[float] = []
     weeks: list[int] = []
@@ -14238,36 +14248,108 @@ def _study_minutes(plan: PlanReport, course: str) -> tuple[int, int]:
     return done, ahead
 
 
+# A plan begun this many days or more after a course's first lecture counts the course
+# from the plan's own first day (D186): the study before it was never in the plan.
+LATE_START_DAYS = 7
+
+
+def _late_share(plan: PlanReport, course: str, spans: Sequence[tuple[str, str]]) -> float | None:
+    """For a plan begun `LATE_START_DAYS` or more after the course's first lecture
+    (D186), the part of the course from the plan's first day on: the days from it to
+    the course's last exam over the days from the first lecture, else the part of its
+    lecture hours still to come; None for a plan begun before or soon after it."""
+    if not spans:
+        return None
+    zone = _zone(plan.settings.tz)
+    start = plan.settings.start
+    first = min(datetime.fromisoformat(b).astimezone(zone).date() for b, _e in spans)
+    if (start - first).days < LATE_START_DAYS:
+        return None
+    exams = [
+        datetime.fromisoformat(s["exam"]).astimezone(zone).date()
+        for s in plan.specs
+        if course_key(s.get("subject", "")) == course_key(course)
+    ]
+    if exams and max(exams) > first:
+        return min(1.0, max(0.0, (max(exams) - start).days / (max(exams) - first).days))
+    hours = [(datetime.fromisoformat(e) - datetime.fromisoformat(b)) / timedelta(hours=1) for b, e in spans]
+    ahead = sum(
+        h
+        for (b, _e), h in zip(spans, hours, strict=True)
+        if datetime.fromisoformat(b).astimezone(zone).date() >= start
+    )
+    return ahead / sum(hours) if sum(hours) else None
+
+
 def course_workload(subscription: Subscription, course: str) -> dict | None:
     """The workload check (D86): the hours a course's ECTS credits stand for (25 to
-    30 each, the ECTS Users' Guide), against its lectures in the timetable from the
-    plan's first day and the plan's study for it, done and to come. Information,
-    never a demand: the credits are a typical student's workload, not this one's.
+    30 each, the ECTS Users' Guide), against its lectures in the timetable and the
+    plan's study for it, done and to come. Information, never a demand: the credits
+    are a typical student's workload, not this one's. For a plan begun a week or
+    more into the course (D186), from the plan's first day: its lectures since then,
+    against the credits' share of the course that was still ahead (`_late_share`).
     None without credits or a plan."""
     credit = _credits(subscription, course)
     if credit is None or subscription.plan is None:
         return None
     plan = PlanReport.from_dict(subscription.plan)
     low, high = _syllabus.workload(credit)
-    lectures = round(sum(_teaching(subscription, course)[1]))
+    spans = _lecture_spans(subscription, course)
+    share = _late_share(plan, course, spans)
+    zone = _zone(plan.settings.tz)
+    if share is not None:
+        low, high = round(low * share), round(high * share)
+        spans = [
+            (b, e)
+            for b, e in spans
+            if datetime.fromisoformat(b).astimezone(zone).date() >= plan.settings.start
+        ]
+    lectures = round(
+        sum((datetime.fromisoformat(e) - datetime.fromisoformat(b)) / timedelta(hours=1) for b, e in spans)
+    )
     done, ahead = _study_minutes(plan, course)
     study = round((done + ahead) / 60)
     total = lectures + study
     verdict = "below" if total < low else "above" if total > high else "within"
-    words = {
-        "below": _("{total} h in all, {gap} h under what the credits suggest.", total=total, gap=low - total),
-        "within": _("{total} h in all: within what the credits suggest.", total=total),
-        "above": _("{total} h in all: more than the credits suggest.", total=total),
-    }[verdict]
+    since = format_date(plan.settings.start, "short") if share is not None else ""
+    if since:
+        words = {
+            "below": _(
+                "Since {day}: {total} h, {gap} h under what the credits suggest for those weeks.",
+                day=since,
+                total=total,
+                gap=low - total,
+            ),
+            "within": _(
+                "Since {day}: {total} h, within what the credits suggest for those weeks.",
+                day=since,
+                total=total,
+            ),
+            "above": _(
+                "Since {day}: {total} h, more than the credits suggest for those weeks.",
+                day=since,
+                total=total,
+            ),
+        }[verdict]
+    else:
+        words = {
+            "below": _(
+                "{total} h in all, {gap} h under what the credits suggest.", total=total, gap=low - total
+            ),
+            "within": _("{total} h in all: within what the credits suggest.", total=total),
+            "above": _("{total} h in all: more than the credits suggest.", total=total),
+        }[verdict]
     top = max(high, total) * 1.1
     # The syllabus's hours of classes (D90): what the credits leave for the student's
     # own study, and that over the course's weeks of lectures.
     facts = ((subscription.options.get("topics") or {}).get(course_key(course)) or {}).get("facts") or {}
     own = None
     if facts.get("hours"):
+        # The syllabus speaks of the whole course, whenever the plan began.
+        low_all, high_all = _syllabus.workload(credit)
         classes = round(float(facts["hours"]))
         weeks = len(_teaching(subscription, course)[0])
-        own_low, own_high = max(0, low - classes), max(0, high - classes)
+        own_low, own_high = max(0, low_all - classes), max(0, high_all - classes)
         own = {
             "classes": classes,
             "says": _(
@@ -14296,6 +14378,8 @@ def course_workload(subscription: Subscription, course: str) -> dict | None:
         "total": total,
         "verdict": verdict,
         "says": words,
+        # The plan's first day, in words, for a plan begun partway through (D186).
+        "since": since,
         # The bar, drawn as SVG on the server: widths in percent of the scale.
         "bar": {
             "lectures": round(100 * lectures / top, 1),

@@ -1785,7 +1785,7 @@ MESSAGES: dict[str, str] = {
     "Name (optional)": "Nome (facoltativo)",
     "No cards for this week yet": "Ancora nessuna carta per questa settimana",
     "No lectures of this course in your timetable": "Nessuna lezione di questo corso nel tuo orario",
-    "One ECTS credit stands for 25 to 30 hours of work for a typical student, lectures included (the ECTS Users' Guide). The lectures are those of your timetable from your plan's first day; the study is your plan's sessions for this course, done and to come, without those you skipped. Hours you logged on your own are not counted. A course that needs more than the credits say is common; so is one that needs less.": "Un credito ECTS corrisponde a 25-30 ore di lavoro per uno studente tipico, lezioni comprese (la guida ECTS). Le lezioni sono quelle del tuo orario dal primo giorno del piano; lo studio, le sessioni del piano per questo corso, fatte e da fare, senza quelle saltate. Le ore registrate da te non sono contate. Un corso che chiede più di quanto dicono i crediti è comune; anche uno che chiede meno.",
+    "One ECTS credit stands for 25 to 30 hours of work for a typical student, lectures included (the ECTS Users' Guide). The lectures are those of your timetable (from your plan's first day if it began a week or more into the course; the credits then count the part of the course still ahead, by the days to its exam); the study is your plan's sessions for this course, done and to come, without those you skipped. Hours you logged on your own are not counted. A course that needs more than the credits say is common; so is one that needs less.": "Un credito ECTS corrisponde a 25-30 ore di lavoro per uno studente tipico, lezioni comprese (la guida ECTS). Le lezioni sono quelle del tuo orario (dal primo giorno del piano, se è iniziato una settimana o più dopo l'inizio del corso; i crediti contano allora la parte del corso ancora da fare, in base ai giorni fino all'esame); lo studio, le sessioni del piano per questo corso, fatte e da fare, senza quelle saltate. Le ore registrate da te non sono contate. Un corso che chiede più di quanto dicono i crediti è comune; anche uno che chiede meno.",
     "Practise its {n} card": "Ripassa la sua carta ({n})",
     "Practise its {n} cards": "Ripassa le sue {n} carte",
     "Read from the course page you pasted.": "Letto dalla pagina del corso che hai incollato.",
@@ -3715,4 +3715,9 @@ MESSAGES: dict[str, str] = {
     # Courses without an exam (D185)
     "No exam in your timetable for: {courses}": "Nessun esame nel tuo orario per: {courses}",
     "To plan for one, give its exam's date, or its last test's. Left empty, it stays out of the plan.": "Per pianificarne uno, indica la data del suo esame, o della sua ultima prova. Se lo lasci vuoto, resta fuori dal piano.",
+    # The workload from the plan's first day (D186)
+    "Since {day}: {total} h, {gap} h under what the credits suggest for those weeks.": "Dal {day}: {total} h, {gap} h meno di quanto suggeriscono i crediti per quelle settimane.",
+    "Since {day}: {total} h, within what the credits suggest for those weeks.": "Dal {day}: {total} h, entro quanto suggeriscono i crediti per quelle settimane.",
+    "Since {day}: {total} h, more than the credits suggest for those weeks.": "Dal {day}: {total} h, più di quanto suggeriscono i crediti per quelle settimane.",
+    "{n} ECTS, since {day}: {low} to {high} h": "{n} ECTS, dal {day}: da {low} a {high} h",
 }

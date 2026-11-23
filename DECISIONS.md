@@ -7237,7 +7237,7 @@ holiday once instead.
 course with an exam in the timetable, between two days with one (`holidays_in`). A course of neither
 kind (the gym, a job) is not a class: the second year's gym goes on through All Saints' week, which
 is still found. A stretch with an exam in it, of the timetable or typed, is an exam period, not a
-holiday. The plan keeps the holidays it found (`preferences["holidays"]`). From four weeks before a
+holiday. The plan keeps the holidays it found (`preferences["holidays"]`). From two weeks before a
 holiday begins to its last day, Today asks once, after the end of the semester and before the
 question about counting use: "No classes from 19 Dec to 5 Jan. Rest, or keep studying?". "Rest those
 days" sets a pause over the holiday, from today when it has begun, marked as the holiday's
@@ -7250,9 +7250,11 @@ again; a holiday under way ends with Resume, as a pause does.
 revision the plan is for; a day off in them is a pause. Resting every holiday unasked: some
 students revise over Christmas for January's exams. Counting every event of the timetable as a
 class: the gym would hide All Saints' week. A third answer for part of the holiday: a pause, or
-"Study then", covers it in one tap.
+"Study then", covers it in one tap. Asking four weeks ahead (the first version): a semester's first
+holiday is often a month in, and the question crowded the first week's (counting use, making the
+plan fit, D96, D98); two weeks is time enough for the plan to move the work.
 
-**Disclosed.** Seven days and four weeks are choices. The holidays are read from the timetable's
+**Disclosed.** Seven days and two weeks are choices. The holidays are read from the timetable's
 gaps, not its words; tried on the two samples and on every shape of `tests/test_generality.py`,
 with a club that goes on through the break. A resting holiday moves its sessions to the days after
 it (D126's limit). Checked in Chromium only, at 1280 px and phone size.
@@ -7277,4 +7279,28 @@ fitted to one timetable's titles; the student sees the list and leaves them empt
 
 **Disclosed.** The list is every course of the timetable with no exam found, a club among them.
 Checked in Chromium only, at 1280 px and phone size.
+
+## D186. The workload from the plan's first day
+
+**Asked.** In the report on the first-year timetable (D182), a plan begun in late November showed
+five of seven courses with "fewer hours than the credits suggest": every lecture of the semester
+counted, the study before the plan counted as none (AUDIT 127). The owner accepted the proposal to
+count from the plan's first day for a student who starts partway.
+
+**Chosen.** A plan begun seven days or more after a course's first lecture counts that course from
+its own first day: the lectures since then, the plan's study (which begins then anyway), against the
+credits' share of the course still ahead (`_late_share`): the days from the plan's first day to the
+course's last exam over the days from its first lecture, else, with no exam, the share of its
+lecture hours still to come. The sentence and the band say so: "Since 16 Nov: … for those weeks",
+"6 ECTS, since 16 Nov: 89 to 106 h". The syllabus's hours of classes (D90) still speak of the whole
+course. A plan begun before or in the course's first week is unchanged.
+
+**Rejected.** Asking the student how much they studied before: a question at setting up for a
+number nobody knows. Counting the share by lecture hours alone: the weeks between the last lecture
+and the exam are part of the work, and a late starter has all of them ahead.
+
+**Disclosed.** The week and the proportion by days are choices; the credits are a typical student's
+workload, spread evenly by this rule, which no student's is. Measured on the second-year sample
+(`tests/test_courses.py`): begun on 16 November, Algebra 3's 150 to 180 h become 89 to 106, and its
+33 h of lectures 15.
 

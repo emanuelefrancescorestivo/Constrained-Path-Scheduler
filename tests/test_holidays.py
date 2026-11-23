@@ -1,12 +1,12 @@
 """
 Holidays (DECISIONS.md D184): a week or more without classes between two days of
-classes is asked about once on Today, from four weeks before it begins: rest those
+classes is asked about once on Today, from two weeks before it begins: rest those
 days, or keep studying. Found on the first-year timetable (D182), whose plan had
 sessions every day from 19 December to 5 January, Christmas Day included.
 
 What must hold: the holidays are the timetable's (All Saints' and Christmas on the
 first year's, All Saints' alone on the second year's, whose gym goes on through it);
-the question comes four weeks ahead and not before, once, and not after the holiday;
+the question comes two weeks ahead and not before, once, and not after the holiday;
 "Rest" leaves the holiday's days free and the streak waiting, as a pause does (D126),
 from today when it is under way; a pause set or ended before it leaves it as it is;
 "Study then" plans its days again; Today asks it before counting use, and the page
@@ -74,8 +74,8 @@ def test_a_timetable_s_holidays_are_its_weeks_without_classes(sub):
 
 def test_christmas_is_asked_four_weeks_ahead_and_rest_leaves_it_free(sub):
     assert _in(_days(sub), CHRISTMAS)  # sessions planned through Christmas until asked
-    assert service.holiday_ask(sub, _at(date(2026, 11, 20))) is None  # 29 days ahead: not yet
-    ask = service.holiday_ask(sub, _at(date(2026, 11, 21)))
+    assert service.holiday_ask(sub, _at(date(2026, 12, 4))) is None  # 15 days ahead: not yet
+    ask = service.holiday_ask(sub, _at(date(2026, 12, 5)))
     assert ask == {
         "from": "2026-12-19",
         "to": "2027-01-05",
@@ -84,7 +84,7 @@ def test_christmas_is_asked_four_weeks_ahead_and_rest_leaves_it_free(sub):
         "days": 18,
         "under_way": False,
     }
-    now = _at(date(2026, 11, 23))
+    now = _at(date(2026, 12, 7))
     rested = service.answer_holiday(sub, "2026-12-19", "rest", now=now)
     assert rested.options["holidays"] == {"2026-12-19": "rest"}
     assert rested.options["preferences"]["pauses"] == [
@@ -148,7 +148,7 @@ def web(tmp_path):
     from cps.web import Config, create_app
 
     class Clock:
-        now = _at(date(2026, 11, 23))
+        now = _at(date(2026, 12, 7))
 
     config = Config(
         store=tmp_path, clock=lambda: Clock.now, background=False, sweep_every=None, remind_every=None

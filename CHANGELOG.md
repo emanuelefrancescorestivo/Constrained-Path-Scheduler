@@ -9,7 +9,7 @@
   left empty it stays out.
 
 - Holidays (DECISIONS.md D184): a week or more without classes between two days of classes is
-  asked about on Today from four weeks before it: "Rest those days" leaves them free and the
+  asked about on Today from two weeks before it: "Rest those days" leaves them free and the
   streak waiting, as a pause does; "Keep studying" keeps the plan. Progress shows a holiday
   chosen for rest, with "Study then".
 
@@ -22,6 +22,10 @@
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
 
 ### Fixed
+
+- The workload check for a plan begun partway through a course (DECISIONS.md D186, AUDIT 127): its
+  lectures from the plan's first day, against the credits' share of the course still ahead, instead
+  of every lecture against the whole course while the study before the plan counted as none.
 
 - A program's course numbered in Roman numerals ("Economics I") is offered to the timetable's
   course with the figure ("Economics 1"), on import and with a class's link (AUDIT 124).
