@@ -4,6 +4,10 @@
 
 ### Added
 
+- The time around an exam (DECISIONS.md D183): the hour before an exam and the half hour after it
+  are kept free of study, so no session of another course runs into an exam or starts as one ends;
+  an exam typed by hand is taken to last two hours (AUDIT 125).
+
 - The demo in a first year (DECISIONS.md D182): "Start the demo: first year" beside "Second year";
   the first year runs on `examples/sample-year1.ics`, a real first year's courses, hours, exams
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.

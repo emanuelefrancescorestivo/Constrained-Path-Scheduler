@@ -304,7 +304,10 @@ def test_an_invitation_link_opens_joins_and_needs_a_handle_first(web):
 def test_the_progress_page_shows_the_badge_shelf(web):
     token = _start(web)
     page = web.get(f"/p/{token}/progress?more=1").text  # inside "More detail" (D103, D106)
-    assert 'class="badges"' in page and "0 of 12" in page and "never for hours or rankings" in page
+    # The shelf's own count: "0 of 12" matched "10 of 12 topics on track" once the focus
+    # badges (D67) made it 17 (AUDIT 126).
+    shelf = page[page.index('class="badges"') - 400 :]
+    assert f"0 of {len(service.BADGES)}" in shelf and "never for hours or rankings" in page
 
 
 def test_every_plan_page_lets_the_device_remember_its_plan(web):

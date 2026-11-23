@@ -21,12 +21,12 @@
 <line x1="504.0" y1="100.0" x2="504.0" y2="210.0" stroke="#e4e3df" stroke-width="1" stroke-linecap="round"/>
 <path d="M504.0,102.0 h165.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-165.8 z" fill="#2a78d6"/>
 <text x="679.8" y="115.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">63</text>
-<path d="M504.0,132.0 h171.2 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-171.2 z" fill="#2a78d6"/>
-<text x="685.2" y="145.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">65</text>
+<path d="M504.0,132.0 h168.5 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-168.5 z" fill="#2a78d6"/>
+<text x="682.5" y="145.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">64</text>
 <path d="M504.0,162.0 h165.8 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-165.8 z" fill="#2a78d6"/>
 <text x="679.8" y="175.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">63</text>
 <path d="M504.0,192.0 h114.6 a4.0,4.0 0 0 1 4.0,4.0 v10.0 a4.0,4.0 0 0 1 -4.0,4.0 h-114.6 z" fill="#2a78d6"/>
 <text x="628.6" y="205.0" font-size="11" font-weight="400" fill="#0b0b0b" text-anchor="start">44</text>
-<text x="24.0" y="242.0" font-size="12" font-weight="400" fill="#52514e" text-anchor="start">For the same 63 topics at target, the search saves 13 of 235 sessions (about one in 18) and takes 39 s instead of 0.01 s.</text>
+<text x="24.0" y="242.0" font-size="12" font-weight="400" fill="#52514e" text-anchor="start">For the same 63 topics at target, the search saves 13 of 235 sessions (about one in 18) and takes 46 s instead of 0.01 s.</text>
 <text x="24.0" y="274.0" font-size="11" font-weight="400" fill="#52514e" text-anchor="start">Every review assumed to succeed. benchmarks/rule_vs_planner.py, benchmarks/figures.py</text>
 </svg>

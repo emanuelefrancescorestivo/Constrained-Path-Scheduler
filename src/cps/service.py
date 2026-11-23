@@ -516,6 +516,13 @@ _PAUSE_KINDS = ("training", "work")
 QUICK_SLACK = timedelta(minutes=15)
 QUICK_MIN_SLOTS = 2
 WAY_MIN = timedelta(minutes=30)
+# The time around an exam kept free of study (D183): the hour before it, to get there
+# with a clear head, and the half hour after it, to leave and breathe. An exam typed
+# by hand, with no event in the timetable, is taken to last two hours.
+EXAM_BEFORE = timedelta(hours=1)
+EXAM_AFTER = timedelta(minutes=30)
+TYPED_EXAM_LENGTH = timedelta(hours=2)
+_EXAM_KINDS = ("mock", "partial")  # the classes marked as tests (D61) that are kept free alike
 
 # The longest trip asked about (the question offers up to 90 minutes; a typed
 # value above this is refused rather than blocking a whole morning by mistake).
@@ -648,6 +655,14 @@ def analyse_calendar(
         BusyEvent(e.end, e.end + PAUSE_AFTER, "")
         for e in busy_from_table([r for r in rows if r.kind in _PAUSE_KINDS], start, days, tz)
     ]
+    # The hour before each exam of the timetable and the half hour after it (D183): busy
+    # for the grid, so that the day's blocks are cut around them. An exam typed by hand
+    # is kept free later, when the plan knows it (`_around_exams`).
+    exam_ends = {e.start: e.end for e, source in tagged if source in ("calendar", *TEST_KINDS)}
+    tests = {e.start for e, source in tagged if source in _EXAM_KINDS}
+    for when in {d.when for d in found} | tests:
+        end = exam_ends.get(when, when + TYPED_EXAM_LENGTH)
+        pauses += [BusyEvent(when - EXAM_BEFORE, when, ""), BusyEvent(end, end + EXAM_AFTER, "")]
     grid = availability_from_events(events + pauses, start, days, SLOTS_PER_DAY, study_window)
     minutes_per_slot = 24 * 60 // grid.slots_per_day
     block_slots = max(1, block_minutes // minutes_per_slot)
@@ -1229,6 +1244,7 @@ def _prepare(
         slots_per_day=report.slots_per_day,
         horizon_days=report.days,
     )
+    report = _around_exams(report, specs)
     usable = [b for b in report.blocks if b.start_day < latest]
     if not usable:
         raise NoFreeBlocks(
@@ -1236,6 +1252,34 @@ def _prepare(
             "blocks a day, shorten the blocks, or free some time in the calendar"
         )
     return settings, specs, report
+
+
+def _around_exams(report: CalendarReport, specs: Sequence[Mapping[str, Any]]) -> CalendarReport:
+    """The report without the blocks, and the quick self-tests' room, that fall in the
+    hour before an exam or the half hour after it (D183), whatever the course: an exam
+    of the timetable ends when its event does, one typed by hand two hours after it
+    starts. A mock or partial exam the student marked in the timetable (D61) is kept free
+    alike; a quiz, a few minutes inside a class, is not."""
+    ends: dict[datetime, datetime] = {}
+    for e in report.events:
+        if e.source in ("calendar", *TEST_KINDS):
+            begin = datetime.fromisoformat(e.start)
+            ends[begin] = max(ends.get(begin, begin), datetime.fromisoformat(e.end))
+    starts = {datetime.fromisoformat(str(s["exam"])) for s in specs if s.get("exam")}
+    starts |= {datetime.fromisoformat(e.start) for e in report.events if e.source in _EXAM_KINDS}
+    windows = [(t - EXAM_BEFORE, ends.get(t, t + TYPED_EXAM_LENGTH) + EXAM_AFTER) for t in starts]
+    if not windows:
+        return report
+
+    def clear(b: BlockView) -> bool:
+        begin, end = datetime.fromisoformat(b.start), datetime.fromisoformat(b.end)
+        return all(end <= w0 or begin >= w1 for w0, w1 in windows)
+
+    return replace(
+        report,
+        blocks=tuple(b for b in report.blocks if clear(b)),
+        quick=tuple(b for b in report.quick if clear(b)),
+    )
 
 
 def continue_plan(
