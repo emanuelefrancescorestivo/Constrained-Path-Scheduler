@@ -3720,4 +3720,7 @@ MESSAGES: dict[str, str] = {
     "Since {day}: {total} h, within what the credits suggest for those weeks.": "Dal {day}: {total} h, entro quanto suggeriscono i crediti per quelle settimane.",
     "Since {day}: {total} h, more than the credits suggest for those weeks.": "Dal {day}: {total} h, più di quanto suggeriscono i crediti per quelle settimane.",
     "{n} ECTS, since {day}: {low} to {high} h": "{n} ECTS, dal {day}: da {low} a {high} h",
+    # A chapter over its weeks (D187)
+    "{topic} (continued)": "{topic} (continua)",
+    "Weeks of {first} to {last}": "Settimane dal {first} al {last}",
 }

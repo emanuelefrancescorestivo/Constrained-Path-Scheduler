@@ -10148,9 +10148,13 @@ def course_materials(
     `MATERIALS_MOST` characters, which the view says."""
     key = course_key(course)
     kept = (subscription.options.get("topics") or {}).get(key) or {}
-    items = [i for i in kept.get("items") or () if week is None or i.get("monday") == week]
+    # A chapter that runs over several weeks (D187) belongs to each of them.
+    items = [
+        i for i in kept.get("items") or () if week is None or week in {m.isoformat() for m in _weeks_of(i)}
+    ]
     topics = [
-        {"id": f"t{n}", "title": i["title"], "monday": i.get("monday") or ""} for n, i in enumerate(items, 1)
+        {"id": f"t{n}", "title": i["title"], "monday": week or i.get("monday") or ""}
+        for n, i in enumerate(items, 1)
     ]
     notes: list[str] = []
     sources: list[dict] = []
@@ -13351,13 +13355,33 @@ def _teaching(subscription: Subscription, course: str) -> tuple[list[date], list
 
 
 def _placed(subscription: Subscription, course: str, topics: Sequence[_syllabus.Topic]) -> list[dict]:
-    """The topics with the Monday of the teaching week each falls in (or None)."""
+    """The topics with the Monday of the teaching week each falls in (or None) and,
+    for a topic that runs over more weeks (a chapter of a list without weeks, D187),
+    the Monday of the last as "until"."""
     mondays, hours, weeks = _teaching(subscription, course)
     places = _syllabus.place(topics, hours, weeks, mondays)
-    return [
-        {**t.to_dict(), "monday": mondays[w - 1].isoformat() if w is not None else None}
-        for t, w in zip(topics, places, strict=True)
-    ]
+    ends = _syllabus.covers(topics, places, len(mondays))
+    out = []
+    for t, w, end in zip(topics, places, ends, strict=True):
+        item = {**t.to_dict(), "monday": mondays[w - 1].isoformat() if w is not None else None}
+        if w is not None and end is not None and end > w:
+            item["until"] = mondays[end - 1].isoformat()
+        out.append(item)
+    return out
+
+
+def _weeks_of(item: Mapping, mondays: Sequence[date] = ()) -> list[date]:
+    """The Mondays of the teaching weeks a saved topic is taught in: its own and, up
+    to its "until" (D187), those of the teaching weeks between (`mondays`), else
+    every seventh day."""
+    if not item.get("monday"):
+        return []
+    first = date.fromisoformat(item["monday"])
+    if not item.get("until"):
+        return [first]
+    last = date.fromisoformat(item["until"])
+    between = [m for m in mondays if first <= m <= last]
+    return between or [first + timedelta(weeks=k) for k in range((last - first).days // 7 + 1)]
 
 
 _SECTION_NAMES = {
@@ -13424,10 +13448,20 @@ def _topic_rows(items: Sequence[Mapping]) -> list[dict]:
     rows = []
     for item in items:
         monday = date.fromisoformat(item["monday"]) if item.get("monday") else None
+        until = date.fromisoformat(item["until"]) if item.get("until") else None
+        when = ""
+        if monday and until:  # a chapter over several weeks (D187)
+            when = _(
+                "Weeks of {first} to {last}",
+                first=format_date(monday, "day_short"),
+                last=format_date(until, "day_short"),
+            )
+        elif monday:
+            when = _("Week of {day}", day=format_date(monday, "day_short"))
         rows.append(
             {
                 "title": item["title"],
-                "when": _("Week of {day}", day=format_date(monday, "day_short")) if monday else "",
+                "when": when,
                 "week": item.get("week"),
                 "lecture": item.get("lecture"),
                 "assessment": item.get("kind") == "assessment",
@@ -13965,11 +13999,15 @@ def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[st
     index: dict[tuple[str, str], list[str]] = {}
     for key, entry in kept.items():
         for item in entry.get("items") or ():
-            if item.get("monday") and item.get("kind") != "assessment":
-                monday = date.fromisoformat(item["monday"])
+            if item.get("kind") == "assessment":
+                continue
+            # Each week a topic is taught in: a chapter's every week (D187).
+            for monday in _weeks_of(item):
                 index.setdefault((key, _week_label(monday)), []).append(item["title"])
                 if monday < start:  # a week begun before the plan: some of it was taught before
-                    index.setdefault((key, "before"), []).append(item["title"])
+                    before = index.setdefault((key, "before"), [])
+                    if item["title"] not in before:
+                        before.append(item["title"])
     return index
 
 
@@ -14431,13 +14469,22 @@ def _week_states(
             value = min(recall[name] for name in names)
             level = {"recall": round(100 * value), "level": _learning.level(value)}
         own = [i for i in items if i.get("monday") == monday.isoformat()]
+        # A chapter begun in an earlier week and still taught in this one (D187).
+        going = [
+            i
+            for i in items
+            if i.get("until")
+            and i.get("kind") != "assessment"
+            and i["monday"] < monday.isoformat() <= i["until"]
+        ]
         out.append(
             {
                 "n": n,
                 "monday": monday.isoformat(),
                 "label": _week_name(monday, n),
                 "state": when,
-                "topics": [i["title"] for i in own if i.get("kind") != "assessment"],
+                "topics": [_("{topic} (continued)", topic=i["title"]) for i in going]
+                + [i["title"] for i in own if i.get("kind") != "assessment"],
                 # A schedule's mock exam or midterm in its week, and an assessment's
                 # part held "in weeks 3 and 10" (D90); what the schedule says to read.
                 "assessments": [i["title"] for i in own if i.get("kind") == "assessment"]

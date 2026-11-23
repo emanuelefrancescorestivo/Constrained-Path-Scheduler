@@ -23,6 +23,11 @@
 
 ### Fixed
 
+- A chapter covers its weeks (DECISIONS.md D187): a course's list of topics without weeks is spread from
+  the first week, each topic running until the next one begins, shown on every week it covers
+  ("(continued)" after its first) and on their sessions; before, five chapters over fourteen weeks sat
+  alone in weeks 2, 5, 7, 10 and 13.
+
 - The workload check for a plan begun partway through a course (DECISIONS.md D186, AUDIT 127): its
   lectures from the plan's first day, against the credits' share of the course still ahead, instead
   of every lecture against the whole course while the study before the plan counted as none.

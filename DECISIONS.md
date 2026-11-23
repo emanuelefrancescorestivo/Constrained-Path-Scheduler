@@ -7304,3 +7304,29 @@ workload, spread evenly by this rule, which no student's is. Measured on the sec
 (`tests/test_courses.py`): begun on 16 November, Algebra 3's 150 to 180 h become 89 to 106, and its
 33 h of lectures 15.
 
+## D187. A chapter covers its weeks
+
+**Asked.** In the report on the first-year timetable (D182), the Probability syllabus's five
+chapters, which name no weeks, each landed on one week (2, 5, 7, 10 and 13 of fourteen), and the
+weeks between had none, on the course's page and on their sessions. The owner accepted the proposal
+that each chapter covers its weeks.
+
+**Chosen.** A list without weeks is still spread by lecture hours (D81), each topic now in the week
+its share begins, so the first is in the first week (`syllabus.place`), and it runs until the week
+before the next one's, the last to the last teaching week (`syllabus.covers`); a topic kept with an
+"until" belongs to each week between. The course's weeks show it after its first as "Part 1
+(continued)", its row in the list says "Weeks of 28 Sep to 5 Oct", the sessions reviewing any of
+those weeks show it, and cards made for one of its weeks see it (D101). A list that names its weeks,
+lectures or days is placed as before, each topic in its own week; so is a list with more topics than
+weeks, where each week has its own.
+
+**Rejected.** Keeping the middle of the share (D81's rule) and filling the weeks around it: a chapter
+would show as taught before its first lecture. Spreading chapters evenly over the weeks rather than
+the hours: a week with more lectures covers more.
+
+**Disclosed.** The even pace is the rule's, not the course's: a chapter taught over three weeks and
+another over one are given the same share of the hours. Lists saved before keep their single weeks
+until saved again. Measured on the second-year sample (`tests/test_topics.py`): four chapters on
+Algebra 3's eleven teaching weeks cover weeks 1-2, 3-5, 6-8 and 9-11, All Saints' week left out as
+it has no lectures.
+
