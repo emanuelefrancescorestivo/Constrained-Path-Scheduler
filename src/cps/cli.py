@@ -390,14 +390,17 @@ def command_demo(args) -> int:
     admin = os.environ.get("CPS_ADMIN_TOKEN") or found.admin
     lines = [
         "",
-        "The demo: everyone in it is made up, and so is the timetable (examples/sample-semester.ics,",
-        "moved by whole weeks so that today is in its eighth week).",
+        "The demo: everyone in it is made up. The timetables are samples, moved by whole weeks so that",
+        "today falls in their week of 16 November: a second year's, made up (examples/sample-semester.ics),",
+        "and a first year's, a real one's courses and hours with nothing else (examples/sample-year1.ics).",
         "",
     ]
     if args.public:
         lines.append(f"  Each visitor        {base}/  (Start the demo: a fresh student of their own)")
     else:
-        lines.append(f"  You, @alex          {base}/p/{found.you}")
+        lines.append(f"  You, @alex          {base}/p/{found.you}  (second year)")
+        if found.first_year:
+            lines.append(f"  Or @sam             {base}/p/{found.first_year}  (first year)")
     lines += [
         *(f"  @{handle:<17}  {base}/p/{token}" for handle, token in found.people.items()),
         f"  The review page     {base}/admin/{admin}",
@@ -422,7 +425,7 @@ def command_demo(args) -> int:
     config.show_mail = config.mailer is None
     if args.public:
         world = found
-        config.demo = lambda: add_student(where, world, lang=service.current_language()).token
+        config.demo = lambda year: add_student(where, world, lang=service.current_language(), year=year).token
         # Friends on one university network share an address: forty starts an hour
         # from it, as for the pilot (D94). A student is a copy of one semester: quick to make.
         config.start_limit = (40, 3600.0)

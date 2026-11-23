@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- The demo in a first year (DECISIONS.md D182): "Start the demo: first year" beside "Second year";
+  the first year runs on `examples/sample-year1.ics`, a real first year's courses, hours, exams
+  and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
+
 ### Fixed
 
 - A program's course numbered in Roman numerals ("Economics I") is offered to the timetable's
