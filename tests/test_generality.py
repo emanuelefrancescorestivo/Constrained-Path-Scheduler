@@ -23,10 +23,17 @@ START = date(2026, 9, 28)  # a Monday
 
 
 def _ics(
-    lectures: list[str], exams: list[str], tz: str = "Europe/Paris", all_day_exams: bool = False
+    lectures: list[str],
+    exams: list[str],
+    tz: str = "Europe/Paris",
+    all_day_exams: bool = False,
+    break_week: int | None = None,
+    club: str | None = None,
 ) -> bytes:
     """Twelve weeks of the given weekly lectures (one a day from Monday), then the
-    exams, one a day, in the week after."""
+    exams, one a day, in the week after. With `break_week`, that week's lectures are
+    taken out (EXDATE), as a holiday; with `club`, a Saturday event of that name
+    goes on every week, the holiday's too."""
     zone = ZoneInfo(tz)
     cal = Calendar()
     cal.add("prodid", "-//test//generality//EN")
@@ -38,7 +45,18 @@ def _ics(
         event.add("dtstart", first)
         event.add("dtend", first + timedelta(hours=1, minutes=30))
         event.add("rrule", {"freq": "weekly", "count": 12})
+        if break_week is not None:
+            event.add("exdate", first + timedelta(weeks=break_week))
         event.add("uid", f"lecture-{i}@test")
+        cal.add_component(event)
+    if club:
+        event = Event()
+        first = datetime(2026, 10, 3, 10, 0, tzinfo=zone)
+        event.add("summary", club)
+        event.add("dtstart", first)
+        event.add("dtend", first + timedelta(hours=2))
+        event.add("rrule", {"freq": "weekly", "count": 12})
+        event.add("uid", "club@test")
         cal.add_component(event)
     for i, title in enumerate(exams):
         event = Event()
@@ -746,3 +764,22 @@ def test_a_course_s_materials_are_read_in_each_system_s_shape(shape):
     html, base, expected = MATERIAL_PAGES[shape]
     found = coursepages.read(html, base)
     assert [(m.title, m.week, m.lecture, m.day, m.shelf) for m in found.items] == expected
+
+
+@pytest.mark.parametrize("shape", SHAPES)
+def test_a_week_without_classes_is_a_holiday_in_every_shape(shape):
+    """A holiday (D184) is found from the timetable's shape, not its words: a week
+    of no class of a course with an exam, between two weeks with classes, whatever
+    the system; a club that goes on through it is not a class, and the weeks after
+    the last class are the revision, not a holiday."""
+    lectures, exams, _courses, tz = SHAPES[shape]
+    ics = _ics(lectures, exams, tz, break_week=5, club="Football training")
+    report = service.analyse_calendar(ics, start=START, tz=tz)
+    # Week 4's last class is on Tuesday 27 October; week 6's first on Monday 9 November.
+    assert service.holidays_in(report, ()) == [(date(2026, 10, 28), date(2026, 11, 8))]
+    # An exam typed by hand in that week makes it an exam period, not a holiday.
+    typed = datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo(tz))
+    assert service.holidays_in(report, (), [typed]) == []
+    # Without the break, the semester has none.
+    plain = service.analyse_calendar(_ics(lectures, exams, tz, club="Football training"), start=START, tz=tz)
+    assert service.holidays_in(plain, ()) == []

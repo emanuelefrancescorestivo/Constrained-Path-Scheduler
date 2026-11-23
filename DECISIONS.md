@@ -7226,3 +7226,107 @@ instead of 58 at 18; the least-remembered rule 64 of 69 at target instead of 65,
 planner's recall 0.968 instead of 0.967. `benchmarks/semester.py` keeps 63 of 69 at target; one topic
 short of target changed. The README's table and figure are made again from the run; decisions and
 audit items before this one keep the numbers of their day.
+
+## D184. Holidays
+
+**Asked.** In the report on the first-year timetable (D182), the plan had sessions every day from
+19 December to 5 January, Christmas Day included; the owner accepted the proposal to ask about a
+holiday once instead.
+
+**Chosen.** A holiday is seven days or more in a row with no class of the plan's courses nor of a
+course with an exam in the timetable, between two days with one (`holidays_in`). A course of neither
+kind (the gym, a job) is not a class: the second year's gym goes on through All Saints' week, which
+is still found. A stretch with an exam in it, of the timetable or typed, is an exam period, not a
+holiday. The plan keeps the holidays it found (`preferences["holidays"]`). From two weeks before a
+holiday begins to its last day, Today asks once, after the end of the semester and before the
+question about counting use: "No classes from 19 Dec to 5 Jan. Rest, or keep studying?". "Rest those
+days" sets a pause over the holiday, from today when it has begun, marked as the holiday's
+(`answer_holiday`): its days are left free and the streak waits, as D126's pause does, and the
+streak says "Holidays until". "Keep studying" keeps the plan as it was. A pause set or ended before
+the holiday leaves it as it is, and Progress shows it ahead with "Study then", which plans its days
+again; a holiday under way ends with Resume, as a pause does.
+
+**Rejected.** Treating the weeks between the last class and the exams as a holiday: they are the
+revision the plan is for; a day off in them is a pause. Resting every holiday unasked: some
+students revise over Christmas for January's exams. Counting every event of the timetable as a
+class: the gym would hide All Saints' week. A third answer for part of the holiday: a pause, or
+"Study then", covers it in one tap. Asking four weeks ahead (the first version): a semester's first
+holiday is often a month in, and the question crowded the first week's (counting use, making the
+plan fit, D96, D98); two weeks is time enough for the plan to move the work.
+
+**Disclosed.** Seven days and two weeks are choices. The holidays are read from the timetable's
+gaps, not its words; tried on the two samples and on every shape of `tests/test_generality.py`,
+with a club that goes on through the break. A resting holiday moves its sessions to the days after
+it (D126's limit). Checked in Chromium only, at 1280 px and phone size.
+
+## D185. Courses without an exam
+
+**Asked.** In the report on the first-year timetable (D182), Math in Practice had sixteen classes
+and no exam in the timetable (it is assessed as it goes), so it was never offered nor planned; the
+owner accepted the proposal to offer it.
+
+**Chosen.** Setting up, and Settings' exams, list in one closed fold the timetable's courses with no
+exam found in it and not planned: "No exam in your timetable for: Math in Practice". Each is a row
+like a class drawn by hand (D32): its name and an exam date to give, or its last test's, with how
+well the student knows it. A date plans it; left empty, the row is skipped and nothing changes. In
+Settings each is its own small form, "Plan for it", as an exam found but not planned is (D103).
+
+**Rejected.** Planning such a course without a date: the rules schedule toward an exam or a
+deadline, and a course with neither has no end to plan to. Opening the fold by default: most such
+courses (a sport, a language lab) are not studied for, and setting up stays as short as before.
+Guessing which events are courses and which are personal (the gym): read from words, it would be
+fitted to one timetable's titles; the student sees the list and leaves them empty.
+
+**Disclosed.** The list is every course of the timetable with no exam found, a club among them.
+Checked in Chromium only, at 1280 px and phone size.
+
+## D186. The workload from the plan's first day
+
+**Asked.** In the report on the first-year timetable (D182), a plan begun in late November showed
+five of seven courses with "fewer hours than the credits suggest": every lecture of the semester
+counted, the study before the plan counted as none (AUDIT 127). The owner accepted the proposal to
+count from the plan's first day for a student who starts partway.
+
+**Chosen.** A plan begun seven days or more after a course's first lecture counts that course from
+its own first day: the lectures since then, the plan's study (which begins then anyway), against the
+credits' share of the course still ahead (`_late_share`): the days from the plan's first day to the
+course's last exam over the days from its first lecture, else, with no exam, the share of its
+lecture hours still to come. The sentence and the band say so: "Since 16 Nov: … for those weeks",
+"6 ECTS, since 16 Nov: 89 to 106 h". The syllabus's hours of classes (D90) still speak of the whole
+course. A plan begun before or in the course's first week is unchanged.
+
+**Rejected.** Asking the student how much they studied before: a question at setting up for a
+number nobody knows. Counting the share by lecture hours alone: the weeks between the last lecture
+and the exam are part of the work, and a late starter has all of them ahead.
+
+**Disclosed.** The week and the proportion by days are choices; the credits are a typical student's
+workload, spread evenly by this rule, which no student's is. Measured on the second-year sample
+(`tests/test_courses.py`): begun on 16 November, Algebra 3's 150 to 180 h become 89 to 106, and its
+33 h of lectures 15.
+
+## D187. A chapter covers its weeks
+
+**Asked.** In the report on the first-year timetable (D182), the Probability syllabus's five
+chapters, which name no weeks, each landed on one week (2, 5, 7, 10 and 13 of fourteen), and the
+weeks between had none, on the course's page and on their sessions. The owner accepted the proposal
+that each chapter covers its weeks.
+
+**Chosen.** A list without weeks is still spread by lecture hours (D81), each topic now in the week
+its share begins, so the first is in the first week (`syllabus.place`), and it runs until the week
+before the next one's, the last to the last teaching week (`syllabus.covers`); a topic kept with an
+"until" belongs to each week between. The course's weeks show it after its first as "Part 1
+(continued)", its row in the list says "Weeks of 28 Sep to 5 Oct", the sessions reviewing any of
+those weeks show it, and cards made for one of its weeks see it (D101). A list that names its weeks,
+lectures or days is placed as before, each topic in its own week; so is a list with more topics than
+weeks, where each week has its own.
+
+**Rejected.** Keeping the middle of the share (D81's rule) and filling the weeks around it: a chapter
+would show as taught before its first lecture. Spreading chapters evenly over the weeks rather than
+the hours: a week with more lectures covers more.
+
+**Disclosed.** The even pace is the rule's, not the course's: a chapter taught over three weeks and
+another over one are given the same share of the hours. Lists saved before keep their single weeks
+until saved again. Measured on the second-year sample (`tests/test_topics.py`): four chapters on
+Algebra 3's eleven teaching weeks cover weeks 1-2, 3-5, 6-8 and 9-11, All Saints' week left out as
+it has no lectures.
+

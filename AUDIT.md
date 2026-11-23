@@ -1406,3 +1406,13 @@ topics on track: `test_the_progress_page_shows_the_badge_shelf` asserted "0 of 1
 shelf's count when it was written. The focus badges (D67) made it 17, and the test kept passing on
 "Deep Learning 1 … 10 of 12 topics on track". Status: fixed: the test reads the shelf's own count,
 `len(service.BADGES)`, in the shelf.
+
+**127. The workload check counted lectures before the plan.** Found on 2026-11-23 by walking the
+owner's first-year timetable through a plan begun in late November: five of seven courses read
+"fewer hours than the credits suggest". `course_workload`'s docstring said it counted the lectures
+"from the plan's first day"; it counted every lecture of the timetable, from half a year before,
+against the whole course's credits, while the plan's study began on its first day: the study done
+before the plan counted as none. Status: fixed with D186: a plan begun a week or more into a course
+counts its lectures from the plan's first day against the credits' share of the course still ahead
+(`tests/test_courses.py`); a plan begun before or in the course's first week is unchanged.
+

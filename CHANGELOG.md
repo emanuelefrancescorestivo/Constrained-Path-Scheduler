@@ -4,6 +4,15 @@
 
 ### Added
 
+- Courses without an exam (DECISIONS.md D185): setting up and Settings' exams list the timetable's
+  courses with no exam in it ("No exam in your timetable for: Math in Practice"); a date plans one,
+  left empty it stays out.
+
+- Holidays (DECISIONS.md D184): a week or more without classes between two days of classes is
+  asked about on Today from two weeks before it: "Rest those days" leaves them free and the
+  streak waiting, as a pause does; "Keep studying" keeps the plan. Progress shows a holiday
+  chosen for rest, with "Study then".
+
 - The time around an exam (DECISIONS.md D183): the hour before an exam and the half hour after it
   are kept free of study, so no session of another course runs into an exam or starts as one ends;
   an exam typed by hand is taken to last two hours (AUDIT 125).
@@ -13,6 +22,15 @@
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
 
 ### Fixed
+
+- A chapter covers its weeks (DECISIONS.md D187): a course's list of topics without weeks is spread from
+  the first week, each topic running until the next one begins, shown on every week it covers
+  ("(continued)" after its first) and on their sessions; before, five chapters over fourteen weeks sat
+  alone in weeks 2, 5, 7, 10 and 13.
+
+- The workload check for a plan begun partway through a course (DECISIONS.md D186, AUDIT 127): its
+  lectures from the plan's first day, against the credits' share of the course still ahead, instead
+  of every lecture against the whole course while the study before the plan counted as none.
 
 - A program's course numbered in Roman numerals ("Economics I") is offered to the timetable's
   course with the figure ("Economics 1"), on import and with a class's link (AUDIT 124).

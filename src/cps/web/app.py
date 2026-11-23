@@ -1337,6 +1337,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "topics_nudge": service.topics_nudge(store, subscription),
             "account": service.account_view(store, subscription, now),
             "semester_over": service.semester_over(subscription, now),
+            # A week without classes ahead: rest or keep studying (D184).
+            "holiday": service.holiday_ask(subscription, now),
             "budget": service.budget_offer(subscription, now),
             # The hours that would keep more topics at 90 % by their exams (D147).
             "hours": service.hours_offer(subscription, now),
@@ -1385,6 +1387,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             remind=service.remind_ask(store, subscription),
             recalled=context["recalled"],
             semester=context["semester_over"],
+            holiday=context["holiday"],
             usage=context["usage_ask"],
             fit=context["fit"],
             insight=context["insight"],
@@ -4172,7 +4175,9 @@ def create_app(config: Config | None = None) -> FastAPI:
                     {**s, "practice_default": defaults.get(s["name"], service.PRACTICE_UNSIZED_HOURS)}
                     for s in values["subjects"]
                 ],
+                # The rows offered are among the subjects typed now (D32, D185).
                 "suggested": [],
+                "no_exam": [],
             }
             if not new:  # the whole form, from a page made before Settings had pages
                 owner = owner_here(request, token)
@@ -4714,6 +4719,36 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
         service.log_event(store, token, "pause", "end" if form.get("end") else until)
         return RedirectResponse(f"/p/{token}/progress?saved=pause", 303)
+
+    @app.post("/p/{token}/holiday")
+    async def holiday(request: Request, token: str) -> Response:
+        """Rest during a week without classes, or keep studying (D184), from Today's
+        question or from the pause's row on Progress (`back`)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        first, answer = str(form.get("from", "")), str(form.get("answer", ""))
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.answer_holiday(current, first, answer, now=config.clock()),
+            )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "message.html",
+                400,
+                title=service.translate("Not saved"),
+                message=str(error),
+                token=token,
+            )
+        service.log_event(store, token, "holiday", answer)
+        if form.get("back") == "progress":
+            return RedirectResponse(f"/p/{token}/progress?saved=pause", 303)
+        return RedirectResponse(f"/p/{token}?saved=holiday-{answer}", 303)
 
     @app.post("/p/{token}/account/later")
     def account_later(request: Request, token: str) -> Response:
@@ -5404,6 +5439,10 @@ def _notice(saved: str) -> str | None:
         return service.translate(
             "Thank you. What you use is counted from now on; see it or stop in Settings."
         )
+    if saved == "holiday-rest":
+        return service.translate("Rest well: nothing is planned on those days, and your streak waits.")
+    if saved == "holiday-study":
+        return service.translate("The plan keeps its sessions on those days.")
     if saved == "usage-no":
         return service.translate("All right: nothing is counted. You can change your mind in Settings.")
     if saved == "language":

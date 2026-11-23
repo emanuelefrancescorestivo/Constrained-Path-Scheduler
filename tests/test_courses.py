@@ -106,6 +106,30 @@ def test_the_workload_compares_the_credits_with_lectures_and_study(tmp_path):
         service.course_workload(service.set_course_credits(sub, 0, "3,5"), "Algebra 3")["verdict"] == "within"
     )
     assert service.course_workload(service.set_course_credits(sub, 0, "1"), "Algebra 3")["verdict"] == "above"
+    assert w["since"] == ""  # begun the day after the first lecture: the whole course
+
+
+def test_a_plan_begun_partway_counts_the_course_from_its_first_day():
+    """D186: a plan begun on 16 November, seven weeks into Algebra 3, counts the lectures
+    from that day and the credits' share of the course still ahead, from then to the exam;
+    the study before the plan was never in it."""
+    late = date(2026, 11, 16)
+    sub = service.new_subscription(
+        subjects=[service.SubjectSpec("Algebra 3", None, familiarity=3)],
+        start=late,
+        tz="Europe/Paris",
+        ics=(EXAMPLES / "sample-semester.ics").read_bytes(),
+        preferences=service.DEFAULT_PREFERENCES,
+        now=datetime(2026, 11, 16, 7, 0, tzinfo=UTC),
+    )
+    w = service.course_workload(service.set_course_credits(sub, 0, "6"), "Algebra 3")
+    first, exam = date(2026, 9, 28), date(2027, 1, 26)  # the first lecture, the exam
+    share = (exam - late).days / (exam - first).days
+    assert (w["low"], w["high"]) == (round(150 * share), round(180 * share)) == (89, 106)
+    assert w["lectures"] == 15  # five weeks of three hours from 16 November, of eleven
+    assert w["total"] == w["lectures"] + w["study"]
+    assert w["since"] == service.format_date(late, "short")
+    assert w["says"].startswith(f"Since {w['since']}: {w['total']} h")
 
 
 @pytest.mark.parametrize("bad", ["0", "31", "six", "-2"])

@@ -762,8 +762,9 @@ def place(
     lectures, in order; `mondays` the Monday of each. A topic's day places it in the
     teaching week of that day (D90); else its own week or lecture; when no topic
     names one, the list is spread over the weeks in order, each week taking a share
-    of the topics as large as its share of the hours. A week or lecture beyond the
-    timetable places nothing."""
+    of the topics as large as its share of the hours, each topic in the week its
+    share begins (D187; `covers` gives the week it runs to). A week or lecture
+    beyond the timetable places nothing."""
     if any(t.week is not None or t.lecture is not None or t.day for t in topics):
         # A schedule's days place its topics when one of them falls in a teaching week
         # (a schedule from another year falls back on its week numbers): a day between
@@ -785,12 +786,33 @@ def place(
         return [None] * len(topics)
     out = []
     for i in range(len(topics)):
-        target, done = (i + 0.5) / len(topics) * total, 0.0
+        # Where its share of the hours begins (D187): the first topic in the first week.
+        # D81 took the middle of the share, which left the first week without a topic
+        # and, with fewer topics than weeks, a chapter alone in the middle of its weeks.
+        target, done = i / len(topics) * total, 0.0
         for k, hours in enumerate(week_hours, start=1):
             done += hours
-            if done >= target - 1e-9:
+            if done > target + 1e-9:
                 out.append(k)
                 break
+    return out
+
+
+def covers(topics: Sequence[Topic], places: Sequence[int | None], weeks: int) -> list[int | None]:
+    """The last teaching week each topic runs to (D187): for a list spread over the
+    weeks (no topic names a week, a lecture or a day), a topic runs until the week
+    before the next one's, the last until the last of the `weeks`, so a chapter
+    covers its weeks; otherwise each stays in its own week. None for a topic with
+    no week."""
+    if any(t.week is not None or t.lecture is not None or t.day for t in topics):
+        return list(places)
+    out: list[int | None] = []
+    for i, week in enumerate(places):
+        if week is None:
+            out.append(None)
+            continue
+        after = next((w for w in places[i + 1 :] if w is not None), None)
+        out.append(max(week, (after - 1) if after is not None else weeks))
     return out
 
 

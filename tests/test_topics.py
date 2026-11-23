@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from cps import service, syllabus
 from cps.store import Store
-from cps.syllabus import MAX_TITLE, MAX_TOPICS, Topic, place, read, to_text
+from cps.syllabus import MAX_TITLE, MAX_TOPICS, Topic, covers, place, read, to_text
 from cps.web import Config, create_app
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -98,6 +98,25 @@ def test_topics_are_placed_on_the_teaching_weeks():
     assert place(plain, [2, 2, 2, 2], [1, 2, 3, 4]) == [1, 2, 3, 4]
     assert place(plain, [3, 1, 3, 1], [1, 1, 2, 3, 3, 4]) == [1, 1, 3, 3]  # more hours, more topics
     assert place(plain, [], []) == [None] * 4  # no lectures in the timetable
+
+
+def test_a_chapter_covers_its_weeks():
+    """D187: a list without weeks spread over more weeks than it has topics, as the
+    first year's Probability with five chapters over fourteen weeks: each chapter
+    begins where its share of the hours begins and runs until the next one, so no
+    week is left without one; D81 put each in the middle of its share (weeks 2, 5,
+    7, 10 and 13), and the weeks between had none."""
+    chapters = [Topic(f"Chapter {n}") for n in range(1, 6)]
+    hours = [2.0] * 14
+    starts = place(chapters, hours, list(range(1, 15)))
+    assert starts == [1, 3, 6, 9, 12]
+    assert covers(chapters, starts, 14) == [2, 5, 8, 11, 14]
+    # More topics than weeks: each stays in its own week, as before.
+    many = [Topic(x) for x in "abcdef"]
+    assert place(many, [2, 2, 2], [1, 2, 3]) == [1, 1, 2, 2, 3, 3]
+    assert covers(many, [1, 1, 2, 2, 3, 3], 3) == [1, 1, 2, 2, 3, 3]
+    weekly = [Topic("a", week=1), Topic("b", week=4)]
+    assert covers(weekly, place(weekly, [2] * 6, list(range(1, 7))), 6) == [1, 4]  # weeks named: no reach
 
 
 # -- a whole course page (D83) -----------------------------------------------------------
@@ -201,6 +220,32 @@ def test_topics_are_placed_and_shown_on_the_sessions_of_their_week(tmp_path):
     cleared = _save(tmp_path, ada, "", share=False)
     assert service.course_topics_view(tmp_path, cleared, 0)["rows"] == []
     assert service.session_card(cleared, service.session_id(plan.sessions[0]), NOW)["syllabus"] == []
+
+
+def test_a_chapter_is_shown_on_each_of_its_weeks_and_their_sessions(tmp_path):
+    """D187 through the service: four chapters without weeks on Algebra 3's eleven weeks
+    of lectures. Each begins in the week its share begins, the list says the weeks it
+    runs over, a course week after its first says "(continued)", and the sessions of each
+    week it covers show it."""
+    text = "\n".join(f"Chapter {n}: Part {n}" for n in range(1, 5))
+    ada = _save(tmp_path, _plan(tmp_path, None, "ada"), text, share=False)
+    items = ada.options["topics"]["algebra 3"]["items"]
+    # Weeks 1-2, 3-5, 6-8 and 9-11 of its teaching weeks; All Saints' week (26 Oct) has none.
+    assert [(i["monday"], i.get("until")) for i in items] == [
+        ("2026-09-28", "2026-10-05"),
+        ("2026-10-12", "2026-11-02"),
+        ("2026-11-09", "2026-11-23"),
+        ("2026-11-30", "2026-12-14"),
+    ]
+    rows = service.course_topics_view(tmp_path, ada, 0)["rows"]
+    assert rows[0]["when"] == "Weeks of 28 Sep to 5 Oct"
+    weeks = service.course_view(tmp_path, ada, 0, NOW)["weeks"]
+    assert weeks[0]["topics"] == ["Part 1"] and weeks[1]["topics"] == ["Part 1 (continued)"]
+    assert all(w["topics"] for w in weeks)  # no week without its chapter
+    plan = service.PlanReport.from_dict(ada.plan)
+    cards = {s.topic: service.session_card(ada, service.session_id(s), NOW) for s in plan.sessions}
+    assert cards["Algebra 3 · week of 05 Oct"]["syllabus"] == ["Part 1"]
+    assert cards["Algebra 3 · week of 02 Nov"]["syllabus"] == ["Part 2"]
 
 
 def test_a_course_page_keeps_its_assessment_and_credits_with_the_topics(tmp_path):

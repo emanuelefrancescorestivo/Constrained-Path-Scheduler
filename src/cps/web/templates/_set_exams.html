@@ -73,6 +73,33 @@
   </div>
   {% endfor %}
   {% set n = n + (offered | length) %}
+  {# The timetable's courses with no exam found in it (D185), one assessed as it goes
+     among them: each with its exam date to give, left empty to leave it out. #}
+  {% if values.no_exam %}
+  <details class="no-exam">
+  <summary>{{ _("No exam in your timetable for: {courses}", courses=values.no_exam | join(", ")) }}</summary>
+  <p class="hint">{{ _("To plan for one, give its exam's date, or its last test's. Left empty, it stays out of the plan.") }}</p>
+  {% for c in values.no_exam %}
+  {% set i = n + loop.index0 %}
+  <div class="item exam-row offered">
+    <input type="hidden" name="s{{ i }}_found" value="">
+    <input type="hidden" name="s{{ i }}_suggested" value="1">
+    <input type="hidden" name="s{{ i }}_name" value="{{ c }}">
+    <div class="exam-main">
+      <p class="offered-name">{{ c }}</p>
+      <label for="s{{ i }}_exam">{{ _("Exam") }}</label>
+      <input id="s{{ i }}_exam" name="s{{ i }}_exam" type="datetime-local">
+    </div>
+    <div class="exam-side">
+      <select id="s{{ i }}_familiarity" name="s{{ i }}_familiarity" aria-label="{{ _('How well you know it already') }}">
+        {% for k, word in familiarity %}<option value="{{ k }}"{% if k == 3 %} selected{% endif %}>{{ _(word) }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  {% endfor %}
+  </details>
+  {% set n = n + (values.no_exam | length) %}
+  {% endif %}
   <details{% if not values.subjects and not offered %} open{% endif %}>
   <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>
   {% for k in range(empty_rows) %}
