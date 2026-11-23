@@ -4175,7 +4175,9 @@ def create_app(config: Config | None = None) -> FastAPI:
                     {**s, "practice_default": defaults.get(s["name"], service.PRACTICE_UNSIZED_HOURS)}
                     for s in values["subjects"]
                 ],
+                # The rows offered are among the subjects typed now (D32, D185).
                 "suggested": [],
+                "no_exam": [],
             }
             if not new:  # the whole form, from a page made before Settings had pages
                 owner = owner_here(request, token)

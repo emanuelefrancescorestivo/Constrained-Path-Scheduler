@@ -5346,6 +5346,13 @@ def setup_view(subscription: Subscription) -> dict:
         # Each class drawn by hand and not planned yet, offered as an exam row
         # with its name filled in: its date is all the student types (D32).
         "suggested": [c for c in drawn if c.casefold() not in planned],
+        # The timetable's courses with no exam in it and not planned (D185), such as one
+        # assessed as it goes: offered with an empty date, which leaves them out.
+        "no_exam": [
+            c
+            for c in courses
+            if c not in drawn and c.casefold() not in planned and c.casefold() not in found_names
+        ],
         "drawn": subscription.ics_text is None and subscription.source_url is None,
         "kinds": list(ACTIVITY_KINDS),
         "courses": courses,

@@ -50,6 +50,26 @@
     {% endfor %}
   </ul>
   {% endif %}
+  {# The timetable's courses with no exam found in it (D185): a date plans one. #}
+  {% if values.no_exam %}
+  <details class="card section no-exam">
+    <summary>{{ _("No exam in your timetable for: {courses}", courses=values.no_exam | join(", ")) }}</summary>
+    <p class="hint">{{ _("To plan for one, give its exam's date, or its last test's. Left empty, it stays out of the plan.") }}</p>
+    <ul class="list">
+    {% for c in values.no_exam %}
+    <li><form method="post" action="/p/{{ token }}/settings" class="found-exam no-exam-row">
+      <input type="hidden" name="part" value="add">
+      <input type="hidden" name="s0_found" value="">
+      <input type="hidden" name="s0_name" value="{{ c }}">
+      <input type="hidden" name="s0_familiarity" value="3">
+      <label for="ne{{ loop.index0 }}"><b>{{ c }}</b></label>
+      <input id="ne{{ loop.index0 }}" name="s0_exam" type="datetime-local" required aria-label="{{ _('Exam date') }}">
+      <button type="submit" class="btn btn-sm btn-tinted">{{ _("Plan for it") }}</button>
+    </form></li>
+    {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
   {% set a = added or {} %}
   <details class="card section add-exam"{% if not values.subjects or added %} open{% endif %}>
     <summary>+ {% if values.drawn %}{{ _("Add another exam") }}{% else %}{{ _("Add an exam that is not in your timetable") }}{% endif %}</summary>

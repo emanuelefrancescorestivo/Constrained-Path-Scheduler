@@ -4,6 +4,10 @@
 
 ### Added
 
+- Courses without an exam (DECISIONS.md D185): setting up and Settings' exams list the timetable's
+  courses with no exam in it ("No exam in your timetable for: Math in Practice"); a date plans one,
+  left empty it stays out.
+
 - Holidays (DECISIONS.md D184): a week or more without classes between two days of classes is
   asked about on Today from four weeks before it: "Rest those days" leaves them free and the
   streak waiting, as a pause does; "Keep studying" keeps the plan. Progress shows a holiday

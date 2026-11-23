@@ -3712,4 +3712,7 @@ MESSAGES: dict[str, str] = {
     "this holiday is no longer in your timetable": "queste vacanze non sono più nel tuo orario",
     "{n} day without classes": "{n} giorno senza lezioni",
     "{n} days without classes": "{n} giorni senza lezioni",
+    # Courses without an exam (D185)
+    "No exam in your timetable for: {courses}": "Nessun esame nel tuo orario per: {courses}",
+    "To plan for one, give its exam's date, or its last test's. Left empty, it stays out of the plan.": "Per pianificarne uno, indica la data del suo esame, o della sua ultima prova. Se lo lasci vuoto, resta fuori dal piano.",
 }

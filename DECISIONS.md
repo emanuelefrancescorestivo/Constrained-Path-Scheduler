@@ -7257,3 +7257,24 @@ gaps, not its words; tried on the two samples and on every shape of `tests/test_
 with a club that goes on through the break. A resting holiday moves its sessions to the days after
 it (D126's limit). Checked in Chromium only, at 1280 px and phone size.
 
+## D185. Courses without an exam
+
+**Asked.** In the report on the first-year timetable (D182), Math in Practice had sixteen classes
+and no exam in the timetable (it is assessed as it goes), so it was never offered nor planned; the
+owner accepted the proposal to offer it.
+
+**Chosen.** Setting up, and Settings' exams, list in one closed fold the timetable's courses with no
+exam found in it and not planned: "No exam in your timetable for: Math in Practice". Each is a row
+like a class drawn by hand (D32): its name and an exam date to give, or its last test's, with how
+well the student knows it. A date plans it; left empty, the row is skipped and nothing changes. In
+Settings each is its own small form, "Plan for it", as an exam found but not planned is (D103).
+
+**Rejected.** Planning such a course without a date: the rules schedule toward an exam or a
+deadline, and a course with neither has no end to plan to. Opening the fold by default: most such
+courses (a sport, a language lab) are not studied for, and setting up stays as short as before.
+Guessing which events are courses and which are personal (the gym): read from words, it would be
+fitted to one timetable's titles; the student sees the list and leaves them empty.
+
+**Disclosed.** The list is every course of the timetable with no exam found, a club among them.
+Checked in Chromium only, at 1280 px and phone size.
+
