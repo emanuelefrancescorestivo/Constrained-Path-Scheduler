@@ -451,6 +451,24 @@ PROGRAMS = {
 }
 
 
+# A program writes a course's number as a Roman numeral where the timetable writes its figure
+# (AUDIT 124: the owner's first-year syllabus says "Economics I", its timetable "Economics 1").
+NUMBERED = {
+    "Spanish": (["Cálculo I", "Cálculo II"], ["CÁLCULO 2 - Teoría", "Cálculo 1"], [1, 0]),
+    "Italian": (["Analisi Matematica III"], ["ANALISI MATEMATICA 3"], [0]),
+    "French": (["Mathématiques IV", "Physique I"], ["Physique 1 - CM", "Mathématiques 4"], [1, 0]),
+    "German": (["Lineare Algebra II"], ["Lineare Algebra 1", "Lineare Algebra 2"], [1]),
+}
+
+
+@pytest.mark.parametrize("shape", NUMBERED)
+def test_a_course_s_roman_number_is_its_figure_when_courses_are_matched(shape):
+    names, courses, expected = NUMBERED[shape]
+    assert service._matches(names, courses) == expected
+    # Only as the name's last word, where a course's number goes: elsewhere "i" is a word.
+    assert "1" not in service._stems("Sistemi e i modelli")
+
+
 @pytest.mark.parametrize("shape", PROGRAMS)
 def test_a_semester_program_is_cut_into_its_courses_in_each_system(shape):
     text, facts, first = PROGRAMS[shape]

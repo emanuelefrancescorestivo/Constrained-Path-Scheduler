@@ -13608,8 +13608,17 @@ def notes_file_text(name: str, data: bytes) -> tuple[str, str | None]:
     return found.text, note
 
 
+# A course's number written as a Roman numeral, "Economics I" in a program and "Economics 1"
+# in the timetable (AUDIT 124): read as its figure when it is the name's last word, where a
+# course's number goes; elsewhere "i" and "v" can be words ("Analisi e i modelli").
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8"}
+_ROMAN |= {"ix": "9", "x": "10"}
+
+
 def _stems(name: str) -> set[str]:
     words = re.findall(r"[^\W_]+", _syllabus.folded(name))
+    if len(words) > 1 and words[-1] in _ROMAN:
+        words[-1] = _ROMAN[words[-1]]
     return {w[:5] for w in words if w not in _NAME_WORDS}
 
 
