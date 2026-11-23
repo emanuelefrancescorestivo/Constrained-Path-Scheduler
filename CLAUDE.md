@@ -31,8 +31,8 @@ more than an impressive number.
     cps serve                                # the calendar feeds the Streamlit page publishes
     deploy/hetzner/new-env.sh                # the server's settings from three answers, its two keys made (D181)
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1602 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1619 + 1 xfailed, 94% coverage, about 8 min; CI runs this
+    pytest                                   # 1603 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1620 + 1 xfailed, 94% coverage, about 8 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
@@ -202,11 +202,15 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
 - CP-SAT was tried against the rules (D54) and lost: a few more topics at 90%, a much
   lower floor. The product keeps the rules and never imports OR-Tools.
 - Quick self-tests (D48) count as full reviews in FSRS, which ignores a review's
-  length: part of their gain in `benchmarks/rule_vs_planner.py` (53 of 69 topics at
-  90% instead of 51 at 15 hours a week) is the model's, not the student's.
+  length: part of their gain in `benchmarks/rule_vs_planner.py` (52 of 69 topics at
+  90% instead of 51 at 15 hours a week, 53 before D183 kept the time around exams free) is the
+  model's, not the student's.
 - When the student studies best (D45) moves which topics reach 90%: with evening
   sessions, 45 of 69 instead of 51 at 15 hours a week; mean recall at the exams is
   the same within 0.005 (`benchmarks/rule_vs_planner.py`).
+- The time around an exam (D183): the hour before and the half hour after are choices, an exam typed
+  by hand is taken to last two hours; on the benchmark semester it costs one topic at 90 % with quick
+  self-tests and one with Algebra 3 weighing more (`benchmarks/rule_vs_planner.py`).
 - The planner beats a fixed-0.90 scheduler on durability past the exam, not on
   exam-day recall; say so wherever results are quoted.
 - With lectures in the calendar, a topic is one week of one subject (a week with more

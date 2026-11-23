@@ -7198,3 +7198,31 @@ proposte ovunque mantengano massima privacy e non pubblichino dati personali".
 - A demo student plans three of the year's courses; the others' classes are in the calendar
   without sessions, as in the second year.
 - Checked in Chromium only, at phone size in Italian and at 1280 px in the dark.
+
+## D183. The time around an exam
+
+**Asked.** In the report on the first-year timetable (D182), the owner accepted the proposal to keep
+the time around exams free (AUDIT 125).
+
+**Chosen.** The hour before an exam and the half hour after it are kept free of study, whatever the
+course. An exam of the timetable is busy, with its margins, when each day is cut into blocks (as a
+pause after training is, D45), so that the day's blocks start after the half hour rather than being
+lost. An exam typed by hand, which has no event, is taken to last two hours, and the blocks that
+fall in it or its margins are left out when the plan knows the exam (`_around_exams`). A class the
+student marked as a mock or a partial exam (D61) is kept free alike; one marked as a quiz, often a
+quarter of an hour inside a tutorial, keeps only its own time.
+
+**Rejected.** Keeping a short warm-up of the exam's own course in the hour before it (the first
+proposal): a session of 45 minutes ending at the door of the exam room is no warm-up, and a quick
+look before an exam is the student's to take, not the plan's to schedule. Removing the blocks after
+the day was cut, for every exam: tried first; on 25 January it lost the evening's first block
+instead of starting it at 17:15.
+
+**Disclosed.** The hour and the half hour are choices, and so is the two hours of a typed exam. On
+the benchmark semester (`benchmarks/rule_vs_planner.py`) the main rows are unchanged (51 of 69 topics
+at 90 % at 15 hours a week, 45 in the evening); with quick self-tests 52 instead of 53, the lowest
+recall 0.755 instead of 0.801; with Algebra 3 weighing more, 47 instead of 48 at 15 hours and 57
+instead of 58 at 18; the least-remembered rule 64 of 69 at target instead of 65, the research
+planner's recall 0.968 instead of 0.967. `benchmarks/semester.py` keeps 63 of 69 at target; one topic
+short of target changed. The README's table and figure are made again from the run; decisions and
+audit items before this one keep the numbers of their day.

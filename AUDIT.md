@@ -1392,3 +1392,17 @@ to their timetable course, Economics to none ("Do not add"). Names are matched b
 share, and "I" and "1" are two words. The class link (D104) matches by the same rule. Status: fixed:
 a Roman numeral from I to X as a name's last word is read as its figure; elsewhere "i" stays a word
 (`service._stems`; the Spanish, Italian, French and German cases in `tests/test_generality.py`).
+
+**125. Study planned into an exam's hour.** Found on 2026-11-23 by walking the owner's first-year
+timetable through the app: on 28 January, Economics from 08:00 to 08:45 before Probability's exam at
+09:00, and another session at 10:30, the minute that exam ended; on 25 and 26 January a first
+review ending 15 minutes before its course's exam. An exam was busy for its own length only, and an
+exam typed by hand not at all. Status: fixed with D183: the hour before an exam and the half hour
+after it are busy when the day is cut into blocks, and a typed exam is kept free over two hours and
+its margins (`tests/test_exam_days.py`).
+
+**126. The badge shelf's test matched another line.** Found on 2026-11-23 when D183 changed a plan's
+topics on track: `test_the_progress_page_shows_the_badge_shelf` asserted "0 of 12" on Progress, the
+shelf's count when it was written. The focus badges (D67) made it 17, and the test kept passing on
+"Deep Learning 1 … 10 of 12 topics on track". Status: fixed: the test reads the shelf's own count,
+`len(service.BADGES)`, in the shelf.

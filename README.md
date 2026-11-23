@@ -313,13 +313,13 @@ semester, topics and memory model, every review assumed to succeed)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/search-vs-rules-dark.svg">
-  <img alt="Sessions and topics at target on a semester: research planner 222 and 63, least-remembered rule 246 and 65, the same rule at 93% 235 and 63, review at 90% recall 207 and 44" src="docs/figures/search-vs-rules-light.svg" width="760">
+  <img alt="Sessions and topics at target on a semester: research planner 222 and 63, least-remembered rule 246 and 64, the same rule at 93% 235 and 63, review at 90% recall 207 and 44" src="docs/figures/search-vs-rules-light.svg" width="760">
 </picture>
 
 | scheduler | sessions | topics at target | recall at the exams | time |
 |---|---|---|---|---|
-| research planner (value functions and AO*) | 222 | 63 of 69 | 0.967 | about 40 s |
-| rule: study the taught topic you remember least | 246 | 65 of 69 | 0.980 | 0.01 s |
+| research planner (value functions and AO*) | 222 | 63 of 69 | 0.968 | about 40 s |
+| rule: study the taught topic you remember least | 246 | 64 of 69 | 0.980 | 0.01 s |
 | the same rule, only once recall is 0.93 or less | 235 | 63 of 69 | 0.978 | 0.01 s |
 | rule: review at recall 0.90, as Anki does | 207 | 44 of 69 | 0.957 | 0.01 s |
 
@@ -420,8 +420,8 @@ in a real browser are the owner's.
 
 ```bash
 pip install -e ".[dev,app,web,ai]"
-pytest                                    # 1602 passed, 17 deselected (slow), 1 xfailed, ~450 s
-pytest -m "slow or not slow" --cov=cps    # everything: 1619 passed, 1 xfailed, 94% coverage
+pytest                                    # 1603 passed, 17 deselected (slow), 1 xfailed, ~450 s
+pytest -m "slow or not slow" --cov=cps    # everything: 1620 passed, 1 xfailed, 94% coverage
 ruff check . && ruff format --check . && mypy
 python demo.py                            # the numbers in the documents
 python benchmarks/replanning.py           # the results table above
