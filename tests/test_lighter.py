@@ -238,7 +238,7 @@ def test_a_change_on_one_page_leaves_the_others_as_they_were(web):
 def test_an_exam_added_on_exams_and_deadlines_joins_the_others(web):
     token = _set_up(web)
     count = len(_kept(web, token)[0])
-    form = {**_part(web.get(f"/p/{token}/settings/exams").text, 'name="part" value="add"')}
+    form = {**_part(web.get(f"/p/{token}/settings/exams").text, 'id="add_name"')}
     form.update(s0_name="Philosophy", s0_exam="2026-12-15T09:00")
     saved = web.post(f"/p/{token}/settings", data=form, follow_redirects=False)
     assert saved.headers["location"] == f"/p/{token}/settings/exams?saved=1"

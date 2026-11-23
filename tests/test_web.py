@@ -278,7 +278,7 @@ def test_a_mistake_in_the_settings_keeps_what_was_typed(web, planned):
     # D103: an exam is added on Exams and deadlines, a deadline in its form there; a
     # mistake in either shows the page again with what was typed.
     exams = web.get(f"/p/{planned}/settings/exams").text
-    form = {**_part(exams, 'name="part" value="add"'), "s0_name": "Quantum Basket Weaving", "s0_exam": ""}
+    form = {**_part(exams, 'id="add_name"'), "s0_name": "Quantum Basket Weaving", "s0_exam": ""}
     answer = web.post(f"/p/{planned}/settings", data=form)
     assert answer.status_code == 400
     assert "Quantum Basket Weaving: give the exam" in unescape(answer.text)
