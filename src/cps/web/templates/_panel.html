@@ -279,6 +279,15 @@
   <b>{{ _("Last week, you recalled every self-test you answered.") }}</b>
   <span class="muted">{{ _n("{n} self-test, the week of {day}: none forgotten.", "{n} self-tests, the week of {day}: none forgotten.", recalled.answered, day=recalled.monday) }}</span>
 </a>
+{% elif message == "holiday" %}{% set h = holiday %}
+{# A week or more without classes ahead (D184): rest those days, or keep studying. #}
+<form method="post" action="/p/{{ token }}/holiday" class="card nudge-card section holiday-ask">
+  <input type="hidden" name="from" value="{{ h.from }}">
+  <span class="tip-reason">{{ _n("{n} day without classes", "{n} days without classes", h.days) }}</span>
+  <b>{% if h.under_way %}{{ _("No classes until {last}. Rest, or keep studying?", last=h.last) }}{% else %}{{ _("No classes from {first} to {last}. Rest, or keep studying?", first=h.first, last=h.last) }}{% endif %}</b>
+  <span class="muted">{{ _("Rest: nothing is planned on those days and your streak waits; their sessions move to the days after.") }}</span>
+  <div class="row-end"><button type="submit" name="answer" value="study" class="btn btn-plain btn-sm">{{ _("Keep studying") }}</button><button type="submit" name="answer" value="rest" class="btn btn-primary btn-sm">{{ _("Rest those days") }}</button></div>
+</form>
 {% elif message == "semester" %}
 {# Exams are over: the semester in numbers first (D131), then the next one. #}
 <a class="card nudge-card section recap-card" href="/p/{{ token }}/recap"><span class="tip-reason">{{ _("Exams are over") }}</span><b>{{ _("See your semester in numbers") }}</b><span class="muted">{{ _("Then start the next one: your streak, diary, flashcards and people come with you.") }}</span></a>

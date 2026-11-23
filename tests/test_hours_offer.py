@@ -104,7 +104,11 @@ def test_today_offers_the_hours_and_one_tap_plans_them(tmp_path):
         store=tmp_path, clock=lambda: NEXT_DAY, background=False, sweep_every=None, remind_every=None
     )
     with TestClient(create_app(config)) as client:
-        client.post(f"/p/{sub.token}/usage", data={"yes": "0"})  # the question before it (D96)
+        client.post(f"/p/{sub.token}/usage", data={"yes": "0"})  # the questions before it (D96),
+        holiday = service.holiday_ask(sub, NEXT_DAY)  # and All Saints' week, four weeks ahead (D184)
+        assert holiday is not None and holiday["from"] == "2026-10-24"
+        client.post(f"/p/{sub.token}/holiday", data={"from": holiday["from"], "answer": "study"})
+        offer = service.hours_offer(service.load_subscription(tmp_path, sub.token), NEXT_DAY)  # planned again
         page = unescape(client.get(f"/p/{sub.token}").text)
         card = re.search(r'<div class="card nudge-card section hours-offer">.*?</div>\s*</div>', page, re.S)
         assert card is not None
@@ -126,6 +130,7 @@ def test_today_offers_the_hours_and_one_tap_plans_them(tmp_path):
         # "Not now" puts it off.
         other = _plan(tmp_path, 6.0)
         client.post(f"/p/{other.token}/usage", data={"yes": "0"})
+        client.post(f"/p/{other.token}/holiday", data={"from": "2026-10-24", "answer": "study"})
         client.post(f"/p/{other.token}/hours/later")
         assert service.load_subscription(tmp_path, other.token).options["hours_later"] == "2026-10-06"
         assert "hours-offer" not in client.get(f"/p/{other.token}").text

@@ -51,6 +51,7 @@ import threading
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, urlsplit
@@ -3475,7 +3476,7 @@ def account_later(subscription: Subscription, now: datetime | None = None) -> Su
 # forecast (D105), then, on the plan's first day with nothing left to do that day, a
 # first short session (D106), then, once a first run's first session is done, the
 # question about reminders (D107), then a first week without forgetting, the week after it (D130),
-# then the end of the semester, then the question about
+# then the end of the semester, then a holiday ahead (D184), then the question about
 # counting what is used (D96), then a question that makes the plan fit (D98), then an
 # insight (D80), then a tip the day calls for (D63).
 MESSAGES = (
@@ -3486,6 +3487,8 @@ MESSAGES = (
     "remind",
     "recalled",
     "semester",
+    # A week without classes ahead (D184): rest or keep studying, asked once.
+    "holiday",
     "usage",
     # Hours that fit the exams (D147): after the question about counting use, before the
     # questions that make the plan fit, which it waits a week for (`HOURS_AFTER_DAYS`).
@@ -7002,26 +7005,43 @@ PAUSE_MOST_DAYS = 90  # the longest pause, from today
 PAUSE_CHOICES = ("today", "monday", "week")  # besides a date: today only, until Monday, a week
 
 
-def pauses_of(preferences: Mapping) -> list[tuple[date, date]]:
-    """The student's pauses, as (first day, last day) pairs, in order."""
+def _pause_rows(preferences: Mapping) -> list[tuple[date, date, str]]:
+    """The pauses as kept, each with its days and, for a holiday the student chose to
+    rest (D184), the holiday's first day ("" for a pause they set), in order."""
     out = []
     for p in preferences.get("pauses") or ():
         try:
-            out.append((date.fromisoformat(p["from"]), date.fromisoformat(p["to"])))
-        except (KeyError, TypeError, ValueError):
+            first, last = date.fromisoformat(p["from"]), date.fromisoformat(p["to"])
+            out.append((first, last, str(p.get("holiday") or "")))
+        except (KeyError, TypeError, ValueError, AttributeError):
             continue
     return sorted(out)
 
 
-def _pause_dicts(pauses: Sequence[tuple[date, date]]) -> list[dict]:
-    return [{"from": a.isoformat(), "to": b.isoformat()} for a, b in pauses]
+def pauses_of(preferences: Mapping) -> list[tuple[date, date]]:
+    """The student's pauses, as (first day, last day) pairs, in order: those they set
+    and the holidays they chose to rest (D184), whose days are left free alike."""
+    return [(a, b) for a, b, _holiday in _pause_rows(preferences)]
 
 
-def _pause_view(pause: tuple[date, date] | None) -> dict | None:
-    """A pause as the pages show it: its days, ISO, and its last day in words."""
+def _pause_dicts(pauses: Sequence[tuple[date, date, str]]) -> list[dict]:
+    return [
+        {"from": a.isoformat(), "to": b.isoformat(), **({"holiday": h} if h else {})} for a, b, h in pauses
+    ]
+
+
+def _pause_view(pause: tuple[date, date] | None, holidays: Collection[tuple[date, date]] = ()) -> dict | None:
+    """A pause as the pages show it: its days, ISO, its first and last days in words,
+    and whether it is a holiday the student chose to rest (D184)."""
     if pause is None:
         return None
-    return {"from": pause[0].isoformat(), "to": pause[1].isoformat(), "until": format_date(pause[1], "short")}
+    return {
+        "from": pause[0].isoformat(),
+        "to": pause[1].isoformat(),
+        "since": format_date(pause[0], "short"),
+        "until": format_date(pause[1], "short"),
+        "holiday": pause in holidays,
+    }
 
 
 def active_pause(pauses: Sequence[tuple[date, date]], today: date) -> tuple[date, date] | None:
@@ -7064,29 +7084,154 @@ def set_pause(subscription: Subscription, choice: str, *, now: datetime | None =
     today = now.astimezone(_zone(subscription.options["tz"])).date()
     last = pause_until(choice, today)
     prefs = subscription.options.get("preferences", {})
-    kept = [p for p in pauses_of(prefs) if p[1] < today]
-    prefs = {**prefs, "pauses": _pause_dicts([*kept, (today, last)])}
+    # A holiday the student chose to rest (D184) is kept: it is an answer of its own.
+    kept = [p for p in _pause_rows(prefs) if p[1] < today or p[2]]
+    prefs = {**prefs, "pauses": _pause_dicts([*kept, (today, last, "")])}
     changed = replace(subscription, options={**subscription.options, "preferences": prefs})
     return refresh_subscription(changed, now=now, reread=False)
 
 
+def _resumed(rows: Sequence[tuple[date, date, str]], today: date) -> list[tuple[date, date, str]]:
+    """`rows` after resuming today: a pause under way ends yesterday (or is dropped,
+    begun today), one ahead is dropped, past ones are kept."""
+    out = []
+    for a, b, h in rows:
+        if b < today:
+            out.append((a, b, h))
+        elif a < today:
+            out.append((a, today - timedelta(days=1), h))
+    return out
+
+
 def end_pause(subscription: Subscription, *, now: datetime | None = None) -> Subscription:
     """Resume: the pause under way ends yesterday (or is dropped, begun today), and
-    one set ahead is dropped. The plan is made again at once."""
+    one set ahead is dropped; a holiday ahead the student chose to rest stays (D184).
+    The plan is made again at once."""
     now = now or datetime.now(UTC)
     today = now.astimezone(_zone(subscription.options["tz"])).date()
     prefs = subscription.options.get("preferences", {})
-    pauses = []
-    for a, b in pauses_of(prefs):
-        if b < today:
-            pauses.append((a, b))
-        elif a < today:
-            pauses.append((a, today - timedelta(days=1)))
+    rows = _pause_rows(prefs)
+    pauses = sorted([*_resumed(rows, today), *(p for p in rows if p[2] and p[0] > today)])
     changed = replace(
         subscription,
         options={
             **subscription.options,
             "preferences": {**prefs, "pauses": _pause_dicts(pauses)},
+        },
+    )
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+# --------------------------------------------------------------------------- #
+# Holidays (DECISIONS.md D184): a week or more without classes between two days of
+# classes, asked about once on Today: rest those days, or keep studying
+# --------------------------------------------------------------------------- #
+
+HOLIDAY_DAYS = 7  # the fewest days in a row without classes asked about
+HOLIDAY_ASK_DAYS = 28  # asked from four weeks before the holiday begins
+HOLIDAY_ANSWERS = ("rest", "study")
+
+
+def holidays_in(
+    report: CalendarReport, courses: Iterable[str], exams: Iterable[datetime] = ()
+) -> list[tuple[date, date]]:
+    """The holidays of a timetable, as (first day, last day): `HOLIDAY_DAYS` days or
+    more in a row with no class of `courses` nor of a course with an exam in the
+    timetable, between two days with one. A stretch with an exam in it, of the
+    timetable or of `exams`, is an exam period, not a holiday. Courses of neither
+    kind (the gym, a job) do not count as classes: their weeks go on through a
+    holiday. The time after the last class is the revision the plan is for, never
+    a holiday."""
+    zone = _zone(report.tz)
+    names = {c.casefold() for c in courses} | {a.subject.casefold() for a in report.assessments}
+    days = sorted(
+        {
+            datetime.fromisoformat(x.start).astimezone(zone).date()
+            for x in report.lectures
+            if x.course.casefold() in names
+        }
+    )
+    tested = {datetime.fromisoformat(a.when).astimezone(zone).date() for a in report.assessments}
+    tested |= {e.astimezone(zone).date() for e in exams}
+    out = []
+    for before, after in pairwise(days):
+        first, last = before + timedelta(days=1), after - timedelta(days=1)
+        if (last - first).days + 1 >= HOLIDAY_DAYS and not any(first <= d <= last for d in tested):
+            out.append((first, last))
+    return out
+
+
+def _holidays_found(plan: PlanReport) -> list[tuple[date, date]]:
+    out = []
+    for h in plan.settings.preferences.get("holidays") or ():
+        try:
+            out.append((date.fromisoformat(h["from"]), date.fromisoformat(h["to"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def holiday_ask(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Today's question about the next holiday (D184), from four weeks before it
+    begins to its last day, until answered: its days, ISO and in words, how many,
+    and whether it has begun. None when there is nothing to ask."""
+    if subscription.plan is None:
+        return None
+    plan = PlanReport.from_dict(subscription.plan)
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(plan.settings.tz)).date()
+    answered = subscription.options.get("holidays") or {}
+    for first, last in _holidays_found(plan):
+        if first.isoformat() in answered or last < today or (first - today).days > HOLIDAY_ASK_DAYS:
+            continue
+        return {
+            "from": first.isoformat(),
+            "to": last.isoformat(),
+            "first": format_date(first, "day_short"),
+            "last": format_date(last, "day_short"),
+            "days": (last - first).days + 1,
+            "under_way": first <= today,
+        }
+    return None
+
+
+def answer_holiday(
+    subscription: Subscription, first: str, answer: str, *, now: datetime | None = None
+) -> Subscription:
+    """The student's answer about the holiday beginning on `first` (D184). "rest"
+    leaves its days from today on free, as a pause does (D126): nothing is planned
+    and the streak waits. "study" keeps the plan's sessions on them; said of a
+    holiday chosen for rest, its days from today on are planned again. The plan is
+    made again at once."""
+    if answer not in HOLIDAY_ANSWERS:
+        raise InvalidInput(_("rest or keep studying, not {value}", value=repr(answer)))
+    if subscription.plan is None:
+        raise InvalidInput(_("there is no plan yet"))
+    plan = PlanReport.from_dict(subscription.plan)
+    found = {a.isoformat(): (a, b) for a, b in _holidays_found(plan)}
+    options = subscription.options
+    prefs = options.get("preferences", {})
+    rows = _pause_rows(prefs)
+    mine = [p for p in rows if p[2] == first]
+    others = [p for p in rows if p[2] != first]
+    # Studying after all is allowed for a holiday rested before the timetable changed.
+    if first not in found and not (answer == "study" and mine):
+        raise InvalidInput(_("this holiday is no longer in your timetable"))
+    now = now or datetime.now(UTC)
+    today = now.astimezone(_zone(plan.settings.tz)).date()
+    if answer == "rest":
+        last = found[first][1]
+        mine = [p for p in mine if p[1] < today]
+        if last >= today:
+            mine.append((max(found[first][0], today), last, first))
+    else:
+        mine = _resumed(mine, today)
+    changed = replace(
+        subscription,
+        options={
+            **options,
+            "holidays": {**(options.get("holidays") or {}), first: answer},
+            "preferences": {**prefs, "pauses": _pause_dicts(sorted([*others, *mine]))},
         },
     )
     return refresh_subscription(changed, now=now, reread=False)
@@ -7142,8 +7287,11 @@ def progress_view(
     today = local.date()
     sessions = _progress.merge_logged(progress_sessions(subscription), logged)
     first = min([plan.settings.start, *(s.start.date() for s in sessions)])
-    # The student's pauses and the missed days they repaired (D126).
-    pauses = pauses_of(subscription.options.get("preferences", {}))
+    # The student's pauses and the missed days they repaired (D126), the holidays
+    # they chose to rest among them (D184).
+    rows = _pause_rows(subscription.options.get("preferences", {}))
+    pauses = [(a, b) for a, b, _h in rows]
+    holidays = {(a, b) for a, b, h in rows if h}
     paused = _progress.pause_days(pauses)
     repaired = {date.fromisoformat(d) for d in subscription.options.get("repairs", {})}
     run = _progress.streak(sessions, first, today, paused, repaired)
@@ -7158,6 +7306,8 @@ def progress_view(
     tasks = _task_rows(subscription, plan, now, colours)
     if run.today_done:
         today_line = _("Today counts. See you tomorrow.")
+    elif pause is not None and pause in holidays:
+        today_line = _("Holidays until {day}: your streak waits.", day=format_date(pause[1], "short"))
     elif pause is not None:
         today_line = (
             _("Paused today: your streak waits.")
@@ -7183,8 +7333,8 @@ def progress_view(
                 "today_done": run.today_done,
                 "line": today_line,
                 # The pause under way or ahead (D126), and its last day.
-                "pause": _pause_view(pause),
-                "ahead": None if pause is not None else _pause_view(next_pause(pauses, today)),
+                "pause": _pause_view(pause, holidays),
+                "ahead": None if pause is not None else _pause_view(next_pause(pauses, today), holidays),
             },
             # The missed day a make-up session can still repair (D126), or None.
             "repair": (repair_day := _progress.repairable(run, today)) and repair_day.isoformat(),
@@ -12818,6 +12968,11 @@ def make_schedule(
             "model": model,
             # The student's pauses (D126): their days are left free.
             "pauses": [dict(p) for p in pauses],
+            # The weeks without classes the timetable has (D184), asked about on Today.
+            "holidays": [
+                {"from": a.isoformat(), "to": b.isoformat()}
+                for a, b in holidays_in(report, planned, [datetime.fromisoformat(s["exam"]) for s in specs])
+            ],
             # What sizing gives each course, kept for the settings page (D46); a
             # partial exam (D61) is sized like an exam, on the weeks taught before it.
             "practice_sized": {

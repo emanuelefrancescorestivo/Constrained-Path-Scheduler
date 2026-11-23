@@ -4,6 +4,11 @@
 
 ### Added
 
+- Holidays (DECISIONS.md D184): a week or more without classes between two days of classes is
+  asked about on Today from four weeks before it: "Rest those days" leaves them free and the
+  streak waiting, as a pause does; "Keep studying" keeps the plan. Progress shows a holiday
+  chosen for rest, with "Study then".
+
 - The time around an exam (DECISIONS.md D183): the hour before an exam and the half hour after it
   are kept free of study, so no session of another course runs into an exam or starts as one ends;
   an exam typed by hand is taken to last two hours (AUDIT 125).

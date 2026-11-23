@@ -7226,3 +7226,34 @@ instead of 58 at 18; the least-remembered rule 64 of 69 at target instead of 65,
 planner's recall 0.968 instead of 0.967. `benchmarks/semester.py` keeps 63 of 69 at target; one topic
 short of target changed. The README's table and figure are made again from the run; decisions and
 audit items before this one keep the numbers of their day.
+
+## D184. Holidays
+
+**Asked.** In the report on the first-year timetable (D182), the plan had sessions every day from
+19 December to 5 January, Christmas Day included; the owner accepted the proposal to ask about a
+holiday once instead.
+
+**Chosen.** A holiday is seven days or more in a row with no class of the plan's courses nor of a
+course with an exam in the timetable, between two days with one (`holidays_in`). A course of neither
+kind (the gym, a job) is not a class: the second year's gym goes on through All Saints' week, which
+is still found. A stretch with an exam in it, of the timetable or typed, is an exam period, not a
+holiday. The plan keeps the holidays it found (`preferences["holidays"]`). From four weeks before a
+holiday begins to its last day, Today asks once, after the end of the semester and before the
+question about counting use: "No classes from 19 Dec to 5 Jan. Rest, or keep studying?". "Rest those
+days" sets a pause over the holiday, from today when it has begun, marked as the holiday's
+(`answer_holiday`): its days are left free and the streak waits, as D126's pause does, and the
+streak says "Holidays until". "Keep studying" keeps the plan as it was. A pause set or ended before
+the holiday leaves it as it is, and Progress shows it ahead with "Study then", which plans its days
+again; a holiday under way ends with Resume, as a pause does.
+
+**Rejected.** Treating the weeks between the last class and the exams as a holiday: they are the
+revision the plan is for; a day off in them is a pause. Resting every holiday unasked: some
+students revise over Christmas for January's exams. Counting every event of the timetable as a
+class: the gym would hide All Saints' week. A third answer for part of the holiday: a pause, or
+"Study then", covers it in one tap.
+
+**Disclosed.** Seven days and four weeks are choices. The holidays are read from the timetable's
+gaps, not its words; tried on the two samples and on every shape of `tests/test_generality.py`,
+with a club that goes on through the break. A resting holiday moves its sessions to the days after
+it (D126's limit). Checked in Chromium only, at 1280 px and phone size.
+
