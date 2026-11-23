@@ -62,11 +62,13 @@
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
   <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
   {% if demo %}
+  {# D182: a student in the first year, on a real first year's timetable without its people, or the second. #}
   <form method="post" action="/demo" class="hero-actions">
-    <button type="submit" class="btn btn-primary btn-lg">{{ _("Start the demo") }}</button>
+    <button type="submit" name="year" value="1" class="btn btn-primary btn-lg">{{ _("Start the demo: first year") }}</button>
+    <button type="submit" name="year" value="2" class="btn btn-lg">{{ _("Second year") }}</button>
     <a class="hero-more" href="#start">{{ _("Or start from zero, with your own week") }}</a>
   </form>
-  <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
+  <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, partway through a sample semester of their first or second year: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
   <p class="hero-note"><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
   <p class="hero-note hint">{% if accounts %}{{ _("The made-up student needs no account. To start from zero, make one with made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% else %}{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% endif %}</p>
   {% else %}

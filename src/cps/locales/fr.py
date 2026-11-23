@@ -944,8 +944,10 @@ MESSAGES: dict[str, str] = {
     # -- the public demo (D31) -------------------------------------------------------
     "Demo": "Démo",
     "Try it as a student, in a few seconds": "Essaie-le comme un étudiant, en quelques secondes",
-    "You get a student of your own, seven weeks into a sample semester: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.": "Tu reçois un étudiant à toi, à sept semaines d'un semestre d'exemple : un plan avec ses séances, une série, des tendances, des camarades dans cinq universités, des notes, un groupe d'étude et des cartes mémoire. Tout le monde y est inventé.",
+    "You get a student of your own, partway through a sample semester of their first or second year: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.": "Tu reçois un étudiant à toi, en cours de semestre d'exemple, en première ou en deuxième année : un plan avec ses séances, une série, des tendances, des camarades dans cinq universités, des notes, un groupe d'étude et des cartes mémoire. Tout le monde y est inventé.",
     "Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.": "Rien à créer. Utilise des informations inventées : la démo repart de zéro à chaque redémarrage, et elle s'endort quand personne ne l'utilise, donc la première visite peut prendre environ une minute.",
+    "Start the demo: first year": "Lancer la démo : première année",
+    "Second year": "Deuxième année",
     "Start the demo": "Lancer la démo",
     "Or try it with your own timetable below; on this demo server it is kept only until the next restart.": "Ou essaie-le avec ton propre emploi du temps ci-dessous ; sur ce serveur de démo, il n'est gardé que jusqu'au prochain redémarrage.",
     "made-up classmates; everything starts again when it restarts": "camarades inventés ; tout repart de zéro au redémarrage",

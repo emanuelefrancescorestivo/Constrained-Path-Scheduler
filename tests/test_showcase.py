@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from datetime import UTC, date, datetime, timedelta
 from html import unescape
 from zoneinfo import ZoneInfo
@@ -92,6 +93,31 @@ def test_a_demo_store_from_an_earlier_version_is_recognised(tmp_path):
     assert showcase.Showcase.load(tmp_path / "none") is None
 
 
+def test_the_first_year_s_sample_keeps_its_classes_and_nothing_of_its_people():
+    """D182: examples/sample-year1.ics is a real first year's timetable with only its
+    courses, kinds of class, hours, exams and cancelled classes kept."""
+    text = showcase.sample_path("sample-year1.ics").read_text(encoding="utf-8")
+    for line in text.splitlines():
+        key = line.split(":", 1)[0].split(";", 1)[0]
+        assert key in {"BEGIN", "END", "VERSION", "PRODID", "UID", "DTSTART", "DTEND", "SUMMARY", "STATUS"}, (
+            line
+        )
+        if key == "UID":
+            assert re.fullmatch(r"UID:y1-\d{3}@example", line), line
+        if key == "SUMMARY":  # a course, the kind of class and a room by kind: no teacher, campus or code
+            kinds = r", Grp: (CM|TD|EXAMEN) \., Salle: (Salle 1|Salle 2|Amphi)(, COURS ANNULE)?"
+            assert re.fullmatch(r"SUMMARY:[A-Za-z0-9 ]+" + kinds, line), line
+    events = calendar_io.expand_events(
+        calendar_io.decode_ics(text.encode()),
+        datetime(2026, 9, 1, tzinfo=PARIS),
+        datetime(2027, 2, 15, tzinfo=PARIS),
+        PARIS,
+    )
+    exams = calendar_io.find_deadlines(events)
+    assert len(exams) == 7 and min(d.when.date() for d in exams) == date(2027, 1, 15)
+    assert showcase.YEARS["1"].first == date(2026, 9, 7) and showcase.YEARS["1"].first.weekday() == 0
+
+
 def test_the_drawn_pages_of_notes_are_images_the_network_keeps():
     page = showcase.page_png(random.Random(1))
     kept, kind = social.clean_photo(page)
@@ -129,6 +155,13 @@ def test_cps_demo_makes_a_store_to_look_around_and_serves_it(tmp_path, capsys):
     (tmp_path / "mine" / "thesis.tex").write_text("keep me")
     assert main(["demo", "--store", str(tmp_path / "mine"), "--no-serve"]) == 2
     assert (tmp_path / "mine" / "thesis.tex").exists()
+
+    # D182: @sam, a first-year student on the first year's sample, beside @alex.
+    assert found.first_year and f"/p/{found.first_year}" in said and "(first year)" in said
+    sam = service.load_subscription(store, found.first_year)
+    assert sam is not None and len(sam.outcomes) > 20
+    assert service.topic_courses(sam) == ["Algebra 1", "Analysis 1", "Probability Theory"]
+    assert service.cards_due(store, sam, found.clock()) > 0
 
     you = service.load_subscription(store, found.you)
     assert you is not None and you.outcomes  # the semester so far, reported
@@ -186,9 +219,18 @@ def test_the_public_demo_gives_each_visitor_a_student_of_their_own(tmp_path, cap
         assert service.group_view(store, sub, student.group, now)["size"] == 4
         assert service.cards_due(store, sub, now) > 0
 
-    with _app(store, world.admin, demo=lambda: showcase.add_student(store, world).token) as web:
+    def start(year):
+        return showcase.add_student(store, world, year=year).token
+
+    with _app(store, world.admin, demo=start) as web:
         home = web.get("/").text
         assert 'action="/demo"' in home and "Start the demo" in home
+        assert 'name="year" value="1"' in home and 'name="year" value="2"' in home  # D182
+        first = web.post("/demo", data={"year": "1"}, follow_redirects=False)
+        freshman = first.headers["location"].split("/p/")[1].split("/")[0]
+        made = service.load_subscription(store, freshman)
+        assert made is not None and service.topic_courses(made)[0] == "Algebra 1"
+        assert (store / showcase.YEARS["1"].template).exists()  # made with the world, not by a visitor
         started = web.post("/demo", follow_redirects=False)
         assert started.status_code == 303 and started.headers["location"].endswith("/open?saved=demo")
         token = started.headers["location"].split("/p/")[1].split("/")[0]

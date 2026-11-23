@@ -4,16 +4,20 @@ feedback. A shared world of five classmates at other universities (sessions,
 explanations, notes, kudos, a study group), and students added to it: @alex for a
 demo on one's own computer, or one fresh student per visitor on the public demo
 (`cps demo --public`, DECISIONS.md D31). A student comes with weeks of history on
-the sample timetable (`examples/sample-semester.ics`), follows and a follow request,
-a study group with three teammates, an invitation, and flashcards due.
+a sample timetable, follows and a follow request, a study group with three teammates,
+an invitation, and flashcards due.
 
-The sample timetable is the autumn semester 2026-27. The demo moves it by whole
-weeks (dates only: weekdays, times, titles and exams stay) so that today is always
-in its eighth week, with history behind and exams ahead, on the real clock: a
-visitor who tries their own timetable on the same server sees it planned for today.
+Two years of study (D182): a second year on `examples/sample-semester.ics`, made up, and
+a first year on `examples/sample-year1.ics`, a real first year's courses, kinds of class,
+hours, exams and cancelled classes with everything else taken out (no teacher, room,
+campus, course code or group). Both are the autumn semester 2026-27. The demo moves them
+by whole weeks (dates only: weekdays, times, titles and exams stay) so that today always
+falls in their week of 16 November, with history behind and exams ahead, on the real
+clock: a visitor who tries their own timetable on the same server sees it planned for
+today.
 
-Everything is invented and made through `cps.service`, as the pages would make it;
-nothing in it is a fixture for a number in the documents.
+Every person is invented, and everything is made through `cps.service`, as the pages
+would make it; nothing in it is a fixture for a number in the documents.
 """
 
 from __future__ import annotations
@@ -36,8 +40,8 @@ from .store import Store
 
 MARKER = "showcase.json"
 TEMPLATE = "semester.json"  # every new student's semester so far, made once (D31)
-FIRST = date(2026, 9, 28)  # the sample semester's first Monday
-EIGHTH = date(2026, 11, 16)  # the Monday of its eighth week: where today falls
+FIRST = date(2026, 9, 28)  # the second year's sample's first Monday
+EIGHTH = date(2026, 11, 16)  # the Monday of its eighth week: where today falls, in both samples
 COURSES = ("Algebra 3", "Advanced Statistics", "Analysis 3")
 PEOPLE = (
     ("marco", "Politecnico di Milano", "Ingegneria Fisica", "Fisica 2", ""),
@@ -65,15 +69,15 @@ ADJECTIVES = ("calm", "brave", "quick", "bright", "keen", "bold", "wise", "sunny
 ANIMALS = ("otter", "fox", "owl", "lynx", "panda", "heron", "koala", "tiger", "whale", "robin")
 
 
-def sample_path() -> Path:
-    """The sample timetable: next to the package in a checkout (an editable install),
+def sample_path(name: str = "sample-semester.ics") -> Path:
+    """A sample timetable: next to the package in a checkout (an editable install),
     or in the working directory (a host that installs the package and starts the
     command from the repository)."""
     for root in (Path(__file__).resolve().parents[2], Path.cwd()):
-        found = root / "examples" / "sample-semester.ics"
+        found = root / "examples" / name
         if found.exists():
             return found
-    raise FileNotFoundError("the demo needs the repository's examples/sample-semester.ics")
+    raise FileNotFoundError(f"the demo needs the repository's examples/{name}")
 
 
 @dataclass(frozen=True)
@@ -87,6 +91,7 @@ class Showcase:
     weeks: int  # the sample timetable moved by this many weeks
     you: str | None = None  # @alex's plan token, on a demo of one's own
     group: str | None = None  # @alex's study group
+    first_year: str | None = None  # @sam's plan token, a first-year student (D182)
 
     def clock(self) -> datetime:
         return datetime.now(UTC)
@@ -94,6 +99,10 @@ class Showcase:
     @property
     def first(self) -> date:
         return FIRST + timedelta(weeks=self.weeks)
+
+    def first_of(self, year: Year) -> date:
+        """The first Monday of `year`'s sample, as moved here (D182)."""
+        return year.first + timedelta(weeks=self.weeks)
 
     def save(self, where: Path) -> None:
         (where / MARKER).write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
@@ -255,6 +264,101 @@ CARDS_ANALYSIS = (
 )
 
 
+# D182: a first-year student's made-up material. The program and the cards are a generic
+# first course in linear algebra, written for the demo, not taken from any school's text.
+ALGEBRA_1_PROGRAM = "\n".join(
+    f"Week {n}: {topic}"
+    for n, topic in enumerate(
+        (
+            "Vectors in the plane and in space",
+            "Systems of linear equations",
+            "Gaussian elimination",
+            "Matrices and their operations",
+            "Vector spaces and subspaces",
+            "Linear independence, bases and dimension",
+            "Linear maps",
+            "Kernel and image",
+            "The matrix of a linear map",
+            "Determinants",
+            "Eigenvalues and eigenvectors",
+            "Revision",
+        ),
+        1,
+    )
+)
+CARDS_ALGEBRA_1 = (
+    ("What is a linear combination of v and w?", "A vector av + bw, for numbers a and b."),
+    (
+        "When are vectors linearly independent?",
+        "When the only combination giving zero has every coefficient zero.",
+    ),
+    ("What do row operations keep?", "The solutions of the system."),
+    ("When is a square matrix invertible?", "When its determinant is not zero."),
+    ("The dimension of a vector space?", "The number of vectors in any of its bases."),
+    (
+        "The rank of a matrix?",
+        "The number of its linearly independent columns, as many as its independent rows.",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class Year:
+    """A year of study a demo student is in (D182): its sample timetable, the courses the
+    student plans, and the made-up material for them."""
+
+    key: str
+    sample: str  # the timetable in examples/, and its name in the store, moved
+    first: date  # the sample's first Monday
+    courses: tuple[str, ...]  # the courses the student's plan has
+    algebra: str  # the course with topics, cards and the group's notes
+    analysis: str  # the course with the second set of cards
+    other: str  # a third course, which a classmate is studying now
+    task: tuple[str, str]  # a task due soon, and its course
+    program: str  # the algebra course's topics
+    cards: tuple[tuple[str, str], ...]  # the algebra course's cards
+    programme: str  # the student's programme on their profile
+    template: str  # the model semester's file in the store
+
+
+YEARS = {
+    "2": Year(
+        "2",
+        "sample-semester.ics",
+        FIRST,
+        COURSES,
+        "Algebra 3",
+        "Analysis 3",
+        "Advanced Statistics",
+        ("Statistics report", "Advanced Statistics"),
+        ALGEBRA_PROGRAM,
+        CARDS,
+        "L2 Mathématiques",
+        TEMPLATE,
+    ),
+    "1": Year(
+        "1",
+        "sample-year1.ics",
+        date(2026, 9, 7),
+        ("Algebra 1", "Analysis 1", "Probability Theory"),
+        "Algebra 1",
+        "Analysis 1",
+        "Probability Theory",
+        ("Probability problem set", "Probability Theory"),
+        ALGEBRA_1_PROGRAM,
+        CARDS_ALGEBRA_1,
+        "L1 Mathématiques",
+        "semester-1.json",
+    ),
+}
+DEFAULT_YEAR = "2"  # the demo as it was before D182, for a start that names no year
+
+
+def year_of(key: str | None) -> Year:
+    """The year a start asked for; the default for anything else."""
+    return YEARS.get(str(key or ""), YEARS[DEFAULT_YEAR])
+
+
 def _at(day: date, hour: int, minute: int = 0) -> datetime:
     return datetime.combine(day, time(hour, minute), tzinfo=UTC)
 
@@ -309,23 +413,23 @@ def _logged(
     return sub, posts
 
 
-def _semester(ics: bytes, first: date, now: datetime) -> service.Subscription:
+def _semester(ics: bytes, first: date, now: datetime, year: Year) -> service.Subscription:
     """A student's plan with the semester so far reported (done, hard, skipped, or how
     much a self-test recalled), the last two sessions left to answer. Not saved: it is
     the model every new student is copied from (`_template`)."""
     rng = random.Random(2026)
     you = service.new_subscription(
-        subjects=[service.SubjectSpec(c, None, familiarity=3) for c in COURSES],
+        subjects=[service.SubjectSpec(c, None, familiarity=3) for c in year.courses],
         start=first,
         tz="Europe/Paris",
         ics=ics,
         now=_at(first, 6),
         tasks=[
             service.TaskSpec(
-                "Statistics report",
+                year.task[0],
                 (now + timedelta(days=9)).strftime("%Y-%m-%d 18:00"),
                 6.0,
-                "Advanced Statistics",
+                year.task[1],
             )
         ],
         preferences={**service.DEFAULT_PREFERENCES, "weekly_hours": 12.0},
@@ -361,13 +465,16 @@ def _semester(ics: bytes, first: date, now: datetime) -> service.Subscription:
 _MAKING = threading.Lock()
 
 
-def _template(where: Path, first: date, now: datetime) -> tuple[service.Subscription, service.Subscription]:
+def _template(
+    where: Path, first: date, now: datetime, year: Year | None = None
+) -> tuple[service.Subscription, service.Subscription]:
     """The models new students and their teammates are copied from, made once and kept
     in the store for half a day: reporting a semester session by session plans it
     again some sixty times, seconds a visitor should not wait for each time. After
     half a day the model is made again, so that the sessions left to answer stay the
-    last two."""
-    path = where / TEMPLATE
+    last two. One model per year (D182)."""
+    year = year or YEARS[DEFAULT_YEAR]
+    path = where / year.template
     with _MAKING:
         if path.exists():
             kept = json.loads(path.read_text(encoding="utf-8"))
@@ -376,10 +483,13 @@ def _template(where: Path, first: date, now: datetime) -> tuple[service.Subscrip
                     service.Subscription.from_dict(kept["student"]),
                     service.Subscription.from_dict(kept["mate"]),
                 )
-        ics = (where / "sample-semester.ics").read_bytes()
-        student = _semester(ics, first, now)
+        sample = where / year.sample
+        if not sample.exists():  # a store made before D182 has the second year's only
+            sample.write_bytes(shifted(sample_path(year.sample).read_bytes(), (first - year.first).days // 7))
+        ics = sample.read_bytes()
+        student = _semester(ics, first, now, year)
         mate = service.new_subscription(
-            subjects=[service.SubjectSpec("Algebra 3", None, familiarity=3)],
+            subjects=[service.SubjectSpec(year.algebra, None, familiarity=3)],
             start=first,
             tz="Europe/Paris",
             ics=ics,
@@ -401,14 +511,19 @@ def _copy(where: Path, model: service.Subscription) -> service.Subscription:
 
 
 def _diary(
-    where: Path, you: service.Subscription, first: date, now: datetime, rng: random.Random
+    where: Path,
+    you: service.Subscription,
+    first: date,
+    now: datetime,
+    rng: random.Random,
+    courses: tuple[str, ...] = COURSES,
 ) -> service.Subscription:
     """Focus sessions logged two or three times a week, shared as the student chose."""
     day = first
     while day < now.date():
         if day.weekday() in (1, 3, 5) and rng.random() < 0.7:
             form = {
-                "course": rng.choice(COURSES),
+                "course": rng.choice(courses),
                 "title": rng.choice(["Problem sheet", "Past paper", "Chapter summary", "Exercises"]),
                 "effort": str(rng.randint(4, 8)),
                 "progress": str(rng.randint(2, 5)),
@@ -430,10 +545,12 @@ def seed_world(where: Path, real_now: datetime | None = None) -> Showcase:
     now = real_now or datetime.now(UTC)
     weeks = weeks_for(now.date())
     first = FIRST + timedelta(weeks=weeks)
-    ics = shifted(sample_path().read_bytes(), weeks)
-    (where / "sample-semester.ics").write_bytes(ics)  # what every student here is planned on
+    for year in YEARS.values():  # what every student here is planned on, one per year
+        (where / year.sample).write_bytes(shifted(sample_path(year.sample).read_bytes(), weeks))
     store = Store(where)
-    _student, mate = _template(where, first, now)  # made now, so that no visitor waits for it
+    # Made now, so that no visitor waits for them: each year's model (D182).
+    _student, mate = _template(where, first, now)
+    _template(where, YEARS["1"].first + timedelta(weeks=weeks), now, YEARS["1"])
 
     people: dict[str, str] = {}
     subs: dict[str, service.Subscription] = {}
@@ -545,16 +662,20 @@ def add_student(
     real_now: datetime | None = None,
     seed: int | None = None,
     lang: str | None = None,
+    year: str | None = None,
 ) -> Student:
     """A new student in the world: their plan on the moved sample timetable with the
     semester so far, a profile (`handle`, or a made-up one such as "calm_otter27"),
     three classmates followed and following back, a follow request, kudos and a
     comment on what they shared, a study group with three teammates of their own,
     chloe's invitation while her group has room, and flashcards, some due; in
-    `lang`, the visitor's language, when given."""
+    `lang`, the visitor's language, when given; in `year`, the first or the second (D182),
+    the second when none is named."""
     rng = random.Random(seed if seed is not None else secrets.randbits(32))
     now = real_now or datetime.now(UTC)
-    model, mate_model = _template(where, world.first, now)
+    study = year_of(year)
+    first = world.first_of(study)
+    model, mate_model = _template(where, first, now, study)
     you = _copy(where, model)
     if lang and lang != service.language_of(you):
         # The model is planned in English; a visitor reading French or Italian gets
@@ -562,8 +683,8 @@ def add_student(
         you = service.set_language(you, lang, now=now)
         service.save_subscription(where, you)
     wanted = handle or f"{rng.choice(ADJECTIVES)}_{rng.choice(ANIMALS)}{rng.randint(10, 99)}"
-    handle = _join(where, you.token, _free_handle(where, wanted), "Université Lyon 1", "L2 Mathématiques")
-    you = _diary(where, you, world.first, now, rng)
+    handle = _join(where, you.token, _free_handle(where, wanted), "Université Lyon 1", study.programme)
+    you = _diary(where, you, first, now, rng, study.courses)
 
     people = world.people
     for other in ("marco", "lena", "sofia"):
@@ -578,7 +699,7 @@ def add_student(
             kind = rng.choice(social.REACTIONS)  # a session's reactions (D108)
             service.react(where, people[other], post.id, kind, now=now - timedelta(hours=3))
     # Two of them studying now (D108), as the new student arrives: said yes, timer running.
-    for other, course, minutes in (("marco", "Algebra 3", 18), ("lena", "Advanced Statistics", 7)):
+    for other, course, minutes in (("marco", study.algebra, 18), ("lena", study.other, 7)):
         social.set_studying_now(Store(where), people[other], True)
         started = now - timedelta(minutes=minutes)
         social.mark_present(Store(where), people[other], course, started, started + timedelta(minutes=70))
@@ -606,9 +727,9 @@ def add_student(
         mate = _copy(where, mate_model)
         mates.append(mate)
         mate_handle = _join(
-            where, mate.token, _free_handle(where, name), "Université Lyon 1", "L2 Mathématiques"
+            where, mate.token, _free_handle(where, name), "Université Lyon 1", study.programme
         )
-        _logged(where, mate, "Algebra 3", (since.date(), now.date()), rng, ("me",), rate=0.4)
+        _logged(where, mate, study.algebra, (since.date(), now.date()), rng, ("me",), rate=0.4)
         service.invite_to_group(where, you.token, group.id, mate_handle, now=since)
         service.answer_group(where, mate.token, group.id, True, now=since)
     weeks = service.group_view(where, you, group.id, now)["weeks"]  # type: ignore[index]
@@ -621,25 +742,25 @@ def add_student(
     service.add_cards(
         where,
         you,
-        {"course": "Algebra 3", "paste": "\n".join(f"{q}\t{a}" for q, a in CARDS)},
+        {"course": study.algebra, "paste": "\n".join(f"{q}\t{a}" for q, a in study.cards)},
         now=now - timedelta(days=12),
     )
     service.add_cards(
         where,
         you,
-        {"course": "Analysis 3", "paste": "\n".join(f"{q}\t{a}" for q, a in CARDS_ANALYSIS)},
+        {"course": study.analysis, "paste": "\n".join(f"{q}\t{a}" for q, a in CARDS_ANALYSIS)},
         now=now - timedelta(days=2),
     )
-    # D101: Algebra 3's topics and a teammate's notes for the group, its materials.
-    if "Algebra 3" in service.topic_courses(you):
-        index = service.topic_courses(you).index("Algebra 3")
+    # D101: the algebra course's topics and a teammate's notes for the group, its materials.
+    if study.algebra in service.topic_courses(you):
+        index = service.topic_courses(you).index(study.algebra)
         service.update_subscription(
             where,
             you.token,
-            lambda s: service.save_course_topics(where, s, index, ALGEBRA_PROGRAM, share=False, now=now),
+            lambda s: service.save_course_topics(where, s, index, study.program, share=False, now=now),
         )
         form = {
-            "course": "Algebra 3",
+            "course": study.algebra,
             "title": "Kernel, rank, eigenvalues",
             "body": GROUP_NOTES,
             "own_work": "1",
@@ -649,16 +770,17 @@ def add_student(
         service.post_notes(where, mates[0], form, now=now - timedelta(days=2))
     from . import cards as flashcards
 
-    for card in flashcards.of(Store(where), you.token, "Algebra 3")[:4]:
+    for card in flashcards.of(Store(where), you.token, study.algebra)[:4]:
         service.answer_card(where, you, card.id, "good", now=now - timedelta(days=11))
         service.answer_card(where, you, card.id, rng.choice(["good", "hard"]), now=now - timedelta(days=6))
     return Student(you.token, handle, group.id)
 
 
 def seed(where: Path, real_now: datetime | None = None) -> Showcase:
-    """A demo of one's own: the world and @alex in it."""
+    """A demo of one's own: the world, @alex in the second year and @sam in the first."""
     world = seed_world(where, real_now)
     alex = add_student(where, world, "alex", real_now, seed=2026)
+    sam = add_student(where, world, "sam", real_now, seed=2027, year="1")
     showcase = Showcase(
         people=world.people,
         crew=world.crew,
@@ -666,6 +788,7 @@ def seed(where: Path, real_now: datetime | None = None) -> Showcase:
         weeks=world.weeks,
         you=alex.token,
         group=alex.group,
+        first_year=sam.token,
     )
     showcase.save(where)
     return showcase

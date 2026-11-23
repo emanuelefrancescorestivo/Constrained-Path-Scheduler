@@ -56,6 +56,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from cps import service
@@ -325,7 +326,7 @@ class Config:
     admin_token: str | None = None  # the owner's review page, /admin/<token> (D20); none, no page
     # The public demo (D31): makes a fresh made-up student and returns their plan's
     # token; set, the home page offers it and every page says it is a demo.
-    demo: Callable[[], str] | None = None
+    demo: Callable[[str], str] | None = None  # the year asked for ("1", "2"), a new student's token
     # E-mail accounts (D94): a student makes one before the plan, and the plan opens
     # only for it. Off, plans are opened by their address alone (D35), as in the
     # tests' own apps; `cps web` and `cps demo` turn it on (CPS_ACCOUNTS=off does not).
@@ -778,14 +779,17 @@ def create_app(config: Config | None = None) -> FastAPI:
         return Response("ok\n", media_type="text/plain")
 
     @app.post("/demo")
-    def demo_start(request: Request) -> Response:
+    async def demo_start(request: Request) -> Response:
         """The public demo (D31): a fresh made-up student, with the semester so far,
-        for whoever presses Start; their own address, like any plan's."""
+        for whoever presses Start; their own address, like any plan's. In the first
+        year or the second, as the button pressed says (D182)."""
         if config.demo is None:
             return missing(request)
         if not starts.allow(client(request)):
             return too_many(request)
-        token = config.demo()
+        form = await request.form(max_files=0, max_fields=4)
+        year = str(form.get("year") or "")
+        token = await run_in_threadpool(config.demo, year if year in ("1", "2") else "2")
         service.log_event(store, token, "created", "demo")
         return RedirectResponse(f"/p/{token}/open?saved=demo", 303)
 

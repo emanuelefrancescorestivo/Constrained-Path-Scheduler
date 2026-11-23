@@ -7157,3 +7157,44 @@ Encrypt, the real DNS, the firewall and the GitHub deploy were not tried, and no
 (no SMTP account). The first run was walked in Chromium only. The privacy page's new lines are
 written from the code; whether they are complete in law, and their wording, are for the owner and,
 before a public launch, a lawyer (docs/ROADMAP.md, E16).
+
+## D182. The demo in a first year
+
+**Asked.** The owner, on 2026-11-23, with their school's first-year timetable (an ADE export) and
+its syllabus: run the app on them, test everything and report, and make a demo for each year, the
+first and the second, to explore both before the launch. Then, on the report: "accetto le tue
+proposte ovunque mantengano massima privacy e non pubblichino dati personali".
+
+**Chosen.**
+- **A first year's sample, without its people.** `examples/sample-year1.ics` is written from the
+  owner's export keeping only, for each of its 265 events, the course, the kind of class (CM, TD,
+  EXAMEN), the start, the end and whether it was cancelled. Teachers, rooms, campus, course codes,
+  the group's name, UIDs and the export's stamps are not in it; rooms are "Salle 1" for lectures,
+  "Salle 2" for tutorials and "Amphi" for exams. A test reads every line of the file against that
+  shape. The syllabus is not in the repository: the first-year student's program and cards are a
+  generic first course in linear algebra written for the demo.
+- **A year per student.** `showcase.Year` holds what a demo student is made from: the sample, the
+  courses planned (three, as in the second year), the course with topics, cards and the group's
+  notes, a task, the programme. The shared world (five classmates at other universities, their
+  notes and the group) is one for both. Both samples are moved by the same whole weeks, so that
+  today falls in their week of 16 November; each year's model semester is made with the world, so
+  that no visitor waits for it.
+- **One demo, two doors.** The home page's demo button is "Start the demo: first year", beside
+  "Second year"; a start that names no year gets the second, as before. `cps demo` on one's own
+  computer makes @alex (second year) and @sam (first year).
+
+**Rejected.**
+- Two branches, one per year (the owner's first wording). Each needs a service of its own on
+  Render, made by hand, and a branch that is not `main` falls behind it. One demo with two buttons
+  shows both years at one address and follows every merge.
+- The owner's file as it is: it names the teachers, and the repository is public. A change kept
+  in git history cannot be taken back.
+- Running the first year only on the owner's computer: the owner wants to explore both years
+  before the launch, from anywhere.
+
+**Disclosed.**
+- The first year's sample keeps a real first year's course names, days and hours, its exams and
+  cancelled classes: no person, but the shape of one school's semester.
+- A demo student plans three of the year's courses; the others' classes are in the calendar
+  without sessions, as in the second year.
+- Checked in Chromium only, at phone size in Italian and at 1280 px in the dark.
