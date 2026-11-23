@@ -1384,3 +1384,11 @@ setting is in env.example and made by `deploy/hetzner/new-env.sh`, a test fails 
 a setting the server has no place or reason for (`tests/test_deploy.py`); the privacy page names
 each of them in the three languages (`tests/test_web.py`). The wording is the owner's to approve
 before students see it (checkpoint C2).
+
+**124. A program's "Economics I" was not offered to the timetable's "Economics 1".** Found on
+2026-11-23 by walking the owner's first-year timetable (an ADE export, not in the repository)
+through the app with their first-year syllabus imported on it: five of the six courses were offered
+to their timetable course, Economics to none ("Do not add"). Names are matched by the words they
+share, and "I" and "1" are two words. The class link (D104) matches by the same rule. Status: fixed:
+a Roman numeral from I to X as a name's last word is read as its figure; elsewhere "i" stays a word
+(`service._stems`; the Spanish, Italian, French and German cases in `tests/test_generality.py`).

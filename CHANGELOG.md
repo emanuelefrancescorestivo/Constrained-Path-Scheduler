@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- A program's course numbered in Roman numerals ("Economics I") is offered to the timetable's
+  course with the figure ("Economics 1"), on import and with a class's link (AUDIT 124).
+
 ## 0.4.0 (2026-11-22)
 
 The package the pilot starts from. The project becomes a study assistant: the product
