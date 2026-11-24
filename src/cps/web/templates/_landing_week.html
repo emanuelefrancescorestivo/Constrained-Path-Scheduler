@@ -1,0 +1,30 @@
+{# D191: the front page's week, the app's own plan (service.landing_week): a week of the
+   sample second year, its classes, the self-tests the plan fitted around them, and where
+   each went once Tuesday was taken off. As the page is scrolled, the classes come in, the
+   sessions drop into the gaps, then Tuesday turns into a day off and its sessions move;
+   without scroll timelines or with motion off, the switch shows the change. Each block's
+   place is a class (no style attribute): its day, its first quarter hour, its length. #}
+{% set w = l.week %}
+<figure class="landing-week" aria-labelledby="lw-cap">
+  <input type="checkbox" id="lw-off" class="lw-toggle visually-hidden">
+  <div class="lw-bar">
+    <b class="lw-title">{{ _("Your week") }}</b>
+    <label for="lw-off" class="lw-switch"><span class="lw-knob" aria-hidden="true"></span>{{ _("Take {day} off", day=w.off_day) }}</label>
+    <span class="lw-auto" aria-hidden="true"><span class="lw-knob"></span>{{ _("{day} off", day=w.off_day) }}</span>
+  </div>
+  <div class="lw-grid" role="img" aria-label="{{ _('A week of classes with {n} self-tests fitted in the gaps; with {day} off, {moved} of them move to the next free gaps and {later} to the week after.', n=w.count, day=w.off_day, moved=w.moved, later=w.later) }}">
+    {% for h in w.hours %}<span class="lw-hour lw-r{{ loop.index0 * 8 + 1 }}">{{ h }}</span>{% endfor %}
+    {% for d in w.days %}<span class="lw-day lw-d{{ loop.index }}{% if loop.index == w.off %} off{% endif %}"><b>{{ d.name }}</b> {{ d.date }}</span>{% endfor %}
+    <span class="lw-offcol lw-d{{ w.off }}"><b>{{ _("Day off") }}</b></span>
+    {% for b in w.busy %}<span class="lw-busy lw-d{{ b.day }} lw-r{{ b.row }} lw-s{{ b.span }} c{{ b.color }}"><span>{{ b.course }}</span></span>{% endfor %}
+    {% for s in w.sessions %}
+    <span class="lw-sess from lw-d{{ s.day }} lw-r{{ s.row }} lw-s{{ s.span }} c{{ s.color }}{% if s.to != 'stay' %} moves{% endif %}{% if s.to is none %} later{% endif %}"><b>{{ s.course }}</b><small>{{ s.time }}</small></span>
+    {% if s.to is mapping %}<span class="lw-sess to lw-d{{ s.to.day }} lw-r{{ s.to.row }} lw-s{{ s.to.span }} c{{ s.color }}"><b>{{ s.course }}</b><small>{{ s.to.time }}</small></span>{% endif %}
+    {% endfor %}
+    {% if w.later %}<span class="lw-later lw-d5">{{ _n("{n} to next week", "{n} to next week", w.later) }} →</span>{% endif %}
+  </div>
+  <ul class="lw-legend" aria-hidden="true">
+    {% for c in w.courses %}<li class="c{{ c.color }}">{{ c.course }}</li>{% endfor %}
+  </ul>
+  <figcaption id="lw-cap">{{ _("The app's own plan for a week of the sample second year: its classes, and the self-tests it fitted into the gaps. Take {day} off, and {moved} sessions move to the next free gaps, {later} to the week after; nothing is lost.", day=w.off_day, moved=w.moved, later=w.later) }}</figcaption>
+</figure>

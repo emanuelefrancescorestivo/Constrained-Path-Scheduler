@@ -2415,6 +2415,11 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .landing-eyebrow, .landing-num {
   margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink);
 }
+/* D191: each question's number is a neuron, which fires as the question comes in. */
+.landing-num::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin: 0 9px 1px 1px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--nf-1), var(--nf-2)); vertical-align: middle;
+}
 .landing-head h2 {
   margin: 10px 0 0; font-family: var(--font-display); font-size: clamp(1.7rem, 4vw, 2.7rem);
   line-height: 1.1; letter-spacing: -0.035em; font-weight: 750;
@@ -2501,6 +2506,208 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .landing-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 0.86rem; font-weight: 600; }
 .landing-legend li::before { content: ""; display: inline-block; width: 14px; height: 3px; margin: 0 7px 3px 0; border-radius: 2px; vertical-align: middle; }
 
+/* -- D191: the front page as a launch ---------------------------------------------
+   The owner: "a masterpiece, like when a new iPhone is launched, interactive and
+   dopaminergic". Neurons run behind the whole story and fire as it is scrolled; three
+   scenes made from the app's own plan play as their questions are read (on a laptop,
+   each held in view while it plays): the week filling up and moving when a day is taken
+   off, Today's sessions ticked off one by one, the friends' league climbing. The last
+   session of Today is the reader's to tick, a real checkbox, and the league below counts
+   it (CSS :has, no script). Everything is in place without scroll timelines, with motion
+   off, or without :has; nothing loops but the hint, which rests (D93). */
+@property --lt-p { syntax: "<number>"; inherits: true; initial-value: 0; }
+.landing-story { isolation: isolate; }
+
+/* The neurons behind the story: held in view while the story is read, faint behind the
+   words, their signals still until the page is scrolled. */
+.landing-neurons {
+  position: sticky; top: 0; z-index: -1; display: block; width: 100vw; height: 100vh; height: 100lvh;
+  margin: 0 0 -100vh calc(50% - 50vw); margin-bottom: -100lvh; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
+}
+.neurons { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0.55; }
+.neurons .nf-a { stop-color: var(--nf-1); } .neurons .nf-b { stop-color: var(--nf-2); } .neurons .nf-c { stop-color: var(--nf-3); }
+.neurons .nf-glow-in { stop-color: var(--nf-2); stop-opacity: 0.55; } .neurons .nf-glow-out { stop-color: var(--nf-2); stop-opacity: 0; }
+.neurons path { fill: none; stroke: url(#ns-line); stroke-linecap: round; }
+.neurons .ns-edges path { stroke-width: 1.3; opacity: calc(var(--nf-lines) * 0.8); }
+.neurons .ns-dendrites path { stroke-width: 1; opacity: calc(var(--nf-lines) * 0.55); }
+.neurons .ns-signals path { stroke: var(--nf-spark); stroke-width: 3; stroke-dasharray: 7 93; stroke-dashoffset: 100; opacity: 0; }
+.neurons .soma { fill: var(--nf-1); } .neurons .soma.n1 { fill: var(--nf-2); } .neurons .soma.n2 { fill: var(--nf-3); }
+.neurons .glow { fill: url(#ns-glow); opacity: 0.25; transform-box: fill-box; transform-origin: center; }
+@media (max-width: 899px) { .neurons { opacity: 0.4; } }
+
+/* Each pinned question is a stage: its words and its scene, side by side. */
+.landing-q.pin { display: block; }
+.landing-stage {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: 28px 64px;
+}
+.landing-q.flip > .landing-stage > .landing-words { order: 2; }
+@media (max-width: 899px) {
+  .landing-stage { grid-template-columns: minmax(0, 1fr); }
+  .landing-q.flip > .landing-stage > .landing-words { order: 0; }
+}
+
+/* 1: the week. A block's day, first quarter hour and length are classes. */
+.landing-week {
+  margin: 0; padding: 14px 14px 12px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 30px 70px -44px color-mix(in srgb, var(--nf-1) 60%, transparent); view-timeline-name: --lw;
+}
+.lw-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
+.lw-title { font-family: var(--font-display); font-size: 1.05rem; }
+.lw-switch, .lw-auto {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 12px 4px 6px; border-radius: 999px;
+  font-size: 0.84rem; font-weight: 650; background: var(--fill-3); cursor: pointer; user-select: none;
+}
+.lw-auto { display: none; cursor: default; }
+.lw-knob { position: relative; flex: none; width: 34px; height: 20px; border-radius: 999px; background: var(--fill); transition: background 0.3s; }
+.lw-knob::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 30%); transition: translate 0.3s var(--ease-out);
+}
+.lw-toggle:checked ~ .lw-bar .lw-switch .lw-knob { background: var(--ok); }
+.lw-toggle:checked ~ .lw-bar .lw-switch .lw-knob::after { translate: 14px 0; }
+.lw-toggle:focus-visible ~ .lw-bar .lw-switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lw-grid {
+  position: relative; display: grid; grid-template-columns: 2.6rem repeat(5, minmax(0, 1fr));
+  grid-template-rows: auto repeat(40, 8px); column-gap: 4px;
+}
+@media (min-width: 900px) { .lw-grid { grid-template-rows: auto repeat(40, 9px); } }
+.lw-d1 { grid-column: 2; } .lw-d2 { grid-column: 3; } .lw-d3 { grid-column: 4; } .lw-d4 { grid-column: 5; } .lw-d5 { grid-column: 6; }
+.lw-r1 { grid-row-start: 2; } .lw-r2 { grid-row-start: 3; } .lw-r3 { grid-row-start: 4; } .lw-r4 { grid-row-start: 5; } .lw-r5 { grid-row-start: 6; } .lw-r6 { grid-row-start: 7; } .lw-r7 { grid-row-start: 8; } .lw-r8 { grid-row-start: 9; } .lw-r9 { grid-row-start: 10; } .lw-r10 { grid-row-start: 11; } .lw-r11 { grid-row-start: 12; } .lw-r12 { grid-row-start: 13; } .lw-r13 { grid-row-start: 14; } .lw-r14 { grid-row-start: 15; } .lw-r15 { grid-row-start: 16; } .lw-r16 { grid-row-start: 17; } .lw-r17 { grid-row-start: 18; } .lw-r18 { grid-row-start: 19; } .lw-r19 { grid-row-start: 20; } .lw-r20 { grid-row-start: 21; } .lw-r21 { grid-row-start: 22; } .lw-r22 { grid-row-start: 23; } .lw-r23 { grid-row-start: 24; } .lw-r24 { grid-row-start: 25; } .lw-r25 { grid-row-start: 26; } .lw-r26 { grid-row-start: 27; } .lw-r27 { grid-row-start: 28; } .lw-r28 { grid-row-start: 29; } .lw-r29 { grid-row-start: 30; } .lw-r30 { grid-row-start: 31; } .lw-r31 { grid-row-start: 32; } .lw-r32 { grid-row-start: 33; } .lw-r33 { grid-row-start: 34; } .lw-r34 { grid-row-start: 35; } .lw-r35 { grid-row-start: 36; } .lw-r36 { grid-row-start: 37; } .lw-r37 { grid-row-start: 38; } .lw-r38 { grid-row-start: 39; } .lw-r39 { grid-row-start: 40; } .lw-r40 { grid-row-start: 41; }
+.lw-s1 { grid-row-end: span 1; } .lw-s2 { grid-row-end: span 2; } .lw-s3 { grid-row-end: span 3; } .lw-s4 { grid-row-end: span 4; } .lw-s5 { grid-row-end: span 5; } .lw-s6 { grid-row-end: span 6; } .lw-s7 { grid-row-end: span 7; } .lw-s8 { grid-row-end: span 8; } .lw-s9 { grid-row-end: span 9; } .lw-s10 { grid-row-end: span 10; } .lw-s11 { grid-row-end: span 11; } .lw-s12 { grid-row-end: span 12; } .lw-s13 { grid-row-end: span 13; } .lw-s14 { grid-row-end: span 14; } .lw-s15 { grid-row-end: span 15; } .lw-s16 { grid-row-end: span 16; }
+.lw-hour { grid-column: 1; align-self: start; translate: 0 -50%; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lw-day { grid-row: 1; padding: 0 0 6px; text-align: center; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.lw-day b { color: var(--text); font-weight: 700; }
+.lw-busy, .lw-sess {
+  position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; overflow: hidden;
+  margin: 1px 0; padding: 1px 5px; border-radius: 6px; font-size: 12px; line-height: 1.15;
+}
+.lw-busy { color: var(--muted); background: color-mix(in srgb, var(--cc) 13%, var(--surface)); border-left: 3px solid var(--cc); }
+.lw-busy span, .lw-sess b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-sess { z-index: 2; color: #fff; background: var(--cc); box-shadow: 0 6px 14px -8px var(--cc); }
+.lw-sess b { font-weight: 700; }
+.lw-sess small { font-size: 12px; opacity: 0.9; }
+.lw-s3 small { display: none; }
+.lw-offcol {
+  grid-row: 2 / -1; z-index: 3; display: grid; place-items: center; border-radius: 8px; opacity: 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--surface) 82%, transparent) 0 6px, color-mix(in srgb, var(--fill) 70%, transparent) 6px 12px);
+}
+.lw-offcol b {
+  padding: 4px 8px; border-radius: 8px; rotate: -8deg; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent-ink); background: var(--surface); border: 2px solid currentColor;
+}
+.lw-later {
+  grid-row: 38 / -1; z-index: 4; align-self: end; justify-self: end; padding: 2px 8px; border-radius: 999px; opacity: 0;
+  font-size: 12px; font-weight: 700; white-space: nowrap; color: #fff; background: var(--accent);
+}
+.lw-sess.to { opacity: 0; transform: translateX(-35%) scale(0.92); }
+.lw-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+.lw-legend li::before { content: ""; display: inline-block; width: 9px; height: 9px; margin: 0 5px 0 0; border-radius: 3px; background: var(--cc); }
+.landing-week figcaption { margin: 12px 2px 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted); }
+/* The day off, on request: the sessions that move fade where they were and appear where
+   the plan put them, day after day. */
+.lw-sess, .lw-offcol, .lw-later { transition: opacity 0.45s var(--ease-out), transform 0.45s var(--ease-out), filter 0.45s; }
+.landing-week:has(.lw-toggle:checked) .lw-offcol, .landing-week:has(.lw-toggle:checked) .lw-later { opacity: 1; }
+.landing-week:has(.lw-toggle:checked) .lw-sess.moves.from { opacity: 0.22; filter: grayscale(1); transform: scale(0.96); }
+.landing-week:has(.lw-toggle:checked) .lw-sess.to { opacity: 1; transform: none; }
+.landing-week:has(.lw-toggle:checked) .lw-sess.from.lw-d3, .landing-week:has(.lw-toggle:checked) .lw-sess.to.lw-d3 { transition-delay: 0.25s; }
+.landing-week:has(.lw-toggle:checked) .lw-sess.from.lw-d4, .landing-week:has(.lw-toggle:checked) .lw-sess.to.lw-d4 { transition-delay: 0.5s; }
+.landing-week:has(.lw-toggle:checked) .lw-sess.to.lw-d5, .landing-week:has(.lw-toggle:checked) .lw-later { transition-delay: 0.75s; }
+
+/* 2: Today, the plan's own three sessions. */
+.landing-today { margin: 0; justify-self: center; width: min(100%, 380px); }
+.lt-phone {
+  position: relative; padding: 18px 16px 16px; border-radius: 30px; background: var(--surface); border: 1px solid var(--line-strong);
+  box-shadow: 0 30px 70px -40px color-mix(in srgb, var(--nf-2) 60%, transparent);
+}
+.lt-head { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
+.lt-day { flex: 1; display: flex; flex-direction: column; }
+.lt-day b { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -0.02em; }
+.lt-day small { font-size: 0.8rem; color: var(--muted); }
+.lt-ring {
+  --lt-p: 66.67; position: relative; flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  background: conic-gradient(var(--ok) calc(var(--lt-p) * 1%), var(--fill-2) 0);
+  transition: --lt-p 0.8s var(--ease-out);
+}
+.lt-ring::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--surface); }
+.lt-ring-in { position: relative; width: 22px; height: 22px; fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.25; transition: opacity 0.4s; }
+.lt-streak { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--c1) 14%, transparent); }
+.lt-streak svg { width: 18px; height: 18px; color: var(--c1); }
+.lt-streak b { display: inline-grid; font-variant-numeric: tabular-nums; }
+.lt-streak b > span { grid-area: 1 / 1; }
+.lt-streak small { font-size: 12px; color: var(--muted); }
+.lt-now { opacity: 0; }
+.lt-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.lt-card {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 16px;
+  background: color-mix(in srgb, var(--cc) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--cc) 30%, transparent);
+  transition: background 0.4s;
+}
+.lt-card::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 4px 4px 0; background: var(--cc); }
+.lt-check { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -6px -4px -6px -6px; border-radius: 50%; }
+label.lt-check { cursor: pointer; }
+.lt-check svg { width: 30px; height: 30px; overflow: visible; }
+.lt-check circle { fill: transparent; stroke: color-mix(in srgb, var(--cc) 70%, var(--muted)); stroke-width: 1.8; transition: fill 0.35s, stroke 0.35s; }
+.lt-check path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.4s 0.1s var(--ease-out); }
+.lt-what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lt-what b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lt-what small { font-size: 12px; color: var(--muted); }
+.lt-plus { flex: none; font-weight: 800; color: var(--accent-ink); opacity: 0; }
+.lt-burst, .lg-burst { position: absolute; left: 34px; top: 50%; width: 0; height: 0; pointer-events: none; }
+.lt-burst i, .lg-burst i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--cc, var(--accent)); opacity: 0; }
+.lt-burst i:nth-child(even), .lg-burst i:nth-child(even) { background: var(--nf-2); }
+.lt-burst i:nth-child(1), .lg-burst i:nth-child(1) { --a: 0deg; } .lt-burst i:nth-child(2), .lg-burst i:nth-child(2) { --a: 45deg; }
+.lt-burst i:nth-child(3), .lg-burst i:nth-child(3) { --a: 90deg; } .lt-burst i:nth-child(4), .lg-burst i:nth-child(4) { --a: 135deg; }
+.lt-burst i:nth-child(5), .lg-burst i:nth-child(5) { --a: 180deg; } .lt-burst i:nth-child(6), .lg-burst i:nth-child(6) { --a: 225deg; }
+.lt-burst i:nth-child(7), .lg-burst i:nth-child(7) { --a: 270deg; } .lt-burst i:nth-child(8), .lg-burst i:nth-child(8) { --a: 315deg; }
+/* Done: the circle fills, the tick draws itself. The first two are done when read
+   without motion; the last is the reader's. */
+.lt-card.t1 .lt-check circle, .lt-card.t2 .lt-check circle, .landing-today:has(.lt-input:checked) .t3 .lt-check circle { fill: var(--ok); stroke: var(--ok); }
+.lt-card.t1 .lt-check path, .lt-card.t2 .lt-check path, .landing-today:has(.lt-input:checked) .t3 .lt-check path { stroke-dashoffset: 0; }
+.lt-input:focus-visible + .lt-check { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lt-hint { margin: 12px 4px 0; font-size: 0.86rem; font-weight: 650; color: var(--accent-ink); text-align: center; }
+.lt-banner {
+  display: none; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; padding: 10px 12px; border-radius: 14px;
+  font-weight: 700; color: #fff; background: linear-gradient(100deg, var(--nf-1), var(--nf-2));
+}
+.lt-banner svg { width: 18px; height: 18px; }
+.landing-today:has(.lt-input:checked) .lt-ring { --lt-p: 100; }
+.landing-today:has(.lt-input:checked) .lt-ring-in { opacity: 1; }
+.landing-today:has(.lt-input:checked) .lt-was { opacity: 0; }
+.landing-today:has(.lt-input:checked) .lt-now { opacity: 1; animation: lt-pop 0.6s var(--ease-out); }
+.landing-today:has(.lt-input:checked) .lt-hint { display: none; }
+.landing-today:has(.lt-input:checked) .lt-banner { display: flex; animation: lt-rise 0.6s var(--ease-out) both; }
+.landing-today:has(.lt-input:checked) .t3 .lt-plus { animation: lt-float 1.4s var(--ease-out) both; }
+.landing-today:has(.lt-input:checked) .t3 .lt-burst i { animation: lt-burst 0.9s var(--ease-out) both; }
+.landing-today figcaption { margin: 14px 4px 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted); text-align: center; }
+@keyframes lt-pop { 0% { scale: 0.6; } 60% { scale: 1.35; } 100% { scale: 1; } }
+@keyframes lt-rise { from { opacity: 0; translate: 0 10px; } }
+@keyframes lt-float { 0% { opacity: 0; translate: 0 6px; } 25% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -30px; } }
+@keyframes lt-burst { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(0.4); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-38px) scale(1); } }
+@keyframes lt-hint { 50% { opacity: 0.45; } }
+.lt-hint.pulse { animation: lt-hint 1.6s ease-in-out infinite; }
+
+/* 5: the league climbs. Rows and labels keep fixed heights, so you can trade places
+   with the friend below: one row and one label apart. */
+.landing-league .league-rows { gap: 2px; }
+.landing-league .league-row { height: 54px; }
+.landing-league .league-zone { position: relative; height: 30px; padding: 10px 8px 0; }
+.landing-league .lg-up, .landing-league .lg-down { position: relative; z-index: 1; }
+.landing-league .lg-up { z-index: 2; background: var(--accent-soft); }
+.landing-league .league-points { display: inline-grid; font-variant-numeric: tabular-nums; }
+.landing-league .league-points > span { grid-area: 1 / 1; text-align: right; }
+.landing-league .lg-was, .landing-league .lg-tap { opacity: 0; }
+.lg-gain, .lg-tapped {
+  position: absolute; right: 56px; top: 50%; translate: 0 -50%; padding: 2px 8px; border-radius: 999px; opacity: 0;
+  font-size: 12px; font-weight: 800; color: #fff; background: var(--ok);
+}
+.lg-tapped { background: var(--nf-2); }
+.lg-burst { left: auto; right: 24px; }
+:root:has(.lt-input:checked) .landing-league .lg-now { opacity: 0; }
+:root:has(.lt-input:checked) .landing-league .lg-tap { opacity: 1; animation: lt-pop 0.6s var(--ease-out); }
+:root:has(.lt-input:checked) .landing-league .lg-tapped { animation: lt-float 2.2s var(--ease-out) both; }
+
 /* 8: three steps and three promises. */
 .landing-steps { margin: 20px 0 0; padding: 0; list-style: none; counter-reset: landing; display: grid; gap: 12px; }
 .landing-steps li { position: relative; padding: 0 0 0 44px; color: var(--muted); line-height: 1.45; counter-increment: landing; }
@@ -2535,6 +2742,9 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 #q8 { view-timeline-name: --q8; }
 .landing-story { view-timeline-name: --story; }
 .landing-chart { view-timeline-name: --chart; }
+.landing-today { view-timeline-name: --lt; }
+.landing-league { view-timeline-name: --lg; }
+.landing-story { timeline-scope: --q1, --q2, --q3, --q4, --q5, --q6, --q7, --q8, --lw, --lt, --lg; }
 @supports (animation-timeline: view()) and (timeline-scope: --a) {
   @media (prefers-reduced-motion: no-preference) {
     /* A line under the top bar, filling as the story is read. */
@@ -2595,6 +2805,116 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
       animation: landing-show linear both; animation-timeline: view(); animation-range: entry 30% cover 35%;
     }
     :root:not([data-motion="reduce"]) .landing-point.proof { animation-range: entry 70% cover 45%; }
+    /* D191, 1: the week, on its own pass through the window (a phone); held in view on a laptop, below. */
+    :root:not([data-motion="reduce"]) .landing-week .lw-switch, :root:not([data-motion="reduce"]) .landing-week .lw-toggle { display: none; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-auto { display: inline-flex; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-busy { animation: lw-in linear both; animation-timeline: --lw; animation-range: entry 10% entry 90%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d1 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 60% contain 10%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d2 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 70% contain 15%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d3 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 80% contain 20%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d4 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 90% contain 25%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d5 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 100% contain 30%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob { animation: lw-on linear both; animation-timeline: --lw; animation-range: contain 36% contain 42%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob::after { animation: lw-slide linear both; animation-timeline: --lw; animation-range: contain 36% contain 42%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-offcol { animation: lw-in linear both; animation-timeline: --lw; animation-range: contain 40% contain 50%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d2 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 70% contain 15%, contain 45% contain 55%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d3 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 80% contain 20%, contain 52% contain 62%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d4 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 90% contain 25%, contain 59% contain 69%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d3 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 47% contain 57%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d4 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 54% contain 64%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d5 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 61% contain 71%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-later { animation: lw-in linear both; animation-timeline: --lw; animation-range: contain 68% contain 76%; }
+    /* D191, 2: Today: two sessions ticked off as it passes; the last is the reader's. */
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 { animation: lt-in linear both; animation-timeline: --lt; animation-range: entry 10% entry 60%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 { animation: lt-in linear both; animation-timeline: --lt; animation-range: entry 25% entry 75%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t3 { animation: lt-in linear both; animation-timeline: --lt; animation-range: entry 40% entry 90%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-check circle { animation: lt-fill linear both; animation-timeline: --lt; animation-range: contain 12% contain 22%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-check path { animation: lt-draw linear both; animation-timeline: --lt; animation-range: contain 16% contain 28%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-plus { animation: lt-float linear both; animation-timeline: --lt; animation-range: contain 16% contain 42%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-burst i { animation: lt-burst linear both; animation-timeline: --lt; animation-range: contain 16% contain 32%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-check circle { animation: lt-fill linear both; animation-timeline: --lt; animation-range: contain 32% contain 42%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-check path { animation: lt-draw linear both; animation-timeline: --lt; animation-range: contain 36% contain 48%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-plus { animation: lt-float linear both; animation-timeline: --lt; animation-range: contain 36% contain 62%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-burst i { animation: lt-burst linear both; animation-timeline: --lt; animation-range: contain 36% contain 52%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-ring { animation: lt-ring linear both; animation-timeline: --lt; animation-range: contain 12% contain 48%; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-hint.pulse { animation: lt-show linear both, lt-hint 1.6s ease-in-out infinite; animation-timeline: --lt, auto; animation-range: contain 52% contain 62%, normal; }
+    :root:not([data-motion="reduce"]) .landing-today:has(.lt-input:checked) .lt-ring { animation: none; }
+    /* D191, 5: the league: a session done and vouched for, and you climb into the top three. */
+    :root:not([data-motion="reduce"]) .landing-league .lg-up { animation: lg-climb linear both; animation-timeline: --lg; animation-range: contain 30% contain 55%; }
+    :root:not([data-motion="reduce"]) .landing-league .lg-down { animation: lg-sink linear both; animation-timeline: --lg; animation-range: contain 30% contain 55%; }
+    :root:not([data-motion="reduce"]) .landing-league .lg-was { animation: lg-out linear both; animation-timeline: --lg; animation-range: contain 40% contain 48%; }
+    :root:not([data-motion="reduce"]) .landing-league .lg-now { animation: lg-in linear both; animation-timeline: --lg; animation-range: contain 40% contain 48%; }
+    :root:not([data-motion="reduce"]) .landing-league .lg-gain { animation: lt-float linear both; animation-timeline: --lg; animation-range: contain 22% contain 58%; }
+    :root:not([data-motion="reduce"]) .landing-league .zone-up { animation: lg-flash linear both; animation-timeline: --lg; animation-range: contain 50% contain 66%; }
+    :root:not([data-motion="reduce"]) .landing-league .lg-burst i { animation: lt-burst linear both; animation-timeline: --lg; animation-range: contain 52% contain 64%; }
+    :root:not([data-motion="reduce"]) :has(.lt-input:checked) .landing-league .lg-now { animation: none; opacity: 0; }
+    /* D191: the neurons fire as the story is read, each of twelve stretches its own signals. */
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k1 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 0.0% contain 14.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k1 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 0.0% contain 14.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k2 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 7.5% contain 21.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k2 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 7.5% contain 21.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k3 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 15.0% contain 29.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k3 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 15.0% contain 29.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k4 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 22.5% contain 36.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k4 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 22.5% contain 36.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k5 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 30.0% contain 44.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k5 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 30.0% contain 44.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k6 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 37.5% contain 51.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k6 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 37.5% contain 51.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k7 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 45.0% contain 59.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k7 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 45.0% contain 59.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k8 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 52.5% contain 66.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k8 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 52.5% contain 66.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k9 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 60.0% contain 74.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k9 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 60.0% contain 74.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k10 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 67.5% contain 81.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k10 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 67.5% contain 81.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k11 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 75.0% contain 89.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k11 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 75.0% contain 89.0%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .ns-signals .k12 { animation: ns-fire linear both; animation-timeline: --story; animation-range: contain 82.5% contain 96.5%; }
+    :root:not([data-motion="reduce"]) .landing-neurons .glow.k12 { animation: ns-glow linear both; animation-timeline: --story; animation-range: contain 82.5% contain 96.5%; }
+    :root:not([data-motion="reduce"]) .landing-num::before { animation: ns-ping linear both; animation-timeline: view(); animation-range: entry 40% cover 45%; }
+    /* D191: on a laptop each scene is held in view while it plays, its question's whole length. */
+    @media (min-width: 900px) and (min-height: 640px) {
+      :root:not([data-motion="reduce"]) .landing-q.pin { height: 250vh; }
+      :root:not([data-motion="reduce"]) .landing-q.pin > .landing-stage { position: sticky; top: calc(var(--topbar) + 3vh); min-height: calc(94vh - var(--topbar)); }
+      :root:not([data-motion="reduce"]) .landing-week .lw-busy { animation-timeline: --q1; animation-range: contain 0% contain 12%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d1:not(.moves) { animation-timeline: --q1; animation-range: contain 8% contain 20%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d2 { animation-timeline: --q1, --q1; animation-range: contain 11% contain 23%, contain 46% contain 56%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d2:not(.moves) { animation-timeline: --q1; animation-range: contain 11% contain 23%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d3 { animation-timeline: --q1, --q1; animation-range: contain 14% contain 26%, contain 53% contain 63%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d3:not(.moves) { animation-timeline: --q1; animation-range: contain 14% contain 26%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d4 { animation-timeline: --q1, --q1; animation-range: contain 17% contain 29%, contain 60% contain 70%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d4:not(.moves) { animation-timeline: --q1; animation-range: contain 17% contain 29%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d5:not(.moves) { animation-timeline: --q1; animation-range: contain 20% contain 32%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob { animation-timeline: --q1; animation-range: contain 38% contain 44%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob::after { animation-timeline: --q1; animation-range: contain 38% contain 44%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-offcol { animation-timeline: --q1; animation-range: contain 42% contain 50%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d3 { animation-timeline: --q1; animation-range: contain 48% contain 58%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d4 { animation-timeline: --q1; animation-range: contain 55% contain 65%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d5 { animation-timeline: --q1; animation-range: contain 62% contain 72%; }
+      :root:not([data-motion="reduce"]) .landing-week .lw-later { animation-timeline: --q1; animation-range: contain 70% contain 78%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 { animation-timeline: --q2; animation-range: contain 0% contain 10%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 { animation-timeline: --q2; animation-range: contain 4% contain 14%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t3 { animation-timeline: --q2; animation-range: contain 8% contain 18%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-check circle { animation-timeline: --q2; animation-range: contain 20% contain 28%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-check path { animation-timeline: --q2; animation-range: contain 24% contain 32%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-plus { animation-timeline: --q2; animation-range: contain 24% contain 40%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 .lt-burst i { animation-timeline: --q2; animation-range: contain 24% contain 34%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-check circle { animation-timeline: --q2; animation-range: contain 42% contain 50%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-check path { animation-timeline: --q2; animation-range: contain 46% contain 54%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-plus { animation-timeline: --q2; animation-range: contain 46% contain 62%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-burst i { animation-timeline: --q2; animation-range: contain 46% contain 56%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-ring { animation-timeline: --q2; animation-range: contain 20% contain 54%; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-hint.pulse { animation-timeline: --q2, auto; animation-range: contain 60% contain 70%, normal; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-up { animation-timeline: --q5; animation-range: contain 28% contain 56%; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-down { animation-timeline: --q5; animation-range: contain 28% contain 56%; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-was { animation-timeline: --q5; animation-range: contain 40% contain 48%; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-now { animation-timeline: --q5; animation-range: contain 40% contain 48%; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-gain { animation-timeline: --q5; animation-range: contain 20% contain 60%; }
+      :root:not([data-motion="reduce"]) .landing-league .zone-up { animation-timeline: --q5; animation-range: contain 52% contain 68%; }
+      :root:not([data-motion="reduce"]) .landing-league .lg-burst i { animation-timeline: --q5; animation-range: contain 54% contain 66%; }
+    }
   }
 }
 @keyframes landing-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -2605,6 +2925,25 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 @keyframes landing-settle { from { opacity: 0; transform: perspective(1200px) rotateX(10deg) scale(0.94); } }
 @keyframes landing-draw { from { stroke-dashoffset: 1; } }
 @keyframes landing-show { from { opacity: 0; } }
+@keyframes lw-in { from { opacity: 0; } }
+@keyframes lw-drop { from { opacity: 0; translate: 0 -22px; scale: 0.9; } 60% { opacity: 1; } }
+@keyframes lw-ghost { to { opacity: 0.22; filter: grayscale(1); scale: 0.96; } }
+@keyframes lw-arrive { 0% { opacity: 0; translate: -40% 0; scale: 0.9; } 70% { opacity: 1; scale: 1.08; } 100% { opacity: 1; translate: 0 0; scale: 1; transform: none; } }
+@keyframes lw-on { to { background: var(--ok); } }
+@keyframes lw-slide { to { translate: 14px 0; } }
+@keyframes lt-in { from { opacity: 0; translate: 0 18px; } }
+@keyframes lt-fill { from { fill: transparent; stroke: color-mix(in srgb, var(--cc) 70%, var(--muted)); } }
+@keyframes lt-draw { from { stroke-dashoffset: 1; } }
+@keyframes lt-ring { 0% { --lt-p: 0; } 45%, 55% { --lt-p: 33.33; } 100% { --lt-p: 66.67; } }
+@keyframes lt-show { from { opacity: 0; } }
+@keyframes lg-climb { from { translate: 0 88px; } }
+@keyframes lg-sink { from { translate: 0 -88px; } }
+@keyframes lg-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes lg-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lg-flash { 0%, 100% { text-shadow: none; } 40% { color: var(--ok); text-shadow: 0 0 14px color-mix(in srgb, var(--ok) 70%, transparent); } }
+@keyframes ns-fire { 0% { stroke-dashoffset: 100; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes ns-glow { 0%, 62% { opacity: 0.25; scale: 1; } 82% { opacity: 1; scale: 1.8; } 100% { opacity: 0.3; scale: 1; } }
+@keyframes ns-ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
 
 /* Nothing on the app's own pages moves as the page scrolls (D132): what came into view
    used to rise into place, and movement tied to scrolling is what brings on dizziness

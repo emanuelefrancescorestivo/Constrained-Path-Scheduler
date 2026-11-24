@@ -48,6 +48,7 @@ import re
 import secrets
 import sqlite3
 import threading
+from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -16246,6 +16247,7 @@ LANDING_CRESTS = (
     ("full_week", 1),
     ("deep_focus", 4),
 )
+LANDING_STREAK = 12  # D191: the made-up student's streak on the morning of the week shown
 # Each friend's own league, on the small crest at their avatar's corner.
 LANDING_LEAGUE_METALS = ("gold", "silver", "silver", "bronze", "silver", "bronze")
 LANDING_LEAGUE = (
@@ -16403,6 +16405,174 @@ def _landing_course() -> dict:
     }
 
 
+# D191: the front page's week, planned by the app's own rules on the sample second year
+# (examples/sample-semester.ics): a plan made on the semester's first day, every session
+# reported done until the Tuesday morning of its fourth week, then that Tuesday taken off
+# (D126's pause). Kept as data (`data/landing_week.json`), since a server's package has no
+# examples; `tests/test_landing.py` makes it again and checks it is the same, and
+# `python benchmarks/landing_week.py` writes it when the planner changes.
+LANDING_WEEK_START = datetime(2026, 9, 28, 6, 0, tzinfo=UTC)  # the plan is made
+LANDING_WEEK_MONDAY = date(2026, 10, 19)  # the week shown, the semester's fourth
+LANDING_WEEK_TZ = "Europe/Paris"
+LANDING_WEEK_HOURS = (8, 18)  # the part of each day drawn
+LANDING_WEEK_FILE = Path(__file__).resolve().parent / "data" / "landing_week.json"
+
+
+def landing_week_compute(ics: bytes) -> dict:
+    """The front page's week (D191), made by the app: the timetable's classes and the plan's
+    sessions Monday to Friday, as the plan stood on Tuesday morning, then where each of
+    them went once Tuesday was taken off. Each session is keyed by its topic and kind, so
+    a session that moved is the same session; one the plan put after Friday is "later"."""
+    zone = _zone(LANDING_WEEK_TZ)
+    monday = LANDING_WEEK_MONDAY
+    tuesday = datetime.combine(monday + timedelta(days=1), time(7, 0), tzinfo=zone).astimezone(UTC)
+    sub = start_subscription(tz=LANDING_WEEK_TZ, ics=ics, now=LANDING_WEEK_START)
+    reported: set[str] = set()
+    while True:
+        plan = PlanReport.from_dict(sub.plan)
+        due = [
+            x
+            for x in plan.sessions
+            if datetime.fromisoformat(x.end) <= tuesday
+            and session_id(x) not in sub.outcomes
+            and session_id(x) not in reported
+        ]
+        if not due:
+            break
+        first = due[0]
+        reported.add(session_id(first))
+        answer = "all" if first.kind in _REVIEW_KINDS else "done"
+        sub = report_session(
+            sub,
+            session_id(first),
+            answer,
+            now=datetime.fromisoformat(first.end).astimezone(UTC) + timedelta(minutes=5),
+        )
+    low, high = (h * 60 for h in LANDING_WEEK_HOURS)
+
+    def week(subscription: Subscription) -> tuple[list[dict], dict[str, dict]]:
+        view = calendar_view(subscription, first=monday, count=5, now=tuesday)
+        busy: list[dict] = []
+        study: dict[str, dict] = {}
+        seen: Counter[str] = Counter()
+        for item in view["items"]:
+            start, end = max(item["start"], low), min(item["end"], high)
+            if end <= start:
+                continue
+            if item["kind"] == "study":
+                topic = f"{item['title']}|{item['session_kind']}"
+                seen[topic] += 1
+                study[f"{topic}|{seen[topic]}"] = {
+                    "day": item["day"],
+                    "start": start,
+                    "end": end,
+                    "course": item["course"],
+                    "color": item["color"],
+                    "kind": item["session_kind"],
+                }
+            else:
+                busy.append(
+                    {
+                        "day": item["day"],
+                        "start": start,
+                        "end": end,
+                        "course": item.get("course") or "",
+                        "color": item.get("color", 6),
+                    }
+                )
+        return busy, study
+
+    busy, before = week(sub)
+    _busy, after = week(set_pause(sub, "today", now=tuesday))
+    sessions = []
+    for key, x in sorted(before.items(), key=lambda kv: (kv[1]["day"], kv[1]["start"])):
+        moved = after.get(key)
+        sessions.append({**x, "to": [moved["day"], moved["start"], moved["end"]] if moved else None})
+    return {
+        "monday": monday.isoformat(),
+        "off": 1,
+        "hours": list(LANDING_WEEK_HOURS),
+        "busy": sorted(busy, key=lambda b: (b["day"], b["start"])),
+        "sessions": sessions,
+        "new": [
+            {**x, "to": [x["day"], x["start"], x["end"]]}
+            for key, x in sorted(after.items(), key=lambda kv: (kv[1]["day"], kv[1]["start"]))
+            if key not in before
+        ],
+    }
+
+
+@functools.cache
+def _landing_week() -> dict:
+    return json.loads(LANDING_WEEK_FILE.read_text(encoding="utf-8"))
+
+
+def landing_week() -> dict:
+    """The front page's week (D191) as the page draws it: each day's name, each block's
+    place in quarter hours from the first hour drawn and its length, each session's
+    course, kind and colour, and where it went once Tuesday was taken off."""
+    data = _landing_week()
+    low = data["hours"][0] * 60
+    monday = date.fromisoformat(data["monday"])
+
+    def quarters(start: int, end: int) -> tuple[int, int]:
+        return (start - low) // 15 + 1, max(1, (end - start) // 15)
+
+    def block(x: dict) -> dict:
+        row, span = quarters(x["start"], x["end"])
+        return {
+            "day": x["day"] + 1,
+            "row": row,
+            "span": span,
+            "course": x["course"],
+            "color": x["color"] % 7,
+            "time": f"{x['start'] // 60}:{x['start'] % 60:02d}",
+        }
+
+    sessions = []
+    for x in data["sessions"]:
+        item = {**block(x), "kind": _(KIND_LABELS.get(x["kind"], "Self-test"))}
+        if x["to"] is None:
+            item["to"] = None
+        else:
+            to = block({**x, "day": x["to"][0], "start": x["to"][1], "end": x["to"][2]})
+            item["to"] = to if (to["day"], to["row"]) != (item["day"], item["row"]) else "stay"
+        sessions.append(item)
+    moving = [s for s in sessions if s["to"] not in ("stay",)]
+    for order, s in enumerate(moving, start=1):
+        s["order"] = order
+    off = monday + timedelta(days=data["off"])
+    return {
+        "days": [
+            {
+                "name": format_date(monday + timedelta(days=k), "short").split(" ")[0],
+                "date": (monday + timedelta(days=k)).day,
+            }
+            for k in range(5)
+        ],
+        "hours": [f"{h}:00" for h in range(data["hours"][0], data["hours"][1] + 1, 2)],
+        "rows": (data["hours"][1] - data["hours"][0]) * 4,
+        "busy": [block(b) for b in data["busy"]],
+        "sessions": sessions,
+        "new": [{**block(x), "kind": _(KIND_LABELS.get(x["kind"], "Self-test"))} for x in data["new"]],
+        "off": data["off"] + 1,
+        "off_day": format_date(off, "long").split(" ")[0],
+        "moved": len([s for s in sessions if isinstance(s["to"], dict)]),
+        "later": len([s for s in sessions if s["to"] is None]),
+        "count": len(sessions),
+        "today": [
+            {**block(x), "kind": _(KIND_LABELS.get(x["kind"], "Self-test")), "minutes": x["end"] - x["start"]}
+            for x in data["sessions"]
+            if x["day"] == 0
+        ],
+        "today_name": format_date(monday, "long"),
+        "courses": [
+            {"course": course, "color": color % 7}
+            for course, color in dict((x["course"], x["color"]) for x in data["sessions"]).items()
+        ],
+    }
+
+
 def landing_view() -> dict:
     """The front page's story (D188): its numbers from the app's own rules and model,
     so the pitch and the app cannot disagree. Recall twelve weeks after the exam for a
@@ -16411,6 +16581,7 @@ def landing_view() -> dict:
     (D126); focus's rhythm (D178); how long a plan is kept (D36); the coach's free
     answers (D176)."""
     families = {f.key: f for f in _crests.FAMILIES}
+    me_points = next(points for handle, _level, points, _face in LANDING_LEAGUE if not handle)
     curves = [dict(c) for c in _landing_curves()]
     # Each curve's end is labelled beside it, kept 14 units (its text and a gap) clear of
     # the label above.
@@ -16475,6 +16646,16 @@ def landing_view() -> dict:
         "rhythm": RHYTHM_WORK // 60,
         "kept_months": round(RETENTION / timedelta(days=365) * 12),
         "coach_free": COACH_FREE_A_DAY,
+        "week": landing_week(),
+        "streak": LANDING_STREAK,
+        # D191: you climb into the top three as the story is scrolled, from the points before
+        # a session done and vouched for; the reader's own tick above adds one more session.
+        "climb": {
+            "before": me_points - POINTS_DONE - POINTS_PROOF,
+            "after": me_points,
+            "tap": me_points + POINTS_DONE,
+            "gain": POINTS_DONE + POINTS_PROOF,
+        },
     }
 
 
