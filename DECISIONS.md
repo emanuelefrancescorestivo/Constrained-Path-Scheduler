@@ -7389,3 +7389,108 @@ straight to the buttons is for the pilot. The chart's text is 12 units in a draw
 pixels or more on screens 368 pixels wide or more, smaller on narrower ones. Its wording is the owner's to review; the
 Italian was not written by a native speaker. Checked in Chromium only, at 1440 × 900 and phone
 size, light and dark, in English, French and Italian.
+
+## D189. Crests: levels, badges in four tiers, and a league among friends
+
+**Asked.** The owner, shown D188's points card and badges on a phone: the points were crooked, the
+badges should be redesigned, and there should be more of them, "as levels and leagues, which make it
+all more exciting". From a canvas of proposals they chose the crest (a six-sided shield whose metal
+is its tier), levels and leagues together ("it's fine to have leagues, it's a friendly game!"), a
+collection of badges each earned with something the app already counts, and, for the league's
+table, each friend's own avatar rather than rows that all look the same.
+
+**Chosen.** One shield for everything earned (`crests.py`, pure; `_crest.html` draws it in CSS,
+`clip-path`, the metals as classes, so no style attribute):
+
+- **Level.** Every point makes it, and it never goes down: D158's +10 a session done and +20 once a
+  classmate vouches for it, 50 for each badge tier and 100 for each rare badge. Level n starts at
+  50·n·(n−1) points, 100 more each level: 0, 100, 300, 600, 1,000. Its names are the brain's, from
+  Spark to Mastery (eight, the last repeating). A session of the diary outside the plan, timed with
+  Focus or typed, earns its +10 too, at most three a day, so a student who studies without the
+  plan's sessions plays as well; one timed from a planned session counts as that one. The level's
+  card is on Progress above "More detail", a link to the league.
+- **Badges.** Twenty families in four groups (Habit, Memory, Focus, Together), each climbing four
+  tiers, bronze, silver, gold and ice, at thresholds of what the app already counts: days in a row
+  (3, 7, 30, 100), full weeks, sessions started on time, missed days repaired, semesters, self-tests
+  answered, topics that hold past a month, flashcards answered, timed exam practice, exams passed,
+  sessions timed, the longest timed session (30 minutes to 2 h 30), tasks finished in steps, sessions
+  at a place on the map, days in a row with a friend, explanations shared, "helpful" marks on notes,
+  checks given, cheers sent, weeks a study group met its goal. Four rare ones have a single tier, in
+  aurora: the first session, a topic recalled against the model's odds (under 50 %, D125), first in
+  a league for a week, and a week in which every self-test answered was recalled (D130). Each tier
+  keeps the day it was reached, the next threshold says how far away it is ("4 of 8"), and the
+  tiers D41's badges stood for are celebrated under their old keys, so nothing earned before is
+  celebrated twice. The collection is computed only when "More detail" is opened, as D106 left it;
+  it keeps the badges' points (`keep_crest`) for the level a friend sees, written only when they
+  changed.
+- **League.** A week, Monday to Sunday, among the student and the friends who follow them back and
+  play (`social.mutual_follows`; a block either way leaves them out), up to ten. Its points are the
+  sessions' only, not the badges', so a collection built over a year does not decide a week; a
+  vouched session's +20 counts once a day, so two friends cannot vouch each other to the top. At the
+  week's end the top three move up a league (bronze, silver, gold, ice, aurora) and the bottom three
+  move down, unless they studied on three days of the week; a table of fewer than four moves no one,
+  and of six or fewer nobody moves down. A week is settled on the first page the student opens
+  after it (`settle_league`, written only then), at most eight weeks at once, the last twelve
+  results kept. Community shows the table at the top of its side column: each friend's avatar with
+  their level on a small crest at its corner, their points, who moves up, who stays, who may move
+  down. Today says last week's result on the new week's first three days ("1 of 4: up to the Silver
+  league!"), after a make-up session's offer. The league is on until left: from the table's "How the
+  league works", or the profile's switch. Ties are told apart by handle, the same way for everyone.
+- **Counted for it.** A cheer sent (D178), a session finished at a place on the map (D133) and the
+  day each semester after the first began (D36) are now kept, the last 250, 150 and 12.
+
+**Rejected.** Points for hours (the badges were never for hours, D41). A league among strangers or a
+whole university: the owner's is among friends, and a stranger's points say nothing to a student.
+Moving down after a week of study, however few its points: a friendly game keeps those who kept
+studying. Badges' points in the league: a week would be decided by who joined first. Sharing the
+recap (D131) as a rare badge: sharing would become a chore to earn it; the clean week took its
+place. More tiers per family, or a fifth metal for them: four read at a glance on a phone. Ranking
+everyone at a university, or showing a friend's hours or courses: the table shows points, a level
+and a league, nothing studied.
+
+**Disclosed.** Every threshold, the 50 and 100 points, the level's step, three up and three down,
+the three days, the three diary sessions a day and the three days Today speaks are choices, not
+measured. A league is played among friends who follow each other back, on by default once they do:
+the privacy page says what they see (points this week, level, league), which is the owner's to
+approve with D133's lines (C2). Points are what students report, as D158's: two friends can still
+report sessions never studied; the league counts them as the calendar does. A friend's level counts
+their badges as they stood when their Progress last opened its collection. Whether a league brings
+more sessions or more anxious ones is for the pilot: Duolingo's leagues are the model, and nothing
+here was measured with students. The demo's classmates study on about half their days, so its table
+early in a week is mostly zeros. Checked in Chromium only, at 1440 × 900 and phone size, light and
+dark, in English, French and Italian.
+
+## D190. The front page: a league to keep each other going, and a course in three numbers
+
+**Asked.** The owner, after D189: show the levels and the league on the front page "as a way to
+motivate each other", so they can show it to their professors. On D188's chart they had written that
+a student could well say that cramming four sessions for 80 % beats a semester of study for 7 % more:
+"we need to sell it better". They chose, of three framings, the one in three numbers.
+
+**Chosen.** Question 5 ("What do I get for it?") is now "A friendly league that keeps you and your
+friends going": the week's league among friends who follow each other, its rules in a sentence (the
+top three up, nobody down for a week studied on three days), the level that never goes down, the
+twenty badges in four tiers; beside it the league's table of made-up classmates as the app draws it
+(each with their avatar and their level on a crest), the two points cards, and eight crests at the
+tier a student partway through a semester might have. Question 4 adds the weekly league to what
+friends do together, and the hero's third gain reads "Levels, badges and a league with friends".
+Question 7 is now "Fewer sessions, never 12 in a day, and it holds 2.3 times as long": a course of
+twelve weeks of lectures, its exam two weeks after the last, each week's topic "seen once and shaky"
+(`_landing_course`): 35 short self-tests over the semester by the plan's rule, at most three in a
+week, against 48 sessions crammed, 12 a day in the exam's last four days; and one week's topic, its
+exam four weeks after its lecture, stays above 80 % for 187 days after the exam spaced and 83
+crammed (FSRS-6, average weights, every recall a success). D188's curve stays below the three
+numbers as one of those weeks. Every number is computed (`service.landing_view`), the course replayed
+on its own in `tests/test_landing.py`.
+
+**Rejected.** Framing A, the curves alone with a sharper title: it still shows 87 against 80. B, a
+semester of courses stacked: one more drawing to read. "Twice as long" typed by hand: the ratio is
+computed and written as computed.
+
+**Disclosed.** The 80 % line and the course's shape (twelve weeks, an exam two weeks later, four
+cramming days) are choices; another shape gives other numbers. "Holds" is the model's estimate of
+recall above 80 %, not a measurement; a crammed topic still passes the exam, and the figure says so.
+The league and the crests on the page are drawn from constants (`LANDING_LEAGUE`, `LANDING_CRESTS`),
+made-up classmates from the demo. The pictures were taken again (`benchmarks/landing_shots.mjs`): the
+Progress and Community screens now show the level and the league. Checked in Chromium only, at
+1440 × 900 and phone size, light and dark, in English, French and Italian.

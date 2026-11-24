@@ -4,6 +4,17 @@
 
 ### Added
 
+- Crests (DECISIONS.md D189): every point makes a level that never goes down (Spark to Mastery);
+  twenty badges climb four tiers, bronze, silver, gold and ice, with four rare ones in aurora, on
+  Progress; and a weekly league among friends who follow each other back, on Community, each friend
+  with their avatar and level: the top three move up, nobody moves down for a week they studied on
+  three days. Today says last week's result. A session of the diary outside the plan earns its 10
+  points too, three a day at most. The league can be left from its card or the profile.
+
+- The front page shows the league as a way to keep each other going (DECISIONS.md D190), and its
+  chart now sells spacing in three numbers: 35 short self-tests instead of 48 crammed, at most 3 a
+  week instead of 12 a day, and 2.3 times as long above 80 % after the exam.
+
 - The front page tells the app's story as it is scrolled (DECISIONS.md D188): under the pitch, Today
   on a laptop and a phone, then eight questions beside screenshots of the real app in the page's
   language, light or dark as the device is (what it changes, each day, what keeps you going, friends, points and badges, why it was
@@ -29,6 +40,9 @@
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
 
 ### Fixed
+
+- The front page's points cards are square and its badges no longer grow at different sizes as they
+  arrive (AUDIT 128).
 
 - A chapter covers its weeks (DECISIONS.md D187): a course's list of topics without weeks is spread from
   the first week, each topic running until the next one begins, shown on every week it covers

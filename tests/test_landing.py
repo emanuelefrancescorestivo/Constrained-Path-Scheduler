@@ -16,7 +16,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from cps import memory, service
+from cps import cards, crests, memory, service
 from cps.web import Config, create_app
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -79,11 +79,44 @@ def test_the_story_s_numbers_are_the_app_s_own():
     labels = sorted(c["label_y"] for c in view["curves"])
     assert all(b - a >= 14 for a, b in itertools.pairwise(labels))
     assert (view["points_done"], view["points_proof"]) == (service.POINTS_DONE, service.POINTS_PROOF)
-    assert view["badge_count"] == len(service.BADGES)
-    assert {b["key"] for b in view["badges"]} <= {key for key, *_ in service.BADGES}
+    # D189, D190: the crests and the league shown are the app's own families, tiers and rules.
+    assert (view["badge_count"], view["tiers"]) == (len(crests.FAMILIES), len(crests.TIERS))
+    families = {f.key for f in crests.FAMILIES}
+    assert {c["key"] for c in view["crests"]} <= families and len(view["crests"]) == 8
+    assert {c["metal"] for c in view["crests"]} <= set(crests.TIERS)
+    assert (view["league_move"], view["league_floor"]) == (crests.LEAGUE_MOVE, crests.LEAGUE_FLOOR_DAYS)
+    points = [r["points"] for r in view["league"]]
+    assert points == sorted(points, reverse=True) and sum(r["me"] for r in view["league"]) == 1
+    assert [r["zone"] for r in view["league"]] == ["up"] * crests.LEAGUE_MOVE + ["stay"] * (len(points) - 3)
+    assert all(crests.level_of(0)["n"] <= r["level"] <= len(crests.LEVEL_NAMES) for r in view["league"])
     assert view["repair"] == service.REPAIR_MINUTES
     assert view["rhythm"] * 60 == service.RHYTHM_WORK
     assert view["kept_months"] == 12 and service.RETENTION.days == 365
+
+
+def test_the_course_is_spaced_by_the_app_s_rule_and_crammed_in_the_last_days():
+    """D190's chart C: a course of twelve weeks prepared by the plan's rule (a self-test
+    when recall falls to the target) or crammed, four sessions a week of lectures in the
+    exam's last four days; and how long one week's topic stays above 80 % after its exam."""
+    view = service.landing_view()
+    course = view["course"]
+    weeks, days = service.LANDING_COURSE_WEEKS, len(service.LANDING_CRAM)
+    assert (course["weeks"], course["cram_days"]) == (weeks, days) == (12, 4)
+    assert course["crammed"] == days * weeks and course["crammed_day"] == weeks
+    assert course["spaced"] < course["crammed"] and course["spaced_week"] < course["crammed_day"]
+    # The rule replayed here on its own: each week's topic, seen once and shaky, reviewed
+    # each time its recall falls to the target, until the day before the exam.
+    model, exam, spaced = memory.FSRS_6, 7.0 * (weeks - 1) + service.LANDING_COURSE_GAP, 0
+    for k in range(weeks):
+        state, last, t = model.initial_state(memory.Grade.HARD), 7.0 * k, 7.0 * k
+        while t < exam - 1:
+            t += 0.25
+            if model.retrievability(t - last, state.stability) <= cards.RETENTION:
+                state, last, spaced = model.review(state, t - last, memory.Grade.GOOD), t, spaced + 1
+    assert course["spaced"] == spaced
+    holds = view["holds"]
+    assert holds["spaced"] > 2 * holds["crammed"] > 0 == holds["once"]
+    assert view["holds_ratio"] == f"{holds['spaced'] / holds['crammed']:.1f}" and view["hold_percent"] == 80
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -108,6 +141,14 @@ def test_the_front_page_tells_the_story_in_eight_questions(tmp_path, lang):
     for curve in view["curves"]:
         assert f"{curve['end']} %" in page
     assert f"+{view['points_done']}" in page and f"+{view['points_proof']}" in page
+    # D190: the course's three tiles, and the friends' league with each one's avatar.
+    course = view["course"]
+    assert f"<b>{course['spaced']}</b>" in page and f"<b>{course['spaced_week']}</b>" in page
+    assert f"{view['holds']['spaced']}" in page and f"{view['holds']['crammed']}" in page
+    assert (
+        len(re.findall(r'class="league-row(?: me)?"', page)) == len(view["league"])
+        and page.count('class="crest-badge"') == 8
+    )
     # One main heading, levels never skipped, no id twice.
     assert page.count("<h1") == 1
     levels = [int(n) for n in re.findall(r"<h([1-6])\b", page)]

@@ -20,7 +20,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from cps import service
+from cps import crests, service
 from cps.web import Config, create_app, icons
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -76,9 +76,9 @@ def test_the_icons_shipped_are_lucides_unchanged_with_the_licence_and_only_those
     for name in files:
         assert "@license lucide-static v0.460.0 - ISC" in (folder / f"{name}.svg").read_text(encoding="utf-8")
         assert str(icons.icon(name)).startswith(LUCIDE)
-    # The diary's kinds of work, the badges and every picture a template names have one.
+    # The diary's kinds of work, the crests (D189) and every picture a template names have one.
     assert {kind for kind, _ in service.WORK_WORDS} <= set(icons.ART)
-    assert {b[3] for b in service.BADGES} <= set(icons.GLYPHS)
+    assert {f.icon for f in crests.FAMILIES} | {r.icon for r in crests.RARES} <= icons.shipped()
     named = set()
     for page in (WEB / "templates").glob("*.html"):
         text = page.read_text(encoding="utf-8")

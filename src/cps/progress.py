@@ -298,6 +298,18 @@ def full_weeks(sessions: Sequence[Session], today: date) -> int:
     return sum(len(v) >= FULL_WEEK and all(s.confirmed for s in v) for v in weeks.values())
 
 
+def full_week_ends(sessions: Sequence[Session], today: date) -> list[date]:
+    """The last day (Sunday) of every full week before this one (`full_weeks`), in order:
+    the Full week badge's tiers (D189)."""
+    weeks: dict[date, list[Session]] = {}
+    for s in sessions:
+        if s.planned and s.start.date() < monday(today):
+            weeks.setdefault(monday(s.start.date()), []).append(s)
+    return sorted(
+        m + timedelta(days=6) for m, v in weeks.items() if len(v) >= FULL_WEEK and all(s.confirmed for s in v)
+    )
+
+
 def first_runs(run: Streak, lengths: Sequence[int]) -> dict[int, date]:
     """The first day the streak reached each length (D41): the badges' dates,
     read from the days `streak` already judged (a forgiven or rest day keeps the

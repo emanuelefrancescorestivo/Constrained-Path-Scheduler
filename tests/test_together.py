@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import service, social, universities
+from cps import crests, service, social, universities
 from cps.store import Store
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -179,32 +179,51 @@ def test_a_pasted_link_or_code_is_read():
 
 
 # --------------------------------------------------------------------------- #
-# The badge shelf (D41)
+# The crests (D189), after the badge shelf (D41)
 # --------------------------------------------------------------------------- #
 
 
-def test_badges_carry_the_day_they_were_earned_and_never_count_hours_in_total(tmp_path):
+def _crest(view: dict, key: str) -> dict:
+    return next(b for g in view["groups"] for b in g["badges"] if b["key"] == key)
+
+
+def test_crests_carry_the_day_they_were_earned_and_never_count_hours(tmp_path):
+    """D189 took over D41's shelf: twenty families of four tiers and four rare ones,
+    each tier with its day; the level is every session point and the crests' own."""
     sub = _plan(tmp_path, tz="Europe/Paris")
-    view = service.badges_view(tmp_path, sub, NOW)
-    assert view["earned"] == 0 and view["total"] == len(service.BADGES)
-    # D41 kept hours off the shelf; the owner asked for a focus session's length to
-    # earn badges (D67). Those say "in one session"; no badge adds hours up.
-    timed = [b for b in view["badges"] if b["key"].startswith("focus_")]
-    assert len(timed) == 4 and all("in one session" in b["how"] for b in timed)
-    rest = [b for b in view["badges"] if not b["key"].startswith("focus_")]
-    assert all("hour" not in (b["label"] + b["how"]).lower() for b in rest)
+    view = service.crests_view(tmp_path, sub, NOW)
+    assert view["earned"] == 0 and view["total"] == 4 * len(crests.FAMILIES) + len(crests.RARES) == 84
+    assert view["level"]["n"] == 1 and view["level"]["name"] == "Spark" and view["bonus"] == 0
+    # D41 kept hours off the shelf; so does D189: only Deep focus reads minutes, and
+    # those of a single session. No badge adds hours up.
+    words = [
+        b["name"] + " " + b["how"] for g in view["groups"] for b in g["badges"] if b["key"] != "deep_focus"
+    ]
+    assert all("hour" not in w.lower() for w in words)
+    assert "session" in _crest(view, "deep_focus")["how"]
     plan = service.PlanReport.from_dict(sub.plan)
     week = [s for s in plan.sessions if datetime.fromisoformat(s.start) < NOW + timedelta(days=7)]
     later = NOW + timedelta(days=8)
     for s in week:  # reported afterwards, as from the calendar's links
         sub = service.report_session(sub, service.session_id(s), "done", now=later)
-    shelf = {b["key"]: b for b in service.badges_view(tmp_path, sub, later)["badges"]}
+    view = service.crests_view(tmp_path, sub, later)
     first = datetime.fromisoformat(week[0].start).astimezone(service._zone("Europe/Paris")).date()
-    assert shelf["first"]["earned"] == service.format_date(first, "day")
-    assert (
-        shelf["first"]["celebrate"] == "milestone-first" and shelf["teacher"]["celebrate"] == "badge-teacher"
+    rare = {r["key"]: r for r in view["rare"]}
+    assert rare["first"]["earned"] == service.format_date(first, "day") and rare["first"]["got"]
+    assert rare["first"]["celebrate"] == "milestone-first" and not rare["champion"]["got"]
+    assert _crest(view, "seasons")["tier"] == 0 and _crest(view, "teacher")["tier"] == 0
+    # Every tier and rare one adds to the level; the sessions add their D158 points.
+    tiers = sum(b["tier"] for g in view["groups"] for b in g["badges"])
+    got = sum(r["got"] for r in view["rare"])
+    assert view["bonus"] == tiers * crests.TIER_POINTS + got * crests.RARE_POINTS
+    assert view["session_points"] == service.POINTS_DONE * len(week)
+    assert view["level"]["points"] == view["session_points"] + view["bonus"]
+    streak = _crest(view, "streak")
+    assert streak["ladder"] == "3 · 7 · 30 · 100 days" and streak["celebrate"] in (
+        "",
+        "milestone-streak_3",
+        "milestone-streak_7",
     )
-    assert shelf["self_tests"]["earned"] is None and shelf["semester"]["earned"] is None
 
 
 def test_the_streak_badges_follow_the_forgiving_streak():
@@ -301,13 +320,14 @@ def test_an_invitation_link_opens_joins_and_needs_a_handle_first(web):
     )
 
 
-def test_the_progress_page_shows_the_badge_shelf(web):
+def test_the_progress_page_shows_the_level_and_the_crests(web):
     token = _start(web)
-    page = web.get(f"/p/{token}/progress?more=1").text  # inside "More detail" (D103, D106)
-    # The shelf's own count: "0 of 12" matched "10 of 12 topics on track" once the focus
-    # badges (D67) made it 17 (AUDIT 126).
-    shelf = page[page.index('class="badges"') - 400 :]
-    assert f"0 of {len(service.BADGES)}" in shelf and "never for hours or rankings" in page
+    first = web.get(f"/p/{token}/progress").text
+    # The level's card is above "More detail", a link to the league (D189).
+    assert 'class="card crest-card link-card"' in first and f"/p/{token}/community#league" in first
+    page = web.get(f"/p/{token}/progress?more=1").text  # the collection is inside "More detail" (D103, D106)
+    assert page.count('class="crest-tile') == len(crests.FAMILIES) + len(crests.RARES)
+    assert f"each tier adds {crests.TIER_POINTS} points to your level" in page
 
 
 def test_every_plan_page_lets_the_device_remember_its_plan(web):
@@ -317,11 +337,13 @@ def test_every_plan_page_lets_the_device_remember_its_plan(web):
 
 
 def test_the_words_looked_up_by_key_are_translated():
-    """The badges' and the years' words are passed to `_()` as variables, which the
+    """The crests' and the years' words are passed to `_()` as variables, which the
     catalogue check (tests/test_i18n.py) cannot find in the code: checked here."""
     from cps.locales import fr, it
 
-    words = [w for _key, label, how, _g, _h in service.BADGES for w in (label, how)]
+    words = [w for f in crests.FAMILIES for w in (f.name, f.how)]
+    words += [w for r in crests.RARES for w in (r.name, r.how)]
+    words += list(crests.LEVEL_NAMES)
     words += list(service.YEAR_WORDS.values())
     for catalogue in (fr.MESSAGES, it.MESSAGES):
         assert [w for w in words if w not in catalogue] == []

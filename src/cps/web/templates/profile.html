@@ -24,6 +24,8 @@
   </select>
   {# Studying now (D108): off until ticked. #}
   <label class="check"><input type="checkbox" name="studying_now" value="1"{% if studying_now %} checked{% endif %}> {{ _("Studying now: the people who follow me see when my focus timer runs, and on which course") }}</label>
+  {# The friends' league (D189): on until unticked; only friends who follow back and play see it. #}
+  <label class="check"><input type="checkbox" name="league" value="1"{% if league_on %} checked{% endif %}> {{ _("The weekly league: friends who follow me back and play see my points this week, my level and my league") }}</label>
   <label for="pf-bio">{{ _("About you (optional)") }}</label>
   <textarea id="pf-bio" name="bio" rows="2" maxlength="280">{{ values.bio or '' }}</textarea>
   <label class="check"><input type="checkbox" name="old_enough" value="1" required{% if profile or values.old_enough %} checked{% endif %}> {{ _("I am 15 or older") }}</label>

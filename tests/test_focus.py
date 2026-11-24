@@ -260,7 +260,7 @@ def test_rewards_count_the_time_on_the_page_only(sub):
         service.start_focus(sub, "Algebra 3", goal=17, now=NOW)
 
 
-def test_a_length_reached_is_in_the_diary_and_on_the_badge_shelf(sub, tmp_path):
+def test_a_length_reached_is_in_the_diary_and_earns_deep_focus(sub, tmp_path):
     running = service.start_focus(sub, "Algebra 3", goal=60, now=NOW)
     finished = service.finish_focus(_beats(running, NOW, range(0, 3900, 30)), now=NOW + timedelta(minutes=65))
     assert service.log_draft(finished)["goal"] == 60
@@ -269,13 +269,19 @@ def test_a_length_reached_is_in_the_diary_and_on_the_badge_shelf(sub, tmp_path):
     assert post.data["goal"] == 60 and post.data["minutes"] == 65
     card = service.diary_view(tmp_path, logged, NOW + timedelta(minutes=65))["posts"][0]
     assert card["goal"] == "goal reached: 1 h" and card["rewards"] == 2
-    later = NOW + timedelta(minutes=65)
-    shelf = {b["key"]: b for b in service.badges_view(tmp_path, logged, later)["badges"]}
-    assert shelf["goal"]["earned"] and shelf["focus_30"]["earned"] and shelf["focus_60"]["earned"]
-    assert not shelf["focus_105"]["earned"]
+
+    def deep(subscription, now):
+        """Deep focus's crest (D189, which took over D67's four length badges)."""
+        view = service.crests_view(
+            tmp_path, subscription, now, logged=service.logged_sessions(tmp_path, subscription)
+        )
+        return next(b for g in view["groups"] for b in g["badges"] if b["key"] == "deep_focus")
+
+    reached = deep(logged, NOW + timedelta(minutes=65))
+    assert reached["tier"] == 2 and reached["metal"] == "silver"  # 30 minutes and 1 h, not 1 h 45
+    assert reached["status"] == "Next: one session of 1 h 45" and reached["celebrate"] == "badge-focus_60"
     # Minutes typed by hand earn nothing: the session is no longer timed.
     typed, _ = service.log_session(
         tmp_path, logged, {"course": "Algebra 3", "effort": "5", "progress": "3", "minutes": "200"}, now=NOW
     )
-    shelf = {b["key"]: b for b in service.badges_view(tmp_path, typed, NOW + timedelta(hours=4))["badges"]}
-    assert not shelf["focus_150"]["earned"]
+    assert deep(typed, NOW + timedelta(hours=4))["tier"] == 2

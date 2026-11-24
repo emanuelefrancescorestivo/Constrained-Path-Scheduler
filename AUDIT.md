@@ -1416,3 +1416,9 @@ before the plan counted as none. Status: fixed with D186: a plan begun a week or
 counts its lectures from the plan's first day against the credits' share of the course still ahead
 (`tests/test_courses.py`); a plan begun before or in the course's first week is unchanged.
 
+
+**128. The front page's points card was crooked, and its badges grew at different sizes.** Found on
+2026-11-24 by the owner, on a phone: D188's "+20 Vouched for by a classmate" set the number beside a
+label that wrapped, so the two cards' numbers sat at different heights; and the badges arrived by
+scaling from 70 %, so a row seen half way was a row of different sizes. Status: fixed with D190: a
+card's number sits above its words, and the crests and cards only fade in, never scale.

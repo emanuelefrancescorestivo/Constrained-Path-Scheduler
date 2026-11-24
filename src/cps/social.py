@@ -464,6 +464,21 @@ def follows(store: Store, follower: str, followed: str) -> bool:
     return row is not None
 
 
+def mutual_follows(store: Store, token: str) -> list[str]:
+    """The people `token` follows who follow them back, both follows accepted: the friends
+    a weekly league is played with (D189)."""
+    with store.connection() as db:
+        rows = db.execute(
+            """
+            SELECT a.followed FROM follows a
+            JOIN follows b ON b.follower = a.followed AND b.followed = a.follower AND b.status = 'accepted'
+            WHERE a.follower = ? AND a.status = 'accepted'
+            """,
+            (token,),
+        ).fetchall()
+    return [r[0] for r in rows]
+
+
 def blocked_between(store: Store, a: str, b: str) -> bool:
     with store.connection() as db:
         row = db.execute(

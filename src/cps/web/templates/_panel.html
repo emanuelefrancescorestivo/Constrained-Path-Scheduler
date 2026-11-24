@@ -279,6 +279,13 @@
   <b>{{ _("Last week, you recalled every self-test you answered.") }}</b>
   <span class="muted">{{ _n("{n} self-test, the week of {day}: none forgotten.", "{n} self-tests, the week of {day}: none forgotten.", recalled.answered, day=recalled.monday) }}</span>
 </a>
+{% elif message == "league" %}{% set lw = league_week %}
+{# Last week's friends' league (D189), said in the week after: the rank and the league it led to. #}
+<a class="card link-card nudge-card section league-week" href="/p/{{ token }}/community#league">
+  <span class="tip-reason">{{ _("Last week's league") }}</span>
+  <b>{% if lw.up %}{{ _("{rank} of {size}: up to the {league}!", rank=lw.rank, size=lw.size, league=lw.league_name) }}{% elif lw.down %}{{ _("{rank} of {size}: this week in the {league}.", rank=lw.rank, size=lw.size, league=lw.league_name) }}{% else %}{{ _("{rank} of {size}: staying in the {league}.", rank=lw.rank, size=lw.size, league=lw.league_name) }}{% endif %}</b>
+  <span class="muted">{{ _n("{n} point last week. A new week, every point from zero.", "{n} points last week. A new week, every point from zero.", lw.points) }}</span>
+</a>
 {% elif message == "holiday" %}{% set h = holiday %}
 {# A week or more without classes ahead (D184): rest those days, or keep studying. #}
 <form method="post" action="/p/{{ token }}/holiday" class="card nudge-card section holiday-ask">
