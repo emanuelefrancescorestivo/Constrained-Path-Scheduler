@@ -15699,6 +15699,102 @@ def _garden_water(evenings: list[dict], names: dict[str, str], colours: dict[str
     }
 
 
+# The front page's story (D188): one week of lectures, "seen once and shaky" (a first
+# review graded Hard, as the plan assumes of every week of lectures), prepared three
+# ways for an exam four weeks later and followed twelve weeks past it. The method is
+# benchmarks/figures.py's (spacing_data), with FSRS-6, the product's model since D52.
+LANDING_EXAM = 28.0
+LANDING_AFTER = 84.0  # twelve weeks after the exam
+LANDING_CRAM = (24.0, 25.0, 26.0, 27.0)  # four sessions in the exam's last days
+LANDING_WIDTH = 220  # the plot's width in its 300-unit drawing, labels and their 12-unit text around it
+LANDING_BADGES = ("first", "streak_7", "full_week", "self_tests", "practice", "focus_60", "teacher", "cards")
+
+
+@functools.cache
+def _landing_curves() -> tuple[dict, ...]:
+    """The three ways of preparing the exam, each a polyline in a box `LANDING_WIDTH` by 100 over
+    the exam's four weeks and the twelve after, its sessions, and its recall at the
+    exam and at the end (whole percents). Pure, so computed once per process."""
+    model, horizon = FSRS_6, LANDING_EXAM + LANDING_AFTER
+    start = model.initial_state(Grade.HARD)
+    spaced: list[float] = []
+    memory, last, t = start, 0.0, 0.0
+    while t < LANDING_EXAM - 1:
+        t += 0.25
+        if model.retrievability(t - last, memory.stability) <= flashcards.RETENTION:
+            memory, last = model.review(memory, t - last, Grade.GOOD), t
+            spaced.append(t)
+    out = []
+    for name, days in (("spaced", spaced), ("crammed", list(LANDING_CRAM)), ("once", [])):
+        memory, last = start, 0.0
+        points: list[tuple[float, float]] = []
+        pending = list(days)
+        for step in range(int(horizon * 2) + 1):
+            t = step / 2
+            while pending and pending[0] <= t:
+                day = pending.pop(0)
+                points.append((day, model.retrievability(day - last, memory.stability)))
+                memory, last = model.review(memory, day - last, Grade.GOOD), day
+                points.append((day, 1.0))
+            points.append((t, model.retrievability(t - last, memory.stability)))
+        out.append(
+            {
+                "name": name,
+                "points": " ".join(
+                    f"{LANDING_WIDTH * x / horizon:.1f},{100 - 100 * y:.1f}" for x, y in points
+                ),
+                "sessions": len(days),
+                "exam": round(100 * model.retrievability(LANDING_EXAM - last, memory.stability)),
+                "end": round(100 * model.retrievability(horizon - last, memory.stability)),
+                "end_y": round(100 - 100 * model.retrievability(horizon - last, memory.stability), 1),
+            }
+        )
+    return tuple(out)
+
+
+def landing_view() -> dict:
+    """The front page's story (D188): its numbers from the app's own rules and model,
+    so the pitch and the app cannot disagree. Recall twelve weeks after the exam for a
+    week of lectures spaced, crammed or studied once (FSRS-6, average weights); a
+    session's points (D158); the badges, some shown; the make-up session's length
+    (D126); focus's rhythm (D178); how long a plan is kept (D36); the coach's free
+    answers (D176)."""
+    known = {key: (label, how, glyph, hue) for key, label, how, glyph, hue in BADGES}
+    curves = [dict(c) for c in _landing_curves()]
+    # Each curve's end is labelled beside it, kept 14 units (its text and a gap) clear of
+    # the label above.
+    below = -14.0
+    for curve in sorted(curves, key=lambda c: c["end_y"]):
+        curve["label_y"] = round(max(curve["end_y"] + 4, below + 14), 1)
+        below = curve["label_y"]
+    return {
+        "curves": curves,
+        "spacing": {c["name"]: c for c in curves},
+        "width": LANDING_WIDTH,
+        "exam_x": round(LANDING_WIDTH * LANDING_EXAM / (LANDING_EXAM + LANDING_AFTER), 1),
+        "weeks_after": round(LANDING_AFTER / 7),
+        "target": round(100 * flashcards.RETENTION),
+        "points_done": POINTS_DONE,
+        "points_proof": POINTS_PROOF,
+        "points_all": POINTS_DONE + POINTS_PROOF,
+        "badge_count": len(BADGES),
+        "badges": [
+            {
+                "key": key,
+                "label": _(known[key][0]),
+                "how": _(known[key][1]),
+                "glyph": known[key][2],
+                "hue": known[key][3],
+            }
+            for key in LANDING_BADGES
+        ],
+        "repair": REPAIR_MINUTES,
+        "rhythm": RHYTHM_WORK // 60,
+        "kept_months": round(RETENTION / timedelta(days=365) * 12),
+        "coach_free": COACH_FREE_A_DAY,
+    }
+
+
 def garden_view() -> dict:
     """How it works (D116): the garden story's numbers. D121: the game of D116 gave way to
     the month the student plans (garden_month_view); each scene also carries its numbers

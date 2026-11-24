@@ -5,62 +5,22 @@
 {% block site_class %} home{% endblock %}
 {% block body_class %} home{% endblock %}
 {% block main %}
-{% set welcome = not demo and not (error or signin_error or signup_error or account or made) %}
-{% if welcome %}
-{# A phone's first look (D107, after Strava's): three cards to swipe, one idea each,
-   then the account. The browser snaps them; no script. Wider screens keep the
-   pitch below, and so does the demo, whose pitch is its button. #}
-{% from "_mascot.html" import mascot %}
-<section class="welcome" aria-label="{{ _('Welcome') }}">
-  <p class="welcome-skip"><a href="#start">{{ _("Skip") }}</a></p>
-  <ol class="welcome-cards">
-    <li class="welcome-card">
-      <div class="welcome-art">
-        <div class="mini-week">
-          {% for d in range(5) %}<div class="mini-day">{% for b in ((0, 3, 0), (3, 2, 1), (5, 2, 2)) if (d + b[0]) % 4 != 3 %}<span class="mini-class c{{ (b[2] + d) % 5 }} at{{ (b[0] + d) % 6 }} h{{ b[1] }}"></span>{% endfor %}</div>{% endfor %}
-        </div>
-        <span class="welcome-spark">{{ mascot("wave", uid="w1") }}</span>
-      </div>
-      {# The page's one heading on a phone: the pitch below is not shown there. #}
-      <h1>{{ _("Your semester, planned around your life.") }}</h1>
-      <p>{{ _("Your timetable in. Your revision in the gaps.") }}</p>
-      <p class="welcome-dots" aria-hidden="true"><span class="on"></span><span></span><span></span></p>
-    </li>
-    <li class="welcome-card">
-      <div class="welcome-art">
-        <svg class="welcome-curve" viewBox="0 0 300 170" aria-hidden="true" focusable="false">
-          <path class="faded" d="M10 20 C40 100 60 130 90 140"/>
-          <path class="kept" d="M10 20 C30 70 45 85 70 90 L70 30 C100 75 120 85 150 90 L150 35 C185 70 205 78 230 82 L230 40 C255 60 275 64 292 66"/>
-          <circle cx="70" cy="30" r="8"/><circle cx="150" cy="35" r="8"/><circle cx="230" cy="40" r="8"/>
-        </svg>
-      </div>
-      <h2>{{ _("Every week comes back before it fades.") }}</h2>
-      <p>{{ _("Short reviews, just before you would forget.") }}</p>
-      <p class="welcome-dots" aria-hidden="true"><span></span><span class="on"></span><span></span></p>
-    </li>
-    <li class="welcome-card">
-      <div class="welcome-art welcome-class">
-        {% for initial in ("G", "M", "S", "L", "A") %}<span class="avatar avatar-lg c{{ loop.index0 }} at{{ loop.index0 }}" aria-hidden="true">{{ initial }}</span>{% endfor %}
-        {{ mascot("cheer", uid="w3") }}
-      </div>
-      <h2>{{ _("Study with your class.") }}</h2>
-      <p>{{ _("Their sessions, their notes, their cheers.") }}</p>
-      <p class="welcome-dots" aria-hidden="true"><span></span><span></span><span class="on"></span></p>
-    </li>
-  </ol>
-  <div class="welcome-actions">
-    <a class="btn btn-primary btn-lg btn-block" href="#start">{{ _("Get started") }}</a>
-    <a class="welcome-signin" href="{% if accounts %}/account/signin{% else %}#signin{% endif %}">{% if accounts %}{{ _("I already have an account") }}{% else %}{{ _("I already have a plan") }}{% endif %}</a>
-  </div>
-</section>
-{% endif %}
-{# The pitch first, with room to breathe, over a field of neurons whose signals
-   travel between them (D58); then the ways in. Nothing here needs a script. #}
-{# After a failed start or sign-in the hero is short, so the message is in view. #}
-<section class="hero{% if error or signin_error or signup_error or account %} hero-short{% endif %}{% if welcome %} hero-welcomed{% endif %}">
+{# D188: the front page tells the app's story as it is scrolled: what it changes for a
+   student, how it was made and why, and how to use it, in eight questions, each
+   beside a picture of the real app in the page's language (benchmarks/landing_shots.mjs
+   takes them from the demo's made-up class). Its numbers come from service.landing_view.
+   After a failed start or sign-in the story steps aside, so the form and its message
+   are in view. It replaces D107's three cards on a phone: the story is the first look
+   on every screen. Every part reads the same without a script or without motion. #}
+{% set story = not (error or signin_error or signup_error or account or made) %}
+{% set shots = "landing/" ~ (lang() if lang() in ("en", "fr", "it") else "en") ~ "/" %}
+{% set l = landing %}
+{# Each picture in light and in dark: the page shows the one the reader's device asks for. #}
+<section class="hero{% if not story %} hero-short{% endif %}">
   <div class="hero-field" aria-hidden="true">{% include "_neural.html" %}</div>
+  {% if story %}<p class="landing-kicker">{{ _("Study habits that last, with your class beside you") }}</p>{% endif %}
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
-  <p class="lead">{{ _("Bring your timetable, or draw your week in two minutes. Your deadlines are fitted in, and every study session lands in the calendar you already use, with what to do in it. Your week changes? The plan follows.") }}</p>
+  <p class="lead">{{ _("Bring your timetable. Every week of lectures comes back for a short self-test just before you would forget it, in the gaps between your classes, your job and your sport.") }}</p>
   {% if demo %}
   {# D182: a student in the first year, on a real first year's timetable without its people, or the second. #}
   <form method="post" action="/demo" class="hero-actions">
@@ -68,13 +28,196 @@
     <button type="submit" name="year" value="2" class="btn btn-lg">{{ _("Second year") }}</button>
     <a class="hero-more" href="#start">{{ _("Or start from zero, with your own week") }}</a>
   </form>
-  <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, partway through a sample semester of their first or second year: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
-  <p class="hero-note"><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
-  <p class="hero-note hint">{% if accounts %}{{ _("The made-up student needs no account. To start from zero, make one with made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% else %}{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% endif %}</p>
   {% else %}
-  <p class="hero-actions"><a class="btn btn-primary btn-lg" href="#start">{{ _("Plan my semester") }}</a></p>
+  <p class="hero-actions"><a class="btn btn-primary btn-lg" href="#start">{{ _("Plan my semester") }}</a>{% if story %} <a class="hero-more" href="#story">{{ _("See how it works") }}</a>{% endif %}</p>
+  {% endif %}
+  {% if story %}
+  <ul class="landing-gains">
+    <li>{{ lucide('flame') }}{{ _("A streak that forgives a day off") }}</li>
+    <li>{{ lucide('users') }}{{ _("Friends who study beside you") }}</li>
+    <li>{{ lucide('trophy') }}{{ _("Points and badges for the work") }}</li>
+  </ul>
+  <figure class="landing-devices">
+    <div class="landing-laptop"><picture><source srcset="{{ asset(shots ~ 'today-laptop-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'today-laptop.jpg') }}" width="1280" height="800" alt="{{ _('Today on a laptop: the next session, classmates studying now, the tasks.') }}" fetchpriority="high" decoding="async"></picture></div>
+    <div class="landing-phone"><picture><source srcset="{{ asset(shots ~ 'today-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'today-phone.jpg') }}" width="585" height="996" alt="{{ _('Today on a phone.') }}" decoding="async"></picture></div>
+    <figcaption>{{ _("Today, the screen the app opens on. The demo's screens: every student in it is made up.") }}</figcaption>
+  </figure>
+  {% endif %}
+  {% if demo %}
+  <p class="hero-note"><span class="badge badge-accent">{{ _("Demo") }}</span> <b>{{ _("Try it as a student, in a few seconds") }}.</b> {{ _("You get a student of your own, partway through a sample semester of their first or second year: a plan with its sessions, a streak, trends, classmates at five universities, notes, a study group and flashcards. Everyone in it is made up.") }}</p>
+  <p class="hero-note hint">{% if accounts %}{{ _("The made-up student needs no account. To start from zero, make one with made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% else %}{{ _("Nothing to sign up for. Please use made-up details: the demo starts again from scratch whenever it restarts, and it sleeps when nobody uses it, so the first visit can take about a minute.") }}{% endif %}</p>
   {% endif %}
 </section>
+
+{% if story %}
+{% set questions = [
+  _("What will it change for me?"),
+  _("What do I do each day?"),
+  _("What keeps me going?"),
+  _("Can I do it with my friends?"),
+  _("What do I get for it?"),
+  _("Why was it made?"),
+  _("Does it really work?"),
+  _("How do I start, and can I trust it?"),
+] %}
+<section class="landing-story" id="story" aria-labelledby="story-title">
+  <div class="landing-progress" aria-hidden="true"><span></span></div>
+  <header class="landing-head">
+    <p class="landing-eyebrow">{{ _("The story") }}</p>
+    <h2 id="story-title">{{ _("What it gives you, how it was made, and how to use it, in eight questions.") }}</h2>
+  </header>
+  <ol class="landing-index">
+    {% for q in questions %}<li><a href="#q{{ loop.index }}"><span class="landing-n">{{ loop.index }}</span>{{ q }}</a></li>{% endfor %}
+  </ol>
+  <nav class="landing-rail" aria-label="{{ _('The eight questions') }}">
+    <ol>{% for q in questions %}<li><a href="#q{{ loop.index }}"><span class="visually-hidden">{{ loop.index }}. </span><span class="landing-rail-label">{{ q }}</span></a></li>{% endfor %}</ol>
+  </nav>
+
+  <article class="landing-q" id="q1">
+    <div class="landing-words">
+      <p class="landing-num">1 · {{ questions[0] }}</p>
+      <h3>{{ _("Studying becomes a habit: a little every day, in the gaps you already have.") }}</h3>
+      <p>{{ _("Your timetable goes in, and the plan fits short sessions around your classes, your job and your sport. Each week of lectures comes back before it fades, so fewer nights before an exam go on learning it all again.") }}</p>
+    </div>
+    <figure class="landing-shot wide">
+      <picture><source srcset="{{ asset(shots ~ 'week-laptop-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'week-laptop.jpg') }}" width="1280" height="800" alt="{{ _('The calendar on a laptop.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("Your week: classes in their courses' colours, the self-tests the plan placed in the gaps around them.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q flip" id="q2">
+    <div class="landing-words">
+      <p class="landing-num">2 · {{ questions[1] }}</p>
+      <h3>{{ _("Open Today, start the next step, tap how it went.") }}</h3>
+      <p>{{ _("Each session says what to do in it: recall first, then check your notes. Focus times it, with a pause every {n} minutes. Missed one? Tap it, and the plan moves the rest for you.", n=l.rhythm) }}</p>
+    </div>
+    <figure class="landing-shot phone">
+      <picture><source srcset="{{ asset(shots ~ 'focus-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'focus-phone.jpg') }}" width="585" height="996" alt="{{ _('Focus on a phone.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("Focus, from the plan: the session in one sentence, what you want to finish, the time on a vine that grows.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q" id="q3">
+    <div class="landing-words">
+      <p class="landing-num">3 · {{ questions[2] }}</p>
+      <h3>{{ _("A streak that grows with you, and forgives a day off.") }}</h3>
+      <p>{{ _("Every day you study lights up your week. A rest day keeps your streak; miss a day, and a {n}-minute session repairs it. A plant grows for each day you focus, and each exam shows how ready you are.", n=l.repair) }}</p>
+    </div>
+    <figure class="landing-shot phone">
+      <picture><source srcset="{{ asset(shots ~ 'progress-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'progress-phone.jpg') }}" width="585" height="996" alt="{{ _('Progress on a phone.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("Progress: the week, the streak, each exam.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q flip" id="q4">
+    <div class="landing-words">
+      <p class="landing-num">4 · {{ questions[3] }}</p>
+      <h3>{{ _("Yes: your class studies beside you.") }}</h3>
+      <p>{{ _("Share your sessions and your notes. See who is studying now and join them, send a cheer, keep a streak going as a pair, set a goal as a study group. Who sees what is always your choice.") }}</p>
+    </div>
+    <figure class="landing-shot phone">
+      <picture><source srcset="{{ asset(shots ~ 'community-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'community-phone.jpg') }}" width="585" height="996" alt="{{ _('Community on a phone.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("Community: who is studying now, and what your classmates share. Everyone here is made up.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q" id="q5">
+    <div class="landing-words">
+      <p class="landing-num">5 · {{ questions[4] }}</p>
+      <h3>{{ _("Points for the work you do, and badges for the habits you build.") }}</h3>
+      <p>{{ _("A session done is worth {done} points. Share what you did, and once a classmate vouches for it, {proof} more. {count} badges reward the habits that make study stick. Never hours, never a ranking: your points are yours alone.", done=l.points_done, proof=l.points_proof, count=l.badge_count) }}</p>
+    </div>
+    <figure class="landing-rewards">
+      <div class="landing-points">
+        <p class="landing-point"><b>+{{ l.points_done }}</b><span>{{ _("Session done") }}</span></p>
+        <p class="landing-point proof"><b>+{{ l.points_proof }}</b><span>{{ _("Vouched for by a classmate") }}</span></p>
+      </div>
+      <ul class="badges landing-badges">
+        {% for b in l.badges %}<li class="badge-tile earned c{{ b.hue }}"><span class="badge-art">{{ lucide(badge_icons[b.glyph]) }}</span><b>{{ b.label }}</b><small>{{ b.how }}</small></li>{% endfor %}
+      </ul>
+      <figcaption>{{ _("A few of the {n} badges, as they look once earned.", n=l.badge_count) }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q flip" id="q6">
+    <div class="landing-words">
+      <p class="landing-num">6 · {{ questions[5] }}</p>
+      <h3>{{ _("Because your memory app does not know you have a lecture at nine.") }}</h3>
+      <p>{{ _("Revision apps time their reviews as if your whole day were free. A student's week has classes, a job, sport, a trip to campus: a plan has to start from that week.") }}</p>
+      <p>{{ _("It began as a research question, asked by a student about their own semester: can a model of memory and an exact search over every free hour plan revision better than a simple rule? Barely: about one session in twenty. So the app plans with clear rules, in a hundredth of a second, and keeps the search as the yardstick.") }}</p>
+    </div>
+    <figure class="landing-shot wide">
+      <picture><source srcset="{{ asset(shots ~ 'course-laptop-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'course-laptop.jpg') }}" width="1280" height="800" alt="{{ _('A course on a laptop.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("A course, week by week: what was taught, how often it came back, and how much of it the model predicts you recall today.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q" id="q7">
+    <div class="landing-words">
+      <p class="landing-num">7 · {{ questions[6] }}</p>
+      <h3>{{ _("It is built on the two study techniques research rates highest.") }}</h3>
+      <p>{{ _("A review of ten study techniques rated two of high utility: spreading study over time, and testing yourself (Dunlosky and colleagues, 2013). The app plans both. Here is one week of lectures, prepared three ways for an exam four weeks later.") }}</p>
+      <p><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
+    </div>
+    <figure class="landing-chart">
+      <svg viewBox="0 0 300 126" role="img" aria-label="{{ _('Recall {weeks} weeks after the exam: {spaced} % spaced, {crammed} % crammed, {once} % studied once.', weeks=l.weeks_after, spaced=l.spacing.spaced.end, crammed=l.spacing.crammed.end, once=l.spacing.once.end) }}">
+        <g transform="translate(38 8)">
+          <line class="landing-grid" x1="0" y1="0" x2="{{ l.width }}" y2="0"></line>
+          <line class="landing-grid" x1="0" y1="50" x2="{{ l.width }}" y2="50"></line>
+          <text class="landing-tick" x="-5" y="4" text-anchor="end">100 %</text>
+          <text class="landing-tick" x="-5" y="54" text-anchor="end">50 %</text>
+          <text class="landing-tick" x="-5" y="104" text-anchor="end">0 %</text>
+          <line class="landing-axis" x1="0" y1="100" x2="{{ l.width }}" y2="100"></line>
+          <line class="landing-exam" x1="{{ l.exam_x }}" y1="0" x2="{{ l.exam_x }}" y2="100"></line>
+          <text class="landing-tick" x="{{ l.exam_x }}" y="115" text-anchor="middle">{{ _("exam") }}</text>
+          <text class="landing-tick" x="{{ l.width }}" y="115" text-anchor="end">{{ _("{n} weeks after", n=l.weeks_after) }}</text>
+          {% for c in l.curves|reverse %}<polyline class="landing-line {{ c.name }}" pathLength="1" points="{{ c.points }}"></polyline>{% endfor %}
+          {% for c in l.curves %}<text class="landing-end {{ c.name }}" x="{{ l.width + 4 }}" y="{{ c.label_y }}">{{ c.end }} %</text>{% endfor %}
+        </g>
+      </svg>
+      <ul class="landing-legend">
+        <li class="spaced">{{ _n("{n} short self-test, spread out", "{n} short self-tests, spread out", l.spacing.spaced.sessions) }}</li>
+        <li class="crammed">{{ _n("{n} session in the exam's last days", "{n} sessions in the exam's last days", l.spacing.crammed.sessions) }}</li>
+        <li class="once">{{ _("Studied once") }}</li>
+      </ul>
+      <figcaption>{{ _("Recall as the memory model predicts it (FSRS-6, average weights): an estimate, not a measurement of students.") }}</figcaption>
+    </figure>
+  </article>
+
+  <article class="landing-q flip" id="q8">
+    <div class="landing-words">
+      <p class="landing-num">8 · {{ questions[7] }}</p>
+      <h3>{{ _("Three steps, about two minutes, and your data stays yours.") }}</h3>
+      <ol class="landing-steps">
+        <li><b>{{ _("Bring your timetable") }}</b>{{ _("Its file or its link, or draw your week by hand.") }}</li>
+        <li><b>{{ _("Check your exams") }}</b>{{ _("They are found for you; add one the timetable does not have.") }}</li>
+        <li><b>{{ _("Follow Today") }}</b>{{ _("The sessions land in the calendar you already use.") }}</li>
+      </ol>
+      <ul class="landing-trust">
+        <li>{{ lucide('shield-check') }}{{ _("Every number it shows is computed by code you can read; a forecast says it is an estimate.") }}</li>
+        <li>{{ lucide('hourglass') }}{{ _("Your plan is deleted {n} months after your last visit.", n=l.kept_months) }}</li>
+        <li>{{ lucide('sparkles') }}{{ _("AI is optional: without it, clear rules answer.") }}</li>
+      </ul>
+    </div>
+    <figure class="landing-shot phone">
+      <picture><source srcset="{{ asset(shots ~ 'setup-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'setup-phone.jpg') }}" width="585" height="996" alt="{{ _('Setting up on a phone.') }}" loading="lazy" decoding="async"></picture>
+      <figcaption>{{ _("Step 2 on a phone: the exams read from the timetable, each with its date.") }}</figcaption>
+    </figure>
+  </article>
+</section>
+
+<section class="landing-close" aria-labelledby="close-title">
+  <h2 id="close-title">{{ _("Bring your timetable. The plan follows.") }}</h2>
+  <p>{{ _("Two minutes to start. Every week of your semester kept, in the time you have.") }}</p>
+  {% if demo %}
+  <form method="post" action="/demo" class="hero-actions">
+    <button type="submit" name="year" value="1" class="btn btn-primary btn-lg">{{ _("Start the demo: first year") }}</button>
+    <button type="submit" name="year" value="2" class="btn btn-lg">{{ _("Second year") }}</button>
+  </form>
+  {% endif %}
+  <p class="hero-actions"><a class="btn{% if not demo %} btn-primary{% endif %} btn-lg" href="#start">{{ _("Plan my semester") }}</a> <a class="hero-more" href="{% if accounts %}/account/signin{% else %}#signin{% endif %}">{% if accounts %}{{ _("I already have an account") }}{% else %}{{ _("I already have a plan") }}{% endif %}</a></p>
+</section>
+{% endif %}
 
 <section class="start" id="start">
 {% if accounts and not account %}
@@ -178,10 +321,4 @@
 </section>
 {% endif %}
 
-<ul class="features">
-  <li><strong>{{ _("Deadlines first") }}</strong>{{ _("Earliest due first, with a warning early enough to act when one will not fit.") }}</li>
-  <li><strong>{{ _("Study that sticks") }}</strong>{{ _("Short self-tests when material starts to fade, timed practice before each exam.") }}</li>
-  <li><strong>{{ _("Your hours, your days off") }}</strong>{{ _("A weekly budget you choose; the rest of your time stays free.") }}</li>
-  <li><strong>{{ _("Progress you can see") }}</strong>{{ _("One tap after each session, a streak that forgives a day off, and last week in a paragraph every Monday.") }}</li>
-</ul>
 {% endblock %}
