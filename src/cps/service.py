@@ -64,6 +64,7 @@ from . import ai as _ai
 from . import cardmaker as _cardmaker
 from . import cards as flashcards
 from . import coursepages as _coursepages
+from . import crests as _crests
 from . import daylight as _daylight
 from . import fitting
 from . import i18n as _i18n
@@ -3486,6 +3487,8 @@ MESSAGES = (
     "first",
     "remind",
     "recalled",
+    # Last week's friends' league (D189): where the student finished, said in the week after.
+    "league",
     "semester",
     # A week without classes ahead (D184): rest or keep studying, asked once.
     "holiday",
@@ -4521,6 +4524,11 @@ def start_next_semester(
         and (r.get("date") is None or date.fromisoformat(r["date"]) >= local.date())
     )
     kept = {k: v for k, v in options.items() if k not in _SEMESTER_ONLY}
+    # The days each semester after the first began, for the Seasons badge (D189); a plan
+    # carried over before D189 has its current semester's start as the first of them.
+    begun = list(options.get("semesters", ()))
+    if not begun and options.get("past") and options.get("start"):
+        begun = [options["start"]]
     fresh = replace(
         subscription,
         source_url=source_url.strip() if source_url else None,
@@ -4532,6 +4540,7 @@ def start_next_semester(
         options={
             **kept,
             "start": local.date().isoformat(),
+            "semesters": [*begun, local.date().isoformat()][-12:],
             "tasks": tasks,
             "past": _archive(subscription, local),
             # The semester just ended, kept to be seen again (D131).
@@ -6889,113 +6898,622 @@ def _milestones(best: int, sessions_done: int, full_weeks: int) -> list[dict]:
     return [{"key": key, "label": _(label), "reached": reached[key]} for key, label in MILESTONES]
 
 
-# The badge shelf (D41): habits that make study stick, never hours or ranks. Each:
-# key, name, how it is earned, its picture, its colour (c0 to c6). The first six
-# are the milestones of D8 (their keys unchanged, so none is celebrated twice).
-BADGES = (
-    ("first", "First session", "Do your first study session.", "spark", 0),
-    ("streak_3", "3 days in a row", "Study three days in a row.", "flame", 1),
-    ("streak_7", "A week in a row", "Study seven days in a row.", "flame", 1),
-    ("full_week", "A full week", "Do every session of a week, at least four.", "week", 2),
-    ("streak_14", "Two weeks in a row", "Study fourteen days in a row.", "flame", 1),
-    ("streak_30", "30 days in a row", "Study thirty days in a row.", "flame", 1),
-    ("self_tests", "10 self-tests", "Do ten self-tests: recalling is what makes memory last.", "recall", 6),
-    ("practice", "Exam rehearsal", "Do a timed exam practice.", "clock", 3),
-    ("focus", "In the zone", "Study five times with the focus timer.", "focus", 4),
-    ("cards", "100 card answers", "Answer a hundred flashcards.", "cards", 5),
-    (
-        "teacher",
-        "Explained it simply",
-        "Share an explanation: teaching it is learning it twice.",
-        "speech",
-        0,
-    ),
-    ("semester", "A new semester", "Carry on into your next semester.", "leaf", 2),
-    # A focus session's rewards (D67): the owner asked for them; on focused time,
-    # timed and checked by the page, never typed.
-    ("goal", "A goal kept", "Choose how long before you start the timer, and get there.", "clock", 3),
-    ("focus_30", "Half an hour of focus", "Stay with the timer for 30 minutes in one session.", "focus", 4),
-    ("focus_60", "An hour of focus", "Stay with the timer for an hour in one session.", "focus", 4),
-    ("focus_105", "1 h 45 of focus", "Stay with the timer for 1 h 45 in one session.", "focus", 4),
-    ("focus_150", "2 h 30 of focus", "Stay with the timer for 2 h 30 in one session.", "focus", 4),
-)
+# Crests (DECISIONS.md D189): the badge shelf of D41 became a collection of badges that
+# climb four tiers (`crests.FAMILIES`) and four rare ones, each counted from something
+# the app already keeps; every tier adds to the level, with the sessions' points (D158).
+# Derived from what the student did, every time, as progress is (D8, D41).
+# The tiers that D41's badges, and D8's milestones, were celebrated under keep their key,
+# so none is celebrated twice.
+# Each badge's icon (D189), for the pages' set of icons shipped (`web/icons.py`).
+CREST_ICONS = frozenset({f.icon for f in _crests.FAMILIES} | {r.icon for r in _crests.RARES})
+
+_OLD_CELEBRATIONS = {
+    ("streak", 1): "milestone-streak_3",
+    ("streak", 2): "milestone-streak_7",
+    ("full_week", 1): "milestone-full_week",
+    ("recall", 1): "badge-self_tests",
+    ("practice", 1): "badge-practice",
+    ("focus", 1): "badge-focus",
+    ("cards", 1): "badge-cards",
+    ("teacher", 1): "badge-teacher",
+    ("seasons", 1): "badge-semester",
+    ("deep_focus", 1): "badge-focus_30",
+    ("deep_focus", 2): "badge-focus_60",
+    ("deep_focus", 3): "badge-focus_105",
+    ("deep_focus", 4): "badge-focus_150",
+}
 
 
-def badges_view(
+def _crest_events(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    now: datetime,
+    logged: Sequence[_progress.Session] = (),
+    together: Mapping | None = None,
+) -> tuple[dict[str, list[date | None]], dict[str, date | None], dict[str, int]]:
+    """Each badge family's tiers' days, each rare badge's day, and where each family
+    stands (a count, or a best: the longest run, the longest timed session), from what
+    the student did. `together` is `together_view`'s answer when the page made it already."""
+    zone = _zone(subscription.options["tz"])
+    local = now.astimezone(zone)
+    today = local.date()
+    where = _store(store)
+    token = subscription.token
+    options = subscription.options
+    family = {f.key: f for f in _crests.FAMILIES}
+
+    counts: dict[str, int] = {}
+
+    def counted(key: str, days: Iterable[date]) -> list[date | None]:
+        listed = list(days)
+        counts[key] = len(listed)
+        return _crests.tiers_from_events(listed, family[key].thresholds)
+
+    sessions = sorted(_progress.merge_logged(progress_sessions(subscription), logged), key=lambda x: x.start)
+    done = [x for x in sessions if x.confirmed and x.planned]
+    out: dict[str, list[date | None]] = {}
+    # Habit
+    if sessions:
+        first = min(sessions[0].start.date(), today)
+        paused = _progress.pause_days(pauses_of(options.get("preferences", {})))
+        repaired = {date.fromisoformat(d) for d in options.get("repairs", {})}
+        run = _progress.streak(sessions, first, today, paused, repaired)
+        out["streak"] = _crests.tiers_from_best(
+            _progress.first_runs(run, family["streak"].thresholds), family["streak"].thresholds
+        )
+        counts["streak"] = run.best
+    out["full_week"] = counted("full_week", _progress.full_week_ends(sessions, today))
+    starts, timed, _tests = _insight_inputs(store, subscription, local)
+    on_time = _insights.ON_TIME / timedelta(minutes=1)
+    out["on_time"] = counted("on_time", (s.started.date() for s in starts if s.late <= on_time))
+    out["comeback"] = counted(
+        "comeback", (date.fromisoformat(d) for d in options.get("repairs", {}).values())
+    )
+    # Seasons: each semester after the first, on the day it began (D36).
+    begun = sorted(date.fromisoformat(d) for d in options.get("semesters", ()))
+    if not begun and options.get("past"):
+        begun = [date.fromisoformat(options["start"])]  # a plan carried over before D189
+    out["seasons"] = _crests.tiers_from_events(begun, [t - 1 for t in family["seasons"].thresholds])
+    counts["seasons"] = 1 + len(begun)
+    # Memory
+    out["recall"] = counted("recall", (x.start.date() for x in done if x.kind in _REVIEW_KINDS))
+    out["practice"] = counted("practice", (x.start.date() for x in done if x.kind == "practice"))
+    rare: dict[str, date | None] = {"first": done[0].start.date() if done else None}
+    month_days: list[date] = []
+    odds_days: list[date] = []
+    clean: date | None = None
+    if subscription.plan is not None:
+        plan = PlanReport.from_dict(subscription.plan)
+        gains = session_gains(plan)
+        weeks: dict[date, list[str]] = {}
+        for s in plan.history:
+            if s.kind not in _REVIEW_KINDS or s.grade not in _GRADES:
+                continue
+            day = datetime.fromisoformat(s.start).astimezone(zone).date()
+            weeks.setdefault(day - timedelta(days=day.weekday()), []).append(s.grade)
+            gain = gains.get(session_id(s), {})
+            if s.grade == "again" or "chance" not in gain or gain.get("same_day"):
+                continue
+            if gain["chance"] < BEATEN_BELOW:
+                odds_days.append(day)
+            after = gain.get("stability", 0.0)
+            if after - gain.get("added", 0.0) < MONTH_DAYS <= after:
+                month_days.append(day)
+        this_monday = today - timedelta(days=today.weekday())
+        clean = next(
+            (
+                monday + timedelta(days=6)
+                for monday in sorted(weeks)
+                if monday < this_monday
+                and len(weeks[monday]) >= RECALL_WEEK_LEAST
+                and "again" not in weeks[monday]
+            ),
+            None,
+        )
+    out["long_memory"] = counted("long_memory", month_days)
+    rare["odds"] = min(odds_days, default=None)
+    rare["sweep"] = clean
+    with where.connection() as db:
+        answers = db.execute(
+            "SELECT at FROM card_reviews WHERE token = ? ORDER BY at LIMIT ?",
+            (token, family["cards"].thresholds[-1]),
+        ).fetchall()
+        helpful = db.execute(
+            "SELECT k.created FROM kudos k JOIN posts p ON p.id = k.post"
+            " WHERE p.token = ? AND p.kind = 'notes' AND k.token != ? ORDER BY k.created",
+            (token, token),
+        ).fetchall()
+        checked = db.execute(
+            "SELECT c.created FROM checks c JOIN posts p ON p.id = c.post WHERE c.token = ? AND p.token != ?",
+            (token, token),
+        ).fetchall()
+    local_day = lambda stamp: datetime.fromisoformat(stamp).astimezone(zone).date()  # noqa: E731
+    out["cards"] = counted("cards", (local_day(r[0]) for r in answers))
+    passed = [
+        local_day(r["at"])
+        for r in (options.get("exam_results") or {}).values()
+        if _RESULT_RANK.get(str(r.get("result")), 0) >= 1 and r.get("at")
+    ]
+    out["exams"] = counted("exams", passed)
+    # Focus
+    out["focus"] = counted("focus", (x.start.date() for x in sessions if not x.planned))
+    out["deep_focus"] = _crests.tiers_from_best(
+        {
+            n: min((t.day for t in timed if t.minutes >= n), default=None)
+            for n in family["deep_focus"].thresholds
+        },
+        family["deep_focus"].thresholds,
+    )
+    counts["deep_focus"] = max((t.minutes for t in timed), default=0)
+    finished = [
+        _crests.UNDATED
+        for steps in _steps(subscription).values()
+        if len(steps) >= 2 and all(s.get("done") for s in steps)
+    ]
+    out["steps"] = counted("steps", finished)
+    out["explorer"] = counted("explorer", (date.fromisoformat(d) for d in options.get("place_sessions", ())))
+    # Together
+    pairs = (together if together is not None else together_view(store, subscription, now))["pairs"]
+    best_pair = max((p["best"] for p in pairs), default=0)
+    out["buddy"] = [_crests.UNDATED if best_pair >= t else None for t in family["buddy"].thresholds]
+    counts["buddy"] = best_pair
+    out["teacher"] = counted(
+        "teacher", (local_day(p.created) for p in social.posts_of(where, token, "explain"))
+    )
+    out["notes"] = counted("notes", (local_day(r[0]) for r in helpful))
+    out["checker"] = counted("checker", (local_day(r[0]) for r in checked))
+    out["cheers"] = counted("cheers", (date.fromisoformat(d) for d in options.get("cheers_sent", ())))
+    out["team"] = counted("team", _team_weeks(store, subscription, now))
+    rare["champion"] = min(
+        (
+            date.fromisoformat(r["week"]) + timedelta(days=6)
+            for r in options.get("league", {}).get("results", ())
+            if r.get("rank") == 1 and r.get("size", 0) >= _crests.LEAGUE_LEAST
+        ),
+        default=None,
+    )
+    return out, rare, counts
+
+
+def _team_weeks(store: str | os.PathLike, subscription: Subscription, now: datetime) -> list[date]:
+    """The weeks before this one in which a study group the student is in met its goal,
+    each on its Sunday: the group's hours against its goal, as the group's card counts
+    them (D28), only the weeks since the student joined."""
+    where = _store(store)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    this_monday = _progress.monday(today)
+    out: list[date] = []
+    for group in social.groups_of(where, subscription.token):
+        people = [m for m in social.members(where, group.id) if m.joined is not None]
+        mine = next((m for m in people if m.token == subscription.token), None)
+        if mine is None or mine.joined is None or not group.goal:
+            continue
+        began = datetime.fromisoformat(group.created).astimezone(zone).date()
+        mondays = [m for m in _trends.mondays(min(began, today), today, None) if m < this_monday]
+        if not mondays:
+            continue
+        joined = _progress.monday(datetime.fromisoformat(mine.joined).astimezone(zone).date())
+        totals = [0.0] * len(mondays)
+        for m in people:
+            since = _progress.monday(datetime.fromisoformat(m.joined or mine.joined).astimezone(zone).date())
+            hours = _member_hours(store, m.token, mondays, now)
+            totals = [
+                t + (h if monday >= since else 0.0)
+                for t, h, monday in zip(totals, hours, mondays, strict=True)
+            ]
+        out += [
+            monday + timedelta(days=6)
+            for monday, total in zip(mondays, totals, strict=True)
+            if monday >= joined and total >= group.goal / 60
+        ]
+    return out
+
+
+def _session_points_total(store: str | os.PathLike, subscription: Subscription) -> tuple[int, list]:
+    """Every point the student's sessions earned (D158), and each session's points by
+    day, for the level and the league: what was reported done, and what was proven.
+    D189: a session of the diary outside the plan (timed with Focus or typed) earns its
+    +10 too, at most `crests.LOGGED_A_DAY` a day, so a student who studies without the
+    plan's sessions plays as well; one timed from a planned session counts as that one."""
+    sessions = [s for s in progress_sessions(subscription) if s.planned and s.sid]
+    items = [{"id": s.sid, "at": s.start.isoformat(), "course": s.course} for s in sessions]
+    outcomes = {s.sid: s.report for s in sessions if s.report}
+    days = [(s.start.date(), s.sid) for s in sessions]
+    per_day: dict[date, int] = {}
+    for k, s in enumerate(logged_sessions(store, subscription)):
+        day = s.start.date()
+        if s.sid or per_day.get(day, 0) >= _crests.LOGGED_A_DAY:
+            continue
+        per_day[day] = per_day.get(day, 0) + 1
+        lid = f"logged-{k}"
+        items.append({"id": lid, "at": s.start.isoformat(), "course": s.course})
+        outcomes[lid] = "done"
+        days.append((day, lid))
+    points = session_points(items, outcomes, proof_posts(store, subscription.token))
+    return sum(p["earned"] for p in points.values()), [(day, points[sid]) for day, sid in days]
+
+
+def crest_of(store: str | os.PathLike, subscription: Subscription) -> dict:
+    """The student's crest as anyone in their league sees it: the level, from every
+    point their sessions earned and the badges' points last counted (`crests_view`
+    keeps them, `options["crest"]`), and the league they play in."""
+    points, _by_day = _session_points_total(store, subscription)
+    bonus = int(subscription.options.get("crest", {}).get("bonus", 0))
+    level = _crests.level_of(points + bonus)
+    tier = int(subscription.options.get("league", {}).get("tier", 0))
+    return {**level, "name": _(level["name"]), "next_name": _(level["next_name"]), **_league_words(tier)}
+
+
+def _league_words(tier: int) -> dict:
+    key = _crests.LEAGUES[tier]
+    names = {
+        "bronze": _("Bronze league"),
+        "silver": _("Silver league"),
+        "gold": _("Gold league"),
+        "ice": _("Ice league"),
+        "aurora": _("Aurora league"),
+    }
+    return {"league": key, "league_name": names[key], "tier": tier}
+
+
+def crests_view(
     store: str | os.PathLike,
     subscription: Subscription,
     now: datetime | None = None,
     logged: Sequence[_progress.Session] = (),
+    together: Mapping | None = None,
 ) -> dict:
-    """The badge shelf: every badge, earned (with the day) or not (with how).
-    Derived from what the student did, every time, as progress is (D8, D41)."""
+    """Progress's collection (D189): the level, then every badge family with its tier,
+    its ladder and how far to the next, and the rare ones. `bonus` is the badges' points,
+    which the page keeps for the league (`keep_crest`)."""
     now = now or datetime.now(UTC)
-    zone = _zone(subscription.options["tz"])
-    today = now.astimezone(zone).date()
-    where = _store(store)
-    sessions = sorted(_progress.merge_logged(progress_sessions(subscription), logged), key=lambda x: x.start)
-    done = [x for x in sessions if x.confirmed and x.planned]
-    tests = [x for x in done if x.kind in ("review", "first review")]
-    focus = [x for x in sessions if not x.planned]
-    earned: dict[str, date | None] = {
-        "first": done[0].start.date() if done else None,
-        "full_week": _progress.first_full_week(sessions, today),
-        "self_tests": tests[9].start.date() if len(tests) >= 10 else None,
-        "practice": next((x.start.date() for x in done if x.kind == "practice"), None),
-        "focus": focus[4].start.date() if len(focus) >= 5 else None,
-        "semester": date.fromisoformat(subscription.options["start"])
-        if subscription.options.get("past")
-        else None,
-    }
-    if sessions:
-        first = min([sessions[0].start.date(), today])
-        runs = _progress.first_runs(_progress.streak(sessions, first, today), (3, 7, 14, 30))
-        earned.update({f"streak_{n}": runs.get(n) for n in (3, 7, 14, 30)})
-    with where.connection() as db:
-        row = db.execute(
-            "SELECT at FROM card_reviews WHERE token = ? ORDER BY at LIMIT 1 OFFSET 99", (subscription.token,)
-        ).fetchone()
-    earned["cards"] = datetime.fromisoformat(row[0]).astimezone(zone).date() if row else None
-    timed = sorted(
-        (
-            p
-            for p in social.posts_of(where, subscription.token, "session")
-            if p.data.get("timed") and p.data.get("checked")
-        ),
-        key=lambda p: (p.day, p.created),
-    )
-    for n in (30, 60, 105, 150):
-        earned[f"focus_{n}"] = next(
-            (date.fromisoformat(p.day) for p in timed if int(p.data.get("minutes", 0)) >= n), None
+    tiers, rare, counts = _crest_events(store, subscription, now, logged, together)
+    groups = []
+    earned = bonus = 0
+    for gkey, gname, gline in _crests.GROUPS:
+        items = []
+        for f in _crests.FAMILIES:
+            if f.group != gkey:
+                continue
+            days = tiers.get(f.key, [None] * 4)
+            tier = _crests.tier_of(days)
+            reached = days[tier - 1] if tier else None
+            earned += tier
+            bonus += tier * _crests.TIER_POINTS
+            nxt = f.thresholds[tier] if tier < 4 else None
+            have = counts.get(f.key, 0)
+            if nxt is None:
+                status = _("All four tiers")
+            elif f.key == "deep_focus":
+                status = _("Next: one session of {length}", length=_minutes_words(nxt))
+            else:
+                status = _("{n} of {next}", n=format_number(min(have, nxt)), next=format_number(nxt))
+            items.append(
+                {
+                    "key": f.key,
+                    "name": _(f.name),
+                    "how": _(f.how),
+                    "icon": f.icon,
+                    "ladder": _ladder_words(f),
+                    "tier": tier,
+                    "metal": _crests.TIERS[tier - 1] if tier else "none",
+                    "roman": _crests.TIER_ROMAN[tier - 1] if tier else "",
+                    "next": nxt,
+                    "status": status,
+                    "earned": format_date(reached, "day")
+                    if reached is not None and reached != _crests.UNDATED
+                    else None,
+                    "celebrate": _OLD_CELEBRATIONS.get((f.key, tier), f"crest-{f.key}-{tier}")
+                    if tier
+                    else "",
+                }
+            )
+        groups.append({"key": gkey, "name": _(gname), "line": _(gline), "badges": items})
+    rares = []
+    for r in _crests.RARES:
+        day = rare.get(r.key)
+        if day is not None:
+            bonus += _crests.RARE_POINTS
+        rares.append(
+            {
+                "key": r.key,
+                "name": _(r.name),
+                "how": _(r.how),
+                "icon": r.icon,
+                "earned": format_date(day, "day") if day is not None and day != _crests.UNDATED else None,
+                "got": day is not None,
+                "celebrate": "milestone-first" if r.key == "first" else f"crest-rare-{r.key}",
+            }
         )
-    earned["goal"] = next(
+    points, _by_day = _session_points_total(store, subscription)
+    level = _crests.level_of(points + bonus)
+    return {
+        "level": {**level, "name": _(level["name"]), "next_name": _(level["next_name"])},
+        "league": _league_words(int(subscription.options.get("league", {}).get("tier", 0))),
+        "groups": groups,
+        "rare": rares,
+        "earned": earned + sum(1 for r in rares if r["got"]),
+        "total": 4 * len(_crests.FAMILIES) + len(_crests.RARES),
+        "families": len(_crests.FAMILIES),
+        "bonus": bonus,
+        "session_points": points,
+        "tier_points": _crests.TIER_POINTS,
+    }
+
+
+def _ladder_words(family: _crests.Family) -> str:
+    numbers = " · ".join(format_number(t) for t in family.thresholds)
+    if family.key == "deep_focus":
+        return " · ".join(_minutes_words(t) for t in family.thresholds)
+    if family.unit == "{n} days":
+        return _("{numbers} days", numbers=numbers)
+    if family.unit == "{n} weeks":
+        return _("{numbers} weeks", numbers=numbers)
+    return numbers
+
+
+def _minutes_words(minutes: int) -> str:
+    hours, rest = divmod(minutes, 60)
+    if not hours:
+        return _("{n} min", n=rest)
+    return _("{h} h {m}", h=hours, m=f"{rest:02d}") if rest else _("{h} h", h=hours)
+
+
+def keep_crest(subscription: Subscription, crests: Mapping) -> Subscription:
+    """The badges' points as `crests_view` last counted them, kept for the level others
+    see in the league (`crest_of`): the same subscription when nothing changed."""
+    kept = {"bonus": int(crests["bonus"]), "tiers": int(crests["earned"])}
+    if subscription.options.get("crest") == kept:
+        return subscription
+    return replace(subscription, options={**subscription.options, "crest": kept})
+
+
+def crest_kept(subscription: Subscription, crests: Mapping) -> bool:
+    return subscription.options.get("crest") == {
+        "bonus": int(crests["bonus"]),
+        "tiers": int(crests["earned"]),
+    }
+
+
+# -- the friends' league (D189) ----------------------------------------------------
+
+
+def league_on(subscription: Subscription) -> bool:
+    """Whether the student plays the weekly league: on unless they left it."""
+    return not subscription.options.get("league_off")
+
+
+def set_league(subscription: Subscription, on: bool) -> Subscription:
+    """Play the weekly league with friends, or leave it (their points, level and league
+    are then seen by no one, and they see no table)."""
+    options = {k: v for k, v in subscription.options.items() if k != "league_off"}
+    if not on:
+        options["league_off"] = True
+    return replace(subscription, options=options)
+
+
+def _league_players(
+    store: str | os.PathLike, subscription: Subscription
+) -> list[tuple[social.Profile, Subscription]]:
+    """The friends who play: people the student follows and who follow them back, who have
+    not left the league and with no block either way, up to `LEAGUE_SIZE` with the student."""
+    where = _store(store)
+    token = subscription.token
+    out = []
+    for other in social.mutual_follows(where, token):
+        if social.blocked_between(where, token, other):
+            continue
+        found = social.get_profile(where, other)
+        theirs = load_subscription(store, other)
+        if found is None or theirs is None or not league_on(theirs):
+            continue
+        out.append((found, theirs))
+    out.sort(key=lambda p: p[0].handle.casefold())
+    return out[: _crests.LEAGUE_SIZE - 1]
+
+
+def _week_points(store: str | os.PathLike, subscription: Subscription, monday: date) -> tuple[int, int]:
+    """A student's league points for the week from `monday`, and the days they studied:
+    +10 a session done (one of the plan's reported, or one of the diary's outside it, at
+    most `crests.LOGGED_A_DAY` a day), and +20 for a vouched one, once a day
+    (`PROOF_A_DAY`), so two friends cannot vouch each other to the top."""
+    _total, by_day = _session_points_total(store, subscription)
+    end = monday + timedelta(days=7)
+    points = 0
+    proven: dict[date, int] = {}
+    days: set[date] = set()
+    for day, p in by_day:
+        if not monday <= day < end or not p["earned"]:
+            continue
+        days.add(day)
+        points += POINTS_DONE
+        if p["state"] == "proven" and proven.get(day, 0) < _crests.PROOF_A_DAY:
+            proven[day] = proven.get(day, 0) + 1
+            points += POINTS_PROOF
+    return points, len(days)
+
+
+def _monday_of(subscription: Subscription, now: datetime) -> date:
+    return _progress.monday(now.astimezone(_zone(subscription.options["tz"])).date())
+
+
+def league_due(subscription: Subscription, now: datetime | None = None) -> bool:
+    """Whether a week of the league has ended since the student last looked."""
+    if not league_on(subscription):
+        return False
+    now = now or datetime.now(UTC)
+    week = subscription.options.get("league", {}).get("week")
+    return week != _monday_of(subscription, now).isoformat()
+
+
+LEAGUE_RESULTS_KEPT = 12  # weeks of results kept, for the champion's badge and Today
+
+
+def settle_league(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> Subscription:
+    """The weeks of the league ended since the student last looked, settled: their rank
+    among the friends who play, and the league they move to (`crests.league_move`).
+    A first look starts them in Bronze this week. At most eight weeks are settled at
+    once; the friends are today's, each week's points theirs that week."""
+    if not league_due(subscription, now):
+        return subscription
+    now = now or datetime.now(UTC)
+    this_monday = _monday_of(subscription, now)
+    state = dict(subscription.options.get("league", {}))
+    results = list(state.get("results", ()))
+    tier = int(state.get("tier", 0))
+    if state.get("week"):
+        week = date.fromisoformat(state["week"])
+        weeks = []
+        while week < this_monday:
+            weeks.append(week)
+            week += timedelta(days=7)
+        players = _league_players(store, subscription)
+        me = social.get_profile(_store(store), subscription.token)
+        for monday in weeks[-8:]:
+            mine, days = _week_points(store, subscription, monday)
+            points = {subscription.token: mine}
+            # Ties are told apart by handle, as the table shows them (`league_view`).
+            names = {subscription.token: me.handle if me else ""}
+            for profile, theirs in players:
+                points[profile.token] = _week_points(store, theirs, monday)[0]
+                names[profile.token] = profile.handle
+            order = _crests.ranking(points, names)
+            rank = order.index(subscription.token) + 1
+            move = _crests.league_move(rank, len(order), days)
+            results.append(
+                {
+                    "week": monday.isoformat(),
+                    "rank": rank,
+                    "size": len(order),
+                    "points": mine,
+                    "from": tier,
+                    "to": _crests.next_league(tier, move),
+                }
+            )
+            tier = _crests.next_league(tier, move)
+    state.update({"tier": tier, "week": this_monday.isoformat(), "results": results[-LEAGUE_RESULTS_KEPT:]})
+    return replace(subscription, options={**subscription.options, "league": state})
+
+
+def league_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """This week's league (D189): the student and the friends who play, each with their
+    avatar, their level on a small crest and their points this week, in order; who moves
+    up and who may move down; the days left. `enough` is False below `LEAGUE_LEAST`,
+    when the table moves no one yet."""
+    now = now or datetime.now(UTC)
+    if not league_on(subscription):
+        return {"on": False}
+    where = _store(store)
+    monday = _monday_of(subscription, now)
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    me = social.get_profile(where, subscription.token)
+    rows = []
+    points: dict[str, int] = {}
+    names: dict[str, str] = {}
+    days_of: dict[str, int] = {}
+    people = [(me, subscription), *_league_players(store, subscription)] if me else [(None, subscription)]
+    for profile, sub in people:
+        key = sub.token
+        points[key], days_of[key] = _week_points(store, sub, monday)
+        names[key] = profile.handle if profile else ""
+        rows.append((key, profile, sub))
+    order = _crests.ranking(points, names)
+    size = len(order)
+    enough = size >= _crests.LEAGUE_LEAST
+    table = []
+    for rank, key in enumerate(order, start=1):
+        _key, profile, sub = next(r for r in rows if r[0] == key)
+        crest = crest_of(store, sub)
+        move = _crests.league_move(rank, size, days_of[key]) if enough else 0
+        public = profile.public() if profile else {"handle": "", "initial": "?", "hue": "c0", "face": None}
+        if key == subscription.token and not public.get("face"):
+            public = {**public, "face": avatar_of(sub)}  # their own avatar, shared or not
+        table.append(
+            {
+                **public,
+                "me": key == subscription.token,
+                "rank": rank,
+                "points": points[key],
+                "level": crest["n"],
+                "metal": crest["league"],
+                "zone": "up" if enough and rank <= _crests.LEAGUE_MOVE else "down" if move < 0 else "stay",
+                "days": days_of[key],
+            }
+        )
+    tier = int(subscription.options.get("league", {}).get("tier", 0))
+    days_left = 7 - local.weekday()
+    return {
+        "on": True,
+        "profile": me is not None,
+        **_league_words(tier),
+        "next_league": _league_words(min(tier + 1, len(_crests.LEAGUES) - 1))["league_name"],
+        "lower_league": _league_words(max(tier - 1, 0))["league_name"],
+        "top": tier == len(_crests.LEAGUES) - 1,
+        "rows": table,
+        "enough": enough,
+        "least": _crests.LEAGUE_LEAST,
+        "move": _crests.LEAGUE_MOVE,
+        "floor": _crests.LEAGUE_FLOOR_DAYS,
+        "days_left": days_left,
+        "rule": {"done": POINTS_DONE, "proof": POINTS_PROOF},
+    }
+
+
+LEAGUE_SAID_DAYS = 3  # Today says last week's result on the new week's first three days
+
+
+def league_result(subscription: Subscription, now: datetime | None = None) -> dict | None:
+    """Last week's result, for Today on the first `LEAGUE_SAID_DAYS` days of the week
+    after it (D189), so it does not hold Today's one message all week: the rank, the
+    table's size and the league it led to; None when there is none, or the table was
+    too small to move anyone."""
+    if not league_on(subscription):
+        return None
+    now = now or datetime.now(UTC)
+    if now.astimezone(_zone(subscription.options["tz"])).weekday() >= LEAGUE_SAID_DAYS:
+        return None
+    last = _monday_of(subscription, now) - timedelta(days=7)
+    found = next(
         (
-            date.fromisoformat(p.day)
-            for p in timed
-            if int(p.data.get("goal", 0)) and int(p.data.get("minutes", 0)) >= int(p.data["goal"])
+            r
+            for r in subscription.options.get("league", {}).get("results", ())
+            if r.get("week") == last.isoformat()
         ),
         None,
     )
-    explained = social.posts_of(where, subscription.token, "explain")
-    earned["teacher"] = (
-        min(datetime.fromisoformat(x.created) for x in explained).astimezone(zone).date()
-        if explained
-        else None
-    )
-    shelf = [
-        {
-            "key": key,
-            "label": _(label),
-            "how": _(how),
-            "glyph": glyph,
-            "hue": hue,
-            "earned": format_date(day, "day") if (day := earned.get(key)) else None,
-            # The six of D8 keep the key motion.js already celebrated them under.
-            "celebrate": f"milestone-{key}" if key in dict(MILESTONES) else f"badge-{key}",
-        }
-        for key, label, how, glyph, hue in BADGES
-    ]
-    return {"badges": shelf, "earned": sum(b["earned"] is not None for b in shelf), "total": len(shelf)}
+    if found is None or found.get("size", 0) < _crests.LEAGUE_LEAST:
+        return None
+    to = int(found["to"])
+    return {
+        "rank": int(found["rank"]),
+        "size": int(found["size"]),
+        "points": int(found.get("points", 0)),
+        "up": to > int(found["from"]),
+        "down": to < int(found["from"]),
+        **_league_words(to),
+    }
+
+
+def record_cheer(subscription: Subscription, now: datetime | None = None) -> Subscription:
+    """A cheer sent (D178), counted for the Cheerleader badge (D189): its day, the last
+    `_CHEERS_KEPT` kept (the badge's top tier)."""
+    now = now or datetime.now(UTC)
+    day = now.astimezone(_zone(subscription.options["tz"])).date().isoformat()
+    sent = [*subscription.options.get("cheers_sent", ()), day][-_CHEERS_KEPT:]
+    return replace(subscription, options={**subscription.options, "cheers_sent": sent})
+
+
+_CHEERS_KEPT = 250  # the Cheerleader's last tier
+_PLACE_SESSIONS_KEPT = 150  # the Explorer's last tier
+
+
+def _place_session(options: Mapping, now: datetime) -> list[str]:
+    """A session at a place on the study map (D133), counted for the Explorer (D189)."""
+    day = now.astimezone(_zone(options["tz"])).date().isoformat()
+    return [*options.get("place_sessions", ()), day][-_PLACE_SESSIONS_KEPT:]
 
 
 def _hours(minutes: int) -> float:
@@ -8288,6 +8806,9 @@ def finish_focus(subscription: Subscription, *, now: datetime | None = None) -> 
         "rounds": int(focus.get("rounds", 0)),
     }
     options = {k: v for k, v in subscription.options.items() if k != "focus"}
+    if focus.get("place"):
+        # A session at a place on the study map, for the Explorer badge (D189).
+        options["place_sessions"] = _place_session(options, now)
     return replace(subscription, options={**options, "focus_draft": draft})
 
 
@@ -15707,7 +16228,99 @@ LANDING_EXAM = 28.0
 LANDING_AFTER = 84.0  # twelve weeks after the exam
 LANDING_CRAM = (24.0, 25.0, 26.0, 27.0)  # four sessions in the exam's last days
 LANDING_WIDTH = 220  # the plot's width in its 300-unit drawing, labels and their 12-unit text around it
-LANDING_BADGES = ("first", "streak_7", "full_week", "self_tests", "practice", "focus_60", "teacher", "cards")
+LANDING_HOLD = 0.8  # "holds": recall stays above this after the exam
+# A course (D190): twelve weeks of lectures, its exam two weeks after the last week's,
+# each week of lectures prepared by the plan's rule or crammed in the exam's last days.
+LANDING_COURSE_WEEKS = 12
+LANDING_COURSE_GAP = 14.0
+# The badges the story shows (D189, D190), each at the tier a student partway through a
+# semester might have reached; and a made-up league of the demo's classmates, as the
+# crests board drew it (their avatars, `showcase.FACES`).
+LANDING_CRESTS = (
+    ("streak", 3),
+    ("recall", 2),
+    ("focus", 2),
+    ("buddy", 2),
+    ("cards", 1),
+    ("teacher", 1),
+    ("full_week", 1),
+    ("deep_focus", 4),
+)
+# Each friend's own league, on the small crest at their avatar's corner.
+LANDING_LEAGUE_METALS = ("gold", "silver", "silver", "bronze", "silver", "bronze")
+LANDING_LEAGUE = (
+    (
+        "lena",
+        6,
+        240,
+        {
+            "skin": "s1",
+            "hair": "ponytail",
+            "colour": "blonde",
+            "glasses": "round",
+            "outfit": "turtleneck",
+            "top": "k1",
+            "bg": "b4",
+        },
+    ),
+    (
+        "marco",
+        5,
+        205,
+        {
+            "skin": "s3",
+            "hair": "curtains",
+            "colour": "dark",
+            "face": "stubble",
+            "outfit": "jacket",
+            "top": "c2",
+            "bg": "b2",
+        },
+    ),
+    ("", 4, 170, None),
+    (
+        "sofia",
+        3,
+        150,
+        {
+            "skin": "s4",
+            "hair": "curly",
+            "colour": "black",
+            "detail": "earrings",
+            "mouth": "grin",
+            "top": "c5",
+            "bg": "b1",
+        },
+    ),
+    (
+        "noah",
+        2,
+        120,
+        {
+            "skin": "s6",
+            "hair": "fade",
+            "colour": "black",
+            "head": "headphones",
+            "outfit": "hoodie",
+            "top": "c4",
+            "bg": "b5",
+        },
+    ),
+    (
+        "chloe",
+        3,
+        95,
+        {
+            "skin": "s2",
+            "hair": "bob",
+            "colour": "auburn",
+            "detail": "freckles",
+            "eyes": "happy",
+            "top": "c1",
+            "bg": "b3",
+        },
+    ),
+)
 
 
 @functools.cache
@@ -15737,9 +16350,16 @@ def _landing_curves() -> tuple[dict, ...]:
                 memory, last = model.review(memory, day - last, Grade.GOOD), day
                 points.append((day, 1.0))
             points.append((t, model.retrievability(t - last, memory.stability)))
+        hold, day = 0, LANDING_EXAM
+        while model.retrievability(day + 1 - last, memory.stability) > LANDING_HOLD and hold < 3 * 365:
+            day += 1
+            hold += 1
+        if model.retrievability(LANDING_EXAM - last, memory.stability) <= LANDING_HOLD:
+            hold = 0
         out.append(
             {
                 "name": name,
+                "holds": hold,
                 "points": " ".join(
                     f"{LANDING_WIDTH * x / horizon:.1f},{100 - 100 * y:.1f}" for x, y in points
                 ),
@@ -15752,6 +16372,37 @@ def _landing_curves() -> tuple[dict, ...]:
     return tuple(out)
 
 
+@functools.cache
+def _landing_course() -> dict:
+    """A course of `LANDING_COURSE_WEEKS` weeks of lectures (D190), every week "seen once
+    and shaky" and prepared two ways for an exam `LANDING_COURSE_GAP` days after the last:
+    by the plan's rule (a self-test when recall falls to the target, as `_landing_curves`)
+    or crammed, four sessions in the exam's last four days. The sessions each way, the
+    most spaced self-tests in a week, and the crammed ones in a day."""
+    model = FSRS_6
+    exam = 7.0 * (LANDING_COURSE_WEEKS - 1) + LANDING_COURSE_GAP
+    weekly: dict[int, int] = {}
+    spaced = 0
+    for k in range(LANDING_COURSE_WEEKS):
+        taught = 7.0 * k
+        memory, last, t = model.initial_state(Grade.HARD), taught, taught
+        while t < exam - 1:
+            t += 0.25
+            if model.retrievability(t - last, memory.stability) <= flashcards.RETENTION:
+                memory, last = model.review(memory, t - last, Grade.GOOD), t
+                spaced += 1
+                weekly[int(t // 7)] = weekly.get(int(t // 7), 0) + 1
+    crammed = len(LANDING_CRAM) * LANDING_COURSE_WEEKS
+    return {
+        "weeks": LANDING_COURSE_WEEKS,
+        "spaced": spaced,
+        "spaced_week": max(weekly.values()),
+        "crammed": crammed,
+        "cram_days": len(LANDING_CRAM),
+        "crammed_day": crammed // len(LANDING_CRAM),
+    }
+
+
 def landing_view() -> dict:
     """The front page's story (D188): its numbers from the app's own rules and model,
     so the pitch and the app cannot disagree. Recall twelve weeks after the exam for a
@@ -15759,7 +16410,7 @@ def landing_view() -> dict:
     session's points (D158); the badges, some shown; the make-up session's length
     (D126); focus's rhythm (D178); how long a plan is kept (D36); the coach's free
     answers (D176)."""
-    known = {key: (label, how, glyph, hue) for key, label, how, glyph, hue in BADGES}
+    families = {f.key: f for f in _crests.FAMILIES}
     curves = [dict(c) for c in _landing_curves()]
     # Each curve's end is labelled beside it, kept 14 units (its text and a gap) clear of
     # the label above.
@@ -15777,17 +16428,49 @@ def landing_view() -> dict:
         "points_done": POINTS_DONE,
         "points_proof": POINTS_PROOF,
         "points_all": POINTS_DONE + POINTS_PROOF,
-        "badge_count": len(BADGES),
-        "badges": [
+        "badge_count": len(_crests.FAMILIES),
+        "rare_count": len(_crests.RARES),
+        "tiers": len(_crests.TIERS),
+        "tier_points": _crests.TIER_POINTS,
+        "crests": [
             {
                 "key": key,
-                "label": _(known[key][0]),
-                "how": _(known[key][1]),
-                "glyph": known[key][2],
-                "hue": known[key][3],
+                "name": _(families[key].name),
+                "icon": families[key].icon,
+                "metal": _crests.TIERS[tier - 1],
+                "roman": _crests.TIER_ROMAN[tier - 1],
+                "ladder": _ladder_words(families[key]),
             }
-            for key in LANDING_BADGES
+            for key, tier in LANDING_CRESTS
         ],
+        "league": [
+            {
+                "handle": handle,
+                "me": not handle,
+                "initial": handle[:1].upper() if handle else _("You")[:1],
+                "hue": "c0",
+                "face": face,
+                "rank": rank,
+                "level": level,
+                "points": points,
+                "metal": LANDING_LEAGUE_METALS[rank - 1],
+                "zone": "up" if rank <= _crests.LEAGUE_MOVE else "stay",
+            }
+            for rank, (handle, level, points, face) in enumerate(LANDING_LEAGUE, start=1)
+        ],
+        "league_name": _league_words(1)["league_name"],
+        "league_up": _league_words(2)["league_name"],
+        "league_move": _crests.LEAGUE_MOVE,
+        "league_floor": _crests.LEAGUE_FLOOR_DAYS,
+        "level_names": [_(n) for n in _crests.LEVEL_NAMES],
+        "course": _landing_course(),
+        "holds": {c["name"]: c["holds"] for c in curves},
+        "hold_percent": round(100 * LANDING_HOLD),
+        "holds_ratio": format_number(
+            next(c["holds"] for c in curves if c["name"] == "spaced")
+            / next(c["holds"] for c in curves if c["name"] == "crammed"),
+            1,
+        ),
         "repair": REPAIR_MINUTES,
         "rhythm": RHYTHM_WORK // 60,
         "kept_months": round(RETENTION / timedelta(days=365) * 12),

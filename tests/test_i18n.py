@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from cps import i18n, service, tips, usage, weekly
+from cps import crests, i18n, service, tips, usage, weekly
 from cps.locales.fr import MESSAGES
 from cps.locales.it import MESSAGES as ITALIAN
 
@@ -98,6 +98,11 @@ def indirect_sentences() -> set[str]:
         service.JOINED_HINT,  # Community's for a student with a handle (AUDIT 82)
         *(words for q in service.FIT_QUESTIONS for words in (q[1], q[2], q[4])),  # Today's questions (D98)
         *(idea for ideas in service._AIM_IDEAS.values() for idea in ideas),  # aims to tap (D178)
+        # The crests (D189): each badge's name and what earns it, the groups, the levels.
+        *(words for f in crests.FAMILIES for words in (f.name, f.how)),
+        *(words for r in crests.RARES for words in (r.name, r.how)),
+        *(words for _, name, line in crests.GROUPS for words in (name, line)),
+        *crests.LEVEL_NAMES,
     }
 
 

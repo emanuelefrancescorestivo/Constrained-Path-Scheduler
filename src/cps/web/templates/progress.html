@@ -68,6 +68,8 @@
 </div>
 {# Studying together (D127), beside the streak it shares. #}
 {% if together %}{% include "_together.html" %}{% endif %}
+{# The level and the league (D189): every point earned, the league of the week. #}
+{% if crest %}{% from "_crest.html" import level_card %}<div class="section" data-tour="progress-crest">{{ level_card(crest, "/p/" ~ token ~ "/community#league") }}</div>{% endif %}
 
 {% if view.exams %}
 <div class="section" id="exams" data-tour="progress-exams">
@@ -250,8 +252,8 @@
 
 <div class="section" id="badges" data-tour="progress-badges">
   <div class="section-title"><h2>{{ _("Badges") }}</h2><small>{{ _("{n} of {total}", n=badges.earned, total=badges.total) }}</small></div>
-  {% from "_badges.html" import shelf %}{{ shelf(badges) }}
-  <p class="hint badges-note">{{ _("For habits that make study stick, never for hours or rankings.") }} {{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h {{ _("so far") }}.</p>
+  {% from "_crest.html" import collection %}{{ collection(badges) }}
+  <p class="hint crests-note">{{ _("For habits that make study stick, never for hours: each tier adds {n} points to your level.", n=badges.tier_points) }} {{ view.totals.sessions }} {{ _n("session", "sessions", view.totals.sessions) }} · {{ view.totals.hours | hours }} h {{ _("so far") }}.</p>
 </div>
   </div>
 </details>

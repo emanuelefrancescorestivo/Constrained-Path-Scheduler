@@ -1,0 +1,79 @@
+{# Crests (D189): one six-sided shield for everything a student earns. A level's crest
+   wears the league the student plays in this week, its number inside; a badge's crest
+   wears its tier's metal (bronze, silver, gold, ice), its icon inside; a badge not yet
+   earned is grey. The shape is CSS (`clip-path`), the metals are classes, so there is
+   no style attribute. Decoration: the words beside each crest say what it is. #}
+
+{% macro level_crest(c, size="md") -%}
+<span class="crest crest-{{ size }} metal-{{ c.league }}" aria-hidden="true"><span class="crest-inner"><small>{{ _("Level") }}</small><b>{{ c.n }}</b></span></span>
+{%- endmacro %}
+
+{% macro level_chip(n, metal) -%}
+<span class="crest crest-chip metal-{{ metal }}" aria-hidden="true"><b>{{ n }}</b></span>
+{%- endmacro %}
+
+{% macro badge_crest(icon, metal, roman="", size="") -%}
+<span class="crest-badge{% if size %} crest-badge-{{ size }}{% endif %}" aria-hidden="true"><span class="crest crest-fill metal-{{ metal }}">{{ lucide(icon) }}</span>{% if roman %}<span class="crest-roman metal-ink-{{ metal }}">{{ roman }}</span>{% endif %}</span>
+{%- endmacro %}
+
+{# The level, as a card on Progress and the league's head. #}
+{% macro level_card(c, href="") -%}
+<{% if href %}a href="{{ href }}"{% else %}div{% endif %} class="card crest-card{% if href %} link-card{% endif %}">
+  {{ level_crest(c, "lg") }}
+  <span class="crest-card-words">
+    <b class="crest-card-title">{{ c.name }}<span class="muted"> · {{ c.league_name }}</span></b>
+    <span class="crest-bar" aria-hidden="true"><span class="w{{ (c.percent // 10) * 10 }}"></span></span>
+    <span class="muted">{{ _("Level {n}: {points} of {next} points, then {name}", n=c.n, points=c.points | hours, next=c.next | hours, name=c.next_name) }}</span>
+  </span>
+</{% if href %}a{% else %}div{% endif %}>
+{%- endmacro %}
+
+{# Progress's collection: each family at its tier, how far to the next, and the rare ones. #}
+{% macro collection(c) -%}
+{% for g in c.groups %}
+<h3 class="crest-group">{{ g.name }} <small>{{ g.line }}</small></h3>
+<ul class="crests">
+  {% for b in g.badges %}
+  <li class="crest-tile{% if b.tier %} earned{% endif %}"{% if b.tier %} data-celebrate="{{ b.celebrate }}"{% endif %}>
+    {{ badge_crest(b.icon, b.metal, b.roman) }}
+    <b>{{ b.name }}</b>
+    <small>{{ b.how }}</small>
+    <small class="crest-ladder">{{ b.ladder }}</small>
+    <span class="crest-pips" aria-hidden="true">{% for k in range(4) %}<span class="{% if k < b.tier %}metal-{{ ('bronze', 'silver', 'gold', 'ice')[k] }}{% endif %}"></span>{% endfor %}</span>
+    <small class="crest-status">{{ b.status }}</small>
+    <span class="visually-hidden">{% if b.tier %}{{ _("Tier {n} of 4", n=b.tier) }}{% if b.earned %}, {{ _("earned {date}", date=b.earned) }}{% endif %}{% else %}{{ _("not yet") }}{% endif %}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+<h3 class="crest-group">{{ _("Rare ones") }} <small>{{ _("one tier only") }}</small></h3>
+<ul class="crests crests-rare">
+  {% for r in c.rare %}
+  <li class="crest-tile{% if r.got %} earned{% endif %}"{% if r.got %} data-celebrate="{{ r.celebrate }}"{% endif %}>
+    {{ badge_crest(r.icon, "aurora" if r.got else "none") }}
+    <b>{{ r.name }}</b>
+    <small>{{ r.how }}</small>
+    <small class="crest-status">{% if r.earned %}{{ _("Earned {date}", date=r.earned) }}{% elif r.got %}{{ _("Earned") }}{% else %}{{ _("Not yet") }}{% endif %}</small>
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+
+{# The week's league: each friend's avatar, their level on a small crest at its corner,
+   their points this week; who moves up and who may move down. #}
+{% macro league_table(lg, token) -%}
+{% from "_people.html" import avatar %}
+<ol class="league-rows">
+  {% for r in lg.rows %}
+  {% if lg.enough and loop.first %}<li class="league-zone zone-up">{{ _("Moving up to {league}", league=lg.next_league) if not lg.top else _("The top of the leagues") }}</li>{% endif %}
+  {% if lg.enough and r.rank == lg.move + 1 %}<li class="league-zone">{{ _("Staying in {league}", league=lg.league_name) }}</li>{% endif %}
+  {% if lg.enough and r.zone == "down" and (loop.first or lg.rows[loop.index0 - 1].zone != "down") %}<li class="league-zone zone-down">{{ _("Down to {league}, unless they study {n} days", league=lg.lower_league, n=lg.floor) }}</li>{% endif %}
+  <li class="league-row{% if r.me %} me{% endif %}">
+    <span class="league-rank">{{ r.rank }}</span>
+    <span class="league-face">{{ avatar(r) }}{{ level_chip(r.level, r.metal) }}</span>
+    <span class="league-name">{% if r.me %}{{ _("You") }}{% elif r.handle %}<a href="/p/{{ token }}/u/{{ r.handle }}">@{{ r.handle }}</a>{% endif %}</span>
+    <b class="league-points">{{ r.points }}</b>
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}

@@ -35,7 +35,7 @@
   <ul class="landing-gains">
     <li>{{ lucide('flame') }}{{ _("A streak that forgives a day off") }}</li>
     <li>{{ lucide('users') }}{{ _("Friends who study beside you") }}</li>
-    <li>{{ lucide('trophy') }}{{ _("Points and badges for the work") }}</li>
+    <li>{{ lucide('trophy') }}{{ _("Levels, badges and a league with friends") }}</li>
   </ul>
   <figure class="landing-devices">
     <div class="landing-laptop"><picture><source srcset="{{ asset(shots ~ 'today-laptop-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'today-laptop.jpg') }}" width="1280" height="800" alt="{{ _('Today on a laptop: the next session, classmates studying now, the tasks.') }}" fetchpriority="high" decoding="async"></picture></div>
@@ -105,7 +105,7 @@
     </div>
     <figure class="landing-shot phone">
       <picture><source srcset="{{ asset(shots ~ 'progress-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'progress-phone.jpg') }}" width="585" height="996" alt="{{ _('Progress on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Progress: the week, the streak, each exam.") }}</figcaption>
+      <figcaption>{{ _("Progress: the week, the streak, your level.") }}</figcaption>
     </figure>
   </article>
 
@@ -113,29 +113,46 @@
     <div class="landing-words">
       <p class="landing-num">4 · {{ questions[3] }}</p>
       <h3>{{ _("Yes: your class studies beside you.") }}</h3>
-      <p>{{ _("Share your sessions and your notes. See who is studying now and join them, send a cheer, keep a streak going as a pair, set a goal as a study group. Who sees what is always your choice.") }}</p>
+      <p>{{ _("Share your sessions and your notes. See who is studying now and join them, send a cheer, keep a streak going as a pair, set a goal as a study group, play a weekly league with friends. Who sees what is always your choice.") }}</p>
     </div>
     <figure class="landing-shot phone">
       <picture><source srcset="{{ asset(shots ~ 'community-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'community-phone.jpg') }}" width="585" height="996" alt="{{ _('Community on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Community: who is studying now, and what your classmates share. Everyone here is made up.") }}</figcaption>
+      <figcaption>{{ _("Community: your friends' league this week, who is studying now, what your classmates share. Everyone here is made up.") }}</figcaption>
     </figure>
   </article>
 
   <article class="landing-q" id="q5">
     <div class="landing-words">
       <p class="landing-num">5 · {{ questions[4] }}</p>
-      <h3>{{ _("Points for the work you do, and badges for the habits you build.") }}</h3>
-      <p>{{ _("A session done is worth {done} points. Share what you did, and once a classmate vouches for it, {proof} more. {count} badges reward the habits that make study stick. Never hours, never a ranking: your points are yours alone.", done=l.points_done, proof=l.points_proof, count=l.badge_count) }}</p>
+      <h3>{{ _("A friendly league that keeps you and your friends going.") }}</h3>
+      <p>{{ _("A session done is worth {done} points; once a classmate vouches for it, {proof} more. Each week, Monday to Sunday, you play a league with the friends who follow you back: the top {move} move up a league, and nobody moves down for a week in which they studied on {floor} days.", done=l.points_done, proof=l.points_proof, move=l.league_move, floor=l.league_floor) }}</p>
+      <p>{{ _("Every point also adds to your level, which never goes down. {count} badges, each in {tiers} tiers from bronze to ice, reward the habits that make study stick: never hours, and what you study stays yours.", count=l.badge_count, tiers=l.tiers) }}</p>
     </div>
     <figure class="landing-rewards">
+      {% from "_crest.html" import level_chip, badge_crest %}{% from "_people.html" import avatar %}
+      <div class="landing-league">
+        <p class="landing-league-head"><span class="crest metal-silver" aria-hidden="true"></span><b>{{ l.league_name }}</b><span class="muted">{{ _("this week") }}</span></p>
+        <ol class="league-rows">
+          <li class="league-zone zone-up">{{ _("Moving up to {league}", league=l.league_up) }}</li>
+          {% for r in l.league %}
+          {% if r.rank == l.league_move + 1 %}<li class="league-zone">{{ _("Staying in {league}", league=l.league_name) }}</li>{% endif %}
+          <li class="league-row{% if r.me %} me{% endif %}">
+            <span class="league-rank">{{ r.rank }}</span>
+            <span class="league-face">{{ avatar(r) }}{{ level_chip(r.level, r.metal) }}</span>
+            <span class="league-name">{% if r.me %}{{ _("You") }}{% else %}@{{ r.handle }}{% endif %}</span>
+            <b class="league-points">{{ r.points }}</b>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
       <div class="landing-points">
         <p class="landing-point"><b>+{{ l.points_done }}</b><span>{{ _("Session done") }}</span></p>
         <p class="landing-point proof"><b>+{{ l.points_proof }}</b><span>{{ _("Vouched for by a classmate") }}</span></p>
       </div>
-      <ul class="badges landing-badges">
-        {% for b in l.badges %}<li class="badge-tile earned c{{ b.hue }}"><span class="badge-art">{{ lucide(badge_icons[b.glyph]) }}</span><b>{{ b.label }}</b><small>{{ b.how }}</small></li>{% endfor %}
+      <ul class="landing-crests">
+        {% for b in l.crests %}<li>{{ badge_crest(b.icon, b.metal, b.roman) }}<b>{{ b.name }}</b></li>{% endfor %}
       </ul>
-      <figcaption>{{ _("A few of the {n} badges, as they look once earned.", n=l.badge_count) }}</figcaption>
+      <figcaption>{{ _("A league of made-up classmates, each with their avatar and their level on a crest, and a few of the {n} badges at the tier they reached.", n=l.badge_count) }}</figcaption>
     </figure>
   </article>
 
@@ -155,11 +172,17 @@
   <article class="landing-q" id="q7">
     <div class="landing-words">
       <p class="landing-num">7 · {{ questions[6] }}</p>
-      <h3>{{ _("It is built on the two study techniques research rates highest.") }}</h3>
-      <p>{{ _("A review of ten study techniques rated two of high utility: spreading study over time, and testing yourself (Dunlosky and colleagues, 2013). The app plans both. Here is one week of lectures, prepared three ways for an exam four weeks later.") }}</p>
+      <h3>{{ _("Fewer sessions, never {n} in a day, and it holds {ratio} times as long.", n=l.course.crammed_day, ratio=l.holds_ratio) }}</h3>
+      <p>{{ _("Cramming can get you through an exam, and it costs more than it seems. A review of ten study techniques rated two of high utility: spreading study over time, and testing yourself (Dunlosky and colleagues, 2013). The app plans both. Here is a course of {weeks} weeks of lectures, its exam two weeks after the last.", weeks=l.course.weeks) }}</p>
       <p><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
     </div>
     <figure class="landing-chart">
+      <div class="landing-tiles">
+        <p class="landing-tile"><b>{{ l.course.spaced }}</b><span>{{ _("short self-tests, spread over the semester, instead of {n} sessions crammed", n=l.course.crammed) }}</span></p>
+        <p class="landing-tile"><b>{{ l.course.spaced_week }}</b><span>{{ _("at most in a week, instead of {n} a day in the exam's last {days} days", n=l.course.crammed_day, days=l.course.cram_days) }}</span></p>
+        <p class="landing-tile"><b>{{ _("{n}×", n=l.holds_ratio) }}</b><span>{{ _("as long above {p} % after the exam: {spaced} days instead of {crammed}", p=l.hold_percent, spaced=l.holds.spaced, crammed=l.holds.crammed) }}</span></p>
+      </div>
+      <p class="landing-chart-title">{{ _("One of those weeks, its exam four weeks after its lecture") }}</p>
       <svg viewBox="0 0 300 126" role="img" aria-label="{{ _('Recall {weeks} weeks after the exam: {spaced} % spaced, {crammed} % crammed, {once} % studied once.', weeks=l.weeks_after, spaced=l.spacing.spaced.end, crammed=l.spacing.crammed.end, once=l.spacing.once.end) }}">
         <g transform="translate(38 8)">
           <line class="landing-grid" x1="0" y1="0" x2="{{ l.width }}" y2="0"></line>
@@ -180,7 +203,7 @@
         <li class="crammed">{{ _n("{n} session in the exam's last days", "{n} sessions in the exam's last days", l.spacing.crammed.sessions) }}</li>
         <li class="once">{{ _("Studied once") }}</li>
       </ul>
-      <figcaption>{{ _("Recall as the memory model predicts it (FSRS-6, average weights): an estimate, not a measurement of students.") }}</figcaption>
+      <figcaption>{{ _("Recall as the memory model predicts it (FSRS-6, average weights, every recall a success): an estimate, not a measurement of students. Crammed or spaced, it passes the exam; spaced, it is still there for the next course that needs it.") }}</figcaption>
     </figure>
   </article>
 

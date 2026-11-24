@@ -376,7 +376,6 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["tip_cover"] = covers.cover  # each tip's cover (D164)
     templates.env.globals["art_icons"] = icons.ART
     templates.env.globals["material_icons"] = icons.MATERIAL  # a course's materials (D174)
-    templates.env.globals["badge_icons"] = icons.GLYPHS
     # D153: an id no other element of the page has, for each avatar's clip path, since a
     # feed draws the same person's avatar once per post.
     ids = itertools.count(1)
@@ -616,6 +615,16 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def load(token: str) -> service.Subscription | None:
         return service.load_subscription(store, token)
+
+    def settle_league(subscription: service.Subscription, now: datetime) -> service.Subscription:
+        """The league's weeks ended since the student last looked, settled (D189): written
+        only when one has ended, so most visits write nothing."""
+        if not service.league_due(subscription, now):
+            return subscription
+        settled = service.update_subscription(
+            store, subscription.token, lambda s: service.settle_league(store, s, now)
+        )
+        return settled or subscription
 
     # -- what a student uses, counted with their yes (D96) -----------------------
 
@@ -1326,6 +1335,8 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     def panel_context(subscription: service.Subscription) -> dict[str, Any]:
         now = config.clock()
+        # A week of the friends' league that ended, settled on the first page after it (D189).
+        subscription = settle_league(subscription, now)
         logged = service.logged_sessions(store, subscription)
         # The widgets the student keeps on Today (D155); one turned off is not worked out.
         shown = service.today_widgets(subscription)
@@ -1363,6 +1374,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             "together": service.together_view(store, subscription, now)["pairs"],
             # A first week with every self-test recalled, said the week after (D130).
             "recalled": service.recall_week(subscription, now),
+            # Last week's league among friends, said in the week after (D189).
+            "league_week": service.league_result(subscription, now),
             # Today as the app's home (D140): the day at a glance, and classmates.
             "day": service.day_agenda(subscription, now),
             # The day as one strip across Today (D171).
@@ -1395,6 +1408,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             hours=context["hours"],
             remind=service.remind_ask(store, subscription),
             recalled=context["recalled"],
+            league=context["league_week"],
             semester=context["semester_over"],
             holiday=context["holiday"],
             usage=context["usage_ask"],
@@ -1470,6 +1484,17 @@ def create_app(config: Config | None = None) -> FastAPI:
         # change, whose notice and entry are inside. D106: closed, it is a link, and
         # what it holds is neither made nor sent.
         opened = bool(more) or saved in DIARY_NOTICES
+        together = service.together_view(store, subscription, now)
+        subscription = settle_league(subscription, now)
+        badges = None
+        if opened:
+            badges = service.crests_view(store, subscription, now, logged=logged, together=together)
+            # The badges' points, kept for the level friends see in the league (D189).
+            if not service.crest_kept(subscription, badges):
+                subscription = (
+                    service.update_subscription(store, token, lambda s: service.keep_crest(s, badges))
+                    or subscription
+                )
         return page(
             request,
             "progress.html",
@@ -1477,7 +1502,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             today=now.astimezone(ZoneInfo(subscription.options["tz"])).date().isoformat(),
             why_tip=service.tip_here(subscription, "progress", now),  # D135
             view=service.progress_view(subscription, now, logged=logged),
-            together=service.together_view(store, subscription, now),
+            together=together,
+            crest=service.crest_of(store, subscription) if subscription.plan else None,
             review=service.review_with_ai(
                 store, subscription, service.weekly_review(subscription, now, logged=logged), now=now
             )
@@ -1487,7 +1513,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             trend=trend,
             climb=service.climb_view(trend) if trend else None,
             groups=service.groups_view(store, subscription, now)["groups"] if opened else [],
-            badges=service.badges_view(store, subscription, now, logged=logged) if opened else None,
+            badges=badges,
             insights=service.insights_view(store, subscription, now) if subscription.plan else None,
             memory=service.learning_view(store, subscription, now),
             saved=_notice(saved),
@@ -1743,6 +1769,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.cheer_classmate(store, subscription, handle, config.clock())
         except service.ServiceError as error:
             return refused(request, token, error)
+        # Counted for the Cheerleader badge (D189).
+        service.update_subscription(store, token, lambda s: service.record_cheer(s, config.clock()))
         service.log_event(store, token, "cheer")
         target = back(form, token, f"/p/{token}/focus")
         return RedirectResponse(
@@ -2027,15 +2055,36 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
+        now = config.clock()
+        subscription = settle_league(subscription, now)
         view = service.community_view(
             store,
             subscription,
             tab=tab,
             filters={"uni": uni, "prog": prog, "course": course, "kind": kind},
             shown=n,
-            now=config.clock(),
+            now=now,
         )
-        return page(request, "community.html", token=token, view=view, saved=_notice(saved), tab="community")
+        league = service.league_view(store, subscription, now)
+        return page(
+            request,
+            "community.html",
+            token=token,
+            view=view,
+            league=league,
+            saved=_notice(saved),
+            tab="community",
+        )
+
+    @app.post("/p/{token}/league")
+    async def league_switch(request: Request, token: str) -> Response:
+        """Play the weekly league with friends, or leave it (D189)."""
+        if load(token) is None:
+            return missing(request)
+        form = await request.form(max_files=0, max_fields=3)
+        on = str(form.get("on") or "") == "1"
+        service.update_subscription(store, token, lambda s: service.set_league(s, on))
+        return RedirectResponse(back(form, token, f"/p/{token}/community"), 303)
 
     @app.get("/p/{token}/post/{post_id}", response_class=HTMLResponse)
     def post_page(request: Request, token: str, post_id: str, saved: str = "") -> HTMLResponse:
@@ -2151,7 +2200,8 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.get("/p/{token}/profile", response_class=HTMLResponse)
     def profile(request: Request, token: str, next: str = "", for_class: str = "") -> HTMLResponse:
-        if load(token) is None:
+        subscription = load(token)
+        if subscription is None:
             return missing(request)
         current = service.profile_of(store, token)
         # Coming from a class link (D104): its university and programme, to change.
@@ -2166,6 +2216,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             years=service.YEAR_WORDS,
             next=safe_next(token, next),
             studying_now=service.studying_now_on(store, token),
+            league_on=service.league_on(subscription),
             tab="community",
         )
 
@@ -2184,7 +2235,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if not changes.allow(token):
             return too_many(request)
         subscription = load(token)
-        form = await request.form(max_files=0, max_fields=11)
+        form = await request.form(max_files=0, max_fields=12)
         fields = {k: str(v) for k, v in form.items()}
         before = service.profile_of(store, token)
         then = safe_next(token, fields.get("next", ""))
@@ -2203,10 +2254,14 @@ def create_app(config: Config | None = None) -> FastAPI:
                 years=service.YEAR_WORDS,
                 next=then,
                 studying_now=fields.get("studying_now") == "1",
+                league_on=fields.get("league") == "1",
                 error=str(error),
                 tab="community",
             )
         service.set_studying_now(store, token, fields.get("studying_now") == "1")
+        playing = fields.get("league") == "1"
+        if subscription is not None and service.league_on(subscription) != playing:
+            service.update_subscription(store, token, lambda s: service.set_league(s, playing))
         if before is None and subscription is not None:
             service.share_flag(store, subscription)  # D143: an avatar's flag made before the profile
         service.log_event(store, token, "profile", "new" if before is None else "changed")

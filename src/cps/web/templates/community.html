@@ -35,6 +35,28 @@
    comes first in the page so that a phone keeps Studying now above the feed. #}
 <div class="with-context context-first">
 <div class="context-col">
+{# The friends' league (D189): this week's points among the friends who play, each with
+   their avatar and their level on a small crest; who moves up, who may move down. #}
+{% if view.tab != "explore" and league and league.on %}{% from "_crest.html" import league_table %}
+<section class="card league-card section" id="league" aria-labelledby="league-title">
+  <div class="league-head">
+    <span class="crest metal-{{ league.league }}" aria-hidden="true"></span>
+    <div><h2 id="league-title">{{ league.league_name }}</h2>
+    <span class="muted">{{ _n("{n} day left this week", "{n} days left this week", league.days_left) }}</span></div>
+  </div>
+  {% if not league.profile %}
+  <p class="hint">{{ _("Make your profile to play the weekly league with your friends.") }} <a href="/p/{{ token }}/profile">{{ _("Make my profile") }}</a></p>
+  {% else %}
+  {{ league_table(league, token) }}
+  {% if not league.enough %}<p class="hint">{{ _n("The league moves once {n} friend plays: people you follow who follow you back.", "The league moves once {n} friends play: people you follow who follow you back.", league.least - 1) }}</p>{% endif %}
+  <details class="league-rules">
+    <summary>{{ _("How the league works") }}</summary>
+    <p class="hint">{{ _("Each week, Monday to Sunday: +{done} for a session done, +{proof} more once a classmate vouches for it (once a day). The top {n} move up a league; the bottom {n} move down, unless they studied on {days} days of the week. Your hours and what you study are never shown.", done=league.rule.done, proof=league.rule.proof, n=league.move, days=league.floor) }}</p>
+    <form method="post" action="/p/{{ token }}/league" class="league-off"><input type="hidden" name="on" value="0"><button type="submit" class="btn btn-sm">{{ _("Leave the league") }}</button></form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
 {% if view.tab != "explore" %}
 {# The study map (D133): who is studying where. #}
 <a class="card link-card section map-link" href="/p/{{ token }}/map"><b>{{ _("Who's studying where") }}</b><span class="muted">{{ _("The map of places to study, and who is at each now.") }}</span></a>

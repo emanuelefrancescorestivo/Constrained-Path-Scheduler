@@ -1943,27 +1943,91 @@ h2[id] { scroll-margin-top: 72px; }
 .lead-choice { margin-top: 12px; }
 [data-push] [data-push-status] { margin: 8px 0; }
 
-/* -- step 5: about you, invitation links, the badge shelf (D39 to D41) ------------- */
-.badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.badge-tile {
+/* -- step 5: about you, invitation links (D39, D40) ----------------------------------- */
+/* -- crests (D189): levels, badges in four tiers, the friends' league -----------------
+   One six-sided shield for all of it: a level's crest wears the league of the week, its
+   number on a dark field inside; a badge's crest its tier's metal, its icon inside; a
+   badge not yet earned is grey. The metals are the same in light and dark: a crest is
+   an emblem, like a coin, and its dark field keeps its number legible on both. */
+.crest {
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: var(--metal, var(--fill-2));
+}
+.metal-bronze { --metal: linear-gradient(135deg, #f0c09a, #a4643a); --metal-ink: #e0a877; }
+.metal-silver { --metal: linear-gradient(135deg, #f4f7fb, #8d97a6); --metal-ink: #d5dce6; }
+.metal-gold { --metal: linear-gradient(135deg, #ffe7a0, #c88f12); --metal-ink: #f2c14e; }
+.metal-ice { --metal: linear-gradient(135deg, #e0f7ff, #3aa0d8); --metal-ink: #7dd3fc; }
+.metal-aurora { --metal: linear-gradient(135deg, #b197fc, #2fd4c4); --metal-ink: #c4b5fd; }
+.metal-none { --metal: var(--fill-2); --metal-ink: var(--muted); }
+.crest-md { width: 64px; height: 72px; }
+.crest-lg { width: 84px; height: 94px; }
+.crest-inner {
+  position: absolute; inset: 7% 8%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: #15171c; color: var(--metal-ink);
+}
+.crest-inner small { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.1; }
+.crest-inner b { font-size: 1.9rem; line-height: 1; font-weight: 800; }
+.crest-lg .crest-inner b { font-size: 2.4rem; }
+.crest-chip {
+  position: absolute; right: -5px; bottom: -6px; width: 22px; height: 25px;
+  color: #15171c; font-size: 0.75rem; font-weight: 800; line-height: 1;
+}
+/* The tier's numeral is a ribbon across the crest's lower point; its room is kept under
+   every crest, earned or not, so a row of tiles keeps one line. */
+.crest-badge { position: relative; display: inline-flex; flex-direction: column; align-items: center; padding-bottom: 10px; }
+.crest-fill { width: 60px; height: 66px; color: #1a1c23; }
+.crest-fill svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.crest-fill.metal-none { color: var(--faint); }
+.crest-badge-sm .crest-fill { width: 44px; height: 48px; }
+.crest-badge-sm .crest-fill svg { width: 20px; height: 20px; }
+.crest-roman {
+  position: absolute; bottom: 0; left: 50%; translate: -50% 0; min-width: 2.2em; padding: 1px 8px; border-radius: 7px;
+  text-align: center; background: #15171c; color: var(--metal-ink); box-shadow: 0 0 0 2px var(--surface);
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; line-height: 1.4;
+}
+.metal-ink-bronze { --metal-ink: #e0a877; } .metal-ink-silver { --metal-ink: #d5dce6; }
+.metal-ink-gold { --metal-ink: #f2c14e; } .metal-ink-ice { --metal-ink: #7dd3fc; }
+.crests { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.crest-tile {
   display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
   padding: 16px 10px 14px; border-radius: var(--radius); background: var(--surface);
 }
-.badge-tile b { font-size: 0.9rem; line-height: 1.25; }
-.badge-tile small { font-size: 0.76rem; color: var(--muted); line-height: 1.3; }
-.badge-art {
-  display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 4px; border-radius: 50%;
-  background: var(--fill-3); color: var(--faint);
+.crest-tile b { font-size: 0.9rem; line-height: 1.25; margin-top: 4px; }
+.crest-tile small { font-size: 0.76rem; color: var(--muted); line-height: 1.3; }
+.crest-tile .crest-ladder { color: var(--text); font-weight: 600; }
+.crest-tile:not(.earned) b { color: var(--muted); }
+.crest-pips { display: flex; gap: 4px; margin: 2px 0; }
+.crest-pips span {
+  width: 12px; height: 13px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: var(--metal, var(--fill-2));
 }
-.badge-art svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.badge-tile.earned .badge-art {
-  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, #fff 35%, var(--cc)), var(--cc));
-  color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--cc) 35%, transparent);
-}
-.badge-tile:not(.earned) b { color: var(--muted); }
-.badges-note { margin: 10px 4px 0; }
-html:not(.settled) .badge-tile.earned .badge-art { animation: pop 0.5s var(--ease-spring) both; }
-@supports (corner-shape: squircle) { .badge-tile { corner-shape: squircle; } }
+.crest-group { margin: 18px 4px 8px; font-size: 1.05rem; }
+.crest-group small { margin-left: 6px; font-weight: 500; color: var(--muted); font-size: 0.85rem; }
+.crests-note { margin: 12px 4px 0; }
+.crest-card { display: flex; align-items: center; gap: 16px; }
+.crest-card-words { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.crest-card-title { font-size: 1.1rem; }
+.crest-bar { display: block; height: 8px; border-radius: 6px; background: var(--fill-2); overflow: hidden; }
+.crest-bar > span { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--t-purple)); }
+@supports (corner-shape: squircle) { .crest-tile { corner-shape: squircle; } }
+/* The league (D189): each friend's avatar with their level on a small crest at its corner. */
+.league-head { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.league-head h2 { margin: 0; font-size: 1.15rem; }
+.league-head .crest { width: 40px; height: 44px; }
+.league-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.league-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 12px; }
+.league-row.me { background: var(--accent-soft); }
+.league-rank { width: 1.4em; font-weight: 800; color: var(--muted); text-align: center; }
+.league-face { position: relative; flex: none; }
+.league-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.league-name a { color: inherit; }
+.league-points { font-variant-numeric: tabular-nums; }
+.league-zone { padding: 8px 8px 2px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.league-zone.zone-up { color: var(--ok); }
+.league-zone.zone-down { color: var(--warn); }
+.league-off { margin: 8px 0 0; }
 .invitation { max-width: 30rem; margin: 0 auto; text-align: center; }
 /* A class's link (D104): its courses, each with its topics' first titles, read left to
    right inside the centred card; on the take page, each beside the plan's own. */
@@ -2392,21 +2456,37 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   .landing-shot.phone { width: min(78%, 300px); }
 }
 
-/* 5: points and badges, the app's own tiles. */
-.landing-points { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 12px; }
+/* 5 (D190): the friends' league, the points and the crests, as the app draws them. The
+   points' number sits above its words, so a label that wraps keeps them square (the
+   owner's photo of D188's card, AUDIT). */
+.landing-rewards { display: grid; gap: 12px; }
+.landing-league { padding: 12px 14px 8px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.landing-league-head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+.landing-league-head .muted { margin-left: auto; font-size: 0.84rem; }
+.landing-league-head .crest { width: 26px; height: 29px; }
+.landing-points { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
 .landing-point {
-  display: flex; align-items: baseline; gap: 10px; margin: 0; padding: 14px 16px; border-radius: var(--radius-lg);
-  background: var(--surface); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 0; padding: 12px 16px;
+  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line);
 }
-.landing-point b { font-family: var(--font-display); font-size: 2rem; letter-spacing: -0.03em; color: var(--accent-ink); }
+.landing-point b { font-family: var(--font-display); font-size: 1.9rem; line-height: 1.1; letter-spacing: -0.03em; color: var(--accent-ink); }
 .landing-point.proof b { color: var(--nf-2); }
 .landing-point span { font-size: 0.88rem; font-weight: 600; line-height: 1.3; }
-.landing-badges { grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); }
-/* A phone shows six: two more rows would add a screen and say nothing new. */
-@media (max-width: 560px) { .landing-badges li:nth-child(n+7) { display: none; } }
+.landing-crests { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; margin: 0; padding: 14px 10px; list-style: none; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.landing-crests li { display: grid; justify-items: center; gap: 4px; text-align: center; }
+.landing-crests b { font-size: 0.8rem; line-height: 1.2; }
+/* A phone shows four: a second row would add half a screen and say nothing new. */
+@media (max-width: 560px) { .landing-crests li:nth-child(n+5) { display: none; } }
 
-/* 7: one week of lectures prepared three ways, drawn from the memory model. */
+/* 7: a course prepared two ways, in three numbers (D190), then one of its weeks drawn
+   from the memory model. */
 .landing-chart { padding: 18px 16px 14px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.landing-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; }
+.landing-tile { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 12px; border-radius: 12px; background: var(--fill-3); }
+.landing-tile b { font-family: var(--font-display); font-size: 1.9rem; line-height: 1.05; letter-spacing: -0.03em; color: var(--accent-ink); }
+.landing-tile span { font-size: 0.82rem; line-height: 1.35; color: var(--muted); }
+@media (max-width: 480px) { .landing-tiles { grid-template-columns: minmax(0, 1fr); } .landing-tile { flex-direction: row; align-items: center; gap: 12px; } .landing-tile b { flex: none; min-width: 3.6rem; } }
+.landing-chart-title { margin: 0 0 8px; font-size: 0.88rem; font-weight: 650; }
 /* Its text is 12 units in a drawing 300 wide: 12 pixels or more on any screen 368 pixels wide or more. */
 .landing-chart svg { display: block; width: 100%; max-width: 26rem; height: auto; margin: 0 auto; overflow: visible; }
 .landing-axis { stroke: var(--line-strong); stroke-width: 1; }
@@ -2499,7 +2579,7 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
     :root:not([data-motion="reduce"]) :is(.landing-head, .landing-index li, .landing-words > *, .landing-close > *) {
       animation: landing-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 90%;
     }
-    :root:not([data-motion="reduce"]) :is(.landing-shot, .landing-chart, .landing-rewards .landing-points) {
+    :root:not([data-motion="reduce"]) :is(.landing-shot, .landing-chart, .landing-league) {
       animation: landing-settle linear both; animation-timeline: view(); animation-range: entry 0% cover 40%;
     }
     /* The three curves draw themselves, the one studied once first, the spaced one last,
@@ -2509,9 +2589,10 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
     :root:not([data-motion="reduce"]) .landing-line.crammed { animation-range: entry 70% cover 44%; }
     :root:not([data-motion="reduce"]) .landing-line.spaced { animation-range: entry 90% cover 50%; }
     :root:not([data-motion="reduce"]) .landing-end { animation: landing-show linear both; animation-timeline: --chart; animation-range: cover 44% cover 52%; }
-    /* The points, then the badges, arrive as they come into view. */
-    :root:not([data-motion="reduce"]) :is(.landing-point, .landing-badges li) {
-      animation: landing-pop linear both; animation-timeline: view(); animation-range: entry 30% cover 35%;
+    /* The points, then the crests, fade in as they come into view: their size never
+       changes, so a row of crests is never seen at different sizes (AUDIT). */
+    :root:not([data-motion="reduce"]) :is(.landing-point, .landing-crests li, .landing-tile) {
+      animation: landing-show linear both; animation-timeline: view(); animation-range: entry 30% cover 35%;
     }
     :root:not([data-motion="reduce"]) .landing-point.proof { animation-range: entry 70% cover 45%; }
   }
@@ -2524,7 +2605,6 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 @keyframes landing-settle { from { opacity: 0; transform: perspective(1200px) rotateX(10deg) scale(0.94); } }
 @keyframes landing-draw { from { stroke-dashoffset: 1; } }
 @keyframes landing-show { from { opacity: 0; } }
-@keyframes landing-pop { from { opacity: 0; scale: 0.7; } }
 
 /* Nothing on the app's own pages moves as the page scrolls (D132): what came into view
    used to rise into place, and movement tied to scrolling is what brings on dizziness
@@ -2845,7 +2925,7 @@ body[data-sky] .focus:fullscreen {
    graphics chip that kept a page busy doing nothing. */
 
 /* -- the glass ------------------------------------------------------------------- */
-body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .cards-due, .more > summary, a.more-closed) {
+body[data-sky] :is(.card, fieldset, .stat, .tile, .crest-tile, .sheet-group, .cards-due, .more > summary, a.more-closed) {
   background: linear-gradient(150deg, var(--glass-top), var(--glass-bottom));
   -webkit-backdrop-filter: blur(14px) saturate(180%);
   backdrop-filter: blur(14px) saturate(180%);
@@ -2854,7 +2934,7 @@ body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .ca
 }
 body[data-sky] :is(.card, fieldset, .strip) { border-radius: 22px; }
 /* Glass inside glass: no second blur, no second shadow. */
-body[data-sky] :is(.card, fieldset, .sheet[popover]) :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group) {
+body[data-sky] :is(.card, fieldset, .sheet[popover]) :is(.card, fieldset, .stat, .tile, .crest-tile, .sheet-group) {
   box-shadow: inset 0 1px 0 var(--glass-hi); -webkit-backdrop-filter: none; backdrop-filter: none;
 }
 body[data-sky] .panel { background: transparent; }
@@ -2979,7 +3059,7 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
    when this device blurred too slowly while a page arrived; "See-through" keeps the
    glass whatever the device says. */
 @media (prefers-reduced-transparency: reduce) {
-  :root:not([data-glass="clear"]) body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group,
+  :root:not([data-glass="clear"]) body[data-sky] :is(.card, fieldset, .stat, .tile, .crest-tile, .sheet-group,
     .strip-item, .cards-due, .more > summary, a.more-closed, .topbar, .board, .sheet[popover], .pop[popover], .tabbar) {
     background: var(--surface);
   }
@@ -2987,7 +3067,7 @@ body[data-garden="4"] .garden .g-flower { --g: url("/static/garden/flower.svg");
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 }
-:root[data-glass="solid"] body[data-sky] :is(.card, fieldset, .stat, .tile, .badge-tile, .sheet-group, .strip-item,
+:root[data-glass="solid"] body[data-sky] :is(.card, fieldset, .stat, .tile, .crest-tile, .sheet-group, .strip-item,
   .cards-due, .more > summary, a.more-closed, .topbar, .board, .sheet[popover], .pop[popover], .tabbar) {
   background: var(--surface);
 }

@@ -21,6 +21,8 @@ from pathlib import Path
 
 from markupsafe import Markup
 
+from cps import service
+
 ICONS = Path(__file__).resolve().parent / "static" / "vendor" / "lucide"
 
 # Each place's picture (D99) by the Lucide icon drawn on its tile (D139).
@@ -72,18 +74,8 @@ ART: dict[str, str] = {
     "study": "book-marked",
 }
 
-# The badges' pictures (D41), by the same set.
-GLYPHS: dict[str, str] = {
-    "spark": "sparkles",
-    "flame": "flame",
-    "week": "calendar-check",
-    "recall": "history",
-    "clock": "clock",
-    "focus": "target",
-    "cards": "layers",
-    "speech": "message-square-text",
-    "leaf": "leaf",
-}
+# The crests' pictures (D189): each badge's own icon, as `service` lists them.
+CRESTS: frozenset[str] = service.CREST_ICONS
 
 # The bars, the sidebar and the buttons.
 PLACES: tuple[str, ...] = (
@@ -149,4 +141,4 @@ MATERIAL: dict[str, str] = {
 
 def shipped() -> set[str]:
     """Every icon the app may draw."""
-    return set(ART.values()) | set(GLYPHS.values()) | set(PLACES) | set(MATERIAL.values())
+    return set(ART.values()) | set(CRESTS) | set(PLACES) | set(MATERIAL.values())
