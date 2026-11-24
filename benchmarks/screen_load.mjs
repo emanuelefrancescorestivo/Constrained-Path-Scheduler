@@ -116,8 +116,9 @@ const rows = [];
 
 // ---------------------------------------------------------------- a new student
 // An account first (D94): the address, the password, the button; then the timetable,
-// and setting up as it now goes (D98): the exams, the week with its plan, Today. Since
-// D107, a phone first sees three welcome cards, and a new plan's first run goes: who is
+// and setting up as it now goes (D98): the exams, the week with its plan, Today. From
+// D107 to D188, a phone first saw three welcome cards ("Get started" is tapped if they
+// are there); since D107 a new plan's first run goes: who is
 // studying, the courses, the class, who sees the sessions, Today.
 let taps = 0;
 await page.goto(`${WEB}/?lang=en`);

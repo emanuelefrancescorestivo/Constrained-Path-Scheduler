@@ -12,9 +12,10 @@ from pathlib import Path
 
 CSS = (Path(__file__).resolve().parent.parent / "src/cps/web/static/style.css").read_text(encoding="utf-8")
 PLAIN = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
-# The explaining pages' figures and scenes (D109, D112, D113): the only things that may
+# The explaining pages' figures and scenes (D109, D112, D113), and the front page's
+# story, which explains the app as it is scrolled (D188): the only things that may
 # follow the scroll, each under :root:not([data-motion="reduce"]).
-EXPLAINING = (".scroll-fig", ".code-", ".science-block", ".sci-figure")
+EXPLAINING = (".scroll-fig", ".code-", ".science-block", ".sci-figure", ".landing-")
 
 
 def _rules() -> list[tuple[str, str]]:

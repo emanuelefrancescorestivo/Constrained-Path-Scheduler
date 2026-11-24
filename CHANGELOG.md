@@ -4,6 +4,13 @@
 
 ### Added
 
+- The front page tells the app's story as it is scrolled (DECISIONS.md D188): under the pitch, Today
+  on a laptop and a phone, then eight questions beside screenshots of the real app in the page's
+  language, light or dark as the device is (what it changes, each day, what keeps you going, friends, points and badges, why it was
+  made, whether it works, how to start), the forgetting curves drawn from the memory model as they
+  come into view. It replaces a phone's three welcome cards (D107). `benchmarks/landing_shots.mjs`
+  takes the pictures again.
+
 - Courses without an exam (DECISIONS.md D185): setting up and Settings' exams list the timetable's
   courses with no exam in it ("No exam in your timetable for: Math in Practice"); a date plans one,
   left empty it stays out.

@@ -272,7 +272,7 @@ small, .muted { color: var(--muted); }
 .page-title h1 { font-size: 2.1rem; }
 .page-title p { color: var(--muted); margin: 4px 0 0; font-size: 1rem; }
 
-/* The home page's hero and features are in their own section near the end (D58). */
+/* The home page's hero and story are in their own sections near the end (D58, D188). */
 
 /* -- components ------------------------------------------------------------------ */
 /* An inset grouped section */
@@ -1869,7 +1869,7 @@ details > summary::before { transition: transform 0.3s var(--ease-out); }
    stay circular. Pills and circles are left as they are. */
 @supports (corner-shape: squircle) {
   :root { --radius: 22px; --radius-sm: 16px; --radius-lg: 30px; }
-  :is(.card, fieldset, .stat, .tile, .notice, .alert, .features li, .menu-items, .pop, .sheet[popover],
+  :is(.card, fieldset, .stat, .tile, .notice, .alert, .menu-items, .pop, .sheet[popover],
     .sheet-group, .cards-due, .running-focus, .review-numbers span, .handle-input, .photos, .drop,
     .code, .way-icon, .ev, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
     corner-shape: squircle;
@@ -2295,34 +2295,236 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
 .signin h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.4rem; letter-spacing: -0.02em; }
 .signin .recover { text-align: left; }
 
-/* The four promises: nodes on one line (a column on a phone). */
-.features { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin: 72px 0 24px; padding: 0; list-style: none; }
-.features li { position: relative; padding: 28px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
-.features strong { display: block; margin-bottom: 6px; color: var(--text); font-size: 1rem; letter-spacing: -0.01em; }
-.features li::before {
-  content: ""; position: absolute; top: 0; left: 0; width: 11px; height: 11px; border-radius: 50%;
-  background: var(--nf-1); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-1) 18%, transparent), 0 0 18px var(--nf-1);
-}
-.features li:nth-child(2)::before { background: var(--nf-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-2) 18%, transparent), 0 0 18px var(--nf-2); }
-.features li:nth-child(3)::before { background: var(--nf-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-3) 18%, transparent), 0 0 18px var(--nf-3); }
-.features li::after {
-  content: ""; position: absolute; top: 5px; left: 22px; right: -18px; height: 1px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--nf-1) 55%, transparent), color-mix(in srgb, var(--nf-2) 35%, transparent));
-}
-.features li:last-child::after { display: none; }
-@media (max-width: 860px) {
-  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .features li:nth-child(2n)::after { display: none; }
-}
 @media (max-width: 560px) {
   .hero { min-height: 0; padding: 48px 0 64px; }
   .hero-actions { flex-direction: column; gap: 16px; }
-  .features { grid-template-columns: 1fr; gap: 26px; margin-top: 56px; }
-  .features li { padding: 0 0 0 30px; }
-  .features li::before { top: 4px; }
-  .features li::after, .features li:nth-child(2n)::after { display: block; top: 22px; bottom: -22px; left: 5px; right: auto; width: 1px; height: auto; }
-  .features li:last-child::after { display: none; }
 }
+
+/* -- the front page's story (D188) -----------------------------------------------
+   Under the pitch, the real app (screenshots in the page's language, taken from the
+   demo by benchmarks/landing_shots.mjs), then eight questions, each its words beside
+   a picture: what the app changes for a student, how it was made, how to use it.
+   On a laptop the pictures alternate sides and a rail of eight dots keeps the place;
+   on a phone each question is its words, then its picture. As the page is scrolled
+   the pictures settle flat, the words come up, the forgetting curves draw themselves,
+   the points and badges arrive: an explaining page's scenes (D109), so they follow
+   the scroll only where motion is welcome, and the page is the same, still, without
+   scroll-driven animations, without motion, or without a script. */
+.landing-kicker {
+  margin: 0 0 18px; padding: 6px 14px; border-radius: 999px; font-size: 0.86rem; font-weight: 650; color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.landing-gains { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 26px 0 0; padding: 0; list-style: none; }
+.landing-gains li { display: inline-flex; align-items: center; gap: 7px; font-size: 0.92rem; font-weight: 600; color: var(--muted); }
+.landing-gains svg { width: 18px; height: 18px; color: var(--accent-ink); }
+.landing-gains li:nth-child(2) svg { color: var(--nf-2); }
+.landing-gains li:nth-child(3) svg { color: var(--nf-3); }
+
+/* The real app: Today on a laptop, and on a phone in front of it. */
+.landing-devices { display: grid; width: min(64rem, calc(100vw - 32px)); margin: 56px 0 0; perspective: 1600px; }
+.landing-devices > div { grid-area: 1 / 1; }
+.landing-laptop {
+  width: 84%; justify-self: start; overflow: hidden; border-radius: 14px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  box-shadow: 0 44px 90px -46px color-mix(in srgb, var(--nf-1) 60%, transparent), 0 12px 32px -20px rgb(0 0 0 / 40%);
+}
+.landing-phone {
+  width: 25%; justify-self: end; align-self: end; translate: 0 10%; overflow: hidden;
+  border: 7px solid #16181d; border-radius: 34px; background: #16181d;
+  box-shadow: 0 34px 70px -30px color-mix(in srgb, var(--nf-2) 55%, transparent), 0 10px 26px -14px rgb(0 0 0 / 45%);
+}
+:is(.landing-laptop, .landing-phone, .landing-shot) :is(picture, img) { display: block; width: 100%; height: auto; }
+.landing-devices figcaption { grid-row: 2; margin: 52px auto 0; max-width: 36rem; }
+:is(.landing-devices, .landing-shot, .landing-chart, .landing-rewards) figcaption { font-size: 0.84rem; line-height: 1.45; color: var(--muted); }
+@media (max-width: 699px) {
+  .landing-laptop { width: 90%; }
+  .landing-phone { width: 36%; border-width: 5px; border-radius: 24px; }
+  .landing-devices figcaption { margin-top: 36px; }
+}
+
+/* The story: as wide as the window allows, wider than the pitch above it. */
+.landing-story {
+  position: relative; margin: 72px calc((100% - min(70rem, 100vw - 32px)) / 2) 0;
+  timeline-scope: --q1, --q2, --q3, --q4, --q5, --q6, --q7, --q8;
+}
+.landing-head { max-width: 44rem; margin: 0 auto; text-align: center; }
+.landing-eyebrow, .landing-num {
+  margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink);
+}
+.landing-head h2 {
+  margin: 10px 0 0; font-family: var(--font-display); font-size: clamp(1.7rem, 4vw, 2.7rem);
+  line-height: 1.1; letter-spacing: -0.035em; font-weight: 750;
+}
+.landing-index {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 10px;
+  margin: 36px 0 0; padding: 0; list-style: none;
+}
+.landing-index a {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; border-radius: var(--radius-lg);
+  color: var(--text); font-weight: 600; font-size: 0.95rem; line-height: 1.3; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--line);
+}
+@media (hover: hover) { .landing-index a:hover { border-color: var(--accent); } }
+.landing-n {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  font-size: 0.85rem; font-weight: 700; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Each question: its words beside its picture, sides alternating on a laptop. */
+.landing-q {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: 28px 64px;
+  padding: 88px 0 0; scroll-margin-top: calc(var(--topbar) + 12px);
+}
+.landing-q.flip > .landing-words { order: 2; }
+.landing-words h3 {
+  margin: 10px 0 0; font-family: var(--font-display); font-size: clamp(1.45rem, 3vw, 2.05rem);
+  line-height: 1.15; letter-spacing: -0.03em; font-weight: 750;
+}
+.landing-words p:not(.landing-num) { margin: 16px 0 0; font-size: 1.05rem; line-height: 1.55; color: var(--muted); }
+.landing-shot, .landing-chart, .landing-rewards { margin: 0; }
+.landing-shot img { border-radius: 14px; border: 1px solid var(--line-strong); box-shadow: 0 30px 70px -40px color-mix(in srgb, var(--nf-1) 55%, transparent); }
+.landing-shot.phone { justify-self: center; width: min(100%, 300px); }
+.landing-shot.phone img { border: 7px solid #16181d; border-radius: 34px; }
+.landing-shot figcaption, .landing-chart figcaption, .landing-rewards figcaption { margin: 14px 4px 0; }
+@media (max-width: 899px) {
+  .landing-q { grid-template-columns: minmax(0, 1fr); padding-top: 64px; }
+  .landing-q.flip > .landing-words { order: 0; }
+  .landing-shot.phone { width: min(78%, 300px); }
+}
+
+/* 5: points and badges, the app's own tiles. */
+.landing-points { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 12px; }
+.landing-point {
+  display: flex; align-items: baseline; gap: 10px; margin: 0; padding: 14px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.landing-point b { font-family: var(--font-display); font-size: 2rem; letter-spacing: -0.03em; color: var(--accent-ink); }
+.landing-point.proof b { color: var(--nf-2); }
+.landing-point span { font-size: 0.88rem; font-weight: 600; line-height: 1.3; }
+.landing-badges { grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); }
+/* A phone shows six: two more rows would add a screen and say nothing new. */
+@media (max-width: 560px) { .landing-badges li:nth-child(n+7) { display: none; } }
+
+/* 7: one week of lectures prepared three ways, drawn from the memory model. */
+.landing-chart { padding: 18px 16px 14px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+/* Its text is 12 units in a drawing 300 wide: 12 pixels or more on any screen 368 pixels wide or more. */
+.landing-chart svg { display: block; width: 100%; max-width: 26rem; height: auto; margin: 0 auto; overflow: visible; }
+.landing-axis { stroke: var(--line-strong); stroke-width: 1; }
+.landing-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.landing-exam { stroke: var(--red, #e5484d); stroke-width: 1; stroke-dasharray: 3 3; }
+.landing-tick { font-size: 12px; fill: var(--muted); }
+.landing-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.landing-line.spaced, .landing-legend .spaced::before { stroke: var(--accent); background: var(--accent); }
+.landing-line.crammed, .landing-legend .crammed::before { stroke: var(--nf-2); background: var(--nf-2); }
+.landing-line.once, .landing-legend .once::before { stroke: var(--muted); background: var(--muted); }
+.landing-end { font-size: 12px; font-weight: 700; fill: var(--text); }
+.landing-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 0.86rem; font-weight: 600; }
+.landing-legend li::before { content: ""; display: inline-block; width: 14px; height: 3px; margin: 0 7px 3px 0; border-radius: 2px; vertical-align: middle; }
+
+/* 8: three steps and three promises. */
+.landing-steps { margin: 20px 0 0; padding: 0; list-style: none; counter-reset: landing; display: grid; gap: 12px; }
+.landing-steps li { position: relative; padding: 0 0 0 44px; color: var(--muted); line-height: 1.45; counter-increment: landing; }
+.landing-steps li::before {
+  content: counter(landing); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 50%; font-weight: 700; font-size: 0.9rem; color: #fff; background: var(--accent);
+}
+.landing-steps b { display: block; color: var(--text); }
+.landing-trust { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.landing-trust li { display: flex; gap: 10px; font-size: 0.92rem; line-height: 1.45; color: var(--muted); }
+.landing-trust svg { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--nf-3); }
+
+/* The close: the same invitation as at the top, before the ways in. */
+.landing-close { margin: 110px 0 64px; text-align: center; }
+.landing-close h2 {
+  margin: 0; font-family: var(--font-display); font-size: clamp(1.8rem, 4.4vw, 2.8rem); line-height: 1.08; letter-spacing: -0.04em; font-weight: 750;
+}
+.landing-close > p:not(.hero-actions) { max-width: 32rem; margin: 14px auto 0; font-size: 1.08rem; line-height: 1.5; color: var(--muted); }
+.landing-close .hero-actions { margin-top: 22px; }
+
+/* Where the browser ties animations to scrolling: the place in the story, and the
+   scenes. Elsewhere, and with motion off, the rail and the line are not shown and
+   every picture is simply in place. */
+.landing-rail, .landing-progress { display: none; }
+#q1 { view-timeline-name: --q1; }
+#q2 { view-timeline-name: --q2; }
+#q3 { view-timeline-name: --q3; }
+#q4 { view-timeline-name: --q4; }
+#q5 { view-timeline-name: --q5; }
+#q6 { view-timeline-name: --q6; }
+#q7 { view-timeline-name: --q7; }
+#q8 { view-timeline-name: --q8; }
+.landing-story { view-timeline-name: --story; }
+.landing-chart { view-timeline-name: --chart; }
+@supports (animation-timeline: view()) and (timeline-scope: --a) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* A line under the top bar, filling as the story is read. */
+    :root:not([data-motion="reduce"]) .landing-progress {
+      display: block; position: sticky; z-index: 5; top: var(--topbar); height: 3px; margin: 0 0 -3px;
+      border-radius: 2px; background: var(--fill-2); overflow: hidden;
+    }
+    :root:not([data-motion="reduce"]) .landing-progress span {
+      display: block; height: 100%; transform-origin: 0 50%; background: linear-gradient(90deg, var(--nf-1), var(--nf-2), var(--nf-3));
+      animation: landing-fill linear both; animation-timeline: --story; animation-range: contain 0% contain 100%;
+    }
+    /* On a wide window, eight dots in the margin, the one being read alight. */
+    @media (min-width: 1240px) {
+      :root:not([data-motion="reduce"]) .landing-rail { display: block; position: sticky; z-index: 4; top: 40vh; height: 0; }
+      .landing-rail ol { position: absolute; left: -46px; top: 0; display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+      .landing-rail a { position: relative; display: grid; place-items: center; width: 24px; height: 24px; }
+      .landing-rail a::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--fill-2); }
+      .landing-rail-label {
+        position: absolute; left: 30px; top: 50%; translate: 0 -50%; white-space: nowrap; padding: 4px 10px; border-radius: 8px;
+        font-size: 0.8rem; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+        opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      }
+      .landing-rail a:is(:hover, :focus-visible) .landing-rail-label { opacity: 1; }
+      /* A dot is alight while the middle of the window is inside its question: from
+         the question's top reaching the middle to its bottom leaving it. The questions
+         touch, so one dot is alight at a time. */
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(1) a::before { animation: landing-lit linear; animation-timeline: --q1; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(2) a::before { animation: landing-lit linear; animation-timeline: --q2; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(3) a::before { animation: landing-lit linear; animation-timeline: --q3; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(4) a::before { animation: landing-lit linear; animation-timeline: --q4; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(5) a::before { animation: landing-lit linear; animation-timeline: --q5; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(6) a::before { animation: landing-lit linear; animation-timeline: --q6; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(7) a::before { animation: landing-lit linear; animation-timeline: --q7; animation-range: cover 50vh cover calc(100% - 50vh); }
+      :root:not([data-motion="reduce"]) .landing-rail li:nth-child(8) a::before { animation: landing-lit linear; animation-timeline: --q8; animation-range: cover 50vh cover calc(100% - 50vh); }
+    }
+    /* The app on the laptop settles flat as the page moves on; the phone comes up. */
+    :root:not([data-motion="reduce"]) .landing-laptop {
+      transform-origin: 50% 100%; animation: landing-tilt linear both; animation-timeline: view(); animation-range: entry 0% cover 45%;
+    }
+    :root:not([data-motion="reduce"]) .landing-phone { animation: landing-lift linear both; animation-timeline: view(); animation-range: entry 0% cover 50%; }
+    /* Each question's words come up, part by part; its picture settles. */
+    :root:not([data-motion="reduce"]) :is(.landing-head, .landing-index li, .landing-words > *, .landing-close > *) {
+      animation: landing-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 90%;
+    }
+    :root:not([data-motion="reduce"]) :is(.landing-shot, .landing-chart, .landing-rewards .landing-points) {
+      animation: landing-settle linear both; animation-timeline: view(); animation-range: entry 0% cover 40%;
+    }
+    /* The three curves draw themselves, the one studied once first, the spaced one last,
+       done when the chart's middle reaches the window's. */
+    :root:not([data-motion="reduce"]) .landing-line { animation: landing-draw linear both; animation-timeline: --chart; }
+    :root:not([data-motion="reduce"]) .landing-line.once { animation-range: entry 50% cover 38%; }
+    :root:not([data-motion="reduce"]) .landing-line.crammed { animation-range: entry 70% cover 44%; }
+    :root:not([data-motion="reduce"]) .landing-line.spaced { animation-range: entry 90% cover 50%; }
+    :root:not([data-motion="reduce"]) .landing-end { animation: landing-show linear both; animation-timeline: --chart; animation-range: cover 44% cover 52%; }
+    /* The points, then the badges, arrive as they come into view. */
+    :root:not([data-motion="reduce"]) :is(.landing-point, .landing-badges li) {
+      animation: landing-pop linear both; animation-timeline: view(); animation-range: entry 30% cover 35%;
+    }
+    :root:not([data-motion="reduce"]) .landing-point.proof { animation-range: entry 70% cover 45%; }
+  }
+}
+@keyframes landing-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes landing-lit { from, to { background: var(--accent); scale: 1.5; } }
+@keyframes landing-tilt { from { transform: rotateX(16deg) scale(0.94); opacity: 0.6; } }
+@keyframes landing-lift { from { translate: 0 40%; opacity: 0; } }
+@keyframes landing-rise { from { opacity: 0; translate: 0 18px; } }
+@keyframes landing-settle { from { opacity: 0; transform: perspective(1200px) rotateX(10deg) scale(0.94); } }
+@keyframes landing-draw { from { stroke-dashoffset: 1; } }
+@keyframes landing-show { from { opacity: 0; } }
+@keyframes landing-pop { from { opacity: 0; scale: 0.7; } }
 
 /* Nothing on the app's own pages moves as the page scrolls (D132): what came into view
    used to rise into place, and movement tied to scrolling is what brings on dizziness
@@ -4342,52 +4544,10 @@ i.wl-band { background: var(--mem-review); opacity: 0.6; }
 .feed-more { margin: 14px 0 0; }
 
 /* -- a new student's first run (D107) ------------------------------------------
-   After Strava's: on a phone, three cards that the browser snaps as they are
-   swiped, then the account; then who is studying, the courses, the class, who sees
-   the sessions; Today with Spark's one line; the first session's summary; the
-   question about reminders. Nothing here moves on its own. */
-.welcome { display: none; }
-@media (max-width: 699px) {
-  .home .welcome { display: flex; flex-direction: column; min-height: calc(100svh - 96px); padding: 0 0 20px; }
-  .home .hero-welcomed { display: none; }
-}
-.welcome-skip { margin: 0; text-align: right; font-weight: 600; }
-.welcome-skip a { display: inline-block; padding: 10px 4px; }
-.welcome-cards {
-  flex: 1; display: flex; gap: 16px; margin: 0 -16px; padding: 0 16px; list-style: none;
-  overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
-}
-.welcome-cards::-webkit-scrollbar { display: none; }
-.welcome-card {
-  flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always;
-  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-}
-.welcome-card :is(h1, h2) {
-  margin: 8px 0 0; max-width: 14ch; font-family: var(--font-display); font-size: 2.1rem;
-  line-height: 1.04; letter-spacing: -0.035em; font-weight: 750;
-}
-.welcome-card p { margin: 0; color: var(--muted); font-size: 1.05rem; }
-.welcome-art { position: relative; flex: 1; width: 100%; min-height: 230px; display: grid; place-items: center; }
-.welcome-art .mini-week { width: min(100%, 280px); height: 170px; margin: 0; }
-.welcome-spark { position: absolute; right: 4%; bottom: 0; }
-.welcome-spark .mascot { width: 84px; height: 84px; }
-.welcome-curve { width: min(100%, 300px); height: auto; padding: 14px; border-radius: var(--radius-lg); background: var(--fill-4); }
-.welcome-curve path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.welcome-curve .faded { stroke: var(--muted); stroke-width: 3; stroke-dasharray: 6 7; }
-.welcome-curve .kept { stroke: var(--accent); stroke-width: 5; }
-.welcome-curve circle { fill: var(--c1); }
-.welcome-class .mascot { width: 150px; height: 150px; }
-.welcome-class .avatar { position: absolute; border: 3px solid var(--surface); }
-.welcome-class .at0 { left: 6%; top: 6%; }
-.welcome-class .at1 { right: 6%; top: 2%; }
-.welcome-class .at2 { left: 2%; bottom: 16%; }
-.welcome-class .at3 { right: 3%; bottom: 18%; }
-.welcome-class .at4 { left: calc(50% - 38px); bottom: -6px; }
-.welcome-dots { display: flex; gap: 8px; justify-content: center; padding: 10px 0 2px; }
-.welcome-dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--fill-2); }
-.welcome-dots span.on { width: 22px; background: var(--text); }
-.welcome-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 14px; }
-.welcome-signin { display: inline-block; padding: 10px; font-weight: 600; }
+   After Strava's: who is studying, the courses, the class, who sees the sessions;
+   Today with Spark's one line; the first session's summary; the question about
+   reminders. Nothing here moves on its own. A phone's three welcome cards gave way
+   to the front page's story in D188. */
 
 .run { max-width: 34rem; margin: 0 auto; }
 .run h1 { margin: 4px 0 14px; }

@@ -801,12 +801,21 @@ def create_app(config: Config | None = None) -> FastAPI:
         # A class link opened with no plan yet (D104) sends its code here, to be
         # carried through the account to the plan's first run (D107).
         code = service.class_code(request.query_params.get("class"))
-        return page(request, "home.html", tz="Europe/Paris", account=account, made=made, class_code=code)
+        return page(
+            request,
+            "home.html",
+            tz="Europe/Paris",
+            account=account,
+            made=made,
+            class_code=code,
+            landing=service.landing_view(),
+        )
 
     # -- e-mail accounts (D94) ---------------------------------------------------
 
     def home_with(request: Request, status: int = 200, **context: Any) -> HTMLResponse:
         context.setdefault("tz", "Europe/Paris")
+        context.setdefault("landing", service.landing_view())
         return page(
             request, "home.html", status, account=signed(request) if config.accounts else None, **context
         )

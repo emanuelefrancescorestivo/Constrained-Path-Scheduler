@@ -28,7 +28,7 @@ where = ["src"]
     # Leaflet 1.9.4, the study map's library, with its licence (D133).
     "static/vendor/leaflet/*", "static/vendor/leaflet/images/*",
     # Lucide's icons the app draws, with their licence (D139).
-    "static/vendor/lucide/*",
+    "static/vendor/lucide/*", "static/landing/*/*",
     # flag-icons 7.6.0's square flags, with their licence (D143).
     "static/vendor/flags/*", "static/vendor/flags/1x1/*",
 ]

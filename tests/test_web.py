@@ -149,7 +149,7 @@ def test_the_home_page_pitches_first_and_keeps_an_error_beside_the_forms(web):
     assert neural.PARTIAL.read_text(encoding="utf-8") == neural.render()
     home = web.get("/").text
     assert '<svg class="neural"' in home and '<div class="hero-field" aria-hidden="true">' in home
-    # A phone first sees the welcome cards (D107; test_first_run), then the same page.
+    # Since D188 the story comes between the hero and the ways in (tests/test_landing.py).
     assert home.index('class="hero') < home.index('id="start"') < home.index('action="/start"')
     assert 'href="#start"' in home  # the hero's button leads to the ways in
     failed = web.post("/start", data={"tz": "Europe/Paris"}).text

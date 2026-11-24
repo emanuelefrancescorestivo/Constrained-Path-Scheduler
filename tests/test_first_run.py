@@ -256,18 +256,21 @@ def test_the_class_code_survives_the_account(tmp_path):
         assert made.status_code == 303 and f"class={code}" in made.headers["location"]
 
 
-def test_the_welcome_cards_are_the_first_visit_of_a_phone(tmp_path):
+def test_the_story_is_the_first_visit_of_every_screen(tmp_path):
+    """D107 showed a phone three cards to swipe before the account; D188 replaced them
+    with the front page's story, the first look on every screen, the demo's included
+    (tests/test_landing.py has the rest)."""
     with _web(tmp_path, Clock(MORNING)) as web:
         home = unescape(web.get("/").text)
-        assert 'class="welcome"' in home and home.count('class="welcome-card"') == 3
-        assert "Get started" in home and 'href="#start"' in home and "hero-welcomed" in home
-        # After a failed start the pitch is short and the cards are not shown again.
+        assert 'class="welcome"' not in home and 'id="story"' in home
+        assert "Plan my semester" in home and 'href="#start"' in home
+        # After a failed start the pitch is short and the story steps aside.
         failed = unescape(web.post("/start", data={"tz": "Europe/Paris"}).text)
-        assert 'class="welcome"' not in failed
-    with _web(tmp_path, Clock(MORNING), demo=True) as demo:
-        assert 'class="welcome"' not in demo.get("/").text  # the demo's pitch is its button
+        assert 'id="story"' not in failed and "hero-short" in failed
+    with _web(tmp_path, Clock(MORNING), demo=lambda year: "") as demo:
+        assert 'id="story"' in demo.get("/").text
     css = (ROOT / "src/cps/web/static/style.css").read_text()
-    assert ".welcome { display: none; }" in css and "scroll-snap-type: x mandatory" in css
+    assert ".welcome-card" not in css
 
 
 @pytest.mark.parametrize("step", ["you", "class", "sharing", "remind"])

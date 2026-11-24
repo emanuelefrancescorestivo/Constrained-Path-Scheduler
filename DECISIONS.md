@@ -7330,3 +7330,62 @@ until saved again. Measured on the second-year sample (`tests/test_topics.py`): 
 Algebra 3's eleven teaching weeks cover weeks 1-2, 3-5, 6-8 and 9-11, All Saints' week left out as
 it has no lectures.
 
+
+## D188. The front page tells the app's story as it is scrolled
+
+**Asked.** The owner chose proposal A of three front pages (glass and neurons, the app's own look),
+asked for real screenshots of the app in place of its mock-ups, then for it in the app: "dynamic
+as one scrolls to explore it", and persuading a student that the app builds good study habits and
+lets them share their work and progress with friends, with points and badges: what it is worth to
+them, not only how it works. Since the first ask, the page should also say, question by question,
+how the app was made, why, and how to use it.
+
+**Chosen.** Under the pitch (a line on habits with your class, the headline, three gains: a
+streak that forgives a day off, friends beside you, points and badges), Today on a laptop with the
+phone in front of it, then eight questions, each its words beside a picture of the real app: what
+it changes (the week with sessions in its gaps), what to do each day (Focus), what keeps a student
+going (Progress), studying with friends (Community), what they get (a session's 10 points, 20 more
+once a classmate vouches for it, eight of the 17 badges as the app draws them), why it was made
+(the lecture at nine, the research question and its answer, one session in twenty, beside a
+course's page), whether it works (Dunlosky and colleagues, 2013, and one week of lectures prepared
+three ways), how to start and whether to trust it (three steps, the numbers' code, the plan deleted
+12 months after the last visit, AI optional). Every number is computed for the page
+(`service.landing_view`): the curves are `benchmarks/figures.py`'s method with FSRS-6, 87 % kept
+twelve weeks after the exam with three spread self-tests, 80 % with four sessions in the last days,
+50 % studied once; the points, the badges' count, the make-up session's 25 minutes, Focus's pause
+every 25 minutes and the 12 months are the app's own constants. The pictures are the demo's
+made-up class on a Tuesday morning, its clock held so they are the same whenever they are taken,
+in English, French and Italian, each in light and in dark: each page shows its own language's, in
+the theme the reader's device asks for (`benchmarks/landing_shots.mjs` with
+`benchmarks/landing_server.py`; under 0.8 MB a language and theme, `tests/test_landing.py`, the
+first two loaded at once, the rest as they come near). As the page is scrolled, the laptop settles flat and the phone comes up, each
+question's words come up part by part and its picture settles, the three curves draw themselves and
+their ends are labelled, the points and badges arrive, a line under the top bar fills as the story
+is read, and on a wide window eight dots in the margin light the question being read. The close
+repeats the invitation (the demo's two buttons, or "Plan my semester"), then the ways in and signing
+in, unchanged. A failed start or sign-in shows the form first, without the story.
+
+**Rejected.** Light pictures on a dark page (the first build): the owner saw them and asked for the
+dark app in the dark page. Keeping D107's three cards to swipe on a phone: they hid the pitch and the story
+behind a tap, and the owner wants the story as the first look. Recording the pictures in English
+only: a French or Italian student would read the page in one language and the app in another. Mock
+screens drawn for the page, as in the proposals: the owner asked for the real app. A leaderboard of
+points: the app has none (D158), and the page says so. A pinned scene with its own scroll track, as
+on the explaining pages (D112): the front page should read as a page, not a presentation.
+
+**Disclosed.** The story is an explaining page's scenes (D109): it follows the scroll only where
+the browser ties animations to it (Chrome, Edge, Safari 26) and motion is welcome; elsewhere, with
+reduced motion, or without a script, every part is simply in place, and the rail and the reading
+line are not shown. D132 found movement tied to scrolling unsettling; here it is small (no moving
+background, words rising 18 pixels), and it stops with motion off, but whether it unsettles anyone
+was not measured. The pictures are the demo's and show what its made-up students have; their theme
+follows the device, not a plan's Appearance, as the front page has no plan;
+they are taken again by hand when the app's screens change. The curves are the memory model's
+estimate with average weights, as the figure says; "one session in twenty" is
+`benchmarks/rule_vs_planner.py`'s. A phone shows six of the eight badges. Without the cards a
+phone takes one tap fewer: 9 from the front page to Today, 15 to a first session saved (10 and 16
+with them, `benchmarks/screen_load.mjs`). The page is long: whether students read the story or go
+straight to the buttons is for the pilot. The chart's text is 12 units in a drawing 300 wide, so 12
+pixels or more on screens 368 pixels wide or more, smaller on narrower ones. Its wording is the owner's to review; the
+Italian was not written by a native speaker. Checked in Chromium only, at 1440 × 900 and phone
+size, light and dark, in English, French and Italian.
