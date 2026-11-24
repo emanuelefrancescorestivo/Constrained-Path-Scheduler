@@ -21,7 +21,7 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from cps import crests as _crests
+from cps import service
 
 ICONS = Path(__file__).resolve().parent / "static" / "vendor" / "lucide"
 
@@ -74,8 +74,8 @@ ART: dict[str, str] = {
     "study": "book-marked",
 }
 
-# The crests' pictures (D189): each badge's own icon, kept beside its family in `crests`.
-CRESTS: frozenset[str] = frozenset({f.icon for f in _crests.FAMILIES} | {r.icon for r in _crests.RARES})
+# The crests' pictures (D189): each badge's own icon, as `service` lists them.
+CRESTS: frozenset[str] = service.CREST_ICONS
 
 # The bars, the sidebar and the buttons.
 PLACES: tuple[str, ...] = (

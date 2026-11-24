@@ -6904,6 +6904,9 @@ def _milestones(best: int, sessions_done: int, full_weeks: int) -> list[dict]:
 # Derived from what the student did, every time, as progress is (D8, D41).
 # The tiers that D41's badges, and D8's milestones, were celebrated under keep their key,
 # so none is celebrated twice.
+# Each badge's icon (D189), for the pages' set of icons shipped (`web/icons.py`).
+CREST_ICONS = frozenset({f.icon for f in _crests.FAMILIES} | {r.icon for r in _crests.RARES})
+
 _OLD_CELEBRATIONS = {
     ("streak", 1): "milestone-streak_3",
     ("streak", 2): "milestone-streak_7",
