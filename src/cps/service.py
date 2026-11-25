@@ -4516,6 +4516,8 @@ def send_due_reminders(
     subject = _push_subject(contact, base_url)
     for token in tokens:
         subscription = load_subscription(store, token)
+        if subscription is not None:
+            reached += _send_line_reminders(where, subscription, now, key, subject, send)
         lead = reminder_lead(subscription) if subscription is not None else 0
         if subscription is None or subscription.plan is None or not lead:
             continue
@@ -4537,6 +4539,40 @@ def send_due_reminders(
                     _reminders.remove_device(where, token, device["endpoint"])
                 reached += 200 <= status < 300
     _reminders.prune(where, now)
+    return reached
+
+
+TODO_REMIND_LATE = timedelta(minutes=5)  # D206: a line's reminder still goes this long after its hour
+
+
+def _send_line_reminders(
+    where: Store, subscription: Subscription, now: datetime, key: Any, subject: str, send: _reminders.Sender
+) -> int:
+    """D206: a to-do line written with an hour reminds at that hour, once, whatever the
+    sessions' reminders are set to: the student asked for it. A server asleep then sends it
+    up to five minutes late, never later."""
+    zone = _zone(subscription.options["tz"])
+    reached = 0
+    for x in _mind(subscription):
+        if not x.get("at") or x["done"]:
+            continue
+        at = datetime.fromisoformat(x["at"]).replace(tzinfo=zone)
+        if not at <= now < at + TODO_REMIND_LATE:
+            continue
+        if not _reminders.claim(where, subscription.token, f"line-{x['id']}-{x['at']}", now):
+            continue
+        with use(subscription.options.get("lang") or current_language()):
+            payload = {
+                "title": x["text"],
+                "body": _("From your to-do list, at {time}.", time=x["at"][11:16]),
+                "url": f"/p/{subscription.token}/todo",
+                "tag": f"line-{x['id']}",
+            }
+        for device in _reminders.devices(where, subscription.token):
+            status = send(device, payload, key, subject=subject, ttl=300)
+            if status in (404, 410):
+                _reminders.remove_device(where, subscription.token, device["endpoint"])
+            reached += 200 <= status < 300
     return reached
 
 
@@ -6407,14 +6443,106 @@ def _evening_of(subscription: Subscription, local: datetime) -> date:
 # line is read as the new-task sheet reads one (`ai.read_task`, rules only): a day it names
 # becomes its day, a course its course, and a day with hours of work a task the plan makes
 # time for (`add_task`), ticked off with the line. "On your mind" (D145) is the same list.
-TODO_KINDS = ("todo", "note", "heading")
+#
+# D202 (the owner, 2026-11-25: proposals 7 to 16 all approved, then "EMPLOY THE WHOLE PAGE
+# SPACE like a notion page, when hovering on a thing a bin should show to delete, formatting
+# could be included"): a line ending in "?" is a question for the teacher, ticked when
+# answered; an address in a line is kept apart as a link, shown by its name; "every Monday"
+# brings a line back the week after it is ticked; an hour without hours of work is a
+# reminder to the phone at that hour; a note written "term: definition" becomes a flashcard in
+# one tap; three templates write a list at once; and the page says how much of today's work
+# fits in today's free time, and offers to move a line to tomorrow when it does not.
+TODO_KINDS = ("todo", "note", "heading", "question")
+TODO_TICKED = ("todo", "question")  # the kinds with a box
+TODO_LINKS = 3  # the addresses a line keeps
+TODO_LINK_CHARS = 500
+_TODO_URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+_TODO_FORMAT = re.compile(r"\*\*(.+?)\*\*|~~(.+?)~~|`(.+?)`|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])")
+_TODO_FILE_KINDS = {"pdf": "PDF", "doc": "DOC", "docx": "DOC", "odt": "DOC", "ppt": "PPT", "pptx": "PPT",
+                    "odp": "PPT", "xls": "XLS", "xlsx": "XLS", "ods": "XLS"}  # fmt: skip
+
+
+def _todo_templates() -> dict[str, tuple[str, tuple[str, ...]]]:
+    """D202: the templates, each a heading and its lines, in the page's language."""
+    return {
+        "exam": (
+            _("Prepare the exam"),
+            (
+                _("Gather past exam papers"),
+                _("Go through the course, chapter by chapter"),
+                _("A timed mock exam"),
+                _("Questions for the teacher?"),
+            ),
+        ),
+        "assignment": (
+            _("Hand it in, in steps"),
+            (
+                _("Read the brief and how it is marked"),
+                _("A first draft"),
+                _("Check it against how it is marked"),
+                _("Hand it in"),
+            ),
+        ),
+        "week": (
+            _("Review of the week"),
+            (
+                _("Tick off what is done, move what is not"),
+                _("Choose next week's first three things"),
+                _("Look at the deadlines and exams ahead"),
+            ),
+        ),
+    }
+
+
+def _todo_links(text: str) -> tuple[str, list[str]]:
+    """A line's words without its addresses, and the addresses (http and https only)."""
+    links: list[str] = []
+    for found in _TODO_URL.findall(text):
+        url = found.rstrip(".,;:!?)»”'\"")
+        if url not in links and len(links) < TODO_LINKS and len(url) <= TODO_LINK_CHARS:
+            links.append(url)
+        text = text.replace(found, " ")
+    return " ".join(text.split()), links
+
+
+def _link_label(subscription: Subscription, url: str) -> dict:
+    """A link as a short label: the name a course's materials give it (D174), else its
+    file's name, else its site; and a mark for a document's kind."""
+    for links in (subscription.options.get("materials") or {}).values():
+        for m in links or ():
+            if isinstance(m, Mapping) and m.get("url") == url and m.get("title"):
+                return {"href": url, "label": str(m["title"])[:60], "kind": ""}
+    parts = urlsplit(url)
+    name = parts.path.rstrip("/").rsplit("/", 1)[-1]
+    ext = name.rsplit(".", 1)[-1].casefold() if "." in name else ""
+    if ext in _TODO_FILE_KINDS:
+        return {"href": url, "label": name[:60], "kind": _TODO_FILE_KINDS[ext]}
+    host = (parts.hostname or "").removeprefix("www.")
+    return {"href": url, "label": host[:60] or url[:60], "kind": ""}
+
+
+def todo_parts(text: str) -> list[dict]:
+    """D202: a line's words in pieces, each plain ("t"), bold ("b"), italic ("i"), struck
+    through ("s") or code ("c"), from Markdown's marks: **bold**, *italic*, ~~struck~~,
+    `code`. The page draws each piece; the marks stay in the words, so editing keeps them."""
+    out: list[dict] = []
+    last = 0
+    for m in _TODO_FORMAT.finditer(text):
+        if m.start() > last:
+            out.append({"k": "t", "x": text[last : m.start()]})
+        kind = "b" if m.group(1) else "s" if m.group(2) else "c" if m.group(3) else "i"
+        out.append({"k": kind, "x": next(g for g in m.groups() if g)})
+        last = m.end()
+    if last < len(text):
+        out.append({"k": "t", "x": text[last:]})
+    return out
 
 
 def _todo_line(subscription: Subscription, line: str, now: datetime) -> tuple[dict, TaskSpec | None]:
     """A typed line as a list item, and the task it brings, if it names a day and hours."""
     text = " ".join(str(line or "").split())
     kind, indent = "todo", 0
-    for prefix, k in (("# ", "heading"), ("> ", "note")):
+    for prefix, k in (("# ", "heading"), ("> ", "note"), ("? ", "question")):
         if text.startswith(prefix) or text == prefix.strip():
             kind, text = k, text[len(prefix) :]
     if kind == "todo" and (text.startswith(("- ", "* ")) or text in ("-", "*")):
@@ -6422,17 +6550,39 @@ def _todo_line(subscription: Subscription, line: str, now: datetime) -> tuple[di
     done = False
     if kind == "todo" and re.match(r"\[[ xX]?\]\s", text):
         done, text = text[1].lower() == "x", text[text.index("]") + 1 :].strip()
+    text, links = _todo_links(text)
+    if kind == "todo" and text.endswith("?"):
+        kind = "question"  # D202: a question for the teacher, ticked when answered
+    if not text and links:
+        text = _link_label(subscription, links[0])["label"]
     text = text[:MIND_TEXT]
     if not text:
         raise InvalidInput(_("write what is on your mind"))
     item = {"id": secrets.token_hex(4), "text": text, "day": "", "kind": kind, "done": done,
-            "indent": indent, "task": "", "course": ""}  # fmt: skip
-    if kind != "todo":
+            "indent": indent, "task": "", "course": "", "links": links}  # fmt: skip
+    if kind == "heading":
         return item, None
     zone = _zone(subscription.options["tz"])
-    today = now.astimezone(zone).date()
+    local = now.astimezone(zone)
+    today = local.date()
     guess = _ai.read_task(text, today=today, courses=course_names(subscription))
     item["course"] = guess.course
+    if kind != "todo":
+        return item, None
+    if guess.every is not None:
+        item["every"] = guess.every
+    if guess.at and not guess.hours:
+        # D206: an hour without hours of work is a reminder at that hour, on its day, or
+        # today (tomorrow once the hour has passed) when it names none.
+        day = date.fromisoformat(guess.due[:10]) if guess.due else today
+        at = datetime.combine(day, time.fromisoformat(guess.at), zone)
+        if not guess.due and at <= local:
+            at += timedelta(days=1)
+        item["day"] = at.date().isoformat()
+        item["text"] = guess.name or text
+        if at > local:
+            item["at"] = f"{at:%Y-%m-%dT%H:%M}"
+        return item, None
     if not guess.due:
         return item, None
     due = datetime.fromisoformat(guess.due)
@@ -6441,21 +6591,37 @@ def _todo_line(subscription: Subscription, line: str, now: datetime) -> tuple[di
     item["text"] = words
     if not guess.hours:
         return item, None
-    taken = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
-    name, n = words, 2
-    while name.casefold() in taken:
-        name, n = f"{words} ({n})", n + 1
+    name = _free_task_name(subscription, words)
     item["task"] = name
     return item, TaskSpec(name, f"{due:%Y-%m-%d %H:%M}", float(guess.hours), guess.course)
 
 
+def _free_task_name(subscription: Subscription, words: str) -> str:
+    taken = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
+    name, n = words, 2
+    while name.casefold() in taken:
+        name, n = f"{words} ({n})", n + 1
+    return name
+
+
 def add_todo(
-    subscription: Subscription, line: str, *, after: str = "", now: datetime | None = None
+    subscription: Subscription,
+    line: str,
+    *,
+    after: str = "",
+    course: str = "",
+    now: datetime | None = None,
 ) -> Subscription:
     """A line written on the to-do page, after the line `after` (else at the end). A line that
-    names a day and hours is planned at once."""
+    names a day and hours is planned at once. `course` gives it a course when it names none
+    (a line written on a course's page, D202)."""
     now = now or datetime.now(UTC)
     item, task = _todo_line(subscription, line, now)
+    if course and not item["course"] and item["kind"] != "heading":
+        known = {c.casefold(): c for c in course_names(subscription)}
+        item["course"] = known.get(course.strip().casefold(), "")
+        if task is not None:
+            task = replace(task, course=item["course"])
     items = _mind(subscription)
     at = _mind_index(items, after) + 1 if after else len(items)
     if item["indent"] and not any(x["kind"] == "todo" for x in items[:at]):
@@ -6465,6 +6631,28 @@ def add_todo(
     return add_task(changed, task, now=now) if task is not None else changed
 
 
+def add_template(
+    subscription: Subscription, key: str, course: str = "", *, now: datetime | None = None
+) -> Subscription:
+    """D202: a template's heading and lines at the end of the list, for a course if one is
+    chosen; the lines are the student's to change like any other."""
+    templates = _todo_templates()
+    if key not in templates:
+        raise InvalidInput(_("choose one of the templates"))
+    known = {c.casefold(): c for c in course_names(subscription)}
+    course = known.get(str(course or "").strip().casefold(), "")
+    title, lines = templates[key]
+    items = _mind(subscription)
+    heading = f"{title} · {course}" if course else title
+    items.append({"id": secrets.token_hex(4), "text": heading[:MIND_TEXT], "day": "", "kind": "heading",
+                  "done": False, "indent": 0, "task": "", "course": course, "links": []})  # fmt: skip
+    for text in lines:
+        kind = "question" if text.endswith("?") else "todo"
+        items.append({"id": secrets.token_hex(4), "text": text, "day": "", "kind": kind, "done": False,
+                      "indent": 0, "task": "", "course": course, "links": []})  # fmt: skip
+    return _with_mind(subscription, _kept(items))
+
+
 def _todo_task_done(subscription: Subscription, item: dict, done: bool, now: datetime) -> Subscription:
     names = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
     if item.get("task") and item["task"].casefold() in names:
@@ -6472,17 +6660,48 @@ def _todo_task_done(subscription: Subscription, item: dict, done: bool, now: dat
     return subscription
 
 
+def _next_time(item: Mapping, today: date) -> date:
+    """D205: the day a line that comes back comes back: the next such day after its own day
+    (or today, if that is later)."""
+    base = max(date.fromisoformat(item["day"]) if item.get("day") else today, today)
+    every = int(item["every"])
+    if every == 7:
+        return base + timedelta(days=1)
+    return base + timedelta(days=(every - base.weekday() - 1) % 7 + 1)
+
+
 def tick_todo(
     subscription: Subscription, item: str, done: bool, *, now: datetime | None = None
 ) -> Subscription:
-    """A line done, or not; its planned task with it."""
+    """A line done, or not; its planned task with it. A line that comes back (D205) is
+    written again on its next day, once, with its own task if it had hours."""
     now = now or datetime.now(UTC)
     items = _mind(subscription)
     i = _mind_index(items, item)
-    if items[i]["kind"] != "todo":
+    if items[i]["kind"] not in TODO_TICKED:
         raise InvalidInput(_("only a to-do is ticked off"))
     items[i] = {**items[i], "done": bool(done)}
-    return _todo_task_done(_with_mind(subscription, items), items[i], bool(done), now)
+    changed = _todo_task_done(_with_mind(subscription, items), items[i], bool(done), now)
+    x = items[i]
+    if not done or x.get("every") is None or any(y["id"] == x.get("next") for y in items):
+        return changed
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    day = _next_time(x, today)
+    again = {**x, "id": secrets.token_hex(4), "done": False, "day": day.isoformat(), "task": ""}
+    again.pop("next", None)
+    again.pop("at", None)
+    planned = [t for t in subscription.options.get("tasks", ()) if x.get("task") and t["name"] == x["task"]]
+    hours = planned[0]["hours"] if planned else None
+    items = _mind(changed)
+    i = _mind_index(items, item)
+    items[i] = {**items[i], "next": again["id"]}
+    task = None
+    if hours:
+        again["task"] = _free_task_name(changed, f"{x['text']} ({format_date(day, 'day_short')})")
+        task = TaskSpec(again["task"], f"{day:%Y-%m-%d} 23:59", float(hours), x.get("course", ""))
+    items.insert(i + 1, again)
+    changed = _with_mind(changed, _kept(items))
+    return add_task(changed, task, now=now) if task is not None else changed
 
 
 def edit_todo(subscription: Subscription, item: str, text: str) -> Subscription:
@@ -6497,11 +6716,20 @@ def edit_todo(subscription: Subscription, item: str, text: str) -> Subscription:
     return _with_mind(subscription, items)
 
 
+def _move_task_due(subscription: Subscription, name: str, day: date, now: datetime) -> Subscription:
+    tasks = _task_specs(subscription)
+    i = _find_task(subscription, name)
+    when = datetime.fromisoformat(str(tasks[i].due).replace(" ", "T"))
+    tasks[i] = replace(tasks[i], due=f"{datetime.combine(day, when.time()):%Y-%m-%d %H:%M}")
+    return revise_subscription(subscription, tasks=tasks, now=now, strict=False)
+
+
 def change_todo(
-    subscription: Subscription, item: str, how: str, *, now: datetime | None = None
+    subscription: Subscription, item: str, how: str, *, to: str = "", now: datetime | None = None
 ) -> Subscription:
-    """Move a line up or down, make it a step or not, change its kind, or remove it (its
-    planned task with it)."""
+    """Move a line up or down or to a place (`to`, the index it takes), make it a step or
+    not, change its kind, move it to tomorrow (its task's day with it, D202), or remove it
+    (its planned task with it)."""
     now = now or datetime.now(UTC)
     items = _mind(subscription)
     i = _mind_index(items, item)
@@ -6509,13 +6737,30 @@ def change_todo(
         j = i - 1 if how == "up" else i + 1
         if 0 <= j < len(items):
             items[i], items[j] = items[j], items[i]
+    elif how == "to":
+        try:
+            j = max(0, min(len(items) - 1, int(to)))
+        except ValueError:
+            raise InvalidInput(_("move the line, make it a step, change its kind, or remove it")) from None
+        items.insert(j, items.pop(i))
     elif how in ("indent", "outdent"):
         items[i] = {**items[i], "indent": 1 if how == "indent" and i > 0 else 0}
     elif how in TODO_KINDS:
         # A heading is never a step; a heading or a note is never done.
-        done = items[i]["done"] and how == "todo"
+        done = items[i]["done"] and how in TODO_TICKED
         indent = 0 if how == "heading" else items[i]["indent"]
         items[i] = {**items[i], "kind": how, "done": done, "indent": indent}
+    elif how == "tomorrow":
+        today = now.astimezone(_zone(subscription.options["tz"])).date()
+        was = date.fromisoformat(items[i]["day"]) if items[i]["day"] else today
+        day = max(was, today) + timedelta(days=1)
+        items[i] = {**items[i], "day": day.isoformat()}
+        items[i].pop("at", None)
+        changed = _with_mind(subscription, items)
+        names = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
+        if items[i].get("task") and items[i]["task"].casefold() in names:
+            return _move_task_due(changed, items[i]["task"], day, now)
+        return changed
     elif how == "delete":
         gone = items.pop(i)
         changed = _with_mind(subscription, items)
@@ -6533,13 +6778,85 @@ def clear_done(subscription: Subscription) -> Subscription:
     return _with_mind(subscription, [x for x in _mind(subscription) if not x["done"]])
 
 
-def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
+def _note_card(text: str) -> tuple[str, str] | None:
+    """D202: the flashcard a note gives, read by the rules that read notes (D84): "term:
+    definition", a question and its answer; None for any other note."""
+    found = _cardmaker.read(text)
+    return (found[0].front, found[0].back) if found else None
+
+
+def todo_card(
+    store: str | os.PathLike, subscription: Subscription, item: str, now: datetime | None = None
+) -> Subscription:
+    """D202: a note's flashcard, in its course's deck and this week; the note says so after."""
+    now = now or datetime.now(UTC)
+    items = _mind(subscription)
+    i = _mind_index(items, item)
+    pair = _note_card(items[i]["text"]) if items[i]["kind"] == "note" else None
+    if pair is None:
+        raise InvalidInput(_("write the note as a term, a colon and its definition"))
+    if items[i].get("card"):
+        return subscription
+    local = now.astimezone(_zone(subscription.options["tz"])).date()
+    monday = local - timedelta(days=local.weekday())
+    week = monday.isoformat() if items[i]["course"] else None
+    course = items[i]["course"]
+    made = _flash(lambda: flashcards.add(_store(store), subscription.token, course, [pair], now, week))
+    items[i] = {**items[i], "card": made[0].id}
+    return _with_mind(subscription, items)
+
+
+def _todo_remaining(subscription: Subscription) -> dict[str, float]:
+    """Each task's hours still to do: its hours less the share of its blocks done."""
+    hours = {t["name"]: float(t["hours"]) for t in subscription.options.get("tasks", ())}
+    if subscription.plan is None:
+        return hours
+    plan = PlanReport.from_dict(subscription.plan)
+    worked: dict[str, int] = {}
+    for x in plan.history:
+        if x.kind == "task" and x.outcome != "skipped":
+            worked[x.title] = worked.get(x.title, 0) + 1
+    out = {}
+    for t in plan.tasks:
+        whole = hours.get(t.name, 0.0)
+        out[t.name] = 0.0 if t.done else whole * max(0, t.blocks - worked.get(t.name, 0)) / (t.blocks or 1)
+    return out
+
+
+def _free_left_today(subscription: Subscription, now: datetime, tasks: Collection[str]) -> float:
+    """D202: the hours left today between now (or getting up) and going to bed, less the
+    classes, tests, busy times and the plan's study still to come, the sessions of `tasks`
+    apart (they are the work being weighed)."""
+    day = day_view(subscription)
+    up = _hours_of(day["wake"], _("Get up"))
+    down = _hours_of(day["bed"], _("Go to bed"))
+    if down <= up:
+        down += 24
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    hour = max(up, local.hour + local.minute / 60)
+    if hour >= down:
+        return 0.0
+    taken = 0.0
+    for x in day_agenda(subscription, now):
+        if x["kind"] == "study" and x["label"] in tasks:
+            continue
+        start, end = _hours_of(x["start"], ""), _hours_of(x["end"], "")
+        if end <= start:
+            end += 24
+        taken += max(0.0, min(end, down) - max(start, hour))
+    return max(0.0, down - hour - taken)
+
+
+def todo_view(subscription: Subscription, now: datetime | None = None, course: str = "") -> dict:
     """The to-do page: its lines in order, each with its day said in words, whether it is
-    late, its planned task's hours and its course's colour; the lines done apart; and the
-    plan's other tasks (a learning platform's deadlines, those added before D195)."""
+    late, its planned task's hours and its course's colour, its words in formatted pieces,
+    its links as labels, a note's flashcard; the lines done apart; the plan's other tasks
+    (a learning platform's deadlines, those added before D195); and D202's board by day,
+    templates and today's fit. `course` keeps a course's lines only (its page, D202)."""
     now = now or datetime.now(UTC)
     zone = _zone(subscription.options["tz"])
-    today = now.astimezone(zone).date()
+    local = now.astimezone(zone)
+    today = local.date()
     colours = {}
     if subscription.plan is not None:
         colours = {
@@ -6549,6 +6866,7 @@ def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
             )
         }
     tasks = {t["name"].casefold(): t for t in subscription.options.get("tasks", ())}
+    remaining = _todo_remaining(subscription)
 
     def when(day: str) -> tuple[str, bool]:
         if not day:
@@ -6562,14 +6880,27 @@ def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
             return _("since {day}", day=_i18n.format_date(d, "short")), True
         return _i18n.format_date(d, "short"), False
 
+    def again(x: Mapping) -> str:
+        every = x.get("every")
+        if every is None:
+            return ""
+        if int(every) == 7:
+            return _("every day")
+        return _("every {day}", day=_i18n.weekday_name(date(2026, 1, 5) + timedelta(days=int(every))))
+
     rows: list[dict] = []
     done: list[dict] = []
     parent_done = False  # a step of a line done goes with it
-    for x in _mind(subscription):
+    items = list(enumerate(_mind(subscription)))  # each line's place in the whole list, for a drag
+    if course:
+        items = [(pos, x) for pos, x in items if x["course"].casefold() == course.casefold()]
+    for pos, x in items:
         if not x["indent"]:
-            parent_done = x["done"] and x["kind"] == "todo"
+            parent_done = x["done"] and x["kind"] in TODO_TICKED
         label, late = when(x["day"])
         task = tasks.get(x["task"].casefold()) if x["task"] else None
+        # A card belongs to a course's deck: a note without a course offers none.
+        pair = _note_card(x["text"]) if x["kind"] == "note" and x["course"] else None
         row = {
             **x,
             "when": label,
@@ -6577,6 +6908,12 @@ def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
             "today": bool(x["day"]) and date.fromisoformat(x["day"]) <= today,
             "hours": task["hours"] if task else None,
             "color": colours.get(x["course"].casefold()) if x["course"] else None,
+            "parts": todo_parts(x["text"]),
+            "links": [_link_label(subscription, u) for u in x.get("links") or ()],
+            "again": again(x),
+            "at_time": x["at"][11:16] if x.get("at") else "",
+            "card_pair": {"front": pair[0], "back": pair[1]} if pair else None,
+            "pos": pos,
         }
         (done if parent_done else rows).append(row)
     # A heading counts the open lines under it, to the next heading (steps apart).
@@ -6587,27 +6924,92 @@ def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
                 if x["kind"] == "heading":
                     break
                 under.append(x)
-            r["open"] = sum(1 for x in under if x["kind"] == "todo" and not x["indent"] and not x["done"])
+            r["open"] = sum(
+                1 for x in under if x["kind"] in TODO_TICKED and not x["indent"] and not x["done"]
+            )
     linked = {x["task"].casefold() for x in _mind(subscription) if x["task"]}
     others = []
     for t in subscription.options.get("tasks", ()):
         if t["name"].casefold() in linked or t.get("done"):
+            continue
+        if course and str(t.get("course", "")).casefold() != course.casefold():
             continue
         try:
             due = datetime.fromisoformat(str(t["due"]).replace(" ", "T")).date()
         except ValueError:
             continue
         label, late = when(due.isoformat())
-        course = str(t.get("course", ""))
+        t_course = str(t.get("course", ""))
         others.append(
-            {"name": t["name"], "when": label, "late": late, "hours": t["hours"], "course": course,
-             "color": colours.get(course.casefold()), "due": due}
+            {"name": t["name"], "when": label, "late": late, "hours": t["hours"], "course": t_course,
+             "color": colours.get(t_course.casefold()), "due": due}
         )  # fmt: skip
+    # D202: the board, the open lines by day.
+    sunday = today + timedelta(days=6 - today.weekday())
+    columns = [
+        ("late", _("Late")),
+        ("today", _("Today")),
+        ("tomorrow", _("Tomorrow")),
+        ("week", _("This week")),
+        ("later", _("Later")),
+        ("none", _("No day")),
+    ]
+    board: dict[str, list[dict]] = {key: [] for key, _label in columns}
+    for r in rows:
+        if r["kind"] not in TODO_TICKED or r["done"] or r["indent"]:
+            continue
+        d = date.fromisoformat(r["day"]) if r["day"] else None
+        key = (
+            "none"
+            if d is None
+            else "late"
+            if d < today
+            else "today"
+            if d == today
+            else "tomorrow"
+            if d == today + timedelta(days=1)
+            else "week"
+            if d <= sunday
+            else "later"
+        )
+        board[key].append(r)
+    drop = {
+        "today": today.isoformat(),
+        "tomorrow": (today + timedelta(days=1)).isoformat(),
+        "week": sunday.isoformat() if sunday > today + timedelta(days=1) else "",
+        "later": (sunday + timedelta(days=1)).isoformat(),
+        "none": "none",
+        "late": "",
+    }
+    # D202: today's work against today's free time: the hours left of the tasks of the lines
+    # due today or before, and the free hours left, the sessions of those tasks apart.
+    due_today = [r for r in rows if r["kind"] == "todo" and not r["done"] and r["today"]]
+    names = [r["task"] for r in due_today if r["task"]]
+    work = round(sum(remaining.get(n, 0.0) for n in names), 1)
+    fit = None
+    if due_today:
+        free = round(_free_left_today(subscription, now, set(names)), 1) if subscription.plan else None
+        over = round(work - free, 1) if free is not None and work > free else 0.0
+        move = next((r for r in reversed(due_today) if r["task"]), None) if over else None
+        fit = {
+            "lines": len(due_today),
+            "work": format_number(work),
+            "free": format_number(free) if free is not None else None,
+            "over": format_number(over) if over else "",
+            "percent": min(100, round(100 * work / free)) if free else (100 if work else 0),
+            "move": {"id": move["id"], "text": move["text"]} if move else None,
+        }
     return {
         "rows": rows,
         "done": done,
         "others": sorted(others, key=lambda o: o["due"]),
-        "open": sum(1 for r in rows if r["kind"] == "todo" and not r["done"]),
+        "open": sum(1 for r in rows if r["kind"] in TODO_TICKED and not r["done"]),
+        "board": [
+            {"key": key, "label": label, "rows": board[key], "drop": drop[key]} for key, label in columns
+        ],
+        "fit": fit,
+        "templates": [{"key": k, "title": t} for k, (t, _lines) in _todo_templates().items()],
+        "courses": course_names(subscription),
     }
 
 

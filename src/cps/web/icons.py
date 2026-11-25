@@ -102,6 +102,11 @@ PLACES: tuple[str, ...] = (
     "circle-check",
     "graduation-cap",
     "globe",  # the front page's language (D193)
+    "trash-2",  # a to-do line's bin (D202)
+    "grip-vertical",  # a to-do line's grip, to drag it
+    "table",  # the to-do page's views
+    "kanban",
+    "layout-template",  # the to-do page's templates
 )
 
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")

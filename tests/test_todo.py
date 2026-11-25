@@ -190,10 +190,11 @@ def test_the_page_writes_ticks_changes_and_clears_without_a_script(tmp_path):
         assert page.count('class="todo-tick"') == 2  # a heading has no box
         assert " style=" not in page
         # AUDIT 132: the count in the title is put in place with the list by every form that
-        # changes it, so a line added or ticked off in the background is counted at once.
+        # changes it, so a line added or ticked off in the background is counted at once; since
+        # D202 the column beside the list too.
         assert re.search(r'id="todo-count">2 to do<', page)
         assert page.count('data-region="#todo"') == 0
-        assert page.count('data-region="#todo, #todo-count"') == page.count('data-region="#todo')
+        assert page.count('data-region="#todo, #todo-count, #todo-side"') == page.count('data-region="#todo')
         stored = service.load_subscription(tmp_path, sub.token)
         report = _id(stored, "Stats report")
         client.post(f"{base}/{report}/tick", data={"done": "1"})
@@ -221,3 +222,162 @@ def test_the_page_writes_ticks_changes_and_clears_without_a_script(tmp_path):
         # You and the sidebar lead to it.
         you = client.get(f"/p/{sub.token}/you").text
         assert f'href="/p/{sub.token}/todo"' in you
+
+
+# D202: proposals 7 to 16 and the whole page (the owner, 2026-11-25).
+
+
+def test_a_question_a_link_and_formatting_are_read_from_the_line(tmp_path):
+    sub = _plan(tmp_path)
+    sub = service.add_todo(sub, "Does theorem 4.2 hold for **every** f?", now=NOW)
+    sub = service.add_todo(
+        sub, "Read https://moodle.example.edu/pluginfile.php/9/notes-week5.pdf tonight", now=NOW
+    )
+    sub = service.add_todo(sub, "? Office hours on Friday", now=NOW)
+    view = service.todo_view(sub, NOW)
+    q, read, office = view["rows"]
+    assert q["kind"] == "question" and office["kind"] == "question"
+    assert [p["k"] for p in q["parts"]] == ["t", "b", "t"] and q["parts"][1]["x"] == "every"
+    # The address is kept apart, shown by its file's name and kind; the words keep the day.
+    assert read["text"] == "Read" and read["links"] == [
+        {
+            "href": "https://moodle.example.edu/pluginfile.php/9/notes-week5.pdf",
+            "label": "notes-week5.pdf",
+            "kind": "PDF",
+        }
+    ]
+    assert read["day"] == "2026-09-29"
+    # A question is ticked when answered; Today's list of things to do leaves it out.
+    sub = service.tick_todo(sub, q["id"], True, now=NOW)
+    assert service.todo_view(sub, NOW)["done"][0]["text"].startswith("Does theorem")
+    assert all("theorem" not in e["text"] for e in service.mind_view(sub, NOW)["entries"])
+    assert service.todo_parts("~~old~~ and `code` and *soft*") == [
+        {"k": "s", "x": "old"}, {"k": "t", "x": " and "}, {"k": "c", "x": "code"},
+        {"k": "t", "x": " and "}, {"k": "i", "x": "soft"},
+    ]  # fmt: skip
+
+
+def test_a_line_that_comes_back_and_a_reminder_at_an_hour(tmp_path, monkeypatch):
+    sub = _plan(tmp_path)
+    sub = service.add_todo(sub, "every Monday analysis exercises 1 h", now=NOW)
+    sub = service.add_todo(sub, "call the registrar at 10:00", now=NOW)
+    weekly, call = service.todo_view(sub, NOW)["rows"]
+    assert weekly["every"] == 0 and weekly["day"] == "2026-10-05" and weekly["again"] == "every Monday"
+    assert weekly["task"] and weekly["hours"] == 1.0
+    # 18:00 in Paris: 10:00 has passed, so tomorrow at 10.
+    assert call["at"] == "2026-09-30T10:00" and call["at_time"] == "10:00" and not call["task"]
+    sub = service.tick_todo(sub, weekly["id"], True, now=NOW)
+    again = [r for r in service.todo_view(sub, NOW)["rows"] if r["text"] == weekly["text"]]
+    assert len(again) == 1 and again[0]["day"] == "2026-10-12" and again[0]["task"] != weekly["task"]
+    # Ticked again, it is not written a third time.
+    sub = service.tick_todo(sub, weekly["id"], False, now=NOW)
+    sub = service.tick_todo(sub, weekly["id"], True, now=NOW)
+    assert sum(1 for r in service.todo_view(sub, NOW)["rows"] if r["text"] == weekly["text"]) == 1
+    # The reminder goes once, at its hour, whatever the sessions' reminders say.
+    service.save_subscription(tmp_path, sub)
+    sent = []
+    # A device stands in for the phone: the push service is not called.
+    monkeypatch.setattr(service._reminders, "tokens_with_devices", lambda store: [sub.token])
+    monkeypatch.setattr(
+        service._reminders, "devices", lambda store, token: [{"endpoint": "https://push.example/x"}]
+    )
+    monkeypatch.setattr(service._reminders, "vapid_key", lambda store, now=None: None)
+    at = datetime(2026, 9, 30, 8, 0, 30, tzinfo=UTC)  # 10:00:30 in Paris
+    send = lambda device, payload, key, **kw: sent.append(payload) or 201  # noqa: E731
+    service.send_due_reminders(tmp_path, at, send=send)
+    service.send_due_reminders(tmp_path, at, send=send)
+    assert [p["title"] for p in sent] == ["Call the registrar"]
+    assert sent[0]["url"].endswith("/todo")
+
+
+def test_a_template_a_note_s_flashcard_tomorrow_and_a_drag(tmp_path):
+    sub = _plan(tmp_path)
+    sub = service.add_template(sub, "exam", "algebra 3", now=NOW)
+    rows = service.todo_view(sub, NOW)["rows"]
+    assert rows[0]["kind"] == "heading" and rows[0]["text"] == "Prepare the exam · Algebra 3"
+    assert [r["kind"] for r in rows[1:]] == ["todo", "todo", "todo", "question"]
+    assert {r["course"] for r in rows} == {"Algebra 3"}
+    with pytest.raises(service.InvalidInput):
+        service.add_template(sub, "nonsense", now=NOW)
+    # A note written "term: definition" becomes a card in its course's deck, this week.
+    sub = service.add_todo(sub, "> Eigenvalue: a number λ such that Av = λv", course="Algebra 3", now=NOW)
+    note = service.todo_view(sub, NOW)["rows"][-1]
+    assert note["card_pair"] == {"front": "Eigenvalue", "back": "a number λ such that Av = λv"}
+    sub = service.todo_card(tmp_path, sub, note["id"], NOW)
+    made = service.todo_view(sub, NOW)["rows"][-1]["card"]
+    card = service.flashcards.get(service._store(tmp_path), sub.token, made)
+    assert card.front == "Eigenvalue" and card.course == "Algebra 3" and card.week == "2026-09-28"
+    # Tomorrow: the line's day and its task's with it.
+    sub = service.add_todo(sub, "Lab report today 2 h", now=NOW)
+    lab = service.todo_view(sub, NOW)["rows"][-1]
+    sub = service.change_todo(sub, lab["id"], "tomorrow", now=NOW)
+    moved = service.todo_view(sub, NOW)["rows"][-1]
+    task = next(t for t in sub.options["tasks"] if t["name"] == lab["task"])
+    assert moved["day"] == "2026-09-30" and str(task["due"]).startswith("2026-09-30")
+    # Dragged to the top.
+    sub = service.change_todo(sub, lab["id"], "to", to="0", now=NOW)
+    assert service.todo_view(sub, NOW)["rows"][0]["id"] == lab["id"]
+
+
+def test_today_s_fit_the_board_and_a_course_s_lines(tmp_path):
+    sub = _plan(tmp_path)
+    assert service.todo_view(sub, NOW)["fit"] is None
+    sub = service.add_todo(sub, "Stats report today 9 h", now=NOW)
+    view = service.todo_view(sub, NOW)
+    fit = view["fit"]
+    # 18:00, to bed at 23:00 by default: nine hours do not fit in what is left.
+    assert fit["lines"] == 1 and fit["work"] == "9" and fit["over"] and fit["move"]["text"] == "Stats report"
+    board = {c["key"]: c for c in view["board"]}
+    assert [r["text"] for r in board["today"]["rows"]] == ["Stats report"]
+    assert board["tomorrow"]["drop"] == "2026-09-30" and board["late"]["drop"] == ""
+    sub = service.add_todo(sub, "> Office hours are on Thursdays", course="Advanced Statistics", now=NOW)
+    mine = service.todo_view(sub, NOW, course="Advanced Statistics")["rows"]
+    assert [r["text"] for r in mine] == ["Stats report", "Office hours are on Thursdays"]
+
+
+def test_the_page_draws_the_whole_width_the_bin_the_board_and_a_course_s_box(tmp_path):
+    sub = _plan(tmp_path)
+    config = Config(store=tmp_path, clock=lambda: NOW, background=False, sweep_every=None, remind_every=None)
+    with TestClient(create_app(config)) as client:
+        base = f"/p/{sub.token}/todo"
+        for line in (
+            "Read **chapter 3** tomorrow",
+            "Is the exam open book?",
+            "> Rank: the dimension of the image",
+        ):
+            client.post(base, data={"line": line, "course": "Algebra 3"})
+        page = unescape(client.get(base).text)
+        assert 'class="site todo-wide"' in page and 'id="todo-side"' in page
+        assert page.count('class="todo-bin"') == 3 and "todo-grip" in page
+        assert '<span class="todo-fmt" aria-hidden="true">Read <b>chapter 3</b></span>' in page
+        assert 'class="todo-q"' in page and "Make a flashcard" in page and "Templates" in page
+        assert " style=" not in page
+        board = unescape(client.get(base + "?view=board").text)
+        assert 'class="todo-board"' in board and 'data-drop="2026-09-30"' in board
+        # A template and a card from the page; the board's drop gives a day.
+        assert (
+            client.post(f"{base}/template", data={"template": "week"}, follow_redirects=False).status_code
+            == 303
+        )
+        stored = service.load_subscription(tmp_path, sub.token)
+        rank = _id(stored, "Rank: the dimension of the image")
+        assert client.post(f"{base}/{rank}/card", data={}, follow_redirects=False).status_code == 303
+        read = _id(stored, "Read **chapter 3**")
+        answer = client.post(
+            f"{base}/{read}/day", data={"day": "none", "back": "board"}, follow_redirects=False
+        )
+        assert answer.headers["location"] == base + "?view=board"
+        assert service.todo_view(service.load_subscription(tmp_path, sub.token), NOW)["rows"][0]["day"] == ""
+        # A course's page lists its lines and writes new ones for it.
+        course = unescape(client.get(f"/p/{sub.token}/courses/0").text)
+        assert 'id="todo"' in course and "A new line for" in course
+        answer = client.post(
+            base,
+            data={"line": "Exercises 5 to 9", "course": "Algebra 3", "back": "courses/0"},
+            follow_redirects=False,
+        )
+        assert answer.headers["location"] == f"/p/{sub.token}/courses/0#todo"
+        stored = service.load_subscription(tmp_path, sub.token)
+        assert any(
+            x["text"] == "Exercises 5 to 9" and x["course"] == "Algebra 3" for x in stored.options["mind"]
+        )

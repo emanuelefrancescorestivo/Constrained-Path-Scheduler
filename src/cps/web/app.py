@@ -3082,6 +3082,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             view=view,
             tests=tests,
             why_tip=service.tip_here(subscription, "course", config.clock(), course=view["course"]),  # D135
+            todo=service.todo_view(subscription, config.clock(), course=view["course"]),  # D202
             tab="courses",
             exam_row=exam,
             values=values,
@@ -4052,7 +4053,7 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     # D195: the to-do page, written a line at a time.
     @app.get("/p/{token}/todo", response_class=HTMLResponse)
-    def todo_page(request: Request, token: str) -> HTMLResponse:
+    def todo_page(request: Request, token: str, view: str = "") -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
@@ -4061,8 +4062,20 @@ def create_app(config: Config | None = None) -> FastAPI:
             "todo.html",
             token=token,
             tab="tasks",
+            board=view == "board",  # D202: the open lines by day
             view=service.todo_view(subscription, config.clock()),
         )
+
+    def todo_back(token: str, back: str) -> str:
+        """Where a to-do form returns: Today, the calendar, a course's page (D202), the
+        board, or the to-do page."""
+        if re.fullmatch(r"courses/\d{1,3}", back):
+            return f"/p/{token}/{back}#todo"
+        return {
+            "today": f"/p/{token}",
+            "calendar": f"/p/{token}/week",
+            "board": f"/p/{token}/todo?view=board",
+        }.get(back, f"/p/{token}/todo")
 
     @app.post("/p/{token}/todo")
     async def todo_add(request: Request, token: str) -> Response:
@@ -4070,33 +4083,51 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=4)
+        form = await request.form(max_files=0, max_fields=6)
         line, after = str(form.get("line") or ""), str(form.get("after") or "")
-        back = str(form.get("back") or "")
+        back, course = str(form.get("back") or ""), str(form.get("course") or "")
         try:
             service.update_subscription(
-                store, token, lambda current: service.add_todo(current, line, after=after, now=config.clock())
+                store,
+                token,
+                lambda current: service.add_todo(
+                    current, line, after=after, course=course, now=config.clock()
+                ),
             )
         except service.ServiceError as error:
             return todo_refused(request, token, error)
         service.log_event(store, token, "todo", "add")
-        path = {"today": f"/p/{token}", "calendar": f"/p/{token}/week"}.get(back, f"/p/{token}/todo")
-        return RedirectResponse(path, 303)
+        return RedirectResponse(todo_back(token, back), 303)
 
     @app.post("/p/{token}/todo/{what}")
     async def todo_clear(request: Request, token: str, what: str) -> Response:
-        if load(token) is None or what != "clear":
+        if load(token) is None or what not in ("clear", "template"):
             return missing(request)
-        service.update_subscription(store, token, service.clear_done)
-        return RedirectResponse(f"/p/{token}/todo", 303)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        if what == "clear":
+            service.update_subscription(store, token, service.clear_done)
+        else:  # D202: a template's lines at once
+            try:
+                service.update_subscription(
+                    store,
+                    token,
+                    lambda current: service.add_template(
+                        current, fields.get("template", ""), fields.get("course", ""), now=config.clock()
+                    ),
+                )
+            except service.ServiceError as error:
+                return todo_refused(request, token, error)
+            service.log_event(store, token, "todo", "template")
+        return RedirectResponse(todo_back(token, fields.get("back", "")), 303)
 
     @app.post("/p/{token}/todo/{item}/{what}")
     async def todo_line(request: Request, token: str, item: str, what: str) -> Response:
-        if load(token) is None or what not in ("tick", "edit", "change"):
+        if load(token) is None or what not in ("tick", "edit", "change", "card", "day"):
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=4)
+        form = await request.form(max_files=0, max_fields=6)
         fields = {k: str(v) for k, v in form.items()}
         now = config.clock()
 
@@ -4105,14 +4136,18 @@ def create_app(config: Config | None = None) -> FastAPI:
                 return service.tick_todo(current, item, fields.get("done") == "1", now=now)
             if what == "edit":
                 return service.edit_todo(current, item, fields.get("text", ""))
-            return service.change_todo(current, item, fields.get("how", ""), now=now)
+            if what == "card":  # D202: a note's flashcard
+                return service.todo_card(store, current, item, now)
+            if what == "day":  # D202: a card dropped on the board's column
+                return service.plan_mind_item(current, item, fields.get("day", ""), now=now)
+            return service.change_todo(current, item, fields.get("how", ""), to=fields.get("to", ""), now=now)
 
         try:
             service.update_subscription(store, token, change)
         except service.ServiceError as error:
             return todo_refused(request, token, error)
         service.log_event(store, token, "todo", what)
-        return RedirectResponse(f"/p/{token}/todo", 303)
+        return RedirectResponse(todo_back(token, fields.get("back", "")), 303)
 
     def todo_refused(request: Request, token: str, error: Exception) -> HTMLResponse:
         subscription = load(token)
