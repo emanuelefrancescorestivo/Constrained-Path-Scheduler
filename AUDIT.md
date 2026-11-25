@@ -1467,3 +1467,10 @@ page's phone pictures again, taller (D205): the four answers to a self-test ("Ni
 ran past the screen; the page grew wider than the phone and its tab bar fell partly below the bottom
 edge (the pictures before showed it cut too). Status: fixed: the columns may shrink, and on a screen
 under 520px the answers sit two by two (checked in Chromium at 390 × 844, in Italian and English).
+
+**136. A hairstyle's front was drawn with a broken path.** Found on 2026-11-25 while checking D206's
+avatar page in Chromium, which logged "Expected number" for the wolf cut's front (`_avatar.html`): its
+last curve had one point of three, so every page drawing the maker logged an error and the browser drew
+the path only up to the curve before. Status: fixed: the dangling point is gone and the path closes
+where the browser closed it, so it looks the same (checked in Chromium: no error on the avatar page).
+

@@ -32,6 +32,7 @@
   "straight": _("Straight"), "thick": _("Thick"), "raised": _("Raised"),
   "smile": _("Smile"), "grin": _("Grin"), "neutral": _("Calm"),
   "cap": _("Cap"), "beanie": _("Beanie"), "headphones": _("Headphones"), "flower": _("Flower"),
+  "mortarboard": _("Graduation cap"), "laurel": _("Laurel"), "crown": _("Crown"),
   "freckles": _("Freckles"), "earrings": _("Earrings"), "mole": _("Beauty mark"),
   "tee": _("T-shirt"), "hoodie": _("Hoodie"), "shirt": _("Shirt"), "sweater": _("Sweater"),
 } %}
@@ -49,7 +50,9 @@
   {% for part, legend, swatch in rows %}
   <fieldset class="card av-part">
     <legend class="tile-label">{{ legend }}</legend>
-    <div class="av-chips">{% for v in parts[part] %}<input class="av-pick" type="radio" name="{{ part }}" id="av-{{ part }}-{{ v }}" value="{{ v }}"{% if chosen[part] == v %} checked{% endif %}>{% if swatch %}<label class="av-chip av-chip-swatch" for="av-{{ part }}-{{ v }}"{% if part == "colour" %} title="{{ words[v] }}"{% endif %}><span class="av av-swatch av-swatch-{{ swatch }} {% if part == 'skin' %}skin{% elif part == 'colour' %}col{% else %}{{ part }}{% endif %}-{{ v }}"></span><span class="visually-hidden">{% if part == "colour" %}{{ words[v] }}{% elif part == "skin" %}{{ _("Skin tone {n}", n=loop.index) }}{% else %}{{ _("Colour {n}", n=loop.index) }}{% endif %}</span></label>{% else %}<label class="av-chip" for="av-{{ part }}-{{ v }}">{{ words[v] }}</label>{% endif %}{% endfor %}</div>
+    <div class="av-chips">{% for v in parts[part] %}<input class="av-pick" type="radio" name="{{ part }}" id="av-{{ part }}-{{ v }}" value="{{ v }}"{% if v in locked and chosen[part] != v %} disabled{% endif %}{% if chosen[part] == v %} checked{% endif %}>{% if swatch %}<label class="av-chip av-chip-swatch" for="av-{{ part }}-{{ v }}"{% if part == "colour" %} title="{{ words[v] }}"{% endif %}><span class="av av-swatch av-swatch-{{ swatch }} {% if part == 'skin' %}skin{% elif part == 'colour' %}col{% else %}{{ part }}{% endif %}-{{ v }}"></span><span class="visually-hidden">{% if part == "colour" %}{{ words[v] }}{% elif part == "skin" %}{{ _("Skin tone {n}", n=loop.index) }}{% else %}{{ _("Colour {n}", n=loop.index) }}{% endif %}</span></label>{% elif v in locked and chosen[part] != v %}<label class="av-chip is-locked" for="av-{{ part }}-{{ v }}">{{ lucide('lock') }}{{ words[v] }} · {{ _("Level {n}", n=locked[v]) }}</label>{% else %}<label class="av-chip" for="av-{{ part }}-{{ v }}">{{ words[v] }}</label>{% endif %}{% endfor %}</div>
+    {# D206: the accessories a level unlocks, and where to see them all. #}
+    {% if part == "head" %}<p class="hint av-more"><a href="/p/{{ token }}/rewards#accessories">{{ _("More accessories unlock with your level") }} ›</a></p>{% endif %}
   </fieldset>
   {% endfor %}
   {# D143: where you're from, a round badge; the countries offered first, then every one. #}

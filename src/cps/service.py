@@ -9251,7 +9251,19 @@ AVATAR_PARTS: dict[str, tuple[str, ...]] = {
     "mouth": ("smile", "grin", "neutral", "smirk", "lips"),
     "face": ("none", "moustache", "beard", "goatee", "stubble"),
     "glasses": ("none", "round", "square", "sun"),
-    "head": ("none", "cap", "beanie", "headphones", "flower", "bandana", "bucket", "headband"),
+    "head": (
+        "none",
+        "cap",
+        "beanie",
+        "headphones",
+        "flower",
+        "bandana",
+        "bucket",
+        "headband",
+        "mortarboard",
+        "laurel",
+        "crown",
+    ),
     "detail": ("none", "freckles", "earrings", "mole", "nosering", "studs", "dimples"),
     "outfit": ("tee", "hoodie", "shirt", "sweater", "jacket", "turtleneck"),
     "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6", "k0", "k1", "k2"),
@@ -9304,15 +9316,19 @@ def avatar_of(subscription: Subscription | None) -> dict[str, str] | None:
     return avatar
 
 
-def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscription:
+def set_avatar(subscription: Subscription, chosen: Mapping[str, str], *, level: int = 1) -> Subscription:
     """Keep the avatar a student made: every part one of its names (D115), and the flag
     (D143) one on the list, or none. A country picked from the full list wins over the
-    suggestion ticked, since it was picked later."""
+    suggestion ticked, since it was picked later. An accessory needs its level (D206), unless
+    it is already worn."""
     avatar = {}
     for part, names in AVATAR_PARTS.items():
         value = chosen.get(part) or AVATAR_START[part]
         if value not in names:
             raise InvalidInput(_("choose one of the options shown for each part"))
+        worn = (subscription.options.get("avatar") or {}).get(part)
+        if part == "head" and value != worn and level < ACCESSORY_LEVEL.get(value, 0):
+            raise InvalidInput(_("unlocked at level {n}", n=ACCESSORY_LEVEL[value]))
         avatar[part] = value
     flag = str(chosen.get("flag_other") or chosen.get("flag") or "")
     if flag == "none":
@@ -9332,6 +9348,127 @@ def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
     flag = avatar["flag"] if avatar else ""
     parts = json.dumps({part: avatar[part] for part in AVATAR_PARTS}) if avatar else ""
     social.set_flag(_store(store), subscription.token, flag, parts)
+
+
+# --------------------------------------------------------------------------- #
+# D206: rewards to unlock (the owner: "unlock different backgrounds and focus rings as
+# rewards of the app; accessories for the avatar as you level up"). The focus page's ring
+# and backdrop come with the sessions timed with Focus, the avatar's accessories with the
+# level (D189), which never goes down. Each key is drawn by a class (`ring-*`, `bd-*`,
+# `hd-*`); the thresholds are choices, not measured.
+# --------------------------------------------------------------------------- #
+
+REWARD_RINGS: tuple[tuple[str, str, int], ...] = (
+    ("vine", "Vine", 0),
+    ("gold", "Gold", 5),
+    ("aurora", "Aurora", 15),
+    ("sakura", "Sakura", 40),
+)
+REWARD_BACKDROPS: tuple[tuple[str, str, int], ...] = (
+    ("plain", "Plain", 0),
+    ("dawn", "Dawn", 10),
+    ("forest", "Forest", 25),
+    ("night", "Starry night", 50),
+)
+REWARD_ACCESSORIES: tuple[tuple[str, str, int], ...] = (  # things on the head, by level
+    ("mortarboard", "Graduation cap", 2),
+    ("laurel", "Laurel", 4),
+    ("crown", "Crown", 6),
+)
+ACCESSORY_LEVEL = {key: level for key, _name, level in REWARD_ACCESSORIES}
+
+
+def _timed_sessions(store: str | os.PathLike, subscription: Subscription, now: datetime) -> int:
+    """How many sessions the student timed with Focus and saved in the diary."""
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    _starts, timed, _tests = _insight_inputs(store, subscription, local)
+    return len(timed)
+
+
+def focus_look(subscription: Subscription) -> dict[str, str]:
+    """The ring and backdrop the student chose for the focus page (D206), else the first."""
+    look = subscription.options.get("look") or {}
+    rings = {key for key, _n, _s in REWARD_RINGS}
+    backdrops = {key for key, _n, _s in REWARD_BACKDROPS}
+    ring = str(look.get("ring") or "")
+    backdrop = str(look.get("backdrop") or "")
+    return {
+        "ring": ring if ring in rings else REWARD_RINGS[0][0],
+        "backdrop": backdrop if backdrop in backdrops else REWARD_BACKDROPS[0][0],
+    }
+
+
+def rewards_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """What there is to unlock (D206): each ring and backdrop with the sessions it needs and
+    how far the student is, each accessory with its level; which are unlocked and in use."""
+    now = now or datetime.now(UTC)
+    sessions = _timed_sessions(store, subscription, now)
+    level = crest_of(store, subscription)
+    look = focus_look(subscription)
+    avatar = avatar_of(subscription) or {}
+
+    def by_sessions(kind: str, table: tuple[tuple[str, str, int], ...]) -> list[dict]:
+        return [
+            {
+                "key": key,
+                "name": _(name),
+                "needs": needs,
+                "unlocked": sessions >= needs,
+                "left": max(0, needs - sessions),
+                "percent": 100 if not needs else min(100, round(100 * sessions / needs)),
+                "chosen": look[kind] == key,
+            }
+            for key, name, needs in table
+        ]
+
+    return {
+        "sessions": sessions,
+        "level": level["n"],
+        "level_name": level["name"],
+        "rings": by_sessions("ring", REWARD_RINGS),
+        "backdrops": by_sessions("backdrop", REWARD_BACKDROPS),
+        "accessories": [
+            {
+                "key": key,
+                "name": _(name),
+                "level": needs,
+                "unlocked": level["n"] >= needs,
+                "worn": avatar.get("head") == key,
+                "spec": {**(avatar or AVATAR_START), "head": key},
+            }
+            for key, name, needs in REWARD_ACCESSORIES
+        ],
+    }
+
+
+def choose_look(
+    store: str | os.PathLike, subscription: Subscription, kind: str, key: str, now: datetime | None = None
+) -> Subscription:
+    """The focus page's ring or backdrop, among those unlocked (D206)."""
+    view = rewards_view(store, subscription, now)
+    pool = {"ring": view["rings"], "backdrop": view["backdrops"]}.get(kind)
+    item = next((x for x in pool or () if x["key"] == key), None)
+    if item is None:
+        raise InvalidInput(_("choose one of the options shown"))
+    if not item["unlocked"]:
+        raise InvalidInput(
+            _n(
+                "unlocked after {n} session timed with Focus",
+                "unlocked after {n} sessions timed with Focus",
+                item["needs"],
+            )
+        )
+    look = {**(subscription.options.get("look") or {}), kind: key}
+    return replace(subscription, options={**subscription.options, "look": look})
+
+
+def unlocks_next(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> list[str]:
+    """The rings and backdrops the session being saved unlocks: those needing one more
+    session than the student has timed (D206), for the end of a session (D177)."""
+    view = rewards_view(store, subscription, now)
+    return [x["name"] for x in (*view["rings"], *view["backdrops"]) if x["needs"] == view["sessions"] + 1]
 
 
 def language_of(subscription: Subscription) -> str:
@@ -10146,6 +10283,7 @@ def session_done_view(
         "whole": bool(draft.get("checked")) and not int(draft.get("interruptions") or 0),
         "points": POINTS_DONE if draft.get("sid") else 0,
         "proof": POINTS_PROOF,
+        "unlocks": unlocks_next(store, subscription, now),  # D206
     }
 
 

@@ -42,6 +42,7 @@ ART: dict[str, str] = {
     "calendar": "calendar",
     "feedback": "message-square-heart",
     "connections": "link",  # D175
+    "rewards": "gift",  # D206
     # Settings' rows (D103).
     "week": "calendar-days",
     "key": "key-round",
@@ -107,6 +108,7 @@ PLACES: tuple[str, ...] = (
     "table",  # the to-do page's views
     "kanban",
     "layout-template",  # the to-do page's templates
+    "lock",  # a reward still locked (D206)
 )
 
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")

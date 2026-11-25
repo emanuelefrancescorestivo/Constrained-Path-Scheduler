@@ -4,6 +4,10 @@
 
 ### Added
 
+- Rewards to unlock (DECISIONS.md D206): rings and backdrops for the focus page, unlocked by sessions
+  timed with Focus, and accessories for the avatar (a graduation cap, a laurel, a crown) unlocked by the
+  level. A Rewards page under You shows them all and how far each is.
+
 - Four more films on the front page (DECISIONS.md D205): making your avatar, a course page from Moodle
   landing on its weeks, a focus session from its aim to "Session complete!", and notes with formulas becoming
   cards. The marks film is founded on the study's own comparison: a class of 100, and the 19 classmates a

@@ -1308,6 +1308,7 @@ label.radio-row + label.radio-row { border-top: 0.5px solid var(--line); }
 .art-cap { --hue: var(--t-indigo); }
 .art-brain { --hue: var(--t-pink); }
 .art-trophy { --hue: var(--t-amber); }
+.art-rewards { --hue: var(--t-pink); }
 .art-repeat { --hue: var(--t-green); }
 .art-hourglass { --hue: var(--t-teal); }
 .art-moon { --hue: var(--t-indigo); }
@@ -6981,3 +6982,71 @@ main.site.todo-wide { max-width: none; }
 .todo-group + .todo-group { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--line); }
 .todo-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
 .todo-group-head small { color: var(--muted); }
+
+/* D206: rewards. The avatar's accessories a level unlocks. */
+.av-board, .av-board-top { fill: #232a3a; }
+.av-board-top { filter: brightness(1.25); }
+.av-tassel { fill: none; stroke: #f2c14e; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.av-tassel-end { fill: #f2c14e; }
+.av-laurel { fill: #5f9e43; }
+.av-laurel-stem { fill: none; stroke: #4a7f33; stroke-width: 2; stroke-linecap: round; }
+.av-crown { fill: #f5c542; }
+.av-crown-band { fill: #e0a92c; }
+.av-gem { fill: #e5484d; }
+.av-gem.is-blue { fill: #3b82f6; }
+.av-maker:has(#av-head-mortarboard:checked) .hd-mortarboard,
+.av-maker:has(#av-head-laurel:checked) .hd-laurel,
+.av-maker:has(#av-head-crown:checked) .hd-crown { display: inline; }
+.av-chip.is-locked { opacity: 0.55; cursor: not-allowed; }
+.av-chip.is-locked svg { width: 13px; height: 13px; margin-right: 3px; vertical-align: -2px; }
+
+/* The focus page's rings: the vine's colour, or a gradient defined in its own SVG. */
+.ring-gold .vine-grow { stroke: #e0a826; }
+.ring-gold .vine-leaf { fill: #e8b93a; }
+.ring-aurora .vine-grow { stroke: url(#vg-aurora); }
+.ring-aurora .vine-leaf { fill: #7c6cff; }
+.ring-sakura .vine-grow { stroke: #f08fb4; }
+.ring-sakura .vine-leaf { fill: #f7b6cf; }
+/* Its backdrops: a disc behind the clock, inside the vine, the same in light and dark;
+   the clock's words take the disc's own ink. Each gradient fills its box to the edge, so
+   the swatch on the rewards page shows the same disc whole. */
+.bd-dawn { --bd: radial-gradient(circle closest-side, #ffe4bd 0, #ffc6b3 45%, #cdbaff 98%, transparent 100%); }
+.bd-forest { --bd: radial-gradient(circle closest-side, #e2f4e3 0, #bfe4c6 45%, #7db98f 98%, transparent 100%); }
+.bd-night {
+  --bd: radial-gradient(circle 2px at 30% 32%, #ffffff 98%, transparent 100%),
+    radial-gradient(circle 1.5px at 70% 24%, #ffffff 98%, transparent 100%),
+    radial-gradient(circle 1.5px at 24% 64%, #ffffff 98%, transparent 100%),
+    radial-gradient(circle 2px at 74% 70%, #ffffff 98%, transparent 100%),
+    radial-gradient(circle 1px at 52% 16%, #ffffff 98%, transparent 100%),
+    radial-gradient(circle closest-side, #2d3870 0, #161c40 70%, #0c1128 98%, transparent 100%);
+}
+.focus:is(.bd-dawn, .bd-forest, .bd-night) .focus-dial { background: var(--bd) center / 68% 68% no-repeat; }
+.rw-swatch:is(.bd-dawn, .bd-forest, .bd-night) { background: var(--bd) center / 100% 100% no-repeat; }
+.focus:is(.bd-dawn, .bd-forest) .focus-face { color: #1c1c1e; }
+.focus.bd-dawn .vine-next { color: #166534; }
+.focus.bd-forest .vine-next { color: #14532d; }
+.focus.bd-night .focus-face { color: #ffffff; }
+.focus.bd-night .vine-next { color: #86efac; }
+.rw-swatch.bd-plain { background: radial-gradient(circle closest-side, var(--fill-2) 98%, transparent 100%); }
+/* The rewards page. */
+.rw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rw-grid > .rw-item { display: grid; justify-items: center; align-content: start; gap: 6px; margin: 0; padding: 16px 12px; text-align: center; }
+.rw-item.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.rw-item.is-locked .rw-ring, .rw-item.is-locked .rw-swatch, .rw-item.is-locked .rw-face { filter: grayscale(1); opacity: 0.55; }
+.rw-ring { width: 84px; height: 84px; transform: rotate(-90deg); }
+.rw-track { fill: none; stroke: var(--fill-3); stroke-width: 7; }
+.rw-fill { fill: none; stroke: var(--ok); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 72 100; }
+.rw-ring.ring-gold .rw-fill { stroke: #e0a826; }
+.rw-ring.ring-sakura .rw-fill { stroke: #f08fb4; }
+.rw-swatch { display: block; width: 84px; height: 84px; border-radius: 50%; }
+.rw-face .av-face { width: 84px; height: 84px; display: block; }
+.rw-name { margin: 0; font-weight: 700; }
+.rw-on, .rw-lock { display: inline-flex; align-items: center; gap: 5px; margin: 0; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.rw-on { color: var(--accent-ink); }
+.rw-on svg, .rw-lock svg { width: 15px; height: 15px; }
+.rw-bar { display: block; width: 100%; height: 6px; overflow: hidden; border-radius: 99px; background: var(--fill-2); }
+.rw-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.run-unlocks { margin: 4px 0 0; font-weight: 650; }
+.run-unlocks a { display: inline-flex; align-items: center; gap: 6px; }
+.run-unlocks svg { width: 18px; height: 18px; color: var(--t-pink); }
+.av-more { margin: 8px 0 0; }

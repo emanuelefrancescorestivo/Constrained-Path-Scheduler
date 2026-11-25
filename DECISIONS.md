@@ -8170,3 +8170,41 @@ line, its label and the rest, and a taller phone in the first picture.
   D200) once.
 - Checked in Chromium only, at 1440 × 900 and phone size, light and dark, in English, French, Italian
   and Spanish.
+
+## D206. Rewards to unlock: rings and backdrops for Focus, accessories for the avatar
+
+**Asked.** With D205's films, the owner: "the possibility of unlocking different backgrounds and focus
+rings as rewards of the app, this not in the film; and as rewards, accessories for the avatar as you
+level up."
+
+**Chosen.**
+- **What unlocks what:**
+  - the focus page's **rings** (Vine, Gold at 5, Aurora at 15, Sakura at 40) and **backdrops** (Plain,
+    Dawn at 10, Forest at 25, Starry night at 50) come with the sessions timed with Focus and saved in the
+    diary, the ones the insights already count (`_insight_inputs`: timed and checked by the heartbeats);
+  - the avatar's **accessories** (a graduation cap at level 2, a laurel at 4, a crown at 6) come with the
+    level of D189's crest, which never goes down.
+- **Rewards** under You (`/p/<plan>/rewards`): every ring, backdrop and accessory, drawn as it will look;
+  what is unlocked is chosen in one tap and saved at once (D165), what is not says how many sessions or
+  which level are left, with a bar. Nothing is sold, and the page says so.
+- **On the focus page:** the ring colours the vine (D179) and its leaves, Aurora a gradient; the backdrop
+  is a disc inside the vine, the clock's words in the disc's own ink. The default look draws exactly as
+  before.
+- **On the avatar page:** an accessory still locked is a chip that cannot be picked, with a lock and its
+  level; one already worn stays worn. The server refuses a locked one too (`set_avatar(level=)`).
+- **At the end of a session:** "Saving this session unlocks: Gold", when saving it reaches a threshold.
+- Each key is drawn by a class (`ring-*`, `bd-*`, `hd-*`); a look saved under a name this version does not
+  draw falls back to the first.
+
+**Rejected.**
+- **Unlocks by points or streak:** points already rank the league (D189) and the streak has its garden;
+  sessions timed with Focus tie the focus page's rewards to the focus page.
+- **Rewards in the films:** the owner asked for them in the app only.
+- **Buying a look:** nothing in the app is for sale.
+
+**Disclosed.**
+- The thresholds and the looks are choices, not measured. Whether unlocking brings more timed sessions is
+  for the pilot; a reward for time on the clock may also reward leaving it running.
+- The demo's students log their sessions without the timer, so their rings and backdrops start locked.
+- Checked in Chromium only, at phone size and 1280 px, light and dark.
+

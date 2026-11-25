@@ -1228,12 +1228,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         mine = service.avatar_of(subscription)
+        rewards = service.rewards_view(store, subscription, config.clock())
         return page(
             request,
             "avatar.html",
             token=token,
             tab="you",
             my_avatar=mine,
+            # D206: the accessories still locked, each with the level it needs.
+            locked={x["key"]: x["level"] for x in rewards["accessories"] if not x["unlocked"]},
             chosen=mine or service.AVATAR_START,
             parts=service.AVATAR_PARTS,
             saved=request.query_params.get("saved") == "1",
@@ -1253,7 +1256,12 @@ def create_app(config: Config | None = None) -> FastAPI:
         chosen = {part: str(form.get(part) or "") for part in (*service.AVATAR_PARTS, "flag", "flag_other")}
         try:
             saved = service.update_subscription(
-                store, token, lambda current: service.set_avatar(current, chosen)
+                store,
+                token,
+                # D206: an accessory needs the level of its crest.
+                lambda current: service.set_avatar(
+                    current, chosen, level=service.crest_of(store, current)["n"]
+                ),
             )
         except service.ServiceError as error:
             return refused(request, token, error)
@@ -1261,6 +1269,55 @@ def create_app(config: Config | None = None) -> FastAPI:
             service.share_flag(store, saved)  # D143: the badge on their initial in Community
         service.log_event(store, token, "avatar")
         return RedirectResponse(f"/p/{token}/avatar?saved=1", 303)
+
+    # -- rewards to unlock (D206) -------------------------------------------------------
+
+    @app.get("/p/{token}/rewards", response_class=HTMLResponse)
+    def rewards_page(request: Request, token: str) -> HTMLResponse:
+        """The focus page's rings and backdrops, the avatar's accessories: what is unlocked,
+        what is in use, how far the rest are."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "rewards.html",
+            token=token,
+            tab="you",
+            view=service.rewards_view(store, subscription, config.clock()),
+            saved=service.translate("Your focus page has its new look.")
+            if request.query_params.get("saved") == "look"
+            else "",
+        )
+
+    @app.post("/p/{token}/rewards/{kind}")
+    async def rewards_choose(request: Request, token: str, kind: str) -> Response:
+        if kind not in ("ring", "backdrop"):
+            return missing(request)
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        key = str(form.get("key") or "")[:20]
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.choose_look(store, current, kind, key, config.clock())
+            )
+        except service.ServiceError as error:
+            return page(
+                request,
+                "rewards.html",
+                400,
+                token=token,
+                tab="you",
+                view=service.rewards_view(store, subscription, config.clock()),
+                saved="",
+                error=str(error),
+            )
+        service.log_event(store, token, "look")
+        return RedirectResponse(f"/p/{token}/rewards?saved=look", 303)
 
     @app.get("/guidelines", response_class=HTMLResponse)
     def guidelines(request: Request) -> HTMLResponse:
@@ -1570,6 +1627,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "focus.html",
             token=token,
             focus=focus_now,
+            look=service.focus_look(subscription),  # D206: the ring and backdrop chosen
             # D135: before a session, the tip for it; none while the timer runs.
             why_tip=None
             if running
