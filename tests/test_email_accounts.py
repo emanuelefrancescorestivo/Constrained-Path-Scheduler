@@ -109,7 +109,7 @@ def _link(mail, kind):
 
 def test_the_home_page_asks_for_an_account_before_the_plan(web):
     home = web.get("/")
-    assert 'action="/account/signup"' in home.text and 'action="/start"' not in home.text
+    assert 'action="/account/signup?lang=en"' in home.text and 'action="/start"' not in home.text
     assert "set-cookie" not in home.headers  # nobody is signed in by looking
     refused = web.post(
         "/start",
@@ -131,7 +131,7 @@ def test_signing_up_signs_this_device_in_and_mails_a_link_to_confirm(web, mails)
     assert [m.to for m in mails] == [EMAIL] and mails[0].subject == "Confirm your e-mail address"
     home = web.get("/?made=1").text
     assert f"Signed in as {EMAIL}" in home and 'action="/start"' in home
-    assert 'action="/account/signup"' not in home
+    assert 'action="/account/signup' not in home
 
 
 def test_over_https_the_cookie_is_secure(tmp_path, clock, mails):

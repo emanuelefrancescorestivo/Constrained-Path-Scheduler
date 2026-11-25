@@ -41,7 +41,7 @@
     <input type="hidden" name="course" value="{{ c.course }}"><input type="hidden" name="at" value="t-{{ loop.index }}">
     <div class="midterm-when">
       <label>{{ _("Day") }}<input type="date" name="day" min="{{ view.today }}" required></label>
-      <label>{{ _("Time") }}<input type="time" name="time" value="09:00"></label>
+      <label>{{ _("Time") }}<input type="time" name="time" value="09:00" step="900" data-clock></label>
     </div>
     <label class="check-row"><input type="checkbox" name="exempt" value="1"> {{ _("Passing it takes its material off the final exam") }}</label>
     <button type="submit" class="btn btn-sm">{{ lucide('plus') }}{{ _("Add a midterm") }}</button>
