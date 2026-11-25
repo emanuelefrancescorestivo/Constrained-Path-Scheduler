@@ -8924,6 +8924,36 @@ def lock_view(subscription: Subscription, device: str) -> dict:
     }
 
 
+# D198 (the owner, 2026-11-25: "we block social media, not the user"). On a computer the
+# app's browser extension (`extension/`) blocks these sites while a session runs: every page
+# of a plan says until when (`focus_until`), and the extension reads nothing else. A session
+# without a length is taken to last FOCUS_BLOCK_OPEN; one with a length, that length with its
+# pauses (D178) and FOCUS_BLOCK_SLACK more. Leaving the session, or ending it, ends the block
+# the next time a page of the plan is opened.
+LOCK_SITES = ("instagram.com", "tiktok.com", "facebook.com", "messenger.com", "web.whatsapp.com")
+FOCUS_BLOCK_OPEN = timedelta(hours=3)
+FOCUS_BLOCK_SLACK = timedelta(minutes=15)
+
+
+def focus_until(subscription: Subscription | None, now: datetime | None = None) -> str:
+    """When the session under way is taken to end, as an ISO instant, for the extension that
+    blocks the distracting sites meanwhile; "" with no session, or one past that time."""
+    focus = (subscription.options.get("focus") or {}) if subscription is not None else {}
+    if not focus.get("started"):
+        return ""
+    now = now or datetime.now(UTC)
+    started = datetime.fromisoformat(focus["started"])
+    goal = focus.get("goal")
+    if goal:
+        length = timedelta(minutes=int(goal))
+        if focus.get("rhythm"):
+            length += timedelta(seconds=RHYTHM_PAUSE) * int(length.total_seconds() // RHYTHM_WORK)
+        end = started + length + FOCUS_BLOCK_SLACK
+    else:
+        end = started + FOCUS_BLOCK_OPEN
+    return end.astimezone(UTC).isoformat(timespec="seconds") if end > now else ""
+
+
 def set_focus_shortcut(subscription: Subscription, name: str) -> Subscription:
     """The name of the shortcut that toggles the student's Focus on their iPhone, or "" to
     forget it."""

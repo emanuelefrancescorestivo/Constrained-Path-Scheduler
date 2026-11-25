@@ -538,6 +538,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             context.setdefault("glass", service.glass_of(subscription))
             # A theme for light, one for dark, and an accent (D156).
             context.setdefault("palette", service.palette_of(subscription))
+            # D198: until when a focus session runs, for the extension that blocks distractions.
+            context.setdefault("focus_until", service.focus_until(subscription, config.clock()))
         if token and "sky" not in context:
             # The sky of the hour and the garden of the streak behind the page (D73).
             # Decoration: if working it out fails, the page shows without it.

@@ -1,0 +1,25 @@
+{
+  "name": {
+    "message": "Study plan: Focus"
+  },
+  "description": {
+    "message": "Pauses Instagram, TikTok, Facebook and WhatsApp Web while a focus session of your study plan runs."
+  },
+  "blockedTitle": {
+    "message": "Focus"
+  },
+  "blockedWhy": {
+    "message": "This site is paused while your study session runs."
+  },
+  "blockedUntil": {
+    "message": "Back at $TIME$.",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "blockedBack": {
+    "message": "Back to my session"
+  }
+}

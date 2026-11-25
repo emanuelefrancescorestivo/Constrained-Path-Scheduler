@@ -4,6 +4,10 @@
 
 ### Added
 
+- A browser extension that pauses Instagram, TikTok, Facebook, Messenger and WhatsApp Web while a
+  focus session runs (DECISIONS.md D198, `extension/`). The plan's pages say until when; the
+  extension reads that and nothing else. To be published by the owner.
+
 - LaTeX on a card, read whole (DECISIONS.md D197): `$…$`, Greek letters, relations, arrows, sets,
   `\sqrt{…}`, `\mathbb{R}`, functions and their limits, bars and accents, and `x^2` without braces
   are drawn, not shown as typed.

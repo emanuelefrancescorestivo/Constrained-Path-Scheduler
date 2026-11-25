@@ -7738,3 +7738,48 @@ of cards, for what a hundred lines of rules do for the LaTeX a card holds. It ne
 
 **Disclosed.** No matrices, no environments (`\begin{…}`), no limits set over a sum (they stay at
 its side, as inline mathematics). Checked in Chromium only, at phone size, light and dark.
+
+## D198. Distracting sites blocked during a session, on a computer
+
+**Asked.** The owner, after D196: "we block social media, not the user".
+
+**Chosen.** A browser extension, `extension/`, for Chrome, Edge and Brave (Manifest V3). While a
+focus session runs it sends Instagram, TikTok, Facebook, Messenger and WhatsApp Web
+(`service.LOCK_SITES`) to a calm page instead: "This site is paused while your study session runs.
+Back at 10:03", with a button back to the session. Tabs already open on them go there too.
+
+How it knows, and what it does not know:
+- **The pages say when.** Every page of a plan carries `data-focus-until` on `<body>`
+  (`service.focus_until`): when the session under way is taken to end, or nothing. That is its
+  length, plus a 5-minute pause per 25 minutes with the rhythm (D178), plus 15 minutes; or 3 hours
+  for a session without a length.
+- **The content script reads one attribute.** It runs on a plan's pages only and reads that
+  attribute and nothing else. The background turns on the browser's own blocking rules
+  (`declarativeNetRequest`) until then, or until a page of the plan says no session runs. Ending
+  or cancelling the session lifts the block at the next page.
+- **Nothing leaves the device.** The extension never sees what is browsed and sends nothing. It
+  asks for the five sites and three permissions: blocking rules, storage, alarms.
+
+Checked by loading it in Chromium: Instagram opens with no session, goes to the calm page during
+one, and opens again once it is cancelled.
+
+**Phones.** A website cannot block an app (D196). Blocking on phones needs an app of the study
+plan's own for each phone:
+- an iPhone app using Apple's Screen Time API (FamilyControls), with Apple's Family Controls
+  entitlement and a developer account;
+- an Android app using usage access and an overlay, within Google Play's rules.
+
+Both are decisions on accounts, cost and the app stores, and are the owner's. Until then the focus
+page keeps D196's steps for the phone's own Focus.
+
+**Rejected.**
+- **Reading the plan from the extension through an address and a key:** the extension would hold
+  the plan's key. The attribute on the plan's own pages needs no key.
+- **Blocking without a redirect** (Chrome's error page): a calm page that says until when is kinder
+  and costs only the five sites' permission.
+
+**Disclosed.**
+- Not published: the owner publishes it (a Chrome Web Store account), adding the hosted app's
+  domain to the pages the content script runs on. Only the demo and `localhost` are listed.
+- A session left without opening the plan again stays blocked until its end time.
+- Firefox and Safari not tried.
