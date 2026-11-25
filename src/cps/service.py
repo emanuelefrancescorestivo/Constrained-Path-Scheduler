@@ -11142,6 +11142,7 @@ def group_view(
     card["notes"] = _cards(
         where, subscription.token, social.group_notes(where, subscription.token, group_id), now, zone
     )
+    card["list"] = group_list_view(store, subscription, group_id, now)  # D204
     return card
 
 
@@ -11218,6 +11219,141 @@ def remove_from_group(store: str | os.PathLike, token: str, group_id: str, handl
 def change_group(store: str | os.PathLike, token: str, group_id: str, form: Mapping[str, str]) -> None:
     where = _store(store)
     _social(lambda: social.set_group(where, token, group_id, form.get("name", ""), form.get("goal", "")))
+
+
+# --------------------------------------------------------------------------- #
+# D204: a study group's list, the to-do page's proposal 12
+# --------------------------------------------------------------------------- #
+
+
+def group_list_view(
+    store: str | os.PathLike, subscription: Subscription, group_id: str, now: datetime | None = None
+) -> dict | None:
+    """The group's list as one member sees it: each line's words drawn as on the to-do page
+    (D202's marks, its links by their names), its day in words, who wrote it and who ticked
+    it off. Someone blocked writes without a name, as they are left off the members (D20)."""
+    now = now or datetime.now(UTC)
+    where = _store(store)
+    token = subscription.token
+    group = social.get_group(where, group_id)
+    mine = social.membership(where, token, group_id) if group else None
+    if group is None or mine is None or mine.joined is None:
+        return None
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    names: dict[str, str] = {}
+
+    def who(person: str | None) -> str:
+        if not person:
+            return ""
+        if person not in names:
+            found = social.get_profile(where, person)
+            hidden = person != token and social.blocked_between(where, token, person)
+            names[person] = found.handle if found and not hidden else ""
+        return names[person]
+
+    lines = []
+    for line in social.group_lines(where, token, group_id):
+        words, links = _todo_links(line.text)
+        d = date.fromisoformat(line.day) if line.day else None
+        when = (
+            ""
+            if d is None
+            else _("today")
+            if d == today
+            else _("tomorrow")
+            if d == today + timedelta(days=1)
+            else _i18n.format_date(d, "short")
+        )
+        lines.append(
+            {
+                "id": line.id,
+                "text": line.text,
+                "parts": todo_parts(words),
+                "links": [_link_label(subscription, u) for u in links],
+                "day": line.day,
+                "when": when,
+                "late": d is not None and d < today and line.done is None,
+                "by": who(line.token),
+                "mine": line.token == token,
+                "done": line.done is not None,
+                "done_by": who(line.done_by),
+                "can_drop": token in (line.token, group.owner),
+            }
+        )
+    open_lines = [x for x in lines if not x["done"]]
+    return {
+        "id": group.id,
+        "name": group.name,
+        "lines": open_lines,
+        "done": [x for x in lines if x["done"]],
+        "room": social.GROUP_LINES - len(lines),
+        "most": social.GROUP_LINE,
+    }
+
+
+def add_group_line(
+    store: str | os.PathLike, token: str, group_id: str, form: Mapping[str, str], now: datetime | None = None
+) -> str:
+    """A line on the group's list; its id."""
+    where = _store(store)
+    line: social.GroupLine = _social(
+        lambda: social.add_group_line(
+            where, token, group_id, form.get("text", ""), form.get("day", ""), now=now
+        )
+    )
+    return line.id
+
+
+def change_group_line(
+    store: str | os.PathLike, token: str, group_id: str, line_id: str, what: str, now: datetime | None = None
+) -> None:
+    """Tick a line of the group's list off (or open it again), or take it off."""
+    where = _store(store)
+    if what == "tick":
+        _social(lambda: social.tick_group_line(where, token, group_id, line_id, now=now))
+    elif what == "drop":
+        _social(lambda: social.drop_group_line(where, token, group_id, line_id))
+    else:
+        raise InvalidInput(_("this cannot be done to a line"))
+
+
+def clear_group_lines(store: str | os.PathLike, token: str, group_id: str) -> int:
+    where = _store(store)
+    cleared: int = _social(lambda: social.clear_group_lines(where, token, group_id))
+    return cleared
+
+
+def share_todo(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    item: str,
+    group_id: str,
+    now: datetime | None = None,
+) -> None:
+    """A line of one's own to-do list written on a group's list too, with its day and links;
+    a heading or a step's own words go as they are. The two lines then live apart."""
+    items = _mind(subscription)
+    x = items[_mind_index(items, item)]
+    text = " ".join([x["text"], *(x.get("links") or ())])[: social.GROUP_LINE]
+    form = {"text": text, "day": x["day"] if x["kind"] in TODO_TICKED else ""}
+    add_group_line(store, subscription.token, group_id, form, now=now)
+
+
+def todo_groups(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> list[dict]:
+    """Beside the to-do page (D204): each of the student's groups, its open lines counted
+    and the first three, the group's page a tap away."""
+    where = _store(store)
+    out = []
+    for group in social.groups_of(where, subscription.token):
+        view = group_list_view(store, subscription, group.id, now)
+        if view is None:
+            continue
+        out.append(
+            {"id": group.id, "name": group.name, "open": len(view["lines"]), "first": view["lines"][:3]}
+        )
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -17769,6 +17905,35 @@ def _landing_scenes() -> dict:
             "target": round(100 * target),
         },
         "cards": {"lines": lines, "cards": cards, "done_at": at + 300},
+        # D204: a study group's list, each line ticked off by someone other than who wrote it.
+        "group": {
+            "name": _("Thursday library"),
+            "members": social.GROUP_SIZE,
+            "done_at": 3700,
+            "lines": [
+                {
+                    "text": _("Book a room for Thursday"),
+                    "by": "@maya",
+                    "at": 300,
+                    "tick": 2500,
+                    "ticked": _("ticked off by @{handle}", handle="tom"),
+                },
+                {
+                    "text": _("Ask the teacher about exercise 4"),
+                    "by": "@tom",
+                    "at": 650,
+                    "tick": 3100,
+                    "ticked": _("ticked off by you"),
+                },
+                {
+                    "text": _("Bring the past paper"),
+                    "by": _("you, from your list"),
+                    "at": 1800,
+                    "tick": 3700,
+                    "ticked": _("ticked off by @{handle}", handle="maya"),
+                },
+            ],
+        },
         "exam_days": [_i18n.format_date(d, "day_short") for d in LANDING_EXAM_DAYS],
     }
 

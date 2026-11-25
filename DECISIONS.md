@@ -8068,3 +8068,49 @@ and motivating".
 - The tube is FSRS-6's estimate with average weights.
 - Checked in Chromium only, at 1440 × 900 and phone size, light and dark, with motion and without, in
   English, French, Italian and Spanish.
+
+## D204. A study group's list
+
+**Asked.** Proposal 12 of the to-do page, approved with the other nine ("Approvo: 7, 8, 9, 10, 11, 12,
+13, 14, 15, 16"): a list kept with the study group. D202 left it for its own slice. Then, for the front
+page: "inserisci la todo list nella landing page come una soluzione innovativa su lavori di gruppo
+perché potete condividerne una" (put the to-do list on the front page as a new answer to group work,
+because you can share one).
+
+**Chosen.**
+- **One list per group,** on the group's page (`#list`): any member writes a line, with a day if
+  they like, and any member ticks it off, or opens it again. Each line says who wrote it, and a line
+  ticked off says who ticked it, as the members' handles are already on the page (D28).
+- **Its words drawn as on the to-do page:** D202's `**bold**`, `*italic*`, `~~struck~~` and `` `code` ``,
+  and links shown by their names.
+- **Taking a line off:** its author, or the group's owner, may. "Clear the lines done" takes off what
+  was ticked, for everyone.
+- **From one's own list:** a line's menu on the to-do page offers "Send to «group»", which writes it
+  on that group's list with its day and links. The two lines then live apart: ticking one does not
+  tick the other.
+- **Beside the to-do page:** each group's open lines counted, the first three, and the list a tap
+  away.
+- **Limits:** 100 lines a group, 200 characters a line.
+- **On the front page:** under "Can I do it with my friends?", a line says group work gets one list, and an
+  eighth scene (D203's kind) plays it: three made-up classmates, a line sent from "your list", each
+  line ticked off by someone other than who wrote it. The caption gives the group's size from the
+  app (`social.GROUP_SIZE`). "New" is the page's word for it; no claim is made that no other app does
+  this.
+- **The data** (`group_lines`):
+  - a group that goes takes its list;
+  - a member who leaves keeps their lines on it, for the others;
+  - a deleted plan's lines go with it, and a line it ticked off stays ticked, without a name;
+  - a plan's copy (D43) holds the lines it wrote, under each group's name.
+- **Blocks (D20):** a line by someone the reader blocked, or who blocked them, shows without a name.
+
+**Rejected.**
+- **One line shared by both lists, ticked together:** a line in a plan's document and a row in the
+  groups' table would need to stay in step, and leaving a group would leave half a line.
+- **Assigning a line to a member:** it makes a list a list of orders; anyone ticks.
+
+**Disclosed.**
+- Members see who wrote and who ticked each line. The group's page and the privacy page say so; the
+  privacy page's line is the owner's to approve (C2).
+- There is no notice when a line is added; members see it when they open the page.
+- 100 lines and 200 characters are choices.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.

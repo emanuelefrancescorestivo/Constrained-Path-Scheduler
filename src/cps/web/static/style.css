@@ -6722,7 +6722,8 @@ main.site.todo-wide { max-width: none; }
 @keyframes ls-pop { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
 /* The start of each part, when armed; .on brings it to the drawn state. */
 .ls-card [data-at] { transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.3), background-color 0.4s, border-color 0.4s, box-shadow 0.4s, color 0.3s; }
-.ls-armed [data-at]:not(.on):not([data-count]):not([data-prop]) { opacity: 0; transform: translateY(10px) scale(0.94); }
+/* :where() keeps this rule light, so a part's own start (an empty box, an outlined day) wins. */
+.ls-armed [data-at]:where(:not(.on):not([data-count]):not([data-prop])) { opacity: 0; transform: translateY(10px) scale(0.94); }
 
 /* 1. The streak that grows and forgives. */
 .ls-top { display: flex; align-items: baseline; gap: 10px; }
@@ -6855,8 +6856,52 @@ main.site.todo-wide { max-width: none; }
 .ls-count { position: absolute; inset: auto 0 0; margin: 0; text-align: center; color: var(--ls-ink-2); }
 .ls-count b { color: var(--ls-ink); }
 
+/* 8. A study group's list (D204): drawn with every line ticked; played, the lines come in, a line
+   of your own list is sent to it, and each is ticked off by someone other than who wrote it. */
+.ls-group .ls-head svg { width: 20px; height: 20px; color: var(--ls-blue-2); }
+.ls-avs { display: inline-flex; margin-left: auto; padding-left: 8px; }
+.ls-avs .ls-av { width: 28px; height: 28px; margin-left: -8px; border: 2px solid #141925; font-size: 12px; }
+.ls-send { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; padding: 9px 12px; border-radius: 14px; background: rgb(255 255 255 / 4%); border: 1px dashed var(--ls-line); font-size: 13px; }
+.ls-mine { font-weight: 700; }
+.ls-send .ls-chip { margin-left: auto; }
+.ls-glines { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ls-glines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgb(255 255 255 / 3%); border: 1px solid var(--ls-line); }
+.ls-glines small { display: block; margin-top: 2px; color: var(--ls-ink-2); font-size: 12px; }
+.ls-glines em { font-style: normal; color: var(--ls-green); font-weight: 700; }
+.ls-box { position: relative; display: block; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px; background: var(--ls-green); border: 2px solid var(--ls-green); }
+.ls-box::after { content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); transition: opacity 0.2s; }
+.ls-box + span > .ls-gt { text-decoration: line-through; text-decoration-color: rgb(255 255 255 / 50%); transition: text-decoration-color 0.4s; }
+.ls-armed .ls-box[data-at]:not(.on) { opacity: 1; transform: none; background: transparent; border-color: #5a6278; }
+.ls-armed .ls-box:not(.on)::after { opacity: 0; }
+.ls-armed .ls-box:not(.on) + span > .ls-gt { text-decoration-color: transparent; }
+.ls-armed .ls-box.on { animation: ls-bounce 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.ls-gdone { display: flex; align-items: baseline; gap: 8px; margin: 14px 0 0; }
+.ls-gdone b { color: var(--ls-green); font-size: 30px; font-variant-numeric: tabular-nums; }
+
 @media (max-width: 560px) {
   .ls-steps { grid-template-columns: minmax(0, 1fr); }
   .ls-notes { grid-template-columns: minmax(0, 1fr) 118px; }
   .ls-days i { width: 28px; height: 28px; }
 }
+
+/* D204: a study group's list, written and ticked off by all its members. The line's box and
+   bin are the to-do page's; the bin shows under the pointer, faintly always on a touch screen. */
+.group-line-new { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; }
+#group-list .group-line-new input { width: 100%; margin: 0; }
+#group-list .group-line-new input[type="date"] { width: auto; }
+@media (max-width: 560px) {
+  .group-line-new { grid-template-columns: minmax(0, 1fr) auto; }
+  #group-list .group-line-new input[name="text"] { grid-column: 1 / -1; }
+}
+#group-list > .group-lines, #group-list > .empty, #group-list > .group-lines-done { margin-top: 10px; }
+.group-lines > li { align-items: center; gap: 10px; }
+.group-lines .todo-tick { flex: 0 0 auto; width: 28px; }
+.group-lines .todo-text { display: block; padding: 0 0 2px; overflow-wrap: anywhere; }
+.group-lines small { display: block; color: var(--muted); }
+.group-lines .is-done .todo-text { color: var(--muted); text-decoration: line-through; }
+.group-lines > li:is(:hover, :focus-within) .todo-bin { opacity: 1; }
+.group-lines-done { padding: 8px 16px; }
+.group-lines-done > summary { padding: 6px 0; cursor: pointer; color: var(--muted); font-weight: 600; }
+.todo-group + .todo-group { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--line); }
+.todo-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
+.todo-group-head small { color: var(--muted); }

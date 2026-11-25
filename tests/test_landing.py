@@ -18,7 +18,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from cps import cards, crests, i18n, memory, service
+from cps import cards, crests, i18n, memory, service, social
 from cps.web import Config, create_app
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -409,7 +409,7 @@ def test_the_scenes_are_drawn_complete_with_the_app_s_numbers(tmp_path, lang):
         view = service.landing_view()
     page = unescape(_web(tmp_path).get(f"/?lang={lang}").text)
     scenes = view["scenes"]
-    assert page.count("data-scene") == 7 and "scenes.js" in page and " style=" not in page
+    assert page.count("data-scene") == 8 and "scenes.js" in page and " style=" not in page
     s = scenes["streak"]
     assert s["points"] == 7 * service.POINTS_DONE and s["repair"] == service.REPAIR_MINUTES
     assert s["badge"]["metal"] == "silver"  # 7 days: the streak's second tier (3, 7, 30, 100)
@@ -420,5 +420,12 @@ def test_the_scenes_are_drawn_complete_with_the_app_s_numbers(tmp_path, lang):
     assert t["days"] == math.floor(service.FSRS_6.interval(again.stability, 0.9)) and t["before"] == 72
     cards = scenes["cards"]["cards"]
     assert len(cards) == 3 and all(f"<b>{c['front']}</b>" in page for c in cards)
+    # D204: the study group's list, every line drawn ticked, by someone other than who wrote it,
+    # its members as many as a group holds.
+    g = scenes["group"]
+    assert g["members"] == social.GROUP_SIZE and len(g["lines"]) == 3
+    assert all(x["text"] in page for x in g["lines"]) and page.count('class="ls-box"') == 3
+    assert [x["tick"] for x in g["lines"]] == sorted(x["tick"] for x in g["lines"])
+    assert g["done_at"] == g["lines"][-1]["tick"]
     # Without the script, every part is in its place: nothing is hidden by the page itself.
     assert not re.search(r"\.ls-card \[data-at\]\s*\{[^}]*opacity:\s*0", CSS)

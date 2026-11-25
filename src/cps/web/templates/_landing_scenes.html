@@ -140,3 +140,23 @@
   <figcaption id="ls-cards-cap">{{ _("Notes written “term: definition” become cards by rules, for free; the cards here are what the rules read in these notes.") }}</figcaption>
 </figure>
 {%- endmacro %}
+
+{% macro group(l) -%}
+{# D204: a study group's list, written by everyone and ticked off for everyone; a line of your own
+   list sent to it in one tap. Drawn complete: every line ticked; played, the lines come in, then
+   each is ticked off by someone other than who wrote it. #}
+{% set g = l.scenes.group %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-group-cap">
+  <div class="ls-card ls-group">
+    <p class="ls-head">{{ lucide('users') }}<span>{{ g.name }}</span><span class="ls-avs" aria-hidden="true"><span class="ls-av c1">M</span><span class="ls-av c2">T</span><span class="ls-av c4">{{ _("You")[:1] }}</span></span></p>
+    <p class="ls-send" data-at="900"><span class="muted">{{ _("Your list") }}</span><span class="ls-mine">{{ g.lines[2].text }}</span><span class="ls-chip" data-at="1400" data-tap>{{ _("Send to «{name}»", name=g.name) }}</span></p>
+    <ul class="ls-glines">
+      {% for x in g.lines %}
+      <li data-at="{{ x.at }}"><i class="ls-box" data-at="{{ x.tick }}"{% if loop.last %} data-burst{% endif %}></i><span><span class="ls-gt">{{ x.text }}</span><small>{{ x.by }}<em data-at="{{ x.tick }}"> · {{ x.ticked }}</em></small></span></li>
+      {% endfor %}
+    </ul>
+    <p class="ls-gdone"><b data-at="{{ g.done_at }}" data-count="0">{{ g.lines | length }}</b><span>{{ _n("of {n} line ticked off, by all of you", "of {n} lines ticked off, by all of you", g.lines | length) }}</span></p>
+  </div>
+  <figcaption id="ls-group-cap">{{ _("Made-up classmates: one list for the whole study group, up to {members} of you. Anyone writes a line, anyone ticks it off, and a line from your own list goes to it in one tap.", members=g.members) }}</figcaption>
+</figure>
+{%- endmacro %}

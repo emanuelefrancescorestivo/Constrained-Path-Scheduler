@@ -1453,3 +1453,10 @@ the far end of the top bar as a globe with two letters and a bare sun, with noth
 be tapped; the owner's screenshot also showed the page from before the deploy, cached. Status: fixed:
 each is an outlined pill and, from 640px, says its name ("Français", "Clair"); a phone keeps the code
 and the icon (`tests/test_landing.py`; checked in Chromium at 2000, 1280 and 390px, light and dark).
+
+**134. The front page's scenes hid the parts meant to start empty.** Found on 2026-11-25 while
+drawing D204's scene of a study group's list: its boxes were meant to start empty and be ticked, but
+stayed invisible until ticked. The rule that sets a scene's parts back (`.ls-armed [data-at]…`) was
+heavier than each part's own start, so D203's empty days of the streak, the dimmed three steps and
+the notes' unmarked words started invisible too. Status: fixed: the rule's conditions sit inside
+`:where()`, so a part's own start wins (checked in Chromium, each scene at 1.5 s into its play).
