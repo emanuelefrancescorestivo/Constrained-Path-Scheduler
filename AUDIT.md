@@ -1460,3 +1460,17 @@ stayed invisible until ticked. The rule that sets a scene's parts back (`.ls-arm
 heavier than each part's own start, so D203's empty days of the streak, the dimmed three steps and
 the notes' unmarked words started invisible too. Status: fixed: the rule's conditions sit inside
 `:where()`, so a part's own start wins (checked in Chromium, each scene at 1.5 s into its play).
+
+**135. A phone's Today was wider than the screen in Italian.** Found on 2026-11-25 while taking the front
+page's phone pictures again, taller (D205): the four answers to a self-test ("Niente", "Una parte",
+"La maggior parte", "Tutto") stood in four columns that could not shrink below their words, so the row
+ran past the screen; the page grew wider than the phone and its tab bar fell partly below the bottom
+edge (the pictures before showed it cut too). Status: fixed: the columns may shrink, and on a screen
+under 520px the answers sit two by two (checked in Chromium at 390 × 844, in Italian and English).
+
+**136. A hairstyle's front was drawn with a broken path.** Found on 2026-11-25 while checking D206's
+avatar page in Chromium, which logged "Expected number" for the wolf cut's front (`_avatar.html`): its
+last curve had one point of three, so every page drawing the maker logged an error and the browser drew
+the path only up to the curve before. Status: fixed: the dangling point is gone and the path closes
+where the browser closed it, so it looks the same (checked in Chromium: no error on the avatar page).
+

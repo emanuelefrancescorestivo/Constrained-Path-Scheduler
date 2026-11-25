@@ -19,6 +19,7 @@
   {% if moodle %}<li><a href="{{ moodle.courses }}" rel="noopener noreferrer" target="_blank">{{ art("cap") }}<span class="grow"><b>{{ _("Moodle") }} ↗</b><small>{{ _("Your courses on {site}: materials, assignments, grades", site=moodle.host) }}</small></span></a></li>
   {% else %}<li><a href="/p/{{ token }}/settings/exams#deadlines">{{ art("cap") }}<span class="grow"><b>{{ _("Moodle") }}</b><small>{{ _("Link your university's Moodle: its deadlines here, its courses one tap away") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>{% endif %}
   <li><a href="/p/{{ token }}/focus">{{ art("focus") }}<span class="grow"><b>{{ _("Focus and diary") }}</b><small>{{ _("Time a session, or write down one you did") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
+  <li><a href="/p/{{ token }}/rewards">{{ art("rewards") }}<span class="grow"><b>{{ _("Rewards") }}</b><small>{{ _("Rings and backdrops for Focus, accessories for your avatar") }}</small></span><span class="chev" aria-hidden="true">›</span></a></li>
 </ul>
 <h2 class="section">{{ _("Learning to learn") }}</h2>
 <ul class="card list you-list" data-tour="you-learn">

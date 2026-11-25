@@ -65,8 +65,8 @@ def test_each_place_under_you_has_its_own_picture(web):
     token = _start(web)
     you = web.get(f"/p/{token}/you").text
     rows = re.findall(r'<li><a href="(/p/[^"]+)"><span class="art art-([a-z]+)" aria-hidden="true"><svg', you)
-    # How it works since D116, Moodle since D163, Connections since D175.
-    assert len(rows) == 13 and len({name for _, name in rows}) == 13
+    # How it works since D116, Moodle since D163, Connections since D175, Rewards since D206.
+    assert len(rows) == 14 and len({name for _, name in rows}) == 14
     art = (WEB / "templates" / "_art.html").read_text()
     assert "style=" not in art and "<script" not in art  # the Content-Security-Policy allows neither
     # Since D139 each picture is a Lucide icon on a soft tile of the place's colour.

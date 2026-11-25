@@ -23,7 +23,7 @@
 {% from "_people.html" import avatar %}
 {% macro mmss(seconds) %}{{ '%d:%02d' % (seconds // 60, seconds % 60) }}{% endmacro %}
 {% macro clock(seconds) %}{% if seconds >= 3600 %}{{ '%d:%02d:%02d' % (seconds // 3600, (seconds % 3600) // 60, seconds % 60) }}{% else %}{{ mmss(seconds) }}{% endif %}{% endmacro %}
-<section class="focus{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-grace="{{ focus.grace }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
+<section class="focus{% if look.backdrop != "plain" %} bd-{{ look.backdrop }}{% endif %}{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-grace="{{ focus.grace }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
   {% if lock.link %}<p class="lock-toggle"><a href="{{ lock.link }}">{{ lucide('shield-check') }}{{ _("Phone's Focus on or off") }}</a></p>{% endif %}
   {% if cheered %}<p class="notice notice-ok" role="status">{{ _("Cheer sent to @{handle}.", handle=cheered) }}</p>{% endif %}
@@ -72,7 +72,8 @@
      A full turn is the session's stem (its length or an hour, whichever is longer). #}
   {% set st = focus.stem %}{% set v = charts.vine(st) %}
   <div class="focus-dial">
-    <svg class="focus-vine" viewBox="-30 -30 260 260" role="img" aria-label="{{ _('A vine that grows round the clock as you stay: a flower opens at each reward') }}" focusable="false">
+    <svg class="focus-vine{% if look.ring != "vine" %} ring-{{ look.ring }}{% endif %}" viewBox="-30 -30 260 260" role="img" aria-label="{{ _('A vine that grows round the clock as you stay: a flower opens at each reward') }}" focusable="false">
+      {% if look.ring == "aurora" %}<defs><linearGradient id="vg-aurora" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fd1c5"/><stop offset="0.5" stop-color="#7c6cff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>{% endif %}
       <circle class="vine-track" cx="100" cy="100" r="92"/>
       <path class="vine-grow" id="vine-grow" d="M100 8A92 92 0 0 1 100 192A92 92 0 0 1 100 8" pathLength="100" stroke-dasharray="{{ v.percent }} 100"/>
       {% for l in v.leaves %}<path class="vine-leaf{% if l.out %} is-out{% endif %}" data-share="{{ l.share }}" transform="translate({{ l.x }} {{ l.y }}) rotate({{ l.angle }})" d="M0 0C3-5.5 10-7.5 16-6C12.5 0 6.5 3 0 0Z"/>{% endfor %}
@@ -262,6 +263,8 @@
   <li class="focus-where">{% if place %}<a class="grow with-art" href="/p/{{ token }}/map?at={{ place.id }}">{{ art("place") }}<span>{{ _("At {place}", place=place.name) }}</span></a><a class="btn btn-sm btn-plain" href="/p/{{ token }}/focus">{{ _("no place") }}</a>{% else %}<a class="grow with-art" href="/p/{{ token }}/map">{{ art("place") }}<span>{{ _("Studying somewhere? Choose the place on the map") }}</span></a>{% endif %}</li>
   <li data-tour="focus-cards"><a class="grow with-art" href="/p/{{ token }}/cards{% if cards_due %}/review{% endif %}">{{ art("cards") }}<span>{{ _("Flashcards") }}{% if cards_due %} · <small>{{ _n("{n} card to review", "{n} cards to review", cards_due) }}</small>{% endif %}</span></a></li>
   <li><a class="grow with-art" href="/p/{{ token }}/tips">{{ art("tips") }}<span>{{ _("Study tips") }}</span></a></li>
+  {# D206: the rings and backdrops this page can wear, unlocked by the sessions timed here. #}
+  <li><a class="grow with-art" href="/p/{{ token }}/rewards">{{ art("rewards") }}<span>{{ _("Rings and backdrops") }}</span></a></li>
 </ul>
 {% endif %}
 {% endblock %}

@@ -8114,3 +8114,97 @@ because you can share one).
 - There is no notice when a line is added; members see it when they open the page.
 - 100 lines and 200 characters are choices.
 - Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D205. The front page's films, again: white on a light page, founded marks, and four more
+
+**Asked.** On D203's films, from a phone: "they should obviously be white here" (the cards were dark on
+a light page). Then: "I want the film about getting higher marks to have founded claims and more
+motivating visuals, a film for the avatar you can make, one for importing courses from Moodle, put some
+mathematical symbols in the flashcards' film, a film about focus." Also: more room between the story's
+line, its label and the rest, and a taller phone in the first picture.
+
+**Chosen.**
+- **White on a light page:** the scenes' colours are tokens, white cards on a light page and dark ones
+  on a dark page. Text colours are darker in light for their contrast.
+- **The marks, founded:** the comparison is the meta-analysis's own, testing against studying without
+  tests (Yang et al., 2021, g = 0.499), not "rereading only".
+  - **The picture:** a class of 100. The middle student is above 50 of them; with self-tests the average
+    student moves above 69, and the 19 dots light up one by one. The 69 is Φ(g), Cohen's U3, if marks
+    are bell-shaped.
+  - **Beside it:** Dunlosky et al.'s (2013) ratings, testing yourself of high utility and rereading of low.
+  - **Where:** the film moves to "Does it really work?", with the evidence; D203's eight weeks of
+    self-tests are gone, a dose the study does not give.
+- **Four films, each with the app's own data:**
+  - **The avatar,** made part by part (hair, glasses, on your head, clothes), each face laid over the
+    last, then shown on a post. Its parts are the avatar page's (`AVATAR_PARTS`); the caption counts its
+    skin tones, hairstyles and kinds of clothes.
+  - **Moodle:** a made-up course page in Moodle 4's markup, at a reserved address (`example.edu`), read
+    by `coursepages.moodle`. Each file lands on the week its section names, in each of the four
+    languages, as the test checks.
+  - **Focus:** an aim and its steps ticked, the ring filling over the session's minutes
+    (`RHYTHM_WORK`), a classmate's cheer, then "Session complete!" with its points (`POINTS_DONE`) and
+    the pause (`RHYTHM_PAUSE`).
+  - **The cards with mathematics:** the notes carry LaTeX (an eigenvalue, the characteristic polynomial,
+    the trace with its sum), read into cards by D84's rules and drawn as MathML (D199) on the notes and
+    on the cards.
+- **Where each film sits:**
+  - Focus under "What keeps me going?", beside the streak;
+  - the avatar under "Can I do it with my friends?", beside Studying now;
+  - Moodle and the cards under "How do I start?", beside the three steps.
+- **The story's head:** 40px under its line, 16px between its label and its title, and 48px before the
+  questions.
+- **A taller phone:** the first picture's phone is the whole screen of an iPhone 13 (390 × 844), as the
+  installed app fills it. `benchmarks/landing_shots.mjs` took it again in four languages, light and
+  dark, and now takes `SHOTS=` to retake only some pictures.
+
+**Rejected.**
+- **A rising line of one student's marks:** a promise, and the app does not see marks.
+- **"69 % of those who only reread":** the study's comparison groups are not only rereaders.
+- **The rewards to unlock (focus backgrounds and rings, avatar accessories by level):** the owner asked
+  for them in the app, not in the films; they come in their own slice.
+
+**Disclosed.**
+- The marks are an average over many classrooms; the U3 assumes bell-shaped marks with equal spread.
+- The Moodle page, the people, the session and the notes are made up. The app never signs in to Moodle.
+- A page with mathematics now includes the front page, which downloads the mathematics font (391 KB,
+  D200) once.
+- Checked in Chromium only, at 1440 × 900 and phone size, light and dark, in English, French, Italian
+  and Spanish.
+
+## D206. Rewards to unlock: rings and backdrops for Focus, accessories for the avatar
+
+**Asked.** With D205's films, the owner: "the possibility of unlocking different backgrounds and focus
+rings as rewards of the app, this not in the film; and as rewards, accessories for the avatar as you
+level up."
+
+**Chosen.**
+- **What unlocks what:**
+  - the focus page's **rings** (Vine, Gold at 5, Aurora at 15, Sakura at 40) and **backdrops** (Plain,
+    Dawn at 10, Forest at 25, Starry night at 50) come with the sessions timed with Focus and saved in the
+    diary, the ones the insights already count (`_insight_inputs`: timed and checked by the heartbeats);
+  - the avatar's **accessories** (a graduation cap at level 2, a laurel at 4, a crown at 6) come with the
+    level of D189's crest, which never goes down.
+- **Rewards** under You (`/p/<plan>/rewards`): every ring, backdrop and accessory, drawn as it will look;
+  what is unlocked is chosen in one tap and saved at once (D165), what is not says how many sessions or
+  which level are left, with a bar. Nothing is sold, and the page says so.
+- **On the focus page:** the ring colours the vine (D179) and its leaves, Aurora a gradient; the backdrop
+  is a disc inside the vine, the clock's words in the disc's own ink. The default look draws exactly as
+  before.
+- **On the avatar page:** an accessory still locked is a chip that cannot be picked, with a lock and its
+  level; one already worn stays worn. The server refuses a locked one too (`set_avatar(level=)`).
+- **At the end of a session:** "Saving this session unlocks: Gold", when saving it reaches a threshold.
+- Each key is drawn by a class (`ring-*`, `bd-*`, `hd-*`); a look saved under a name this version does not
+  draw falls back to the first.
+
+**Rejected.**
+- **Unlocks by points or streak:** points already rank the league (D189) and the streak has its garden;
+  sessions timed with Focus tie the focus page's rewards to the focus page.
+- **Rewards in the films:** the owner asked for them in the app only.
+- **Buying a look:** nothing in the app is for sale.
+
+**Disclosed.**
+- The thresholds and the looks are choices, not measured. Whether unlocking brings more timed sessions is
+  for the pilot; a reward for time on the clock may also reward leaving it running.
+- The demo's students log their sessions without the timer, so their rings and backdrops start locked.
+- Checked in Chromium only, at phone size and 1280 px, light and dark.
+

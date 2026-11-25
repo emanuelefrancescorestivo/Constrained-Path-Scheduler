@@ -9251,7 +9251,19 @@ AVATAR_PARTS: dict[str, tuple[str, ...]] = {
     "mouth": ("smile", "grin", "neutral", "smirk", "lips"),
     "face": ("none", "moustache", "beard", "goatee", "stubble"),
     "glasses": ("none", "round", "square", "sun"),
-    "head": ("none", "cap", "beanie", "headphones", "flower", "bandana", "bucket", "headband"),
+    "head": (
+        "none",
+        "cap",
+        "beanie",
+        "headphones",
+        "flower",
+        "bandana",
+        "bucket",
+        "headband",
+        "mortarboard",
+        "laurel",
+        "crown",
+    ),
     "detail": ("none", "freckles", "earrings", "mole", "nosering", "studs", "dimples"),
     "outfit": ("tee", "hoodie", "shirt", "sweater", "jacket", "turtleneck"),
     "top": ("c0", "c1", "c2", "c3", "c4", "c5", "c6", "k0", "k1", "k2"),
@@ -9304,15 +9316,19 @@ def avatar_of(subscription: Subscription | None) -> dict[str, str] | None:
     return avatar
 
 
-def set_avatar(subscription: Subscription, chosen: Mapping[str, str]) -> Subscription:
+def set_avatar(subscription: Subscription, chosen: Mapping[str, str], *, level: int = 1) -> Subscription:
     """Keep the avatar a student made: every part one of its names (D115), and the flag
     (D143) one on the list, or none. A country picked from the full list wins over the
-    suggestion ticked, since it was picked later."""
+    suggestion ticked, since it was picked later. An accessory needs its level (D206), unless
+    it is already worn."""
     avatar = {}
     for part, names in AVATAR_PARTS.items():
         value = chosen.get(part) or AVATAR_START[part]
         if value not in names:
             raise InvalidInput(_("choose one of the options shown for each part"))
+        worn = (subscription.options.get("avatar") or {}).get(part)
+        if part == "head" and value != worn and level < ACCESSORY_LEVEL.get(value, 0):
+            raise InvalidInput(_("unlocked at level {n}", n=ACCESSORY_LEVEL[value]))
         avatar[part] = value
     flag = str(chosen.get("flag_other") or chosen.get("flag") or "")
     if flag == "none":
@@ -9332,6 +9348,127 @@ def share_flag(store: str | os.PathLike, subscription: Subscription) -> None:
     flag = avatar["flag"] if avatar else ""
     parts = json.dumps({part: avatar[part] for part in AVATAR_PARTS}) if avatar else ""
     social.set_flag(_store(store), subscription.token, flag, parts)
+
+
+# --------------------------------------------------------------------------- #
+# D206: rewards to unlock (the owner: "unlock different backgrounds and focus rings as
+# rewards of the app; accessories for the avatar as you level up"). The focus page's ring
+# and backdrop come with the sessions timed with Focus, the avatar's accessories with the
+# level (D189), which never goes down. Each key is drawn by a class (`ring-*`, `bd-*`,
+# `hd-*`); the thresholds are choices, not measured.
+# --------------------------------------------------------------------------- #
+
+REWARD_RINGS: tuple[tuple[str, str, int], ...] = (
+    ("vine", "Vine", 0),
+    ("gold", "Gold", 5),
+    ("aurora", "Aurora", 15),
+    ("sakura", "Sakura", 40),
+)
+REWARD_BACKDROPS: tuple[tuple[str, str, int], ...] = (
+    ("plain", "Plain", 0),
+    ("dawn", "Dawn", 10),
+    ("forest", "Forest", 25),
+    ("night", "Starry night", 50),
+)
+REWARD_ACCESSORIES: tuple[tuple[str, str, int], ...] = (  # things on the head, by level
+    ("mortarboard", "Graduation cap", 2),
+    ("laurel", "Laurel", 4),
+    ("crown", "Crown", 6),
+)
+ACCESSORY_LEVEL = {key: level for key, _name, level in REWARD_ACCESSORIES}
+
+
+def _timed_sessions(store: str | os.PathLike, subscription: Subscription, now: datetime) -> int:
+    """How many sessions the student timed with Focus and saved in the diary."""
+    local = now.astimezone(_zone(subscription.options["tz"]))
+    _starts, timed, _tests = _insight_inputs(store, subscription, local)
+    return len(timed)
+
+
+def focus_look(subscription: Subscription) -> dict[str, str]:
+    """The ring and backdrop the student chose for the focus page (D206), else the first."""
+    look = subscription.options.get("look") or {}
+    rings = {key for key, _n, _s in REWARD_RINGS}
+    backdrops = {key for key, _n, _s in REWARD_BACKDROPS}
+    ring = str(look.get("ring") or "")
+    backdrop = str(look.get("backdrop") or "")
+    return {
+        "ring": ring if ring in rings else REWARD_RINGS[0][0],
+        "backdrop": backdrop if backdrop in backdrops else REWARD_BACKDROPS[0][0],
+    }
+
+
+def rewards_view(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """What there is to unlock (D206): each ring and backdrop with the sessions it needs and
+    how far the student is, each accessory with its level; which are unlocked and in use."""
+    now = now or datetime.now(UTC)
+    sessions = _timed_sessions(store, subscription, now)
+    level = crest_of(store, subscription)
+    look = focus_look(subscription)
+    avatar = avatar_of(subscription) or {}
+
+    def by_sessions(kind: str, table: tuple[tuple[str, str, int], ...]) -> list[dict]:
+        return [
+            {
+                "key": key,
+                "name": _(name),
+                "needs": needs,
+                "unlocked": sessions >= needs,
+                "left": max(0, needs - sessions),
+                "percent": 100 if not needs else min(100, round(100 * sessions / needs)),
+                "chosen": look[kind] == key,
+            }
+            for key, name, needs in table
+        ]
+
+    return {
+        "sessions": sessions,
+        "level": level["n"],
+        "level_name": level["name"],
+        "rings": by_sessions("ring", REWARD_RINGS),
+        "backdrops": by_sessions("backdrop", REWARD_BACKDROPS),
+        "accessories": [
+            {
+                "key": key,
+                "name": _(name),
+                "level": needs,
+                "unlocked": level["n"] >= needs,
+                "worn": avatar.get("head") == key,
+                "spec": {**(avatar or AVATAR_START), "head": key},
+            }
+            for key, name, needs in REWARD_ACCESSORIES
+        ],
+    }
+
+
+def choose_look(
+    store: str | os.PathLike, subscription: Subscription, kind: str, key: str, now: datetime | None = None
+) -> Subscription:
+    """The focus page's ring or backdrop, among those unlocked (D206)."""
+    view = rewards_view(store, subscription, now)
+    pool = {"ring": view["rings"], "backdrop": view["backdrops"]}.get(kind)
+    item = next((x for x in pool or () if x["key"] == key), None)
+    if item is None:
+        raise InvalidInput(_("choose one of the options shown"))
+    if not item["unlocked"]:
+        raise InvalidInput(
+            _n(
+                "unlocked after {n} session timed with Focus",
+                "unlocked after {n} sessions timed with Focus",
+                item["needs"],
+            )
+        )
+    look = {**(subscription.options.get("look") or {}), kind: key}
+    return replace(subscription, options={**subscription.options, "look": look})
+
+
+def unlocks_next(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> list[str]:
+    """The rings and backdrops the session being saved unlocks: those needing one more
+    session than the student has timed (D206), for the end of a session (D177)."""
+    view = rewards_view(store, subscription, now)
+    return [x["name"] for x in (*view["rings"], *view["backdrops"]) if x["needs"] == view["sessions"] + 1]
 
 
 def language_of(subscription: Subscription) -> str:
@@ -10146,6 +10283,7 @@ def session_done_view(
         "whole": bool(draft.get("checked")) and not int(draft.get("interruptions") or 0),
         "points": POINTS_DONE if draft.get("sid") else 0,
         "proof": POINTS_PROOF,
+        "unlocks": unlocks_next(store, subscription, now),  # D206
     }
 
 
@@ -17799,7 +17937,6 @@ LANDING_TUBE_FROM = 0.72  # the recall a topic seen once has fallen to when it i
 # Yang, Luo, Vadillo, Yu and Shanks (2021), docs/REFERENCES.md yang2021: 222 classroom studies,
 # 48,478 students, testing raised achievement by g = 0.499.
 LANDING_TESTING = (0.499, 222, 48478)
-LANDING_TESTING_WEEKS = 8
 LANDING_EXAM_DAYS = (date(2027, 2, 2), date(2027, 2, 4))  # the made-up exams of the steps scene
 
 
@@ -17816,11 +17953,108 @@ def _landing_notes() -> list[str]:
     """The notes of the cards scene, in the page's language."""
     return [
         _("Linear algebra · lecture 6"),
-        _("Eigenvalue: a number λ such that Av = λv for a non-zero vector v."),
+        # D205: mathematics in the notes, read by D84's rules and drawn as MathML (D199).
+        _("Eigenvalue: a number $\\lambda$ such that $Av = \\lambda v$ for a vector $v \\neq 0$."),
         _("Eigenvectors of distinct eigenvalues are independent."),
-        _("Rank: the dimension of the image of A."),
-        _("Kernel: the vectors that A sends to zero."),
+        _("Characteristic polynomial: $p(\\lambda) = \\det(A - \\lambda I)$"),
+        _("Trace: $\\mathrm{tr}\\,A = \\sum_{i=1}^{n} a_{ii}$, the sum of the eigenvalues."),
     ]
+
+
+# D205: the front page's films of the avatar, Moodle and Focus. The avatar's steps are its own
+# parts' names (AVATAR_PARTS); the course page is read by `coursepages.moodle`, as one saved
+# from Moodle would be; Focus's minutes and points are the app's constants.
+LANDING_AVATAR_STEPS: tuple[tuple[str, dict[str, str]], ...] = (
+    ("", {}),
+    ("Hair", {"hair": "curly", "colour": "auburn"}),
+    ("Glasses", {"glasses": "round"}),
+    ("On your head", {"head": "headphones"}),
+    ("Clothes", {"outfit": "hoodie", "top": "c3", "bg": "b3"}),
+)
+LANDING_MOODLE_SITE = "https://moodle.example.edu"  # a reserved name (RFC 2606): no real university
+
+
+def _landing_avatar() -> dict:
+    spec = dict(AVATAR_START)
+    steps: list[dict] = []
+    for k, (label, change) in enumerate(LANDING_AVATAR_STEPS):
+        spec = {**spec, **change}
+        steps.append({"label": _(label) if label else "", "spec": dict(spec), "at": 200 + 700 * k})
+    return {
+        "steps": steps,
+        "post_at": 200 + 700 * len(steps) + 100,
+        "skins": len(AVATAR_PARTS["skin"]),
+        "hairs": len(AVATAR_PARTS["hair"]),
+        "clothes": len(AVATAR_PARTS["outfit"]),
+    }
+
+
+def _landing_moodle() -> dict:
+    """A course page in Moodle 4's markup, made up, read by the app's own rules: each file
+    lands on the week its section names, in the page's language."""
+    from html import escape
+
+    slides = _("Slides, lecture {n}")
+    weeks = [
+        (
+            1,
+            _("Vectors"),
+            [(slides.format(n=1), "resource", "l1.pdf"), (_("Exercise sheet 1"), "resource", "e1.pdf")],
+        ),
+        (
+            2,
+            _("Matrices"),
+            [(slides.format(n=2), "resource", "l2.pdf"), (_("Recorded lecture"), "url", "rec")],
+        ),
+        (
+            3,
+            _("Eigenvalues"),
+            [(slides.format(n=3), "resource", "l3.pdf"), (_("Exercise sheet 3"), "resource", "e3.pdf")],
+        ),
+    ]
+    sections = []
+    for n, topic, files in weeks:
+        acts = "".join(
+            f'<li class="activity modtype_{mod}">'
+            f'<a href="{LANDING_MOODLE_SITE}/mod/{mod}/view.php?id={n}{k}&amp;f={f}">'
+            f'<span class="instancename">{escape(title)}</span></a></li>'
+            for k, (title, mod, f) in enumerate(files)
+        )
+        name = escape(_("Week {n}: {topic}", n=n, topic=topic))
+        sections.append(
+            f'<li class="section" id="section-{n}" data-sectionname="{name}"><ul>{acts}</ul></li>'
+        )
+    course = _("Linear algebra")
+    html = (
+        f"<html><head><title>{escape(_('Course'))}: {escape(course)}</title></head>"
+        f'<body class="course-7"><ul>{"".join(sections)}</ul></body></html>'
+    )
+    reading = _coursepages.moodle(html)
+    assert reading is not None
+    at = 900
+    placed = []
+    for item in reading.items:
+        placed.append({"title": item.title, "kind": item.kind, "week": item.week, "at": at})
+        at += 380
+    return {
+        "course": course,
+        "sections": [
+            {"n": n, "name": _("Week {n}: {topic}", n=n, topic=topic), "files": [t for t, _m, _f in files]}
+            for n, topic, files in weeks
+        ],
+        "weeks": [n for n, _t, _f in weeks],
+        "placed": placed,  # not "items": a template reads that as the dict's own method
+        "done_at": at + 200,
+    }
+
+
+def _landing_focus() -> dict:
+    return {
+        "work": RHYTHM_WORK // 60,
+        "pause": RHYTHM_PAUSE // 60,
+        "points": POINTS_DONE,
+        "steps": [_("Read the worked example"), _("Exercises 1 to 3"), _("Exercises 4 and 5")],
+    }
 
 
 def _landing_scenes() -> dict:
@@ -17837,14 +18071,9 @@ def _landing_scenes() -> dict:
          "fixed": k == LANDING_SCENE_MISSED}
         for k in range(LANDING_SCENE_DAYS)
     ]  # fmt: skip
-    # The marks: a bell curve over -3 to 3.6 standard deviations, and the same shifted by g.
+    # The marks (D205): where the average student who tests themselves stands in a class that does
+    # not, if marks are bell-shaped: Cohen's U3 of Yang et al.'s g, Phi(g).
     g, studies, students = LANDING_TESTING
-    x0, x1, width, height, base = -3.0, 3.6, 500.0, 150.0, 170.0
-    sx = width / (x1 - x0)
-    path = "M" + " L".join(
-        f"{(z - x0) * sx:.1f},{base - height * math.exp(-z * z / 2):.1f}"
-        for z in (x0 + (x1 - x0) * i / 120 for i in range(121))
-    )
     beats = round(100 * 0.5 * (1 + math.erf(g / math.sqrt(2))))
     # A topic seen once, tested when its recall has fallen to about 72 %, recalled ("good").
     first = FSRS_6.initial_state(Grade.GOOD)
@@ -17886,16 +18115,12 @@ def _landing_scenes() -> dict:
             },
         },
         "grades": {
+            "before": 50,  # the middle of the class
+            "gain": beats - 50,
             "g": format_number(g, 3),
             "studies": studies,
             "students": _thousands(students),
             "beats": beats,
-            "weeks": LANDING_TESTING_WEEKS,
-            "path": path,
-            "base": base,
-            "top": round(base - height - 6, 1),
-            "mean": round((0 - x0) * sx, 1),
-            "shift": round(g * sx, 1),
         },
         "tube": {
             "before": before,
@@ -17935,6 +18160,9 @@ def _landing_scenes() -> dict:
             ],
         },
         "exam_days": [_i18n.format_date(d, "day_short") for d in LANDING_EXAM_DAYS],
+        "avatar": _landing_avatar(),
+        "moodle": _landing_moodle(),
+        "focus": _landing_focus(),
     }
 
 
