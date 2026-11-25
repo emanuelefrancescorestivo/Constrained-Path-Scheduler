@@ -4,6 +4,10 @@
 
 ### Added
 
+- A card's mathematics typeset by the browser (DECISIONS.md D199): LaTeX read into MathML on the
+  server, with fractions, roots, sums with their limits above and below, matrices, cases and
+  accents, in the device's mathematics font. A formula alone on a card is set apart.
+
 - A browser extension that pauses Instagram, TikTok, Facebook, Messenger and WhatsApp Web while a
   focus session runs (DECISIONS.md D198, `extension/`). The plan's pages say until when; the
   extension reads that and nothing else. To be published by the owner.

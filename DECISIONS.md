@@ -7783,3 +7783,47 @@ page keeps D196's steps for the phone's own Focus.
   domain to the pages the content script runs on. Only the demo and `localhost` are listed.
 - A session left without opening the plan again stays blocked until its end time.
 - Firefox and Safari not tried.
+
+## D199. A card's mathematics typeset by the browser
+
+**Asked.** The owner, after D197: "latex still does not render amazingly well i must say".
+
+**Why it did not.** D151, D166 and D197 drew mathematics with spans: a superscript a `<sup>`, a
+fraction two stacked boxes, a root a border. It read, but it was not typeset: letters stood
+upright in the page's sans-serif, a sum's limits sat at its side, a matrix could not be drawn.
+
+**Chosen.** MathML, which the browsers the app supports typeset themselves (Chrome and Edge since
+109, Safari, Firefox), in the device's mathematics font, as a LaTeX document is typeset. The server
+reads the card's LaTeX into it (`web/mathml.py`), no script and no library:
+- **What it draws.** `x^{2}` and `a_n` are `<msup>`/`<msub>`; `\frac` is `<mfrac>`; `\sqrt` and
+  `\sqrt[3]` are roots; `\sum`, `\prod` and `\bigcup` set their limits above and below; `\lim` its
+  limit underneath; `\int` its limits at its side. The matrix environments, `cases` and `aligned`
+  are tables in their brackets, `\left…\right` stretches its fences, and accents stretch over what
+  they mark. `\mathbb` and `\mathcal` give their letters; `\text` keeps its words. About 150 symbols
+  are set as identifiers or operators, as LaTeX sets them.
+- **What is mathematics.** What `$…$`, `$$…$$`, `\(…\)` or `\[…\]` hold, and, without them, a run
+  of signs around a mark of LaTeX that no word interrupts. That is how notes read from a LaTeX PDF
+  mark it: "the map f: R^{n} → R^{m} is of class C^{1}" typesets `f: R^{n} → R^{m}` and `C^{1}`
+  and leaves the words. A run never starts inside a word, so `snake_case` stays.
+- **How it is set.** A formula alone on a card is set apart, as display mathematics. A list of
+  cards keeps every formula in its line (`maths_inline`).
+- **When it cannot be read.** What cannot be read, such as a brace left open, falls back to D197's
+  spans. Everything is escaped. A command it does not know shows as typed.
+
+The model writing cards (D138) is now asked for each formula in LaTeX between `$` signs.
+
+**Rejected.** KaTeX or MathJax: complete, but a library of hundreds of kilobytes run in the page.
+The app's pages work without their scripts, and KaTeX's HTML output needs style attributes that
+the app's Content-Security-Policy refuses. MathML is markup the server writes.
+
+**Disclosed.**
+- How good it looks depends on the device's mathematics font:
+  - Apple's devices have STIX Two Math, and Windows has Cambria Math.
+  - Android and Linux may have none, and then fall back to an ordinary font; the structure stays,
+    the glyphs are plainer.
+  - Shipping Latin Modern Math (GUST Font License, about 400 KB, loaded only by a page with
+    mathematics) would make it the same everywhere: the owner's choice, as a new asset.
+- Not every LaTeX command is read: `\overset`, `\stackrel` and `\substack` are not, nor
+  environments other than the matrices, `cases`, `aligned` and `array`.
+- Checked in Chromium only, at phone size and 1280 px, light and dark, with Latin Modern Math
+  installed.

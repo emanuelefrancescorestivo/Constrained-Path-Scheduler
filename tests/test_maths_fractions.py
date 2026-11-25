@@ -18,7 +18,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 from cps import cardmaker, notefiles, pdftext
-from cps.web.app import _maths
+from cps.web.app import _spans
 
 PDF = Path(__file__).resolve().parent / "data" / "latex-fractions.pdf"
 
@@ -65,13 +65,13 @@ def test_a_long_statement_is_never_cut_inside_a_fraction():
 
 
 def test_a_card_draws_a_fraction_over_its_rule_and_escapes_the_rest():
-    drawn = str(_maths("lim_{x→c} \\frac{f(x)−f(c)}{x−c} <b>"))
+    drawn = str(_spans("lim_{x→c} \\frac{f(x)−f(c)}{x−c} <b>"))
     fraction = '<span class="mfrac"><span class="mnum">f(x)−f(c)</span><span class="mden">x−c</span></span>'
     assert fraction in drawn
     assert "<sub>x→c</sub>" in drawn and "&lt;b&gt;" in drawn
-    nested = str(_maths("\\frac{1}{1 + \\frac{1}{x}}"))
+    nested = str(_spans("\\frac{1}{1 + \\frac{1}{x}}"))
     assert nested.count('class="mfrac"') == 2 and "\\frac" not in nested
-    assert str(_maths("\\frac{open")) == "\\frac{open"  # a mark left open stays as typed
+    assert str(_spans("\\frac{open")) == "\\frac{open"  # a mark left open stays as typed
 
 
 def test_if_pypdf_s_layout_reading_fails_the_page_is_read_as_before(monkeypatch):

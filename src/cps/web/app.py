@@ -61,7 +61,7 @@ from starlette.datastructures import UploadFile
 
 from cps import service
 
-from . import charts, covers, forms, icon, icons, sky
+from . import charts, covers, forms, icon, icons, mathml, sky
 from .limits import Limiter
 
 HERE = Path(__file__).parent
@@ -397,6 +397,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["password_max"] = service.PASSWORD_MAX
     templates.env.filters["linkify"] = _linkify
     templates.env.filters["maths"] = _maths
+    templates.env.filters["maths_inline"] = _maths_inline
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -5789,7 +5790,28 @@ def _latex(html: str) -> str:
     return html
 
 
-def _maths(text: str) -> Markup:
+def _maths(text: str, block: bool = True) -> Markup:
+    """A card's text with its mathematics typeset as MathML (D199): what `$…$` and its kin
+    hold, and the runs of signs around a mark of LaTeX; a formula alone on the card set apart
+    (`block`). The rest, and what cannot be read, as `_spans` draws it."""
+    out: list[str] = []
+    for kind, part in mathml.segments(str(text)):
+        if kind == "prose":
+            out.append(str(_spans(part)))
+            continue
+        try:
+            out.append(mathml.to_mathml(part, display=block and kind == "block"))
+        except mathml.Unreadable:
+            out.append(str(_spans(part)))
+    return Markup("".join(out))
+
+
+def _maths_inline(text: str) -> Markup:
+    """The same, every formula in its line: for a list of cards."""
+    return _maths(text, block=False)
+
+
+def _spans(text: str) -> Markup:
     html = _latex(str(Markup.escape(str(text))))
     drawn: list[str] = []
 

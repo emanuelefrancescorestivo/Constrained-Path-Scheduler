@@ -6484,3 +6484,8 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .lock-go { margin-bottom: 8px; }
 .lock-toggle { margin: 4px 0 0; text-align: center; font-size: 0.9rem; }
 .lock-toggle a { color: var(--accent-ink); font-weight: 600; }
+
+/* D199: a card's mathematics typeset by the browser (MathML), in the device's mathematics font. */
+math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Noto Sans Math", math; font-size: 1.1em; }
+math[display="block"] { margin: 0.35em 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+math .mbf { font-weight: 700; }

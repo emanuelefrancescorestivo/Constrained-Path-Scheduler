@@ -78,7 +78,7 @@ def test_a_long_statement_is_cut_at_a_sentence_and_never_inside_a_mark():
 
 def test_a_card_draws_its_marks_and_escapes_the_rest():
     pytest.importorskip("fastapi")
-    from cps.web.app import _maths
+    from cps.web.app import _spans as _maths  # the drawing of D151, now the fallback (D199)
 
     j = "\u2060"  # no line break between a sign and its script
     drawn = str(_maths("R^{n} and (f|_{U})^{−1}"))
@@ -118,13 +118,86 @@ def test_a_card_draws_its_marks_and_escapes_the_rest():
     ],
 )
 def test_a_card_reads_the_latex_it_is_likely_to_hold(typed, drawn):
-    from cps.web.app import _maths
+    from cps.web.app import _spans as _maths  # D197, now the fallback (D199)
 
     assert str(_maths(typed)) == drawn
 
 
 def test_latex_on_a_card_never_lets_markup_through():
-    from cps.web.app import _maths
+    from cps.web.app import _spans as _maths  # D197, now the fallback (D199)
 
     html = str(_maths(r"$\sqrt{<script>}$ \text{<b>x</b>} \mathbf{<i>}"))
     assert "<script>" not in html and "<i>" not in html and "&lt;script&gt;" in html
+
+
+# D199: the mathematics typeset by the browser, as MathML.
+
+
+def test_a_formula_alone_on_a_card_is_typeset_apart():
+    from cps.web.app import _maths
+
+    html = str(_maths(r"\sum_{i=1}^{n} i = \frac{n(n+1)}{2}"))
+    assert html.startswith('<math display="block">') and html.endswith("</math>")
+    assert '<munderover><mo largeop="true" movablelimits="true">∑</mo>' in html  # limits above and below
+    assert "<mfrac><mrow><mi>n</mi><mo>(</mo>" in html
+    # In a list of cards, in its line.
+    assert str(_maths(r"\frac{a}{b}", block=False)).startswith("<math><mfrac>")
+
+
+@pytest.mark.parametrize(
+    "typed, parts",
+    [
+        # Notes read from a LaTeX PDF: the formulas in a sentence, the words around them.
+        (
+            "the map f: R^{n} → R^{m} is of class C^{1}.",
+            [
+                "the map ",
+                "<math><mi>f</mi><mo>:</mo><msup><mi>R</mi>",
+                "</math> is of class <math><msup><mi>C</mi>",
+            ],
+        ),
+        ("Let $x \\in \\mathbb{R}$ be real", ["Let <math><mi>x</mi><mo>∈</mo><mi>ℝ</mi></math> be real"]),
+        (r"\sqrt{2} \approx 1.414", ["<msqrt><mrow><mn>2</mn></mrow></msqrt><mo>≈</mo><mn>1.414</mn>"]),
+        (r"\sqrt[3]{x}", ["<mroot><mrow><mi>x</mi></mrow><mrow><mn>3</mn></mrow></mroot>"]),
+        (r"\lim_{x \to 0} \frac{\sin x}{x} = 1", ["<munder><mi>lim</mi>", "<mi>sin</mi><mo>&#x2061;</mo>"]),
+        (
+            r"\int_0^1 x^2 \, dx",
+            ['<msubsup><mo largeop="true">∫</mo><mn>0</mn><mn>1</mn></msubsup>', "<mspace"],
+        ),
+        (
+            r"\vec{v} \cdot \hat{n}",
+            ['<mover accent="true"><mrow><mi>v</mi></mrow><mo>→</mo></mover><mo>⋅</mo>'],
+        ),
+        (
+            r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}",
+            [
+                '<mo fence="true" stretchy="true">(</mo><mtable><mtr>'
+                "<mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr>"
+            ],
+        ),
+        (
+            r"|x| = \begin{cases} x & x \ge 0 \\ -x & \text{otherwise} \end{cases}",
+            ['<mtable columnalign="left">', "<mtext>otherwise</mtext>", "<mo>−</mo><mi>x</mi>"],
+        ),
+        (r"\left( \frac{a}{b} \right)^2", ['<msup><mrow><mo fence="true" stretchy="true">(</mo><mfrac>']),
+        # Words with underscores, money and unknown commands stay as typed.
+        ("snake_case and file_name", ["snake_case and file_name"]),
+        ("costs $5 and $10", ["costs $5 and $10"]),
+    ],
+)
+def test_a_card_s_latex_is_typeset_as_mathml(typed, parts):
+    from cps.web.app import _maths
+
+    html = str(_maths(typed))
+    for part in parts:
+        assert part in html, (part, html)
+
+
+def test_mathml_never_lets_markup_through_and_falls_back_when_unreadable():
+    from cps.web.app import _maths
+
+    html = str(_maths(r"$\text{<script>x</script>} + \mathrm{<i>}$"))
+    assert "<script>" not in html and "<i>" not in html and "&lt;script&gt;" in html
+    # A brace left open cannot be typeset: the spans draw what they can (D197).
+    assert "<math" not in str(_maths(r"\frac{1}{2")) and "\\frac{1}{2" in str(_maths(r"\frac{1}{2"))
+    assert str(_maths(r"\weird{x} + y^2")).count("<mtext>\\weird</mtext>") == 1
