@@ -318,3 +318,22 @@ def test_deleting_a_plan_keeps_the_cost_and_forgets_the_plan(tmp_path, sub):
     assert service.delete_subscription(tmp_path, sub.token)
     assert ai.calls_today(store, sub.token, NOW) == 0
     assert ai.usage(store, NOW - timedelta(days=1))["calls"] == 1  # the month's spending still counts
+
+
+def test_a_line_that_comes_back_and_an_hour_said_in_four_languages():
+    # D202: "every Monday" in English, French, Italian and Spanish, every day, and an hour.
+    today = date(2026, 11, 25)  # a Wednesday
+    cases = {
+        "every Monday exercises": (0, "2026-11-30"),
+        "tous les lundis exercices": (0, "2026-11-30"),
+        "ogni lunedì esercizi": (0, "2026-11-30"),
+        "todos los miércoles repaso": (2, "2026-11-25"),
+        "cada día tarjetas": (7, "2026-11-25"),
+        "ogni giorno flashcard": (7, "2026-11-25"),
+    }
+    for words, (every, day) in cases.items():
+        guess = ai.read_task(words, today=today)
+        assert (guess.every, guess.due[:10]) == (every, day), words
+        assert not any(w in guess.name.lower() for w in ("every", "ogni", "tous", "todos", "cada")), words
+    assert ai.read_task("chiamare la segreteria alle 10", today=today).at == "10:00"
+    assert ai.read_task("Stats report Friday 6 h", today=today).at == ""

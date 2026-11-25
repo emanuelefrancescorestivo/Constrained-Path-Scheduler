@@ -103,6 +103,8 @@ class TaskGuess:
     due: str  # local "YYYY-MM-DDTHH:MM", as the new-task form takes it, or ""
     hours: float | None
     course: str
+    at: str = ""  # D202: "HH:MM" when the sentence said an hour, else ""
+    every: int | None = None  # D202: the weekday it comes back on (0 Monday), 7 every day
 
     def as_dict(self) -> dict:
         return {"name": self.name, "due": self.due, "hours": self.hours, "course": self.course}
@@ -197,7 +199,18 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure|un'ora|un ora|una hora)\b"):
         hours = 1.0
 
-    if m := take(_LEAD + r"\b(\d{4})-(\d{2})-(\d{2})\b"):
+    # D202: a line that comes back, "every Monday", "chaque lundi", "tous les lundis", "ogni
+    # lunedì", "tutti i lunedì", "cada lunes", "todos los lunes", or every day; its first day
+    # is the next such day, today included.
+    every: int | None = None
+    if m := take(
+        rf"\b(?:every|each|chaque|ogni|cada|tous les|toutes les|tutti i|tutte le|todos los|todas las)\s+"
+        rf"(day|days|jour|jours|giorno|giorni|dia|dias|{weekdays})s?\b"
+    ):
+        word = m.group(1)
+        every = WEEKDAYS.get(word, 7)
+        found_day = today + timedelta(days=0 if every == 7 else (every - today.weekday()) % 7)
+    elif m := take(_LEAD + r"\b(\d{4})-(\d{2})-(\d{2})\b"):
         found_day = _dated(today, int(m.group(3)), int(m.group(2)), int(m.group(1)))
     elif m := take(_LEAD + r"\b(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2,4}))?\b"):
         first, second = int(m.group(1)), int(m.group(2))
@@ -266,7 +279,14 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     due = ""
     if found_day is not None:
         due = datetime.combine(found_day, found_time or END_OF_DAY).strftime("%Y-%m-%dT%H:%M")
-    return TaskGuess(name=name[:120], due=due, hours=hours, course=_course(text, courses))
+    return TaskGuess(
+        name=name[:120],
+        due=due,
+        hours=hours,
+        course=_course(text, courses),
+        at=f"{found_time:%H:%M}" if found_time is not None else "",
+        every=every,
+    )
 
 
 # Words that say what kind of work it is, not which course.

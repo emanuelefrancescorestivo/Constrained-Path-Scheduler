@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("To-do") }} · {{ _("Study plan") }}{% endblock %}
+{% block site_class %} todo-wide{% endblock %}
 {% block head %}<script type="module" src="{{ asset('todo.js') }}"></script>{% endblock %}
 {% block main %}
 {# D195: one page, written a line at a time, as in Notion; drawn as a table (the owner's pick of
@@ -8,41 +9,113 @@
    into a line under the task. A line is a to-do; "# " a heading, "> " a note, "- " or Tab a step
    under the line above. A day it names is its day; a day with hours of work is planned. Each
    line's words are edited in place (data-autosave); its box, its menu and the new line are sent
-   in the background and the list is put in place (#todo). Every form works without the script. #}
-<div class="page-title todo-title">
-  <h1>{{ _("To-do") }}</h1>
-  <p class="muted" id="todo-count">{{ _n("{n} to do", "{n} to do", view.open) }}</p>
+   in the background and the list is put in place (#todo). Every form works without the script.
+   D202 (the owner: "EMPLOY THE WHOLE PAGE SPACE like a notion page"): the page takes the
+   window's width, the list beside a column of today's fit, templates and the plan's other
+   tasks; a board shows the open lines by day; a bin shows on a line under the pointer; **bold**,
+   *italic*, ~~struck~~ and `code` are drawn; a question, a link, a line that comes back and a
+   reminder at an hour each say so on the line; a note written "term: definition" becomes a
+   flashcard in one tap. The script adds "/" for the kinds, Ctrl+Enter to tick, Ctrl+B and
+   Ctrl+I, and dragging. #}
+{% set regions = "#todo, #todo-count, #todo-side" %}
+{% set back = "board" if board else "" %}
+{% macro words(parts) -%}
+{%- for p in parts -%}
+{%- if p.k == "b" %}<b>{{ p.x }}</b>{% elif p.k == "i" %}<i>{{ p.x }}</i>{% elif p.k == "s" %}<s>{{ p.x }}</s>{% elif p.k == "c" %}<code>{{ p.x }}</code>{% else %}{{ p.x }}{% endif -%}
+{%- endfor -%}
+{%- endmacro %}
+{% macro chips(r) -%}
+{% if r.links or r.again or r.at_time or r.card_pair or r.card %}
+<span class="todo-chips">
+  {% for k in r.links %}<a class="todo-link" href="{{ k.href }}" target="_blank" rel="noopener noreferrer">{% if k.kind %}<b>{{ k.kind }}</b>{% else %}{{ lucide('link') }}{% endif %}<span>{{ k.label }}</span></a>{% endfor %}
+  {% if r.again %}<span class="todo-chip">{{ lucide('repeat') }}{{ r.again }}</span>{% endif %}
+  {% if r.at_time %}<span class="todo-chip is-at">{{ lucide('bell') }}{{ r.at_time }}</span>{% endif %}
+  {% if r.card %}<a class="todo-chip is-card" href="/p/{{ token }}/cards">{{ lucide('layers') }}{{ _("Flashcard made") }}</a>
+  {% elif r.card_pair %}<form method="post" action="/p/{{ token }}/todo/{{ r.id }}/card" data-async data-quiet data-region="{{ regions }}" class="todo-card-form"><input type="hidden" name="back" value="{{ back }}"><button type="submit" class="todo-chip is-make" title="{{ r.card_pair.front }} → {{ r.card_pair.back }}">{{ lucide('layers') }}{{ _("Make a flashcard") }}</button></form>{% endif %}
+</span>
+{% endif %}
+{%- endmacro %}
+{% macro bin(r) -%}
+<form method="post" action="/p/{{ token }}/todo/{{ r.id }}/change" data-async data-quiet data-region="{{ regions }}" class="todo-bin-form">
+  <input type="hidden" name="how" value="delete"><input type="hidden" name="back" value="{{ back }}">
+  <button type="submit" class="todo-bin" aria-label="{{ _('Remove: {what}', what=r.text) }}" title="{{ _('Remove') }}">{{ lucide('trash-2') }}</button>
+</form>
+{%- endmacro %}
+
+<div class="todo-top">
+  <div class="page-title todo-title">
+    <h1>{{ _("To-do") }}</h1>
+    <p class="muted" id="todo-count">{{ _n("{n} to do", "{n} to do", view.open) }}</p>
+  </div>
+  <nav class="todo-views" aria-label="{{ _('View') }}">
+    <a href="/p/{{ token }}/todo"{% if not board %} aria-current="page"{% endif %}>{{ lucide('table') }}{{ _("Table") }}</a>
+    <a href="/p/{{ token }}/todo?view=board"{% if board %} aria-current="page"{% endif %}>{{ lucide('kanban') }}{{ _("Board") }}</a>
+  </nav>
 </div>
 {% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
 
-<form method="post" action="/p/{{ token }}/todo" class="todo-cmd" data-async data-quiet data-region="#todo, #todo-count" id="todo-new">
+<div class="with-context todo-layout">
+<div class="list-col">
+<form method="post" action="/p/{{ token }}/todo" class="todo-cmd" data-async data-quiet data-region="{{ regions }}" id="todo-new">
   <span class="todo-cmd-plus" aria-hidden="true">+</span>
   <label class="visually-hidden" for="todo-line">{{ _("A new line") }}</label>
-  <input id="todo-line" name="line" maxlength="200" autocomplete="off" enterkeyhint="enter" placeholder="{{ _('Add a line: "Stats report Friday 6 h"') }}" autofocus>
+  <input type="hidden" name="back" value="{{ back }}">
+  <input id="todo-line" name="line" maxlength="600" autocomplete="off" enterkeyhint="enter" placeholder="{{ _('Add a line: "Stats report Friday 6 h"') }}" autofocus aria-describedby="todo-keys">
   <button type="submit" class="todo-enter" aria-label="{{ _('Add') }}"><kbd aria-hidden="true">⏎</kbd></button>
 </form>
-<p class="todo-keys"><span><kbd>#</kbd> {{ _("heading") }}</span><span><kbd>&gt;</kbd> {{ _("note") }}</span><span class="todo-key-tab"><kbd>Tab</kbd> {{ _("step") }}</span><span class="todo-key-dash"><kbd>-</kbd> {{ _("step") }}</span></p>
+<p class="todo-keys" id="todo-keys"><span><kbd>#</kbd> {{ _("heading") }}</span><span><kbd>&gt;</kbd> {{ _("note") }}</span><span><kbd>?</kbd> {{ _("question") }}</span><span class="todo-key-tab"><kbd>Tab</kbd> {{ _("step") }}</span><span class="todo-key-dash"><kbd>-</kbd> {{ _("step") }}</span><span class="todo-key-slash"><kbd>/</kbd> {{ _("menu") }}</span><span><kbd>**</kbd>{{ _("bold") }}<kbd>**</kbd></span></p>
 
-<div id="todo" class="todo-sheet">
-  {% if view.rows or view.others %}
-  <div class="todo-head" aria-hidden="true"><span></span><span>{{ _("Task") }}</span><span class="r">{{ _("Due") }}</span><span class="r">{{ _("Work") }}</span><span>{{ _("Course") }}</span><span></span></div>
-  {% endif %}
+<div id="todo" class="todo-sheet{% if board %} is-board{% endif %}" data-token="{{ token }}">
+  {% if board %}
+  {# D202: the board, the open lines by day; a card dropped on a column takes its day. #}
+  <div class="todo-board">
+    {% for col in view.board %}
+    <section class="todo-col" data-drop="{{ col.drop }}" aria-labelledby="col-{{ col.key }}">
+      <h2 id="col-{{ col.key }}">{{ col.label }} <span class="muted">{{ col.rows | length }}</span></h2>
+      <ul class="todo-cards">
+        {% for r in col.rows %}
+        <li class="todo-cardrow is-{{ r.kind }}" id="b-{{ r.id }}" data-id="{{ r.id }}">
+          <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="{{ regions }}" class="todo-tick">
+            <input type="hidden" name="done" value="1"><input type="hidden" name="back" value="board">
+            <button type="submit" class="todo-box" aria-label="{{ _('Done: {what}', what=r.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+          </form>
+          <div class="todo-cardbody">
+            <span class="todo-text">{% if r.kind == "question" %}<span class="todo-q" aria-hidden="true">?</span>{% endif %}{{ words(r.parts) }}</span>
+            {{ chips(r) }}
+            {% set meta = [] %}{% if r.hours %}{% set _m = meta.append(_("{hours} h", hours=r.hours | hours)) %}{% endif %}{% if r.when and col.key in ("late", "week", "later") %}{% set _m = meta.append(r.when) %}{% endif %}
+            {% if r.course or meta %}<span class="todo-meta">{% if r.course %}<i class="sq{% if r.color is not none %} c{{ r.color }}{% endif %}" aria-hidden="true"></i>{{ r.course }}{% if meta %} · {% endif %}{% endif %}<span class="{% if r.late %}is-late{% endif %}">{{ meta | join(" · ") }}</span></span>{% endif %}
+          </div>
+          {{ bin(r) }}
+        </li>
+        {% else %}
+        <li class="todo-col-empty muted">—</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
   {% if view.rows %}
-  <ul class="todo-list">
+  <div class="todo-head" aria-hidden="true"><span></span><span></span><span>{{ _("Task") }}</span><span class="r">{{ _("Due") }}</span><span class="r">{{ _("Work") }}</span><span>{{ _("Course") }}</span><span></span></div>
+  <ul class="todo-list" id="todo-rows">
     {% for r in view.rows %}
-    <li class="todo-row is-{{ r.kind }}{% if r.indent %} is-step{% endif %}{% if r.done %} is-done{% endif %}" id="t-{{ r.id }}">
-      {% if r.kind == "todo" %}
-      <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="#todo, #todo-count" class="todo-tick">
+    <li class="todo-row is-{{ r.kind }}{% if r.indent %} is-step{% endif %}{% if r.done %} is-done{% endif %}" id="t-{{ r.id }}" data-id="{{ r.id }}" data-pos="{{ r.pos }}">
+      <span class="todo-grip" aria-hidden="true">{{ lucide('grip-vertical') }}</span>
+      {% if r.kind in ("todo", "question") %}
+      <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="{{ regions }}" class="todo-tick">
         <input type="hidden" name="done" value="{{ '0' if r.done else '1' }}">
         <button type="submit" class="todo-box{% if r.done %} is-done{% endif %}" aria-label="{% if r.done %}{{ _('Not done yet: {what}', what=r.text) }}{% else %}{{ _('Done: {what}', what=r.text) }}{% endif %}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
       </form>
-      {% elif r.kind == "note" %}<span class="todo-dash" aria-hidden="true">—</span>{% endif %}
+      {% elif r.kind == "note" %}<span class="todo-dash" aria-hidden="true">—</span>{% else %}<span></span>{% endif %}
       <div class="todo-body">
+        {% if r.kind == "question" %}<span class="todo-q" title="{{ _('A question for the teacher') }}">?</span>{% endif %}
         <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/edit" data-autosave class="todo-edit">
           <label class="visually-hidden" for="w-{{ r.id }}">{{ _("Line") }}</label>
-          <input id="w-{{ r.id }}" name="text" value="{{ r.text }}" maxlength="160" autocomplete="off" data-line="{{ r.id }}">
+          <input id="w-{{ r.id }}" name="text" value="{{ r.text }}" maxlength="160" autocomplete="off" data-line="{{ r.id }}" class="todo-input{% if r.parts | length > 1 or (r.parts and r.parts[0].k != 't') %} is-fmt{% endif %}">
+          {% if r.parts | length > 1 or (r.parts and r.parts[0].k != 't') %}<span class="todo-fmt" aria-hidden="true">{{ words(r.parts) }}</span>{% endif %}
         </form>
         {% if r.kind == "heading" %}<span class="todo-n">{{ _n("{n} open", "{n} open", r.open) }}</span>{% endif %}
+        {{ chips(r) }}
         {% if r.when or r.hours or r.course %}
         <p class="todo-sub">{% if r.when %}<span class="{% if r.late %}is-late{% endif %}">{{ r.when }}</span>{% endif %}{% if r.hours %}{% if r.when %} · {% endif %}<span class="todo-w">{{ _("{hours} h", hours=r.hours | hours) }}</span>{% endif %}{% if r.course %}{% if r.when or r.hours %} · {% endif %}{{ r.course }}{% endif %}</p>
         {% endif %}
@@ -52,41 +125,29 @@
       <span class="todo-work r">{% if r.hours %}<a href="/p/{{ token }}/tasks">{{ _("{hours} h", hours=r.hours | hours) }}</a>{% endif %}</span>
       <span class="todo-course">{% if r.course %}<i class="sq{% if r.color is not none %} c{{ r.color }}{% endif %}" aria-hidden="true"></i>{{ r.course }}{% endif %}</span>
       {% endif %}
-      <details class="menu todo-menu">
-        <summary aria-label="{{ _('More: {what}', what=r.text) }}">{{ lucide('chevron-right') }}</summary>
-        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/change" data-async data-quiet data-region="#todo, #todo-count" class="menu-items">
-          {% if not loop.first %}<button type="submit" name="how" value="up">{{ _("Move up") }}</button>{% endif %}
-          {% if not loop.last %}<button type="submit" name="how" value="down">{{ _("Move down") }}</button>{% endif %}
-          {% if r.kind == "todo" %}{% if r.indent %}<button type="submit" name="how" value="outdent">{{ _("Not a step") }}</button>{% elif not loop.first %}<button type="submit" name="how" value="indent">{{ _("A step of the line above") }}</button>{% endif %}{% endif %}
-          {% if r.kind != "todo" %}<button type="submit" name="how" value="todo">{{ _("Make it a to-do") }}</button>{% endif %}
-          {% if r.kind != "note" %}<button type="submit" name="how" value="note">{{ _("Make it a note") }}</button>{% endif %}
-          {% if r.kind != "heading" %}<button type="submit" name="how" value="heading">{{ _("Make it a heading") }}</button>{% endif %}
-          <button type="submit" name="how" value="delete" class="is-danger">{{ _("Remove") }}</button>
-        </form>
-      </details>
+      <span class="todo-acts">
+        {{ bin(r) }}
+        <details class="menu todo-menu">
+          <summary aria-label="{{ _('More: {what}', what=r.text) }}">{{ lucide('chevron-right') }}</summary>
+          <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/change" data-async data-quiet data-region="{{ regions }}" class="menu-items">
+            {% if not loop.first %}<button type="submit" name="how" value="up">{{ _("Move up") }}</button>{% endif %}
+            {% if not loop.last %}<button type="submit" name="how" value="down">{{ _("Move down") }}</button>{% endif %}
+            {% if r.kind == "todo" and not r.done %}<button type="submit" name="how" value="tomorrow">{{ _("Move to tomorrow") }}</button>{% endif %}
+            {% if r.kind == "todo" %}{% if r.indent %}<button type="submit" name="how" value="outdent">{{ _("Not a step") }}</button>{% elif not loop.first %}<button type="submit" name="how" value="indent">{{ _("A step of the line above") }}</button>{% endif %}{% endif %}
+            {% if r.kind != "todo" %}<button type="submit" name="how" value="todo">{{ _("Make it a to-do") }}</button>{% endif %}
+            {% if r.kind != "question" %}<button type="submit" name="how" value="question">{{ _("Make it a question") }}</button>{% endif %}
+            {% if r.kind != "note" %}<button type="submit" name="how" value="note">{{ _("Make it a note") }}</button>{% endif %}
+            {% if r.kind != "heading" %}<button type="submit" name="how" value="heading">{{ _("Make it a heading") }}</button>{% endif %}
+            <button type="submit" name="how" value="delete" class="is-danger">{{ _("Remove") }}</button>
+          </form>
+        </details>
+      </span>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="todo-empty muted">{{ _("Nothing here yet. Write the first line above.") }}</p>
+  <p class="todo-empty muted">{{ _("Nothing here yet. Write the first line above, or start from a template.") }}</p>
   {% endif %}
-  {% if view.others %}
-  {# The plan's other tasks: a learning platform's deadlines, those added field by field. #}
-  <ul class="todo-list todo-others" aria-labelledby="others-title">
-    <li class="todo-row is-heading"><div class="todo-body"><h2 id="others-title">{{ _("Planned elsewhere") }}</h2><a class="todo-n link" href="/p/{{ token }}/tasks">{{ _("In detail") }} ›</a></div></li>
-    {% for o in view.others %}
-    <li class="todo-row">
-      <span></span>
-      <div class="todo-body"><span class="todo-text">{{ o.name }}</span>
-        <p class="todo-sub"><span class="{% if o.late %}is-late{% endif %}">{{ o.when }}</span> · <span class="todo-w">{{ _("{hours} h", hours=o.hours | hours) }}</span>{% if o.course %} · {{ o.course }}{% endif %}</p>
-      </div>
-      <span class="todo-due r{% if o.late %} is-late{% endif %}">{{ o.when }}</span>
-      <span class="todo-work r"><a href="/p/{{ token }}/tasks">{{ _("{hours} h", hours=o.hours | hours) }}</a></span>
-      <span class="todo-course">{% if o.course %}<i class="sq{% if o.color is not none %} c{{ o.color }}{% endif %}" aria-hidden="true"></i>{{ o.course }}{% endif %}</span>
-      <span></span>
-    </li>
-    {% endfor %}
-  </ul>
   {% endif %}
   {% if view.done %}
   <details class="todo-done">
@@ -94,16 +155,68 @@
     <ul class="todo-list">
       {% for r in view.done %}
       <li class="todo-row is-done{% if r.indent %} is-step{% endif %}">
-        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="#todo, #todo-count" class="todo-tick">
-          <input type="hidden" name="done" value="0">
+        <span></span>
+        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="{{ regions }}" class="todo-tick">
+          <input type="hidden" name="done" value="0"><input type="hidden" name="back" value="{{ back }}">
           <button type="submit" class="todo-box is-done" aria-label="{{ _('Not done yet: {what}', what=r.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
         </form>
-        <div class="todo-body"><span class="todo-text">{{ r.text }}</span></div>
+        <div class="todo-body"><span class="todo-text">{{ words(r.parts) }}</span></div>
       </li>
       {% endfor %}
     </ul>
-    <form method="post" action="/p/{{ token }}/todo/clear" data-async data-quiet data-region="#todo, #todo-count" class="todo-clear"><button type="submit" class="btn btn-plain btn-sm">{{ _("Clear the lines done") }}</button></form>
+    <form method="post" action="/p/{{ token }}/todo/clear" data-async data-quiet data-region="{{ regions }}" class="todo-clear"><input type="hidden" name="back" value="{{ back }}"><button type="submit" class="btn btn-plain btn-sm">{{ _("Clear the lines done") }}</button></form>
   </details>
   {% endif %}
+</div>
+</div>
+
+<aside class="context-col todo-side" id="todo-side" aria-label="{{ _('Beside the list') }}">
+  {# D202: today's work against today's free time. #}
+  <section class="card context-card todo-fit">
+    <h2>{{ lucide('sun') }} {{ _("Today") }}</h2>
+    {% set f = view.fit %}
+    {% if f %}
+    <p class="todo-fit-line"><b>{{ _("{h} h to do", h=f.work) }}</b>{% if f.free is not none %}<span>{{ _("{h} h free", h=f.free) }}</span>{% endif %}</p>
+    <span class="todo-meter{% if f.over %} is-over{% endif %}"><i class="w{{ (f.percent / 10) | round | int * 10 }}"></i></span>
+    {% if f.over %}
+    <p class="todo-over">{{ _("{h} h does not fit in what is left of today.", h=f.over) }}</p>
+    {% if f.move %}
+    <form method="post" action="/p/{{ token }}/todo/{{ f.move.id }}/change" data-async data-quiet data-region="{{ regions }}">
+      <input type="hidden" name="how" value="tomorrow"><input type="hidden" name="back" value="{{ back }}">
+      <button type="submit" class="btn btn-sm">{{ _("Move “{what}” to tomorrow", what=f.move.text) }}</button>
+    </form>
+    {% endif %}
+    {% else %}
+    <p class="hint">{{ _n("{n} line for today: it fits in today's free time.", "{n} lines for today: they fit in today's free time.", f.lines) }}</p>
+    {% endif %}
+    {% else %}
+    <p class="hint">{{ _("Nothing is due today. A line with a day and hours, like “Lab report today 2 h”, is weighed here against your free time.") }}</p>
+    {% endif %}
+  </section>
+  {# D202: a list at once. #}
+  <section class="card context-card todo-templates">
+    <h2>{{ lucide('layout-template') }} {{ _("Templates") }}</h2>
+    <form method="post" action="/p/{{ token }}/todo/template" data-async data-quiet data-region="{{ regions }}" class="todo-template-form">
+      <input type="hidden" name="back" value="{{ back }}">
+      {% if view.courses %}
+      <label for="tpl-course" class="visually-hidden">{{ _("Course") }}</label>
+      <select id="tpl-course" name="course"><option value="">{{ _("No course") }}</option>{% for c in view.courses %}<option>{{ c }}</option>{% endfor %}</select>
+      {% endif %}
+      <span class="todo-tpl-buttons">{% for t in view.templates %}<button type="submit" name="template" value="{{ t.key }}" class="btn btn-plain btn-sm">{{ t.title }}</button>{% endfor %}</span>
+    </form>
+  </section>
+  {% if view.others %}
+  {# The plan's other tasks: a learning platform's deadlines, those added field by field. #}
+  <section class="card context-card todo-others">
+    <h2>{{ lucide('calendar-check') }} {{ _("Planned elsewhere") }}</h2>
+    <ul class="ctx-list plain">
+      {% for o in view.others %}
+      <li><span class="grow">{{ o.name }}<small>{% if o.course %}<i class="sq{% if o.color is not none %} c{{ o.color }}{% endif %}" aria-hidden="true"></i>{{ o.course }} · {% endif %}<span class="{% if o.late %}is-late{% endif %}">{{ o.when }}</span> · {{ _("{hours} h", hours=o.hours | hours) }}</small></span></li>
+      {% endfor %}
+    </ul>
+    <a class="link" href="/p/{{ token }}/tasks">{{ _("In detail") }} ›</a>
+  </section>
+  {% endif %}
+</aside>
 </div>
 {% endblock %}

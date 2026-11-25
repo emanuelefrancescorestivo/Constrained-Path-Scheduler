@@ -7951,3 +7951,120 @@ The owner: "spagnolo va ovunque".
 - Course names still match by their words, so "estadística" does not find "Statistics".
 - Checked in Chromium only, by the pictures of six screens, light and dark.
 
+
+## D202. The to-do page takes the whole page, and the ten proposals
+
+**Asked.** The owner approved all ten proposals for the to-do page (7 to 16: templates, a page per
+course, questions for the teacher, lines that come back, a reminder at an hour, a list with the study
+group, dragging and "/", links as labels, a note to a flashcard, how much fits today). Then, on a
+screenshot of D195's page: "there is so much free room we need to EMPLOY THE WHOLE PAGE SPACE like a
+notion page, when hovering on a thing a bin should show to delete, formatting could be included".
+
+**Chosen.**
+- **The whole page:** the page takes the window's width (`main.site.todo-wide`). The list sits beside a
+  column with three cards: today's fit, the templates, and the plan's other tasks.
+- **Two views:** a table, D195's, and a board (`?view=board`) with the open lines in six columns: late,
+  today, tomorrow, this week, later, and no day. A card dropped on a column takes that column's day.
+- **A bin on hover:** each line shows a bin and a grip under the pointer. On a touch screen the bin is
+  always shown, faintly.
+- **Formatting:** `**bold**`, `*italic*`, `~~struck~~` and `` `code` `` are drawn over the line's field
+  until it is edited; the marks stay in the words (`service.todo_parts`).
+- **Questions (9):** a line that ends with "?", or starts with "? ", is a question for the teacher. It
+  is ticked off when answered, and Today's list of things to do leaves it out.
+- **Links (14):** an address in a line is kept apart, up to three, and shown by its name. That name
+  comes from the course's materials (D174) when the address is there, else from its file's name with
+  the file's kind (PDF, DOC, PPT, XLS), else from its site. Only http and https addresses are kept.
+- **Lines that come back (10):** "every Monday" (or "chaque lundi", "tous les lundis", "ogni lunedì",
+  "tutti i lunedì", "cada lunes", "todos los lunes"), or every day. Ticked off, such a line is written
+  again for its next day, once, with its own task if it had hours.
+- **A reminder at an hour (11):** a line with an hour and no hours of work reminds the phone at that
+  hour, once. The reminder may be up to five minutes late if the server was asleep, never later. It is
+  sent whatever the sessions' reminders say, because the student asked for it.
+- **A note to a flashcard (15):** a note written "term: definition", read by D84's rules, offers
+  "Make a flashcard" when it has a course. The card goes to that course's deck, in this week.
+- **Templates (7):** three lists: prepare the exam, hand it in in steps, and the week's review. Each
+  comes with its heading, and with a course if one is chosen.
+- **How much fits today (16):** the column compares two numbers.
+  - The hours still to do: those of the tasks of the lines due today or earlier, less the share of
+    their blocks already done.
+  - The free hours left today: from now to bed, less the classes, tests, busy times and the plan's
+    other study still to come.
+
+  When the work does not fit, it offers to move the last such line to tomorrow, its task's day with it.
+- **A page per course (8):** a course's page lists the course's lines (to do, notes, questions), and a
+  line written there takes the course.
+- **Keys:** "/" at the start of the new line offers the kinds, read from the page's own line of keys.
+  Ctrl+Enter ticks the line being edited; Ctrl+B and Ctrl+I add the marks. A line is dragged by its
+  grip to a new place.
+
+**Rejected.**
+- **A rich-text editor:** it means a library and HTML kept in a plan; Markdown's marks are words, safe
+  to keep and to show.
+- **Moving a deadline from the board:** the board moves a line's day; a task's due date moves only
+  through "Move to tomorrow", which says so.
+
+**Disclosed.**
+- **Not built yet:** the list shared with a study group (12). It needs the groups' own table and who
+  may write in it, and comes with the next slice.
+- **Reading by rules:**
+  - An hour is read as the new-task sheet reads one: "at 10:00", "alle 10", "a las 10", "10h".
+    English "at 10" alone is not an hour.
+  - "every" is read in four languages only.
+  - Two lines that come back on the same day each keep their own task.
+- **Notes and cards:** a note without a course offers no card, because a card belongs to a course's
+  deck.
+- **The fit's numbers:**
+  - They count the hours written in the lines' tasks, not the time a student really needs.
+  - The free time is the plan's, with nothing unexpected; a line without hours counts zero.
+- **Dragging** needs the script and a pointer. Without them a line still moves up and down through its
+  menu, and a card on a phone stays in its column.
+- **Browser check:** in Chromium only, at 1800px dark, the board and phone size.
+
+## D203. The front page's scenes: seven small films of what the app does
+
+**Asked.** The owner, on the front page: "more animations like the ones that fill the calendar, even if
+only for the landing page and not really in the app, to give the idea of what happens in the app and
+draw students in". All six proposed scenes were chosen, "+ some motivation on seeing your grades
+increase as a positive correlation with developing good studying habits", then "even more dopaminergic
+and motivating".
+
+**Chosen.**
+- **Seven scenes** (`_landing_scenes.html`), each a dark card that plays once as it comes into view and
+  again when scrolled back to (`scenes.js`):
+  - a week's streak lighting up, a day missed and repaired, the streak badge unlocked;
+  - the marks of students who test themselves against those who only reread;
+  - Studying now: a classmate joined, a cheer, a streak kept in two;
+  - the same day twice, an ordinary review app's fixed hours on top of the classes, and the plan's
+    sessions in the gaps;
+  - three steps: the timetable in, its exams found, the sessions on the calendar;
+  - a self-test refilling a topic's memory;
+  - notes becoming cards.
+- **Rewards that are seen:** points that float up, numbers that count, confetti at the moments that
+  reward (a badge, a joined friend, the marks), a tap's ring on the button pressed. Nothing loops (D93).
+- **Their numbers are the app's** (`service._landing_scenes`, inside `landing_view`):
+  - the streak: 10 points a day (`POINTS_DONE`), the 25-minute repair (`REPAIR_MINUTES`), and the tier
+    the streak family gives for seven days (silver, D189);
+  - the tube: a topic seen once and recalled "good", tested when FSRS-6 puts it at 72 % (17 days), then
+    above 90 % for 30 days;
+  - the cards: what D84's rules read in the scene's notes, in each language;
+  - the marks: Yang and colleagues (2021, docs/REFERENCES.md yang2021), 222 classroom studies and 48,478
+    students, testing raised achievement by g = 0.499. With bell-shaped marks, the average student who
+    tests themselves scores above Φ(0.499) = 69 % of those who only reread.
+- **Complete without motion:** each scene is drawn finished in the page. Only the script, with motion
+  on, sets its parts back and brings them in. Without it, or under reduced motion, every scene stands
+  complete, as D188's do.
+- **Four screenshots fewer:** the scenes take the place of Progress, Community, a course's page and
+  setting up as pictures (in four languages, light and dark: 32 files). Today keeps its two.
+
+**Rejected.**
+- **A grade that rises for one student:** the app does not see marks, and a single line that climbs
+  would be a promise. The scene shows a study's average over many classrooms and says so.
+- **Video files:** heavier, one per language and theme, and not drawn from the app's numbers.
+
+**Disclosed.**
+- The people, days and courses are made up; the captions say so.
+- The marks figure is an average of many studies, not a promise; how much it carries to one student is
+  not known, and the app never sees marks.
+- The tube is FSRS-6's estimate with average weights.
+- Checked in Chromium only, at 1440 × 900 and phone size, light and dark, with motion and without, in
+  English, French, Italian and Spanish.

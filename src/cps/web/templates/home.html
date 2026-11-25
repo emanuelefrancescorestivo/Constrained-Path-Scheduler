@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Study plan: your timetable, your deadlines, your week") }}{% endblock %}
-{% block head %}<script type="module" src="{{ asset('home.js') }}"></script>
+{% block head %}<script type="module" src="{{ asset('home.js') }}"></script><script type="module" src="{{ asset('scenes.js') }}"></script>
 <script type="module" src="{{ asset('passkeys.js') }}"></script>{% endblock %}
 {% block site_class %} home{% endblock %}
 {% block body_class %} home{% endblock %}
 {% block topbar_end %}{% include "_front_switch.html" %}{% endblock %}
 {% block main %}
+{% import "_landing_scenes.html" as scenes with context %}
 {# D188: the front page tells the app's story as it is scrolled: what it changes for a
    student, how it was made and why, and how to use it, in eight questions, each
    beside a picture of the real app in the page's language (benchmarks/landing_shots.mjs
@@ -106,11 +107,9 @@
       <p class="landing-num">3 · {{ questions[2] }}</p>
       <h3>{{ _("A streak that grows with you, and forgives a day off.") }}</h3>
       <p>{{ _("Every day you study lights up your week. A rest day keeps your streak; miss a day, and a {n}-minute session repairs it. A plant grows for each day you focus, and each exam shows how ready you are.", n=l.repair) }}</p>
+      {{ scenes.grades(l) }}
     </div>
-    <figure class="landing-shot phone">
-      <picture><source srcset="{{ asset(shots ~ 'progress-phone-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'progress-phone.jpg') }}" width="585" height="996" alt="{{ _('Progress on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Progress: the week, the streak, your level.") }}</figcaption>
-    </figure>
+    {{ scenes.streak(l) }}
   </article>
 
   <article class="landing-q flip" id="q4">
@@ -119,10 +118,7 @@
       <h3>{{ _("Yes: your class studies beside you.") }}</h3>
       <p>{{ _("Share your sessions and your notes. See who is studying now and join them, send a cheer, keep a streak going as a pair, set a goal as a study group, play a weekly league with friends. Who sees what is always your choice.") }}</p>
     </div>
-    <figure class="landing-shot phone">
-      <picture><source srcset="{{ asset(shots ~ 'community-phone-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'community-phone.jpg') }}" width="585" height="996" alt="{{ _('Community on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Community: your friends' league this week, who is studying now, what your classmates share. Everyone here is made up.") }}</figcaption>
-    </figure>
+    {{ scenes.now(l) }}
   </article>
 
   <article class="landing-q pin" id="q5">
@@ -169,10 +165,7 @@
       <p>{{ _("Revision apps time their reviews as if your whole day were free. A student's week has classes, a job, sport, a trip to campus: a plan has to start from that week.") }}</p>
       <p>{{ _("It began as a research question, asked by a student about their own semester: can a model of memory and an exact search over every free hour plan revision better than a simple rule? Barely: about one session in twenty. So the app plans with clear rules, in a hundredth of a second, and keeps the search as the yardstick.") }}</p>
     </div>
-    <figure class="landing-shot wide">
-      <picture><source srcset="{{ asset(shots ~ 'course-laptop-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'course-laptop.jpg') }}" width="1280" height="800" alt="{{ _('A course on a laptop.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("A course, week by week: what was taught, how often it came back, and how much of it the model predicts you recall today.") }}</figcaption>
-    </figure>
+    {{ scenes.clash(l) }}
   </article>
 
   <article class="landing-q" id="q7">
@@ -181,6 +174,8 @@
       <h3>{{ _("Fewer sessions, never {n} in a day, and it holds {ratio} times as long.", n=l.course.crammed_day, ratio=l.holds_ratio) }}</h3>
       <p>{{ _("Cramming can get you through an exam, and it costs more than it seems. A review of ten study techniques rated two of high utility: spreading study over time, and testing yourself (Dunlosky and colleagues, 2013). The app plans both. Here is a course of {weeks} weeks of lectures, its exam two weeks after the last.", weeks=l.course.weeks) }}</p>
       <p><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
+      {{ scenes.tube(l) }}
+      {{ scenes.cards(l) }}
     </div>
     <figure class="landing-chart">
       <div class="landing-tiles">
@@ -228,10 +223,7 @@
         <li>{{ lucide('sparkles') }}{{ _("AI is optional: without it, clear rules answer.") }}</li>
       </ul>
     </div>
-    <figure class="landing-shot phone">
-      <picture><source srcset="{{ asset(shots ~ 'setup-phone-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'setup-phone.jpg') }}" width="585" height="996" alt="{{ _('Setting up on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Step 2 on a phone: the exams read from the timetable, each with its date.") }}</figcaption>
-    </figure>
+    {{ scenes.steps(l) }}
   </article>
 </section>
 

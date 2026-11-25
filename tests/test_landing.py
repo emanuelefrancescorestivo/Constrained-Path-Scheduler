@@ -18,20 +18,17 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from cps import cards, crests, memory, service
+from cps import cards, crests, i18n, memory, service
 from cps.web import Config, create_app
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "src/cps/web/static"
 CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 LANGS = ("en", "fr", "it")
+# D203: the four other screens became drawn scenes (_landing_scenes.html).
 PICTURES = (
     "today-laptop",
     "today-phone",
-    "progress-phone",
-    "community-phone",
-    "course-laptop",
-    "setup-phone",
 )
 
 
@@ -147,7 +144,7 @@ def test_the_front_page_tells_the_story_in_eight_questions(tmp_path, lang):
     assert f"{view['holds']['spaced']}" in page and f"{view['holds']['crammed']}" in page
     assert (
         len(re.findall(r'class="league-row(?: me)?(?: lg-up| lg-down)?"', page)) == len(view["league"])
-        and page.count('class="crest-badge"') == 8
+        and page.count('class="crest-badge"') == 8 + 1  # D203: the streak scene's badge
     )
     # One main heading, levels never skipped, no id twice.
     assert page.count("<h1") == 1
@@ -398,3 +395,30 @@ def test_the_demo_student_keeps_the_mode_chosen_on_the_front_page(tmp_path):
     )
     assert answer.status_code == 303
     assert service.theme_of(service.load_subscription(tmp_path, made[0])) == "dark"
+
+
+@pytest.mark.parametrize("lang", ("en", "fr", "it", "es"))
+def test_the_scenes_are_drawn_complete_with_the_app_s_numbers(tmp_path, lang):
+    """D203: seven scenes drawn complete (scenes.js only sets their parts back and brings them
+    in), with the app's numbers: a session's points, the repair's minutes, the badge the
+    week earns, FSRS-6's refill, the cards D84's rules read, and the share of rereaders the
+    average self-tester beats, from Yang et al.'s g."""
+    import math
+
+    with i18n.use(lang):
+        view = service.landing_view()
+    page = unescape(_web(tmp_path).get(f"/?lang={lang}").text)
+    scenes = view["scenes"]
+    assert page.count("data-scene") == 7 and "scenes.js" in page and " style=" not in page
+    s = scenes["streak"]
+    assert s["points"] == 7 * service.POINTS_DONE and s["repair"] == service.REPAIR_MINUTES
+    assert s["badge"]["metal"] == "silver"  # 7 days: the streak's second tier (3, 7, 30, 100)
+    assert scenes["grades"]["beats"] == round(100 * 0.5 * (1 + math.erf(0.499 / math.sqrt(2)))) == 69
+    t = scenes["tube"]
+    first = service.FSRS_6.initial_state(memory.Grade.GOOD)
+    again = service.FSRS_6.review(first, t["after_days"], memory.Grade.GOOD)
+    assert t["days"] == math.floor(service.FSRS_6.interval(again.stability, 0.9)) and t["before"] == 72
+    cards = scenes["cards"]["cards"]
+    assert len(cards) == 3 and all(f"<b>{c['front']}</b>" in page for c in cards)
+    # Without the script, every part is in its place: nothing is hidden by the page itself.
+    assert not re.search(r"\.ls-card \[data-at\]\s*\{[^}]*opacity:\s*0", CSS)

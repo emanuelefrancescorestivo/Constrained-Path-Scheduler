@@ -106,6 +106,38 @@
 </section>
 {% endif %}
 
+{# D202 (proposal 8, the owner's yes): the course's own lines of the to-do page, by kind:
+   what there is to do, the notes, the questions for the teacher; a line written here takes
+   the course. #}
+{% if todo %}
+<section class="card section course-todo" id="todo" aria-labelledby="ctodo-title">
+  <div class="split-head"><h2 id="ctodo-title">{{ lucide('list-checks') }} {{ _("To-do") }}</h2><a class="link" href="/p/{{ token }}/todo">{{ _("The whole list") }} ›</a></div>
+  {% for kind, title in (("todo", _("To do")), ("note", _("Notes")), ("question", _("Questions for the teacher"))) %}
+  {% set lines = todo.rows | selectattr("kind", "equalto", kind) | list %}
+  {% if lines %}
+  <p class="tile-label">{{ title }}</p>
+  <ul class="ctodo-list">
+    {% for r in lines %}
+    <li class="ctodo-row is-{{ r.kind }}">
+      {% if r.kind in ("todo", "question") %}
+      <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" class="todo-tick"><input type="hidden" name="done" value="1"><input type="hidden" name="back" value="courses/{{ v.index }}"><button type="submit" class="todo-box" aria-label="{{ _('Done: {what}', what=r.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button></form>
+      {% else %}<span class="todo-dash" aria-hidden="true">—</span>{% endif %}
+      <span class="todo-text">{% for p in r.parts %}{% if p.k == "b" %}<b>{{ p.x }}</b>{% elif p.k == "i" %}<i>{{ p.x }}</i>{% elif p.k == "s" %}<s>{{ p.x }}</s>{% elif p.k == "c" %}<code>{{ p.x }}</code>{% else %}{{ p.x }}{% endif %}{% endfor %}{% if r.when %} <small class="muted{% if r.late %} is-late{% endif %}">· {{ r.when }}</small>{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endfor %}
+  <form method="post" action="/p/{{ token }}/todo" class="todo-cmd ctodo-add">
+    <span class="todo-cmd-plus" aria-hidden="true">+</span>
+    <input type="hidden" name="course" value="{{ v.course }}"><input type="hidden" name="back" value="courses/{{ v.index }}">
+    <label class="visually-hidden" for="ctodo-line">{{ _("A new line for {course}", course=v.course) }}</label>
+    <input id="ctodo-line" name="line" maxlength="600" autocomplete="off" placeholder="{{ _('A to-do, a note (> …) or a question (…?)') }}">
+    <button type="submit" class="todo-enter" aria-label="{{ _('Add') }}"><kbd aria-hidden="true">⏎</kbd></button>
+  </form>
+</section>
+{% endif %}
+
 {# Its exam, changed here (D103): the date, how well it is known, its weight and its
    practice; or no longer planned for. The same fields as the exams while setting up.
    D167: its date shown, the rest folded under "Change" and saved as each field changes

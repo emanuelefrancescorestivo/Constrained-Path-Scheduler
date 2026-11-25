@@ -4,6 +4,18 @@
 
 ### Added
 
+- Seven small films on the front page (DECISIONS.md D203): a streak that lights up and forgives, the
+  marks of students who test themselves (a study of 222 classrooms), studying with a friend, the same
+  day in another app and in the plan, three steps to a plan, a self-test refilling a memory, notes
+  becoming cards. Each plays as it comes into view, with points, counters and confetti, and stands
+  complete without motion. They replace four of the screenshots.
+
+- The to-do page as a whole page (DECISIONS.md D202): the list beside today's fit, templates and the
+  plan's other tasks; a board by day; a bin and a grip on a line under the pointer; **bold**, *italic*,
+  ~~struck~~ and `code`; questions for the teacher; links shown by their names; lines that come back
+  every week or every day; a reminder at an hour; a note's flashcard in one tap; a course's lines on
+  its page; "/", Ctrl+Enter, Ctrl+B and Ctrl+I, and dragging.
+
 - Spanish everywhere (DECISIONS.md D201): the whole app, not only its front page. A plan can be in
   Spanish, Moodle's menu words are Spanish, and tasks typed in Spanish are read ("informe para el
   viernes a las 18, 6 horas").
