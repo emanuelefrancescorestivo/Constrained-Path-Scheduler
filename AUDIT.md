@@ -1433,3 +1433,9 @@ them in colour, tests in red", in French and Italian too.
 flashcards to be reviewed: a card drew only `^{…}`, `_{…}` and `\frac{…}{…}` (D151, D166). `$…$`,
 Greek letters, `\le`, `\sqrt{…}`, `\mathbb{R}`, `\lim` and `x^2` without braces stayed as typed.
 Status: fixed with D197 (`tests/test_maths_cards.py`).
+
+**131. The cards' second call undid their LaTeX.** Found on 2026-11-25 by CI on D199: the test of the
+writing prompt still asked for "never LaTeX", and reading why showed the check (D138) still asked the
+model for "mathematics in plain text with Unicode symbols". A card it fixed would come back without
+its `$…$`, drawn as plain text beside cards typeset as MathML. Status: fixed: the check asks for each
+formula in LaTeX between $ signs, as the writing does (`tests/test_cards_by_ai.py`).
