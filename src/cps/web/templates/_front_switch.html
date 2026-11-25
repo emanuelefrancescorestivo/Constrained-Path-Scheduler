@@ -1,16 +1,17 @@
 {# D193: the front page's language and its light or dark, in the top bar. Links, so they
    work without a script: the page comes back in the language or the mode chosen. With
    home.js the mode changes in place, where the reader is. The choice rides in the
-   address, not in a cookie: the front page keeps none. Spanish is the front page's
-   (and the account's pages') only: the app itself speaks English, French and Italian. #}
+   address, not in a cookie: the front page keeps none. Since D201 every language here is
+   the app's too. AUDIT 133: they say their names and sit in outlined pills, so they read as
+   controls on a wide screen; a phone keeps the code and the icon. #}
 {% set mode_q = "&theme=" ~ theme if theme in ("light", "dark") else "" %}
 <div class="front-switch">
   <details class="lang-menu">
-    <summary title="{{ _('Language') }}">{{ lucide('globe') }}<span aria-hidden="true">{{ lang() | upper }}</span><span class="visually-hidden">{{ _("Language") }}: {{ front_languages[lang()] }}</span></summary>
+    <summary title="{{ _('Language') }}">{{ lucide('globe') }}<span class="fs-code" aria-hidden="true">{{ lang() | upper }}</span><span class="fs-name" aria-hidden="true">{{ front_languages[lang()] }}</span><span class="fs-caret" aria-hidden="true">{{ lucide('chevron-right') }}</span><span class="visually-hidden">{{ _("Language") }}: {{ front_languages[lang()] }}</span></summary>
     <ul class="lang-list">
       {% for code, name in front_languages.items() %}<li><a href="?lang={{ code }}{{ mode_q }}" hreflang="{{ code }}" lang="{{ code }}"{% if code == lang() %} aria-current="true"{% endif %} data-front-link><b>{{ code | upper }}</b>{{ name }}</a></li>{% endfor %}
     </ul>
   </details>
-  <a class="mode-flip to-dark" href="?lang={{ lang() }}&amp;theme=dark" data-mode="dark" title="{{ _('Dark mode') }}">{{ lucide('moon') }}<span class="visually-hidden">{{ _("Dark mode") }}</span></a>
-  <a class="mode-flip to-light" href="?lang={{ lang() }}&amp;theme=light" data-mode="light" title="{{ _('Light mode') }}">{{ lucide('sun') }}<span class="visually-hidden">{{ _("Light mode") }}</span></a>
+  <a class="mode-flip to-dark" href="?lang={{ lang() }}&amp;theme=dark" data-mode="dark" title="{{ _('Dark mode') }}">{{ lucide('moon') }}<span class="fs-name" aria-hidden="true">{{ _("Dark") }}</span><span class="visually-hidden">{{ _("Dark mode") }}</span></a>
+  <a class="mode-flip to-light" href="?lang={{ lang() }}&amp;theme=light" data-mode="light" title="{{ _('Light mode') }}">{{ lucide('sun') }}<span class="fs-name" aria-hidden="true">{{ _("Light") }}</span><span class="visually-hidden">{{ _("Light mode") }}</span></a>
 </div>

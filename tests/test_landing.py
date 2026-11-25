@@ -325,25 +325,27 @@ def test_the_front_page_and_the_account_s_pages_speak_spanish_whole(tmp_path, mo
     assert not missed, "in English on a Spanish front page:\n" + "\n".join(sorted(missed))
 
 
-def test_spanish_stays_at_the_door_a_plan_speaks_the_app_s_languages(tmp_path):
+def test_spanish_is_everywhere_a_plan_too(tmp_path):
+    """D201 (D193 had kept Spanish at the door): a plan, its pages and the explaining
+    pages speak Spanish as French and Italian do."""
     from cps import i18n
 
-    assert i18n.pick("es-ES,es;q=0.9,fr;q=0.8") == "fr"  # the app's pages: the next one the reader reads
+    assert i18n.pick("es-ES,es;q=0.9,fr;q=0.8") == "es"
     assert i18n.pick("es-ES,es;q=0.9,fr;q=0.8", front=True) == "es"
     with i18n.use("es"):
-        assert service.FRONT_LANGUAGES["es"] == "Español" and "es" not in service.LANGUAGES
-        # A plan begun while the front page was in Spanish is planned in English.
-        sub = service.start_subscription(tz="Europe/Paris", draw=True, now=service.LANDING_WEEK_START)
-        assert sub.options["lang"] == "en"
-        with pytest.raises(service.InvalidInput):
-            service.set_language(sub, "es")
+        assert service.LANGUAGES["es"] == "Español" and service.FRONT_LANGUAGES == service.LANGUAGES
+        # A plan begun while the front page was in Spanish is planned in Spanish.
+        sub = service.start_subscription(tz="Europe/Madrid", draw=True, now=service.LANDING_WEEK_START)
+        assert sub.options["lang"] == "es"
+        assert service.set_language(sub, "fr").options["lang"] == "fr"
         assert i18n.format_date(date(2026, 10, 19)) == "lunes 19 de octubre"
         assert i18n.format_date(date(2026, 10, 19), "short") == "lun 19 oct"
         assert i18n.number(1.5) == "1,5"
+        assert service.MOODLE_EXPORT_WORDS["es"]["button"] == "Obtener URL del calendario"
     web = _web(tmp_path)
-    # A plan's own pages, the explaining ones too, are never in Spanish.
-    assert '<html lang="en"' in web.get("/garden", headers={"accept-language": "es"}).text
+    assert '<html lang="es"' in web.get("/garden", headers={"accept-language": "es"}).text
     assert '<html lang="es"' in web.get("/?lang=es").text
+    assert "front-note" not in web.get("/?lang=es").text  # no word that the app is in English
 
 
 def test_the_front_page_switches_language_and_mode_without_a_script(tmp_path):
@@ -353,6 +355,9 @@ def test_the_front_page_switches_language_and_mode_without_a_script(tmp_path):
     for code in ("en", "fr", "it", "es"):
         assert f'href="?lang={code}"' in menu
     assert 'href="?lang=it" hreflang="it" lang="it" aria-current="true"' in menu
+    # AUDIT 133: on a wide screen they say their names, so they read as controls.
+    assert '<span class="fs-name" aria-hidden="true">Italiano</span>' in menu
+    assert '<span class="fs-name" aria-hidden="true">Scuro</span>' in page
     # The device decides until the switch is used: both ways offered, CSS shows the other one.
     assert "data-theme" not in page[: page.index("<head>")]
     assert 'href="?lang=it&amp;theme=dark" data-mode="dark"' in page
@@ -370,9 +375,9 @@ def test_the_front_page_switches_language_and_mode_without_a_script(tmp_path):
     light = web.get("/?theme=light").text
     assert 'data-theme="light"' in light and light.count('media="not all" data-dark') == len(PICTURES)
     assert "data-theme" not in web.get("/?theme=purple").text[:400]
-    # The note on the app's own languages shows to a Spanish reader only.
+    # D193's note that the app spoke only English, French and Italian is gone with D201.
     note = "front-note"
-    assert note in web.get("/?lang=es").text and note not in page
+    assert note not in web.get("/?lang=es").text and note not in page
 
 
 def test_the_demo_student_keeps_the_mode_chosen_on_the_front_page(tmp_path):

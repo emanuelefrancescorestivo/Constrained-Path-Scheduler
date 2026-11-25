@@ -189,6 +189,11 @@ def test_the_page_writes_ticks_changes_and_clears_without_a_script(tmp_path):
         assert "Advanced Statistics" in page and 'class="todo-head"' in page
         assert page.count('class="todo-tick"') == 2  # a heading has no box
         assert " style=" not in page
+        # AUDIT 132: the count in the title is put in place with the list by every form that
+        # changes it, so a line added or ticked off in the background is counted at once.
+        assert re.search(r'id="todo-count">2 to do<', page)
+        assert page.count('data-region="#todo"') == 0
+        assert page.count('data-region="#todo, #todo-count"') == page.count('data-region="#todo')
         stored = service.load_subscription(tmp_path, sub.token)
         report = _id(stored, "Stats report")
         client.post(f"{base}/{report}/tick", data={"done": "1"})

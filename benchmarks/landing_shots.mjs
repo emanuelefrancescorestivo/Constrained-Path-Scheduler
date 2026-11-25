@@ -1,7 +1,8 @@
 // The front page's screenshots (D188): the real app, on the demo's made-up class, in
-// English, French and Italian, written to src/cps/web/static/landing/<lang>/.
+// English, French, Italian and Spanish (D201), written to src/cps/web/static/landing/<lang>/.
 //
 //   node benchmarks/landing_shots.mjs            (Node + Playwright, not a dependency)
+//   LANGS=es node benchmarks/landing_shots.mjs   (only these languages' pictures)
 //
 // It starts benchmarks/landing_server.py on an empty store with the app's clock held
 // on a Tuesday morning (2026-11-24, 10:40 in Paris), so the pictures are the same
@@ -63,7 +64,9 @@ for (let i = 0; i < 120; i++) {
 
 const browser = await chromium.launch();
 try {
+  const only = process.env.LANGS ? process.env.LANGS.split(",") : null;
   for (const [lang, byYear] of Object.entries(plans)) {
+    if (only && !only.includes(lang)) continue;
     mkdirSync(join(OUT, lang), { recursive: true });
     for (const [[name, screen, year, path], scheme] of SHOTS.flatMap((shot) => [[shot, "light"], [shot, "dark"]])) {
       const context = await browser.newContext({ ...SCREENS[screen], reducedMotion: "reduce", locale: lang, colorScheme: scheme });

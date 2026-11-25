@@ -4,6 +4,10 @@
 
 ### Added
 
+- Spanish everywhere (DECISIONS.md D201): the whole app, not only its front page. A plan can be in
+  Spanish, Moodle's menu words are Spanish, and tasks typed in Spanish are read ("informe para el
+  viernes a las 18, 6 horas").
+
 - The mathematics font, shipped (DECISIONS.md D200): a card's formulas are set in Latin Modern Math,
   the font of LaTeX's own output, on every device, Android and Linux included. Only a page with
   mathematics downloads it (391 KB, once).
@@ -83,6 +87,11 @@
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
 
 ### Fixed
+
+- The front page's language and light or dark switches are outlined and say their names on a wide
+  screen (AUDIT 133).
+
+- The to-do page's count follows the list as lines are added and ticked off (AUDIT 132).
 
 - The front page's points cards are square and its badges no longer grow at different sizes as they
   arrive (AUDIT 128).
