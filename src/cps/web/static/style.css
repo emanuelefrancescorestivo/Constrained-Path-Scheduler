@@ -3165,6 +3165,14 @@ label.lt-check { cursor: pointer; }
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
     U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* D200: a card's mathematics in Latin Modern Math (GUST Font License), the font of LaTeX's own
+   output, so a formula looks the same on every device; Android and Linux have no maths font of
+   their own. The browser fetches it only for a page that draws MathML; one the device has is
+   used first. The file is the unmodified OpenType font in WOFF2 (its glyph tables identical). */
+@font-face {
+  font-family: "Latin Modern Math"; font-style: normal; font-weight: 400; font-display: swap;
+  src: local("Latin Modern Math"), local("LatinModernMath-Regular"), url("fonts/latinmodern-math.woff2") format("woff2");
+}
 
 :root {
   --font-text: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",

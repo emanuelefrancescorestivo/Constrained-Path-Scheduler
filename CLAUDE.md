@@ -107,7 +107,7 @@ more than an impressive number.
 | `cli.py`, `console.py` | `cps inspect` / `plan` / `serve` / `web` / `demo` / `sweep` / `backup` / `metrics`; UTF-8 output hardening |
 
 The hosted app's front end is `web/static/`, in the manner of Apple's interface
-guidelines, under calm glass (D73; since D139 one face, Plus Jakarta Sans, shipped in `fonts/`
+guidelines, under calm glass (D73; since D139 one face, Plus Jakarta Sans, shipped in `fonts/` (and since D200 Latin Modern Math for a card's mathematics)
 with its licence, and Lucide's icons drawn inline by `web/icons.py` from `vendor/lucide/` with theirs, a sky that follows the sun behind a plan's pages (D76), glass tinted by default (D132; See-through keeps D73's clear glass), a garden in
 `garden/` that grows with the streak), with grouped lists, translucent bars, sheets, switches, the "+"
 in the bar, continuous corners where the browser draws them, D37): `style.css`
@@ -407,8 +407,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   other TeX engines; since D166 fractions (`\frac{a}{b}`, drawn on cards over a rule), limits and big
   delimiters are read from where they are drawn, tried on pdfTeX, LuaTeX and dvipdfmx (`tests/data/latex-fractions.tex`)
   but not on the owner's file, whose run-together words were not reproduced (AUDIT 115); fractions and a sum's limits are stacked scripts, and pypdf can hand two limits as one
-  piece (∑ with "ni" over "=1"). Since D199 a card's LaTeX is typeset as MathML by the browser, in the device's mathematics font (Android and
-  Linux may have none: plainer glyphs); D197's spans are the fallback.
+  piece (∑ with "ni" over "=1"). Since D199 a card's LaTeX is typeset as MathML by the browser, since D200 in Latin Modern Math, shipped (GUST
+  Font License, 391 KB, fetched only by a page with mathematics; offline before its first fetch, the device's font); D197's spans are the fallback.
 - Flashcards from a file of notes (D134) are read by rules, for free: prose gives few cards;
   tried on files written by the tests and by LibreOffice, not by Microsoft Office, Google Docs or
   note-taking apps; photos, scans, equations and tables' layout are not read. Checked in

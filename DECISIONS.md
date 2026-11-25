@@ -7886,3 +7886,33 @@ the app's Content-Security-Policy refuses. MathML is markup the server writes.
   environments other than the matrices, `cases`, `aligned` and `array`.
 - Checked in Chromium only, at phone size and 1280 px, light and dark, with Latin Modern Math
   installed.
+
+## D200. The mathematics font shipped
+
+**Asked.** D199 left the choice open: Android and Linux may have no mathematics font, so their cards
+fell back to plainer glyphs. The owner: "font della matematica scaricalo".
+
+**Chosen.** Latin Modern Math 1.959 (B. Jackowski, P. Strzelczyk, P. Pianowski, for the TeX users
+groups), the font of LaTeX's own output, from CTAN's `fonts/lm-math`.
+- **The file:** `static/fonts/latinmodern-math.woff2`, 391,676 bytes. It is the unmodified OpenType
+  font in WOFF2: every table is identical to the original's except `head`, whose checksum WOFF2
+  recomputes. The original is 733,736 bytes.
+- **The licence:** the GUST Font License (an instance of the LaTeX Project Public License). It ships
+  beside the font with the font's README and manifest, as the licence asks.
+- **When it is loaded:** an `@font-face` names the device's own copy first (`local()`) and the app's
+  file after it. The browser fetches a font only when a page draws one of its glyphs, so only a page
+  with a card's MathML downloads it, once, and keeps it under the app's versioned name (D106). It is
+  not preloaded and not kept offline by the service worker.
+
+**Rejected.**
+- **STIX Two Math** (SIL Open Font License, about 500 KB as WOFF2): equally good. Latin Modern is
+  what students see in their LaTeX notes, so a card reads like the notes.
+- **The OpenType file as it is:** almost twice the bytes, for the same glyphs.
+- **A font from a CDN:** the app ships its own files, so that no third party sees a student's visit
+  (D139).
+
+**Disclosed.**
+- A card offline, before the font was ever fetched, falls back to the device's font.
+- Checked in Chromium: the app's file loads on its own (under another name, since this machine has
+  Latin Modern Math installed), and a formula renders in it. Not tried on a real Android phone.
+

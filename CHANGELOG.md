@@ -4,6 +4,10 @@
 
 ### Added
 
+- The mathematics font, shipped (DECISIONS.md D200): a card's formulas are set in Latin Modern Math,
+  the font of LaTeX's own output, on every device, Android and Linux included. Only a page with
+  mathematics downloads it (391 KB, once).
+
 - A card's mathematics typeset by the browser (DECISIONS.md D199): LaTeX read into MathML on the
   server, with fractions, roots, sums with their limits above and below, matrices, cases and
   accents, in the device's mathematics font. A formula alone on a card is set apart.

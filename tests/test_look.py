@@ -52,13 +52,18 @@ def _plan(where: Path) -> str:
 def test_one_type_face_of_the_apps_own_with_its_licence():
     css = (WEB / "static" / "style.css").read_text(encoding="utf-8")
     faces = set(re.findall(r'@font-face \{\s*font-family: "([^"]+)"', css))
-    assert faces == {"Plus Jakarta Sans"}
+    # D200: and the maths font, for a card's MathML only.
+    assert faces == {"Plus Jakarta Sans", "Latin Modern Math"}
     assert re.search(r'--font-text: "Plus Jakarta Sans"', css) and re.search(
         r'--font-display: "Plus Jakarta Sans"', css
     )
     shipped = sorted(p.name for p in (WEB / "static" / "fonts").iterdir())
     assert shipped == [
+        "GUST-FONT-LICENSE.txt",
+        "MANIFEST-Latin-Modern-Math.txt",
         "OFL-PlusJakartaSans.txt",
+        "README-Latin-Modern-Math.txt",
+        "latinmodern-math.woff2",
         "plus-jakarta-sans-latin-ext.woff2",
         "plus-jakarta-sans-latin.woff2",
     ]
