@@ -1,0 +1,229 @@
+{
+ "monday": "2026-10-19",
+ "off": 1,
+ "hours": [
+  8,
+  18
+ ],
+ "busy": [
+  {
+   "day": 0,
+   "start": 540,
+   "end": 630,
+   "course": "Computer Programming 3",
+   "color": 0
+  },
+  {
+   "day": 0,
+   "start": 660,
+   "end": 750,
+   "course": "Deep Learning 1",
+   "color": 5
+  },
+  {
+   "day": 0,
+   "start": 840,
+   "end": 930,
+   "course": "Algebra 3",
+   "color": 1
+  },
+  {
+   "day": 1,
+   "start": 540,
+   "end": 630,
+   "course": "Advanced Statistics",
+   "color": 2
+  },
+  {
+   "day": 1,
+   "start": 840,
+   "end": 930,
+   "course": "Analysis 3",
+   "color": 3
+  },
+  {
+   "day": 2,
+   "start": 540,
+   "end": 630,
+   "course": "Deep Learning 1",
+   "color": 5
+  },
+  {
+   "day": 2,
+   "start": 660,
+   "end": 750,
+   "course": "Computer Programming 3",
+   "color": 0
+  },
+  {
+   "day": 2,
+   "start": 960,
+   "end": 1050,
+   "course": "Ethics & Philosophy of AI",
+   "color": 4
+  },
+  {
+   "day": 3,
+   "start": 660,
+   "end": 750,
+   "course": "Advanced Statistics",
+   "color": 2
+  },
+  {
+   "day": 3,
+   "start": 960,
+   "end": 1050,
+   "course": "Algebra 3",
+   "color": 1
+  },
+  {
+   "day": 4,
+   "start": 960,
+   "end": 1050,
+   "course": "Analysis 3",
+   "color": 3
+  }
+ ],
+ "sessions": [
+  {
+   "day": 0,
+   "start": 480,
+   "end": 525,
+   "course": "Analysis 3",
+   "color": 3,
+   "kind": "first review",
+   "to": [
+    0,
+    480,
+    525
+   ]
+  },
+  {
+   "day": 0,
+   "start": 750,
+   "end": 840,
+   "course": "Computer Programming 3",
+   "color": 0,
+   "kind": "first review",
+   "to": [
+    0,
+    750,
+    840
+   ]
+  },
+  {
+   "day": 0,
+   "start": 930,
+   "end": 1020,
+   "course": "Algebra 3",
+   "color": 1,
+   "kind": "first review",
+   "to": [
+    0,
+    930,
+    1020
+   ]
+  },
+  {
+   "day": 1,
+   "start": 480,
+   "end": 525,
+   "course": "Ethics & Philosophy of AI",
+   "color": 4,
+   "kind": "first review",
+   "to": [
+    2,
+    480,
+    525
+   ]
+  },
+  {
+   "day": 1,
+   "start": 630,
+   "end": 720,
+   "course": "Analysis 3",
+   "color": 3,
+   "kind": "first review",
+   "to": [
+    2,
+    750,
+    840
+   ]
+  },
+  {
+   "day": 1,
+   "start": 720,
+   "end": 810,
+   "course": "Deep Learning 1",
+   "color": 5,
+   "kind": "first review",
+   "to": [
+    2,
+    840,
+    930
+   ]
+  },
+  {
+   "day": 2,
+   "start": 480,
+   "end": 525,
+   "course": "Advanced Statistics",
+   "color": 2,
+   "kind": "first review",
+   "to": [
+    3,
+    480,
+    570
+   ]
+  },
+  {
+   "day": 2,
+   "start": 750,
+   "end": 840,
+   "course": "Ethics & Philosophy of AI",
+   "color": 4,
+   "kind": "first review",
+   "to": [
+    3,
+    570,
+    660
+   ]
+  },
+  {
+   "day": 2,
+   "start": 840,
+   "end": 930,
+   "course": "Algebra 3",
+   "color": 1,
+   "kind": "first review",
+   "to": null
+  },
+  {
+   "day": 4,
+   "start": 480,
+   "end": 570,
+   "course": "Deep Learning 1",
+   "color": 5,
+   "kind": "first review",
+   "to": [
+    4,
+    480,
+    570
+   ]
+  },
+  {
+   "day": 4,
+   "start": 570,
+   "end": 660,
+   "course": "Computer Programming 3",
+   "color": 0,
+   "kind": "first review",
+   "to": [
+    4,
+    570,
+    660
+   ]
+  }
+ ],
+ "new": []
+}

@@ -52,6 +52,19 @@ const shiftMonth = (iso, months) => {
 // In a month's day, what tells most comes first: exams and tests, study, then classes.
 const MONTH_RANK = { exam: 0, partial: 0, quiz: 1, mock: 1, study: 2, calendar: 3 };
 const MONTH_LOOK = { exam: "exam", partial: "exam", quiz: "test", mock: "test", study: "study", calendar: "class" };
+// D192: calm colours unless the student asked for the courses' on this device.
+const COLOUR_KEY = "cps-cal-colour";
+function savedColour() {
+  try {
+    return window.localStorage.getItem(COLOUR_KEY) === "course";
+  } catch {
+    return false;
+  }
+}
+function showColour(byCourse) {
+  if (byCourse) document.documentElement.dataset.calColour = "course";
+  else delete document.documentElement.dataset.calColour;
+}
 // The week's number, as ISO 8601 counts it (Monday first; week 1 holds the year's
 // first Thursday), for the header (D157).
 const isoWeek = (iso) => {
@@ -141,6 +154,8 @@ export class Calendar {
     this.onRange = onRange || (() => {});
     this.onLegend = onLegend || (() => {});
     this.hidden = this.savedHidden();
+    this.byCourse = savedColour();
+    showColour(this.byCourse);
     this.data = null;
     this.scrolled = null;
     this.pop = null;
@@ -210,6 +225,18 @@ export class Calendar {
     if (this.data) this.draw(this.data);
   }
 
+  // Calm colours or the courses' (D192): on this device, for every plan opened on it.
+  toggleColour() {
+    this.byCourse = !this.byCourse;
+    try {
+      window.localStorage.setItem(COLOUR_KEY, this.byCourse ? "course" : "calm");
+    } catch {
+      /* not kept; the choice still applies now */
+    }
+    showColour(this.byCourse);
+    if (this.data) this.draw(this.data);
+  }
+
   // A thing's course: a drawn class is named after it (D32); the rest carry it. Practice
   // for a partial exam is "Course, partial 1" (D61) and goes with its course.
   courseOf(box) {
@@ -239,7 +266,13 @@ export class Calendar {
         class: `legend-chip ${l.color === null || l.color === undefined ? "cn" : `c${l.color}`}`,
         "aria-pressed": l.shown ? "true" : "false",
         onclick: () => this.toggleCourse(l.course),
-      }, h("span", { class: "dot" }), l.course)));
+      }, h("span", { class: "dot" }), l.course)),
+      h("button", {
+        type: "button",
+        class: "legend-chip colour-switch",
+        "aria-pressed": this.byCourse ? "true" : "false",
+        onclick: () => this.toggleColour(),
+      }, h("span", { class: "dot" }), t("Colour by course")));
   }
 
   get count() {

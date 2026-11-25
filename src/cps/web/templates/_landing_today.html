@@ -1,0 +1,31 @@
+{# D191: Today on that week's Monday, the plan's own three sessions. As the page is
+   scrolled the first two are ticked off, each with its points; the last is the reader's
+   to tick, a real checkbox: the ring closes, the streak grows by a day, and the league
+   further down counts the +10 (CSS :has, no script). Without scroll timelines or with
+   motion off, the first two are already done. #}
+{% set w = l.week %}
+<figure class="landing-today" aria-labelledby="lt-cap">
+  <div class="lt-phone">
+    <div class="lt-head">
+      <span class="lt-day"><b>{{ _("Today") }}</b><small>{{ w.today_name }}</small></span>
+      <span class="lt-ring" aria-hidden="true"><svg class="lt-ring-in" viewBox="0 0 24 24"><path d="M6.5 12.5l3.6 3.6L17.5 8.7"/></svg></span>
+      <span class="lt-streak">{{ lucide('flame') }}<b><span class="lt-was">{{ l.streak }}</span><span class="lt-now">{{ l.streak + 1 }}</span></b><small>{{ _("days") }}</small></span>
+    </div>
+    <ol class="lt-list">
+      {% for s in w.today %}
+      <li class="lt-card c{{ s.color }} t{{ loop.index }}">
+        {% if loop.last %}<input type="checkbox" id="lt-done" class="lt-input visually-hidden"><label for="lt-done" class="lt-check" title="{{ _('Mark it done') }}">{% else %}<span class="lt-check" aria-hidden="true">{% endif %}
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><path d="M7 12.5l3.4 3.4L17.2 9" pathLength="1"/></svg>
+          {% if loop.last %}<span class="visually-hidden">{{ _("Mark it done") }}</span>{% endif %}
+        {% if loop.last %}</label>{% else %}</span>{% endif %}
+        <span class="lt-what"><b>{{ s.course }}</b><small>{{ s.kind }} · {{ s.time }} · {{ _("{n} min", n=s.minutes) }}</small></span>
+        <span class="lt-plus" aria-hidden="true">+{{ l.points_done }}</span>
+        <span class="lt-burst" aria-hidden="true">{% for _i in range(8) %}<i></i>{% endfor %}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="lt-hint">{{ _("Your turn: tick the last one.") }}</p>
+    <p class="lt-banner">{{ lucide('sparkles') }}<span>{{ _("Done for today: +{points} points, a {n}-day streak.", points=l.points_done * (w.today | length), n=l.streak + 1) }}</span></p>
+  </div>
+  <figcaption id="lt-cap">{{ _("Today on that Monday, the plan's own three sessions. Tick the last one yourself: it is how a session is reported in the app, in one tap.") }}</figcaption>
+</figure>

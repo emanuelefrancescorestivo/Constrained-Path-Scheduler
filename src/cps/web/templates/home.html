@@ -61,6 +61,8 @@
   _("How do I start, and can I trust it?"),
 ] %}
 <section class="landing-story" id="story" aria-labelledby="story-title">
+  {# D191: the neurons go on behind the whole story, their signals firing as it is scrolled. #}
+  <div class="landing-neurons" aria-hidden="true">{% include "_neural_story.html" %}</div>
   <div class="landing-progress" aria-hidden="true"><span></span></div>
   <header class="landing-head">
     <p class="landing-eyebrow">{{ _("The story") }}</p>
@@ -73,28 +75,27 @@
     <ol>{% for q in questions %}<li><a href="#q{{ loop.index }}"><span class="visually-hidden">{{ loop.index }}. </span><span class="landing-rail-label">{{ q }}</span></a></li>{% endfor %}</ol>
   </nav>
 
-  <article class="landing-q" id="q1">
+  <article class="landing-q pin" id="q1">
+    <div class="landing-stage">
     <div class="landing-words">
       <p class="landing-num">1 · {{ questions[0] }}</p>
       <h3>{{ _("Studying becomes a habit: a little every day, in the gaps you already have.") }}</h3>
       <p>{{ _("Your timetable goes in, and the plan fits short sessions around your classes, your job and your sport. Each week of lectures comes back before it fades, so fewer nights before an exam go on learning it all again.") }}</p>
+      <p>{{ _("Life gets in the way? Take a day off: its sessions move to your next free gaps, on their own.") }}</p>
     </div>
-    <figure class="landing-shot wide">
-      <picture><source srcset="{{ asset(shots ~ 'week-laptop-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'week-laptop.jpg') }}" width="1280" height="800" alt="{{ _('The calendar on a laptop.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Your week: classes in their courses' colours, the self-tests the plan placed in the gaps around them.") }}</figcaption>
-    </figure>
+    {% include "_landing_week.html" %}
+    </div>
   </article>
 
-  <article class="landing-q flip" id="q2">
+  <article class="landing-q flip pin" id="q2">
+    <div class="landing-stage">
     <div class="landing-words">
       <p class="landing-num">2 · {{ questions[1] }}</p>
       <h3>{{ _("Open Today, start the next step, tap how it went.") }}</h3>
       <p>{{ _("Each session says what to do in it: recall first, then check your notes. Focus times it, with a pause every {n} minutes. Missed one? Tap it, and the plan moves the rest for you.", n=l.rhythm) }}</p>
     </div>
-    <figure class="landing-shot phone">
-      <picture><source srcset="{{ asset(shots ~ 'focus-phone-dark.jpg') }}" media="(prefers-color-scheme: dark)"><img src="{{ asset(shots ~ 'focus-phone.jpg') }}" width="585" height="996" alt="{{ _('Focus on a phone.') }}" loading="lazy" decoding="async"></picture>
-      <figcaption>{{ _("Focus, from the plan: the session in one sentence, what you want to finish, the time on a vine that grows.") }}</figcaption>
-    </figure>
+    {% include "_landing_today.html" %}
+    </div>
   </article>
 
   <article class="landing-q" id="q3">
@@ -121,7 +122,8 @@
     </figure>
   </article>
 
-  <article class="landing-q" id="q5">
+  <article class="landing-q pin" id="q5">
+    <div class="landing-stage">
     <div class="landing-words">
       <p class="landing-num">5 · {{ questions[4] }}</p>
       <h3>{{ _("A friendly league that keeps you and your friends going.") }}</h3>
@@ -133,14 +135,14 @@
       <div class="landing-league">
         <p class="landing-league-head"><span class="crest metal-silver" aria-hidden="true"></span><b>{{ l.league_name }}</b><span class="muted">{{ _("this week") }}</span></p>
         <ol class="league-rows">
-          <li class="league-zone zone-up">{{ _("Moving up to {league}", league=l.league_up) }}</li>
+          <li class="league-zone zone-up">{{ _("Moving up to {league}", league=l.league_up) }}<span class="lg-burst" aria-hidden="true">{% for _i in range(8) %}<i></i>{% endfor %}</span></li>
           {% for r in l.league %}
           {% if r.rank == l.league_move + 1 %}<li class="league-zone">{{ _("Staying in {league}", league=l.league_name) }}</li>{% endif %}
-          <li class="league-row{% if r.me %} me{% endif %}">
+          <li class="league-row{% if r.me %} me lg-up{% elif r.rank == l.league_move + 1 %} lg-down{% endif %}">
             <span class="league-rank">{{ r.rank }}</span>
             <span class="league-face">{{ avatar(r) }}{{ level_chip(r.level, r.metal) }}</span>
             <span class="league-name">{% if r.me %}{{ _("You") }}{% else %}@{{ r.handle }}{% endif %}</span>
-            <b class="league-points">{{ r.points }}</b>
+            {% if r.me %}<b class="league-points"><span class="lg-was">{{ l.climb.before }}</span><span class="lg-now">{{ l.climb.after }}</span><span class="lg-tap">{{ l.climb.tap }}</span></b><span class="lg-gain" aria-hidden="true">+{{ l.climb.gain }}</span><span class="lg-tapped" aria-hidden="true">+{{ l.points_done }}</span>{% else %}<b class="league-points">{{ r.points }}</b>{% endif %}
           </li>
           {% endfor %}
         </ol>
@@ -152,8 +154,9 @@
       <ul class="landing-crests">
         {% for b in l.crests %}<li>{{ badge_crest(b.icon, b.metal, b.roman) }}<b>{{ b.name }}</b></li>{% endfor %}
       </ul>
-      <figcaption>{{ _("A league of made-up classmates, each with their avatar and their level on a crest, and a few of the {n} badges at the tier they reached.", n=l.badge_count) }}</figcaption>
+      <figcaption>{{ _("A league of made-up classmates, each with their avatar and their level on a crest: a session done and vouched for takes you into the top three. Ticked the session above? It counts here too.") }} {{ _("A few of the {n} badges, at the tier they reached.", n=l.badge_count) }}</figcaption>
     </figure>
+    </div>
   </article>
 
   <article class="landing-q flip" id="q6">

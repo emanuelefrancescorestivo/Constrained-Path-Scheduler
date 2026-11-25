@@ -91,7 +91,22 @@ function sideCourses(legend) {
     item.append(button);
     return item;
   });
-  list.querySelector("ul").replaceChildren(...rows);
+  // D192: the calendar's colours, calm or by course, the last row.
+  const colour = document.createElement("button");
+  colour.type = "button";
+  colour.className = "side-show colour-switch";
+  colour.setAttribute("aria-pressed", calendar.byCourse ? "true" : "false");
+  const swatch = document.createElement("span");
+  swatch.className = "side-check";
+  swatch.setAttribute("aria-hidden", "true");
+  const words = document.createElement("span");
+  words.className = "grow";
+  words.textContent = t("Colour by course");
+  colour.append(swatch, words);
+  colour.addEventListener("click", () => calendar.toggleColour());
+  const last = document.createElement("li");
+  last.append(colour);
+  list.querySelector("ul").replaceChildren(...rows, last);
 }
 
 // A change from Today (D140), where there is no calendar to send it and redraw: the
