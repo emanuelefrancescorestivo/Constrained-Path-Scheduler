@@ -402,7 +402,8 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   other TeX engines; since D166 fractions (`\frac{a}{b}`, drawn on cards over a rule), limits and big
   delimiters are read from where they are drawn, tried on pdfTeX, LuaTeX and dvipdfmx (`tests/data/latex-fractions.tex`)
   but not on the owner's file, whose run-together words were not reproduced (AUDIT 115); fractions and a sum's limits are stacked scripts, and pypdf can hand two limits as one
-  piece (∑ with "ni" over "=1").
+  piece (∑ with "ni" over "=1"). Since D197 a card reads the LaTeX it is likely to hold (delimiters, about 120
+  symbols, roots, ℝ, functions, bars and accents, bare scripts); no matrices nor environments.
 - Flashcards from a file of notes (D134) are read by rules, for free: prose gives few cards;
   tried on files written by the tests and by LibreOffice, not by Microsoft Office, Google Docs or
   note-taking apps; photos, scans, equations and tables' layout are not read. Checked in

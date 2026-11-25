@@ -4,6 +4,10 @@
 
 ### Added
 
+- LaTeX on a card, read whole (DECISIONS.md D197): `$…$`, Greek letters, relations, arrows, sets,
+  `\sqrt{…}`, `\mathbb{R}`, functions and their limits, bars and accents, and `x^2` without braces
+  are drawn, not shown as typed.
+
 - Focus keeps the distracting apps away with the phone's own blocking (DECISIONS.md D196). A website
   cannot block Instagram, TikTok, Facebook or WhatsApp; the focus page shows, for the device it is
   opened on, how the iPhone's Focus and Screen Time or Android's Focus mode do it, set up once. On an

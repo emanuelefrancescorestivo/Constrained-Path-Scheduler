@@ -1428,3 +1428,8 @@ browser check of D194: D192 made the calendar calm (classes grey, sessions in th
 and the calendar's first tour step still read "Classes in their courses' colours, and the sessions I
 planned around them." Status: fixed with D194: "Your classes in grey, the sessions I planned around
 them in colour, tests in red", in French and Italian too.
+
+**130. A card showed most LaTeX as typed.** Found on 2026-11-25 when the owner asked for the LaTeX on
+flashcards to be reviewed: a card drew only `^{…}`, `_{…}` and `\frac{…}{…}` (D151, D166). `$…$`,
+Greek letters, `\le`, `\sqrt{…}`, `\mathbb{R}`, `\lim` and `x^2` without braces stayed as typed.
+Status: fixed with D197 (`tests/test_maths_cards.py`).

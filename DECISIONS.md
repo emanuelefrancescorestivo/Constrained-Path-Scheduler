@@ -7706,3 +7706,35 @@ counts only the minutes the page is in front of the student (D179).
 - Safari asks before opening Shortcuts the first time.
 - Not tried on a real iPhone or Android phone, nor in Safari: checked in Chromium with an iPhone's
   and a Pixel's User-Agent at phone size, light and dark.
+
+## D197. LaTeX on a card, read whole
+
+**Asked.** The owner: "the latex formatting in the flashcard must be reviewed".
+
+**Found.** A card drew only what D151 and D166 read from a LaTeX PDF: `^{…}`, `_{…}` and
+`\frac{…}{…}`. The rest of the LaTeX a card is likely to hold stayed as typed: `$…$` and `\(…\)`,
+Greek letters, `\le`, `\in`, `\to`, `\sqrt{…}`, `\mathbb{R}`, `\sin`, `\lim`, and `x^2` or `a_n`
+without braces. A student types these, and a model writing cards may (AUDIT 130).
+
+**Chosen.** `_maths` reads them before it draws:
+- **Delimiters go.** `$$…$$`, `\(…\)` and `\[…\]` always do. A `$…$` pair goes when it holds a mark of
+  mathematics or has no space at its ends: `$1$` is a number, "$5 and $10" stays money.
+- **Symbols become characters.** About 120 commands become the character they name (α, ≤, ∈, →, ∑,
+  ∫, ∞, ∀ …). `\mathbb{R}` becomes ℝ. A function's name stays upright with a thin space after it,
+  none before its limits.
+- **Marks are drawn.** `\sqrt{…}` is a root over its radicand. `\bar` and `\overline` draw a bar;
+  `\vec`, `\hat`, `\tilde` and `\dot` draw their accents. `\text{…}` and `\mathrm{…}` keep their
+  words; `\mathbf{…}` is bold. `\left`, `\right` and the spacing commands give way.
+- **Bare scripts are scripts.** `x^2`, `e^x` and `a_n` are drawn as `x^{2}`, `e^{x}`, `a_{n}`. A
+  single sign or a run of digits after a letter, a digit or a bracket, never inside a word:
+  `snake_case` stays.
+
+A command it does not know stays as typed. Everything is escaped first, so no markup gets through.
+The model is told the card draws `\frac` and `\sqrt` too.
+
+**Rejected.** KaTeX: complete, but a new dependency of about 300 KB with its fonts, on every page
+of cards, for what a hundred lines of rules do for the LaTeX a card holds. It needs the owner's yes
+(dependencies), and stays the way forward if matrices or aligned equations become common.
+
+**Disclosed.** No matrices, no environments (`\begin{…}`), no limits set over a sum (they stay at
+its side, as inline mathematics). Checked in Chromium only, at phone size, light and dark.

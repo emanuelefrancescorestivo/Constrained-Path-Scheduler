@@ -87,3 +87,44 @@ def test_a_card_draws_its_marks_and_escapes_the_rest():
     assert stacked == f'x{j}<span class="msub-sup"><sup>2</sup><sub>i</sub></span>'
     assert str(_maths("<b>^{<i>}</b>")) == f"&lt;b&gt;{j}<sup>&lt;i&gt;</sup>&lt;/b&gt;"
     assert str(_maths("an open ^{ mark")) == "an open ^{ mark"
+
+
+@pytest.mark.parametrize(
+    "typed, drawn",
+    [
+        # D197: delimiters go; money stays money.
+        ("$f(x)=x^2$", "f(x)=x⁠<sup>2</sup>"),
+        (r"\(a \cdot b\)", "a · b"),
+        ("costs $5 and $10", "costs $5 and $10"),
+        ("$1$. And $n$", "1. And n"),
+        # Symbols, Greek letters, sets and arrows become the characters they name.
+        (r"\alpha + \beta \le \gamma", "α + β ≤ γ"),
+        (r"x \in \mathbb{R} \Rightarrow x^2 \geq 0", "x ∈ ℝ ⇒ x⁠<sup>2</sup> ≥ 0"),
+        (r"\forall \epsilon > 0 \; \exists \delta", "∀ ϵ &gt; 0   ∃ δ"),
+        # A root over its radicand; a function's name upright, its limits under it.
+        (r"\sqrt{2}", '⁠<span class="msqrt">√<span class="mrad">2</span></span>'),
+        (r"\lim_{x \to 0} x", "lim⁠<sub>x → 0</sub> x"),
+        (r"\sin x", "sin x"),
+        # Bare scripts as braced ones, a sum's and an integral's limits stacked.
+        ("v_1 + a_n", "v⁠<sub>1</sub> + a⁠<sub>n</sub>"),
+        (r"\int_0^1 x", '∫⁠<span class="msub-sup"><sup>1</sup><sub>0</sub></span> x'),
+        # Words with underscores and unknown commands stay as typed.
+        ("snake_case file_name", "snake_case file_name"),
+        (r"\weird{x}", r"\weird{x}"),
+        (
+            r"\left( \frac{a}{b} \right)",
+            '( ⁠<span class="mfrac"><span class="mnum">a</span><span class="mden">b</span></span>⁠ )',
+        ),
+    ],
+)
+def test_a_card_reads_the_latex_it_is_likely_to_hold(typed, drawn):
+    from cps.web.app import _maths
+
+    assert str(_maths(typed)) == drawn
+
+
+def test_latex_on_a_card_never_lets_markup_through():
+    from cps.web.app import _maths
+
+    html = str(_maths(r"$\sqrt{<script>}$ \text{<b>x</b>} \mathbf{<i>}"))
+    assert "<script>" not in html and "<i>" not in html and "&lt;script&gt;" in html

@@ -5685,8 +5685,110 @@ def _scripts(html: str) -> str:
     return _SCRIPT.sub(single, _STACKED.sub(stacked, html))
 
 
+# D197: the LaTeX a card is likely to hold, read whole: a student types `$x^2$` or `\\alpha`,
+# a model writes `\\sum_{i=1}^{n}` or `\\sqrt{2}`. Its delimiters go, its symbols become the
+# characters they name, `\\sqrt{…}` a root over its radicand, `\\mathbb{R}` ℝ, `x^2` and `a_n`
+# scripts as `x^{2}` and `a_{n}` are. A command it does not know stays as typed.
+_GREEK = (
+    "alpha α beta β gamma γ delta δ epsilon ϵ varepsilon ε zeta ζ eta η theta θ vartheta ϑ iota ι "
+    "kappa κ lambda λ mu μ nu ν xi ξ pi π varpi ϖ rho ρ varrho ϱ sigma σ varsigma ς tau τ upsilon υ "
+    "phi ϕ varphi φ chi χ psi ψ omega ω Gamma Γ Delta Δ Theta Θ Lambda Λ Xi Ξ Pi Π Sigma Σ "
+    "Upsilon Υ Phi Φ Psi Ψ Omega Ω"
+)
+_SIGNS = (
+    "cdot · times × div ÷ pm ± mp ∓ ast ∗ star ⋆ circ ∘ le ≤ leq ≤ ge ≥ geq ≥ ne ≠ neq ≠ approx ≈ "
+    "equiv ≡ sim ∼ simeq ≃ cong ≅ propto ∝ ll ≪ gg ≫ infty ∞ partial ∂ nabla ∇ sum ∑ prod ∏ int ∫ "
+    "iint ∬ oint ∮ to → rightarrow → leftarrow ← Rightarrow ⇒ Leftarrow ⇐ implies ⇒ iff ⇔ "
+    "Leftrightarrow ⇔ leftrightarrow ↔ mapsto ↦ uparrow ↑ downarrow ↓ in ∈ notin ∉ ni ∋ subset ⊂ "
+    "subseteq ⊆ supset ⊃ supseteq ⊇ cup ∪ cap ∩ setminus ∖ emptyset ∅ varnothing ∅ forall ∀ "
+    "exists ∃ nexists ∄ neg ¬ lnot ¬ land ∧ wedge ∧ lor ∨ vee ∨ oplus ⊕ otimes ⊗ perp ⊥ parallel ∥ "
+    "angle ∠ ldots … dots … cdots ⋯ vdots ⋮ ddots ⋱ prime ′ degree ° langle ⟨ rangle ⟩ lfloor ⌊ "
+    "rfloor ⌋ lceil ⌈ rceil ⌉ mid | hbar ℏ ell ℓ Re ℜ Im ℑ aleph ℵ"
+)
+
+
+def _pairs(words: str) -> dict[str, str]:
+    """ "name sign name sign …" as a mapping."""
+    parts = words.split()
+    return dict(zip(parts[::2], parts[1::2], strict=True))
+
+
+_SYMBOLS = {
+    **_pairs(_GREEK),
+    **_pairs(_SIGNS),
+    "{": "{",
+    "}": "}",
+    "%": "%",
+    "&amp;": "&amp;",
+    "_": "_",
+    "#": "#",
+}
+_FUNCTIONS = frozenset(
+    _pairs(
+        "sin sin cos cos tan tan cot cot sec sec csc csc arcsin arcsin arccos arccos arctan arctan "
+        "sinh sinh cosh cosh tanh tanh log log ln ln exp exp lim lim max max min min sup sup inf inf "
+        "det det dim dim ker ker deg deg gcd gcd arg arg Pr Pr mod mod"
+    )
+)
+_SPACES = {",": "\u2009", ";": " ", ":": " ", "!": "", "quad": "\u2003", "qquad": "\u2003\u2003", " ": " "}
+_BLACKBOARD = dict(zip("RNZQCPHE", "ℝℕℤℚℂℙℍ𝔼", strict=True))
+_BRACED = r"\{((?:[^{}]|\{[^{}]*\})*)\}"
+_DELIMITED = re.compile(r"\$\$(.+?)\$\$|\$([^$\n]{1,400}?)\$|\\\((.+?)\\\)|\\\[(.+?)\\\]", re.S)
+_COMMAND = re.compile(r"\\([A-Za-z]+)(?![A-Za-z])|\\([,;:! ]|[{}%_#]|&amp;)")
+_AFTER = r"(?<=[\w)\]}′∑∏∫∬∮|])"
+
+
+def _latex(html: str) -> str:
+    """LaTeX read into characters and the marks `_maths` draws (D197); `html` is escaped."""
+
+    def delimited(m: re.Match[str]) -> str:
+        body = next(g for g in m.groups() if g is not None)
+        # "$5 and $10" is money, not mathematics: a pair holding no mark of it, with a space
+        # at an end, stays; "$1$" is a number set as mathematics.
+        marked = re.search(r"[\\^_=]", body) or not (body[:1].isspace() or body[-1:].isspace())
+        return body if marked or m.group(0)[:2] in ("\\(", "\\[", "$$") else m.group(0)
+
+    html = _DELIMITED.sub(delimited, html)
+    html = re.sub(r"\\(?:left|right|big|Big|bigg|Bigg)(?![A-Za-z])\s*", "", html)
+    html = re.sub(r"\\[dt]frac(?![A-Za-z])", r"\\frac", html)
+    html = re.sub(r"\\mathbb\{([A-Z])\}", lambda m: _BLACKBOARD.get(m.group(1), m.group(1)), html)
+    html = re.sub(r"\\(?:text|mathrm|textrm|operatorname|mathit|textit)" + _BRACED, r"\1", html)
+    html = re.sub(r"\\(?:mathbf|textbf|boldsymbol)" + _BRACED, r"<b>\1</b>", html)
+    html = re.sub(r"\\(?:bar|overline)" + _BRACED, r'<span class="mbar">\1</span>', html)
+    html = re.sub(r"\\vec" + _BRACED, "\\1\u20d7", html)
+    html = re.sub(r"\\hat" + _BRACED, "\\1\u0302", html)
+    html = re.sub(r"\\tilde" + _BRACED, "\\1\u0303", html)
+    html = re.sub(r"\\dot" + _BRACED, "\\1\u0307", html)
+    html = re.sub(
+        r"\\sqrt(?:\[([^\]]{1,8})\])?" + _BRACED,
+        lambda m: (
+            (f"<sup>{m.group(1)}</sup>" if m.group(1) else "")
+            + f'{_JOIN}<span class="msqrt">√<span class="mrad">{m.group(2)}</span></span>'
+        ),
+        html,
+    )
+
+    def command(m: re.Match[str]) -> str:
+        name = m.group(1)
+        if name is None:
+            return _SPACES.get(m.group(2), _SYMBOLS.get(m.group(2), m.group(0)))
+        if name in _FUNCTIONS:
+            return name + "\u2009"
+        if name in _SPACES:
+            return _SPACES[name]
+        return _SYMBOLS.get(name, m.group(0))
+
+    html = _COMMAND.sub(command, html)
+    # A function's thin space goes before its argument, not before its limits nor a space.
+    html = re.sub("\u2009(?=[ _^])", "", html)
+    # `x^2`, `e^x`, `x^{-1}` as typed without braces; `a_n`, `x_1`, but never `snake_case`.
+    html = re.sub(_AFTER + r"\^(-?\d+|[A-Za-z]|[α-ω∞*′])", r"^{\1}", html)
+    html = re.sub(_AFTER + r"_(\d+|[A-Za-z]|[α-ω])(?![A-Za-z0-9])", r"_{\1}", html)
+    return html
+
+
 def _maths(text: str) -> Markup:
-    html = str(Markup.escape(str(text)))
+    html = _latex(str(Markup.escape(str(text))))
     drawn: list[str] = []
 
     def fraction(m: re.Match[str]) -> str:
