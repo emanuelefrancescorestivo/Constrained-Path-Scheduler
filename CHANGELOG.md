@@ -88,6 +88,9 @@
 
 ### Fixed
 
+- The front page's language and light or dark switches are outlined and say their names on a wide
+  screen (AUDIT 133).
+
 - The to-do page's count follows the list as lines are added and ticked off (AUDIT 132).
 
 - The front page's points cards are square and its badges no longer grow at different sizes as they

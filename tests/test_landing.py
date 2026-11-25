@@ -355,6 +355,9 @@ def test_the_front_page_switches_language_and_mode_without_a_script(tmp_path):
     for code in ("en", "fr", "it", "es"):
         assert f'href="?lang={code}"' in menu
     assert 'href="?lang=it" hreflang="it" lang="it" aria-current="true"' in menu
+    # AUDIT 133: on a wide screen they say their names, so they read as controls.
+    assert '<span class="fs-name" aria-hidden="true">Italiano</span>' in menu
+    assert '<span class="fs-name" aria-hidden="true">Scuro</span>' in page
     # The device decides until the switch is used: both ways offered, CSS shows the other one.
     assert "data-theme" not in page[: page.index("<head>")]
     assert 'href="?lang=it&amp;theme=dark" data-mode="dark"' in page
