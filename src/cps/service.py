@@ -55,7 +55,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
@@ -8842,6 +8842,96 @@ def start_focus(
         options["places_recent"] = _remember_place(options, place)
     # D179: the rhythm chosen is the student's next one too, where a session starts in one tap.
     return replace(subscription, options={**options, "focus": focus, "focus_rhythm": bool(rhythm)})
+
+
+# D196 (the owner, 2026-11-25: "on focus you must block social media apps such as Instagram,
+# TikTok, Facebook and WhatsApp"). A web page cannot block another app, nor another site: no
+# browser lets it, on a phone or a computer. What can is the device's own: an iPhone's Focus
+# and Screen Time, Android's Focus mode (Digital Wellbeing), which pauses the apps chosen. So
+# the focus page shows the steps for the device the page is opened on, set up once, and on an
+# iPhone a shortcut the student made ("Set Focus: toggle Study") is opened in one tap when a
+# session starts and when it ends. Blocking from the app itself would need an app of its own
+# for each phone (Apple's Screen Time API, Android's accessibility or usage access): the
+# owner's choice, not taken here.
+LOCK_APPS = ("Instagram", "TikTok", "Facebook", "WhatsApp")
+LOCK_SHORTCUT = "Study"  # the shortcut's name when the student keeps the one the steps say
+LOCK_NAME = re.compile(r"[\w .'-]{1,40}")
+
+
+def device_of(user_agent: str) -> str:
+    """The kind of device a page is opened on, from its browser's User-Agent: "iphone"
+    (an iPhone or an iPad), "android", "mac", "windows" or "other". A guess for showing
+    the right steps first; every kind's steps stay a tap away."""
+    ua = user_agent or ""
+    if re.search(r"iPhone|iPad|iPod", ua):
+        return "iphone"
+    if "Android" in ua:
+        return "android"
+    if "Macintosh" in ua:
+        return "mac"
+    if "Windows" in ua:
+        return "windows"
+    return "other"
+
+
+def lock_view(subscription: Subscription, device: str) -> dict:
+    """What keeps the distracting apps away during a session: the steps for each kind of
+    device, the one the page is on first, and the student's shortcut (an iPhone's), opened
+    in one tap from the focus page once set."""
+    apps = ", ".join(LOCK_APPS)
+    steps = {
+        "iphone": [
+            _("Settings › Focus › + › Custom: call it Study, and under Apps silence {apps}.", apps=apps),
+            _(
+                "For apps that stay locked: Settings › Screen Time › Downtime, at your study hours, "
+                "with only the apps you allow."
+            ),
+            _(
+                "In Shortcuts, a new shortcut called Study with one action: Set Focus, Toggle, "
+                "Study. Then one tap here turns it on and off."
+            ),
+        ],
+        "android": [
+            _(
+                "Settings › Digital Wellbeing & parental controls › Focus mode: choose {apps}. While "
+                "it is on, they cannot be opened.",
+                apps=apps,
+            ),
+            _("Swipe down, tap the pencil and drag the Focus mode tile in: one tap turns it on."),
+            _("Before a session, swipe down and tap Focus mode; tap it again when you finish."),
+        ],
+        "mac": [
+            _("System Settings › Focus silences notifications while you study."),
+            _("System Settings › Screen Time › App Limits can limit {apps} and their websites.", apps=apps),
+        ],
+        "windows": [
+            _("Focus in the Clock app silences notifications; it does not close sites, so close their tabs."),
+        ],
+    }
+    first = device if device in steps else "iphone"
+    lock = subscription.options.get("focus_lock") or {}
+    name = str(lock.get("shortcut") or "")
+    return {
+        "device": device,
+        "apps": apps,
+        "first": first,
+        "steps": [{"device": first, "lines": steps[first]}]
+        + [{"device": d, "lines": lines} for d, lines in steps.items() if d != first],
+        "names": {"iphone": "iPhone", "android": "Android", "mac": "Mac", "windows": "Windows"},
+        "shortcut": name,
+        "link": f"shortcuts://run-shortcut?name={quote(name)}" if name and device == "iphone" else "",
+        "default_name": LOCK_SHORTCUT,
+    }
+
+
+def set_focus_shortcut(subscription: Subscription, name: str) -> Subscription:
+    """The name of the shortcut that toggles the student's Focus on their iPhone, or "" to
+    forget it."""
+    name = " ".join(str(name or "").split())
+    if name and not LOCK_NAME.fullmatch(name):
+        raise InvalidInput(_("a shortcut's name, as Shortcuts shows it, up to 40 characters"))
+    lock = {**(subscription.options.get("focus_lock") or {}), "shortcut": name}
+    return replace(subscription, options={**subscription.options, "focus_lock": lock})
 
 
 def focus_rhythm_default(subscription: Subscription) -> bool:

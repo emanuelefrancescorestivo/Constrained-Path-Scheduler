@@ -4,6 +4,11 @@
 
 ### Added
 
+- Focus keeps the distracting apps away with the phone's own blocking (DECISIONS.md D196). A website
+  cannot block Instagram, TikTok, Facebook or WhatsApp; the focus page shows, for the device it is
+  opened on, how the iPhone's Focus and Screen Time or Android's Focus mode do it, set up once. On an
+  iPhone, "Silence my phone" opens the student's Focus shortcut in one tap, and turns it off at the end.
+
 - Tests the timetable does not show (DECISIONS.md D194): for each course, quizzes in class
   (announced or not) and midterms, on their own page, asked once on Today and said on the
   course's page. A course with quizzes keeps its recent weeks above 95 % for two weeks. A midterm

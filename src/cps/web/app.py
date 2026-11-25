@@ -1591,6 +1591,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             cheered=cheered[:40],
             aim_ideas=service.aim_ideas(focus_now.get("suggested")),
             rhythm_default=service.focus_rhythm_default(subscription),  # D179
+            # D196: what keeps the distracting apps away, for the device the page is on.
+            lock=service.lock_view(subscription, service.device_of(request.headers.get("user-agent", ""))),
             # D178 (2B): the week's garden while the timer runs.
             week_garden=service.focus_garden(store, subscription, config.clock(), focus_now)
             if running
@@ -1905,6 +1907,24 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
         return done if isinstance(done, Response) else RedirectResponse(f"/p/{token}/focus", 303)
 
+    @app.post("/p/{token}/focus/lock")
+    async def focus_lock(request: Request, token: str) -> Response:
+        """D196: the name of the iPhone shortcut that toggles the student's Focus."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        name = str(form.get("shortcut") or "")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_focus_shortcut(current, name)
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "focus_lock", "set" if name.strip() else "forgotten")
+        return RedirectResponse(f"/p/{token}/focus#lock", 303)
+
     @app.get("/p/{token}/log", response_class=HTMLResponse)
     def log_form(request: Request, token: str, sid: str = "") -> HTMLResponse:
         """The diary's form: the session just timed, or (D158) a session of the plan,
@@ -1918,6 +1938,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             draft=service.log_draft(subscription, config.clock(), sid=sid[:32]),
             proof_points=service.POINTS_PROOF,
+            lock=service.lock_view(subscription, service.device_of(request.headers.get("user-agent", ""))),
             # The session's opening question, answered now (D128).
             question=service.opener_view(store, subscription, service.log_draft(subscription).get("opener")),
             profile=service.profile_of(store, token),

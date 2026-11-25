@@ -25,6 +25,7 @@
 {% macro clock(seconds) %}{% if seconds >= 3600 %}{{ '%d:%02d:%02d' % (seconds // 3600, (seconds % 3600) // 60, seconds % 60) }}{% else %}{{ mmss(seconds) }}{% endif %}{% endmacro %}
 <section class="focus{% if focus.pausing %} is-pausing{% endif %}" data-token="{{ token }}" data-elapsed="{{ focus.elapsed }}" data-away="{{ focus.away }}" data-beat="{{ focus.beat }}" data-grace="{{ focus.grace }}" data-rhythm="{{ 1 if focus.rhythm else 0 }}" data-block="{{ focus.block }}" data-work="{{ focus.work }}" data-pause="{{ focus.pause }}" data-pause-left="{{ focus.pause_left }}" data-horizon="{{ focus.stem.horizon }}" data-cheers="{{ cheers | map(attribute='handle') | join(' ') }}" aria-label="{{ _('Focus session') }}">
   <p class="focus-course">{{ focus.course }}</p>
+  {% if lock.link %}<p class="lock-toggle"><a href="{{ lock.link }}">{{ lucide('shield-check') }}{{ _("Phone's Focus on or off") }}</a></p>{% endif %}
   {% if cheered %}<p class="notice notice-ok" role="status">{{ _("Cheer sent to @{handle}.", handle=cheered) }}</p>{% endif %}
 
   {% if focus.rhythm %}
@@ -208,9 +209,31 @@
   <input type="hidden" name="rhythm_set" value="1">
   <label class="focus-rhythm"><input type="checkbox" name="rhythm" value="1"{% if rhythm_default %} checked{% endif %}><span>{{ _("A 5-minute pause every 25 minutes") }}</span></label>
   <datalist id="focus-courses">{% for c in focus.courses %}<option value="{{ c }}">{% endfor %}</datalist>
+  {# D196: on an iPhone with the student's shortcut, the phone's Focus first, in one tap. #}
+  {% if lock.link %}<a class="btn btn-tinted btn-block lock-go" href="{{ lock.link }}">{{ lucide('shield-check') }}{{ _("Silence my phone") }}</a>{% endif %}
   <button class="btn btn-primary btn-lg btn-block focus-go">{{ _("Let's go") }}</button>
   {% if sg and sg.stakes %}<p class="stakes">{{ sg.stakes.words }}</p>{% endif %}
 </form>
+
+{# D196: a web page cannot block an app; the phone can. Its steps, for the device the page
+   is opened on first, set up once; on an iPhone, the shortcut's name kept for the button. #}
+<details class="card lock-in section" id="lock"{% if not lock.shortcut %} data-tour="focus-lock"{% endif %}>
+  <summary>{{ lucide('shield-check') }}<span>{% if lock.link %}{{ _("Your phone keeps {apps} away", apps=lock.apps) }}{% else %}{{ _("Keep {apps} away", apps=lock.apps) }}{% endif %}</span></summary>
+  <p class="hint">{{ _("A website cannot block other apps: your phone can. Set it up once, in two minutes.") }}</p>
+  {% for group in lock.steps %}
+  {% if loop.index == 2 %}<details class="lock-more"><summary>{{ _("On another device") }}</summary>{% endif %}
+  <h3>{{ lock.names[group.device] }}</h3>
+  <ol class="lock-steps">{% for line in group.lines %}<li>{{ line }}</li>{% endfor %}</ol>
+  {% if group.device == "iphone" %}
+  <form method="post" action="/p/{{ token }}/focus/lock" class="lock-name">
+    <label for="lock-shortcut">{{ _("Your shortcut's name") }}</label>
+    <div class="lock-row"><input id="lock-shortcut" name="shortcut" value="{{ lock.shortcut or lock.default_name }}" maxlength="40" autocomplete="off"><button type="submit" class="btn btn-sm">{% if lock.shortcut %}{{ _("Save") }}{% else %}{{ _("It's set") }}{% endif %}</button></div>
+  </form>
+  {% endif %}
+  {% if loop.last and loop.length > 1 %}</details>{% endif %}
+  {% endfor %}
+  <p class="hint">{{ _("Here, the clock counts only the minutes this page is in front of you.") }}</p>
+</details>
 
 <section class="section focus-ahead-wrap" aria-labelledby="ahead-title">
   <h2 class="tile-label" id="ahead-title">{{ _("What you earn by staying") }}</h2>

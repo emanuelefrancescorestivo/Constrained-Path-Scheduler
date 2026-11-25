@@ -7664,3 +7664,45 @@ The value is in the practice and the time kept free, not in a jump in recall.
   between them.
 - A midterm's time defaults to the morning when it is not given.
 - Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D196. Focus: the phone keeps the distracting apps away
+
+**Asked.** The owner: "on focus you must block social media apps like Instagram, TikTok, Facebook
+and WhatsApp".
+
+**What can be done.** A web page cannot block another app or another site. No browser lets it, on
+a phone or a computer. The devices can:
+- an iPhone's Focus silences the apps chosen;
+- an iPhone's Screen Time Downtime locks every app but those allowed, at the hours set;
+- Android's Focus mode (Digital Wellbeing) pauses the apps chosen, which then cannot be opened;
+- a Mac's Screen Time limits apps and websites.
+
+Blocking from the app itself would need an app of its own for each phone. That means Apple's Screen
+Time API, which needs Apple's Family Controls entitlement and a developer account, or Android's
+usage access. That is a decision on accounts, cost and scope: the owner's, not taken here.
+
+**Chosen.** On the focus page, a card, "Keep Instagram, TikTok, Facebook, WhatsApp away". It holds
+the steps for the device the page is opened on (read from the browser's User-Agent, `device_of`),
+set up once. Every other device's steps are one tap away.
+- **On an iPhone,** the steps end with a shortcut the student makes in Shortcuts ("Study": Set Focus,
+  Toggle, Study). Once its name is saved, "Silence my phone" above "Let's go" opens it in one tap
+  (`shortcuts://run-shortcut?name=…`). The same link turns it off from the running clock and from
+  "Session complete!".
+- **On Android,** the steps end with Focus mode's quick settings tile, one tap before and after.
+
+The card says why: a website cannot block other apps, the phone can. It also says that the clock
+counts only the minutes the page is in front of the student (D179).
+
+**Rejected.**
+- **Detecting the apps opened during a session:** no browser tells a page which app is in front.
+  The clock already stops counting when the page is left.
+- **A browser extension that blocks the sites on a computer:** a separate product and a store
+  account, the owner's choice like the native apps.
+- **Asking for the shortcut before every session:** set once, a tap after.
+
+**Disclosed.**
+- The menu names are those of iOS 18, Android 15 and macOS 15 in English, French and Italian. A
+  phone's maker or an older version can name them otherwise.
+- Safari asks before opening Shortcuts the first time.
+- Not tried on a real iPhone or Android phone, nor in Safari: checked in Chromium with an iPhone's
+  and a Pixel's User-Agent at phone size, light and dark.
