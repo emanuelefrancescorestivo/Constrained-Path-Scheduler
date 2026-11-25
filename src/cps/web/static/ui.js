@@ -52,7 +52,10 @@ async function send(form, submitter, data = new FormData(form, submitter)) {
   const response = await fetch(form.action, { method: "POST", body: new URLSearchParams(data) });
   const page = new DOMParser().parseFromString(await response.text(), "text/html");
   const swaps = [];
-  for (const selector of form.dataset.region ? [form.dataset.region] : REGIONS) {
+  // A form's data-region names one part, or several with commas (AUDIT 132: a count in a
+  // page's title, outside its list, is put in place with the list).
+  const regions = form.dataset.region ? form.dataset.region.split(",").map((s) => s.trim()) : REGIONS;
+  for (const selector of regions) {
     const here = document.querySelector(selector);
     const there = page.querySelector(selector);
     if (here && there) {

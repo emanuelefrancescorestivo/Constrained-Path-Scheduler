@@ -88,6 +88,8 @@
 
 ### Fixed
 
+- The to-do page's count follows the list as lines are added and ticked off (AUDIT 132).
+
 - The front page's points cards are square and its badges no longer grow at different sizes as they
   arrive (AUDIT 128).
 

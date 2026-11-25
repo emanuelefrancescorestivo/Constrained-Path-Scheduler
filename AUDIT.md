@@ -1439,3 +1439,10 @@ writing prompt still asked for "never LaTeX", and reading why showed the check (
 model for "mathematics in plain text with Unicode symbols". A card it fixed would come back without
 its `$…$`, drawn as plain text beside cards typeset as MathML. Status: fixed: the check asks for each
 formula in LaTeX between $ signs, as the writing does (`tests/test_cards_by_ai.py`).
+
+**132. The to-do page's count stayed as it was.** Found on 2026-11-25 on the live demo, after PR #106:
+a line added with the script on showed in the list while the title still read "0 to do". The forms
+put back only the list (`#todo`); the count sits in the page's title, above it. Status: fixed: a
+form's `data-region` may name several parts with commas (`ui.js`), and the to-do page's forms put
+back the list and the count together (`tests/test_todo.py`; checked in Chromium: 0, 1, 0 as a line
+is added and ticked off).
