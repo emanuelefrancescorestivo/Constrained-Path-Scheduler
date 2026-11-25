@@ -14,7 +14,7 @@
    are in view. It replaces D107's three cards on a phone: the story is the first look
    on every screen. Every part reads the same without a script or without motion. #}
 {% set story = not (error or signin_error or signup_error or account or made) %}
-{% set shots = "landing/" ~ (lang() if lang() in ("en", "fr", "it") else "en") ~ "/" %}
+{% set shots = "landing/" ~ (lang() if lang() in ("en", "fr", "it", "es") else "en") ~ "/" %}
 {% set l = landing %}
 {# Each picture in light and in dark: the page shows the one the reader's device asks for,
    or the one the top bar's switch chose (D193), which home.js can change in place. #}
@@ -24,7 +24,6 @@
   {% if story %}<p class="landing-kicker">{{ _("Study habits that last, with your class beside you") }}</p>{% endif %}
   <h1>{{ _("Your semester, planned around your life.") }}</h1>
   <p class="lead">{{ _("Bring your timetable. Every week of lectures comes back for a short self-test just before you would forget it, in the gaps between your classes, your job and your sport.") }}</p>
-  {% if lang() not in languages %}<p class="hint front-note">{{ _("The app itself speaks English, French and Italian for now: its screens below are in English.") }}</p>{% endif %}
   {% if demo %}
   {# D182: a student in the first year, on a real first year's timetable without its people, or the second. #}
   <form method="post" action="/demo?lang={{ lang() }}" class="hero-actions">{% if theme in ("light", "dark") %}<input type="hidden" name="theme" value="{{ theme }}" data-front-mode>{% endif %}

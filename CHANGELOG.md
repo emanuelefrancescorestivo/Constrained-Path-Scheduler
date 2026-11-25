@@ -4,6 +4,10 @@
 
 ### Added
 
+- Spanish everywhere (DECISIONS.md D201): the whole app, not only its front page. A plan can be in
+  Spanish, Moodle's menu words are Spanish, and tasks typed in Spanish are read ("informe para el
+  viernes a las 18, 6 horas").
+
 - The mathematics font, shipped (DECISIONS.md D200): a card's formulas are set in Latin Modern Math,
   the font of LaTeX's own output, on every device, Android and Linux included. Only a page with
   mathematics downloads it (391 KB, once).

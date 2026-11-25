@@ -35,34 +35,34 @@ from typing import Any, Protocol
 from .store import Store
 
 # --------------------------------------------------------------------------- #
-# Reading a task typed in words, by rules (English, French, Italian; D148)
+# Reading a task typed in words, by rules (English, French, Italian; D148; Spanish, D201)
 # --------------------------------------------------------------------------- #
 
 WEEKDAYS = {
-    "monday": 0, "lundi": 0, "lunedi": 0,
-    "tuesday": 1, "tues": 1, "mardi": 1, "martedi": 1,
-    "wednesday": 2, "mercredi": 2, "mercoledi": 2,
-    "thursday": 3, "thurs": 3, "jeudi": 3, "giovedi": 3,
-    "friday": 4, "vendredi": 4, "venerdi": 4,
-    "saturday": 5, "samedi": 5, "sabato": 5,
-    "sunday": 6, "dimanche": 6, "domenica": 6,
+    "monday": 0, "lundi": 0, "lunedi": 0, "lunes": 0,
+    "tuesday": 1, "tues": 1, "mardi": 1, "martedi": 1, "martes": 1,
+    "wednesday": 2, "mercredi": 2, "mercoledi": 2, "miercoles": 2,
+    "thursday": 3, "thurs": 3, "jeudi": 3, "giovedi": 3, "jueves": 3,
+    "friday": 4, "vendredi": 4, "venerdi": 4, "viernes": 4,
+    "saturday": 5, "samedi": 5, "sabato": 5,  # Spanish sábado folds to the Italian word
+    "sunday": 6, "dimanche": 6, "domenica": 6, "domingo": 6,
 }  # fmt: skip
 # Three-letter weekdays are left out: "mon" is French for "my", "sun" and "sat"
 # are words, "mar" is March as well as mardi and martedì. So are three-letter months
 # that are words elsewhere: Italian "set" (settembre) and "ago" (agosto).
 MONTHS = {
-    "january": 1, "jan": 1, "janvier": 1, "janv": 1, "gennaio": 1, "gen": 1,
-    "february": 2, "feb": 2, "fevrier": 2, "fev": 2, "febbraio": 2,
+    "january": 1, "jan": 1, "janvier": 1, "janv": 1, "gennaio": 1, "gen": 1, "enero": 1,
+    "february": 2, "feb": 2, "fevrier": 2, "fev": 2, "febbraio": 2, "febrero": 2,
     "march": 3, "mars": 3, "marzo": 3,
-    "april": 4, "apr": 4, "avril": 4, "avr": 4, "aprile": 4,
-    "may": 5, "mai": 5, "maggio": 5, "mag": 5,
-    "june": 6, "jun": 6, "juin": 6, "giugno": 6, "giu": 6,
-    "july": 7, "jul": 7, "juillet": 7, "juil": 7, "luglio": 7, "lug": 7,
+    "april": 4, "apr": 4, "avril": 4, "avr": 4, "aprile": 4, "abril": 4, "abr": 4,
+    "may": 5, "mai": 5, "maggio": 5, "mag": 5, "mayo": 5,
+    "june": 6, "jun": 6, "juin": 6, "giugno": 6, "giu": 6, "junio": 6,
+    "july": 7, "jul": 7, "juillet": 7, "juil": 7, "luglio": 7, "lug": 7, "julio": 7,
     "august": 8, "aug": 8, "aout": 8, "agosto": 8,
-    "september": 9, "sep": 9, "sept": 9, "septembre": 9, "settembre": 9,
-    "october": 10, "oct": 10, "octobre": 10, "ottobre": 10, "ott": 10,
-    "november": 11, "nov": 11, "novembre": 11,
-    "december": 12, "dec": 12, "decembre": 12, "dicembre": 12, "dic": 12,
+    "september": 9, "sep": 9, "sept": 9, "septembre": 9, "settembre": 9, "septiembre": 9,
+    "october": 10, "oct": 10, "octobre": 10, "ottobre": 10, "ott": 10, "octubre": 10,
+    "november": 11, "nov": 11, "novembre": 11, "noviembre": 11,
+    "december": 12, "dec": 12, "decembre": 12, "dicembre": 12, "dic": 12, "diciembre": 12,
 }  # fmt: skip
 END_OF_DAY = time(23, 59)  # a deadline "on" a day is the end of it, as the sheet's shortcuts say
 
@@ -71,7 +71,8 @@ END_OF_DAY = time(23, 59)  # a deadline "on" a day is the end of it, as the shee
 _LEAD = (
     r"(?:\b(?:for|due|by|on|before|until|till|about|around|approx\.?|roughly|"
     r"pour|le|la|avant|vers|d'ici|environ|a rendre|a faire|de|"
-    r"per|entro|il|prima di|prima del|verso|circa|scadenza|da consegnare|da fare)\s+|~\s*)*"
+    r"per|entro|il|prima di|prima del|verso|circa|scadenza|da consegnare|da fare|"
+    r"para|el|antes de|antes del|hacia|unas|unos|aproximadamente|a entregar)\s+|~\s*)*"
 )
 _NUM = r"(\d+(?:[.,]\d+)?)"
 
@@ -159,14 +160,15 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     months = "|".join(sorted(MONTHS, key=len, reverse=True))
     weekdays = "|".join(WEEKDAYS)
     a_day = (
-        rf"(?:{weekdays}|tomorrow|demain|domani|today|aujourd'hui|oggi|"
-        rf"\d{{1,2}}[/.]\d{{1,2}}|\d{{1,2}}\s+(?:{months}))"
+        rf"(?:{weekdays}|tomorrow|demain|domani|manana|today|aujourd'hui|oggi|hoy|"
+        rf"\d{{1,2}}[/.]\d{{1,2}}|\d{{1,2}}\s+(?:de\s+)?(?:{months}))"
     )
     # Times of day first, so that "18h" is not read as eighteen hours of work: "at
     # 18:00", "à 18h" (with its accent: English "a 2h session" is two hours of work),
     # "18h30", "6pm", and an hour written straight after a day ("vendredi 18h"); Italian
     # "alle 18" or "alle 18.30" needs no mark after the hour, "alle" says it is one.
-    if m := take(_LEAD + r"\balle\s+(?:ore\s+)?(\d{1,2})(?:[:.](\d{2}))?\b"):
+    # Spanish "a las 18" and "a la 1" say an hour the same way.
+    if m := take(_LEAD + r"\b(?:alle\s+(?:ore\s+)?|a\s+las?\s+)(\d{1,2})(?:[:.](\d{2}))?\b"):
         found_time = time(int(m.group(1)) % 24, int(m.group(2) or 0) % 60)
     elif m := take(_LEAD + r"(?:\bat\s+|(?<!\w)à\s+)(\d{1,2})\s*(?:h|:)\s*(\d{2})?\b", accents=True):
         found_time = time(int(m.group(1)) % 24, int(m.group(2) or 0))
@@ -178,21 +180,21 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     elif m := take(_LEAD + r"\b(?:at\s+)?(\d{1,2})\s*(am|pm)\b"):
         hour = int(m.group(1)) % 12 + (12 if m.group(2) == "pm" else 0)
         found_time = time(hour, 0)
-    elif take(_LEAD + r"\b(?:noon|midi|(?:a\s+)?mezzogiorno)\b"):
+    elif take(_LEAD + r"\b(?:noon|midi|(?:a\s+)?mezzogiorno|(?:a\s+)?mediodia)\b"):
         found_time = time(12, 0)
-    elif take(_LEAD + r"\b(?:midnight|minuit|(?:a\s+)?mezzanotte)\b"):
+    elif take(_LEAD + r"\b(?:midnight|minuit|(?:a\s+)?mezzanotte|(?:a\s+)?medianoche)\b"):
         found_time = END_OF_DAY
 
-    if m := take(_LEAD + r"\b" + _NUM + r"\s*(?:min|mins|minutes?|minuti)\b"):
+    if m := take(_LEAD + r"\b" + _NUM + r"\s*(?:min|mins|minutes?|minuti|minutos)\b"):
         hours = float(m.group(1).replace(",", ".")) / 60
     elif m := take(
         _LEAD
         + r"\b"
         + _NUM
-        + r"\s*(?:h|hrs?|hours?|heures?|ore|ora)\b(?:\s+(?:of work|de travail|di lavoro))?"
+        + r"\s*(?:h|hrs?|hours?|heures?|ore|ora|horas?)\b(?:\s+(?:of work|de travail|di lavoro|de trabajo))?"
     ):
         hours = float(m.group(1).replace(",", "."))
-    elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure|un'ora|un ora)\b"):
+    elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure|un'ora|un ora|una hora)\b"):
         hours = 1.0
 
     if m := take(_LEAD + r"\b(\d{4})-(\d{2})-(\d{2})\b"):
@@ -201,7 +203,11 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
         first, second = int(m.group(1)), int(m.group(2))
         day, month = (second, first) if first <= 12 < second else (first, second)
         found_day = _dated(today, day, month, int(m.group(3)) if m.group(3) else None)
-    elif m := take(_LEAD + rf"\b(\d{{1,2}})(?:er|st|nd|rd|th|°|º)?\s+({months})\.?\b(?:\s+(\d{{4}}))?"):
+    # Spanish puts "de" between the day, the month and the year: "15 de octubre de 2026".
+    elif m := take(
+        _LEAD
+        + rf"\b(\d{{1,2}})(?:er|st|nd|rd|th|°|º)?\s+(?:de\s+)?({months})\.?\b(?:\s+(?:de\s+)?(\d{{4}}))?"
+    ):
         found_day = _dated(
             today, int(m.group(1)), MONTHS[m.group(2)], int(m.group(3)) if m.group(3) else None
         )
@@ -209,27 +215,31 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
         found_day = _dated(
             today, int(m.group(2)), MONTHS[m.group(1)], int(m.group(3)) if m.group(3) else None
         )
-    elif take(_LEAD + r"\b(?:day after tomorrow|apres-demain|apres demain|dopodomani)\b"):
+    elif take(_LEAD + r"\b(?:day after tomorrow|apres-demain|apres demain|dopodomani|pasado manana)\b"):
         found_day = today + timedelta(days=2)
-    elif take(_LEAD + r"\b(?:tomorrow|demain|domani)\b"):
+    # Spanish "mañana" is tomorrow, unless it is "la mañana", the morning.
+    elif take(_LEAD + r"\b(?:tomorrow|demain|domani|(?<!la )manana)\b"):
         found_day = today + timedelta(days=1)
-    elif take(_LEAD + r"\b(?:today|tonight|aujourd'hui|ce soir|oggi|stasera)\b"):
+    elif take(_LEAD + r"\b(?:today|tonight|aujourd'hui|ce soir|oggi|stasera|hoy|esta noche)\b"):
         found_day = today
     elif m := take(
-        _LEAD + r"\b(?:in|dans|tra|fra)\s+(\d+)\s+(days?|jours?|giorn[oi]|weeks?|semaines?|settiman[ae])\b"
+        _LEAD
+        + r"\b(?:in|dans|tra|fra|en|dentro de)\s+(\d+)\s+"
+        + r"(days?|jours?|giorn[oi]|dias?|weeks?|semaines?|settiman[ae]|semanas?)\b"
     ):
         n = int(m.group(1))
         found_day = today + timedelta(days=n * (7 if m.group(2)[0] in "ws" else 1))
     elif take(
         _LEAD
         + r"\b(?:next week|la semaine prochaine|semaine prochaine|"
-        + r"(?:la\s+)?settimana prossima|(?:la\s+)?prossima settimana)\b"
+        + r"(?:la\s+)?settimana prossima|(?:la\s+)?prossima settimana|"
+        + r"(?:la\s+)?semana que viene|(?:la\s+)?proxima semana)\b"
     ):
         found_day = today + timedelta(days=7)
     elif m := take(
         _LEAD
-        + rf"\b(?:next\s+|this\s+|ce\s+|prossim[oa]\s+|quest[oa]\s+)?({weekdays})"
-        + r"(?:\s+(?:prochain|next|prossim[oa]))?\b"
+        + rf"\b(?:next\s+|this\s+|ce\s+|prossim[oa]\s+|quest[oa]\s+|proxim[oa]\s+|este\s+)?({weekdays})"
+        + r"(?:\s+(?:prochain|next|prossim[oa]|que viene|proxim[oa]))?\b"
     ):
         found_day = _next_weekday(today, WEEKDAYS[m.group(1)])
 

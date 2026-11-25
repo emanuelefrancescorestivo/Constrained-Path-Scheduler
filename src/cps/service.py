@@ -6810,8 +6810,8 @@ def unlink_moodle_course(subscription: Subscription, index: int) -> Subscription
 
 
 # D154: Moodle's own words for the way to its calendar's link, in the app's languages,
-# read from Moodle 4.5's strings (lang/en/calendar.php and its French and Italian language
-# packs): the calendar page's button to its subscriptions ("managesubscriptions"), the
+# read from Moodle 4.5's strings (lang/en/calendar.php and its French, Italian and Spanish
+# language packs): the calendar page's button to its subscriptions ("managesubscriptions"), the
 # export page ("exportcalendar"), its two choices ("eventsall", "recentupcoming") and the
 # button that shows the link ("generateurlbutton"). The export page is the same address
 # on every Moodle site, `<site>/calendar/export.php` (calendar/export.php).
@@ -6839,6 +6839,15 @@ MOODLE_EXPORT_WORDS: dict[str, dict[str, str]] = {
         "events": "Tutti gli eventi",
         "period": "Recenti e dei prossimi 60 giorni",
         "button": "URL del calendario",
+    },
+    # D201: Moodle 4.5's Spanish pack (lang/es/calendar.php).
+    "es": {
+        "calendar": "Calendario",
+        "manage": "Importar o exportar calendarios",
+        "export": "Exportar calendario",
+        "events": "Todos los eventos",
+        "period": "60 días recientes y próximos",
+        "button": "Obtener URL del calendario",
     },
 }
 
@@ -8503,7 +8512,9 @@ def weekly_review(
 translate = _
 translate_plural = _n
 LANGUAGES = _i18n.LANGUAGES
-FRONT_LANGUAGES = _i18n.FRONT_LANGUAGES  # the front page's, Spanish among them (D193)
+FRONT_LANGUAGES = _i18n.FRONT_LANGUAGES  # the front page's, the app's since D201
+# The model is told the plan's language by its English name (D12, D201).
+_LANGUAGE_NAMES = {"fr": "French", "it": "Italian", "es": "Spanish"}
 activate_language = _i18n.activate
 deactivate_language = _i18n.deactivate
 pick_language = _i18n.pick
@@ -11109,7 +11120,7 @@ def card_maker_view(
     source = materials["text"] if materials is not None else text
     model = (provider or _ai.cards_from_env()) if use_ai and ai_on(subscription) and source.strip() else None
     if model is not None:
-        language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
+        language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
         written: list[tuple[str, str, str]] = []
         if materials is not None:
             topics = materials["topics"]
@@ -12684,7 +12695,7 @@ def coach(
     model = (provider or _ai.coach_from_env()) if ai_on(subscription) else None
     spent = model is not None and coach_allowance(store, subscription, now)["left"] <= 0
     if model is not None and not spent:
-        language = {"fr": "French", "it": "Italian"}.get(language_of(subscription), "English")
+        language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
         library = [{"key": t.key, "advice": t.advice, "why": t.why, "limits": t.limits} for t in _tips.TIPS]
         system, prompt = _ai.coach_prompt(question, language, library, _coach_plan(subscription, now))
         data = _ai.ask(
@@ -13041,7 +13052,7 @@ def review_with_ai(
         return review
     now = now or datetime.now(UTC)
     lang = language_of(subscription)
-    system, prompt = _ai.review_prompt(review, {"fr": "French", "it": "Italian"}.get(lang, "English"))
+    system, prompt = _ai.review_prompt(review, _LANGUAGE_NAMES.get(lang, "English"))
     key = f"{review['week']}:{lang}:{hashlib.sha256(prompt.encode()).hexdigest()[:12]}"
     kept = subscription.options.get("review_ai") or {}
     if key in kept:

@@ -4,7 +4,7 @@
 
 Makes the public demo's world (cps.showcase) in the directory as it stood on
 2026-11-24 at 10:40 in Paris, a Tuesday morning in its week of 16 November, with
-one student in English, French and Italian in their second year and one in their
+one student in English, French, Italian and Spanish (D201) in their second year and one in their
 first, then serves it with the app's clock held at that moment, so that the pictures
 are the same whenever they are taken. It prints one line of JSON, the students'
 plans by language and year, then serves until stopped. benchmarks/landing_shots.mjs
@@ -24,7 +24,12 @@ from cps.showcase import add_student, seed_world
 from cps.web import Config, create_app
 
 MOMENT = datetime(2026, 11, 24, 9, 40, tzinfo=UTC)  # 10:40 in Paris
-HANDLES = {"en": ("alex", "sam"), "fr": ("camille", "sacha"), "it": ("giulia", "matteo")}
+HANDLES = {
+    "en": ("alex", "sam"),
+    "fr": ("camille", "sacha"),
+    "it": ("giulia", "matteo"),
+    "es": ("lucia", "pablo"),
+}
 
 
 def main() -> None:

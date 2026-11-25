@@ -112,9 +112,45 @@ COURSES = ["Advanced Statistics", "Algebra 3", "Analyse numérique", "Histoire m
         ("relazione 1° dicembre", "Relazione", "2026-12-01T23:59", None, ""),
         ("studiare stasera 2 ore", "Studiare", "2026-10-08T23:59", 2.0, ""),
         ("il progetto finale", "Il progetto finale", "", None, ""),  # "il" joins a date only
+        # Spanish (D201): days, months with "de", "a las", hours of work, the words that join them.
+        (
+            "informe de estadística para el viernes a las 18, 6 horas",
+            "Informe de estadística",
+            "2026-10-09T18:00",
+            6.0,
+            "",  # course names match by their words, in the course's own language
+        ),
+        (
+            "ejercicios de física para mañana, una hora",
+            "Ejercicios de física",
+            "2026-10-09T23:59",
+            1.0,
+            "Fisica generale",
+        ),
+        ("proyecto a entregar el 15 de octubre a las 14:30", "Proyecto", "2026-10-15T14:30", None, ""),
+        (
+            "trabajo de álgebra dentro de 2 semanas, 10 horas de trabajo",
+            "Trabajo de álgebra",
+            "2026-10-22T23:59",
+            10.0,
+            "Algebra 3",
+        ),
+        ("leer el capítulo 4 en 3 días, 90 minutos", "Leer el capítulo 4", "2026-10-11T23:59", 1.5, ""),
+        ("tarea para el lunes que viene", "Tarea", "2026-10-12T23:59", None, ""),
+        ("repaso la semana que viene", "Repaso", "2026-10-15T23:59", None, ""),
+        ("presentación pasado mañana a las 9", "Presentación", "2026-10-10T09:00", None, ""),
+        ("memoria 1 de diciembre de 2026", "Memoria", "2026-12-01T23:59", None, ""),
+        ("estudiar esta noche 2 horas", "Estudiar", "2026-10-08T23:59", 2.0, ""),
+        (
+            "repasar mañana por la mañana",
+            "Repasar por la mañana",
+            "2026-10-09T23:59",
+            None,
+            "",
+        ),  # la mañana: morning
     ],
 )
-def test_the_rules_read_a_task_in_english_french_and_italian(words, name, due, hours, course):
+def test_the_rules_read_a_task_in_english_french_italian_and_spanish(words, name, due, hours, course):
     read = ai.read_task(words, today=TODAY, courses=COURSES)
     assert (read.name, read.due, read.hours, read.course) == (name, due, hours, course)
 

@@ -24,11 +24,10 @@ from contextvars import ContextVar, Token
 from datetime import date
 from functools import cache
 
-LANGUAGES = {"en": "English", "fr": "Français", "it": "Italiano"}
-# D193: the front page and the account's pages (the door, not the app) speak Spanish as
-# well. A plan cannot be in Spanish yet: its few thousand sentences are not translated,
-# and a page half in Spanish and half in English would be worse than one in English.
-FRONT_LANGUAGES = {**LANGUAGES, "es": "Español"}
+LANGUAGES = {"en": "English", "fr": "Français", "it": "Italiano", "es": "Español"}
+# D193 put Spanish at the door only (the front page and the account's pages); since D201 the
+# whole app speaks it, so the door's languages are the app's.
+FRONT_LANGUAGES = LANGUAGES
 DEFAULT = "en"
 
 _current: ContextVar[str] = ContextVar("cps_language", default=DEFAULT)

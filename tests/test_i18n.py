@@ -1,8 +1,8 @@
 """
-English, French (DECISIONS.md, D10) and Italian (D34): every sentence the code
-marks for translation has an entry in each language, in the server's catalogues
-(cps/locales/fr.py, it.py) and in the scripts' (static/i18n.js); entries keep their
-{placeholders}; and a French or Italian plan's pages are in its language.
+English, French (DECISIONS.md, D10), Italian (D34) and Spanish (D201): every sentence the
+code marks for translation has an entry in each language, in the server's catalogues
+(cps/locales/fr.py, it.py, es.py) and in the scripts' (static/i18n.js); entries keep their
+{placeholders}; and a French, Italian or Spanish plan's pages are in its language.
 """
 
 from __future__ import annotations
@@ -15,10 +15,11 @@ from pathlib import Path
 import pytest
 
 from cps import crests, i18n, service, tips, usage, weekly
+from cps.locales.es import MESSAGES as SPANISH
 from cps.locales.fr import MESSAGES
 from cps.locales.it import MESSAGES as ITALIAN
 
-CATALOGUES = {"fr": MESSAGES, "it": ITALIAN}
+CATALOGUES = {"fr": MESSAGES, "it": ITALIAN, "es": SPANISH}
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "cps"
@@ -127,7 +128,7 @@ def test_translations_keep_their_placeholders_and_add_none(lang):
 SCRIPT_CALL = re.compile(r"\bt\(\s*" + _LITERAL)
 
 
-@pytest.mark.parametrize("lang", ["FR", "IT"])
+@pytest.mark.parametrize("lang", ["FR", "IT", "ES"])
 def test_the_scripts_words_are_in_each_language(lang):
     static = SRC / "web" / "static"
     script = (static / "i18n.js").read_text(encoding="utf-8")

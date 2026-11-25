@@ -7916,3 +7916,38 @@ groups), the font of LaTeX's own output, from CTAN's `fonts/lm-math`.
 - Checked in Chromium: the app's file loads on its own (under another name, since this machine has
   Latin Modern Math installed), and a formula renders in it. Not tried on a real Android phone.
 
+## D201. Spanish everywhere
+
+**Asked.** D193 put Spanish at the door only: the front page, the account's pages and their e-mails.
+The owner: "spagnolo va ovunque".
+
+**Chosen.** The app speaks Spanish as it speaks French and Italian.
+- **Every sentence:** 3,575 sentences in `locales/es.py` (D193's 232 among them) and the scripts' 126
+  in `static/i18n.js`. Each one was checked by a script to keep its `{placeholders}` and its markup.
+  `tests/test_i18n.py` now checks Spanish like the other two.
+- **The tone:** informal "tú", as the French and Italian use "tu"; never Spain's "vosotros": two
+  people are "los dos" ("los dos ven"), understood wherever Spanish is spoken.
+- **A plan in Spanish:** a browser that asks for Spanish gets a plan in Spanish, and Settings offers
+  Español. Dates and numbers were already Spanish (D193): "lunes 19 de octubre", "1,5".
+- **Moodle:** the words of the way to Moodle's calendar link (D154) come from Moodle 4.5's Spanish
+  language pack (`lang/es/calendar.php`), read from Moodle's own download.
+- **AI:** the model is told to write in Spanish for a Spanish plan, as for French and Italian.
+- **Tasks typed in Spanish:** read by rules, like D148's Italian. That covers the weekdays and months
+  (with the "de" of "15 de octubre de 2026"), "a las 18", "6 horas", "una hora", "90 minutos",
+  "mañana" (but not "la mañana", the morning), "pasado mañana", "hoy", "esta noche",
+  "dentro de 2 semanas", "en 3 días", "la semana que viene", "el próximo martes", and "para el" or
+  "antes del" before a date. These are tested in `tests/test_ai.py`.
+- **The front page's pictures:** taken again in Spanish, by a fourth student in the screenshots'
+  class (`benchmarks/landing_server.py`). `LANGS=es` takes one language's pictures only.
+
+**Rejected.**
+- **Machine translation at run time:** it sends every page's words to a third party, and the result
+  could not be checked before a student reads it.
+- **Spanish only for the main screens:** a page half in Spanish and half in English is what D193
+  avoided.
+
+**Disclosed.**
+- Not written by a native speaker: the owner's to review, as the Italian (D34) was.
+- Course names still match by their words, so "estadística" does not find "Statistics".
+- Checked in Chromium only, by the pictures of six screens, light and dark.
+
