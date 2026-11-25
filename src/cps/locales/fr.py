@@ -3947,4 +3947,8 @@ MESSAGES: dict[str, str] = {
     "Your turn: tick the last one.": "À toi : coche la dernière.",
     "{day} off": "{day} libre",
     "{n} to next week": "{n} à la semaine suivante",
+    # D193: the front page's switch.
+    "Dark mode": "Mode sombre",
+    "Light mode": "Mode clair",
+    "The app itself speaks English, French and Italian for now: its screens below are in English.": "L'app elle-même parle anglais, français et italien pour l'instant : ses écrans ci-dessous sont en anglais.",
 }

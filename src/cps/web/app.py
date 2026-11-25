@@ -390,6 +390,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     templates.env.globals["_h"] = _html
     templates.env.globals["lang"] = service.current_language
     templates.env.globals["languages"] = service.LANGUAGES
+    templates.env.globals["front_languages"] = service.FRONT_LANGUAGES  # D193
     templates.env.globals["demo"] = config.demo is not None
     templates.env.globals["accounts"] = config.accounts
     templates.env.globals["password_min"] = service.PASSWORD_MIN
@@ -460,15 +461,20 @@ def create_app(config: Config | None = None) -> FastAPI:
             lasting = found_version.group(1) == version
             request.scope["path"] = "/static/" + found_version.group(2)
         # The language (D10): a plan's own, else a `lang` asked for in the address,
-        # else the browser's. No cookie.
+        # else the browser's. No cookie. The front page and the account's pages speak
+        # Spanish too (D193); the app's other pages, its three languages.
         lang = None
         if not request.url.path.startswith("/static/"):
             found = PLAN_PATH.match(request.url.path)
             if found:
                 lang = service.plan_language(store, found.group(1))
+        front = request.url.path == "/" or request.url.path.startswith("/account/")
         chosen = service.activate_language(
             service.pick_language(
-                lang, request.query_params.get("lang"), request.headers.get("accept-language")
+                lang,
+                request.query_params.get("lang"),
+                request.headers.get("accept-language"),
+                front=front,
             )
         )
         try:
@@ -514,6 +520,14 @@ def create_app(config: Config | None = None) -> FastAPI:
     def page(request: Request, name: str, status: int = 200, **context: Any) -> HTMLResponse:
         token = context.get("token")
         subscription = None
+        if not token:
+            # The front page and the account's pages (D193): Spanish among their languages,
+            # and light or dark as the top bar's switch asked, carried in the address.
+            path = request.url.path
+            context.setdefault("front", path == "/" or path.startswith("/account/"))
+            if context["front"]:
+                mode = request.query_params.get("theme")
+                context.setdefault("theme", mode if mode in ("light", "dark") else "auto")
         if token and any(key not in context for key in ("courses", "theme", "motion", "glass", "palette")):
             # Every page of a plan carries the new-task sheet, which suggests courses,
             # and the plan's appearance (D21), motion (D30) and glass (D93).
@@ -800,6 +814,9 @@ def create_app(config: Config | None = None) -> FastAPI:
         year = str(form.get("year") or "")
         token = await run_in_threadpool(config.demo, year if year in ("1", "2") else "2")
         service.log_event(store, token, "created", "demo")
+        if (mode := str(form.get("theme") or "")) in ("light", "dark"):
+            # The mode chosen on the front page (D193) is the demo student's appearance.
+            service.update_subscription(store, token, lambda current: service.set_theme(current, mode))
         return RedirectResponse(f"/p/{token}/open?saved=demo", 303)
 
     @app.get("/", response_class=HTMLResponse)

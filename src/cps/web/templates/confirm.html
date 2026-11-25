@@ -6,11 +6,11 @@
   <h1>{{ _("Confirm your e-mail address") }}</h1>
   {% if account %}
   <p>{{ _("Is {address} your address? Confirming it lets you choose a new password if you forget yours.", address=account.email) }}</p>
-  <form method="post" action="/account/confirm/{{ value }}"><p><button type="submit" class="btn btn-primary btn-block">{{ _("Confirm my address") }}</button></p></form>
+  <form method="post" action="/account/confirm/{{ value }}?lang={{ lang() }}"><p><button type="submit" class="btn btn-primary btn-block">{{ _("Confirm my address") }}</button></p></form>
   {% else %}
   <p>{{ _("This link has expired or was used already.") }}</p>
   <p class="hint">{{ _("Sign in, then ask for a new one in Settings.") }}</p>
-  <p><a class="btn" href="/account/signin">{{ _("Sign in") }}</a></p>
+  <p><a class="btn" href="/account/signin?lang={{ lang() }}">{{ _("Sign in") }}</a></p>
   {% endif %}
 </div>
 {% endblock %}

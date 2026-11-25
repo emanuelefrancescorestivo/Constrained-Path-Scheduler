@@ -7566,3 +7566,36 @@ setting of the plan: it is how a screen looks, kept with the view on each device
 **Disclosed.** Today's strip and agenda keep the courses' colours for now. Whether students find
 their way better is for the pilot. Checked in Chromium only, at 1440 × 900 and phone size, both
 colourings.
+
+## D193. The front page in four languages, light or dark
+
+**Asked.** The owner: "i want the ability to switch italian french spanish english and white dark mode
+in the landing page too".
+
+**Chosen.** The front page's top bar has a language menu (a globe and the language's code; English,
+Français, Italiano, Español) and one button for the other mode: the moon while the page is light, the
+sun while it is dark. Both are links, so they work without a script: `?lang=` as before (D10), and
+`?theme=light|dark`, which the page writes on `<html>` as a plan's Appearance does (D21) and which
+picks each picture of the app in light or in dark (their `<source>` asks "all" or "not all" in place
+of the device's scheme). With `home.js`, the mode changes in place, so the reader stays where they
+are in the story; the address, the links that carry the choice and the demo's button follow. The
+choice rides in the address, never in a cookie: the front page keeps none. The demo's buttons carry
+the language and the mode, so a made-up student opens in the language read and the mode chosen
+(Appearance set to it). The account's pages keep the language through their links and forms.
+
+Spanish is new, and only at the door: the front page, the account's pages and their e-mails
+(`locales/es.py`, 232 sentences; Spanish dates say "lunes 19 de octubre"). `i18n.FRONT_LANGUAGES`
+adds it to `LANGUAGES`, and `pick(front=True)` accepts it, on `/` and `/account/…` only. A plan
+cannot be in Spanish: `set_language` refuses it, and a plan begun from a Spanish front page is planned
+in English. A line under the lead says so to a Spanish reader: the app speaks English, French and
+Italian for now, and its pictures are in English.
+
+**Rejected.** The whole app in Spanish now: French has 3,806 sentences, a slice of its own, and a
+page half in Spanish and half in English would be worse than one in English. A cookie to remember the
+mode: the front page promises none. Three buttons (automatic, light, dark): one button for the other
+mode is one tap; a reader who wants the device's back opens the page without `theme`.
+
+**Disclosed.** The Spanish was not written by a native speaker; it is the owner's to review. A
+mode chosen on the front page is forgotten by the explaining pages (they follow the device) and after
+a form is sent with an error. Checked in Chromium only, at 1440 × 900 and phone size, light and dark,
+in English, French, Italian and Spanish.

@@ -4,6 +4,10 @@
 
 ### Added
 
+- The front page in four languages, light or dark (DECISIONS.md D193): a language menu and a light or
+  dark button in the front page's top bar, without a script or a cookie; the front page, the account's
+  pages and their e-mails in Spanish (the app itself stays in English, French and Italian, and says so).
+
 - The front page as a launch (DECISIONS.md D191): neurons run behind the whole story and fire as it is
   scrolled; the app's own week fills up and moves when Tuesday is taken off; Today's sessions are ticked
   off one by one, the last by the reader (the ring closes, the streak grows); the friends' league climbs

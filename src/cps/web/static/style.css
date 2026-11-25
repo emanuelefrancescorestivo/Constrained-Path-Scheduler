@@ -258,6 +258,43 @@ small, .muted { color: var(--muted); }
 }
 .nav a[aria-current="page"] { background: var(--thumb); box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); font-weight: 600; }
 .topbar .spacer { flex: 1; }
+/* D193: the front page's language and its light or dark, at the top bar's end. */
+.front-switch { display: flex; align-items: center; gap: 6px; }
+.front-switch summary, .mode-flip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 22px;
+  color: var(--text); font-size: 0.82rem; font-weight: 650; letter-spacing: 0.02em;
+  text-decoration: none !important; cursor: pointer; list-style: none;
+}
+.front-switch summary::-webkit-details-marker { display: none; }
+.lang-menu > summary { margin: 0; }
+.lang-menu > summary::before { content: none; }
+.front-switch summary:hover, .mode-flip:hover, .lang-menu[open] summary { background: var(--fill-3); }
+.front-switch svg { width: 20px; height: 20px; flex: none; }
+.lang-menu { position: relative; }
+.lang-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 180px;
+  margin: 0; padding: 6px; list-style: none; border-radius: 14px;
+  background: var(--elevated); border: 0.5px solid var(--line-strong);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+.lang-list a {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 9px;
+  color: var(--text); text-decoration: none !important; font-weight: 500;
+}
+.lang-list a b { width: 26px; font-size: 0.75rem; color: var(--muted); }
+.lang-list a:hover { background: var(--fill-3); }
+.lang-list a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); }
+.lang-list a[aria-current] b { color: var(--accent-ink); }
+/* The switch offers the other mode: the moon while the page is light, the sun while dark. */
+.mode-flip.to-light { display: none; }
+:root[data-theme="dark"] .mode-flip.to-dark { display: none; }
+:root[data-theme="dark"] .mode-flip.to-light { display: inline-flex; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mode-flip.to-dark { display: none; }
+  :root:not([data-theme="light"]) .mode-flip.to-light { display: inline-flex; }
+}
+.front-note { margin-top: 10px; }
 .topbar .link { font-size: 0.9rem; font-weight: 500; }
 
 .tabbar { display: none; }

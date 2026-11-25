@@ -2137,7 +2137,9 @@ def new_subscription(
             "engine": engine,
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
-            "lang": pick(lang) if lang else current_language(),
+            # A plan speaks the app's languages only: a visitor reading the front page
+            # in Spanish (D193) gets their plan in English.
+            "lang": pick(lang or current_language()),
             "quick_tests": quick_tests,
         },
     )
@@ -8053,6 +8055,7 @@ def weekly_review(
 translate = _
 translate_plural = _n
 LANGUAGES = _i18n.LANGUAGES
+FRONT_LANGUAGES = _i18n.FRONT_LANGUAGES  # the front page's, Spanish among them (D193)
 activate_language = _i18n.activate
 deactivate_language = _i18n.deactivate
 pick_language = _i18n.pick

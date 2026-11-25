@@ -9,6 +9,7 @@ import json
 import re
 import struct
 import sys
+from datetime import date
 from html import unescape
 from pathlib import Path
 
@@ -275,3 +276,120 @@ def test_the_scenes_move_only_with_motion_on_and_nothing_loops():
     block = CSS[CSS.index("/* -- D191: the front page as a launch") :]
     block = block[: block.index("/* 8: three steps and three promises. */")]
     assert "infinite" not in block
+
+
+# D193: the front page's language and its light or dark.
+
+
+def _misses(monkeypatch):
+    """The sentences looked up in Spanish and not found: what a reader would see in English."""
+    from cps import i18n
+
+    missed: set[str] = set()
+    real = i18n.catalogue
+
+    class Recording(dict):
+        def get(self, key, default=None):
+            if key not in self:
+                missed.add(key)
+            return super().get(key, default)
+
+    monkeypatch.setattr(i18n, "catalogue", lambda lang: Recording(real(lang)) if lang == "es" else real(lang))
+    return missed
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"demo": lambda year: "x"}, {"accounts": True, "show_mail": True}],
+    ids=["plain", "demo", "accounts"],
+)
+def test_the_front_page_and_the_account_s_pages_speak_spanish_whole(tmp_path, monkeypatch, extra):
+    missed = _misses(monkeypatch)
+    web = _web(tmp_path, **extra)
+    spanish = {"accept-language": "es-ES,es;q=0.9,en;q=0.5"}
+    for path in (
+        "/",
+        "/?theme=dark",
+        "/account/forgot",
+        "/account/signin",
+        "/account/reset/x",
+        "/account/confirm/x",
+    ):
+        page = web.get(path, headers=spanish).text
+        assert '<html lang="es"' in page, path
+    if extra.get("accounts"):
+        origin = {**spanish, "origin": "http://testserver"}
+        web.post("/account/signup", data={"email": "nope", "password": "x"}, headers=origin)
+        web.post("/account/signin", data={"email": "a@b.example", "password": "x"}, headers=origin)
+        web.post("/account/forgot", data={"email": "a@b.example"}, headers=origin)
+    assert not missed, "in English on a Spanish front page:\n" + "\n".join(sorted(missed))
+
+
+def test_spanish_stays_at_the_door_a_plan_speaks_the_app_s_languages(tmp_path):
+    from cps import i18n
+
+    assert i18n.pick("es-ES,es;q=0.9,fr;q=0.8") == "fr"  # the app's pages: the next one the reader reads
+    assert i18n.pick("es-ES,es;q=0.9,fr;q=0.8", front=True) == "es"
+    with i18n.use("es"):
+        assert service.FRONT_LANGUAGES["es"] == "Español" and "es" not in service.LANGUAGES
+        # A plan begun while the front page was in Spanish is planned in English.
+        sub = service.start_subscription(tz="Europe/Paris", draw=True, now=service.LANDING_WEEK_START)
+        assert sub.options["lang"] == "en"
+        with pytest.raises(service.InvalidInput):
+            service.set_language(sub, "es")
+        assert i18n.format_date(date(2026, 10, 19)) == "lunes 19 de octubre"
+        assert i18n.format_date(date(2026, 10, 19), "short") == "lun 19 oct"
+        assert i18n.number(1.5) == "1,5"
+    web = _web(tmp_path)
+    # A plan's own pages, the explaining ones too, are never in Spanish.
+    assert '<html lang="en"' in web.get("/garden", headers={"accept-language": "es"}).text
+    assert '<html lang="es"' in web.get("/?lang=es").text
+
+
+def test_the_front_page_switches_language_and_mode_without_a_script(tmp_path):
+    web = _web(tmp_path, demo=lambda year: "x")
+    page = web.get("/?lang=it").text
+    menu = page[page.index('<details class="lang-menu">') : page.index("</details>")]
+    for code in ("en", "fr", "it", "es"):
+        assert f'href="?lang={code}"' in menu
+    assert 'href="?lang=it" hreflang="it" lang="it" aria-current="true"' in menu
+    # The device decides until the switch is used: both ways offered, CSS shows the other one.
+    assert "data-theme" not in page[: page.index("<head>")]
+    assert 'href="?lang=it&amp;theme=dark" data-mode="dark"' in page
+    assert 'media="(prefers-color-scheme: dark)" data-dark' in page
+    # Chosen dark: the page, its pictures and every link and form carry it.
+    dark = web.get("/?lang=it&theme=dark").text
+    assert '<html lang="it" data-theme="dark"' in dark
+    assert (
+        dark.count('media="all" data-dark') == len(PICTURES)
+        and 'prefers-color-scheme: dark)" data-dark' not in dark
+    )
+    assert 'href="?lang=fr&amp;theme=dark"' in dark and 'href="?lang=es&amp;theme=dark"' in dark
+    assert '<form method="post" action="/demo?lang=it"' in dark
+    assert '<input type="hidden" name="theme" value="dark" data-front-mode>' in dark
+    light = web.get("/?theme=light").text
+    assert 'data-theme="light"' in light and light.count('media="not all" data-dark') == len(PICTURES)
+    assert "data-theme" not in web.get("/?theme=purple").text[:400]
+    # The note on the app's own languages shows to a Spanish reader only.
+    note = "front-note"
+    assert note in web.get("/?lang=es").text and note not in page
+
+
+def test_the_demo_student_keeps_the_mode_chosen_on_the_front_page(tmp_path):
+    made: list[str] = []
+
+    def demo(year):
+        sub = service.start_subscription(tz="Europe/Paris", draw=True, now=service.LANDING_WEEK_START)
+        service.save_subscription(tmp_path, sub)
+        made.append(sub.token)
+        return sub.token
+
+    web = _web(tmp_path, demo=demo)
+    answer = web.post(
+        "/demo?lang=fr",
+        data={"year": "1", "theme": "dark"},
+        headers={"origin": "http://testserver"},
+        follow_redirects=False,
+    )
+    assert answer.status_code == 303
+    assert service.theme_of(service.load_subscription(tmp_path, made[0])) == "dark"

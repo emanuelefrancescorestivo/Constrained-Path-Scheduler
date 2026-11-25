@@ -101,6 +101,7 @@ PLACES: tuple[str, ...] = (
     "play",
     "circle-check",
     "graduation-cap",
+    "globe",  # the front page's language (D193)
 )
 
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
