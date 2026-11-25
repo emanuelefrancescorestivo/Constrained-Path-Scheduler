@@ -6860,3 +6860,25 @@ main.site.todo-wide { max-width: none; }
   .ls-notes { grid-template-columns: minmax(0, 1fr) 118px; }
   .ls-days i { width: 28px; height: 28px; }
 }
+
+/* D204: a study group's list, written and ticked off by all its members. The line's box and
+   bin are the to-do page's; the bin shows under the pointer, faintly always on a touch screen. */
+.group-line-new { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; }
+#group-list .group-line-new input { width: 100%; margin: 0; }
+#group-list .group-line-new input[type="date"] { width: auto; }
+@media (max-width: 560px) {
+  .group-line-new { grid-template-columns: minmax(0, 1fr) auto; }
+  #group-list .group-line-new input[name="text"] { grid-column: 1 / -1; }
+}
+#group-list > .group-lines, #group-list > .empty, #group-list > .group-lines-done { margin-top: 10px; }
+.group-lines > li { align-items: center; gap: 10px; }
+.group-lines .todo-tick { flex: 0 0 auto; width: 28px; }
+.group-lines .todo-text { display: block; padding: 0 0 2px; overflow-wrap: anywhere; }
+.group-lines small { display: block; color: var(--muted); }
+.group-lines .is-done .todo-text { color: var(--muted); text-decoration: line-through; }
+.group-lines > li:is(:hover, :focus-within) .todo-bin { opacity: 1; }
+.group-lines-done { padding: 8px 16px; }
+.group-lines-done > summary { padding: 6px 0; cursor: pointer; color: var(--muted); font-weight: 600; }
+.todo-group + .todo-group { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--line); }
+.todo-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
+.todo-group-head small { color: var(--muted); }

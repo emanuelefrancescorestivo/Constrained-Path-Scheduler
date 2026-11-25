@@ -150,6 +150,19 @@ CREATE TABLE IF NOT EXISTS group_members (
     PRIMARY KEY (grp, token)
 );
 CREATE INDEX IF NOT EXISTS group_members_by_token ON group_members (token);
+-- A study group's list (D204): lines its members write and tick off for all of them.
+-- done_by is who ticked a line off: NULL while open, '' once their plan is deleted.
+CREATE TABLE IF NOT EXISTS group_lines (
+    id      TEXT PRIMARY KEY,
+    grp     TEXT NOT NULL,
+    token   TEXT NOT NULL,
+    text    TEXT NOT NULL,
+    day     TEXT NOT NULL DEFAULT '',
+    created TEXT NOT NULL,
+    done_by TEXT,
+    done    TEXT
+);
+CREATE INDEX IF NOT EXISTS group_lines_by_group ON group_lines (grp);
 -- Flashcards (D29): a student's own, private; FSRS-4.5 state per card, NULL until
 -- its first review, and every review kept.
 CREATE TABLE IF NOT EXISTS cards (
@@ -406,6 +419,8 @@ LEAVE_GROUPS = (
     "AND m.joined IS NOT NULL ORDER BY m.joined, m.rowid LIMIT 1) WHERE owner = :t",
     "DELETE FROM group_members WHERE grp IN (SELECT id FROM study_groups WHERE owner IS NULL)",
     "DELETE FROM study_groups WHERE owner IS NULL",
+    # D204: a group that went takes its list.
+    "DELETE FROM group_lines WHERE grp NOT IN (SELECT id FROM study_groups)",
 )
 
 # What deleting a plan removes from the network: its own rows, and what others
@@ -431,6 +446,9 @@ _FORGET = (
     "DELETE FROM follows WHERE follower = :t OR followed = :t",
     "DELETE FROM blocks WHERE blocker = :t OR blocked = :t",
     "DELETE FROM profiles WHERE token = :t",
+    # D204: the lines a student wrote on a group's list go; a line they ticked off stays ticked.
+    "DELETE FROM group_lines WHERE token = :t",
+    "UPDATE group_lines SET done_by = '' WHERE done_by = :t",
     *LEAVE_GROUPS,
     "DELETE FROM buddies WHERE asker = :t OR asked = :t",
     "DELETE FROM card_reviews WHERE token = :t",
@@ -488,6 +506,9 @@ _EXPORT = {
     "reports": "SELECT target, kind, reason, created FROM reports WHERE reporter = :t ORDER BY created",
     "groups": "SELECT g.name, g.goal, m.invited, m.joined, g.owner = :t AS owner FROM group_members m "
     "JOIN study_groups g ON g.id = m.grp WHERE m.token = :t ORDER BY m.invited",
+    # D204: the lines one wrote on a group's list, under the group's name.
+    "group_lines": "SELECT g.name AS grp, l.text, l.day, l.created, l.done FROM group_lines l "
+    "JOIN study_groups g ON g.id = l.grp WHERE l.token = :t ORDER BY l.created, l.rowid",
     # D127: who one studies together with (their handle), who asked, and when.
     "studying_together": "SELECT CASE WHEN b.asker = :t THEN 'you asked' ELSE 'asked you' END AS ask, "
     "COALESCE(p.handle, '') AS handle, b.created, b.accepted FROM buddies b LEFT JOIN profiles p "

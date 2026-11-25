@@ -1,0 +1,10 @@
+{# D202's line words, shared by the to-do page and a study group's list (D204): a line's pieces
+   drawn bold, italic, struck or code, and its links by their names. #}
+{% macro words(parts) -%}
+{%- for p in parts -%}
+{%- if p.k == "b" %}<b>{{ p.x }}</b>{% elif p.k == "i" %}<i>{{ p.x }}</i>{% elif p.k == "s" %}<s>{{ p.x }}</s>{% elif p.k == "c" %}<code>{{ p.x }}</code>{% else %}{{ p.x }}{% endif -%}
+{%- endfor -%}
+{%- endmacro %}
+{% macro links(found) -%}
+{% if found %}<span class="todo-chips">{% for k in found %}<a class="todo-link" href="{{ k.href }}" target="_blank" rel="noopener noreferrer">{% if k.kind %}<b>{{ k.kind }}</b>{% else %}{{ lucide('link') }}{% endif %}<span>{{ k.label }}</span></a>{% endfor %}</span>{% endif %}
+{%- endmacro %}

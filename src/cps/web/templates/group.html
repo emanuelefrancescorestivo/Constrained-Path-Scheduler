@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_people.html" import avatar %}
 {% from "_charts.html" import columns %}
+{% import "_todo_words.html" as tw with context %}
 {% block title %}{{ view.name }} · {{ _("Study plan") }}{% endblock %}
 {% block main %}
 <p class="back"><a href="/p/{{ token }}/groups">{{ _("Groups") }}</a></p>
@@ -23,6 +24,63 @@
   {{ columns(c, texts, _("Hours studied per week, all members together"), [(c.top | hours) ~ " h", ((c.top / 2) | hours) ~ " h"], _("The line is the group's weekly goal.")) }}
   {% endif %}
 </section>
+
+{# D204: the group's list, proposal 12 of the to-do page: lines every member writes and ticks off
+   for all of them, who wrote each and who ticked it said; its words drawn as on the to-do page.
+   Each form is sent in the background and the list put in place (#group-list); without the
+   script, each form loads the page again at the list. #}
+{% set gl = view.list %}
+<div class="section" id="list">
+  <div class="section-title"><h2>{{ _("Our list") }}</h2><small>{{ _("written and ticked off by all of you") }}</small></div>
+  <div id="group-list">
+    <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/list" data-async data-quiet data-region="#group-list" class="card group-line-new">
+      <label for="gl-text" class="visually-hidden">{{ _("A line for the group") }}</label>
+      <input id="gl-text" name="text" required maxlength="{{ gl.most }}" autocomplete="off" placeholder="{{ _('Bring the slides, book a room, ask about exercise 4…') }}">
+      <label for="gl-day" class="visually-hidden">{{ _("Day") }}</label>
+      <input id="gl-day" name="day" type="date">
+      <button type="submit" class="btn btn-primary btn-sm">{{ _("Add") }}</button>
+    </form>
+    {% if gl.lines %}
+    <ul class="card list group-lines">
+      {% for x in gl.lines %}
+      <li>
+        <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/list/{{ x.id }}/tick" data-async data-quiet data-region="#group-list" class="todo-tick">
+          <button type="submit" class="todo-box" aria-label="{{ _('Done: {what}', what=x.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+        </form>
+        <div class="grow">
+          <span class="todo-text">{{ tw.words(x.parts) }}</span>{{ tw.links(x.links) }}
+          <small>{% if x.when %}<span class="{% if x.late %}is-late{% endif %}">{{ x.when }}</span> · {% endif %}{% if x.mine %}{{ _("you") }}{% elif x.by %}@{{ x.by }}{% else %}{{ _("a member") }}{% endif %}</small>
+        </div>
+        {% if x.can_drop %}
+        <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/list/{{ x.id }}/drop" data-async data-quiet data-region="#group-list" class="todo-bin-form">
+          <button type="submit" class="todo-bin" aria-label="{{ _('Remove: {what}', what=x.text) }}" title="{{ _('Remove') }}">{{ lucide('trash-2') }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="card empty">{{ _("Nothing on the list yet. What one of you writes here, all of you see, and any of you can tick off.") }}</p>
+    {% endif %}
+    {% if gl.done %}
+    <details class="card group-lines-done">
+      <summary>{{ _n("Done ({n})", "Done ({n})", gl.done | length) }}</summary>
+      <ul class="list group-lines">
+        {% for x in gl.done %}
+        <li class="is-done">
+          <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/list/{{ x.id }}/tick" data-async data-quiet data-region="#group-list" class="todo-tick">
+            <button type="submit" class="todo-box is-done" aria-label="{{ _('Not done yet: {what}', what=x.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+          </form>
+          <div class="grow"><span class="todo-text">{{ tw.words(x.parts) }}</span><small>{% if x.done_by %}{{ _("ticked off by @{handle}", handle=x.done_by) }}{% else %}{{ _("ticked off") }}{% endif %}</small></div>
+        </li>
+        {% endfor %}
+      </ul>
+      <form method="post" action="/p/{{ token }}/groups/{{ view.id }}/list/clear" data-async data-quiet data-region="#group-list"><button type="submit" class="btn btn-plain btn-sm">{{ _("Clear the lines done") }}</button></form>
+    </details>
+    {% endif %}
+    <p class="hint">{{ _("Members see who wrote each line and who ticked it off.") }}</p>
+  </div>
+</div>
 
 <div class="section">
   <div class="section-title"><h2>{{ _("Members") }}</h2><small>{{ _("who has studied this week") }}</small></div>

@@ -237,6 +237,7 @@ TABLES = {
     "blocks": "blocks",
     "study_groups": "groups",
     "group_members": "groups",
+    "group_lines": "group_lines",  # D204: the lines the student wrote on a group's list
     "cards": "cards",
     "card_reviews": "card_reviews",
     "card_fits": "card_fit",

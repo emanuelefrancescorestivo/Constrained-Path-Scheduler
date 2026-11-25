@@ -4,6 +4,10 @@
 
 ### Added
 
+- A study group's list (DECISIONS.md D204): lines every member writes and ticks off for all of them,
+  with who wrote each and who ticked it; a line of one's own to-do list sent to it in one tap; each
+  group's open lines beside the to-do page.
+
 - Seven small films on the front page (DECISIONS.md D203): a streak that lights up and forgives, the
   marks of students who test themselves (a study of 222 classrooms), studying with a friend, the same
   day in another app and in the plan, three steps to a plan, a self-test refilling a memory, notes

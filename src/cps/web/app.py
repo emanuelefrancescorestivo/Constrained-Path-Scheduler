@@ -2790,6 +2790,41 @@ def create_app(config: Config | None = None) -> FastAPI:
             f"/p/{token}/groups/{group_id}",
         )
 
+    # D204: the group's list, written and ticked off by its members.
+    @app.post("/p/{token}/groups/{group_id}/list", response_class=HTMLResponse)
+    async def group_list_add(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.add_group_line(store, token, group_id, f, now=config.clock()),
+            f"/p/{token}/groups/{group_id}#list",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/list/clear", response_class=HTMLResponse)
+    async def group_list_clear(request: Request, token: str, group_id: str) -> Response:
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.clear_group_lines(store, token, group_id),
+            f"/p/{token}/groups/{group_id}#list",
+        )
+
+    @app.post("/p/{token}/groups/{group_id}/list/{line_id}/{what}", response_class=HTMLResponse)
+    async def group_list_line(
+        request: Request, token: str, group_id: str, line_id: str, what: str
+    ) -> Response:
+        if what not in ("tick", "drop"):
+            return missing(request)
+        return await group_change(
+            request,
+            token,
+            group_id,
+            lambda f: service.change_group_line(store, token, group_id, line_id, what, now=config.clock()),
+            f"/p/{token}/groups/{group_id}#list",
+        )
+
     @app.post("/p/{token}/groups/{group_id}/answer", response_class=HTMLResponse)
     async def group_answer(request: Request, token: str, group_id: str) -> Response:
         subscription = load(token)
@@ -4064,6 +4099,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             tab="tasks",
             board=view == "board",  # D202: the open lines by day
             view=service.todo_view(subscription, config.clock()),
+            groups=service.todo_groups(store, subscription, config.clock()),  # D204
         )
 
     def todo_back(token: str, back: str) -> str:
@@ -4123,13 +4159,21 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     @app.post("/p/{token}/todo/{item}/{what}")
     async def todo_line(request: Request, token: str, item: str, what: str) -> Response:
-        if load(token) is None or what not in ("tick", "edit", "change", "card", "day"):
+        subscription = load(token)
+        if subscription is None or what not in ("tick", "edit", "change", "card", "day", "share"):
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
         form = await request.form(max_files=0, max_fields=6)
         fields = {k: str(v) for k, v in form.items()}
         now = config.clock()
+        if what == "share":  # D204: the line on a study group's list too
+            try:
+                service.share_todo(store, subscription, item, fields.get("group", ""), now=now)
+            except service.ServiceError as error:
+                return todo_refused(request, token, error)
+            service.log_event(store, token, "todo", what)
+            return RedirectResponse(todo_back(token, fields.get("back", "")), 303)
 
         def change(current: service.Subscription) -> service.Subscription:
             if what == "tick":
@@ -4156,7 +4200,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             if subscription
             else {"rows": [], "done": [], "others": [], "open": 0}
         )
-        return page(request, "todo.html", 400, token=token, tab="tasks", view=view, error=str(error))
+        groups = service.todo_groups(store, subscription, config.clock()) if subscription else []
+        return page(
+            request, "todo.html", 400, token=token, tab="tasks", view=view, groups=groups, error=str(error)
+        )
 
     # D194: tests the timetable does not show, course by course.
     @app.get("/p/{token}/tests", response_class=HTMLResponse)

@@ -736,6 +736,17 @@ def add_student(
     done = sorted(w["hours"] for w in weeks[:-1]) or [10.0]
     goal = max(1.0, round(done[len(done) // 2] * 2) / 2)
     service.change_group(where, you.token, group.id, {"name": "Thursday library", "goal": str(goal)})
+    # D204: the group's list, a few lines its members wrote this week, one already ticked off.
+    tomorrow = (now + timedelta(days=1)).date().isoformat()
+    written = now - timedelta(hours=5)
+    for who, text, day in (
+        (mates[0], "Book a room in the library for Thursday", tomorrow),
+        (you, f"Bring the {study.algebra} past paper", ""),
+        (mates[1], "Ask about exercise 4 of the tutorial", ""),
+        (mates[2], "Share the **summary** of last week's lecture", ""),
+    ):
+        line = service.add_group_line(where, who.token, group.id, {"text": text, "day": day}, now=written)
+    service.change_group_line(where, mates[0].token, group.id, line, "tick", now=now - timedelta(hours=1))
     with contextlib.suppress(service.InvalidInput):  # her group is full
         service.invite_to_group(where, people["chloe"], world.crew, handle, now=now - timedelta(days=1))
 

@@ -1853,6 +1853,9 @@ def leave_group(store: Store, token: str, group_id: str) -> None:
             where,
         )
         db.execute("DELETE FROM study_groups WHERE id = :g AND owner IS NULL", where)
+        db.execute(
+            "DELETE FROM group_lines WHERE grp = :g AND :g NOT IN (SELECT id FROM study_groups)", where
+        )
 
 
 def group_notes(store: Store, viewer: str, group_id: str, limit: int = 60) -> list[Post]:
@@ -1884,6 +1887,122 @@ def remove_member(store: Store, owner: str, group_id: str, handle: str) -> None:
         raise SocialError(_("there is nobody called @{handle} in this group", handle=handle.lstrip("@")[:40]))
     with store.connection() as db:
         db.execute("DELETE FROM group_members WHERE grp = ? AND token = ?", (group_id, person.token))
+
+
+# -- the group's list (D204) -------------------------------------------------
+# Lines the members write for all of them (bring the slides, book a room, ask about
+# exercise 4) and tick off for all of them. Who wrote a line and who ticked it are
+# shown to the members, as their handles are on the group's page.
+
+GROUP_LINES = 100  # lines a group keeps, ticked ones included
+GROUP_LINE = 200  # characters a line
+
+
+@dataclass(frozen=True)
+class GroupLine:
+    id: str
+    group: str
+    token: str  # who wrote it
+    text: str
+    day: str  # "" or YYYY-MM-DD
+    created: str
+    done_by: str | None  # who ticked it off, None while open (or "" after their plan went)
+    done: str | None
+
+
+def _line_text(text: str) -> str:
+    clean = " ".join(str(text or "").split())
+    if not clean:
+        raise SocialError(_("write a line first"))
+    if len(clean) > GROUP_LINE:
+        raise SocialError(_("at most {n} characters here", n=GROUP_LINE))
+    return clean
+
+
+def _line_day(day: str) -> str:
+    day = str(day or "").strip()
+    if not day:
+        return ""
+    try:
+        return datetime.strptime(day, "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        raise SocialError(_("this is not a day")) from None
+
+
+def group_lines(store: Store, viewer: str, group_id: str) -> list[GroupLine]:
+    """The group's list for a member, open lines first (by day, then as written),
+    then those ticked off, the latest first; nothing for anyone else."""
+    if not _joined(store, viewer, group_id):
+        return []
+    with store.connection() as db:
+        rows = db.execute(
+            "SELECT id, grp, token, text, day, created, done_by, done FROM group_lines WHERE grp = ? "
+            "ORDER BY done IS NOT NULL, CASE WHEN done IS NULL THEN day = '' END, "
+            "CASE WHEN done IS NULL THEN day END, CASE WHEN done IS NULL THEN created END, done DESC, rowid",
+            (group_id,),
+        ).fetchall()
+    return [GroupLine(*r) for r in rows]
+
+
+def _group_line(store: Store, token: str, group_id: str, line_id: str) -> tuple[Group, GroupLine]:
+    group = _member_of(store, token, group_id)
+    with store.connection() as db:
+        row = db.execute(
+            "SELECT id, grp, token, text, day, created, done_by, done FROM group_lines "
+            "WHERE id = ? AND grp = ?",
+            (line_id, group_id),
+        ).fetchone()
+    if row is None:
+        raise SocialError(_("this line is no longer on the list"))
+    return group, GroupLine(*row)
+
+
+def add_group_line(
+    store: Store, token: str, group_id: str, text: str, day: str = "", now: datetime | None = None
+) -> GroupLine:
+    """A line on the group's list, written by one of its members."""
+    _member_of(store, token, group_id)
+    line = GroupLine(_new_id(), group_id, token, _line_text(text), _line_day(day), _now(now), None, None)
+    with store.connection() as db:
+        (count,) = db.execute("SELECT COUNT(*) FROM group_lines WHERE grp = ?", (group_id,)).fetchone()
+        if count >= GROUP_LINES:
+            raise SocialError(_("the list is full: clear the lines ticked off first"))
+        db.execute(
+            "INSERT INTO group_lines (id, grp, token, text, day, created) VALUES (?, ?, ?, ?, ?, ?)",
+            (line.id, group_id, token, line.text, line.day, line.created),
+        )
+    return line
+
+
+def tick_group_line(
+    store: Store, token: str, group_id: str, line_id: str, now: datetime | None = None
+) -> bool:
+    """Tick a line off for the whole group, or open it again; whether it is now done."""
+    _group, line = _group_line(store, token, group_id, line_id)
+    done = line.done is None
+    with store.connection() as db:
+        db.execute(
+            "UPDATE group_lines SET done_by = ?, done = ? WHERE id = ?",
+            (token if done else None, _now(now) if done else None, line.id),
+        )
+    return done
+
+
+def drop_group_line(store: Store, token: str, group_id: str, line_id: str) -> None:
+    """Take a line off the list: its author, or the group's owner, may."""
+    group, line = _group_line(store, token, group_id, line_id)
+    if token not in (line.token, group.owner):
+        raise SocialError(_("only whoever wrote it, or the group's owner, can take it off"))
+    with store.connection() as db:
+        db.execute("DELETE FROM group_lines WHERE id = ?", (line.id,))
+
+
+def clear_group_lines(store: Store, token: str, group_id: str) -> int:
+    """Take the lines ticked off off the list, for everyone; how many went."""
+    _member_of(store, token, group_id)
+    with store.connection() as db:
+        cursor = db.execute("DELETE FROM group_lines WHERE grp = ? AND done IS NOT NULL", (group_id,))
+    return cursor.rowcount
 
 
 # -- invitation links (D40) ----------------------------------------------------

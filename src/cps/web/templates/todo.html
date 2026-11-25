@@ -19,11 +19,9 @@
    Ctrl+I, and dragging. #}
 {% set regions = "#todo, #todo-count, #todo-side" %}
 {% set back = "board" if board else "" %}
-{% macro words(parts) -%}
-{%- for p in parts -%}
-{%- if p.k == "b" %}<b>{{ p.x }}</b>{% elif p.k == "i" %}<i>{{ p.x }}</i>{% elif p.k == "s" %}<s>{{ p.x }}</s>{% elif p.k == "c" %}<code>{{ p.x }}</code>{% else %}{{ p.x }}{% endif -%}
-{%- endfor -%}
-{%- endmacro %}
+{% import "_todo_words.html" as tw with context %}
+{% set words = tw.words %}
+{% set groups = groups if groups is defined else [] %}
 {% macro chips(r) -%}
 {% if r.links or r.again or r.at_time or r.card_pair or r.card %}
 <span class="todo-chips">
@@ -140,6 +138,12 @@
             {% if r.kind != "heading" %}<button type="submit" name="how" value="heading">{{ _("Make it a heading") }}</button>{% endif %}
             <button type="submit" name="how" value="delete" class="is-danger">{{ _("Remove") }}</button>
           </form>
+          {% if groups and r.kind != "heading" %}
+          <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/share" data-async data-quiet data-region="{{ regions }}" class="menu-items">
+            <input type="hidden" name="back" value="{{ back }}">
+            {% for g in groups %}<button type="submit" name="group" value="{{ g.id }}">{{ lucide('users') }} {{ _("Send to «{name}»", name=g.name) }}</button>{% endfor %}
+          </form>
+          {% endif %}
         </details>
       </span>
     </li>
@@ -205,6 +209,23 @@
       <span class="todo-tpl-buttons">{% for t in view.templates %}<button type="submit" name="template" value="{{ t.key }}" class="btn btn-plain btn-sm">{{ t.title }}</button>{% endfor %}</span>
     </form>
   </section>
+  {% if groups %}
+  {# D204: each study group's list, its open lines first. #}
+  <section class="card context-card todo-groups">
+    <h2>{{ lucide('users') }} {{ _("Your groups' lists") }}</h2>
+    {% for g in groups %}
+    <div class="todo-group">
+      <p class="todo-group-head"><b>{{ g.name }}</b> <small>{{ _n("{n} open line", "{n} open lines", g.open) }}</small></p>
+      {% if g.first %}
+      <ul class="ctx-list plain">{% for x in g.first %}<li><span class="grow">{{ tw.words(x.parts) }}<small>{% if x.when %}<span class="{% if x.late %}is-late{% endif %}">{{ x.when }}</span> · {% endif %}{% if x.mine %}{{ _("you") }}{% elif x.by %}@{{ x.by }}{% else %}{{ _("a member") }}{% endif %}</small></span></li>{% endfor %}</ul>
+      {% else %}
+      <p class="hint">{{ _("Nothing open on it.") }}</p>
+      {% endif %}
+      <a class="link" href="/p/{{ token }}/groups/{{ g.id }}#list">{{ _("Open the list") }} ›</a>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
   {% if view.others %}
   {# The plan's other tasks: a learning platform's deadlines, those added field by field. #}
   <section class="card context-card todo-others">
