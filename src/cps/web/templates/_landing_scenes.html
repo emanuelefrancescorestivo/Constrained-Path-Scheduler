@@ -1,0 +1,142 @@
+{# D203: the front page's scenes (the owner: "more animations like the ones that fill the calendar
+   ... to give the idea of what happens in the app", then "even more dopaminergic and
+   motivating"). Each is drawn complete; scenes.js, when motion is on, sets each part back
+   and brings it in at its time (data-at, in milliseconds) as the scene comes into view, with
+   its bursts and its taps, once; scrolled away and back, it plays again. Made-up students and
+   days, the app's own numbers (the repair's minutes, a session's points, the badge's tier,
+   FSRS-6's estimate, D84's rules on the notes), and one study's (Yang et al., 2021). #}
+{% from "_crest.html" import badge_crest %}
+{% macro streak(l) -%}
+{% set s = l.scenes.streak %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-streak-cap">
+  <div class="ls-card ls-streak">
+    <div class="ls-top">
+      <b class="ls-big" data-at="300" data-count="0">{{ s.days }}</b><span class="ls-unit">{{ _("days in a row") }}</span>
+      <span class="ls-flame" data-at="300">{{ lucide('flame') }}</span>
+      <span class="ls-points" data-at="300" data-count="0">+{{ s.points }}</span>
+    </div>
+    <ol class="ls-days">
+      {% for d in s.days_list %}
+      <li class="{% if d.fixed %}is-fixed{% endif %}"><i data-at="{{ d.at }}"{% if d.fixed %} data-burst{% endif %}></i><span>{{ d.name }}</span>{% if not d.fixed %}<b class="ls-plus" data-at="{{ d.at }}">+{{ s.per_day }}</b>{% endif %}</li>
+      {% endfor %}
+    </ol>
+    <p class="ls-repair" data-at="1900"><span>{{ _("One day was missed: {n} minutes of focus repair it.", n=s.repair) }}</span><span class="ls-btn" data-at="2600" data-tap>{{ _("Repair it") }}</span></p>
+    <div class="ls-badge" data-at="{{ s.badge_at }}" data-burst>{{ badge_crest(s.badge.icon, s.badge.metal, s.badge.roman) }}<span><small>{{ _("Badge unlocked") }}</small><b>{{ s.badge.name }} · {{ s.badge.tier }}</b></span></div>
+    <div class="ls-exam" data-at="900"><span><b>{{ s.course }}</b> <span class="muted">{{ _("{n} of {total} topics on track", n=s.topics, total=s.topics) }}</span></span><span class="ls-bar"><i></i></span></div>
+  </div>
+  <figcaption id="ls-streak-cap">{{ _("A made-up week: each day studied lights up and is worth {points} points; a missed day is repaired with a {n}-minute session, and {days} days in a row win the badge's {tier} tier.", points=s.per_day, n=s.repair, days=s.days, tier=s.badge.tier) }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro grades(l) -%}
+{% set g = l.scenes.grades %}
+<figure class="landing-scene ls-grades-fig" data-scene aria-labelledby="ls-grades-cap">
+  <div class="ls-card ls-grades">
+    <p class="ls-habit"><span class="muted">{{ _("Weeks with a self-test") }}</span><span class="ls-weeks">{% for w in range(g.weeks) %}<i data-at="{{ 200 + 220 * loop.index0 }}"></i>{% endfor %}</span></p>
+    <svg viewBox="-10 0 520 200" role="img" aria-label="{{ _('Two curves of marks: those who test themselves sit half a standard deviation higher; the average one of them scores above {p} % of those who only reread.', p=g.beats) }}">
+      <line x1="0" y1="{{ g.base }}" x2="500" y2="{{ g.base }}" class="ls-axis"></line>
+      <path d="{{ g.path }} L500,{{ g.base }} L0,{{ g.base }} Z" class="ls-curve-reread"></path>
+      <g class="ls-shift" data-at="2000" data-prop="transform" data-from="translate(0px, 0px)" data-to="translate({{ g.shift }}px, 0px)" transform="translate({{ g.shift }} 0)"><path d="{{ g.path }}" class="ls-curve-test"></path><line x1="{{ g.mean }}" y1="{{ g.top }}" x2="{{ g.mean }}" y2="{{ g.base }}" class="ls-mean"></line></g>
+      <text x="{{ g.mean - 60 }}" y="194" class="ls-label">{{ _("only rereading") }}</text>
+      <text x="{{ g.mean + g.shift + 8 }}" y="14" class="ls-label is-test">{{ _("testing themselves") }}</text>
+    </svg>
+    <p class="ls-out"><b data-at="2000" data-count="50" data-burst>{{ g.beats }} %</b><span>{{ _("of those who only reread score below the average student who tests themselves") }}</span></p>
+  </div>
+  <figcaption id="ls-grades-cap">{{ _("Yang and colleagues (2021) gathered {studies} classroom studies of {students} students: testing yourself raised achievement by about half a standard deviation (g = {g}). With marks shaped like a bell, the average student who tests themselves scores above {p} % of the others. An average of many studies, not a promise; the app does not see your marks.", studies=g.studies, students=g.students, g=g.g, p=g.beats) }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro now(l) -%}
+<figure class="landing-scene" data-scene aria-labelledby="ls-now-cap">
+  <div class="ls-card ls-now">
+    <p class="ls-head"><span class="ls-live"></span>{{ _("Studying now") }}</p>
+    <ul>
+      <li data-at="200"><span class="ls-av c1">L</span><span>@lena<small>Statistics · {{ _("{n} min", n=7) }}</small></span><span class="ls-chip">{{ _("Join") }}</span></li>
+      <li data-at="600"><span class="ls-av c2">M</span><span>@marco<small>Algebra · {{ _("{n} min", n=18) }}</small></span><span class="ls-chip" data-at="1700" data-tap>{{ _("Join") }}</span></li>
+      <li class="is-me" data-at="2100"><span class="ls-av c4">{{ _("You")[:1] }}</span><span>{{ _("You") }}<small>Algebra · @marco</small></span><span class="ls-chip is-on">{{ _("Now") }}</span></li>
+    </ul>
+    <p class="ls-cheer" data-at="2900">👏 @marco · {{ _("cheered you on") }}</p>
+    <p class="ls-pair" data-at="3600" data-burst>{{ lucide('flame') }}<span>{{ _("You and @marco") }}</span><b data-at="3600" data-count="6">7</b><span class="muted">{{ _("days in a row together") }}</span></p>
+  </div>
+  <figcaption id="ls-now-cap">{{ _("Made-up classmates: who is studying now, a tap to join them, a cheer, and a streak kept as a pair.") }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro clash(l) -%}
+<figure class="landing-scene" data-scene aria-labelledby="ls-clash-cap">
+  <div class="ls-card ls-clash">
+    {% for side in ("any", "ours") %}
+    <div class="ls-day is-{{ side }}">
+      <p class="ls-day-head">{% if side == "any" %}{{ _("Any revision app") }}{% else %}{{ _("Study plan") }}{% endif %}</p>
+      <div class="ls-hours">
+        {% for h in (8, 10, 12, 14, 16, 18) %}<span class="ls-h h{{ h }}">{{ h }}:00</span>{% endfor %}
+        <span class="ls-class r9">{{ _("Lecture") }}</span>
+        <span class="ls-class r14">{{ _("Lab") }}</span>
+        {% if side == "any" %}
+        <span class="ls-rev r10 is-clash" data-at="900">{{ _("Review") }}<small>{{ _("during the lecture") }}</small></span>
+        <span class="ls-rev r15 is-clash" data-at="1200">{{ _("Review") }}<small>{{ _("during the lab") }}</small></span>
+        {% else %}
+        <span class="ls-rev r12 is-free" data-at="2100" data-burst>{{ _("Review") }}<small>{{ _("between classes") }}</small></span>
+        <span class="ls-rev r165 is-free" data-at="2500" data-burst>{{ _("Review") }}<small>{{ _("after the lab") }}</small></span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <figcaption id="ls-clash-cap">{{ _("The same day twice, a lecture at nine and a lab at two: reviews at fixed hours land on them; the plan puts them in the gaps.") }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro steps(l) -%}
+<figure class="landing-scene" data-scene aria-labelledby="ls-steps-cap">
+  <div class="ls-card ls-steps">
+    <ol class="ls-three">
+      <li data-at="100"><b>1</b>{{ _("Bring your timetable") }}</li>
+      <li data-at="1500"><b>2</b>{{ _("Check your exams") }}</li>
+      <li data-at="2600"><b>3</b>{{ _("Follow Today") }}</li>
+    </ol>
+    <div class="ls-week">
+      <span class="ls-file" data-at="200">{{ lucide('file-text') }}{{ _("timetable.ics") }}</span>
+      <div class="ls-grid">
+        {% for k in range(1, 10) %}<i class="ls-cl k{{ k }}" data-at="{{ 500 + 80 * k }}"></i>{% endfor %}
+        {% for k in range(1, 9) %}<i class="ls-se s{{ k }}" data-at="{{ 2700 + 140 * k }}"></i>{% endfor %}
+      </div>
+      <p class="ls-flags"><span data-at="1700">{{ lucide('graduation-cap') }}Algebra · {{ l.scenes.exam_days[0] }}</span><span data-at="2000">{{ lucide('graduation-cap') }}Analysis · {{ l.scenes.exam_days[1] }}</span></p>
+    </div>
+    <p class="ls-toast" data-at="4100" data-burst>{{ lucide('calendar-check') }}{{ _("Your sessions are in your calendar") }}</p>
+  </div>
+  <figcaption id="ls-steps-cap">{{ _("The timetable comes in, its exams are found, and the sessions settle in the gaps and in the calendar you already use.") }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro tube(l) -%}
+{% set t = l.scenes.tube %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-tube-cap">
+  <div class="ls-card ls-tube">
+    <div class="ls-ask">
+      <small class="muted">{{ _("Self-test") }} · Analysis</small>
+      <b>{{ _("How much did you recall, without your notes?") }}</b>
+      <span class="ls-opts"><span class="ls-chip">{{ _("Nothing") }}</span><span class="ls-chip">{{ _("Some") }}</span><span class="ls-chip is-pick" data-at="1100" data-tap>{{ _("Most") }}</span><span class="ls-chip">{{ _("All") }}</span></span>
+      <p class="ls-banked" data-at="2600" data-burst><b>+{{ t.days }}</b><span>{{ _n("day above {p} %", "days above {p} %", t.days, p=t.target) }}</span></p>
+    </div>
+    <div class="ls-glass"><span class="ls-line90"></span><span class="ls-water" data-at="1300" data-prop="height" data-from="{{ t.before }}%" data-to="{{ t.after }}%"></span><b data-at="1300" data-count="{{ t.before }}">{{ t.after }} %</b></div>
+  </div>
+  <figcaption id="ls-tube-cap">{{ _("A topic seen once, tested {d} days later at {before} %: recalled, it is back at {after} % and stays above {p} % for {n} days. FSRS-6's estimate with average weights.", d=t.after_days, before=t.before, after=t.after, p=t.target, n=t.days) }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro cards(l) -%}
+{% set c = l.scenes.cards %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-cards-cap">
+  <div class="ls-card ls-notes">
+    <div class="ls-page">
+      {% for n in c.lines %}<p>{% if n.term %}<mark data-at="{{ n.at }}">{{ n.term }}:</mark> {{ n.rest }}{% else %}{{ n.text }}{% endif %}</p>{% endfor %}
+    </div>
+    <div class="ls-deck">
+      {% for k in c.cards %}<span class="ls-fc f{{ loop.index }}" data-at="{{ k.at }}"><b>{{ k.front }}</b><small>{{ k.back }}</small></span>{% endfor %}
+      <p class="ls-count" data-at="{{ c.done_at }}" data-burst><b data-at="{{ c.done_at }}" data-count="0">{{ c.cards | length }}</b> {{ _("cards, ready to review") }}</p>
+    </div>
+  </div>
+  <figcaption id="ls-cards-cap">{{ _("Notes written “term: definition” become cards by rules, for free; the cards here are what the rules read in these notes.") }}</figcaption>
+</figure>
+{%- endmacro %}

@@ -103,8 +103,8 @@ class TaskGuess:
     due: str  # local "YYYY-MM-DDTHH:MM", as the new-task form takes it, or ""
     hours: float | None
     course: str
-    at: str = ""  # D206: "HH:MM" when the sentence said an hour, else ""
-    every: int | None = None  # D205: the weekday it comes back on (0 Monday), 7 every day
+    at: str = ""  # D202: "HH:MM" when the sentence said an hour, else ""
+    every: int | None = None  # D202: the weekday it comes back on (0 Monday), 7 every day
 
     def as_dict(self) -> dict:
         return {"name": self.name, "due": self.due, "hours": self.hours, "course": self.course}
@@ -199,7 +199,7 @@ def read_task(words: str, *, today: date, courses: Sequence[str] = ()) -> TaskGu
     elif take(_LEAD + r"\b(?:an hour|one hour|une heure|1 heure|un'ora|un ora|una hora)\b"):
         hours = 1.0
 
-    # D205: a line that comes back, "every Monday", "chaque lundi", "tous les lundis", "ogni
+    # D202: a line that comes back, "every Monday", "chaque lundi", "tous les lundis", "ogni
     # lunedì", "tutti i lunedì", "cada lunes", "todos los lunes", or every day; its first day
     # is the next such day, today included.
     every: int | None = None

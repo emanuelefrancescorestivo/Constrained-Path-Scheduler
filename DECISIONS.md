@@ -8019,3 +8019,52 @@ notion page, when hovering on a thing a bin should show to delete, formatting co
 - **Dragging** needs the script and a pointer. Without them a line still moves up and down through its
   menu, and a card on a phone stays in its column.
 - **Browser check:** in Chromium only, at 1800px dark, the board and phone size.
+
+## D203. The front page's scenes: seven small films of what the app does
+
+**Asked.** The owner, on the front page: "more animations like the ones that fill the calendar, even if
+only for the landing page and not really in the app, to give the idea of what happens in the app and
+draw students in". All six proposed scenes were chosen, "+ some motivation on seeing your grades
+increase as a positive correlation with developing good studying habits", then "even more dopaminergic
+and motivating".
+
+**Chosen.**
+- **Seven scenes** (`_landing_scenes.html`), each a dark card that plays once as it comes into view and
+  again when scrolled back to (`scenes.js`):
+  - a week's streak lighting up, a day missed and repaired, the streak badge unlocked;
+  - the marks of students who test themselves against those who only reread;
+  - Studying now: a classmate joined, a cheer, a streak kept in two;
+  - the same day twice, an ordinary review app's fixed hours on top of the classes, and the plan's
+    sessions in the gaps;
+  - three steps: the timetable in, its exams found, the sessions on the calendar;
+  - a self-test refilling a topic's memory;
+  - notes becoming cards.
+- **Rewards that are seen:** points that float up, numbers that count, confetti at the moments that
+  reward (a badge, a joined friend, the marks), a tap's ring on the button pressed. Nothing loops (D93).
+- **Their numbers are the app's** (`service._landing_scenes`, inside `landing_view`):
+  - the streak: 10 points a day (`POINTS_DONE`), the 25-minute repair (`REPAIR_MINUTES`), and the tier
+    the streak family gives for seven days (silver, D189);
+  - the tube: a topic seen once and recalled "good", tested when FSRS-6 puts it at 72 % (17 days), then
+    above 90 % for 30 days;
+  - the cards: what D84's rules read in the scene's notes, in each language;
+  - the marks: Yang and colleagues (2021, docs/REFERENCES.md yang2021), 222 classroom studies and 48,478
+    students, testing raised achievement by g = 0.499. With bell-shaped marks, the average student who
+    tests themselves scores above Φ(0.499) = 69 % of those who only reread.
+- **Complete without motion:** each scene is drawn finished in the page. Only the script, with motion
+  on, sets its parts back and brings them in. Without it, or under reduced motion, every scene stands
+  complete, as D188's do.
+- **Four screenshots fewer:** the scenes take the place of Progress, Community, a course's page and
+  setting up as pictures (in four languages, light and dark: 32 files). Today keeps its two.
+
+**Rejected.**
+- **A grade that rises for one student:** the app does not see marks, and a single line that climbs
+  would be a promise. The scene shows a study's average over many classrooms and says so.
+- **Video files:** heavier, one per language and theme, and not drawn from the app's numbers.
+
+**Disclosed.**
+- The people, days and courses are made up; the captions say so.
+- The marks figure is an average of many studies, not a promise; how much it carries to one student is
+  not known, and the app never sees marks.
+- The tube is FSRS-6's estimate with average weights.
+- Checked in Chromium only, at 1440 × 900 and phone size, light and dark, with motion and without, in
+  English, French, Italian and Spanish.

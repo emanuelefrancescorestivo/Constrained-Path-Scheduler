@@ -4542,13 +4542,13 @@ def send_due_reminders(
     return reached
 
 
-TODO_REMIND_LATE = timedelta(minutes=5)  # D206: a line's reminder still goes this long after its hour
+TODO_REMIND_LATE = timedelta(minutes=5)  # D202: a line's reminder still goes this long after its hour
 
 
 def _send_line_reminders(
     where: Store, subscription: Subscription, now: datetime, key: Any, subject: str, send: _reminders.Sender
 ) -> int:
-    """D206: a to-do line written with an hour reminds at that hour, once, whatever the
+    """D202: a to-do line written with an hour reminds at that hour, once, whatever the
     sessions' reminders are set to: the student asked for it. A server asleep then sends it
     up to five minutes late, never later."""
     zone = _zone(subscription.options["tz"])
@@ -6572,7 +6572,7 @@ def _todo_line(subscription: Subscription, line: str, now: datetime) -> tuple[di
     if guess.every is not None:
         item["every"] = guess.every
     if guess.at and not guess.hours:
-        # D206: an hour without hours of work is a reminder at that hour, on its day, or
+        # D202: an hour without hours of work is a reminder at that hour, on its day, or
         # today (tomorrow once the hour has passed) when it names none.
         day = date.fromisoformat(guess.due[:10]) if guess.due else today
         at = datetime.combine(day, time.fromisoformat(guess.at), zone)
@@ -6661,7 +6661,7 @@ def _todo_task_done(subscription: Subscription, item: dict, done: bool, now: dat
 
 
 def _next_time(item: Mapping, today: date) -> date:
-    """D205: the day a line that comes back comes back: the next such day after its own day
+    """D202: the day a line that comes back comes back: the next such day after its own day
     (or today, if that is later)."""
     base = max(date.fromisoformat(item["day"]) if item.get("day") else today, today)
     every = int(item["every"])
@@ -6673,7 +6673,7 @@ def _next_time(item: Mapping, today: date) -> date:
 def tick_todo(
     subscription: Subscription, item: str, done: bool, *, now: datetime | None = None
 ) -> Subscription:
-    """A line done, or not; its planned task with it. A line that comes back (D205) is
+    """A line done, or not; its planned task with it. A line that comes back (D202) is
     written again on its next day, once, with its own task if it had hours."""
     now = now or datetime.now(UTC)
     items = _mind(subscription)
@@ -17641,6 +17641,7 @@ def landing_view() -> dict:
         "coach_free": COACH_FREE_A_DAY,
         "week": landing_week(),
         "streak": LANDING_STREAK,
+        "scenes": _landing_scenes(),  # D203
         # D191: you climb into the top three as the story is scrolled, from the points before
         # a session done and vouched for; the reader's own tick above adds one more session.
         "climb": {
@@ -17649,6 +17650,126 @@ def landing_view() -> dict:
             "tap": me_points + POINTS_DONE,
             "gain": POINTS_DONE + POINTS_PROOF,
         },
+    }
+
+
+# D203: the front page's scenes (the owner: "more animations like the ones that fill the
+# calendar", then "even more dopaminergic and motivating"). Their numbers come from the app's
+# own rules and model, and the marks scene's from one study, so the pitch and the app agree.
+LANDING_SCENE_DAYS = 7  # the made-up week of the streak scene
+LANDING_SCENE_MISSED = 3  # its day missed, then repaired (Thursday)
+LANDING_SCENE_TOPICS = 11  # the made-up course's topics, all on track at the end
+LANDING_TUBE_FROM = 0.72  # the recall a topic seen once has fallen to when it is tested
+# Yang, Luo, Vadillo, Yu and Shanks (2021), docs/REFERENCES.md yang2021: 222 classroom studies,
+# 48,478 students, testing raised achievement by g = 0.499.
+LANDING_TESTING = (0.499, 222, 48478)
+LANDING_TESTING_WEEKS = 8
+LANDING_EXAM_DAYS = (date(2027, 2, 2), date(2027, 2, 4))  # the made-up exams of the steps scene
+
+
+def _thousands(n: int) -> str:
+    """A whole number with its thousands marked as the language does."""
+    text = f"{n:,}"
+    lang = current_language()
+    return (
+        text.replace(",", " ") if lang == "fr" else text.replace(",", ".") if lang in ("it", "es") else text
+    )
+
+
+def _landing_notes() -> list[str]:
+    """The notes of the cards scene, in the page's language."""
+    return [
+        _("Linear algebra · lecture 6"),
+        _("Eigenvalue: a number λ such that Av = λv for a non-zero vector v."),
+        _("Eigenvectors of distinct eigenvalues are independent."),
+        _("Rank: the dimension of the image of A."),
+        _("Kernel: the vectors that A sends to zero."),
+    ]
+
+
+def _landing_scenes() -> dict:
+    """The scenes' numbers: the streak's week (the badge the app gives for it), the marks of
+    those who test themselves (Phi of the study's g), a self-test's refill (FSRS-6), and the
+    cards the notes give by D84's rules."""
+    family = next(f for f in _crests.FAMILIES if f.key == "streak")
+    tier = sum(1 for t in family.thresholds if t <= LANDING_SCENE_DAYS)
+    metal = _crests.TIERS[tier - 1]
+    monday = date(2026, 1, 5)
+    times = [300, 700, 1100, 3000, 3400, 3800, 4200]
+    days = [
+        {"name": _i18n.weekday_name(monday + timedelta(days=k), short=True), "at": times[k],
+         "fixed": k == LANDING_SCENE_MISSED}
+        for k in range(LANDING_SCENE_DAYS)
+    ]  # fmt: skip
+    # The marks: a bell curve over -3 to 3.6 standard deviations, and the same shifted by g.
+    g, studies, students = LANDING_TESTING
+    x0, x1, width, height, base = -3.0, 3.6, 500.0, 150.0, 170.0
+    sx = width / (x1 - x0)
+    path = "M" + " L".join(
+        f"{(z - x0) * sx:.1f},{base - height * math.exp(-z * z / 2):.1f}"
+        for z in (x0 + (x1 - x0) * i / 120 for i in range(121))
+    )
+    beats = round(100 * 0.5 * (1 + math.erf(g / math.sqrt(2))))
+    # A topic seen once, tested when its recall has fallen to about 72 %, recalled ("good").
+    first = FSRS_6.initial_state(Grade.GOOD)
+    after_days = round(FSRS_6.interval(first.stability, LANDING_TUBE_FROM))
+    before = round(100 * FSRS_6.retrievability(after_days, first.stability))
+    again = FSRS_6.review(first, after_days, Grade.GOOD)
+    target = flashcards.RETENTION
+    holds = math.floor(FSRS_6.interval(again.stability, target))
+    # The notes and the cards D84's rules read in them.
+    lines, cards = [], []
+    at = 600
+    for text in _landing_notes():
+        found = _cardmaker.read(text)
+        if found and text.startswith(found[0].front):
+            rest = text[len(found[0].front) :].lstrip(" :\u00a0\u202f")
+            lines.append({"term": found[0].front, "rest": rest, "at": at})
+            cards.append({"front": found[0].front, "back": found[0].back, "at": at + 450})
+            at += 900
+        else:
+            lines.append({"text": text})
+    return {
+        "streak": {
+            "days": LANDING_SCENE_DAYS,
+            "days_list": days,
+            "per_day": POINTS_DONE,
+            "points": POINTS_DONE * LANDING_SCENE_DAYS,
+            "repair": REPAIR_MINUTES,
+            "topics": LANDING_SCENE_TOPICS,
+            "course": "Algebra",
+            "badge_at": times[-1] + 500,
+            "badge": {
+                "name": _(family.name),
+                "icon": family.icon,
+                "metal": metal,
+                "roman": _crests.TIER_ROMAN[tier - 1],
+                "tier": {"bronze": _("Bronze"), "silver": _("Silver"), "gold": _("Gold"), "ice": _("Ice")}[
+                    metal
+                ],
+            },
+        },
+        "grades": {
+            "g": format_number(g, 3),
+            "studies": studies,
+            "students": _thousands(students),
+            "beats": beats,
+            "weeks": LANDING_TESTING_WEEKS,
+            "path": path,
+            "base": base,
+            "top": round(base - height - 6, 1),
+            "mean": round((0 - x0) * sx, 1),
+            "shift": round(g * sx, 1),
+        },
+        "tube": {
+            "before": before,
+            "after": 100,
+            "after_days": after_days,
+            "days": holds,
+            "target": round(100 * target),
+        },
+        "cards": {"lines": lines, "cards": cards, "done_at": at + 300},
+        "exam_days": [_i18n.format_date(d, "day_short") for d in LANDING_EXAM_DAYS],
     }
 
 

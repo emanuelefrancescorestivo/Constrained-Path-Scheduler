@@ -321,7 +321,7 @@ def test_deleting_a_plan_keeps_the_cost_and_forgets_the_plan(tmp_path, sub):
 
 
 def test_a_line_that_comes_back_and_an_hour_said_in_four_languages():
-    # D205, D206: "every Monday" in English, French, Italian and Spanish, every day, and an hour.
+    # D202: "every Monday" in English, French, Italian and Spanish, every day, and an hour.
     today = date(2026, 11, 25)  # a Wednesday
     cases = {
         "every Monday exercises": (0, "2026-11-30"),

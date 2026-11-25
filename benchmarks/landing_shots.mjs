@@ -34,10 +34,6 @@ const PYTHON = process.env.PYTHON || (process.platform === "win32" ? ".venv\\Scr
 const SHOTS = [
   ["today-laptop", "laptop", "2", ""],
   ["today-phone", "phone", "2", ""],
-  ["progress-phone", "phone", "2", "/progress"],
-  ["community-phone", "phone", "2", "/community"],
-  ["course-laptop", "laptop", "2", "/courses/0"],
-  ["setup-phone", "phone", "1", "/settings?new=1"],
 ];
 const SCREENS = {
   laptop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },
