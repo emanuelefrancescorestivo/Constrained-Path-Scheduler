@@ -8072,7 +8072,10 @@ and motivating".
 ## D204. A study group's list
 
 **Asked.** Proposal 12 of the to-do page, approved with the other nine ("Approvo: 7, 8, 9, 10, 11, 12,
-13, 14, 15, 16"): a list kept with the study group. D202 left it for its own slice.
+13, 14, 15, 16"): a list kept with the study group. D202 left it for its own slice. Then, for the front
+page: "inserisci la todo list nella landing page come una soluzione innovativa su lavori di gruppo
+perché potete condividerne una" (put the to-do list on the front page as a new answer to group work,
+because you can share one).
 
 **Chosen.**
 - **One list per group,** on the group's page (`#list`): any member writes a line, with a day if
@@ -8088,6 +8091,11 @@ and motivating".
 - **Beside the to-do page:** each group's open lines counted, the first three, and the list a tap
   away.
 - **Limits:** 100 lines a group, 200 characters a line.
+- **On the front page:** under "Can I do it with my friends?", a line says group work gets one list, and an
+  eighth scene (D203's kind) plays it: three made-up classmates, a line sent from "your list", each
+  line ticked off by someone other than who wrote it. The caption gives the group's size from the
+  app (`social.GROUP_SIZE`). "New" is the page's word for it; no claim is made that no other app does
+  this.
 - **The data** (`group_lines`):
   - a group that goes takes its list;
   - a member who leaves keeps their lines on it, for the others;

@@ -17905,6 +17905,35 @@ def _landing_scenes() -> dict:
             "target": round(100 * target),
         },
         "cards": {"lines": lines, "cards": cards, "done_at": at + 300},
+        # D204: a study group's list, each line ticked off by someone other than who wrote it.
+        "group": {
+            "name": _("Thursday library"),
+            "members": social.GROUP_SIZE,
+            "done_at": 3700,
+            "lines": [
+                {
+                    "text": _("Book a room for Thursday"),
+                    "by": "@maya",
+                    "at": 300,
+                    "tick": 2500,
+                    "ticked": _("ticked off by @{handle}", handle="tom"),
+                },
+                {
+                    "text": _("Ask the teacher about exercise 4"),
+                    "by": "@tom",
+                    "at": 650,
+                    "tick": 3100,
+                    "ticked": _("ticked off by you"),
+                },
+                {
+                    "text": _("Bring the past paper"),
+                    "by": _("you, from your list"),
+                    "at": 1800,
+                    "tick": 3700,
+                    "ticked": _("ticked off by @{handle}", handle="maya"),
+                },
+            ],
+        },
         "exam_days": [_i18n.format_date(d, "day_short") for d in LANDING_EXAM_DAYS],
     }
 

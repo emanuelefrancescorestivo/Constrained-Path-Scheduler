@@ -438,7 +438,7 @@ a real browser at desktop and phone widths; the Python tests do not run JavaScri
   session is kept; four blocks, a first week, two weeks and a week before the last exam are choices. A last pass
   before each exam was measured (`benchmarks/last_pass.py`) and rejected: on the benchmark semester
   it never fired over 3 to 21 days, and lost a topic over 28. Checked in Chromium only.
-- A study group's list (D204): members see who wrote and ticked each line, said on the page and the privacy page (the
+- A study group's list (D204), also an eighth scene on the front page: members see who wrote and ticked each line, said on the page and the privacy page (the
   owner's to approve, C2); no notice when a line is added; 100 lines and 200 characters are choices; a line sent from
   one's own list then lives apart. Checked in Chromium only, at 1280 px and phone size, light and dark.
 - The whole to-do page (D202): the list shared with a study group (proposal 12) came with D204; "every" is read in four languages, an hour as the new-task sheet reads one (English "at 10" alone is not one); a note without a course offers no card; today's fit counts the hours written in the lines' tasks against the plan's free time; dragging needs a pointer and the script. Checked in Chromium only, at 1800 px dark, the board and phone size.
