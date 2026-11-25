@@ -3041,12 +3041,22 @@ def create_app(config: Config | None = None) -> FastAPI:
         # Its exam, changed here (D103): the row the setting up form has for it.
         values = service.setup_view(subscription)
         exam = values["subjects"][index] if index < len(values["subjects"]) else None
+        # Its tests the timetable does not show (D194), and where they are changed.
+        tests = next(
+            (
+                {**c, "n": n}
+                for n, c in enumerate(service.tests_view(subscription, config.clock())["courses"], 1)
+                if c["course"].casefold() == view["course"].casefold()
+            ),
+            None,
+        )
         return page(
             request,
             "course.html",
             status,
             token=subscription.token,
             view=view,
+            tests=tests,
             why_tip=service.tip_here(subscription, "course", config.clock(), course=view["course"]),  # D135
             tab="courses",
             exam_row=exam,
@@ -4015,6 +4025,63 @@ def create_app(config: Config | None = None) -> FastAPI:
         service.log_event(store, token, "lecture", fields.get("action", ""))
         week = fields.get("w", "0")
         return RedirectResponse(f"/p/{token}/agenda?w={int(week) if week.lstrip('-').isdigit() else 0}", 303)
+
+    # D194: tests the timetable does not show, course by course.
+    @app.get("/p/{token}/tests", response_class=HTMLResponse)
+    def tests_page(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "tests.html",
+            token=token,
+            tab="courses",
+            view=service.tests_view(subscription, config.clock()),
+        )
+
+    @app.post("/p/{token}/tests/{what}")
+    async def tests_change(request: Request, token: str, what: str) -> Response:
+        subscription = load(token)
+        if subscription is None or what not in ("quizzes", "add", "remove"):
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=8)
+        fields = {k: str(v) for k, v in form.items()}
+        course, now = fields.get("course", ""), config.clock()
+
+        def change(current: service.Subscription) -> service.Subscription:
+            if what == "quizzes":
+                return service.set_quizzes(current, course, fields.get("on") == "1", now=now)
+            if what == "add":
+                return service.add_test(
+                    current,
+                    course,
+                    fields.get("day", ""),
+                    fields.get("time", ""),
+                    exempt=fields.get("exempt") == "1",
+                    now=now,
+                )
+            return service.remove_test(current, course, fields.get("when", ""), now=now)
+
+        try:
+            service.update_subscription(store, token, change)
+        except service.ServiceError as error:
+            fresh = load(token) or subscription
+            return page(
+                request,
+                "tests.html",
+                400,
+                token=token,
+                tab="courses",
+                view=service.tests_view(fresh, now),
+                error=str(error),
+            )
+        service.log_event(store, token, "tests", what)
+        place = fields.get("at", "")
+        anchor = f"#{place}" if re.fullmatch(r"t-\d+", place) else ""
+        return RedirectResponse(f"/p/{token}/tests{anchor}", 303)
 
     @app.post("/p/{token}/sessions/{sid}/move")
     async def move(

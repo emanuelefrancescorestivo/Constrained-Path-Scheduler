@@ -6438,3 +6438,28 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .pause-ideas li + li { border-top: 1px solid var(--line); }
 .focus-pause .hint { margin: 0; }
 .focus-pause form { width: 100%; margin: 0; }
+
+/* D194: tests the timetable does not show, course by course. */
+.tests-course { margin-bottom: 16px; }
+.tests-course h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.tests-course h3 { margin: 14px 0 6px; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+.tests-course .widget-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
+.tests-course .widget-row .grow { flex: 1 1 auto; min-width: 0; }
+.tests-course .widget-row input { flex: none; margin: 0; }
+.tests-course .widget-row b { display: block; }
+.tests-course .widget-row small { display: block; color: var(--muted); }
+.tests-list { margin: 0 0 8px; padding: 0; list-style: none; }
+.tests-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 0.5px solid var(--line); }
+.tests-list li:first-child { border-top: 0; }
+.tests-list .grow { flex: 1 1 auto; min-width: 0; }
+.tests-list b, .tests-list small { display: block; }
+.tests-list small { color: var(--muted); }
+.tests-list li.past { opacity: 0.6; }
+.midterm-add { display: grid; gap: 10px; margin-top: 6px; }
+.midterm-when { display: flex; flex-wrap: wrap; gap: 10px; }
+.midterm-when label { display: grid; gap: 4px; flex: 1 1 140px; font-size: 0.85rem; color: var(--muted); }
+.midterm-add .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.midterm-add .btn { justify-self: start; }
+.exam-tests { margin: 6px 0 0; }
+.exam-tests a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent-ink); }
+.exam-tests svg { width: 16px; height: 16px; flex: none; }

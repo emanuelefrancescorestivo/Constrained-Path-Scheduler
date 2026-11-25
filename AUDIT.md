@@ -1422,3 +1422,9 @@ counts its lectures from the plan's first day against the credits' share of the 
 label that wrapped, so the two cards' numbers sat at different heights; and the badges arrived by
 scaling from 70 %, so a row seen half way was a row of different sizes. Status: fixed with D190: a
 card's number sits above its words, and the crests and cards only fade in, never scale.
+
+**129. Spark's tour still said classes wear their courses' colours.** Found on 2026-11-25 in the
+browser check of D194: D192 made the calendar calm (classes grey, sessions in the accent, tests red),
+and the calendar's first tour step still read "Classes in their courses' colours, and the sessions I
+planned around them." Status: fixed with D194: "Your classes in grey, the sessions I planned around
+them in colour, tests in red", in French and Italian too.

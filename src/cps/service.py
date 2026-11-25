@@ -469,6 +469,14 @@ TEST_KINDS = ("quiz", "mock", "partial")
 # The preparation a quiz brings, as a task due when it starts: a short self-test of
 # what the course has taught, which is what a quiz rewards [ref:yang2021].
 QUIZ_PREPARATION_HOURS = 1.0
+# D194: tests the timetable does not show. A course with quizzes in class, announced
+# or not, keeps each week of its lectures above QUIZ_READY_RECALL for QUIZ_READY_DAYS
+# after it is taught (a quiz asks about what was taught lately); a midterm the student
+# gives is a partial exam (D61) added to the timetable, MIDTERM_LENGTH long when no end
+# is given. The two weeks and the 95 % are choices, measured by benchmarks/quiz_ready.py.
+QUIZ_READY_DAYS = 14
+QUIZ_READY_RECALL = 0.95
+MIDTERM_LENGTH = timedelta(hours=2)
 
 
 def test_label(kind: str, summary: str) -> str:
@@ -642,6 +650,24 @@ def analyse_calendar(
             return change["action"] if change["action"] in TEST_KINDS else "skipped"
 
         tagged = [(e, changed(e, source)) for e, source in tagged]
+        # A test the timetable does not have, added by the student (D194): busy, and a
+        # test like a class marked as one.
+        horizon = (
+            datetime.combine(start, time(0, 0), tzinfo=zone_),
+            datetime.combine(start + timedelta(days=days), time(0, 0), tzinfo=zone_),
+        )
+        added = [
+            (
+                BusyEvent(datetime.fromisoformat(c["at"]), datetime.fromisoformat(c["end"]), c["summary"]),
+                c["action"],
+            )
+            for c in lecture_changes
+            if c.get("added") and c.get("action") in TEST_KINDS
+        ]
+        tagged = sorted(
+            tagged + [(e, kind) for e, kind in added if horizon[0] <= e.start < horizon[1]],
+            key=lambda pair: (pair[0].start, pair[0].end),
+        )
     if commute_minutes:
         campus = [e for e, source in tagged if source in ("calendar", *TEST_KINDS)]
         campus += busy_from_table([r for r in rows if r.kind == "class"], start, days, tz)
@@ -2580,6 +2606,17 @@ def change_lecture(
         raise InvalidInput(_("this class is not in your timetable any more")) from None
     if start.tzinfo is None:
         start = start.replace(tzinfo=zone)
+    if action == "restore":
+        # A test the student added (D194) is not in the timetable: restoring it removes it.
+        added = [
+            c
+            for c in options.get("lecture_changes", ())
+            if c.get("added")
+            and datetime.fromisoformat(c["at"]) == start
+            and which in (c["summary"], lecture_ref(c["summary"]))
+        ]
+        if added:
+            return remove_test(subscription, added[0]["summary"], added[0]["at"], now=now)
     text = subscription.ics_text
     local = start.astimezone(zone)
     day = _events(text, (), local.date(), 1, options["tz"]) if text is not None else []
@@ -2643,6 +2680,179 @@ def change_lecture(
         change["task"] = task.name
     changes.append(change)
     return revise_subscription(subscription, tasks=tasks, lecture_changes=changes, now=now, strict=False)
+
+
+# --------------------------------------------------------------------------- #
+# Tests the timetable does not show (DECISIONS.md D194)
+# --------------------------------------------------------------------------- #
+
+
+def tested_courses(subscription: Subscription) -> list[str]:
+    """The courses a student can say have tests the timetable does not show: those
+    with an exam the plan prepares for, in the order of their colours."""
+    if subscription.plan is None:
+        return [s["name"] for s in subscription.subjects]
+    plan = PlanReport.from_dict(subscription.plan)
+    planned = {x.name.casefold() for x in plan.subjects}
+    return [name for name in course_names(subscription) if name.casefold() in planned]
+
+
+def _known_course(subscription: Subscription, course: str) -> str:
+    wanted = course.strip().casefold()
+    for name in tested_courses(subscription):
+        if name.casefold() == wanted:
+            return name
+    raise InvalidInput(_("choose one of your courses with an exam"))
+
+
+def set_quizzes(
+    subscription: Subscription, course: str, on: bool, *, now: datetime | None = None
+) -> Subscription:
+    """Say that `course` has quizzes in class, announced or not (`on`), or not: its
+    recent weeks are kept ready (`QUIZ_READY_RECALL` for `QUIZ_READY_DAYS` after each is
+    taught). The plan is made again at once."""
+    name = _known_course(subscription, course)
+    prefs = dict(subscription.options.get("preferences", {}))
+    ready = [c for c in prefs.get("quiz_ready") or () if c.casefold() != name.casefold()]
+    if on:
+        ready.append(name)
+    prefs["quiz_ready"] = sorted(ready)
+    asked = sorted({*(subscription.options.get("tests_asked") or ()), name})
+    changed = replace(
+        subscription, options={**subscription.options, "preferences": prefs, "tests_asked": asked}
+    )
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def add_test(
+    subscription: Subscription,
+    course: str,
+    day: str,
+    at: str = "",
+    *,
+    until: str = "",
+    exempt: bool = False,
+    now: datetime | None = None,
+) -> Subscription:
+    """A midterm of `course` the timetable does not have, on `day` (YYYY-MM-DD) at `at`
+    (HH:MM; 09:00 when left out) until `until` (`MIDTERM_LENGTH` later when left out): a
+    partial exam (D61), practised for and kept free around (D183); `exempt` when
+    passing it takes its material off the final. The plan is made again at once."""
+    now = now or datetime.now(UTC)
+    name = _known_course(subscription, course)
+    zone = _zone(subscription.options["tz"])
+    try:
+        when = date.fromisoformat(day)
+        begin = time.fromisoformat(at or "09:00")
+        end_time = time.fromisoformat(until) if until else None
+    except ValueError:
+        raise InvalidInput(_("give the midterm's day, and its time if you know it")) from None
+    start = datetime.combine(when, begin, tzinfo=zone)
+    end = datetime.combine(when, end_time, tzinfo=zone) if end_time else start + MIDTERM_LENGTH
+    if start <= now:
+        raise InvalidInput(_("this day is already behind you"))
+    if end <= start:
+        raise InvalidInput(_("a test ends after it begins"))
+    finals = (
+        [
+            datetime.fromisoformat(x.exam)
+            for x in PlanReport.from_dict(subscription.plan).subjects
+            if x.name.casefold() == name.casefold()
+        ]
+        if subscription.plan is not None
+        else []
+    )
+    if finals and start >= max(finals):
+        raise InvalidInput(_("a midterm comes before the course's exam"))
+    changes = [dict(c) for c in subscription.options.get("lecture_changes", ())]
+    if any(
+        c.get("added") and datetime.fromisoformat(c["at"]) == start and c["summary"] == name for c in changes
+    ):
+        raise InvalidInput(_("this test is there already"))
+    changes.append(
+        {
+            "at": _iso(start),
+            "end": _iso(end),
+            "summary": name,
+            "action": "partial",
+            "exempt": bool(exempt),
+            "added": True,
+        }
+    )
+    asked = sorted({*(subscription.options.get("tests_asked") or ()), name})
+    changed = replace(subscription, options={**subscription.options, "tests_asked": asked})
+    return revise_subscription(changed, lecture_changes=changes, now=now, strict=False)
+
+
+def remove_test(
+    subscription: Subscription, course: str, at: str, *, now: datetime | None = None
+) -> Subscription:
+    """Take back a test the student added (D194). The plan is made again at once."""
+    changes = [dict(c) for c in subscription.options.get("lecture_changes", ())]
+    try:
+        when = datetime.fromisoformat(at)
+    except ValueError:
+        raise InvalidInput(_("this test is not in your plan")) from None
+    kept = [
+        c
+        for c in changes
+        if not (
+            c.get("added")
+            and c["summary"].casefold() == course.strip().casefold()
+            and datetime.fromisoformat(c["at"]) == when
+        )
+    ]
+    if len(kept) == len(changes):
+        raise InvalidInput(_("this test is not in your plan"))
+    return revise_subscription(subscription, lecture_changes=kept, now=now, strict=False)
+
+
+def tests_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """Each course with an exam: whether it has quizzes in class, the midterms the
+    student added (each with its day, time and whether it takes material off the final),
+    and those of the timetable marked as partial exams (D61), for the page that asks."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    ready = {c.casefold() for c in subscription.options.get("preferences", {}).get("quiz_ready") or ()}
+    asked = {c.casefold() for c in subscription.options.get("tests_asked") or ()}
+    changes = subscription.options.get("lecture_changes", ())
+    courses = []
+    for name in tested_courses(subscription):
+        added = sorted(
+            (c for c in changes if c.get("added") and c["summary"].casefold() == name.casefold()),
+            key=lambda c: c["at"],
+        )
+        marked = [
+            c
+            for c in changes
+            if not c.get("added")
+            and c.get("action") == "partial"
+            and (course_of(c["summary"]) or short_title(c["summary"])).casefold() == name.casefold()
+        ]
+        courses.append(
+            {
+                "course": name,
+                "quizzes": name.casefold() in ready,
+                "asked": name.casefold() in asked,
+                "midterms": [
+                    {
+                        "at": c["at"],
+                        "day": format_date(_local(c["at"], zone).date(), "long"),
+                        "time": f"{_local(c['at'], zone):%H:%M}",
+                        "exempt": bool(c.get("exempt")),
+                        "past": _local(c["at"], zone) <= now.astimezone(zone),
+                    }
+                    for c in added
+                ],
+                "marked": len(marked),
+            }
+        )
+    return {
+        "courses": courses,
+        "ready_days": QUIZ_READY_DAYS,
+        "ready_recall": round(QUIZ_READY_RECALL * 100),
+        "today": now.astimezone(zone).date().isoformat(),
+    }
 
 
 def revise_subscription(
@@ -3717,6 +3927,14 @@ FIT_QUESTIONS = (
         "Answer",
     ),
     (
+        "tests",
+        "Tests your timetable doesn't show",
+        "Quizzes in class, announced or not, or a midterm it leaves out: tell the plan, course by course, "
+        "and it gets you ready for them.",
+        "/tests",
+        "Tell the plan",
+    ),
+    (
         "deadlines",
         "Bring in your deadlines",
         "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan "
@@ -3750,6 +3968,9 @@ def fit_question(subscription: Subscription, now: datetime | None = None) -> dic
     settled = set(state.get("done") or ()) | set(state.get("later") or ())
     if subscription.options.get("deadlines_url"):
         settled.add("deadlines")
+    # D194: asked once there is a course with an exam, and not once one was answered.
+    if subscription.options.get("tests_asked") or not subscription.subjects:
+        settled.add("tests")
     for key, title, says, path, button in FIT_QUESTIONS:
         if key not in settled:
             return {"key": key, "title": _(title), "says": _(says), "href": path, "button": _(button)}
@@ -13405,6 +13626,7 @@ def make_schedule(
     pins: Sequence[Mapping] = (),
     model: str = "fsrs-6",
     pauses: Sequence[Mapping] = (),
+    quiz_ready: Sequence[str] = (),
 ) -> PlanReport:
     """The student's week, scheduled by the assistant's rules (`cps.assistant`):
     deadlines first when they get close, exam practice before each exam, self-testing
@@ -13506,6 +13728,8 @@ def make_schedule(
             "model": model,
             # The student's pauses (D126): their days are left free.
             "pauses": [dict(p) for p in pauses],
+            # The courses with quizzes in class (D194): their recent weeks are kept ready.
+            "quiz_ready": sorted({str(c) for c in quiz_ready}),
             # The weeks without classes the timetable has (D184), asked about on Today.
             "holidays": [
                 {"from": a.isoformat(), "to": b.isoformat()}
@@ -13618,6 +13842,8 @@ def _assist(
         if h.kind in _REVIEW_KINDS and h.outcome not in _NO_MEMORY:
             last[h.title] = h
     poor = {name for name, h in last.items() if h.outcome == "lapsed" or h.grade in ("again", "hard")}
+    # Courses with quizzes in class (D194): each week of lectures kept ready while recent.
+    quizzed = {c.casefold() for c in prefs.get("quiz_ready") or ()}
     topics = [
         Topic(
             s["name"],
@@ -13629,6 +13855,9 @@ def _assist(
             s.get("about", s.get("subject", s["name"])),
             weights.get(s.get("subject", s["name"]).casefold(), 1.0),
             s["name"] in poor,
+            s.get("available_day", 0.0) + QUIZ_READY_DAYS
+            if s.get("subject", s["name"]).casefold() in quizzed
+            else 0.0,
         )
         for s in specs
     ]
@@ -13681,6 +13910,7 @@ def _assist(
             rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
             practice_days=prefs["practice_days"],
             review_below=settings.retention,
+            ready_below=max(QUIZ_READY_RECALL, settings.retention),
             model=model,
             weekly_minutes=None if weekly is None else max(minutes, round(weekly * 60)),
             block_minutes=minutes,

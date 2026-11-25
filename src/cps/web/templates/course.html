@@ -122,6 +122,8 @@
   {% elif s.exam %}
   <p class="exam-when">{{ _("Exam: {date}, {when}", date=v.exam.date, when=v.exam.says) if v.exam else s.exam | nice_date }}</p>
   {% endif %}
+  {# D194: the tests its timetable does not show, said in a line, changed on their page. #}
+  {% if tests %}<p class="exam-tests"><a href="/p/{{ token }}/tests#t-{{ tests.n }}">{{ lucide('list-checks') }}<span>{% if tests.quizzes or tests.midterms %}{% if tests.quizzes %}{{ _("Quizzes in class") }}{% endif %}{% if tests.quizzes and tests.midterms %} · {% endif %}{% if tests.midterms %}{{ _n("{n} midterm", "{n} midterms", tests.midterms | length) }}{% endif %}{% else %}{{ _("Tests your timetable doesn't show?") }}{% endif %}</span></a></p>{% endif %}
   <details class="exam-change"{% if opened %} open{% endif %}>
     <summary>{{ _("Change") }}</summary>
   <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/exam" data-autosave>

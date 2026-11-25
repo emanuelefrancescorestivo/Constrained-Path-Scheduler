@@ -7599,3 +7599,68 @@ mode is one tap; a reader who wants the device's back opens the page without `th
 mode chosen on the front page is forgotten by the explaining pages (they follow the device) and after
 a form is sent with an error. Checked in Chromium only, at 1440 × 900 and phone size, light and dark,
 in English, French, Italian and Spanish.
+
+## D194. Tests the timetable does not show
+
+**Asked.** The owner: "we need to really double down on the planning engine and on tailoring
+students needs, checking if there are pop-up quizzes that the .ics file does not include, same with
+midterms and so on".
+
+**Chosen.** A page, `/p/<plan>/tests`, with one card per course that has an exam:
+- **Quizzes in class, announced or not:** a switch, saved as it is flipped.
+- **Midterms:** each one's day, its time, and whether passing it takes its material off the final.
+
+Today asks about it once, second among the questions that make the plan fit (D98), from the day
+after the plan is made, until a course is answered. A course's page says what was given in a line
+under its exam ("Quizzes in class · 1 midterm") and leads to it. A project or a presentation is a
+task, as before; the page says so.
+
+What the plan does with each:
+
+- **Quizzes in class keep the course's recent weeks ready.** For `QUIZ_READY_DAYS` (14) after a
+  week is taught, its self-test comes once its predicted recall falls to `QUIZ_READY_RECALL` (95 %)
+  rather than the plan's target (90 %): one more rule in the assistant (`Topic.ready_until`,
+  `Preferences.ready_below`). The session says why ("Algebra 3 has quizzes in class: a recent week
+  is kept above 95 % …"). Nothing else changes: an older week, and every other course, are planned
+  as before.
+- **A midterm is a partial exam (D61) added to the timetable.** It is a test the student added
+  (`lecture_changes` with `added`), read by `analyse_calendar` as a class marked "partial". So it
+  is:
+  - busy on the calendar, drawn red;
+  - practised for, sized by the weeks taught before it (D46);
+  - kept free an hour before and half an hour after (D183);
+  - and, when passing it takes its material off the final, it splits the course's weeks (D61).
+
+  09:00 and two hours (`MIDTERM_LENGTH`) are taken when no time is given. It is removed from its
+  page, or from the calendar as any class marked as a test.
+
+Measured (`benchmarks/quiz_ready.py`, the sample semester, the product's assistant on FSRS-6 at
+15 hours a week, each course in turn):
+- **Quizzes in class:** the mean predicted recall, at each of the course's classes, of its weeks
+  taught in the 14 days before rises by 0.2 to 2.2 points (Advanced Statistics 0.936 to 0.958). It
+  costs 0 to 6 more self-tests over the semester. Recall at the exams stays within 0.002, and the
+  topics at 90 % stay or rise (45 to 49 for Analysis 3).
+- **A midterm halfway through the semester:** told, it gets 2 sessions of exam practice before it;
+  not told, none. The recall of the weeks before it barely moves (0.945 to 0.957 at most), because
+  the plan already keeps them up.
+
+The value is in the practice and the time kept free, not in a jump in recall.
+
+**Rejected.**
+- **A weekly quiz as its own answer, its weekday's classes marked as quizzes:** a class marked as a
+  test teaches nothing new (D61), and a quiz at the start of a lecture does not stop the lecture.
+  Announced or not, the planner's answer is the same: keep the recent weeks ready.
+- **An hour of preparation before every class of a course with quizzes** (D61's quiz task, for each
+  class): a dozen tasks a course, most for quizzes that never come.
+- **Asking in setting up:** another step before the first plan (D165).
+- **93 % or 97 %:** over the six courses, 95 % gains the most at a class (+1.1 points on average,
+  against +0.7 at 93 % and +0.8 at 97 %), and 97 % costs 0.004 of recall at the exams
+  (`benchmarks/quiz_ready.py --sweep`).
+
+**Disclosed.**
+- The 95 % and the 14 days are choices, the gains the model's estimate with average weights,
+  every review a success.
+- The lowest recall at a class barely moves: a class the day after a lecture leaves no free block
+  between them.
+- A midterm's time defaults to the morning when it is not given.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.

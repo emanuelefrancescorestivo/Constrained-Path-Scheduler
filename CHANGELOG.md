@@ -4,6 +4,11 @@
 
 ### Added
 
+- Tests the timetable does not show (DECISIONS.md D194): for each course, quizzes in class
+  (announced or not) and midterms, on their own page, asked once on Today and said on the
+  course's page. A course with quizzes keeps its recent weeks above 95 % for two weeks. A midterm
+  is a partial exam, practised for and kept free around. Measured by `benchmarks/quiz_ready.py`.
+
 - The front page in four languages, light or dark (DECISIONS.md D193): a language menu and a light or
   dark button in the front page's top bar, without a script or a cookie; the front page, the account's
   pages and their e-mails in Spanish (the app itself stays in English, French and Italian, and says so).

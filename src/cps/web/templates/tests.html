@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Tests your timetable doesn't show") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{# D194: what the timetable leaves out, course by course. Quizzes in class, announced or
+   not, keep each week's lectures ready while they are recent; a midterm given here is a
+   partial exam (D61), practised for and kept free around (D183). With the script the
+   switch saves itself as it is flipped (data-autosave); without it, its button sends it. #}
+<p class="back"><a href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
+<div class="page-title"><h1>{{ _("Tests your timetable doesn't show") }}</h1></div>
+<p class="muted">{{ _("A quiz in class, announced or not, or a midterm the timetable leaves out: tell the plan, and it gets you ready for them.") }}</p>
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+{% for c in view.courses %}{% set ci = loop.index %}
+<section class="card tests-course" id="t-{{ ci }}" aria-labelledby="t-{{ ci }}-name">
+  <h2 id="t-{{ loop.index }}-name">{{ c.course }}</h2>
+  <form method="post" action="/p/{{ token }}/tests/quizzes" data-autosave>
+    <input type="hidden" name="course" value="{{ c.course }}">
+    <input type="hidden" name="at" value="t-{{ loop.index }}">
+    <label class="widget-row" for="q-{{ loop.index }}">
+      <span class="grow"><b>{{ _("Quizzes in class") }}</b><small>{{ _("Announced or not: each week of lectures is kept above {p} % for {n} days after it is taught, with a self-test a little earlier.", p=view.ready_recall, n=view.ready_days) }}</small></span>
+      <input type="checkbox" id="q-{{ loop.index }}" name="on" value="1"{% if c.quizzes %} checked{% endif %}>
+    </label>
+    <p class="hint saved-line" data-saved role="status" hidden></p>
+    <noscript><p><button type="submit" class="btn btn-sm">{{ _("Save") }}</button></p></noscript>
+  </form>
+  <h3>{{ _("Midterms") }}</h3>
+  {% if c.midterms %}
+  <ul class="list tests-list">
+    {% for m in c.midterms %}
+    <li{% if m.past %} class="past"{% endif %}>
+      <span class="grow"><b>{{ m.day }}</b><small>{{ m.time }}{% if m.exempt %} · {{ _("its material is off the final") }}{% endif %}</small></span>
+      <form method="post" action="/p/{{ token }}/tests/remove">
+        <input type="hidden" name="course" value="{{ c.course }}"><input type="hidden" name="when" value="{{ m.at }}"><input type="hidden" name="at" value="t-{{ ci }}">
+        <button type="submit" class="btn btn-plain btn-sm">{{ _("Remove") }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if c.marked %}<p class="hint">{{ _n("{n} class of the timetable is marked as a partial exam.", "{n} classes of the timetable are marked as partial exams.", c.marked) }}</p>{% endif %}
+  <form method="post" action="/p/{{ token }}/tests/add" class="midterm-add">
+    <input type="hidden" name="course" value="{{ c.course }}"><input type="hidden" name="at" value="t-{{ loop.index }}">
+    <div class="midterm-when">
+      <label>{{ _("Day") }}<input type="date" name="day" min="{{ view.today }}" required></label>
+      <label>{{ _("Time") }}<input type="time" name="time" value="09:00"></label>
+    </div>
+    <label class="check-row"><input type="checkbox" name="exempt" value="1"> {{ _("Passing it takes its material off the final exam") }}</label>
+    <button type="submit" class="btn btn-sm">{{ lucide('plus') }}{{ _("Add a midterm") }}</button>
+  </form>
+</section>
+{% else %}
+<p class="card empty">{{ _("No course with an exam yet: give your exams' dates, and each course is asked about here.") }}</p>
+{% endfor %}
+<p class="hint">{{ _("A project or a presentation? Add it as a task with its deadline, and the plan makes time for it.") }} <a href="/p/{{ token }}/tasks">{{ _("Tasks") }}</a></p>
+{% endblock %}
