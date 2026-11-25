@@ -33,8 +33,6 @@ const PYTHON = process.env.PYTHON || (process.platform === "win32" ? ".venv\\Scr
 const SHOTS = [
   ["today-laptop", "laptop", "2", ""],
   ["today-phone", "phone", "2", ""],
-  ["week-laptop", "laptop", "2", "/week"],
-  ["focus-phone", "phone", "2", "/focus"],
   ["progress-phone", "phone", "2", "/progress"],
   ["community-phone", "phone", "2", "/community"],
   ["course-laptop", "laptop", "2", "/courses/0"],

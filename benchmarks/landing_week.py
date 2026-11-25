@@ -22,9 +22,8 @@ def main() -> None:
     week = service.landing_week_compute(sample_path().read_bytes())
     service.LANDING_WEEK_FILE.write_text(json.dumps(week, indent=1) + "\n", encoding="utf-8")
     moved = sum(1 for s in week["sessions"] if s["to"] and (s["to"][0], s["to"][1]) != (s["day"], s["start"]))
-    print(
-        f"{len(week['sessions'])} sessions, {moved} moved, {len(week['busy'])} classes -> {service.LANDING_WEEK_FILE}"
-    )
+    sessions, classes = len(week["sessions"]), len(week["busy"])
+    print(f"{sessions} sessions, {moved} moved, {classes} classes -> {service.LANDING_WEEK_FILE}")
 
 
 if __name__ == "__main__":

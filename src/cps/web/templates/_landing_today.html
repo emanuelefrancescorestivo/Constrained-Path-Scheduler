@@ -24,7 +24,7 @@
       </li>
       {% endfor %}
     </ol>
-    <p class="lt-hint pulse">{{ _("Your turn: tick the last one.") }}</p>
+    <p class="lt-hint">{{ _("Your turn: tick the last one.") }}</p>
     <p class="lt-banner">{{ lucide('sparkles') }}<span>{{ _("Done for today: +{points} points, a {n}-day streak.", points=l.points_done * (w.today | length), n=l.streak + 1) }}</span></p>
   </div>
   <figcaption id="lt-cap">{{ _("Today on that Monday, the plan's own three sessions. Tick the last one yourself: it is how a session is reported in the app, in one tap.") }}</figcaption>

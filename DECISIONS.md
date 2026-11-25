@@ -7494,3 +7494,75 @@ The league and the crests on the page are drawn from constants (`LANDING_LEAGUE`
 made-up classmates from the demo. The pictures were taken again (`benchmarks/landing_shots.mjs`): the
 Progress and Community screens now show the level and the league. Checked in Chromium only, at
 1440 × 900 and phone size, light and dark, in English, French and Italian.
+
+## D191. The front page as a launch: neurons all along, and three scenes made by the app
+
+**Asked.** The owner, after D190: "keep the neurons flowing and sparking all along the landing page",
+animations as it is scrolled "also for leagues, for completed sessions, for the calendar being
+changed", "a masterpiece landing page, like when a new iPhone is launched", "interactive and
+dopaminergic".
+
+**Chosen.**
+- **Neurons all along.** A second field of neurons (`web/neural.py`'s `render_story`, seeded, written to
+  `_neural_story.html`) is held in view behind the whole story, faint behind the words. Its signals
+  follow the scroll, not a clock: each of twelve stretches of the story fires three of them from one
+  neuron to the next, and lights the neuron they reach. Each question's number is a neuron that fires
+  as its question comes in. The hero keeps D58's field.
+- **The calendar being changed (question 1).** A week the app itself planned (`landing_week_compute`):
+  the sample second year, a plan made on its first day, every session reported done until Tuesday
+  morning of its fourth week, then that Tuesday taken off with D126's pause. As the question is read,
+  the classes come in, the self-tests drop into the gaps, a "Day off" stamp lands on Tuesday, and its
+  sessions move, day after day, as the plan moved them: 5 to the next free gaps, 1 to the next week.
+  The week is kept as data (`src/cps/data/landing_week.json`), since a server's package has no
+  examples; `tests/test_landing.py` makes it again from the planner and checks it is the same, and
+  `python benchmarks/landing_week.py` writes it when the planner changes.
+- **Completed sessions (question 2).** Today on that Monday, the plan's own three sessions: as the page
+  passes, the first two are ticked off, each with its +10 and a burst, the ring closing a third at a
+  time; the last is the reader's to tick, a real checkbox: the ring closes, the streak goes from 12 to
+  13 days with a pop, and "Done for today" appears.
+- **The league (question 5).** You start fourth, below a friend; a session done and vouched for (+30)
+  takes you into the top three as the page is scrolled, the "Moving up" line flashing. The reader's
+  tick above counts here too: 180 instead of 170, with its +10 (CSS `:has`, no script).
+- **Held in view on a laptop.** The three questions are held in view while their scene plays, each
+  for one and a half screens of scrolling, as a launch page does; on a phone each scene plays as it
+  passes through the window.
+- The week-laptop and focus-phone pictures went: those two questions now show their scenes.
+
+**Rejected.** A video or Lottie animation: it would not be the app's own plan, and would weigh
+megabytes. A script: the scenes are CSS scroll timelines and `:has`, under the app's
+Content-Security-Policy, and every part reads the same without them. Signals on a clock behind the
+whole page: they would never rest (D93); following the scroll, nothing moves while the page is read.
+An endless "tap here" pulse: the last session's circle is in the accent instead.
+
+**Disclosed.** The scenes follow the scroll only where the browser ties animations to it (Chrome,
+Edge, Safari 26) and motion is on. Elsewhere, or with motion off, the week has a real "Take Tuesday
+off" switch, Today shows the first two sessions done and the last to tick, and the league stands in
+its final order. The tick needs CSS `:has` (every current browser). The week is one the planner made
+on the sample timetable: another week, or another student's, moves differently. The streak (12 days)
+and the league's points are made up, from constants. D132 found movement tied to scrolling unsettling
+on the app's pages; here it is on the front page only, and stops with motion off; whether it unsettles
+anyone was not measured. Checked in Chromium only, at 1440 × 900 and phone size, light and dark, in
+English, French and Italian.
+
+## D192. Calm colours on the calendar
+
+**Asked.** The owner, with a week of the calendar on screen: "having so many colours can feel
+overwhelming, whereas we want a student to navigate easily and confidently the calendar in order to
+plan and study effectively".
+
+**Chosen.** A colour now says what a thing is, never which course: classes grey, the plan's sessions
+in the accent, exams, partial exams, quizzes and mock exams red, lunch and the trip hatched as
+before. The course is in the words, first in each title (D157). It holds in the day, three-day, week
+and month views, the legend and the sidebar's switches. "Colour by course", the last switch of the
+legend (the sidebar's "On the calendar" on a laptop), brings D157's colours back, on the device, as
+the courses hidden are kept (`cps-cal-colour`, `data-cal-colour` on `<html>`). The front page's week
+(D191) is drawn the same way.
+
+**Rejected.** Fewer course colours (three or four): a course would share its colour with another, and
+the colour would mislead. Colour for the kind of session (self-test, practice, task): every session is
+the same thing to do, the next step; its kind is its title's mark ("?", "◆", "✎"). Making the choice a
+setting of the plan: it is how a screen looks, kept with the view on each device.
+
+**Disclosed.** Today's strip and agenda keep the courses' colours for now. Whether students find
+their way better is for the pilot. Checked in Chromium only, at 1440 × 900 and phone size, both
+colourings.

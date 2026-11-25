@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import itertools
+import json
 import re
 import struct
 import sys
@@ -26,8 +27,6 @@ LANGS = ("en", "fr", "it")
 PICTURES = (
     "today-laptop",
     "today-phone",
-    "week-laptop",
-    "focus-phone",
     "progress-phone",
     "community-phone",
     "course-laptop",
@@ -146,7 +145,7 @@ def test_the_front_page_tells_the_story_in_eight_questions(tmp_path, lang):
     assert f"<b>{course['spaced']}</b>" in page and f"<b>{course['spaced_week']}</b>" in page
     assert f"{view['holds']['spaced']}" in page and f"{view['holds']['crammed']}" in page
     assert (
-        len(re.findall(r'class="league-row(?: me)?"', page)) == len(view["league"])
+        len(re.findall(r'class="league-row(?: me)?(?: lg-up| lg-down)?"', page)) == len(view["league"])
         and page.count('class="crest-badge"') == 8
     )
     # One main heading, levels never skipped, no id twice.
@@ -199,3 +198,80 @@ def test_without_scroll_timelines_every_part_is_in_place():
         words = re.sub(r"from|transform|translate", "", body)
         assert body.strip().startswith("from") and "to" not in words, name
     assert ".landing-rail, .landing-progress { display: none; }" in plain
+
+
+# --------------------------------------------------------------------------- #
+# The front page as a launch (D191)
+# --------------------------------------------------------------------------- #
+
+
+def test_the_front_page_s_week_is_the_app_s_own_plan():
+    """The week the front page draws is kept as data, since a server's package has no
+    examples; made again here, by the app's own rules, it is the same. If the planner
+    changed, `python benchmarks/landing_week.py` writes it again."""
+    from cps.showcase import sample_path
+
+    made = service.landing_week_compute(sample_path().read_bytes())
+    kept = json.loads(service.LANDING_WEEK_FILE.read_text(encoding="utf-8"))
+    assert made == kept
+    week = service.landing_week()
+    assert week["count"] == len(kept["sessions"]) and week["off"] == 2
+    # Taking Tuesday off moves its sessions, and some after them; nothing before it moves.
+    moved = [s for s in week["sessions"] if s["to"] != "stay"]
+    assert moved and all(s["day"] >= week["off"] for s in moved)
+    assert all(s["to"] is None or s["to"]["day"] > week["off"] for s in moved)
+    assert week["moved"] + week["later"] == len(moved) and week["today"]
+    # A block never sits on a class of the same day, before or after the change.
+    busy = {(b["day"], r) for b in week["busy"] for r in range(b["row"], b["row"] + b["span"])}
+    for s in week["sessions"]:
+        for place in (s, s["to"]) if isinstance(s["to"], dict) else (s,):
+            assert all(
+                (place["day"], r) not in busy for r in range(place["row"], place["row"] + place["span"])
+            )
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_the_scenes_are_the_app_s_and_work_without_a_script(tmp_path, lang):
+    page = unescape(_web(tmp_path).get(f"/?lang={lang}").text)
+    view = service.landing_view()
+    week = view["week"]
+    # The week: every session where the plan put it, those that move a second time.
+    assert page.count('class="lw-sess from') == week["count"]
+    assert page.count('class="lw-sess to') == week["moved"]
+    assert '<input type="checkbox" id="lw-off" class="lw-toggle visually-hidden">' in page
+    # Today: the last session is the reader's to tick, a real checkbox with its label.
+    assert page.count('class="lt-card') == len(week["today"])
+    assert '<input type="checkbox" id="lt-done"' in page and '<label for="lt-done" class="lt-check"' in page
+    # The league: from below the friend in fourth to the top three, with the reader's tick.
+    climb = view["climb"]
+    fourth = next(r["points"] for r in view["league"] if r["rank"] == view["league_move"] + 1)
+    assert climb["before"] < fourth < climb["after"] < climb["tap"]
+    assert climb["after"] - climb["before"] == service.POINTS_DONE + service.POINTS_PROOF
+    assert all(f">{n}<" in page for n in (climb["before"], climb["after"], climb["tap"]))
+    # The neurons run behind the whole story.
+    assert '<div class="landing-neurons" aria-hidden="true">' in page and '<svg class="neurons"' in page
+    # The scenes' places are classes, never a style attribute (CSP).
+    assert " style=" not in page
+
+
+def test_the_story_s_neurons_are_drawn_by_the_generator():
+    from cps.web import neural
+
+    assert neural.STORY_PARTIAL.read_text(encoding="utf-8") == neural.render_story()
+    assert neural.PARTIAL.read_text(encoding="utf-8") == neural.render()  # the hero's, unchanged
+    # Each of the story's stretches fires its own signals, and lights the neurons they reach.
+    for k in range(1, neural.STORY_WINDOWS + 1):
+        assert f".landing-neurons .ns-signals .k{k} {{ animation: ns-fire" in CSS
+        assert f".landing-neurons .glow.k{k} {{ animation: ns-glow" in CSS
+
+
+def test_the_scenes_move_only_with_motion_on_and_nothing_loops():
+    scenes = (".landing-week", ".landing-today", ".landing-league", ".landing-neurons")
+    tied = [
+        line for line in CSS.splitlines() if "animation-timeline" in line and any(s in line for s in scenes)
+    ]
+    assert len(tied) > 40
+    assert all(':root:not([data-motion="reduce"])' in line for line in tied)
+    block = CSS[CSS.index("/* -- D191: the front page as a launch") :]
+    block = block[: block.index("/* 8: three steps and three promises. */")]
+    assert "infinite" not in block

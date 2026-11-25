@@ -16428,7 +16428,7 @@ def landing_week_compute(ics: bytes) -> dict:
     tuesday = datetime.combine(monday + timedelta(days=1), time(7, 0), tzinfo=zone).astimezone(UTC)
     sub = start_subscription(tz=LANDING_WEEK_TZ, ics=ics, now=LANDING_WEEK_START)
     reported: set[str] = set()
-    while True:
+    while sub.plan is not None:
         plan = PlanReport.from_dict(sub.plan)
         due = [
             x
@@ -16550,7 +16550,7 @@ def landing_week() -> dict:
             }
             for k in range(5)
         ],
-        "hours": [f"{h}:00" for h in range(data["hours"][0], data["hours"][1] + 1, 2)],
+        "hours": [f"{h}:00" for h in range(data["hours"][0], data["hours"][1], 2)],
         "rows": (data["hours"][1] - data["hours"][0]) * 4,
         "busy": [block(b) for b in data["busy"]],
         "sessions": sessions,

@@ -2601,9 +2601,15 @@ html:not(.settled) .hero > h1 { animation: rise 0.9s var(--ease-out) both, sheen
   grid-row: 38 / -1; z-index: 4; align-self: end; justify-self: end; padding: 2px 8px; border-radius: 999px; opacity: 0;
   font-size: 12px; font-weight: 700; white-space: nowrap; color: #fff; background: var(--accent);
 }
-.lw-sess.to { opacity: 0; transform: translateX(-35%) scale(0.92); }
+.lw-sess.to { z-index: 3; opacity: 0; transform: translateX(-35%) scale(0.92); }
 .lw-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
 .lw-legend li::before { content: ""; display: inline-block; width: 9px; height: 9px; margin: 0 5px 0 0; border-radius: 3px; background: var(--cc); }
+/* D192: calm colours, as the app's calendar has them now: classes grey, the plan's
+   sessions in the accent, the day off hatched. The course is in the words. */
+.landing-week .lw-busy, .lw-key-class { --cc: var(--busy); }
+.landing-week .lw-sess, .lw-key-study { --cc: var(--accent); }
+.lw-key-off::before { background: repeating-linear-gradient(135deg, var(--fill) 0 2px, transparent 2px 4px) !important; }
+.landing-today .lt-card { --cc: var(--accent); }
 .landing-week figcaption { margin: 12px 2px 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted); }
 /* The day off, on request: the sessions that move fade where they were and appear where
    the plan put them, day after day. */
@@ -2666,6 +2672,8 @@ label.lt-check { cursor: pointer; }
 .lt-card.t1 .lt-check circle, .lt-card.t2 .lt-check circle, .landing-today:has(.lt-input:checked) .t3 .lt-check circle { fill: var(--ok); stroke: var(--ok); }
 .lt-card.t1 .lt-check path, .lt-card.t2 .lt-check path, .landing-today:has(.lt-input:checked) .t3 .lt-check path { stroke-dashoffset: 0; }
 .lt-input:focus-visible + .lt-check { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lt-card.t3 .lt-check circle { stroke: var(--accent); stroke-width: 2.4; }
+@media (hover: hover) { label.lt-check:hover circle { fill: color-mix(in srgb, var(--accent) 14%, transparent); } }
 .lt-hint { margin: 12px 4px 0; font-size: 0.86rem; font-weight: 650; color: var(--accent-ink); text-align: center; }
 .lt-banner {
   display: none; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; padding: 10px 12px; border-radius: 14px;
@@ -2685,8 +2693,6 @@ label.lt-check { cursor: pointer; }
 @keyframes lt-rise { from { opacity: 0; translate: 0 10px; } }
 @keyframes lt-float { 0% { opacity: 0; translate: 0 6px; } 25% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -30px; } }
 @keyframes lt-burst { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(0.4); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-38px) scale(1); } }
-@keyframes lt-hint { 50% { opacity: 0.45; } }
-.lt-hint.pulse { animation: lt-hint 1.6s ease-in-out infinite; }
 
 /* 5: the league climbs. Rows and labels keep fixed heights, so you can trade places
    with the friend below: one row and one label apart. */
@@ -2816,14 +2822,14 @@ label.lt-check { cursor: pointer; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.from.lw-d5 { animation: lw-drop linear both; animation-timeline: --lw; animation-range: entry 100% contain 30%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob { animation: lw-on linear both; animation-timeline: --lw; animation-range: contain 36% contain 42%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-auto .lw-knob::after { animation: lw-slide linear both; animation-timeline: --lw; animation-range: contain 36% contain 42%; }
-    :root:not([data-motion="reduce"]) .landing-week .lw-offcol { animation: lw-in linear both; animation-timeline: --lw; animation-range: contain 40% contain 50%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-offcol { animation: lw-show linear both; animation-timeline: --lw; animation-range: contain 40% contain 50%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d2 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 70% contain 15%, contain 45% contain 55%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d3 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 80% contain 20%, contain 52% contain 62%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.moves.from.lw-d4 { animation: lw-drop linear both, lw-ghost linear both; animation-timeline: --lw, --lw; animation-range: entry 90% contain 25%, contain 59% contain 69%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d3 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 47% contain 57%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d4 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 54% contain 64%; }
     :root:not([data-motion="reduce"]) .landing-week .lw-sess.to.lw-d5 { animation: lw-arrive linear both; animation-timeline: --lw; animation-range: contain 61% contain 71%; }
-    :root:not([data-motion="reduce"]) .landing-week .lw-later { animation: lw-in linear both; animation-timeline: --lw; animation-range: contain 68% contain 76%; }
+    :root:not([data-motion="reduce"]) .landing-week .lw-later { animation: lw-show linear both; animation-timeline: --lw; animation-range: contain 68% contain 76%; }
     /* D191, 2: Today: two sessions ticked off as it passes; the last is the reader's. */
     :root:not([data-motion="reduce"]) .landing-today .lt-card.t1 { animation: lt-in linear both; animation-timeline: --lt; animation-range: entry 10% entry 60%; }
     :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 { animation: lt-in linear both; animation-timeline: --lt; animation-range: entry 25% entry 75%; }
@@ -2837,7 +2843,7 @@ label.lt-check { cursor: pointer; }
     :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-plus { animation: lt-float linear both; animation-timeline: --lt; animation-range: contain 36% contain 62%; }
     :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-burst i { animation: lt-burst linear both; animation-timeline: --lt; animation-range: contain 36% contain 52%; }
     :root:not([data-motion="reduce"]) .landing-today .lt-ring { animation: lt-ring linear both; animation-timeline: --lt; animation-range: contain 12% contain 48%; }
-    :root:not([data-motion="reduce"]) .landing-today .lt-hint.pulse { animation: lt-show linear both, lt-hint 1.6s ease-in-out infinite; animation-timeline: --lt, auto; animation-range: contain 52% contain 62%, normal; }
+    :root:not([data-motion="reduce"]) .landing-today .lt-hint { animation: lt-show linear both; animation-timeline: --lt; animation-range: contain 52% contain 62%; }
     :root:not([data-motion="reduce"]) .landing-today:has(.lt-input:checked) .lt-ring { animation: none; }
     /* D191, 5: the league: a session done and vouched for, and you climb into the top three. */
     :root:not([data-motion="reduce"]) .landing-league .lg-up { animation: lg-climb linear both; animation-timeline: --lg; animation-range: contain 30% contain 55%; }
@@ -2906,7 +2912,7 @@ label.lt-check { cursor: pointer; }
       :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-plus { animation-timeline: --q2; animation-range: contain 46% contain 62%; }
       :root:not([data-motion="reduce"]) .landing-today .lt-card.t2 .lt-burst i { animation-timeline: --q2; animation-range: contain 46% contain 56%; }
       :root:not([data-motion="reduce"]) .landing-today .lt-ring { animation-timeline: --q2; animation-range: contain 20% contain 54%; }
-      :root:not([data-motion="reduce"]) .landing-today .lt-hint.pulse { animation-timeline: --q2, auto; animation-range: contain 60% contain 70%, normal; }
+      :root:not([data-motion="reduce"]) .landing-today .lt-hint { animation-timeline: --q2; animation-range: contain 60% contain 70%; }
       :root:not([data-motion="reduce"]) .landing-league .lg-up { animation-timeline: --q5; animation-range: contain 28% contain 56%; }
       :root:not([data-motion="reduce"]) .landing-league .lg-down { animation-timeline: --q5; animation-range: contain 28% contain 56%; }
       :root:not([data-motion="reduce"]) .landing-league .lg-was { animation-timeline: --q5; animation-range: contain 40% contain 48%; }
@@ -2926,6 +2932,7 @@ label.lt-check { cursor: pointer; }
 @keyframes landing-draw { from { stroke-dashoffset: 1; } }
 @keyframes landing-show { from { opacity: 0; } }
 @keyframes lw-in { from { opacity: 0; } }
+@keyframes lw-show { from { opacity: 0; } to { opacity: 1; } }
 @keyframes lw-drop { from { opacity: 0; translate: 0 -22px; scale: 0.9; } 60% { opacity: 1; } }
 @keyframes lw-ghost { to { opacity: 0.22; filter: grayscale(1); scale: 0.96; } }
 @keyframes lw-arrive { 0% { opacity: 0; translate: -40% 0; scale: 0.9; } 70% { opacity: 1; scale: 1.08; } 100% { opacity: 1; translate: 0 0; scale: 1; transform: none; } }
@@ -5805,6 +5812,31 @@ body[data-sky] :is(.cal-head, .cal-scroll.days-strip .cal-gutter, .cal-scroll.da
   .board-bar [data-go] { order: 2; }
 }
 /* -- end of D157's calendar */
+
+/* -- D192: calm colours by default ------------------------------------------------------
+   The owner, with a week of the calendar on screen: so many colours feel overwhelming, and a
+   student should find their way at a glance. So a colour now says what a thing is, never which
+   course: classes grey, the plan's sessions the accent, exams and tests red, kept time hatched;
+   the course is in the words. "Colour by course" (the legend, or the sidebar on a laptop) brings
+   D157's colours back, on this device (data-cal-colour on <html>, set by calendar.js). */
+:root:not([data-cal-colour="course"]) :is(.ev-calendar, .ev-skipped, .ev-own.ev-class, .m-ev.m-class, .legend-chip, .side-show) { --cc: var(--busy); }
+:root:not([data-cal-colour="course"]) :is(.ev-study, .m-ev.m-study) { --cc: var(--accent); }
+:root:not([data-cal-colour="course"]) :is(.ev-quiz, .ev-mock, .m-ev.m-test) { --cc: var(--danger); }
+:root:not([data-cal-colour="course"]) .ev-study .l { color: var(--accent-ink); }
+:root:not([data-cal-colour="course"]) .ev-calendar .l { color: color-mix(in srgb, var(--text) 82%, transparent); }
+:root:not([data-cal-colour="course"]) .ev.past.ev-study { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.legend-chip.colour-switch { margin-left: auto; }
+.legend-chip.colour-switch .dot {
+  width: 12px; height: 12px; background: conic-gradient(var(--c0), var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c6), var(--c0));
+}
+.legend-chip.colour-switch[aria-pressed="false"] { color: var(--muted); text-decoration: none; }
+.legend-chip.colour-switch[aria-pressed="false"] .dot { background: var(--fill); box-shadow: none; }
+.side-show.colour-switch .side-check { background: conic-gradient(var(--c0), var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c6), var(--c0)); }
+.side-show.colour-switch[aria-pressed="false"] .grow { color: var(--text); text-decoration: none; }
+.side-show.colour-switch[aria-pressed="false"] .side-check { background: transparent; box-shadow: inset 0 0 0 1.5px var(--busy); }
+/* -- end of D192 */
+
+
 
 /* -- D158: points and proof of work ------------------------------------------------------
    Under each day's name, how much of it is done: the points its sessions gave against what

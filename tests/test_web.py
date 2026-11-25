@@ -1729,3 +1729,18 @@ def test_a_self_test_asks_how_much_was_recalled(web, planned, clock):
     assert _subscription(web, planned).outcomes[service.session_id(test)] == "most"
     wrong = web.post(f"/s/{planned}/{service.session_id(task)}", data={"outcome": "all"})
     assert wrong.status_code == 400 and "only a self-test" in unescape(wrong.text)
+
+
+def test_the_calendar_is_calm_unless_coloured_by_course():
+    """D192: a colour says what a thing is, never which course: classes grey, the plan's
+    sessions in the accent, tests red; "Colour by course" brings the courses' colours back,
+    on the device (calendar.js keeps it, as it keeps the courses hidden)."""
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    calm = ':root:not([data-cal-colour="course"])'
+    grey = ".ev-calendar, .ev-skipped, .ev-own.ev-class, .m-ev.m-class, .legend-chip, .side-show"
+    assert f"{calm} :is({grey}) {{ --cc: var(--busy); }}" in css
+    assert f"{calm} :is(.ev-study, .m-ev.m-study) {{ --cc: var(--accent); }}" in css
+    assert f"{calm} :is(.ev-quiz, .ev-mock, .m-ev.m-test) {{ --cc: var(--danger); }}" in css
+    script = (STATIC / "calendar.js").read_text(encoding="utf-8")
+    assert 'const COLOUR_KEY = "cps-cal-colour";' in script and 't("Colour by course")' in script
+    assert "calendar.toggleColour()" in (STATIC / "app.js").read_text(encoding="utf-8")

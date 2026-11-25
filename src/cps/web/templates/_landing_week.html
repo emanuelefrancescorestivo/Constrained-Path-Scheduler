@@ -24,7 +24,7 @@
     {% if w.later %}<span class="lw-later lw-d5">{{ _n("{n} to next week", "{n} to next week", w.later) }} →</span>{% endif %}
   </div>
   <ul class="lw-legend" aria-hidden="true">
-    {% for c in w.courses %}<li class="c{{ c.color }}">{{ c.course }}</li>{% endfor %}
+    <li class="lw-key-class">{{ _("Classes") }}</li><li class="lw-key-study">{{ _("Self-tests the plan placed") }}</li><li class="lw-key-off">{{ _("Day off") }}</li>
   </ul>
   <figcaption id="lw-cap">{{ _("The app's own plan for a week of the sample second year: its classes, and the self-tests it fitted into the gaps. Take {day} off, and {moved} sessions move to the next free gaps, {later} to the week after; nothing is lost.", day=w.off_day, moved=w.moved, later=w.later) }}</figcaption>
 </figure>

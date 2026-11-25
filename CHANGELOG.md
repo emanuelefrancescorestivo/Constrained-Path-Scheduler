@@ -4,6 +4,14 @@
 
 ### Added
 
+- The front page as a launch (DECISIONS.md D191): neurons run behind the whole story and fire as it is
+  scrolled; the app's own week fills up and moves when Tuesday is taken off; Today's sessions are ticked
+  off one by one, the last by the reader (the ring closes, the streak grows); the friends' league climbs
+  into the top three, and counts the reader's tick. On a laptop each scene is held in view while it plays.
+
+- Calm colours on the calendar (DECISIONS.md D192): classes grey, the plan's sessions in the accent,
+  exams and tests red; "Colour by course" brings the courses' colours back, on the device.
+
 - Crests (DECISIONS.md D189): every point makes a level that never goes down (Spark to Mastery);
   twenty badges climb four tiers, bronze, silver, gold and ice, with four rare ones in aurora, on
   Progress; and a weekly league among friends who follow each other back, on Community, each friend

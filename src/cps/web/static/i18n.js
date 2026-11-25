@@ -20,6 +20,7 @@ const FR = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Semaine {n}",
   "Courses shown": "Cours affichés",
+  "Colour by course": "Couleur par cours",
   // D159: the new-task sheet's day and time
   "Previous month": "Mois précédent",
   "Next month": "Mois suivant",
@@ -161,6 +162,7 @@ const IT = {
   // D157: the calendar's header and its courses as switches
   "Week {n}": "Settimana {n}",
   "Courses shown": "Corsi mostrati",
+  "Colour by course": "Colore per corso",
   // D159: the new-task sheet's day and time
   "Previous month": "Mese precedente",
   "Next month": "Mese successivo",
