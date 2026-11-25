@@ -77,7 +77,7 @@ LABELS = dict(PARTS)
 _RULES: tuple[tuple[str, str, str], ...] = (
     ("GET", r"", "today"),
     ("GET", r"/(week|agenda|timetable)", "calendar"),
-    ("GET", r"/tasks", "tasks"),
+    ("GET", r"/(tasks|todo)", "tasks"),  # D195: the to-do list is Tasks' page
     ("GET", r"/courses", "courses"),
     ("GET", r"/courses/import", "program"),
     ("GET", r"/class/[^/]+", "program"),  # a class's program, taken (D104)
@@ -112,6 +112,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("POST", r"/lecture", "lecture"),
     ("POST", r"/tasks", "task_add"),
     ("POST", r"/tasks/(done|delete|understand)", "tasks"),
+    ("POST", r"/todo(/[^/]+){0,2}", "tasks"),
     ("POST", r"/(notes/new|explain|post/[^/]+/comments)", "post"),
     ("POST", r"/post/[^/]+/kudos", "kudos"),
     ("POST", r"/cards/[^/]+/answer", "card_answer"),

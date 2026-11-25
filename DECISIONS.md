@@ -7665,6 +7665,65 @@ The value is in the practice and the time kept free, not in a jump in recall.
 - A midterm's time defaults to the morning when it is not given.
 - Checked in Chromium only, at 1280 px and phone size, light and dark.
 
+## D195. A to-do page, written a line at a time
+
+**Asked.** The owner: "the modality to put tasks and to leave a note should actually simply become
+like in Notion the ability to make a to-do list page". Proposed: sixteen features a student would
+need in such a page, the first six as the core. The owner: "for now i like the to-do lists yes".
+The core is built; features 7 to 16 wait for the owner's pick.
+
+**Chosen.** One page, To-do (`/p/<plan>/todo`), in Tasks' place under You and in the sidebar. It is
+the list D145 began on Today ("On your mind"), whole. A line is written as it would be said, at the
+bottom of the page, and Enter adds it:
+- **A prefix makes its kind**, as in Notion: "# " a heading, "> " a note, "- " (or Tab) a step under
+  the line above, "[x] " a line done. A plain line is a to-do with a box.
+- **A day it names is its day; a day and hours of work are planned.** The line is read by D12's
+  rules (`ai.read_task`, English, French, Italian): "Stats report Friday 6 h" becomes a task of 6
+  hours due Friday, in its course, placed in the plan at once. A line without hours stays on the
+  list, with its day if it has one. Each line shows its day, "planned · 6 h" and its course.
+- **Each line is edited in place**, saved as it changes (`data-autosave`, D165); an emptied line is
+  removed. Its menu moves it up or down, makes it a step or not, changes its kind, or removes it,
+  its task with it.
+- **Ticked off, a line goes to "Done"** with its steps, and its task is done in the plan; ticked again,
+  both come back. "Clear the lines done" takes them off the page; their tasks stay done.
+- **The plan's other tasks** (a learning platform's deadlines, those added field by field) are listed
+  under the page, by due date, each leading to Tasks' page.
+- **Today's "On your mind" is the same list's open lines** (to-dos, not steps), and links to the page.
+  Crossing one off there ticks it here.
+- **The "+" and N open a line first**: the sheet's first field is a to-do line, sent to the page; the
+  deadline field by field (D159) folds under it.
+
+A list holds 200 lines (D145 kept 40); when full, the oldest line done goes first, then the oldest
+without a day. Lines are kept with the plan, never shared.
+
+**Its look: a table.** The first draft was a card of rounded rows with chips; the owner found it "too
+rounded" and asked for something "more cut-down, straight to the point, with a bit of elegance". Three
+designs were proposed (a ruled sheet, a table, a notebook with the days in the margin); the owner chose
+the table ("mi piace la tabella"). A command line sits on top with its syntax beside it (`#` heading,
+`>` note, Tab or `-` step); below, the lines in columns (task, due, work, course) under their headings,
+each heading with its open lines; square boxes, 6 px corners at most, the course a small square of its
+colour. On a phone, or wherever the sheet is under 600 px, the columns fold into one line under the task.
+
+**Rejected.**
+- **A page editor (rich text, blocks, drag and drop):** a framework or a build step, against the
+  front end's rules, and every line still has to be read for its day and hours on the server.
+- **Two lists, tasks and notes:** the owner asked for one page; a task is a line that names hours.
+- **Deleting a line when it is crossed off (D145):** a to-do list keeps what was done until it is
+  cleared, as Notion's does; Today's list still loses it at once.
+
+**Tests changed by the redesign.** `test_mind.py`: a line crossed off is done, not deleted, and is not
+crossed off twice. `test_task_sheet.py`: the sheet's course list is in the folded deadline form.
+`test_simpler.py`: You leads to the to-do page, which leads to each task.
+
+**Disclosed.**
+- A line is read by rules: "6 h" or "6 hours" is work, but "6h" alone is read as six in the morning,
+  as "18h" is a time in French (D12). Hours and days in other words are not read.
+- Editing a line's words does not rename its task.
+- Features 7 to 16 of the proposal (reminders on a line, a line repeated weekly, a line from a
+  course's week, sharing a list, and the rest) are not built.
+- The table's look is the owner's pick of three mock-ups, not tried with students.
+- Checked in Chromium only, at 1280 px and phone size, light and dark, with the keyboard.
+
 ## D196. Focus: the phone keeps the distracting apps away
 
 **Asked.** The owner: "on focus you must block social media apps like Instagram, TikTok, Facebook

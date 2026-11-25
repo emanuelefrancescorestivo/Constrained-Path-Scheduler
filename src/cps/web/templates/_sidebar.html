@@ -28,7 +28,7 @@
     {{ item("/community", _("Community"), tab == "community" and not here.endswith("/map"), "users") }}
     {{ item("/focus", _("Focus"), tab == "focus", "timer") }}
     {{ item("/cards", _("Flashcards"), tab == "cards", "layers", sidebar.cards_due) }}
-    {{ item("/tasks", _("Tasks"), tab == "tasks", "list-checks") }}
+    {{ item("/todo", _("To-do"), tab == "tasks", "list-checks") }}
     {{ item("/progress", _("Progress"), tab == "progress", "chart-column") }}
   </nav>
   <section class="side-courses" aria-labelledby="side-courses-title">

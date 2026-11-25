@@ -4050,6 +4050,79 @@ def create_app(config: Config | None = None) -> FastAPI:
         week = fields.get("w", "0")
         return RedirectResponse(f"/p/{token}/agenda?w={int(week) if week.lstrip('-').isdigit() else 0}", 303)
 
+    # D195: the to-do page, written a line at a time.
+    @app.get("/p/{token}/todo", response_class=HTMLResponse)
+    def todo_page(request: Request, token: str) -> HTMLResponse:
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        return page(
+            request,
+            "todo.html",
+            token=token,
+            tab="tasks",
+            view=service.todo_view(subscription, config.clock()),
+        )
+
+    @app.post("/p/{token}/todo")
+    async def todo_add(request: Request, token: str) -> Response:
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        line, after = str(form.get("line") or ""), str(form.get("after") or "")
+        back = str(form.get("back") or "")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.add_todo(current, line, after=after, now=config.clock())
+            )
+        except service.ServiceError as error:
+            return todo_refused(request, token, error)
+        service.log_event(store, token, "todo", "add")
+        path = {"today": f"/p/{token}", "calendar": f"/p/{token}/week"}.get(back, f"/p/{token}/todo")
+        return RedirectResponse(path, 303)
+
+    @app.post("/p/{token}/todo/{what}")
+    async def todo_clear(request: Request, token: str, what: str) -> Response:
+        if load(token) is None or what != "clear":
+            return missing(request)
+        service.update_subscription(store, token, service.clear_done)
+        return RedirectResponse(f"/p/{token}/todo", 303)
+
+    @app.post("/p/{token}/todo/{item}/{what}")
+    async def todo_line(request: Request, token: str, item: str, what: str) -> Response:
+        if load(token) is None or what not in ("tick", "edit", "change"):
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        fields = {k: str(v) for k, v in form.items()}
+        now = config.clock()
+
+        def change(current: service.Subscription) -> service.Subscription:
+            if what == "tick":
+                return service.tick_todo(current, item, fields.get("done") == "1", now=now)
+            if what == "edit":
+                return service.edit_todo(current, item, fields.get("text", ""))
+            return service.change_todo(current, item, fields.get("how", ""), now=now)
+
+        try:
+            service.update_subscription(store, token, change)
+        except service.ServiceError as error:
+            return todo_refused(request, token, error)
+        service.log_event(store, token, "todo", what)
+        return RedirectResponse(f"/p/{token}/todo", 303)
+
+    def todo_refused(request: Request, token: str, error: Exception) -> HTMLResponse:
+        subscription = load(token)
+        view = (
+            service.todo_view(subscription, config.clock())
+            if subscription
+            else {"rows": [], "done": [], "others": [], "open": 0}
+        )
+        return page(request, "todo.html", 400, token=token, tab="tasks", view=view, error=str(error))
+
     # D194: tests the timetable does not show, course by course.
     @app.get("/p/{token}/tests", response_class=HTMLResponse)
     def tests_page(request: Request, token: str) -> HTMLResponse:

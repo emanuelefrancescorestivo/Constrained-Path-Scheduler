@@ -58,7 +58,10 @@ def _plan(root: Path) -> service.Subscription:
 def test_the_sheet_lists_the_courses_with_other_and_a_task_takes_either(web, tmp_path):
     sub = _plan(tmp_path)
     page = unescape(web.get(f"/p/{sub.token}").text)
+    # D195: the sheet opens on a to-do line; the deadline, field by field, folds under it.
     sheet = page[page.index('id="quick-add"') :]
+    assert sheet.index('action="/p/' + sub.token + '/todo"') < sheet.index('class="sheet-more"')
+    sheet = sheet[sheet.index('class="sheet-more"') :]
     sheet = sheet[: sheet.index("</form>")]
     options = re.findall(r'<option value="([^"]*)">([^<]*)</option>', sheet)
     assert options[0] == ("", "No course") and options[-1] == (forms.OTHER_COURSE, "Other…")

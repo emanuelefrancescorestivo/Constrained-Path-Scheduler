@@ -409,7 +409,9 @@ if (sheet && !("popover" in HTMLElement.prototype)) {
     }
   });
   sheet.addEventListener("toggle", (event) => {
-    if (event.newState === "open") setTimeout(() => sheet.querySelector('input[name="name"]').focus(), 30);
+    // D195: the sheet opens on a to-do line; the deadline's name when that is unfolded.
+    const first = sheet.querySelector(".sheet-more[open] input[name=\"name\"]") || sheet.querySelector("#qa-line");
+    if (event.newState === "open" && first) setTimeout(() => first.focus(), 30);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "n" || event.metaKey || event.ctrlKey || event.altKey) return;

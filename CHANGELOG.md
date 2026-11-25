@@ -21,6 +21,11 @@
   opened on, how the iPhone's Focus and Screen Time or Android's Focus mode do it, set up once. On an
   iPhone, "Silence my phone" opens the student's Focus shortcut in one tap, and turns it off at the end.
 
+- A to-do page, as in Notion (DECISIONS.md D195): one list written a line at a time and drawn as a
+  table (task, due, work, course), under You and in the sidebar, and first in the "+" sheet. "# " makes a heading, "> " a note, "- " or Tab a step;
+  "Stats report Friday 6 h" is planned as a task at once. Lines are edited in place, ticked off with
+  their steps and their task, moved, and cleared when done. Today's "On your mind" is its open lines.
+
 - Tests the timetable does not show (DECISIONS.md D194): for each course, quizzes in class
   (announced or not) and midterms, on their own page, asked once on Today and said on the
   course's page. A course with quizzes keeps its recent weeks above 95 % for two weeks. A midterm

@@ -86,7 +86,8 @@ def test_each_page_is_in_one_section(web, path, current):
 def test_you_holds_everything_else(web):
     token = _start(web)
     you = web.get(f"/p/{token}/you").text
-    for place in ("progress", "cards", "tasks", "focus", "tips", "science", "settings", "feed", "feedback"):
+    # D195: Tasks became the to-do list, which leads to each task planned.
+    for place in ("progress", "cards", "todo", "focus", "tips", "science", "settings", "feed", "feedback"):
         assert f'href="/p/{token}/{place}' in you, place
 
 
