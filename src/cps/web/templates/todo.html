@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ _("To-do") }} · {{ _("Study plan") }}{% endblock %}
+{% block head %}<script type="module" src="{{ asset('todo.js') }}"></script>{% endblock %}
+{% block main %}
+{# D195: one page, written a line at a time, as in Notion; drawn as a table (the owner's pick of
+   three, "mi piace la tabella", 2026-11-25): a command line on top with its syntax, then the
+   lines in columns (task, due, work, course) under their headings; on a phone the columns fold
+   into a line under the task. A line is a to-do; "# " a heading, "> " a note, "- " or Tab a step
+   under the line above. A day it names is its day; a day with hours of work is planned. Each
+   line's words are edited in place (data-autosave); its box, its menu and the new line are sent
+   in the background and the list is put in place (#todo). Every form works without the script. #}
+<div class="page-title todo-title">
+  <h1>{{ _("To-do") }}</h1>
+  <p class="muted">{{ _n("{n} to do", "{n} to do", view.open) }}</p>
+</div>
+{% if error %}<p class="alert section" role="alert">{{ error }}</p>{% endif %}
+
+<form method="post" action="/p/{{ token }}/todo" class="todo-cmd" data-async data-quiet data-region="#todo" id="todo-new">
+  <span class="todo-cmd-plus" aria-hidden="true">+</span>
+  <label class="visually-hidden" for="todo-line">{{ _("A new line") }}</label>
+  <input id="todo-line" name="line" maxlength="200" autocomplete="off" enterkeyhint="enter" placeholder="{{ _('Add a line: "Stats report Friday 6 h"') }}" autofocus>
+  <button type="submit" class="todo-enter" aria-label="{{ _('Add') }}"><kbd aria-hidden="true">⏎</kbd></button>
+</form>
+<p class="todo-keys"><span><kbd>#</kbd> {{ _("heading") }}</span><span><kbd>&gt;</kbd> {{ _("note") }}</span><span class="todo-key-tab"><kbd>Tab</kbd> {{ _("step") }}</span><span class="todo-key-dash"><kbd>-</kbd> {{ _("step") }}</span></p>
+
+<div id="todo" class="todo-sheet">
+  {% if view.rows or view.others %}
+  <div class="todo-head" aria-hidden="true"><span></span><span>{{ _("Task") }}</span><span class="r">{{ _("Due") }}</span><span class="r">{{ _("Work") }}</span><span>{{ _("Course") }}</span><span></span></div>
+  {% endif %}
+  {% if view.rows %}
+  <ul class="todo-list">
+    {% for r in view.rows %}
+    <li class="todo-row is-{{ r.kind }}{% if r.indent %} is-step{% endif %}{% if r.done %} is-done{% endif %}" id="t-{{ r.id }}">
+      {% if r.kind == "todo" %}
+      <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="#todo" class="todo-tick">
+        <input type="hidden" name="done" value="{{ '0' if r.done else '1' }}">
+        <button type="submit" class="todo-box{% if r.done %} is-done{% endif %}" aria-label="{% if r.done %}{{ _('Not done yet: {what}', what=r.text) }}{% else %}{{ _('Done: {what}', what=r.text) }}{% endif %}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+      </form>
+      {% elif r.kind == "note" %}<span class="todo-dash" aria-hidden="true">—</span>{% endif %}
+      <div class="todo-body">
+        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/edit" data-autosave class="todo-edit">
+          <label class="visually-hidden" for="w-{{ r.id }}">{{ _("Line") }}</label>
+          <input id="w-{{ r.id }}" name="text" value="{{ r.text }}" maxlength="160" autocomplete="off" data-line="{{ r.id }}">
+        </form>
+        {% if r.kind == "heading" %}<span class="todo-n">{{ _n("{n} open", "{n} open", r.open) }}</span>{% endif %}
+        {% if r.when or r.hours or r.course %}
+        <p class="todo-sub">{% if r.when %}<span class="{% if r.late %}is-late{% endif %}">{{ r.when }}</span>{% endif %}{% if r.hours %}{% if r.when %} · {% endif %}<span class="todo-w">{{ _("{hours} h", hours=r.hours | hours) }}</span>{% endif %}{% if r.course %}{% if r.when or r.hours %} · {% endif %}{{ r.course }}{% endif %}</p>
+        {% endif %}
+      </div>
+      {% if r.kind != "heading" %}
+      <span class="todo-due r{% if r.late %} is-late{% endif %}">{{ r.when }}</span>
+      <span class="todo-work r">{% if r.hours %}<a href="/p/{{ token }}/tasks">{{ _("{hours} h", hours=r.hours | hours) }}</a>{% endif %}</span>
+      <span class="todo-course">{% if r.course %}<i class="sq{% if r.color is not none %} c{{ r.color }}{% endif %}" aria-hidden="true"></i>{{ r.course }}{% endif %}</span>
+      {% endif %}
+      <details class="menu todo-menu">
+        <summary aria-label="{{ _('More: {what}', what=r.text) }}">{{ lucide('chevron-right') }}</summary>
+        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/change" data-async data-quiet data-region="#todo" class="menu-items">
+          {% if not loop.first %}<button type="submit" name="how" value="up">{{ _("Move up") }}</button>{% endif %}
+          {% if not loop.last %}<button type="submit" name="how" value="down">{{ _("Move down") }}</button>{% endif %}
+          {% if r.kind == "todo" %}{% if r.indent %}<button type="submit" name="how" value="outdent">{{ _("Not a step") }}</button>{% elif not loop.first %}<button type="submit" name="how" value="indent">{{ _("A step of the line above") }}</button>{% endif %}{% endif %}
+          {% if r.kind != "todo" %}<button type="submit" name="how" value="todo">{{ _("Make it a to-do") }}</button>{% endif %}
+          {% if r.kind != "note" %}<button type="submit" name="how" value="note">{{ _("Make it a note") }}</button>{% endif %}
+          {% if r.kind != "heading" %}<button type="submit" name="how" value="heading">{{ _("Make it a heading") }}</button>{% endif %}
+          <button type="submit" name="how" value="delete" class="is-danger">{{ _("Remove") }}</button>
+        </form>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="todo-empty muted">{{ _("Nothing here yet. Write the first line above.") }}</p>
+  {% endif %}
+  {% if view.others %}
+  {# The plan's other tasks: a learning platform's deadlines, those added field by field. #}
+  <ul class="todo-list todo-others" aria-labelledby="others-title">
+    <li class="todo-row is-heading"><div class="todo-body"><h2 id="others-title">{{ _("Planned elsewhere") }}</h2><a class="todo-n link" href="/p/{{ token }}/tasks">{{ _("In detail") }} ›</a></div></li>
+    {% for o in view.others %}
+    <li class="todo-row">
+      <span></span>
+      <div class="todo-body"><span class="todo-text">{{ o.name }}</span>
+        <p class="todo-sub"><span class="{% if o.late %}is-late{% endif %}">{{ o.when }}</span> · <span class="todo-w">{{ _("{hours} h", hours=o.hours | hours) }}</span>{% if o.course %} · {{ o.course }}{% endif %}</p>
+      </div>
+      <span class="todo-due r{% if o.late %} is-late{% endif %}">{{ o.when }}</span>
+      <span class="todo-work r"><a href="/p/{{ token }}/tasks">{{ _("{hours} h", hours=o.hours | hours) }}</a></span>
+      <span class="todo-course">{% if o.course %}<i class="sq{% if o.color is not none %} c{{ o.color }}{% endif %}" aria-hidden="true"></i>{{ o.course }}{% endif %}</span>
+      <span></span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if view.done %}
+  <details class="todo-done">
+    <summary>{{ _n("Done ({n})", "Done ({n})", view.done | length) }}</summary>
+    <ul class="todo-list">
+      {% for r in view.done %}
+      <li class="todo-row is-done{% if r.indent %} is-step{% endif %}">
+        <form method="post" action="/p/{{ token }}/todo/{{ r.id }}/tick" data-async data-quiet data-region="#todo" class="todo-tick">
+          <input type="hidden" name="done" value="0">
+          <button type="submit" class="todo-box is-done" aria-label="{{ _('Not done yet: {what}', what=r.text) }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></button>
+        </form>
+        <div class="todo-body"><span class="todo-text">{{ r.text }}</span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="/p/{{ token }}/todo/clear" data-async data-quiet data-region="#todo" class="todo-clear"><button type="submit" class="btn btn-plain btn-sm">{{ _("Clear the lines done") }}</button></form>
+  </details>
+  {% endif %}
+</div>
+{% endblock %}

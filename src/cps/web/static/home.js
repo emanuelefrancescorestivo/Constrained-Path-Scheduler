@@ -29,3 +29,36 @@ if (drop) {
   for (const type of ["dragleave", "drop"]) input.addEventListener(type, () => drop.classList.remove("over"));
   show();
 }
+
+// D193: light or dark from the top bar's switch, in place: the page, its pictures, the
+// demo's choice and the links that carry it change without a reload, so the reader stays
+// where they are in the story. Without this script, the link reloads the page in that mode.
+for (const flip of document.querySelectorAll(".mode-flip[data-mode]")) {
+  flip.addEventListener("click", (event) => {
+    event.preventDefault();
+    const mode = flip.dataset.mode;
+    document.documentElement.dataset.theme = mode;
+    for (const source of document.querySelectorAll("source[data-dark]")) {
+      source.media = mode === "dark" ? "all" : "not all";
+    }
+    for (const link of document.querySelectorAll("a[data-front-link]")) {
+      const url = new URL(link.href);
+      url.searchParams.set("theme", mode);
+      link.href = url.href;
+    }
+    for (const form of document.querySelectorAll('form[action^="/demo"]')) {
+      let field = form.querySelector("input[data-front-mode]");
+      if (!field) {
+        field = Object.assign(document.createElement("input"), { type: "hidden", name: "theme" });
+        field.dataset.frontMode = "";
+        form.prepend(field);
+      }
+      field.value = mode;
+    }
+    const here = new URL(window.location.href);
+    here.searchParams.set("theme", mode);
+    window.history.replaceState(window.history.state, "", here.href);
+    const other = document.querySelector(`.mode-flip:not([data-mode="${mode}"])`);
+    if (other) other.focus({ preventScroll: true });
+  });
+}

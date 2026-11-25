@@ -178,7 +178,7 @@ def test_cps_demo_makes_a_store_to_look_around_and_serves_it(tmp_path, capsys):
         assert "@alex" in unescape(web.get(f"/p/{found.people['marco']}/u/alex").text)
         assert web.get(f"/admin/{found.admin}").status_code == 200
         home = web.get("/").text
-        assert 'action="/demo"' not in home and web.post("/demo").status_code == 404
+        assert 'action="/demo' not in home and web.post("/demo").status_code == 404
 
 
 @pytest.mark.slow
@@ -224,7 +224,7 @@ def test_the_public_demo_gives_each_visitor_a_student_of_their_own(tmp_path, cap
 
     with _app(store, world.admin, demo=start) as web:
         home = web.get("/").text
-        assert 'action="/demo"' in home and "Start the demo" in home
+        assert 'action="/demo?lang=en"' in home and "Start the demo" in home
         assert 'name="year" value="1"' in home and 'name="year" value="2"' in home  # D182
         first = web.post("/demo", data={"year": "1"}, follow_redirects=False)
         freshman = first.headers["location"].split("/p/")[1].split("/")[0]

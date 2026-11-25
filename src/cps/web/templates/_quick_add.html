@@ -3,7 +3,24 @@
    D159: ui.js also draws the app's own month and times under the date (the system's
    picker was grey and unlike the app, the owner, 2026-11-19), and the course is a list
    of the plan's courses with "Other…", whose field shows when it is chosen. #}
+{# D195: "+" and N first open a line of the to-do page, written as it is said ("Stats report
+   Friday 6 h" is planned); the deadline field by field folds under it. #}
 <div id="quick-add" class="sheet" popover aria-label="{{ _('New task') }}">
+  <form method="post" action="/p/{{ token }}/todo" data-async class="sheet-line">
+    <input type="hidden" name="back" value="{{ 'today' if tab == 'today' else ('calendar' if tab == 'calendar' else '') }}">
+    <div class="sheet-head">
+      <button type="button" class="btn btn-plain" popovertarget="quick-add" popovertargetaction="hide">{{ _("Cancel") }}</button>
+      <h2>{{ _("To-do") }}</h2>
+      <button type="submit" class="btn btn-plain"><b>{{ _("Add") }}</b></button>
+    </div>
+    <div class="sheet-body">
+      <label class="visually-hidden" for="qa-line">{{ _("A new line") }}</label>
+      <input id="qa-line" name="line" class="title-input" maxlength="200" autocomplete="off" enterkeyhint="done" placeholder="{{ _('Stats report Friday, 6 h') }}">
+      <p class="hint">{{ _("A day and hours of work are planned for you; a line without them stays on your list.") }} <a href="/p/{{ token }}/todo">{{ _("Open the list") }}</a></p>
+    </div>
+  </form>
+  <details class="sheet-more">
+  <summary>{{ _("Or a deadline, field by field") }}</summary>
   <form method="post" action="/p/{{ token }}/tasks" data-async>
     <input type="hidden" name="back" value="{{ tab or '' }}">
     <div class="sheet-head">
@@ -63,6 +80,8 @@
         </div>
       </div>
       <p class="hint">{{ _("It is planned at once, earliest deadline first, within your hours; if it cannot fit before it is due, you are told now, not the night before.") }}</p>
+      <div class="row-end"><button type="submit" class="btn btn-primary btn-sm">{{ _("Add") }}</button></div>
     </div>
   </form>
+  </details>
 </div>

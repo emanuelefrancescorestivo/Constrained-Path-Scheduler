@@ -4,6 +4,41 @@
 
 ### Added
 
+- The mathematics font, shipped (DECISIONS.md D200): a card's formulas are set in Latin Modern Math,
+  the font of LaTeX's own output, on every device, Android and Linux included. Only a page with
+  mathematics downloads it (391 KB, once).
+
+- A card's mathematics typeset by the browser (DECISIONS.md D199): LaTeX read into MathML on the
+  server, with fractions, roots, sums with their limits above and below, matrices, cases and
+  accents, in the device's mathematics font. A formula alone on a card is set apart.
+
+- A browser extension that pauses Instagram, TikTok, Facebook, Messenger and WhatsApp Web while a
+  focus session runs (DECISIONS.md D198, `extension/`). The plan's pages say until when; the
+  extension reads that and nothing else. To be published by the owner.
+
+- LaTeX on a card, read whole (DECISIONS.md D197): `$…$`, Greek letters, relations, arrows, sets,
+  `\sqrt{…}`, `\mathbb{R}`, functions and their limits, bars and accents, and `x^2` without braces
+  are drawn, not shown as typed.
+
+- Focus keeps the distracting apps away with the phone's own blocking (DECISIONS.md D196). A website
+  cannot block Instagram, TikTok, Facebook or WhatsApp; the focus page shows, for the device it is
+  opened on, how the iPhone's Focus and Screen Time or Android's Focus mode do it, set up once. On an
+  iPhone, "Silence my phone" opens the student's Focus shortcut in one tap, and turns it off at the end.
+
+- A to-do page, as in Notion (DECISIONS.md D195): one list written a line at a time and drawn as a
+  table (task, due, work, course), under You and in the sidebar, and first in the "+" sheet. "# " makes a heading, "> " a note, "- " or Tab a step;
+  "Stats report Friday 6 h" is planned as a task at once. Lines are edited in place, ticked off with
+  their steps and their task, moved, and cleared when done. Today's "On your mind" is its open lines.
+
+- Tests the timetable does not show (DECISIONS.md D194): for each course, quizzes in class
+  (announced or not) and midterms, on their own page, asked once on Today and said on the
+  course's page. A course with quizzes keeps its recent weeks above 95 % for two weeks. A midterm
+  is a partial exam, practised for and kept free around. Measured by `benchmarks/quiz_ready.py`.
+
+- The front page in four languages, light or dark (DECISIONS.md D193): a language menu and a light or
+  dark button in the front page's top bar, without a script or a cookie; the front page, the account's
+  pages and their e-mails in Spanish (the app itself stays in English, French and Italian, and says so).
+
 - The front page as a launch (DECISIONS.md D191): neurons run behind the whole story and fire as it is
   scrolled; the app's own week fills up and moves when Tuesday is taken off; Today's sessions are ticked
   off one by one, the last by the reader (the ring closes, the streak grows); the friends' league climbs

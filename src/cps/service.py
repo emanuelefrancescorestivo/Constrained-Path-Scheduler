@@ -55,7 +55,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
@@ -469,6 +469,14 @@ TEST_KINDS = ("quiz", "mock", "partial")
 # The preparation a quiz brings, as a task due when it starts: a short self-test of
 # what the course has taught, which is what a quiz rewards [ref:yang2021].
 QUIZ_PREPARATION_HOURS = 1.0
+# D194: tests the timetable does not show. A course with quizzes in class, announced
+# or not, keeps each week of its lectures above QUIZ_READY_RECALL for QUIZ_READY_DAYS
+# after it is taught (a quiz asks about what was taught lately); a midterm the student
+# gives is a partial exam (D61) added to the timetable, MIDTERM_LENGTH long when no end
+# is given. The two weeks and the 95 % are choices, measured by benchmarks/quiz_ready.py.
+QUIZ_READY_DAYS = 14
+QUIZ_READY_RECALL = 0.95
+MIDTERM_LENGTH = timedelta(hours=2)
 
 
 def test_label(kind: str, summary: str) -> str:
@@ -642,6 +650,24 @@ def analyse_calendar(
             return change["action"] if change["action"] in TEST_KINDS else "skipped"
 
         tagged = [(e, changed(e, source)) for e, source in tagged]
+        # A test the timetable does not have, added by the student (D194): busy, and a
+        # test like a class marked as one.
+        horizon = (
+            datetime.combine(start, time(0, 0), tzinfo=zone_),
+            datetime.combine(start + timedelta(days=days), time(0, 0), tzinfo=zone_),
+        )
+        added = [
+            (
+                BusyEvent(datetime.fromisoformat(c["at"]), datetime.fromisoformat(c["end"]), c["summary"]),
+                c["action"],
+            )
+            for c in lecture_changes
+            if c.get("added") and c.get("action") in TEST_KINDS
+        ]
+        tagged = sorted(
+            tagged + [(e, kind) for e, kind in added if horizon[0] <= e.start < horizon[1]],
+            key=lambda pair: (pair[0].start, pair[0].end),
+        )
     if commute_minutes:
         campus = [e for e, source in tagged if source in ("calendar", *TEST_KINDS)]
         campus += busy_from_table([r for r in rows if r.kind == "class"], start, days, tz)
@@ -2137,7 +2163,9 @@ def new_subscription(
             "engine": engine,
             "tasks": [_task_dict(t) for t in tasks],
             "preferences": dict(preferences or {}),
-            "lang": pick(lang) if lang else current_language(),
+            # A plan speaks the app's languages only: a visitor reading the front page
+            # in Spanish (D193) gets their plan in English.
+            "lang": pick(lang or current_language()),
             "quick_tests": quick_tests,
         },
     )
@@ -2578,6 +2606,17 @@ def change_lecture(
         raise InvalidInput(_("this class is not in your timetable any more")) from None
     if start.tzinfo is None:
         start = start.replace(tzinfo=zone)
+    if action == "restore":
+        # A test the student added (D194) is not in the timetable: restoring it removes it.
+        added = [
+            c
+            for c in options.get("lecture_changes", ())
+            if c.get("added")
+            and datetime.fromisoformat(c["at"]) == start
+            and which in (c["summary"], lecture_ref(c["summary"]))
+        ]
+        if added:
+            return remove_test(subscription, added[0]["summary"], added[0]["at"], now=now)
     text = subscription.ics_text
     local = start.astimezone(zone)
     day = _events(text, (), local.date(), 1, options["tz"]) if text is not None else []
@@ -2641,6 +2680,179 @@ def change_lecture(
         change["task"] = task.name
     changes.append(change)
     return revise_subscription(subscription, tasks=tasks, lecture_changes=changes, now=now, strict=False)
+
+
+# --------------------------------------------------------------------------- #
+# Tests the timetable does not show (DECISIONS.md D194)
+# --------------------------------------------------------------------------- #
+
+
+def tested_courses(subscription: Subscription) -> list[str]:
+    """The courses a student can say have tests the timetable does not show: those
+    with an exam the plan prepares for, in the order of their colours."""
+    if subscription.plan is None:
+        return [s["name"] for s in subscription.subjects]
+    plan = PlanReport.from_dict(subscription.plan)
+    planned = {x.name.casefold() for x in plan.subjects}
+    return [name for name in course_names(subscription) if name.casefold() in planned]
+
+
+def _known_course(subscription: Subscription, course: str) -> str:
+    wanted = course.strip().casefold()
+    for name in tested_courses(subscription):
+        if name.casefold() == wanted:
+            return name
+    raise InvalidInput(_("choose one of your courses with an exam"))
+
+
+def set_quizzes(
+    subscription: Subscription, course: str, on: bool, *, now: datetime | None = None
+) -> Subscription:
+    """Say that `course` has quizzes in class, announced or not (`on`), or not: its
+    recent weeks are kept ready (`QUIZ_READY_RECALL` for `QUIZ_READY_DAYS` after each is
+    taught). The plan is made again at once."""
+    name = _known_course(subscription, course)
+    prefs = dict(subscription.options.get("preferences", {}))
+    ready = [c for c in prefs.get("quiz_ready") or () if c.casefold() != name.casefold()]
+    if on:
+        ready.append(name)
+    prefs["quiz_ready"] = sorted(ready)
+    asked = sorted({*(subscription.options.get("tests_asked") or ()), name})
+    changed = replace(
+        subscription, options={**subscription.options, "preferences": prefs, "tests_asked": asked}
+    )
+    return refresh_subscription(changed, now=now, reread=False)
+
+
+def add_test(
+    subscription: Subscription,
+    course: str,
+    day: str,
+    at: str = "",
+    *,
+    until: str = "",
+    exempt: bool = False,
+    now: datetime | None = None,
+) -> Subscription:
+    """A midterm of `course` the timetable does not have, on `day` (YYYY-MM-DD) at `at`
+    (HH:MM; 09:00 when left out) until `until` (`MIDTERM_LENGTH` later when left out): a
+    partial exam (D61), practised for and kept free around (D183); `exempt` when
+    passing it takes its material off the final. The plan is made again at once."""
+    now = now or datetime.now(UTC)
+    name = _known_course(subscription, course)
+    zone = _zone(subscription.options["tz"])
+    try:
+        when = date.fromisoformat(day)
+        begin = time.fromisoformat(at or "09:00")
+        end_time = time.fromisoformat(until) if until else None
+    except ValueError:
+        raise InvalidInput(_("give the midterm's day, and its time if you know it")) from None
+    start = datetime.combine(when, begin, tzinfo=zone)
+    end = datetime.combine(when, end_time, tzinfo=zone) if end_time else start + MIDTERM_LENGTH
+    if start <= now:
+        raise InvalidInput(_("this day is already behind you"))
+    if end <= start:
+        raise InvalidInput(_("a test ends after it begins"))
+    finals = (
+        [
+            datetime.fromisoformat(x.exam)
+            for x in PlanReport.from_dict(subscription.plan).subjects
+            if x.name.casefold() == name.casefold()
+        ]
+        if subscription.plan is not None
+        else []
+    )
+    if finals and start >= max(finals):
+        raise InvalidInput(_("a midterm comes before the course's exam"))
+    changes = [dict(c) for c in subscription.options.get("lecture_changes", ())]
+    if any(
+        c.get("added") and datetime.fromisoformat(c["at"]) == start and c["summary"] == name for c in changes
+    ):
+        raise InvalidInput(_("this test is there already"))
+    changes.append(
+        {
+            "at": _iso(start),
+            "end": _iso(end),
+            "summary": name,
+            "action": "partial",
+            "exempt": bool(exempt),
+            "added": True,
+        }
+    )
+    asked = sorted({*(subscription.options.get("tests_asked") or ()), name})
+    changed = replace(subscription, options={**subscription.options, "tests_asked": asked})
+    return revise_subscription(changed, lecture_changes=changes, now=now, strict=False)
+
+
+def remove_test(
+    subscription: Subscription, course: str, at: str, *, now: datetime | None = None
+) -> Subscription:
+    """Take back a test the student added (D194). The plan is made again at once."""
+    changes = [dict(c) for c in subscription.options.get("lecture_changes", ())]
+    try:
+        when = datetime.fromisoformat(at)
+    except ValueError:
+        raise InvalidInput(_("this test is not in your plan")) from None
+    kept = [
+        c
+        for c in changes
+        if not (
+            c.get("added")
+            and c["summary"].casefold() == course.strip().casefold()
+            and datetime.fromisoformat(c["at"]) == when
+        )
+    ]
+    if len(kept) == len(changes):
+        raise InvalidInput(_("this test is not in your plan"))
+    return revise_subscription(subscription, lecture_changes=kept, now=now, strict=False)
+
+
+def tests_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """Each course with an exam: whether it has quizzes in class, the midterms the
+    student added (each with its day, time and whether it takes material off the final),
+    and those of the timetable marked as partial exams (D61), for the page that asks."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    ready = {c.casefold() for c in subscription.options.get("preferences", {}).get("quiz_ready") or ()}
+    asked = {c.casefold() for c in subscription.options.get("tests_asked") or ()}
+    changes = subscription.options.get("lecture_changes", ())
+    courses = []
+    for name in tested_courses(subscription):
+        added = sorted(
+            (c for c in changes if c.get("added") and c["summary"].casefold() == name.casefold()),
+            key=lambda c: c["at"],
+        )
+        marked = [
+            c
+            for c in changes
+            if not c.get("added")
+            and c.get("action") == "partial"
+            and (course_of(c["summary"]) or short_title(c["summary"])).casefold() == name.casefold()
+        ]
+        courses.append(
+            {
+                "course": name,
+                "quizzes": name.casefold() in ready,
+                "asked": name.casefold() in asked,
+                "midterms": [
+                    {
+                        "at": c["at"],
+                        "day": format_date(_local(c["at"], zone).date(), "long"),
+                        "time": f"{_local(c['at'], zone):%H:%M}",
+                        "exempt": bool(c.get("exempt")),
+                        "past": _local(c["at"], zone) <= now.astimezone(zone),
+                    }
+                    for c in added
+                ],
+                "marked": len(marked),
+            }
+        )
+    return {
+        "courses": courses,
+        "ready_days": QUIZ_READY_DAYS,
+        "ready_recall": round(QUIZ_READY_RECALL * 100),
+        "today": now.astimezone(zone).date().isoformat(),
+    }
 
 
 def revise_subscription(
@@ -3715,6 +3927,14 @@ FIT_QUESTIONS = (
         "Answer",
     ),
     (
+        "tests",
+        "Tests your timetable doesn't show",
+        "Quizzes in class, announced or not, or a midterm it leaves out: tell the plan, course by course, "
+        "and it gets you ready for them.",
+        "/tests",
+        "Tell the plan",
+    ),
+    (
         "deadlines",
         "Bring in your deadlines",
         "Your learning platform's calendar link (Moodle) brings every assignment that is due, and the plan "
@@ -3748,6 +3968,9 @@ def fit_question(subscription: Subscription, now: datetime | None = None) -> dic
     settled = set(state.get("done") or ()) | set(state.get("later") or ())
     if subscription.options.get("deadlines_url"):
         settled.add("deadlines")
+    # D194: asked once there is a course with an exam, and not once one was answered.
+    if subscription.options.get("tests_asked") or not subscription.subjects:
+        settled.add("tests")
     for key, title, says, path, button in FIT_QUESTIONS:
         if key not in settled:
             return {"key": key, "title": _(title), "says": _(says), "href": path, "button": _(button)}
@@ -6065,14 +6288,20 @@ def focus_quick(store: str | os.PathLike, subscription: Subscription) -> dict | 
 # caused; Scullin et al. (2018), that a specific to-do list written for five minutes at
 # bedtime brought sleep sooner than a list of what was done. "Close the day" asks for
 # tomorrow's first three in the hours before bed. Kept with the plan, never shared.
-MIND_ITEMS = 40  # the most a list holds; the oldest note goes first when it is full
+MIND_ITEMS = 200  # the most a list holds; the oldest line done goes first when it is full (D195)
 MIND_TEXT = 160  # an item's characters
 CLOSE_BEFORE_BED = timedelta(hours=3)  # "Close the day" is asked from then until bed
 CLOSE_FIRSTS = 3  # tomorrow's first things
 
 
 def _mind(subscription: Subscription) -> list[dict]:
-    return [dict(x) for x in subscription.options.get("mind", ())]
+    """The to-do page's lines (D195), "On your mind" since D145: each with its kind ("todo",
+    "note" or "heading"), whether it is done, its level (a step under the line above), the
+    planned task it stands for, if any, and its course."""
+    return [
+        {"kind": "todo", "done": False, "indent": 0, "task": "", "course": "", **dict(x)}
+        for x in subscription.options.get("mind", ())
+    ]
 
 
 def _with_mind(subscription: Subscription, items: list[dict], **more: Any) -> Subscription:
@@ -6107,11 +6336,19 @@ def add_to_mind(
     if not text:
         raise InvalidInput(_("write what is on your mind"))
     items = _mind(subscription)
-    items.append({"id": secrets.token_hex(4), "text": text, "day": _mind_day(when, today)})
+    items.append({"id": secrets.token_hex(4), "text": text, "day": _mind_day(when, today), "kind": "todo"})
+    return _with_mind(subscription, _kept(items))
+
+
+def _kept(items: list[dict]) -> list[dict]:
+    """The list within MIND_ITEMS: the oldest line done goes first, then the oldest without a day."""
     while len(items) > MIND_ITEMS:
-        oldest = next((i for i, x in enumerate(items) if not x["day"]), 0)
+        oldest = next(
+            (i for i, x in enumerate(items) if x.get("done")),
+            next((i for i, x in enumerate(items) if not x["day"]), 0),
+        )
         del items[oldest]
-    return _with_mind(subscription, items)
+    return items
 
 
 def _mind_index(items: list[dict], item: str) -> int:
@@ -6133,11 +6370,13 @@ def plan_mind_item(
     return _with_mind(subscription, items)
 
 
-def cross_off(subscription: Subscription, item: str) -> Subscription:
-    """An item done, or no longer on the student's mind: gone from the list."""
+def cross_off(subscription: Subscription, item: str, *, now: datetime | None = None) -> Subscription:
+    """An item done: ticked on the to-do page (D195), gone from Today's list; one done
+    already is not on the list to cross off."""
     items = _mind(subscription)
-    del items[_mind_index(items, item)]
-    return _with_mind(subscription, items)
+    if items[_mind_index(items, item)]["done"]:
+        raise InvalidInput(_("That is not on your list any more."))
+    return tick_todo(subscription, item, True, now=now)
 
 
 def close_day(
@@ -6161,6 +6400,217 @@ def _evening_of(subscription: Subscription, local: datetime) -> date:
     return local.date() - timedelta(days=1) if local.hour + local.minute / 60 < wake else local.date()
 
 
+# D195 (the owner, 2026-11-25: "the modality to put tasks and to leave a note should actually
+# simply become like in notion the ability to make a to-do list page"; points 1 to 6 of the
+# proposal, "for now i like the to-do lists yes"). One page, written a line at a time: a line is
+# a to-do with its box, "# " makes a heading, "> " a note, "- " a step under the line above. A
+# line is read as the new-task sheet reads one (`ai.read_task`, rules only): a day it names
+# becomes its day, a course its course, and a day with hours of work a task the plan makes
+# time for (`add_task`), ticked off with the line. "On your mind" (D145) is the same list.
+TODO_KINDS = ("todo", "note", "heading")
+
+
+def _todo_line(subscription: Subscription, line: str, now: datetime) -> tuple[dict, TaskSpec | None]:
+    """A typed line as a list item, and the task it brings, if it names a day and hours."""
+    text = " ".join(str(line or "").split())
+    kind, indent = "todo", 0
+    for prefix, k in (("# ", "heading"), ("> ", "note")):
+        if text.startswith(prefix) or text == prefix.strip():
+            kind, text = k, text[len(prefix) :]
+    if kind == "todo" and (text.startswith(("- ", "* ")) or text in ("-", "*")):
+        indent, text = 1, text[2:]
+    done = False
+    if kind == "todo" and re.match(r"\[[ xX]?\]\s", text):
+        done, text = text[1].lower() == "x", text[text.index("]") + 1 :].strip()
+    text = text[:MIND_TEXT]
+    if not text:
+        raise InvalidInput(_("write what is on your mind"))
+    item = {"id": secrets.token_hex(4), "text": text, "day": "", "kind": kind, "done": done,
+            "indent": indent, "task": "", "course": ""}  # fmt: skip
+    if kind != "todo":
+        return item, None
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    guess = _ai.read_task(text, today=today, courses=course_names(subscription))
+    item["course"] = guess.course
+    if not guess.due:
+        return item, None
+    due = datetime.fromisoformat(guess.due)
+    item["day"] = max(due.date(), today).isoformat()
+    words = guess.name or text
+    item["text"] = words
+    if not guess.hours:
+        return item, None
+    taken = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
+    name, n = words, 2
+    while name.casefold() in taken:
+        name, n = f"{words} ({n})", n + 1
+    item["task"] = name
+    return item, TaskSpec(name, f"{due:%Y-%m-%d %H:%M}", float(guess.hours), guess.course)
+
+
+def add_todo(
+    subscription: Subscription, line: str, *, after: str = "", now: datetime | None = None
+) -> Subscription:
+    """A line written on the to-do page, after the line `after` (else at the end). A line that
+    names a day and hours is planned at once."""
+    now = now or datetime.now(UTC)
+    item, task = _todo_line(subscription, line, now)
+    items = _mind(subscription)
+    at = _mind_index(items, after) + 1 if after else len(items)
+    if item["indent"] and not any(x["kind"] == "todo" for x in items[:at]):
+        item["indent"] = 0  # a step needs a line above it
+    items.insert(at, item)
+    changed = _with_mind(subscription, _kept(items))
+    return add_task(changed, task, now=now) if task is not None else changed
+
+
+def _todo_task_done(subscription: Subscription, item: dict, done: bool, now: datetime) -> Subscription:
+    names = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
+    if item.get("task") and item["task"].casefold() in names:
+        return set_task_done(subscription, item["task"], done, now=now)
+    return subscription
+
+
+def tick_todo(
+    subscription: Subscription, item: str, done: bool, *, now: datetime | None = None
+) -> Subscription:
+    """A line done, or not; its planned task with it."""
+    now = now or datetime.now(UTC)
+    items = _mind(subscription)
+    i = _mind_index(items, item)
+    if items[i]["kind"] != "todo":
+        raise InvalidInput(_("only a to-do is ticked off"))
+    items[i] = {**items[i], "done": bool(done)}
+    return _todo_task_done(_with_mind(subscription, items), items[i], bool(done), now)
+
+
+def edit_todo(subscription: Subscription, item: str, text: str) -> Subscription:
+    """A line's words changed; an empty line is removed."""
+    items = _mind(subscription)
+    i = _mind_index(items, item)
+    words = " ".join(str(text or "").split())[:MIND_TEXT]
+    if not words:
+        del items[i]
+    else:
+        items[i] = {**items[i], "text": words}
+    return _with_mind(subscription, items)
+
+
+def change_todo(
+    subscription: Subscription, item: str, how: str, *, now: datetime | None = None
+) -> Subscription:
+    """Move a line up or down, make it a step or not, change its kind, or remove it (its
+    planned task with it)."""
+    now = now or datetime.now(UTC)
+    items = _mind(subscription)
+    i = _mind_index(items, item)
+    if how in ("up", "down"):
+        j = i - 1 if how == "up" else i + 1
+        if 0 <= j < len(items):
+            items[i], items[j] = items[j], items[i]
+    elif how in ("indent", "outdent"):
+        items[i] = {**items[i], "indent": 1 if how == "indent" and i > 0 else 0}
+    elif how in TODO_KINDS:
+        # A heading is never a step; a heading or a note is never done.
+        done = items[i]["done"] and how == "todo"
+        indent = 0 if how == "heading" else items[i]["indent"]
+        items[i] = {**items[i], "kind": how, "done": done, "indent": indent}
+    elif how == "delete":
+        gone = items.pop(i)
+        changed = _with_mind(subscription, items)
+        names = {t["name"].casefold() for t in subscription.options.get("tasks", ())}
+        if gone.get("task") and gone["task"].casefold() in names:
+            return delete_task(changed, gone["task"], now=now)
+        return changed
+    else:
+        raise InvalidInput(_("move the line, make it a step, change its kind, or remove it"))
+    return _with_mind(subscription, items)
+
+
+def clear_done(subscription: Subscription) -> Subscription:
+    """The lines done, taken off the page (their tasks stay done in the plan's history)."""
+    return _with_mind(subscription, [x for x in _mind(subscription) if not x["done"]])
+
+
+def todo_view(subscription: Subscription, now: datetime | None = None) -> dict:
+    """The to-do page: its lines in order, each with its day said in words, whether it is
+    late, its planned task's hours and its course's colour; the lines done apart; and the
+    plan's other tasks (a learning platform's deadlines, those added before D195)."""
+    now = now or datetime.now(UTC)
+    zone = _zone(subscription.options["tz"])
+    today = now.astimezone(zone).date()
+    colours = {}
+    if subscription.plan is not None:
+        colours = {
+            name.casefold(): index
+            for name, index in course_colours(
+                PlanReport.from_dict(subscription.plan), drawn_courses(subscription)
+            )
+        }
+    tasks = {t["name"].casefold(): t for t in subscription.options.get("tasks", ())}
+
+    def when(day: str) -> tuple[str, bool]:
+        if not day:
+            return "", False
+        d = date.fromisoformat(day)
+        if d == today:
+            return _("today"), False
+        if d == today + timedelta(days=1):
+            return _("tomorrow"), False
+        if d < today:
+            return _("since {day}", day=_i18n.format_date(d, "short")), True
+        return _i18n.format_date(d, "short"), False
+
+    rows: list[dict] = []
+    done: list[dict] = []
+    parent_done = False  # a step of a line done goes with it
+    for x in _mind(subscription):
+        if not x["indent"]:
+            parent_done = x["done"] and x["kind"] == "todo"
+        label, late = when(x["day"])
+        task = tasks.get(x["task"].casefold()) if x["task"] else None
+        row = {
+            **x,
+            "when": label,
+            "late": late and not x["done"],
+            "today": bool(x["day"]) and date.fromisoformat(x["day"]) <= today,
+            "hours": task["hours"] if task else None,
+            "color": colours.get(x["course"].casefold()) if x["course"] else None,
+        }
+        (done if parent_done else rows).append(row)
+    # A heading counts the open lines under it, to the next heading (steps apart).
+    for i, r in enumerate(rows):
+        if r["kind"] == "heading":
+            under = []
+            for x in rows[i + 1 :]:
+                if x["kind"] == "heading":
+                    break
+                under.append(x)
+            r["open"] = sum(1 for x in under if x["kind"] == "todo" and not x["indent"] and not x["done"])
+    linked = {x["task"].casefold() for x in _mind(subscription) if x["task"]}
+    others = []
+    for t in subscription.options.get("tasks", ()):
+        if t["name"].casefold() in linked or t.get("done"):
+            continue
+        try:
+            due = datetime.fromisoformat(str(t["due"]).replace(" ", "T")).date()
+        except ValueError:
+            continue
+        label, late = when(due.isoformat())
+        course = str(t.get("course", ""))
+        others.append(
+            {"name": t["name"], "when": label, "late": late, "hours": t["hours"], "course": course,
+             "color": colours.get(course.casefold()), "due": due}
+        )  # fmt: skip
+    return {
+        "rows": rows,
+        "done": done,
+        "others": sorted(others, key=lambda o: o["due"]),
+        "open": sum(1 for r in rows if r["kind"] == "todo" and not r["done"]),
+    }
+
+
 def mind_view(subscription: Subscription, now: datetime | None = None) -> dict:
     """The list on Today: the items with a day first, in their days' order (today's and
     those left from before marked), then the notes, newest first; and whether to ask
@@ -6169,7 +6619,7 @@ def mind_view(subscription: Subscription, now: datetime | None = None) -> dict:
     local = now.astimezone(_zone(subscription.options["tz"]))
     today = local.date()
     evening = _evening_of(subscription, local)
-    items = _mind(subscription)
+    items = [x for x in _mind(subscription) if x["kind"] == "todo" and not x["done"] and not x["indent"]]
     planned = sorted((x for x in items if x["day"]), key=lambda x: x["day"])
     notes = [x for x in reversed(items) if not x["day"]]
     rows = []
@@ -8053,6 +8503,7 @@ def weekly_review(
 translate = _
 translate_plural = _n
 LANGUAGES = _i18n.LANGUAGES
+FRONT_LANGUAGES = _i18n.FRONT_LANGUAGES  # the front page's, Spanish among them (D193)
 activate_language = _i18n.activate
 deactivate_language = _i18n.deactivate
 pick_language = _i18n.pick
@@ -8618,6 +9069,126 @@ def start_focus(
         options["places_recent"] = _remember_place(options, place)
     # D179: the rhythm chosen is the student's next one too, where a session starts in one tap.
     return replace(subscription, options={**options, "focus": focus, "focus_rhythm": bool(rhythm)})
+
+
+# D196 (the owner, 2026-11-25: "on focus you must block social media apps such as Instagram,
+# TikTok, Facebook and WhatsApp"). A web page cannot block another app, nor another site: no
+# browser lets it, on a phone or a computer. What can is the device's own: an iPhone's Focus
+# and Screen Time, Android's Focus mode (Digital Wellbeing), which pauses the apps chosen. So
+# the focus page shows the steps for the device the page is opened on, set up once, and on an
+# iPhone a shortcut the student made ("Set Focus: toggle Study") is opened in one tap when a
+# session starts and when it ends. Blocking from the app itself would need an app of its own
+# for each phone (Apple's Screen Time API, Android's accessibility or usage access): the
+# owner's choice, not taken here.
+LOCK_APPS = ("Instagram", "TikTok", "Facebook", "WhatsApp")
+LOCK_SHORTCUT = "Study"  # the shortcut's name when the student keeps the one the steps say
+LOCK_NAME = re.compile(r"[\w .'-]{1,40}")
+
+
+def device_of(user_agent: str) -> str:
+    """The kind of device a page is opened on, from its browser's User-Agent: "iphone"
+    (an iPhone or an iPad), "android", "mac", "windows" or "other". A guess for showing
+    the right steps first; every kind's steps stay a tap away."""
+    ua = user_agent or ""
+    if re.search(r"iPhone|iPad|iPod", ua):
+        return "iphone"
+    if "Android" in ua:
+        return "android"
+    if "Macintosh" in ua:
+        return "mac"
+    if "Windows" in ua:
+        return "windows"
+    return "other"
+
+
+def lock_view(subscription: Subscription, device: str) -> dict:
+    """What keeps the distracting apps away during a session: the steps for each kind of
+    device, the one the page is on first, and the student's shortcut (an iPhone's), opened
+    in one tap from the focus page once set."""
+    apps = ", ".join(LOCK_APPS)
+    steps = {
+        "iphone": [
+            _("Settings › Focus › + › Custom: call it Study, and under Apps silence {apps}.", apps=apps),
+            _(
+                "For apps that stay locked: Settings › Screen Time › Downtime, at your study hours, "
+                "with only the apps you allow."
+            ),
+            _(
+                "In Shortcuts, a new shortcut called Study with one action: Set Focus, Toggle, "
+                "Study. Then one tap here turns it on and off."
+            ),
+        ],
+        "android": [
+            _(
+                "Settings › Digital Wellbeing & parental controls › Focus mode: choose {apps}. While "
+                "it is on, they cannot be opened.",
+                apps=apps,
+            ),
+            _("Swipe down, tap the pencil and drag the Focus mode tile in: one tap turns it on."),
+            _("Before a session, swipe down and tap Focus mode; tap it again when you finish."),
+        ],
+        "mac": [
+            _("System Settings › Focus silences notifications while you study."),
+            _("System Settings › Screen Time › App Limits can limit {apps} and their websites.", apps=apps),
+        ],
+        "windows": [
+            _("Focus in the Clock app silences notifications; it does not close sites, so close their tabs."),
+        ],
+    }
+    first = device if device in steps else "iphone"
+    lock = subscription.options.get("focus_lock") or {}
+    name = str(lock.get("shortcut") or "")
+    return {
+        "device": device,
+        "apps": apps,
+        "first": first,
+        "steps": [{"device": first, "lines": steps[first]}]
+        + [{"device": d, "lines": lines} for d, lines in steps.items() if d != first],
+        "names": {"iphone": "iPhone", "android": "Android", "mac": "Mac", "windows": "Windows"},
+        "shortcut": name,
+        "link": f"shortcuts://run-shortcut?name={quote(name)}" if name and device == "iphone" else "",
+        "default_name": LOCK_SHORTCUT,
+    }
+
+
+# D198 (the owner, 2026-11-25: "we block social media, not the user"). On a computer the
+# app's browser extension (`extension/`) blocks these sites while a session runs: every page
+# of a plan says until when (`focus_until`), and the extension reads nothing else. A session
+# without a length is taken to last FOCUS_BLOCK_OPEN; one with a length, that length with its
+# pauses (D178) and FOCUS_BLOCK_SLACK more. Leaving the session, or ending it, ends the block
+# the next time a page of the plan is opened.
+LOCK_SITES = ("instagram.com", "tiktok.com", "facebook.com", "messenger.com", "web.whatsapp.com")
+FOCUS_BLOCK_OPEN = timedelta(hours=3)
+FOCUS_BLOCK_SLACK = timedelta(minutes=15)
+
+
+def focus_until(subscription: Subscription | None, now: datetime | None = None) -> str:
+    """When the session under way is taken to end, as an ISO instant, for the extension that
+    blocks the distracting sites meanwhile; "" with no session, or one past that time."""
+    focus = (subscription.options.get("focus") or {}) if subscription is not None else {}
+    if not focus.get("started"):
+        return ""
+    now = now or datetime.now(UTC)
+    started = datetime.fromisoformat(focus["started"])
+    goal = focus.get("goal")
+    if goal:
+        length = timedelta(minutes=int(goal))
+        if focus.get("rhythm"):
+            length += timedelta(seconds=RHYTHM_PAUSE) * int(length.total_seconds() // RHYTHM_WORK)
+        end = started + length + FOCUS_BLOCK_SLACK
+    else:
+        end = started + FOCUS_BLOCK_OPEN
+    return end.astimezone(UTC).isoformat(timespec="seconds") if end > now else ""
+
+
+def set_focus_shortcut(subscription: Subscription, name: str) -> Subscription:
+    """The name of the shortcut that toggles the student's Focus on their iPhone, or "" to
+    forget it."""
+    name = " ".join(str(name or "").split())
+    if name and not LOCK_NAME.fullmatch(name):
+        raise InvalidInput(_("a shortcut's name, as Shortcuts shows it, up to 40 characters"))
+    lock = {**(subscription.options.get("focus_lock") or {}), "shortcut": name}
+    return replace(subscription, options={**subscription.options, "focus_lock": lock})
 
 
 def focus_rhythm_default(subscription: Subscription) -> bool:
@@ -13402,6 +13973,7 @@ def make_schedule(
     pins: Sequence[Mapping] = (),
     model: str = "fsrs-6",
     pauses: Sequence[Mapping] = (),
+    quiz_ready: Sequence[str] = (),
 ) -> PlanReport:
     """The student's week, scheduled by the assistant's rules (`cps.assistant`):
     deadlines first when they get close, exam practice before each exam, self-testing
@@ -13503,6 +14075,8 @@ def make_schedule(
             "model": model,
             # The student's pauses (D126): their days are left free.
             "pauses": [dict(p) for p in pauses],
+            # The courses with quizzes in class (D194): their recent weeks are kept ready.
+            "quiz_ready": sorted({str(c) for c in quiz_ready}),
             # The weeks without classes the timetable has (D184), asked about on Today.
             "holidays": [
                 {"from": a.isoformat(), "to": b.isoformat()}
@@ -13615,6 +14189,8 @@ def _assist(
         if h.kind in _REVIEW_KINDS and h.outcome not in _NO_MEMORY:
             last[h.title] = h
     poor = {name for name, h in last.items() if h.outcome == "lapsed" or h.grade in ("again", "hard")}
+    # Courses with quizzes in class (D194): each week of lectures kept ready while recent.
+    quizzed = {c.casefold() for c in prefs.get("quiz_ready") or ()}
     topics = [
         Topic(
             s["name"],
@@ -13626,6 +14202,9 @@ def _assist(
             s.get("about", s.get("subject", s["name"])),
             weights.get(s.get("subject", s["name"]).casefold(), 1.0),
             s["name"] in poor,
+            s.get("available_day", 0.0) + QUIZ_READY_DAYS
+            if s.get("subject", s["name"]).casefold() in quizzed
+            else 0.0,
         )
         for s in specs
     ]
@@ -13678,6 +14257,7 @@ def _assist(
             rest_weekdays=tuple(WEEKDAY_NAMES.index(d) for d in prefs["rest_days"]),
             practice_days=prefs["practice_days"],
             review_below=settings.retention,
+            ready_below=max(QUIZ_READY_RECALL, settings.retention),
             model=model,
             weekly_minutes=None if weekly is None else max(minutes, round(weekly * 60)),
             block_minutes=minutes,

@@ -103,6 +103,14 @@ def test_the_type_faces_are_the_apps_own_files_with_their_licences(web):
         assert "SIL Open Font License, Version 1.1" in (STATIC / "fonts" / licence).read_text(
             encoding="utf-8"
         )
+    # D200: the maths font, from the device first, else the app's file, under the GUST Font License.
+    assert 'local("Latin Modern Math")' in css and 'url("fonts/latinmodern-math.woff2")' in css
+    font = web.get("/static/fonts/latinmodern-math.woff2")
+    assert font.status_code == 200 and font.content[:4] == b"wOF2"
+    assert "GUST Font License" in (STATIC / "fonts" / "GUST-FONT-LICENSE.txt").read_text(encoding="utf-8")
+    assert "Latin Modern Math" in (STATIC / "fonts" / "README-Latin-Modern-Math.txt").read_text(
+        encoding="utf-8"
+    )
     assert "googleapis" not in css and "gstatic" not in css
     assert "font-src 'self'" in web.get("/").headers["content-security-policy"]
 

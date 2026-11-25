@@ -1422,3 +1422,20 @@ counts its lectures from the plan's first day against the credits' share of the 
 label that wrapped, so the two cards' numbers sat at different heights; and the badges arrived by
 scaling from 70 %, so a row seen half way was a row of different sizes. Status: fixed with D190: a
 card's number sits above its words, and the crests and cards only fade in, never scale.
+
+**129. Spark's tour still said classes wear their courses' colours.** Found on 2026-11-25 in the
+browser check of D194: D192 made the calendar calm (classes grey, sessions in the accent, tests red),
+and the calendar's first tour step still read "Classes in their courses' colours, and the sessions I
+planned around them." Status: fixed with D194: "Your classes in grey, the sessions I planned around
+them in colour, tests in red", in French and Italian too.
+
+**130. A card showed most LaTeX as typed.** Found on 2026-11-25 when the owner asked for the LaTeX on
+flashcards to be reviewed: a card drew only `^{…}`, `_{…}` and `\frac{…}{…}` (D151, D166). `$…$`,
+Greek letters, `\le`, `\sqrt{…}`, `\mathbb{R}`, `\lim` and `x^2` without braces stayed as typed.
+Status: fixed with D197 (`tests/test_maths_cards.py`).
+
+**131. The cards' second call undid their LaTeX.** Found on 2026-11-25 by CI on D199: the test of the
+writing prompt still asked for "never LaTeX", and reading why showed the check (D138) still asked the
+model for "mathematics in plain text with Unicode symbols". A card it fixed would come back without
+its `$…$`, drawn as plain text beside cards typeset as MathML. Status: fixed: the check asks for each
+formula in LaTeX between $ signs, as the writing does (`tests/test_cards_by_ai.py`).

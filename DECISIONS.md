@@ -7566,3 +7566,353 @@ setting of the plan: it is how a screen looks, kept with the view on each device
 **Disclosed.** Today's strip and agenda keep the courses' colours for now. Whether students find
 their way better is for the pilot. Checked in Chromium only, at 1440 × 900 and phone size, both
 colourings.
+
+## D193. The front page in four languages, light or dark
+
+**Asked.** The owner: "i want the ability to switch italian french spanish english and white dark mode
+in the landing page too".
+
+**Chosen.** The front page's top bar has a language menu (a globe and the language's code; English,
+Français, Italiano, Español) and one button for the other mode: the moon while the page is light, the
+sun while it is dark. Both are links, so they work without a script: `?lang=` as before (D10), and
+`?theme=light|dark`, which the page writes on `<html>` as a plan's Appearance does (D21) and which
+picks each picture of the app in light or in dark (their `<source>` asks "all" or "not all" in place
+of the device's scheme). With `home.js`, the mode changes in place, so the reader stays where they
+are in the story; the address, the links that carry the choice and the demo's button follow. The
+choice rides in the address, never in a cookie: the front page keeps none. The demo's buttons carry
+the language and the mode, so a made-up student opens in the language read and the mode chosen
+(Appearance set to it). The account's pages keep the language through their links and forms.
+
+Spanish is new, and only at the door: the front page, the account's pages and their e-mails
+(`locales/es.py`, 232 sentences; Spanish dates say "lunes 19 de octubre"). `i18n.FRONT_LANGUAGES`
+adds it to `LANGUAGES`, and `pick(front=True)` accepts it, on `/` and `/account/…` only. A plan
+cannot be in Spanish: `set_language` refuses it, and a plan begun from a Spanish front page is planned
+in English. A line under the lead says so to a Spanish reader: the app speaks English, French and
+Italian for now, and its pictures are in English.
+
+**Rejected.** The whole app in Spanish now: French has 3,806 sentences, a slice of its own, and a
+page half in Spanish and half in English would be worse than one in English. A cookie to remember the
+mode: the front page promises none. Three buttons (automatic, light, dark): one button for the other
+mode is one tap; a reader who wants the device's back opens the page without `theme`.
+
+**Disclosed.** The Spanish was not written by a native speaker; it is the owner's to review. A
+mode chosen on the front page is forgotten by the explaining pages (they follow the device) and after
+a form is sent with an error. Checked in Chromium only, at 1440 × 900 and phone size, light and dark,
+in English, French, Italian and Spanish.
+
+## D194. Tests the timetable does not show
+
+**Asked.** The owner: "we need to really double down on the planning engine and on tailoring
+students needs, checking if there are pop-up quizzes that the .ics file does not include, same with
+midterms and so on".
+
+**Chosen.** A page, `/p/<plan>/tests`, with one card per course that has an exam:
+- **Quizzes in class, announced or not:** a switch, saved as it is flipped.
+- **Midterms:** each one's day, its time, and whether passing it takes its material off the final.
+
+Today asks about it once, second among the questions that make the plan fit (D98), from the day
+after the plan is made, until a course is answered. A course's page says what was given in a line
+under its exam ("Quizzes in class · 1 midterm") and leads to it. A project or a presentation is a
+task, as before; the page says so.
+
+What the plan does with each:
+
+- **Quizzes in class keep the course's recent weeks ready.** For `QUIZ_READY_DAYS` (14) after a
+  week is taught, its self-test comes once its predicted recall falls to `QUIZ_READY_RECALL` (95 %)
+  rather than the plan's target (90 %): one more rule in the assistant (`Topic.ready_until`,
+  `Preferences.ready_below`). The session says why ("Algebra 3 has quizzes in class: a recent week
+  is kept above 95 % …"). Nothing else changes: an older week, and every other course, are planned
+  as before.
+- **A midterm is a partial exam (D61) added to the timetable.** It is a test the student added
+  (`lecture_changes` with `added`), read by `analyse_calendar` as a class marked "partial". So it
+  is:
+  - busy on the calendar, drawn red;
+  - practised for, sized by the weeks taught before it (D46);
+  - kept free an hour before and half an hour after (D183);
+  - and, when passing it takes its material off the final, it splits the course's weeks (D61).
+
+  09:00 and two hours (`MIDTERM_LENGTH`) are taken when no time is given. It is removed from its
+  page, or from the calendar as any class marked as a test.
+
+Measured (`benchmarks/quiz_ready.py`, the sample semester, the product's assistant on FSRS-6 at
+15 hours a week, each course in turn):
+- **Quizzes in class:** the mean predicted recall, at each of the course's classes, of its weeks
+  taught in the 14 days before rises by 0.2 to 2.2 points (Advanced Statistics 0.936 to 0.958). It
+  costs 0 to 6 more self-tests over the semester. Recall at the exams stays within 0.002, and the
+  topics at 90 % stay or rise (45 to 49 for Analysis 3).
+- **A midterm halfway through the semester:** told, it gets 2 sessions of exam practice before it;
+  not told, none. The recall of the weeks before it barely moves (0.945 to 0.957 at most), because
+  the plan already keeps them up.
+
+The value is in the practice and the time kept free, not in a jump in recall.
+
+**Rejected.**
+- **A weekly quiz as its own answer, its weekday's classes marked as quizzes:** a class marked as a
+  test teaches nothing new (D61), and a quiz at the start of a lecture does not stop the lecture.
+  Announced or not, the planner's answer is the same: keep the recent weeks ready.
+- **An hour of preparation before every class of a course with quizzes** (D61's quiz task, for each
+  class): a dozen tasks a course, most for quizzes that never come.
+- **Asking in setting up:** another step before the first plan (D165).
+- **93 % or 97 %:** over the six courses, 95 % gains the most at a class (+1.1 points on average,
+  against +0.7 at 93 % and +0.8 at 97 %), and 97 % costs 0.004 of recall at the exams
+  (`benchmarks/quiz_ready.py --sweep`).
+
+**Disclosed.**
+- The 95 % and the 14 days are choices, the gains the model's estimate with average weights,
+  every review a success.
+- The lowest recall at a class barely moves: a class the day after a lecture leaves no free block
+  between them.
+- A midterm's time defaults to the morning when it is not given.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D195. A to-do page, written a line at a time
+
+**Asked.** The owner: "the modality to put tasks and to leave a note should actually simply become
+like in Notion the ability to make a to-do list page". Proposed: sixteen features a student would
+need in such a page, the first six as the core. The owner: "for now i like the to-do lists yes".
+The core is built; features 7 to 16 wait for the owner's pick.
+
+**Chosen.** One page, To-do (`/p/<plan>/todo`), in Tasks' place under You and in the sidebar. It is
+the list D145 began on Today ("On your mind"), whole. A line is written as it would be said, at the
+bottom of the page, and Enter adds it:
+- **A prefix makes its kind**, as in Notion: "# " a heading, "> " a note, "- " (or Tab) a step under
+  the line above, "[x] " a line done. A plain line is a to-do with a box.
+- **A day it names is its day; a day and hours of work are planned.** The line is read by D12's
+  rules (`ai.read_task`, English, French, Italian): "Stats report Friday 6 h" becomes a task of 6
+  hours due Friday, in its course, placed in the plan at once. A line without hours stays on the
+  list, with its day if it has one. Each line shows its day, "planned · 6 h" and its course.
+- **Each line is edited in place**, saved as it changes (`data-autosave`, D165); an emptied line is
+  removed. Its menu moves it up or down, makes it a step or not, changes its kind, or removes it,
+  its task with it.
+- **Ticked off, a line goes to "Done"** with its steps, and its task is done in the plan; ticked again,
+  both come back. "Clear the lines done" takes them off the page; their tasks stay done.
+- **The plan's other tasks** (a learning platform's deadlines, those added field by field) are listed
+  under the page, by due date, each leading to Tasks' page.
+- **Today's "On your mind" is the same list's open lines** (to-dos, not steps), and links to the page.
+  Crossing one off there ticks it here.
+- **The "+" and N open a line first**: the sheet's first field is a to-do line, sent to the page; the
+  deadline field by field (D159) folds under it.
+
+A list holds 200 lines (D145 kept 40); when full, the oldest line done goes first, then the oldest
+without a day. Lines are kept with the plan, never shared.
+
+**Its look: a table.** The first draft was a card of rounded rows with chips; the owner found it "too
+rounded" and asked for something "more cut-down, straight to the point, with a bit of elegance". Three
+designs were proposed (a ruled sheet, a table, a notebook with the days in the margin); the owner chose
+the table ("mi piace la tabella"). A command line sits on top with its syntax beside it (`#` heading,
+`>` note, Tab or `-` step); below, the lines in columns (task, due, work, course) under their headings,
+each heading with its open lines; square boxes, 6 px corners at most, the course a small square of its
+colour. On a phone, or wherever the sheet is under 600 px, the columns fold into one line under the task.
+
+**Rejected.**
+- **A page editor (rich text, blocks, drag and drop):** a framework or a build step, against the
+  front end's rules, and every line still has to be read for its day and hours on the server.
+- **Two lists, tasks and notes:** the owner asked for one page; a task is a line that names hours.
+- **Deleting a line when it is crossed off (D145):** a to-do list keeps what was done until it is
+  cleared, as Notion's does; Today's list still loses it at once.
+
+**Tests changed by the redesign.** `test_mind.py`: a line crossed off is done, not deleted, and is not
+crossed off twice. `test_task_sheet.py`: the sheet's course list is in the folded deadline form.
+`test_simpler.py`: You leads to the to-do page, which leads to each task.
+
+**Disclosed.**
+- A line is read by rules: "6 h" or "6 hours" is work, but "6h" alone is read as six in the morning,
+  as "18h" is a time in French (D12). Hours and days in other words are not read.
+- Editing a line's words does not rename its task.
+- Features 7 to 16 of the proposal (reminders on a line, a line repeated weekly, a line from a
+  course's week, sharing a list, and the rest) are not built.
+- The table's look is the owner's pick of three mock-ups, not tried with students.
+- Checked in Chromium only, at 1280 px and phone size, light and dark, with the keyboard.
+
+## D196. Focus: the phone keeps the distracting apps away
+
+**Asked.** The owner: "on focus you must block social media apps like Instagram, TikTok, Facebook
+and WhatsApp".
+
+**What can be done.** A web page cannot block another app or another site. No browser lets it, on
+a phone or a computer. The devices can:
+- an iPhone's Focus silences the apps chosen;
+- an iPhone's Screen Time Downtime locks every app but those allowed, at the hours set;
+- Android's Focus mode (Digital Wellbeing) pauses the apps chosen, which then cannot be opened;
+- a Mac's Screen Time limits apps and websites.
+
+Blocking from the app itself would need an app of its own for each phone. That means Apple's Screen
+Time API, which needs Apple's Family Controls entitlement and a developer account, or Android's
+usage access. That is a decision on accounts, cost and scope: the owner's, not taken here.
+
+**Chosen.** On the focus page, a card, "Keep Instagram, TikTok, Facebook, WhatsApp away". It holds
+the steps for the device the page is opened on (read from the browser's User-Agent, `device_of`),
+set up once. Every other device's steps are one tap away.
+- **On an iPhone,** the steps end with a shortcut the student makes in Shortcuts ("Study": Set Focus,
+  Toggle, Study). Once its name is saved, "Silence my phone" above "Let's go" opens it in one tap
+  (`shortcuts://run-shortcut?name=…`). The same link turns it off from the running clock and from
+  "Session complete!".
+- **On Android,** the steps end with Focus mode's quick settings tile, one tap before and after.
+
+The card says why: a website cannot block other apps, the phone can. It also says that the clock
+counts only the minutes the page is in front of the student (D179).
+
+**Rejected.**
+- **Detecting the apps opened during a session:** no browser tells a page which app is in front.
+  The clock already stops counting when the page is left.
+- **A browser extension that blocks the sites on a computer:** a separate product and a store
+  account, the owner's choice like the native apps.
+- **Asking for the shortcut before every session:** set once, a tap after.
+
+**Disclosed.**
+- The menu names are those of iOS 18, Android 15 and macOS 15 in English, French and Italian. A
+  phone's maker or an older version can name them otherwise.
+- Safari asks before opening Shortcuts the first time.
+- Not tried on a real iPhone or Android phone, nor in Safari: checked in Chromium with an iPhone's
+  and a Pixel's User-Agent at phone size, light and dark.
+
+## D197. LaTeX on a card, read whole
+
+**Asked.** The owner: "the latex formatting in the flashcard must be reviewed".
+
+**Found.** A card drew only what D151 and D166 read from a LaTeX PDF: `^{…}`, `_{…}` and
+`\frac{…}{…}`. The rest of the LaTeX a card is likely to hold stayed as typed: `$…$` and `\(…\)`,
+Greek letters, `\le`, `\in`, `\to`, `\sqrt{…}`, `\mathbb{R}`, `\sin`, `\lim`, and `x^2` or `a_n`
+without braces. A student types these, and a model writing cards may (AUDIT 130).
+
+**Chosen.** `_maths` reads them before it draws:
+- **Delimiters go.** `$$…$$`, `\(…\)` and `\[…\]` always do. A `$…$` pair goes when it holds a mark of
+  mathematics or has no space at its ends: `$1$` is a number, "$5 and $10" stays money.
+- **Symbols become characters.** About 120 commands become the character they name (α, ≤, ∈, →, ∑,
+  ∫, ∞, ∀ …). `\mathbb{R}` becomes ℝ. A function's name stays upright with a thin space after it,
+  none before its limits.
+- **Marks are drawn.** `\sqrt{…}` is a root over its radicand. `\bar` and `\overline` draw a bar;
+  `\vec`, `\hat`, `\tilde` and `\dot` draw their accents. `\text{…}` and `\mathrm{…}` keep their
+  words; `\mathbf{…}` is bold. `\left`, `\right` and the spacing commands give way.
+- **Bare scripts are scripts.** `x^2`, `e^x` and `a_n` are drawn as `x^{2}`, `e^{x}`, `a_{n}`. A
+  single sign or a run of digits after a letter, a digit or a bracket, never inside a word:
+  `snake_case` stays.
+
+A command it does not know stays as typed. Everything is escaped first, so no markup gets through.
+The model is told the card draws `\frac` and `\sqrt` too.
+
+**Rejected.** KaTeX: complete, but a new dependency of about 300 KB with its fonts, on every page
+of cards, for what a hundred lines of rules do for the LaTeX a card holds. It needs the owner's yes
+(dependencies), and stays the way forward if matrices or aligned equations become common.
+
+**Disclosed.** No matrices, no environments (`\begin{…}`), no limits set over a sum (they stay at
+its side, as inline mathematics). Checked in Chromium only, at phone size, light and dark.
+
+## D198. Distracting sites blocked during a session, on a computer
+
+**Asked.** The owner, after D196: "we block social media, not the user".
+
+**Chosen.** A browser extension, `extension/`, for Chrome, Edge and Brave (Manifest V3). While a
+focus session runs it sends Instagram, TikTok, Facebook, Messenger and WhatsApp Web
+(`service.LOCK_SITES`) to a calm page instead: "This site is paused while your study session runs.
+Back at 10:03", with a button back to the session. Tabs already open on them go there too.
+
+How it knows, and what it does not know:
+- **The pages say when.** Every page of a plan carries `data-focus-until` on `<body>`
+  (`service.focus_until`): when the session under way is taken to end, or nothing. That is its
+  length, plus a 5-minute pause per 25 minutes with the rhythm (D178), plus 15 minutes; or 3 hours
+  for a session without a length.
+- **The content script reads one attribute.** It runs on a plan's pages only and reads that
+  attribute and nothing else. The background turns on the browser's own blocking rules
+  (`declarativeNetRequest`) until then, or until a page of the plan says no session runs. Ending
+  or cancelling the session lifts the block at the next page.
+- **Nothing leaves the device.** The extension never sees what is browsed and sends nothing. It
+  asks for the five sites and three permissions: blocking rules, storage, alarms.
+
+Checked by loading it in Chromium: Instagram opens with no session, goes to the calm page during
+one, and opens again once it is cancelled.
+
+**Phones.** A website cannot block an app (D196). Blocking on phones needs an app of the study
+plan's own for each phone:
+- an iPhone app using Apple's Screen Time API (FamilyControls), with Apple's Family Controls
+  entitlement and a developer account;
+- an Android app using usage access and an overlay, within Google Play's rules.
+
+Both are decisions on accounts, cost and the app stores, and are the owner's. Until then the focus
+page keeps D196's steps for the phone's own Focus.
+
+**Rejected.**
+- **Reading the plan from the extension through an address and a key:** the extension would hold
+  the plan's key. The attribute on the plan's own pages needs no key.
+- **Blocking without a redirect** (Chrome's error page): a calm page that says until when is kinder
+  and costs only the five sites' permission.
+
+**Disclosed.**
+- Not published: the owner publishes it (a Chrome Web Store account), adding the hosted app's
+  domain to the pages the content script runs on. Only the demo and `localhost` are listed.
+- A session left without opening the plan again stays blocked until its end time.
+- Firefox and Safari not tried.
+
+## D199. A card's mathematics typeset by the browser
+
+**Asked.** The owner, after D197: "latex still does not render amazingly well i must say".
+
+**Why it did not.** D151, D166 and D197 drew mathematics with spans: a superscript a `<sup>`, a
+fraction two stacked boxes, a root a border. It read, but it was not typeset: letters stood
+upright in the page's sans-serif, a sum's limits sat at its side, a matrix could not be drawn.
+
+**Chosen.** MathML, which the browsers the app supports typeset themselves (Chrome and Edge since
+109, Safari, Firefox), in the device's mathematics font, as a LaTeX document is typeset. The server
+reads the card's LaTeX into it (`web/mathml.py`), no script and no library:
+- **What it draws.** `x^{2}` and `a_n` are `<msup>`/`<msub>`; `\frac` is `<mfrac>`; `\sqrt` and
+  `\sqrt[3]` are roots; `\sum`, `\prod` and `\bigcup` set their limits above and below; `\lim` its
+  limit underneath; `\int` its limits at its side. The matrix environments, `cases` and `aligned`
+  are tables in their brackets, `\left…\right` stretches its fences, and accents stretch over what
+  they mark. `\mathbb` and `\mathcal` give their letters; `\text` keeps its words. About 150 symbols
+  are set as identifiers or operators, as LaTeX sets them.
+- **What is mathematics.** What `$…$`, `$$…$$`, `\(…\)` or `\[…\]` hold, and, without them, a run
+  of signs around a mark of LaTeX that no word interrupts. That is how notes read from a LaTeX PDF
+  mark it: "the map f: R^{n} → R^{m} is of class C^{1}" typesets `f: R^{n} → R^{m}` and `C^{1}`
+  and leaves the words. A run never starts inside a word, so `snake_case` stays.
+- **How it is set.** A formula alone on a card is set apart, as display mathematics. A list of
+  cards keeps every formula in its line (`maths_inline`).
+- **When it cannot be read.** What cannot be read, such as a brace left open, falls back to D197's
+  spans. Everything is escaped. A command it does not know shows as typed.
+
+The model writing cards (D138) is now asked for each formula in LaTeX between `$` signs.
+
+**Rejected.** KaTeX or MathJax: complete, but a library of hundreds of kilobytes run in the page.
+The app's pages work without their scripts, and KaTeX's HTML output needs style attributes that
+the app's Content-Security-Policy refuses. MathML is markup the server writes.
+
+**Disclosed.**
+- How good it looks depends on the device's mathematics font:
+  - Apple's devices have STIX Two Math, and Windows has Cambria Math.
+  - Android and Linux may have none, and then fall back to an ordinary font; the structure stays,
+    the glyphs are plainer.
+  - Shipping Latin Modern Math (GUST Font License, about 400 KB, loaded only by a page with
+    mathematics) would make it the same everywhere: the owner's choice, as a new asset.
+- Not every LaTeX command is read: `\overset`, `\stackrel` and `\substack` are not, nor
+  environments other than the matrices, `cases`, `aligned` and `array`.
+- Checked in Chromium only, at phone size and 1280 px, light and dark, with Latin Modern Math
+  installed.
+
+## D200. The mathematics font shipped
+
+**Asked.** D199 left the choice open: Android and Linux may have no mathematics font, so their cards
+fell back to plainer glyphs. The owner: "font della matematica scaricalo".
+
+**Chosen.** Latin Modern Math 1.959 (B. Jackowski, P. Strzelczyk, P. Pianowski, for the TeX users
+groups), the font of LaTeX's own output, from CTAN's `fonts/lm-math`.
+- **The file:** `static/fonts/latinmodern-math.woff2`, 391,676 bytes. It is the unmodified OpenType
+  font in WOFF2: every table is identical to the original's except `head`, whose checksum WOFF2
+  recomputes. The original is 733,736 bytes.
+- **The licence:** the GUST Font License (an instance of the LaTeX Project Public License). It ships
+  beside the font with the font's README and manifest, as the licence asks.
+- **When it is loaded:** an `@font-face` names the device's own copy first (`local()`) and the app's
+  file after it. The browser fetches a font only when a page draws one of its glyphs, so only a page
+  with a card's MathML downloads it, once, and keeps it under the app's versioned name (D106). It is
+  not preloaded and not kept offline by the service worker.
+
+**Rejected.**
+- **STIX Two Math** (SIL Open Font License, about 500 KB as WOFF2): equally good. Latin Modern is
+  what students see in their LaTeX notes, so a card reads like the notes.
+- **The OpenType file as it is:** almost twice the bytes, for the same glyphs.
+- **A font from a CDN:** the app ships its own files, so that no third party sees a student's visit
+  (D139).
+
+**Disclosed.**
+- A card offline, before the font was ever fetched, falls back to the device's font.
+- Checked in Chromium: the app's file loads on its own (under another name, since this machine has
+  Latin Modern Math installed), and a formula renders in it. Not tried on a real Android phone.
+

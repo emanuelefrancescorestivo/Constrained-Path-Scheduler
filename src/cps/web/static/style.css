@@ -258,6 +258,43 @@ small, .muted { color: var(--muted); }
 }
 .nav a[aria-current="page"] { background: var(--thumb); box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 4%); font-weight: 600; }
 .topbar .spacer { flex: 1; }
+/* D193: the front page's language and its light or dark, at the top bar's end. */
+.front-switch { display: flex; align-items: center; gap: 6px; }
+.front-switch summary, .mode-flip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 22px;
+  color: var(--text); font-size: 0.82rem; font-weight: 650; letter-spacing: 0.02em;
+  text-decoration: none !important; cursor: pointer; list-style: none;
+}
+.front-switch summary::-webkit-details-marker { display: none; }
+.lang-menu > summary { margin: 0; }
+.lang-menu > summary::before { content: none; }
+.front-switch summary:hover, .mode-flip:hover, .lang-menu[open] summary { background: var(--fill-3); }
+.front-switch svg { width: 20px; height: 20px; flex: none; }
+.lang-menu { position: relative; }
+.lang-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 180px;
+  margin: 0; padding: 6px; list-style: none; border-radius: 14px;
+  background: var(--elevated); border: 0.5px solid var(--line-strong);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+.lang-list a {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 9px;
+  color: var(--text); text-decoration: none !important; font-weight: 500;
+}
+.lang-list a b { width: 26px; font-size: 0.75rem; color: var(--muted); }
+.lang-list a:hover { background: var(--fill-3); }
+.lang-list a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); }
+.lang-list a[aria-current] b { color: var(--accent-ink); }
+/* The switch offers the other mode: the moon while the page is light, the sun while dark. */
+.mode-flip.to-light { display: none; }
+:root[data-theme="dark"] .mode-flip.to-dark { display: none; }
+:root[data-theme="dark"] .mode-flip.to-light { display: inline-flex; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mode-flip.to-dark { display: none; }
+  :root:not([data-theme="light"]) .mode-flip.to-light { display: inline-flex; }
+}
+.front-note { margin-top: 10px; }
 .topbar .link { font-size: 0.9rem; font-weight: 500; }
 
 .tabbar { display: none; }
@@ -3128,6 +3165,14 @@ label.lt-check { cursor: pointer; }
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
     U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* D200: a card's mathematics in Latin Modern Math (GUST Font License), the font of LaTeX's own
+   output, so a formula looks the same on every device; Android and Linux have no maths font of
+   their own. The browser fetches it only for a page that draws MathML; one the device has is
+   used first. The file is the unmodified OpenType font in WOFF2 (its glyph tables identical). */
+@font-face {
+  font-family: "Latin Modern Math"; font-style: normal; font-weight: 400; font-display: swap;
+  src: local("Latin Modern Math"), local("LatinModernMath-Regular"), url("fonts/latinmodern-math.woff2") format("woff2");
+}
 
 :root {
   --font-text: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
@@ -5426,6 +5471,7 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .mind-add { display: grid; gap: 8px; }
 .mind-add input[name="text"] { width: 100%; }
 .mind-add .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.mind-all { display: inline-block; margin-top: 10px; font-size: 14px; }
 .close-day { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .close-day p { margin: 0; }
 .close-day input { width: 100%; }
@@ -5611,6 +5657,10 @@ body[data-sky] .hub :is(.card, .strip, .cards-due) {
 .mfrac { display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: middle; text-align: center; font-size: 0.88em; line-height: 1.2; margin: 0 0.15em; }
 .mfrac > .mnum { border-bottom: 1px solid currentColor; padding: 0 0.25em 0.05em; }
 .mfrac > .mden { padding: 0.08em 0.25em 0; }
+/* D197: a root over its radicand, and a bar over what it marks. */
+.msqrt { white-space: nowrap; }
+.msqrt > .mrad { border-top: 1px solid currentColor; padding: 0.05em 0.1em 0 0.05em; margin-left: 0.02em; }
+.mbar { border-top: 1px solid currentColor; padding-top: 0.02em; }
 
 /* D155: Edit Today. The button sits with the greeting; the list is a phone's settings, each
    widget a row with its switch. */
@@ -6401,3 +6451,135 @@ main.site:has(.settings-dash) { max-width: 72rem; }
 .pause-ideas li + li { border-top: 1px solid var(--line); }
 .focus-pause .hint { margin: 0; }
 .focus-pause form { width: 100%; margin: 0; }
+
+/* D194: tests the timetable does not show, course by course. */
+.tests-course { margin-bottom: 16px; }
+.tests-course h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.tests-course h3 { margin: 14px 0 6px; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+.tests-course .widget-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
+.tests-course .widget-row .grow { flex: 1 1 auto; min-width: 0; }
+.tests-course .widget-row input { flex: none; margin: 0; }
+.tests-course .widget-row b { display: block; }
+.tests-course .widget-row small { display: block; color: var(--muted); }
+.tests-list { margin: 0 0 8px; padding: 0; list-style: none; }
+.tests-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 0.5px solid var(--line); }
+.tests-list li:first-child { border-top: 0; }
+.tests-list .grow { flex: 1 1 auto; min-width: 0; }
+.tests-list b, .tests-list small { display: block; }
+.tests-list small { color: var(--muted); }
+.tests-list li.past { opacity: 0.6; }
+.midterm-add { display: grid; gap: 10px; margin-top: 6px; }
+.midterm-when { display: flex; flex-wrap: wrap; gap: 10px; }
+.midterm-when label { display: grid; gap: 4px; flex: 1 1 140px; font-size: 0.85rem; color: var(--muted); }
+.midterm-add .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.midterm-add .btn { justify-self: start; }
+.exam-tests { margin: 6px 0 0; }
+.exam-tests a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent-ink); }
+.exam-tests svg { width: 16px; height: 16px; flex: none; }
+
+/* D196: what keeps the distracting apps away: the phone's own blocking, set up once. */
+.lock-in > summary { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--text); }
+.lock-in > summary::before { content: none; }
+.lock-in > summary svg { width: 20px; height: 20px; flex: none; color: var(--accent-ink); }
+.lock-in h3 { margin: 12px 0 4px; font-size: 0.9rem; color: var(--muted); }
+.lock-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+.lock-more > summary { font-size: 0.9rem; margin: 12px 0 0; }
+.lock-name { margin-top: 10px; }
+.lock-name label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+.lock-row { display: flex; gap: 8px; }
+.lock-row input { flex: 1 1 auto; min-width: 0; }
+.lock-go, .lock-toggle a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.lock-go svg, .lock-toggle svg { width: 18px; height: 18px; }
+.lock-go { margin-bottom: 8px; }
+.lock-toggle { margin: 4px 0 0; text-align: center; font-size: 0.9rem; }
+.lock-toggle a { color: var(--accent-ink); font-weight: 600; }
+
+/* D199: a card's mathematics typeset by the browser (MathML), in the device's mathematics font. */
+math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Noto Sans Math", math; font-size: 1.1em; }
+math[display="block"] { margin: 0.35em 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+math .mbf { font-weight: 700; }
+
+/* D195: the to-do page as a table (the owner's pick of three, 2026-11-25): straight edges, a
+   command line on top with its syntax, the lines in columns (task, due, work, course); on a narrow
+   sheet the columns fold into a line under the task. The fields' selectors outweigh the global
+   field and the sky's glass field, so a line reads as a table's cell, not a form. */
+.todo-cmd { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 4px 0 14px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; }
+.todo-cmd:focus-within { border-color: var(--accent); }
+.todo-cmd-plus { color: var(--faint); font-weight: 700; }
+.todo-cmd input#todo-line { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0; border: 0; border-radius: 0; background-color: transparent; }
+.todo-cmd input#todo-line:focus { box-shadow: none; }
+.todo-enter { flex: none; display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
+.todo-cmd kbd, .todo-keys kbd { font: inherit; font-size: 12px; font-weight: 700; color: var(--muted); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; background: var(--fill-4); }
+.todo-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 9px 2px 18px; font-size: 13px; color: var(--muted); }
+/* Tab makes a step on a keyboard; a phone types "- ". */
+.todo-key-dash { display: none; }
+@media (pointer: coarse) { .todo-key-tab { display: none; } .todo-key-dash { display: inline; } }
+.todo-sheet { container: todo / inline-size; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 12px 8px; }
+.todo-head, .todo-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 96px 56px minmax(0, 170px) 28px; column-gap: 10px; align-items: center; }
+.todo-head { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 12px 0 8px; border-bottom: 1px solid var(--line-strong); }
+.todo-head .r, .todo-row .r { text-align: right; }
+.todo-list { list-style: none; margin: 0; padding: 0; }
+.todo-row { min-height: 40px; border-bottom: 1px solid var(--line); }
+.todo-row:hover { background: var(--fill-4); }
+.todo-row.is-heading { min-height: 46px; padding-top: 10px; border-bottom-color: var(--line-strong); }
+.todo-row.is-heading:hover { background: none; }
+.todo-row.is-heading .todo-body { grid-column: 1 / 6; display: flex; align-items: baseline; gap: 10px; }
+.todo-row.is-heading .todo-edit { flex: 1 1 auto; min-width: 0; }
+.todo-row.is-heading h2 { flex: 1 1 auto; margin: 0; padding: 6px 4px; font-size: 15px; font-weight: 800; }
+.todo-n { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.todo-tick { margin: 0; display: grid; place-items: center; }
+.todo-box { position: relative; display: grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 1.5px solid var(--faint); border-radius: 3px; background: transparent; cursor: pointer; }
+.todo-box::after { content: ""; position: absolute; inset: -14px; } /* a 44px tap area */
+.todo-box:hover { border-color: var(--accent); }
+.todo-box svg { width: 12px; height: 12px; fill: none; stroke: var(--surface); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.todo-box.is-done { background: var(--text); border-color: var(--text); }
+.todo-box.is-done svg { opacity: 1; }
+.todo-dash { color: var(--faint); text-align: center; }
+.todo-body { grid-column: 2; min-width: 0; }
+.todo-edit { margin: 0; }
+.todo-sheet .todo-row .todo-edit input[name="text"][data-line] { width: 100%; min-height: 38px; padding: 6px 4px; border: 0; border-radius: 0; background-color: transparent; color: var(--text); font: inherit; }
+.todo-sheet .todo-row .todo-edit input[name="text"][data-line]:focus { box-shadow: inset 0 -2px 0 var(--accent); }
+.todo-sheet .todo-row.is-heading .todo-edit input[name="text"][data-line] { font-size: 15px; font-weight: 800; }
+.todo-sheet .todo-row.is-note .todo-edit input[name="text"][data-line] { color: var(--muted); font-style: italic; }
+.todo-sheet .todo-row.is-done .todo-edit input[name="text"][data-line] { color: var(--faint); text-decoration: line-through; }
+.todo-row.is-step .todo-body { position: relative; padding-left: 18px; }
+.todo-row.is-step .todo-body::before { content: ""; position: absolute; left: 4px; top: 0; height: 50%; width: 9px; border-left: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+.todo-due, .todo-work, .todo-course { min-width: 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.todo-work a { color: var(--accent-ink); font-weight: 650; text-decoration: none; }
+.todo-course .sq { display: inline-block; width: 7px; height: 7px; margin-right: 7px; vertical-align: 1px; background: var(--cc, var(--c-none)); }
+.todo-sheet .is-late { color: var(--danger); }
+/* "tomorrow", "since 23 Nov": a cell starts with a capital, as "Fri 27 Nov" does. */
+.todo-due::first-letter, .todo-sub::first-letter { text-transform: uppercase; }
+.todo-sub { display: none; margin: -4px 0 6px 4px; font-size: 13px; color: var(--muted); }
+.todo-sub .todo-w { color: var(--accent-ink); font-weight: 650; }
+.todo-text { display: block; padding: 6px 4px; }
+.todo-menu { grid-column: 6; position: relative; justify-self: end; }
+.todo-menu > summary { list-style: none; margin: 0; padding: 10px 4px; color: var(--faint); cursor: pointer; }
+.todo-menu > summary::before { content: none; }
+.todo-menu > summary::-webkit-details-marker { display: none; }
+.todo-menu > summary svg { display: block; width: 15px; height: 15px; }
+.todo-menu[open] > summary svg { transform: rotate(90deg); }
+.todo-menu .menu-items { position: absolute; right: 0; top: 100%; z-index: 20; display: grid; min-width: 210px; padding: 4px; border-radius: 6px; background: var(--elevated); border: 1px solid var(--line-strong); box-shadow: 0 10px 28px rgb(0 0 0 / 16%); }
+.todo-menu .menu-items button { text-align: left; min-height: 40px; padding: 0 10px; border: 0; border-radius: 4px; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.todo-menu .menu-items button:hover { background: var(--fill-3); }
+.todo-menu .menu-items .is-danger { color: var(--danger); }
+.todo-others { margin-top: 6px; }
+.todo-done { margin: 10px 0 2px; }
+.todo-done > summary { padding: 6px 0; font-size: 13px; color: var(--muted); }
+.todo-done .todo-row { grid-template-columns: 26px minmax(0, 1fr); }
+.todo-done .todo-text { color: var(--faint); text-decoration: line-through; }
+.todo-clear { margin: 8px 0 0; }
+.todo-empty { padding: 14px 4px; }
+@container todo (max-width: 600px) {
+  .todo-head { display: none; }
+  .todo-row { grid-template-columns: 26px minmax(0, 1fr) 28px; }
+  .todo-due, .todo-work, .todo-course { display: none; }
+  .todo-sub { display: block; }
+  .todo-menu { grid-column: 3; }
+  .todo-row.is-heading .todo-body { grid-column: 1 / 3; }
+}
+
+/* D195: the sheet opens on a line of the to-do page; the deadline field by field folds under it. */
+.sheet-more { margin: 4px 16px 16px; }
+.sheet-more > summary { font-size: 0.9rem; }
+.sheet-more .sheet-head { display: none; }

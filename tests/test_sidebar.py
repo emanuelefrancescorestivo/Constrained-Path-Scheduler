@@ -81,7 +81,8 @@ def web(tmp_path):
         yield client
 
 
-SECTIONS = ("", "/week", "/focus", "/cards", "/tasks", "/progress")
+# D195: the to-do page took Tasks' place in the sidebar; Tasks' page is reached from it.
+SECTIONS = ("", "/week", "/focus", "/cards", "/todo", "/progress")
 SECTIONS += ("/community", "/map", "/tips", "/you", "/settings")
 
 

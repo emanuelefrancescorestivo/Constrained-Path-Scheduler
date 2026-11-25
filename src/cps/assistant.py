@@ -30,7 +30,9 @@ A block on a rest day, or beyond the week's budget, is left free. Otherwise:
 3. **Self-testing on what is being forgotten.** Among the topics taught so far whose
    exam is still ahead, the one with the lowest predicted recall (FSRS-4.5), if it
    has fallen to `review_below`. A topic just taught is reviewed first when it
-   fades, a few days later, which is also what the evidence on spacing says.
+   fades, a few days later, which is also what the evidence on spacing says. A
+   topic of a course with quizzes in class is held higher while it is recent
+   (`ready_below` until `ready_until`, D194): a quiz can come at any class.
 4. **Working ahead** on the task due soonest.
 5. Otherwise the block stays free. A plan that fills every free hour is a plan
    nobody follows; this one uses time only when something needs it.
@@ -97,6 +99,9 @@ class Topic:
     # Its last self-test went poorly (D50): the next one takes a full block, not a
     # quick one.
     full_next: bool = False
+    # D194: its course has quizzes in class, announced or not: until this day it is
+    # self-tested once its recall falls to `Preferences.ready_below`, not `review_below`.
+    ready_until: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +117,9 @@ class Preferences:
     rest_weekdays: tuple[int, ...] = ()  # 0 = Monday
     practice_days: float = 14.0
     review_below: float = 0.9  # self-test a topic once its recall falls to this
+    # D194: a topic kept ready for quizzes in class (`Topic.ready_until`) is self-tested
+    # once its recall falls to this instead.
+    ready_below: float = 0.95
     # The week's budget in minutes (D48), when quick self-tests share it with
     # blocks of `block_minutes`; without it, `weekly_blocks` blocks.
     weekly_minutes: int | None = None
@@ -375,6 +383,11 @@ def _self_test(
     block (D50), and leaves the set when it gets one."""
     now = block.start_day
     waiting = needs_full if needs_full is not None else set()
+
+    def below(t: Topic) -> float:
+        """The recall `t` is self-tested at: higher while it is kept ready for quizzes (D194)."""
+        return max(prefs.ready_below, prefs.review_below) if now < t.ready_until else prefs.review_below
+
     fading = [
         (prefs.model.retrievability(max(now - state[t.name][1], 0.0), state[t.name][0].stability), t)
         for t in topics
@@ -382,7 +395,7 @@ def _self_test(
         and not held("review", t.name, now)
         and not (room is not None and t.name in waiting)
     ]
-    fading = [(r, t) for r, t in fading if r <= prefs.review_below]
+    fading = [(r, t) for r, t in fading if r <= below(t)]
     if not fading:
         return None
     # Among the topics fading together (within `WEIGHT_TIE` of the most faded), the
@@ -399,18 +412,29 @@ def _self_test(
     reviewed.add(topic.name)
     if room is None:
         waiting.discard(topic.name)
+    if recall > prefs.review_below:  # held higher for quizzes in class (D194)
+        why = _(
+            "{course} has quizzes in class: a recent week is kept above {target}, and the recall "
+            "of {what} is down to about {recall}.",
+            course=topic.course,
+            target=f"{below(topic):.0%}",
+            what=topic.note or topic.name,
+            recall=f"{recall:.0%}",
+        )
+    else:
+        why = _(
+            "Predicted recall of {what} is down to about {recall}; testing yourself "
+            "now is when it helps most.",
+            what=topic.note or topic.name,
+            recall=f"{recall:.0%}",
+        )
     return Session(
         block,
         "first review" if first else "review",
         topic.course,
         topic.name,
         _review_text(topic, first) if room is None else _quick_text(topic, room),
-        _(
-            "Predicted recall of {what} is down to about {recall}; testing yourself "
-            "now is when it helps most.",
-            what=topic.note or topic.name,
-            recall=f"{recall:.0%}",
-        ),
+        why,
         recall=recall,
         stability_before=memory.stability,
         stability_after=after.stability,

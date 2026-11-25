@@ -20,6 +20,7 @@
     {% elif draft.course %}<p><b class="run-course">{{ draft.course }}</b><small>{{ _("studied") }}</small></p>{% endif %}
   </div>
   {% if done and done.points and not first %}<p class="hint">{{ _("Share what you did: once a classmate vouches for it, {n} more.", n=done.proof) }}</p>{% endif %}
+  {% if lock and lock.link %}<p class="lock-toggle"><a href="{{ lock.link }}">{{ lucide('shield-check') }}{{ _("Turn your phone's Focus off") }}</a></p>{% endif %}
   <p class="muted">{{ _("Two taps say how it went, then save it.") }}</p>
 </div>
 {% endif %}

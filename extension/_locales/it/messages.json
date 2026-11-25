@@ -1,0 +1,25 @@
+{
+  "name": {
+    "message": "Piano di studio: Focus"
+  },
+  "description": {
+    "message": "Mette in pausa Instagram, TikTok, Facebook e WhatsApp Web durante una sessione di Focus del tuo piano di studio."
+  },
+  "blockedTitle": {
+    "message": "Focus"
+  },
+  "blockedWhy": {
+    "message": "Questo sito è in pausa mentre studi."
+  },
+  "blockedUntil": {
+    "message": "Di nuovo disponibile alle $TIME$.",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "blockedBack": {
+    "message": "Torna alla sessione"
+  }
+}

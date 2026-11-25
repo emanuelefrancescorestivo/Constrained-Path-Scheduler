@@ -1,0 +1,25 @@
+{
+  "name": {
+    "message": "Plan de révision : Focus"
+  },
+  "description": {
+    "message": "Met en pause Instagram, TikTok, Facebook et WhatsApp Web pendant une séance de concentration de ton plan."
+  },
+  "blockedTitle": {
+    "message": "Focus"
+  },
+  "blockedWhy": {
+    "message": "Ce site est en pause pendant ta séance de travail."
+  },
+  "blockedUntil": {
+    "message": "De retour à $TIME$.",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "blockedBack": {
+    "message": "Retour à ma séance"
+  }
+}

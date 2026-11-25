@@ -86,7 +86,8 @@ def test_each_page_is_in_one_section(web, path, current):
 def test_you_holds_everything_else(web):
     token = _start(web)
     you = web.get(f"/p/{token}/you").text
-    for place in ("progress", "cards", "tasks", "focus", "tips", "science", "settings", "feed", "feedback"):
+    # D195: Tasks became the to-do list, which leads to each task planned.
+    for place in ("progress", "cards", "todo", "focus", "tips", "science", "settings", "feed", "feedback"):
         assert f'href="/p/{token}/{place}' in you, place
 
 
@@ -124,24 +125,38 @@ def test_what_setting_up_no_longer_asks_comes_one_question_a_day(web, clock):
     assert later.headers["location"] == f"/p/{token}"
     assert "fit-ask" not in web.get(f"/p/{token}").text  # one a day
     clock.now = MORNING + timedelta(days=2)
+    # D194: the tests the timetable does not show, asked once there are exams.
+    assert "Tests your timetable doesn't show" in unescape(web.get(f"/p/{token}").text)
+    taken = web.post(f"/p/{token}/fit", data={"key": "tests", "go": "1"}, follow_redirects=False)
+    assert taken.headers["location"] == f"/p/{token}/tests"
+    clock.now = MORNING + timedelta(days=3)
     assert "Bring in your deadlines" in unescape(web.get(f"/p/{token}").text)
     taken = web.post(f"/p/{token}/fit", data={"key": "deadlines", "go": "1"}, follow_redirects=False)
     assert taken.headers["location"] == f"/p/{token}/settings/exams#deadlines"
-    clock.now = MORNING + timedelta(days=3)
-    assert "Your sessions in your phone's calendar" in unescape(web.get(f"/p/{token}").text)
-    web.post(f"/p/{token}/fit", data={"key": "calendar", "go": "1"})
     clock.now = MORNING + timedelta(days=4)
+    # That day Today asks how a self-test went first (one message a day): the question waits.
+    assert service.fit_question(service.load_subscription(web.root, token), clock.now)["key"] == "calendar"
+    web.post(f"/p/{token}/fit", data={"key": "calendar", "go": "1"})
+    clock.now = MORNING + timedelta(days=5)
     assert "fit-ask" not in web.get(f"/p/{token}").text  # all settled
     assert web.post(f"/p/{token}/fit", data={"key": "weather", "go": "1"}).status_code == 400
     kinds = [e["detail"] for e in service.events(web.root, token) if e["kind"] == "fit"]
-    assert kinds == ["week later", "deadlines go", "calendar go"]
+    assert kinds == ["week later", "tests go", "deadlines go", "calendar go"]
 
 
 def test_a_question_already_settled_is_not_asked(web):
     token = _start(web)
 
     def settle(plan: service.Subscription) -> service.Subscription:
-        linked = replace(plan, options={**plan.options, "deadlines_url": "https://moodle.example/x"})
+        # The tests already told (D194), the platform's link given, the week answered.
+        linked = replace(
+            plan,
+            options={
+                **plan.options,
+                "deadlines_url": "https://moodle.example/x",
+                "tests_asked": ["Algebra 3"],
+            },
+        )
         return service.answer_fit(linked, "week", True, MORNING)
 
     service.update_subscription(web.root, token, settle)

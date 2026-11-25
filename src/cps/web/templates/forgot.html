@@ -16,12 +16,12 @@
   {% else %}
   <p class="hint">{{ _("Give your account's e-mail address: a link to choose a new password is sent to it.") }}</p>
   {% if not can_send %}<p class="alert" role="status">{{ _("This server cannot send e-mail yet, so it cannot send you a link.") }}</p>{% endif %}
-  <form method="post" action="/account/forgot" class="account-form">
+  <form method="post" action="/account/forgot?lang={{ lang() }}" class="account-form">
     <label for="email">{{ _("E-mail address") }}</label>
     <input id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254" value="{{ email or '' }}" required>
     <p><button type="submit" class="btn btn-primary btn-block">{{ _("Send me a link") }}</button></p>
   </form>
   {% endif %}
-  <p><a href="/account/signin">{{ _("Back to sign in") }}</a></p>
+  <p><a href="/account/signin?lang={{ lang() }}">{{ _("Back to sign in") }}</a></p>
 </div>
 {% endblock %}
