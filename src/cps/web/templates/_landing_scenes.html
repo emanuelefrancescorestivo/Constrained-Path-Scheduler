@@ -6,6 +6,7 @@
    days, the app's own numbers (the repair's minutes, a session's points, the badge's tier,
    FSRS-6's estimate, D84's rules on the notes), and one study's (Yang et al., 2021). #}
 {% from "_crest.html" import badge_crest %}
+{% from "_avatar.html" import face %}
 {% macro streak(l) -%}
 {% set s = l.scenes.streak %}
 <figure class="landing-scene" data-scene aria-labelledby="ls-streak-cap">
@@ -29,20 +30,21 @@
 {%- endmacro %}
 
 {% macro grades(l) -%}
+{# D205 (the owner: "claims that are founded and visuals that motivate more"): a class of 100 that
+   studied without testing themselves; the average student who adds self-tests moves from the
+   middle (above 50 of them) to above {beats}, the U3 of Yang et al.'s g; Dunlosky et al.'s
+   ratings beside it. Drawn with every dot lit; played, the 19 light up one by one. #}
 {% set g = l.scenes.grades %}
 <figure class="landing-scene ls-grades-fig" data-scene aria-labelledby="ls-grades-cap">
   <div class="ls-card ls-grades">
-    <p class="ls-habit"><span class="muted">{{ _("Weeks with a self-test") }}</span><span class="ls-weeks">{% for w in range(g.weeks) %}<i data-at="{{ 200 + 220 * loop.index0 }}"></i>{% endfor %}</span></p>
-    <svg viewBox="-10 0 520 200" role="img" aria-label="{{ _('Two curves of marks: those who test themselves sit half a standard deviation higher; the average one of them scores above {p} % of those who only reread.', p=g.beats) }}">
-      <line x1="0" y1="{{ g.base }}" x2="500" y2="{{ g.base }}" class="ls-axis"></line>
-      <path d="{{ g.path }} L500,{{ g.base }} L0,{{ g.base }} Z" class="ls-curve-reread"></path>
-      <g class="ls-shift" data-at="2000" data-prop="transform" data-from="translate(0px, 0px)" data-to="translate({{ g.shift }}px, 0px)" transform="translate({{ g.shift }} 0)"><path d="{{ g.path }}" class="ls-curve-test"></path><line x1="{{ g.mean }}" y1="{{ g.top }}" x2="{{ g.mean }}" y2="{{ g.base }}" class="ls-mean"></line></g>
-      <text x="{{ g.mean - 60 }}" y="194" class="ls-label">{{ _("only rereading") }}</text>
-      <text x="{{ g.mean + g.shift + 8 }}" y="14" class="ls-label is-test">{{ _("testing themselves") }}</text>
-    </svg>
-    <p class="ls-out"><b data-at="2000" data-count="50" data-burst>{{ g.beats }} %</b><span>{{ _("of those who only reread score below the average student who tests themselves") }}</span></p>
+    <p class="ls-switch"><span class="ls-chip is-off">{{ _("Without self-tests") }}</span><span class="ls-chip is-pick" data-at="500" data-tap>{{ _("With self-tests") }}</span></p>
+    <p class="ls-rank"><b data-at="800" data-count="{{ g.before }}" data-ms="1800">{{ g.beats }}</b><span>{{ _("classmates out of 100 score below you") }}</span><em data-at="2700" data-burst>+{{ g.gain }}</em></p>
+    <ol class="ls-class100" role="img" aria-label="{{ _('A class of 100: {before} below the middle, {gain} more below a student who tests themselves.', before=g.before, gain=g.gain) }}">
+      {% for i in range(100) %}<li class="{% if i < g.before %}is-was{% elif i < g.beats %}is-now{% endif %}"{% if g.before <= i < g.beats %} data-at="{{ 800 + 95 * (i - g.before) }}"{% endif %}></li>{% endfor %}
+    </ol>
+    <p class="ls-facts"><span class="is-high">{{ lucide('circle-check') }}{{ _("Testing yourself: high utility") }}</span><span class="is-low">{{ _("Rereading: low utility") }}</span></p>
   </div>
-  <figcaption id="ls-grades-cap">{{ _("Yang and colleagues (2021) gathered {studies} classroom studies of {students} students: testing yourself raised achievement by about half a standard deviation (g = {g}). With marks shaped like a bell, the average student who tests themselves scores above {p} % of the others. An average of many studies, not a promise; the app does not see your marks.", studies=g.studies, students=g.students, g=g.g, p=g.beats) }}</figcaption>
+  <figcaption id="ls-grades-cap">{{ _("Yang and colleagues (2021) gathered {studies} classroom studies of {students} students: testing yourself raised achievement by about half a standard deviation over studying without tests (g = {g}). With marks shaped like a bell, that moves a student from the middle of the class, above {before} of 100, to above {p}. Dunlosky and colleagues (2013) rated testing yourself of high utility and rereading of low. Averages of many studies, not a promise; the app does not see your marks.", studies=g.studies, students=g.students, g=g.g, before=g.before, p=g.beats) }}</figcaption>
 </figure>
 {%- endmacro %}
 
@@ -130,14 +132,14 @@
 <figure class="landing-scene" data-scene aria-labelledby="ls-cards-cap">
   <div class="ls-card ls-notes">
     <div class="ls-page">
-      {% for n in c.lines %}<p>{% if n.term %}<mark data-at="{{ n.at }}">{{ n.term }}:</mark> {{ n.rest }}{% else %}{{ n.text }}{% endif %}</p>{% endfor %}
+      {% for n in c.lines %}<p>{% if n.term %}<mark data-at="{{ n.at }}">{{ n.term }}:</mark> {{ n.rest | maths_inline }}{% else %}{{ n.text | maths_inline }}{% endif %}</p>{% endfor %}
     </div>
     <div class="ls-deck">
-      {% for k in c.cards %}<span class="ls-fc f{{ loop.index }}" data-at="{{ k.at }}"><b>{{ k.front }}</b><small>{{ k.back }}</small></span>{% endfor %}
+      {% for k in c.cards %}<span class="ls-fc f{{ loop.index }}" data-at="{{ k.at }}"><b>{{ k.front }}</b><small>{{ k.back | maths_inline }}</small></span>{% endfor %}
       <p class="ls-count" data-at="{{ c.done_at }}" data-burst><b data-at="{{ c.done_at }}" data-count="0">{{ c.cards | length }}</b> {{ _("cards, ready to review") }}</p>
     </div>
   </div>
-  <figcaption id="ls-cards-cap">{{ _("Notes written “term: definition” become cards by rules, for free; the cards here are what the rules read in these notes.") }}</figcaption>
+  <figcaption id="ls-cards-cap">{{ _("Notes written “term: definition” become cards by rules, for free, formulas included: the cards here are what the rules read in these notes, their LaTeX drawn as on a card.") }}</figcaption>
 </figure>
 {%- endmacro %}
 
@@ -158,5 +160,74 @@
     <p class="ls-gdone"><b data-at="{{ g.done_at }}" data-count="0">{{ g.lines | length }}</b><span>{{ _n("of {n} line ticked off, by all of you", "of {n} lines ticked off, by all of you", g.lines | length) }}</span></p>
   </div>
   <figcaption id="ls-group-cap">{{ _("Made-up classmates: one list for the whole study group, up to {members} of you. Anyone writes a line, anyone ticks it off, and a line from your own list goes to it in one tap.", members=g.members) }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro avatar(l) -%}
+{# D205: an avatar made part by part, each part tapped and the face changing with it, then shown
+   on a post. The parts are the avatar page's own (AVATAR_PARTS); drawn complete, the last face. #}
+{% set a = l.scenes.avatar %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-avatar-cap">
+  <div class="ls-card ls-avatar">
+    <div class="ls-mirror">
+      {% for v in a.steps %}<span class="ls-avv" data-at="{{ v.at }}"{% if loop.last %} data-burst{% endif %}>{{ face(v.spec, uid="lsav" ~ loop.index) }}</span>{% endfor %}
+    </div>
+    <div class="ls-parts">
+      {% for v in a.steps[1:] %}<span class="ls-chip" data-at="{{ v.at - 150 }}" data-tap>{{ v.label }}</span>{% endfor %}
+    </div>
+    <div class="ls-post" data-at="{{ a.post_at }}">
+      <span class="ls-post-av">{{ face(a.steps[-1].spec, uid="lsavp") }}</span>
+      <span><b>{{ _("You") }}</b><small>Algebra · {{ _("{n} min", n=45) }}</small></span>
+      <span class="ls-reacts"><span>🔥 3</span><span>👏 2</span></span>
+    </div>
+  </div>
+  <figcaption id="ls-avatar-cap">{{ _("Your avatar, part by part: {skins} skin tones, {hairs} hairstyles, glasses, things on your head and {clothes} kinds of clothes. It is you on your posts and your profile.", skins=a.skins, hairs=a.hairs, clothes=a.clothes) }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro moodle(l) -%}
+{# D205: a course page saved from Moodle, read by the app's own rules (coursepages.moodle): each
+   file lands on the week its section names. Drawn complete; played, the files fly in. #}
+{% set m = l.scenes.moodle %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-moodle-cap">
+  <div class="ls-card ls-moodle">
+    <div class="ls-mpage" data-at="100">
+      <p class="ls-mhead">{{ lucide('graduation-cap') }}<span>Moodle · {{ m.course }}</span></p>
+      {% for sec in m.sections %}<div class="ls-msec"><b>{{ sec.name }}</b>{% for f in sec.files %}<span>{{ f }}</span>{% endfor %}</div>{% endfor %}
+    </div>
+    <div class="ls-mapp">
+      <p class="ls-mhead">{{ lucide('book-open') }}<span>{{ m.course }}</span></p>
+      {% for w in m.weeks %}
+      <div class="ls-mweek"><b>{{ _("Week {n}", n=w) }}</b>
+        {% for it in m.placed if it.week == w %}<span class="ls-mitem" data-at="{{ it.at }}"{% if loop.last and w == m.weeks[-1] %} data-burst{% endif %}>{{ lucide(material_icons.get(it.kind, 'link')) }}{{ it.title }}</span>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <figcaption id="ls-moodle-cap">{{ _("A course page saved from Moodle, made up here: the app's rules put each file on the week its section names. Deadlines come from Moodle's calendar link. The app never signs in to Moodle; the files open there with your own sign-in.") }}</figcaption>
+</figure>
+{%- endmacro %}
+
+{% macro focus(l) -%}
+{# D205: a focus session: its aim and steps ticked, the ring filling over its minutes, a cheer
+   from a classmate, then the session done with its points and the pause. Focus's own numbers. #}
+{% set f = l.scenes.focus %}
+<figure class="landing-scene" data-scene aria-labelledby="ls-focus-cap">
+  <div class="ls-card ls-focus">
+    <div class="ls-ring-wrap">
+      <svg viewBox="0 0 120 120" class="ls-ring" aria-hidden="true"><circle class="ls-ring-bg" cx="60" cy="60" r="52"></circle><circle class="ls-ring-fill" cx="60" cy="60" r="52" pathLength="100" data-at="200" data-prop="stroke-dashoffset" data-from="100" data-to="0"></circle></svg>
+      <p class="ls-ring-n"><b data-at="200" data-count="0" data-ms="3200">{{ f.work }}</b><small>{{ _("minutes") }}</small></p>
+    </div>
+    <div class="ls-aim">
+      <small class="muted">{{ _("Aim") }}</small>
+      <b>{{ _("Chapter 3, exercises 1 to 5") }}</b>
+      <ul class="ls-glines ls-fsteps">
+        {% for st in f.steps %}<li><i class="ls-box" data-at="{{ 900 + 900 * loop.index0 }}"></i><span><span class="ls-gt">{{ st }}</span></span></li>{% endfor %}
+      </ul>
+      <p class="ls-cheer" data-at="1500">👏 @lena · {{ _("cheered you on") }}</p>
+    </div>
+    <p class="ls-done" data-at="3500" data-burst>{{ lucide('circle-check') }}<b>{{ _("Session complete!") }}</b><span class="ls-points">+{{ f.points }}</span><span class="muted">{{ _("{n} minutes of pause", n=f.pause) }}</span></p>
+  </div>
+  <figcaption id="ls-focus-cap">{{ _("A focus session: an aim and its steps, {work} minutes then a {pause}-minute pause, a cheer from a classmate studying now, and {points} points when it is done.", work=f.work, pause=f.pause, points=f.points) }}</figcaption>
 </figure>
 {%- endmacro %}

@@ -3,6 +3,7 @@
 //
 //   node benchmarks/landing_shots.mjs            (Node + Playwright, not a dependency)
 //   LANGS=es node benchmarks/landing_shots.mjs   (only these languages' pictures)
+//   SHOTS=today-phone node benchmarks/landing_shots.mjs   (only these pictures)
 //
 // It starts benchmarks/landing_server.py on an empty store with the app's clock held
 // on a Tuesday morning (2026-11-24, 10:40 in Paris), so the pictures are the same
@@ -10,7 +11,7 @@
 // sees it: Spark's tours skipped as a student would, the card offering to install the
 // app put away, motion reduced so nothing is caught half way; each in light and in dark,
 // the page showing the one the reader's device asks for. A laptop's screen at
-// 1280 × 800, a phone's as its browser shows it (an iPhone 13's, 390 × 664) at 1.5
+// 1280 × 800, a phone's whole screen (an iPhone 13's, 390 × 844, since D205) at 1.5
 // pixels to the point. JPEG at 78: what the page shows is a picture of the app, not
 // its text, which stays on the page itself.
 import { spawn } from "node:child_process";
@@ -34,10 +35,11 @@ const PYTHON = process.env.PYTHON || (process.platform === "win32" ? ".venv\\Scr
 const SHOTS = [
   ["today-laptop", "laptop", "2", ""],
   ["today-phone", "phone", "2", ""],
-];
+].filter(([name]) => !process.env.SHOTS || process.env.SHOTS.split(",").includes(name));
 const SCREENS = {
   laptop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },
-  phone: { ...devices["iPhone 13"], deviceScaleFactor: 1.5 },
+  // D205: the whole screen, as the installed app fills it (the owner: "the phone can be taller").
+  phone: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 }, deviceScaleFactor: 1.5 },
 };
 
 const store = mkdtempSync(join(tmpdir(), "cps-landing-"));

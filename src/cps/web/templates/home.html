@@ -43,7 +43,7 @@
   </ul>
   <figure class="landing-devices">
     <div class="landing-laptop"><picture><source srcset="{{ asset(shots ~ 'today-laptop-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'today-laptop.jpg') }}" width="1280" height="800" alt="{{ _('Today on a laptop: the next session, classmates studying now, the tasks.') }}" fetchpriority="high" decoding="async"></picture></div>
-    <div class="landing-phone"><picture><source srcset="{{ asset(shots ~ 'today-phone-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'today-phone.jpg') }}" width="585" height="996" alt="{{ _('Today on a phone.') }}" decoding="async"></picture></div>
+    <div class="landing-phone"><picture><source srcset="{{ asset(shots ~ 'today-phone-dark.jpg') }}" media="{{ dark_media }}" data-dark><img src="{{ asset(shots ~ 'today-phone.jpg') }}" width="585" height="1266" alt="{{ _('Today on a phone.') }}" decoding="async"></picture></div>
     <figcaption>{{ _("Today, the screen the app opens on. The demo's screens: every student in it is made up.") }}</figcaption>
   </figure>
   {% endif %}
@@ -107,7 +107,7 @@
       <p class="landing-num">3 · {{ questions[2] }}</p>
       <h3>{{ _("A streak that grows with you, and forgives a day off.") }}</h3>
       <p>{{ _("Every day you study lights up your week. A rest day keeps your streak; miss a day, and a {n}-minute session repairs it. A plant grows for each day you focus, and each exam shows how ready you are.", n=l.repair) }}</p>
-      {{ scenes.grades(l) }}
+      {{ scenes.focus(l) }}
     </div>
     {{ scenes.streak(l) }}
   </article>
@@ -120,7 +120,7 @@
       <p>{{ _("New for group work: one to-do list for the whole study group. Anyone writes what has to be done, anyone ticks it off for everyone, and a line from your own list goes to the group in one tap.") }}</p>
       {{ scenes.group(l) }}
     </div>
-    {{ scenes.now(l) }}
+    <div class="landing-figs">{{ scenes.now(l) }}{{ scenes.avatar(l) }}</div>
   </article>
 
   <article class="landing-q pin" id="q5">
@@ -177,7 +177,7 @@
       <p>{{ _("Cramming can get you through an exam, and it costs more than it seems. A review of ten study techniques rated two of high utility: spreading study over time, and testing yourself (Dunlosky and colleagues, 2013). The app plans both. Here is a course of {weeks} weeks of lectures, its exam two weeks after the last.", weeks=l.course.weeks) }}</p>
       <p><a href="/science?lang={{ lang() }}">{{ _("The science behind it: how the engine plans, and why") }} ›</a></p>
       {{ scenes.tube(l) }}
-      {{ scenes.cards(l) }}
+      {{ scenes.grades(l) }}
     </div>
     <figure class="landing-chart">
       <div class="landing-tiles">
@@ -224,8 +224,9 @@
         <li>{{ lucide('hourglass') }}{{ _("Your plan is deleted {n} months after your last visit.", n=l.kept_months) }}</li>
         <li>{{ lucide('sparkles') }}{{ _("AI is optional: without it, clear rules answer.") }}</li>
       </ul>
+      {{ scenes.cards(l) }}
     </div>
-    {{ scenes.steps(l) }}
+    <div class="landing-figs">{{ scenes.steps(l) }}{{ scenes.moodle(l) }}</div>
   </article>
 </section>
 

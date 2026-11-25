@@ -4,6 +4,11 @@
 
 ### Added
 
+- Four more films on the front page (DECISIONS.md D205): making your avatar, a course page from Moodle
+  landing on its weeks, a focus session from its aim to "Session complete!", and notes with formulas becoming
+  cards. The marks film is founded on the study's own comparison: a class of 100, and the 19 classmates a
+  student who tests themselves passes. On a light page the films are white.
+
 - A study group's list (DECISIONS.md D204): lines every member writes and ticks off for all of them,
   with who wrote each and who ticked it; a line of one's own to-do list sent to it in one tap; each
   group's open lines beside the to-do page. The front page shows it in a scene of its own.
@@ -103,6 +108,9 @@
   and cancelled classes with no teacher, room, code or group, and `cps demo` adds @sam beside @alex.
 
 ### Fixed
+
+- On a phone in Italian, Today's four answers to a self-test no longer run past the screen and push
+  the tab bar below it (AUDIT 135).
 
 - The front page's scenes start from their empty parts (an unticked box, a day not yet studied)
   instead of hiding them (AUDIT 134).

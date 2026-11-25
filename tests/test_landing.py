@@ -176,7 +176,9 @@ def test_each_language_has_every_picture_in_light_and_dark_and_stays_light(lang)
     # A laptop's 1280 × 800, a phone's 390 × 664 at 1.5 (benchmarks/landing_shots.mjs).
     for name in names:
         width, height = _jpeg_size(folder / f"{name}.jpg")
-        assert (width, height) == ((1280, 800) if "laptop" in name else (585, 996)), name
+        assert (width, height) == ((1280, 800) if "laptop" in name else (585, 1266)), (
+            name
+        )  # D205: a whole phone
     # A reader downloads one theme's pictures: under 0.8 MB.
     for dark in (False, True):
         theme = [folder / f"{name}{'-dark' if dark else ''}.jpg" for name in PICTURES]
@@ -409,23 +411,52 @@ def test_the_scenes_are_drawn_complete_with_the_app_s_numbers(tmp_path, lang):
         view = service.landing_view()
     page = unescape(_web(tmp_path).get(f"/?lang={lang}").text)
     scenes = view["scenes"]
-    assert page.count("data-scene") == 8 and "scenes.js" in page and " style=" not in page
+    assert page.count("data-scene") == 11 and "scenes.js" in page and " style=" not in page
     s = scenes["streak"]
     assert s["points"] == 7 * service.POINTS_DONE and s["repair"] == service.REPAIR_MINUTES
     assert s["badge"]["metal"] == "silver"  # 7 days: the streak's second tier (3, 7, 30, 100)
     assert scenes["grades"]["beats"] == round(100 * 0.5 * (1 + math.erf(0.499 / math.sqrt(2)))) == 69
+    # D205: the class of 100, its middle and the 19 a self-tester passes, one dot each.
+    assert (scenes["grades"]["before"], scenes["grades"]["gain"]) == (50, 19)
+    assert page.count('class="is-now"') == 19 and page.count('class="is-was"') == 50
     t = scenes["tube"]
     first = service.FSRS_6.initial_state(memory.Grade.GOOD)
     again = service.FSRS_6.review(first, t["after_days"], memory.Grade.GOOD)
     assert t["days"] == math.floor(service.FSRS_6.interval(again.stability, 0.9)) and t["before"] == 72
     cards = scenes["cards"]["cards"]
     assert len(cards) == 3 and all(f"<b>{c['front']}</b>" in page for c in cards)
+    # D205: the notes' mathematics, read into the cards and drawn as MathML.
+    assert (
+        all("$" in c["back"] for c in cards[1:])
+        and page.count("<math") >= 6
+        and "$" not in page.split("ls-notes")[1].split("</figure>")[0]
+    )
+    # The Moodle page is read by the app's rules: each file on the week its section names.
+    m = scenes["moodle"]
+    assert [x["week"] for x in m["placed"]] == [1, 1, 2, 2, 3, 3] and all(
+        x["title"] in page for x in m["placed"]
+    )
+    assert all(x["kind"] in ("file", "link") for x in m["placed"]) and "example.edu" not in page
+    # The avatar's steps are the avatar page's own parts, each a face drawn.
+    for step in scenes["avatar"]["steps"]:
+        assert all(step["spec"][part] in service.AVATAR_PARTS[part] for part in service.AVATAR_PARTS)
+    assert page.count('class="ls-avv"') == len(scenes["avatar"]["steps"]) == 5
+    f = scenes["focus"]
+    assert (f["work"], f["pause"], f["points"]) == (
+        service.RHYTHM_WORK // 60,
+        service.RHYTHM_PAUSE // 60,
+        service.POINTS_DONE,
+    )
     # D204: the study group's list, every line drawn ticked, by someone other than who wrote it,
     # its members as many as a group holds.
     g = scenes["group"]
     assert g["members"] == social.GROUP_SIZE and len(g["lines"]) == 3
-    assert all(x["text"] in page for x in g["lines"]) and page.count('class="ls-box"') == 3
+    assert all(x["text"] in page for x in g["lines"]) and page.count('class="ls-box"') == 3 + len(
+        scenes["focus"]["steps"]
+    )
     assert [x["tick"] for x in g["lines"]] == sorted(x["tick"] for x in g["lines"])
     assert g["done_at"] == g["lines"][-1]["tick"]
+    # D205: white cards on a light page, dark ones on a dark page.
+    assert "--ls-bg: #ffffff" in CSS and ':root[data-theme="dark"] .ls-card' in CSS
     # Without the script, every part is in its place: nothing is hidden by the page itself.
     assert not re.search(r"\.ls-card \[data-at\]\s*\{[^}]*opacity:\s*0", CSS)

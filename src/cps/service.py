@@ -17799,7 +17799,6 @@ LANDING_TUBE_FROM = 0.72  # the recall a topic seen once has fallen to when it i
 # Yang, Luo, Vadillo, Yu and Shanks (2021), docs/REFERENCES.md yang2021: 222 classroom studies,
 # 48,478 students, testing raised achievement by g = 0.499.
 LANDING_TESTING = (0.499, 222, 48478)
-LANDING_TESTING_WEEKS = 8
 LANDING_EXAM_DAYS = (date(2027, 2, 2), date(2027, 2, 4))  # the made-up exams of the steps scene
 
 
@@ -17816,11 +17815,108 @@ def _landing_notes() -> list[str]:
     """The notes of the cards scene, in the page's language."""
     return [
         _("Linear algebra · lecture 6"),
-        _("Eigenvalue: a number λ such that Av = λv for a non-zero vector v."),
+        # D205: mathematics in the notes, read by D84's rules and drawn as MathML (D199).
+        _("Eigenvalue: a number $\\lambda$ such that $Av = \\lambda v$ for a vector $v \\neq 0$."),
         _("Eigenvectors of distinct eigenvalues are independent."),
-        _("Rank: the dimension of the image of A."),
-        _("Kernel: the vectors that A sends to zero."),
+        _("Characteristic polynomial: $p(\\lambda) = \\det(A - \\lambda I)$"),
+        _("Trace: $\\mathrm{tr}\\,A = \\sum_{i=1}^{n} a_{ii}$, the sum of the eigenvalues."),
     ]
+
+
+# D205: the front page's films of the avatar, Moodle and Focus. The avatar's steps are its own
+# parts' names (AVATAR_PARTS); the course page is read by `coursepages.moodle`, as one saved
+# from Moodle would be; Focus's minutes and points are the app's constants.
+LANDING_AVATAR_STEPS: tuple[tuple[str, dict[str, str]], ...] = (
+    ("", {}),
+    ("Hair", {"hair": "curly", "colour": "auburn"}),
+    ("Glasses", {"glasses": "round"}),
+    ("On your head", {"head": "headphones"}),
+    ("Clothes", {"outfit": "hoodie", "top": "c3", "bg": "b3"}),
+)
+LANDING_MOODLE_SITE = "https://moodle.example.edu"  # a reserved name (RFC 2606): no real university
+
+
+def _landing_avatar() -> dict:
+    spec = dict(AVATAR_START)
+    steps: list[dict] = []
+    for k, (label, change) in enumerate(LANDING_AVATAR_STEPS):
+        spec = {**spec, **change}
+        steps.append({"label": _(label) if label else "", "spec": dict(spec), "at": 200 + 700 * k})
+    return {
+        "steps": steps,
+        "post_at": 200 + 700 * len(steps) + 100,
+        "skins": len(AVATAR_PARTS["skin"]),
+        "hairs": len(AVATAR_PARTS["hair"]),
+        "clothes": len(AVATAR_PARTS["outfit"]),
+    }
+
+
+def _landing_moodle() -> dict:
+    """A course page in Moodle 4's markup, made up, read by the app's own rules: each file
+    lands on the week its section names, in the page's language."""
+    from html import escape
+
+    slides = _("Slides, lecture {n}")
+    weeks = [
+        (
+            1,
+            _("Vectors"),
+            [(slides.format(n=1), "resource", "l1.pdf"), (_("Exercise sheet 1"), "resource", "e1.pdf")],
+        ),
+        (
+            2,
+            _("Matrices"),
+            [(slides.format(n=2), "resource", "l2.pdf"), (_("Recorded lecture"), "url", "rec")],
+        ),
+        (
+            3,
+            _("Eigenvalues"),
+            [(slides.format(n=3), "resource", "l3.pdf"), (_("Exercise sheet 3"), "resource", "e3.pdf")],
+        ),
+    ]
+    sections = []
+    for n, topic, files in weeks:
+        acts = "".join(
+            f'<li class="activity modtype_{mod}">'
+            f'<a href="{LANDING_MOODLE_SITE}/mod/{mod}/view.php?id={n}{k}&amp;f={f}">'
+            f'<span class="instancename">{escape(title)}</span></a></li>'
+            for k, (title, mod, f) in enumerate(files)
+        )
+        name = escape(_("Week {n}: {topic}", n=n, topic=topic))
+        sections.append(
+            f'<li class="section" id="section-{n}" data-sectionname="{name}"><ul>{acts}</ul></li>'
+        )
+    course = _("Linear algebra")
+    html = (
+        f"<html><head><title>{escape(_('Course'))}: {escape(course)}</title></head>"
+        f'<body class="course-7"><ul>{"".join(sections)}</ul></body></html>'
+    )
+    reading = _coursepages.moodle(html)
+    assert reading is not None
+    at = 900
+    placed = []
+    for item in reading.items:
+        placed.append({"title": item.title, "kind": item.kind, "week": item.week, "at": at})
+        at += 380
+    return {
+        "course": course,
+        "sections": [
+            {"n": n, "name": _("Week {n}: {topic}", n=n, topic=topic), "files": [t for t, _m, _f in files]}
+            for n, topic, files in weeks
+        ],
+        "weeks": [n for n, _t, _f in weeks],
+        "placed": placed,  # not "items": a template reads that as the dict's own method
+        "done_at": at + 200,
+    }
+
+
+def _landing_focus() -> dict:
+    return {
+        "work": RHYTHM_WORK // 60,
+        "pause": RHYTHM_PAUSE // 60,
+        "points": POINTS_DONE,
+        "steps": [_("Read the worked example"), _("Exercises 1 to 3"), _("Exercises 4 and 5")],
+    }
 
 
 def _landing_scenes() -> dict:
@@ -17837,14 +17933,9 @@ def _landing_scenes() -> dict:
          "fixed": k == LANDING_SCENE_MISSED}
         for k in range(LANDING_SCENE_DAYS)
     ]  # fmt: skip
-    # The marks: a bell curve over -3 to 3.6 standard deviations, and the same shifted by g.
+    # The marks (D205): where the average student who tests themselves stands in a class that does
+    # not, if marks are bell-shaped: Cohen's U3 of Yang et al.'s g, Phi(g).
     g, studies, students = LANDING_TESTING
-    x0, x1, width, height, base = -3.0, 3.6, 500.0, 150.0, 170.0
-    sx = width / (x1 - x0)
-    path = "M" + " L".join(
-        f"{(z - x0) * sx:.1f},{base - height * math.exp(-z * z / 2):.1f}"
-        for z in (x0 + (x1 - x0) * i / 120 for i in range(121))
-    )
     beats = round(100 * 0.5 * (1 + math.erf(g / math.sqrt(2))))
     # A topic seen once, tested when its recall has fallen to about 72 %, recalled ("good").
     first = FSRS_6.initial_state(Grade.GOOD)
@@ -17886,16 +17977,12 @@ def _landing_scenes() -> dict:
             },
         },
         "grades": {
+            "before": 50,  # the middle of the class
+            "gain": beats - 50,
             "g": format_number(g, 3),
             "studies": studies,
             "students": _thousands(students),
             "beats": beats,
-            "weeks": LANDING_TESTING_WEEKS,
-            "path": path,
-            "base": base,
-            "top": round(base - height - 6, 1),
-            "mean": round((0 - x0) * sx, 1),
-            "shift": round(g * sx, 1),
         },
         "tube": {
             "before": before,
@@ -17935,6 +18022,9 @@ def _landing_scenes() -> dict:
             ],
         },
         "exam_days": [_i18n.format_date(d, "day_short") for d in LANDING_EXAM_DAYS],
+        "avatar": _landing_avatar(),
+        "moodle": _landing_moodle(),
+        "focus": _landing_focus(),
     }
 
 
