@@ -16527,26 +16527,78 @@ def _decoded(body: bytes) -> str:
     return body.decode("latin-1")
 
 
+# D213: the owner, about a course whose Moodle numbers its lectures by chapter ("Lecture 1
+# Properties of integers" … "Lecture 4 Cyclic groups"): the four were planned in week 1, read as
+# the timetable's first four classes. A course's Moodle is placed, most trusted first, by: the
+# days and weeks its names give; else the day each file was put on Moodle, when the course's
+# files were put there over at least `UPLOAD_WEEKS_LEAST` of its weeks (a teacher who uploads as
+# the course goes; not one who put everything there at once, nor a course copied from last
+# year); else a lecture's number as the timetable's class of that number, only when the numbers
+# run at least as far as the course has weeks; else the order its numbers or sections give,
+# spread over the weeks of lectures (D212).
+UPLOAD_WEEKS_LEAST = 3
+UPLOAD_LEAD = timedelta(days=2)  # a file put there at the weekend is for the week after
+
+
 def _material_places(
-    subscription: Subscription, course: str, items: Sequence[_coursepages.Material]
-) -> list[str]:
+    subscription: Subscription,
+    course: str,
+    items: Sequence[_coursepages.Material],
+    *,
+    now: datetime | None = None,
+) -> tuple[list[str], str]:
     """Each item's place: the Monday of the teaching week it falls in, else "course"
-    (the whole course) or "exams" (exam practice). D212: items that give only their step
-    in the course's order go to the week where their step's share of the lecture hours
-    begins, the steps spread over the weeks as a list without weeks is (D187)."""
+    (the whole course) or "exams" (exam practice); and how they were placed: "weeks" (by
+    the days, weeks or classes the names give), "uploaded" (by when each was put on Moodle,
+    D213) or "order" (in the course's order, spread over its weeks, D212)."""
     mondays, hours, weeks = _teaching(subscription, course)
-    placed = [i for i in items if i.placed]
-    weeks_of = iter(_syllabus.place([i.topic() for i in placed], hours, weeks, mondays) if placed else [])
-    steps = sorted({i.step for i in items if i.ordered and i.step is not None})
-    spread = _syllabus.place([_syllabus.Topic(str(n)) for n in steps], hours, weeks, mondays) if steps else []
+    zone = _zone(subscription.options["tz"])
+
+    def uploaded_week(stamp: int) -> int:
+        day = (datetime.fromtimestamp(stamp, UTC).astimezone(zone) + UPLOAD_LEAD).date()
+        monday = day - timedelta(days=day.weekday())
+        # Its week; in a week without classes the next one; before the first, the first.
+        return next((k for k, m in enumerate(mondays, start=1) if m >= monday), len(mondays))
+
+    uploads = {n: uploaded_week(i.uploaded) for n, i in enumerate(items) if i.uploaded and mondays}
+    by_upload = len(set(uploads.values())) >= UPLOAD_WEEKS_LEAST
+    numbered = [i.lecture for i in items if i.placed and i.week is None and not i.day and i.lecture]
+    # A lecture's number is the timetable's class of that number only when the numbers keep up
+    # with the classes held so far, at least half of them: "L1" to "L4" in a course's second week
+    # are its classes; four "lectures" after forty classes are chapters, an order.
+    moment = now or datetime.now(UTC)
+    held = sum(
+        1 for _start, end in _lecture_spans(subscription, course) if datetime.fromisoformat(end) <= moment
+    )
+    sessions = not numbered or 2 * max(numbered) >= held
+
+    def by_names(i: _coursepages.Material) -> bool:
+        return i.placed and (i.week is not None or bool(i.day) or sessions)
+
+    def ordered(n: int, i: _coursepages.Material) -> int | None:
+        if i.shelf == "exams" or (n in uploads and by_upload) or by_names(i):
+            return None
+        return i.step if i.step is not None else (i.lecture if i.placed else None)
+
+    named = [i for n, i in enumerate(items) if by_names(i) and not (by_upload and n in uploads)]
+    weeks_of = iter(_syllabus.place([i.topic() for i in named], hours, weeks, mondays) if named else [])
+    keys = {n: k for n, i in enumerate(items) if (k := ordered(n, i)) is not None}
+    steps = sorted(set(keys.values()))
+    spread = _syllabus.place([_syllabus.Topic(str(k)) for k in steps], hours, weeks, mondays) if steps else []
     step_week = dict(zip(steps, spread, strict=True))
     out = []
-    for item in items:
-        week = (
-            next(weeks_of) if item.placed else (step_week.get(item.step) if item.step is not None else None)
-        )
+    for n, item in enumerate(items):
+        if by_upload and n in uploads:
+            week: int | None = uploads[n]
+        elif by_names(item) and item.shelf != "exams":
+            week = next(weeks_of)
+        elif n in keys:
+            week = step_week.get(keys[n])
+        else:
+            week = None
         out.append(mondays[week - 1].isoformat() if week is not None else item.shelf)
-    return out
+    how = "uploaded" if by_upload else ("order" if keys else "weeks")
+    return out, how
 
 
 def _source_key(reading: _coursepages.Reading, address: str | None) -> str:
@@ -16562,6 +16614,7 @@ def import_course_materials(
     page: bytes | None = None,
     address: str | None = None,
     fetch: Callable[[str], tuple[bytes, str]] | None = None,
+    now: datetime | None = None,
 ) -> tuple[Subscription, dict]:
     """A course's materials read from where its teacher keeps them (D174): a page saved
     from Moodle or from the teacher's site (`page`, the file's bytes), or the address of
@@ -16608,7 +16661,7 @@ def import_course_materials(
     reading = _coursepages.read(html, base)
     if reading.source == "moodle" and not reading.items and not reading.course_id:
         raise InvalidInput(_("this is not a course's page on Moodle: open the course, then save its page"))
-    return _keep_reading(subscription, options, course, reading, label)
+    return _keep_reading(subscription, options, course, reading, label, now=now)
 
 
 def _keep_reading(
@@ -16617,12 +16670,14 @@ def _keep_reading(
     course: str,
     reading: _coursepages.Reading,
     label: str | None,
+    *,
+    now: datetime | None = None,
 ) -> tuple[Subscription, dict]:
     """What a source gave a course's materials, placed and kept in place of what it gave
     before (D174); from a page, or since D208 from Moodle's web service."""
     key = course_key(course)
     source = _source_key(reading, label)
-    places = _material_places(subscription, course, reading.items)
+    places, how = _material_places(subscription, course, reading.items, now=now)
     old = [x for x in _links(subscription, course) if x.get("source") == source]
     moved = {x["url"]: x for x in old if x.get("moved")}
     others = [x for x in _links(subscription, course) if x.get("source") != source]
@@ -16651,6 +16706,7 @@ def _keep_reading(
         "from": reading.source,
         "address": label or "",
         "in_order": reading.in_order,  # D212: placed by its sections' order, not by weeks it names
+        "how": how,  # D213: "weeks", "uploaded" or "order"
     }
     options["material_sources"] = {**(options.get("material_sources") or {}), key: sources}
     linked = False
@@ -16669,6 +16725,7 @@ def _keep_reading(
         "unresolved": reading.unresolved,
         "linked": linked,
         "needs_file": False,
+        "how": how,
     }
     return replace(subscription, options=options), summary
 
@@ -17076,9 +17133,14 @@ def read_moodle_course(
         course,
         site,
         number,
-        [(sec.name, sec.number, [(a.name, a.page, a.kind) for a in sec.activities]) for sec in found],
+        [
+            (sec.name, sec.number, [(a.name, a.page, a.kind, a.uploaded) for a in sec.activities])
+            for sec in found
+        ],
     )
-    subscription, kept = _keep_reading(subscription, dict(subscription.options), course, reading, None)
+    subscription, kept = _keep_reading(
+        subscription, dict(subscription.options), course, reading, None, now=now
+    )
     source = _source_key(reading, None)
     where_of = {
         x["url"]: x.get("week") or x.get("shelf") or "course"
@@ -17104,6 +17166,8 @@ def read_moodle_course(
     failed = 0
     if files:
         texts: list[str | None] = [None] * len(to_read)
+        if progress is not None:
+            progress(0, len(to_read))  # D213: started, no longer waiting its turn
         with ThreadPoolExecutor(max_workers=MOODLE_READERS) as pool:
             jobs = {pool.submit(one, f): i for i, f in enumerate(to_read)}
             for done, job in enumerate(as_completed(jobs), start=1):
@@ -17131,13 +17195,15 @@ def read_moodle_course(
                 read.append(_studyplan.Read(activity.name, where_of.get(activity.page, "course"), "", kind))
     mondays = _teaching(subscription, course)[0]
     weeks = [(m.isoformat(), n) for n, m in enumerate(mondays, start=1)]
+    how = kept["how"]  # D213: by the weeks named, by when each file was put on Moodle, or in order
+    spread = how in ("order", "uploaded")  # a week without files goes on with the last part
     # Names only, when files are left to read; with none, the plan is as whole as it gets.
     plan, by, order = None, "names" if not files and to_read else "rules", ""
     model = (provider or _ai.cards_from_env()) if files and ai and ai_on(subscription) and read else None
     if model is not None:
         language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
-        by_week, whole = _plan_input(read, weeks, every=reading.in_order)
-        system, prompt = _ai.plan_prompt(course, language, by_week, whole, in_order=reading.in_order)
+        by_week, whole = _plan_input(read, weeks, every=spread)
+        system, prompt = _ai.plan_prompt(course, language, by_week, whole, how=how)
         data = _ai.ask(
             _store(store),
             subscription.token,
@@ -17153,7 +17219,7 @@ def read_moodle_course(
         if plan is not None:
             by, order = "ai", _studyplan.clip((data or {}).get("order") or "", 400)
     if plan is None:
-        plan = _studyplan.rules_plan(weeks, read, continued=reading.in_order)
+        plan = _studyplan.rules_plan(weeks, read, continued=spread)
     options = dict(subscription.options)
     options["study_plans"] = {
         **(options.get("study_plans") or {}),
@@ -17167,9 +17233,10 @@ def read_moodle_course(
             "left": left,
             "read": now.astimezone(UTC).isoformat(timespec="seconds"),
             "host": _host(site),
-            # D212: placed by its sections' order, spread over the weeks of lectures
-            "in_order": reading.in_order,
-            "steps": len({i.step for i in reading.items if i.ordered}),
+            # D212: placed by its sections' order, spread over the weeks of lectures; D213: how
+            "in_order": how == "order",
+            "how": how,
+            "steps": sum(1 for w in plan if not w.get("continued")),
         },
     }
     before = (options.get("topics") or {}).get(key) or {}
@@ -17210,6 +17277,9 @@ def read_moodle_course(
 # server restarted meanwhile) is shown as stopped, to start again.
 MOODLE_KINDS = ("materials", "material_sources", "study_plans", "topics")
 MOODLE_STALE = timedelta(minutes=10)
+# D213: "Plan all my courses" reads its courses one after the other; those waiting their turn
+# say so (kept as `done` -1), and are stopped only after this long without a start.
+MOODLE_QUEUE_STALE = timedelta(minutes=45)
 
 
 def _set_reading(store: str | os.PathLike, token: str, key: str, state: dict | None) -> None:
@@ -17258,9 +17328,11 @@ def plan_moodle_course(
     *,
     call: Callable[..., object] | None = None,
     now: datetime | None = None,
+    queued: bool = False,
 ) -> dict:
     """D211, the first go: the course's plan from its sections and files' names, kept at once,
-    and the files marked as still to read. Returns `read_moodle_course`'s summary."""
+    and the files marked as still to read, `queued` behind another course's (D213). Returns
+    `read_moodle_course`'s summary."""
     now = now or datetime.now(UTC)
     subscription = load_subscription(store, token)
     if subscription is None:
@@ -17269,7 +17341,8 @@ def plan_moodle_course(
     key = course_key(_topic_course(subscription, index))
     _merge_moodle_read(store, token, read)
     at = now.astimezone(UTC).isoformat(timespec="seconds")
-    _set_reading(store, token, key, {"total": summary["pending"], "at": at} if summary["pending"] else None)
+    state = {"done": -1 if queued else 0, "total": summary["pending"], "at": at}
+    _set_reading(store, token, key, state if summary["pending"] else None)
     return summary
 
 
@@ -17294,7 +17367,7 @@ def read_moodle_files(
     shown = [0]
 
     def progress(done: int, total: int) -> None:
-        if done - shown[0] >= 3 or done == total:
+        if done == 0 or done - shown[0] >= 3 or done == total:
             shown[0] = done
             at = clock().astimezone(UTC).isoformat(timespec="seconds")
             _set_reading(store, token, key, {"done": done, "total": total, "at": at})
@@ -17324,15 +17397,24 @@ def _reading_state(state: dict | None, now: datetime) -> dict | None:
         return None
     at = datetime.fromisoformat(state["at"]) if state.get("at") else now
     if state.get("error"):
-        return {"error": state["error"], "done": 0, "total": 0, "stopped": False, "percent": 0}
+        return {
+            "error": state["error"],
+            "done": 0,
+            "total": 0,
+            "stopped": False,
+            "percent": 0,
+            "queued": False,
+        }
     total = int(state.get("total") or 0)
     done = int(state.get("done") or 0)
+    queued = done < 0  # D213: waiting for the courses before it
     return {
         "error": "",
-        "done": done,
+        "done": max(done, 0),
         "total": total,
-        "stopped": now - at > MOODLE_STALE,
-        "percent": round(100 * done / total) if total else 0,
+        "stopped": now - at > (MOODLE_QUEUE_STALE if queued else MOODLE_STALE),
+        "percent": round(100 * done / total) if total and not queued else 0,
+        "queued": queued,
     }
 
 
@@ -17371,6 +17453,8 @@ def moodle_readings(
             said = state["error"]
         elif state["stopped"]:
             said = _("The reading stopped: read it again.")
+        elif state["queued"]:
+            said = _("Waiting for the courses before it")
         else:
             said = _n(
                 "{done} of {n} file read",

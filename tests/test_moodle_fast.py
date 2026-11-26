@@ -165,7 +165,14 @@ def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(t
     plan = service.study_plan_view(sub, algebra, NOW, store=tmp_path)
     assert plan["by_names"] and plan["pending"] == 24 and plan["weeks"]
     assert plan["weeks"][0]["topics"][0]["title"].startswith("Lecture 1 · ")
-    assert plan["reading"] == {"error": "", "done": 0, "total": 24, "stopped": False, "percent": 0}
+    assert plan["reading"] == {
+        "error": "",
+        "done": 0,
+        "total": 24,
+        "stopped": False,
+        "percent": 0,
+        "queued": False,
+    }
     readings = service.moodle_readings(tmp_path, sub, NOW)
     assert readings["reading"] and readings["courses"][0]["said"] == "0 of 24 files read"
     # The second go: the files, a few at a time, the progress kept on the plan as they come.
@@ -185,7 +192,7 @@ def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(t
     )
     assert done["by"] == "rules" and done["files"] == 24 and done["pending"] == 0
     assert len(fetched) == 24
-    assert kept == [(n, 24) for n in range(3, 25, 3)] + [None]
+    assert kept == [(n, 24) for n in range(0, 25, 3)] + [None]  # 0: started, no longer waiting
     sub = service.load_subscription(tmp_path, sub.token)
     plan = service.study_plan_view(sub, algebra, NOW, store=tmp_path)
     assert not plan["by_names"] and plan["files"] == 24 and plan["reading"] is None

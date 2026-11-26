@@ -31,6 +31,7 @@ and fills templates (invariant 11).
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import itertools
 import json
@@ -3253,20 +3254,23 @@ def create_app(config: Config | None = None) -> FastAPI:
                         reading_now.discard((token, index))
 
         if config.background:
-            threading.Thread(target=run, name="cps-moodle", daemon=True).start()
+            # D213: in the request's language, which the thread does not inherit by itself.
+            context = contextvars.copy_context()
+            threading.Thread(target=context.run, args=(run,), name="cps-moodle", daemon=True).start()
         else:
             run()
 
     def plan_from_moodle(token: str, indices: list[int]) -> list[int]:
         """D211: each course's plan from its files' names at once, and the courses whose files
-        are still to read, which are then read in the background."""
-        later = []
+        are still to read, which are then read in the background, one after the other: all
+        but the first wait their turn, and say so (D213)."""
+        later: list[int] = []
         for index in indices:
             with reading_lock:
                 if (token, index) in reading_now:
                     continue
             summary = service.plan_moodle_course(
-                store, token, index, call=config.moodle_call, now=config.clock()
+                store, token, index, call=config.moodle_call, now=config.clock(), queued=bool(later)
             )
             if summary["pending"]:
                 later.append(index)
@@ -3550,6 +3554,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 page=data,
                 address=None if data is not None else address,
                 fetch=config.fetch_page,
+                now=config.clock(),
             )
             found.update(summary)
             return changed

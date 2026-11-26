@@ -58,6 +58,7 @@ class File:
     size: int
     section: str
     number: int
+    uploaded: int = 0  # D213: when it was put on Moodle (seconds since 1970, UTC), 0 when unknown
 
     @property
     def readable(self) -> bool:
@@ -73,6 +74,11 @@ class Activity:
     kind: str
     page: str
     files: tuple[File, ...] = ()
+
+    @property
+    def uploaded(self) -> int:
+        """D213: when its first file was put on Moodle, 0 when Moodle did not say."""
+        return min((f.uploaded for f in self.files if f.uploaded), default=0)
 
 
 @dataclass(frozen=True)
@@ -116,6 +122,8 @@ def sections(contents: object, site: str) -> list[Section]:
                 if (urlsplit(address).hostname or "").lower() != host or not address.startswith("http"):
                     continue
                 size = item.get("filesize")
+                # D213: when the teacher put it there; its first upload, else its last change.
+                stamp = item.get("timecreated") or item.get("timemodified")
                 files.append(
                     File(
                         title,
@@ -125,6 +133,7 @@ def sections(contents: object, site: str) -> list[Section]:
                         size if isinstance(size, int) else 0,
                         name,
                         number,
+                        stamp if isinstance(stamp, int) and stamp > 0 else 0,
                     )
                 )
             activities.append(Activity(title, str(module["modname"]), page, tuple(files)))

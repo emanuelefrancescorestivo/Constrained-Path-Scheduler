@@ -195,6 +195,9 @@ class Material:
     # D212: its place in the course's progression (its section's, from 1), when the course's
     # Moodle gives an order and not the weeks; spread over the weeks of lectures by `service`.
     step: int | None = None
+    # D213: when the teacher put it on Moodle (seconds since 1970), kept for the items whose
+    # names give no day nor week, which `service` may place by it; None otherwise.
+    uploaded: int | None = None
 
     @property
     def placed(self) -> bool:
@@ -531,11 +534,11 @@ def sections(
     name: str,
     site: str,
     course_id: int,
-    found: Sequence[tuple[str, int, Sequence[tuple[str, str, str]]]],
+    found: Sequence[tuple[str, int, Sequence[tuple[str, ...] | tuple[str, str, str, int]]]],
 ) -> Reading:
     """A course as Moodle's web service gives it (D208): each section's name and number,
-    and each activity's name, page and kind (`modname`), placed by the same rules as a
-    page saved from Moodle (`moodle`)."""
+    and each activity's name, page and kind (`modname`), and since D213 when it was put on
+    Moodle, placed by the same rules as a page saved from Moodle (`moodle`)."""
     marking = _Marking()
     items: list[Material] = []
     steps: list[object] = []
@@ -543,17 +546,31 @@ def sections(
         section_name = _clean(section_name)
         mark = marking(section_name) if number != 0 else section_name
         names = [mark] if mark and number != 0 else []
-        for title, url, modtype in activities:
+        for activity in activities:
+            title, url, modtype = str(activity[0]), str(activity[1]), str(activity[2])
+            stamp = activity[3] if len(activity) > 3 else 0
             kind = _MOODLE_KINDS.get(modtype)
             title = _clean(title)
             if kind is None or not title or not url or _GRADES.match(folded(title)):
                 continue
             if section_name and _GRADES.match(folded(section_name)):
                 continue
-            item = Material(title, url, kind, section_name)
+            item = Material(title, url, kind, section_name, uploaded=int(stamp) or None)
             items.append(_placed(item, names, numbered=number != 0))
             steps.append(number if number != 0 else None)
     items, in_order = _in_order(items, steps)
+    # D213: the day it was put on Moodle may place what names no day nor week: not exam
+    # practice, nor what stays for the whole course (the first section's, outside an order).
+    items = [
+        item
+        if item.uploaded is not None
+        and item.shelf != "exams"
+        and item.week is None
+        and not item.day
+        and (k is not None or item.step is not None)
+        else replace(item, uploaded=None)
+        for item, k in zip(items, steps, strict=True)
+    ]
     return Reading("moodle", name, tuple(_unique(items)), site.rstrip("/"), course_id, in_order=in_order)
 
 

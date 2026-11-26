@@ -9,6 +9,10 @@
   <p class="error">{{ r.error }}</p>
   {% elif r.stopped %}
   <p>{{ _("The reading stopped: read it again.") }}</p>
+  {% elif r.queued %}
+  {# D213: "Plan all my courses" reads one course after the other: this one waits its turn. #}
+  <p class="reading-said is-queued">{{ lucide('hourglass') }}<span data-said>{{ _("Waiting for the courses before it") }}</span></p>
+  <div class="meter"><span class="fill w0" data-fill></span></div>
   {% else %}
   <p class="reading-said">{{ lucide('hourglass') }}<span data-said>{{ _n("{done} of {n} file read", "{done} of {n} files read", r.total, done=r.done) }}</span></p>
   <div class="meter"><span class="fill w{{ (r.percent // 10) * 10 }}" data-fill></span></div>
