@@ -7159,7 +7159,8 @@ main.site.todo-wide { max-width: none; }
 .mock-row:not(.mock-th) { background: var(--accent-soft); }
 .mock-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent-ink); font-weight: 700; }
 .guide-courses { margin: 0; padding: 0; }
-.guide-courses li > a, .guide-read { display: flex; align-items: center; gap: 10px; min-height: 44px; color: inherit; text-decoration: none; }
+.guide-courses > li { padding: 4px 0; align-items: center; }
+.guide-courses li > a, .guide-read { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; color: inherit; text-decoration: none; }
 .guide-courses small { font-weight: 700; }
 .guide-courses .is-ok { color: var(--ok); }
 .guide-courses .is-todo { color: var(--accent-ink); }

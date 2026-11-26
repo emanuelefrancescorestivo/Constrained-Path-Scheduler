@@ -50,7 +50,7 @@
       <figcaption>{{ _("Moodle's Security keys page: the row to copy") }}</figcaption>
     </figure>
     {% if g.key.linked %}
-    <p class="hint">{{ _("Kept sealed since {day}. You can forget it in Connections.", day=g.key.since) }} <a href="/p/{{ token }}/connections#moodle-key">{{ _("Connections") }}</a></p>
+    <p class="hint">{{ _("Kept sealed since {day}. You can forget it in Connections.", day=g.key.since) }} <a href="/p/{{ token }}/connections#moodle-key">{{ _("Forget it") }}</a></p>
     {% elif g.site %}
     {% set back = "guide" %}{% include "_moodle_key.html" %}
     {% else %}
