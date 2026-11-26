@@ -33,6 +33,7 @@ import ipaddress
 import json
 import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from urllib.parse import urlsplit, urlunsplit
 
@@ -167,6 +168,96 @@ def moodle_public_config(site: str, *, allow_private: bool = False, timeout: flo
     if not isinstance(data, dict):
         raise SourceError(_("this Moodle did not say how it signs in"))
     return data
+
+
+MOODLE_ANSWER_BYTES = 8 * 1024 * 1024  # a course's contents: a large course is a few hundred KB
+
+
+class MoodleError(SourceError):
+    """Moodle answered, and said no: `code` is its own error code ("invalidtoken",
+    "accessexception", "servicenotavailable"...), the message its words."""
+
+    def __init__(self, message: str, code: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def moodle_call(
+    site: str,
+    key: str,
+    function: str,
+    params: dict[str, str | int] | None = None,
+    *,
+    allow_private: bool = False,
+    timeout: float = TIMEOUT,
+) -> object:
+    """One read-only function of a Moodle's web service (D208), with the student's key, as
+    Moodle's own app calls it: a POST to `webservice/rest/server.php`, so the key is never
+    in an address a log could keep. Refused as a calendar's link is. Raises `MoodleError`
+    when Moodle answers with an error, `SourceError` when it cannot be reached."""
+    url = normalise(site.rstrip("/") + "/webservice/rest/server.php")
+    if not allow_private:
+        check_public(url)
+    fields = {"wstoken": key, "wsfunction": function, "moodlewsrestformat": "json", **(params or {})}
+    opener = urllib.request.build_opener(_Redirects(allow_private))
+    request = urllib.request.Request(
+        url,
+        data=urllib.parse.urlencode({k: str(v) for k, v in fields.items()}).encode(),
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+    )
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            answer = response.read(MOODLE_ANSWER_BYTES + 1)
+    except SourceError:
+        raise
+    except urllib.error.HTTPError as exc:
+        raise SourceError(
+            _("the link answered with an error ({code} {reason})", code=exc.code, reason=exc.reason)
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raise SourceError(_("the link could not be read ({reason})", reason=reason)) from exc
+    if len(answer) > MOODLE_ANSWER_BYTES:
+        raise SourceError(
+            _("Moodle's answer is larger than {mb} MB", mb=MOODLE_ANSWER_BYTES // (1024 * 1024))
+        )
+    try:
+        data = json.loads(answer)
+    except ValueError as exc:
+        raise SourceError(_("Moodle did not answer as its web service does")) from exc
+    if isinstance(data, dict) and (data.get("exception") or data.get("errorcode")):
+        words = " ".join(str(data.get("message") or "").split())[:200]
+        raise MoodleError(words or str(data.get("errorcode")), str(data.get("errorcode") or ""))
+    return data
+
+
+def fetch_file(url: str, *, limit: int, allow_private: bool = False, timeout: float = TIMEOUT) -> bytes:
+    """A file's bytes (D208): a course's slides or notes from Moodle's web service, read and
+    then dropped. Refused as a calendar's link is; a file larger than `limit` is refused
+    before it is all read."""
+    url = normalise(url)
+    if not allow_private:
+        check_public(url)
+    opener = urllib.request.build_opener(_Redirects(allow_private))
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            size = response.headers.get("Content-Length")
+            if size and size.isdigit() and int(size) > limit:
+                raise SourceError(_("the file is larger than {mb} MB", mb=limit // (1024 * 1024)))
+            body = response.read(limit + 1)
+    except SourceError:
+        raise
+    except urllib.error.HTTPError as exc:
+        raise SourceError(
+            _("the link answered with an error ({code} {reason})", code=exc.code, reason=exc.reason)
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raise SourceError(_("the link could not be read ({reason})", reason=reason)) from exc
+    if len(body) > limit:
+        raise SourceError(_("the file is larger than {mb} MB", mb=limit // (1024 * 1024)))
+    return body
 
 
 def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TIMEOUT) -> bytes:

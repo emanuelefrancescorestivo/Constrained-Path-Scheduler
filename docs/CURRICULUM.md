@@ -226,6 +226,16 @@ program, pasted or as a PDF (D90). No password, token or key is asked for, store
 sent anywhere. What follows is what to do the day a university says yes; nothing of it
 is built.
 
+**Changed on 2026-11-26 (D208), by the owner.** Before any university's agreement, a
+student may give the app their own key for Moodle's mobile web service, the one Moodle's
+own app uses; with it the app calls two read-only functions of the list below,
+`core_webservice_get_site_info` and `core_course_get_contents`, for the courses the
+student linked, downloads their files, keeps their text and a study plan, and drops the
+files. The key is sealed as the calendar's link is (D175, step 3 below in spirit); no
+password is asked for. Steps 1 and 2 (a written agreement, a service of the university's
+own) are not done: whether a university's terms allow a student's key in a third party's
+app is the owner's to ask, and a university can turn the mobile service off for apps.
+
 The functions below were read in Moodle's own source on 2026-10-22
 ([lib/db/services.php][mdlservices], [mod/assign][mdlassign] and [mod/resource][mdlresource]
 `db/services.php`, [login/token.php][mdltoken]): each is declared `'type' => 'read'` and

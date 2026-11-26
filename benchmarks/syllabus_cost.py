@@ -40,7 +40,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from cps import ai, cardmaker, service, tips  # noqa: E402
+from cps import ai, cardmaker, service, studyplan, tips  # noqa: E402
 from cps.console import ensure_utf8_output  # noqa: E402
 
 TEXT_PER_PAGE = (1_500, 3_000)  # documented range, text of one PDF page
@@ -95,6 +95,7 @@ def main() -> None:
     cards()
     materials()
     coach()
+    study_plan()
 
 
 def materials_cost(model: str) -> tuple[float, float, float]:
@@ -211,6 +212,41 @@ def coach() -> None:
         f" {int(ai.DEFAULT_MONTHLY_CAP // (high * month))} students asking all"
         f" {service.COACH_FREE_A_DAY} free answers every day of a month"
         f" ({int(ai.DEFAULT_MONTHLY_CAP // (worst * month))} at the worst case the cap reserves)."
+    )
+
+
+def study_plan_cost(model: str) -> tuple[float, float, float]:
+    """D208: a course's study plan from its files on Moodle, at its cut
+    (`studyplan.TEXT_MOST` characters over twelve weeks of files): the lowest and highest
+    estimate at `CHARS_PER_TOKEN`, with the answer's whole cap; and the worst case the
+    app counts against the monthly cap before the call (every byte a token)."""
+    each = studyplan.TEXT_MOST // 36
+    weeks = [
+        {"week": n, "files": [{"title": "x" * 40, "kind": "reading", "text": "x" * each}] * 3}
+        for n in range(1, 13)
+    ]
+    system, prompt = ai.plan_prompt("x" * 80, "English", weeks, [])
+    chars = len(system + prompt)
+    low, high = (ai.cost(model, round(chars / per), ai.PLAN_MAX_TOKENS) for per in reversed(CHARS_PER_TOKEN))
+    return low, high, ai.cost(model, len((system + prompt).encode()), ai.PLAN_MAX_TOKENS)
+
+
+def study_plan() -> None:
+    print(
+        f"\nA course's study plan from its files on Moodle (D208), one call of up to"
+        f" {studyplan.TEXT_MOST:,} characters and {ai.PLAN_MAX_TOKENS:,} tokens back (US dollars):"
+    )
+    print(f"  {'model':<20}{'lowest':>9}{'highest':>9}{'cap reserves':>14}")
+    for model in ai.PRICES:
+        low, high, worst = study_plan_cost(model)
+        mark = "  (the plan's model)" if model == ai.CARDS_MODEL else ""
+        print(f"  {model:<20}{low:>9.4f}{high:>9.4f}{worst:>14.4f}{mark}")
+    _low, high, worst = study_plan_cost(ai.CARDS_MODEL)
+    print(
+        f"  Six courses a student, at the highest estimate: {6 * high:.3f} USD;"
+        f" the {ai.DEFAULT_MONTHLY_CAP:.0f} USD monthly cap pays for"
+        f" {int(ai.DEFAULT_MONTHLY_CAP // high):,} courses"
+        f" ({int(ai.DEFAULT_MONTHLY_CAP // worst):,} at the worst case it reserves)."
     )
 
 

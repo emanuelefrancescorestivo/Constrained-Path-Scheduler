@@ -4,6 +4,11 @@
 
 ### Added
 
+- A course read from Moodle and planned (DECISIONS.md D208): with their Moodle key, given once, a
+  student has the app read a linked course's files and make its study plan, week by week. The plan
+  gives the topics in order, what to know first, and how to study each week; it is written by Claude
+  Haiku with AI on, else by rules. The files' text is kept, the files are not.
+
 - Sounds to focus (DECISIONS.md D207): nature, rain, binaural, sea, café, jazz, classical and a fireplace,
   made by the browser as they play, one tap away on the focus page, with a volume, remembered.
   The focus page fits full screen (AUDIT 137), and its clock keeps the same share of the ring at

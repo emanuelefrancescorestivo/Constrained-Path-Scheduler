@@ -314,6 +314,9 @@ class Config:
     fetch_page: Callable[[str], tuple[bytes, str]] | None = None
     # What a Moodle says about its sign-in (D175); None: `sources.moodle_public_config`.
     moodle_probe: Callable[[str], Any] | None = None
+    # D208: Moodle's web service and a file's download; None: `sources.moodle_call`, `fetch_file`.
+    moodle_call: Callable[..., Any] | None = None
+    fetch_file: Callable[..., bytes] | None = None
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     # New plans per address per hour. A class on one university network shares one
     # public address: two hundred lets a whole lecture start together (D94; forty
@@ -2976,6 +2979,8 @@ def create_app(config: Config | None = None) -> FastAPI:
         "moodle": "Linked to its page on Moodle.",
         "moodle_site": "Your Moodle is saved: now find the course on it.",
         "moodle_off": "No longer linked to Moodle.",
+        # D208
+        "read": "Read from Moodle: the course's study plan is below.",
     }
     # D174: a course's materials page.
     MATERIAL_NOTICES = {
@@ -3196,11 +3201,72 @@ def create_app(config: Config | None = None) -> FastAPI:
             tests=tests,
             why_tip=service.tip_here(subscription, "course", config.clock(), course=view["course"]),  # D135
             todo=service.todo_view(subscription, config.clock(), course=view["course"]),  # D202
+            # D208: the course's study plan read from Moodle, and the key that reads it.
+            plan=service.study_plan_view(subscription, index, config.clock()),
+            moodle_key=service.moodle_key_view(subscription),
             tab="courses",
             exam_row=exam,
             values=values,
             **extra,
         )
+
+    @app.post("/p/{token}/courses/{index}/moodle/read")
+    def course_moodle_read(request: Request, token: str, index: int) -> Response:
+        """D208: the course read from Moodle with the student's key, and its study plan
+        made. It can take a minute: every file is downloaded and read, then the plan."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        try:
+            read, _summary = service.read_moodle_course(
+                store,
+                subscription,
+                index,
+                call=config.moodle_call,
+                fetch=config.fetch_file,
+                now=config.clock(),
+            )
+            # Only what reading the course changed, so an edit made meanwhile stays.
+            kinds = ("materials", "material_sources", "study_plans", "topics")
+            changed = {k: read.options[k] for k in kinds if k in read.options}
+            service.update_subscription(
+                store, token, lambda current: service.replace(current, options={**current.options, **changed})
+            )
+        except service.ServiceError as error:
+            return course_page(request, subscription, index, 400, error=str(error))
+        return RedirectResponse(f"/p/{token}/courses/{index}?saved=read#study-plan", 303)
+
+    @app.post("/p/{token}/moodle/key")
+    async def moodle_key(request: Request, token: str) -> Response:
+        """D208: the student's Moodle key, kept sealed once Moodle says it reads courses;
+        or forgotten."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        if form.get("action") == "forget":
+            service.update_subscription(store, token, service.forget_moodle_key)
+            service.log_event(store, token, "moodle_key", "forgotten")
+            return RedirectResponse(f"/p/{token}/connections?key=forgotten#moodle-key", 303)
+        text = str(form.get("key") or "")[:100]
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.connect_moodle_key(
+                    current, text, call=config.moodle_call, now=config.clock()
+                ),
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "moodle_key", "linked")
+        back = str(form.get("back") or "")
+        if re.fullmatch(r"\d{1,2}", back):
+            return RedirectResponse(f"/p/{token}/courses/{back}#moodle", 303)
+        return RedirectResponse(f"/p/{token}/connections?key=linked#moodle-key", 303)
 
     @app.get("/p/{token}/courses/{index}", response_class=HTMLResponse)
     def course(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:
@@ -5694,7 +5760,20 @@ def create_app(config: Config | None = None) -> FastAPI:
             )
             subscription = saved or subscription
         view = service.connections_view(store, subscription, now)
-        return page(request, "connections.html", token=token, view=view, tab="you")
+        key_saved = {
+            "linked": "Your Moodle key is kept, sealed.",
+            "forgotten": "Your Moodle key is forgotten.",
+        }
+        said = request.query_params.get("key", "")
+        return page(
+            request,
+            "connections.html",
+            token=token,
+            view=view,
+            tab="you",
+            moodle_key=service.moodle_key_view(subscription),  # D208
+            key_saved=service.translate(key_saved[said]) if said in key_saved else "",
+        )
 
     @app.get("/p/{token}/feed", response_class=HTMLResponse)
     def feed_page(request: Request, token: str, new: int = 0) -> HTMLResponse:

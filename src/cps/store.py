@@ -287,6 +287,20 @@ CREATE TABLE IF NOT EXISTS course_topics (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS course_topics_by_plan ON course_topics (token, university, course);
 CREATE INDEX IF NOT EXISTS course_topics_by_course ON course_topics (university, course);
+-- D208: the text read from a course's files on Moodle, with the student's own key: each
+-- file's text, cut at its first pages (`studyplan.TEXT_PER_FILE`); the file itself is not
+-- kept. "item" is the file's address on Moodle, without the key; "week" its Monday, or
+-- "course" or "exams". It goes with the plan (`_FORGET`) and comes in its copy (`_EXPORT`).
+CREATE TABLE IF NOT EXISTS course_texts (
+    token  TEXT NOT NULL,
+    course TEXT NOT NULL,
+    item   TEXT NOT NULL,
+    title  TEXT NOT NULL,
+    week   TEXT NOT NULL DEFAULT '',
+    text   TEXT NOT NULL,
+    read   TEXT NOT NULL,
+    PRIMARY KEY (token, course, item)
+);
 -- A class's link (D104): what a student's courses hold (their topics, and what a
 -- course page or the semester's program said of them), offered to whoever has the
 -- link, read from the plan when the link is opened. One per plan; a new one replaces
@@ -461,6 +475,7 @@ _FORGET = (
     "DELETE FROM push_sent WHERE token = :t",
     "DELETE FROM feedback WHERE token = :t",
     "DELETE FROM course_topics WHERE token = :t",
+    "DELETE FROM course_texts WHERE token = :t",  # D208
     "DELETE FROM class_links WHERE token = :t",
     "DELETE FROM usage WHERE token = :t",
     "DELETE FROM usage_consent WHERE token = :t",
@@ -526,6 +541,9 @@ _EXPORT = {
     "feedback": "SELECT created, kind, page, body FROM feedback WHERE token = :t ORDER BY id",
     "shared_topics": "SELECT university, name, topics, created, updated, uses FROM course_topics "
     "WHERE token = :t ORDER BY created",
+    # D208: the text read from each course's files on Moodle.
+    "course_texts": "SELECT course, title, week, read, text FROM course_texts WHERE token = :t "
+    "ORDER BY course, rowid",
     # D104: when the class's link was made and how many plans took it; not its code,
     # which is the link itself.
     "class_link": "SELECT created, uses FROM class_links WHERE token = :t",
