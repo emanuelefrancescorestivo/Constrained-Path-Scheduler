@@ -10,7 +10,7 @@
 </fieldset>
 {% endmacro %}
 {% block title %}{{ _("Focus") }} · {{ _("Study plan") }}{% endblock %}
-{% block head %}{% if focus.running %}<script type="module" src="{{ asset('focus.js') }}"></script>{% endif %}{% endblock %}
+{% block head %}{% if focus.running %}<script type="module" src="{{ asset('focus.js') }}"></script><script type="module" src="{{ asset('sound.js') }}"></script>{% endif %}{% endblock %}
 {# A session running: nothing floats over the clock (D71). #}
 {% block spark %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}
 {% block spark_button %}{% if not focus.running %}{{ super() }}{% endif %}{% endblock %}
@@ -87,11 +87,25 @@
       {% endfor %}
     </svg>
     <div class="focus-face">
-      <time class="focus-timer" id="focus-timer" aria-live="off">{{ clock(focus.focused) }}</time>
+      <time class="focus-timer{% if focus.focused >= 3600 %} is-hours{% endif %}" id="focus-timer" aria-live="off">{{ clock(focus.focused) }}</time>
       <p class="vine-next" id="stem-next" data-many="{{ _('Next flower in {n} min') }}" data-all="{{ _('Every flower is open') }}">{% if st.next %}{{ _("Next flower in {n} min", n=st.next) }}{% else %}{{ _("Every flower is open") }}{% endif %}</p>
     </div>
   </div>
   <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}{% if focus.rhythm and focus.rounds %} · {{ _("Round {n} of {total}", n=focus.round, total=focus.rounds) }}{% endif %}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
+  {# D207 (the owner: "concentration music, from a library of nature, rain, binaural, sea, cosy
+     café hum, jazz, classic, fireplace"): one tap plays the sound last chosen; the list opens
+     under it. The script makes each sound as it plays, so without it nothing shows. #}
+  <div class="focus-sound" id="focus-sound" data-save="/p/{{ token }}/focus/sound" data-sound="{{ sound.key }}" hidden>
+    <button type="button" class="sound-toggle" id="sound-toggle" aria-pressed="false"{% if not sound.key %} hidden{% endif %}>{{ lucide('play', 'i-play') }}{{ lucide('pause', 'i-pause') }}<span id="sound-name">{{ sound.name }}</span></button>
+    <details class="sound-pick">
+      <summary>{{ lucide('music') }}<span>{{ _("Sounds to focus") }}</span></summary>
+      <div class="card sound-panel">
+        <div class="sound-list">{% for s in sound.sounds %}<button type="button" class="sound-chip{% if s.key == sound.key %} is-chosen{% endif %}" data-sound-key="{{ s.key }}" data-name="{{ s.name }}" aria-pressed="false">{{ lucide(s.icon) }}<span>{{ s.name }}</span></button>{% endfor %}</div>
+        <label class="sound-volume">{{ lucide('volume-2') }}<span class="visually-hidden">{{ _("Volume") }}</span><input type="range" id="sound-volume" min="0" max="100" step="5" value="{{ sound.volume }}"></label>
+        <p class="sound-note">{{ _("Made by your browser as they play, not recordings. Binaural needs headphones. Tap a sound again to stop it.") }}</p>
+      </div>
+    </details>
+  </div>
 
   {% if alongside %}
   {# Studying now (D108) as one line (D178, the owner's 4C): who the student follows is

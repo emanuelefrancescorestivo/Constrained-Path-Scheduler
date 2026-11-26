@@ -133,6 +133,7 @@ function draw() {
   rhythmStep();
   const focused = Math.floor(focusedNow());
   clock.textContent = clockText(focused);
+  clock.classList.toggle("is-hours", focused >= 3600);  // D207: longer digits, a smaller size
   if (nudge && nudge.hidden && Math.floor(now()) >= Number(nudge.dataset.breakAt)) nudge.hidden = false;
   reward(focused);
   growStem(focused);

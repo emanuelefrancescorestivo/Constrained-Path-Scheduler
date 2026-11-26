@@ -8208,3 +8208,47 @@ level up."
 - The demo's students log their sessions without the timer, so their rings and backdrops start locked.
 - Checked in Chromium only, at phone size and 1280 px, light and dark.
 
+## D207. Focus that fits full screen, a calmer clock, and sounds to focus
+
+**Asked.** With a screenshot of the focus page full screen on a laptop: "the focus is slightly off so
+adjust this, make the time to circle ratio more comfortable to the eye, add the chance to put
+concentration music, from a library of (nature, rain, binaural, sea, cosy café hum, jazz, classic,
+fireplace)."
+
+**Chosen.**
+- **Full screen fits (AUDIT 137):** the page is centred with `justify-content: safe center` and scrolls
+  in full screen, so a page taller than the window starts at the course's name. The dial there is at most
+  60 % of the window's height.
+- **The clock and its ring:** the digits' size follows the dial's (container units), so they keep the
+  same share of the ring at every size:
+  - minutes and seconds about half the ring's width; an hour's longer digits about three fifths;
+  - weight 300 instead of 200, which reads from further away.
+- **Sounds to focus,** under the clock: the eight the owner listed, each made by the browser as it plays
+  (`static/sound.js`, the Web Audio API):
+  - **noise shaped by filters, with random events:** nature (wind, leaves, birds), rain (hiss and drops),
+    sea (two slow waves), fireplace (a roar and crackles), café (bands of voices at the pace of
+    syllables, a cup now and then);
+  - **binaural:** 200 Hz in one ear and 210 Hz in the other, over quiet noise;
+  - **jazz:** a slow swing on four chords (piano, walking bass, brushes, ride);
+  - **classical:** an arpeggio on the chords of Pachelbel's Canon (public domain) with its upper line.
+- **How it is used:** one tap plays the sound last chosen; the list opens beside it, with a volume. The
+  choice and the volume are saved on the plan as they change (D165). The eight are brought to about the
+  same loudness, measured at the output in Chromium (RMS 0.033 to 0.040 at half volume), and a limiter
+  keeps full volume from clipping.
+
+**Rejected.**
+- **Recordings:** each would be a file to license and fetch (a few MB each), and they would not play
+  offline before their first fetch. If the owner wants real recordings of jazz or classical, that is a
+  choice of sources and licences to make with them.
+- **Starting the sound by itself:** browsers allow sound only after a tap on the page; the timer's page
+  opens after a navigation, so the sound waits for one tap.
+
+**Disclosed.**
+- Whether any of these sounds helps a student concentrate was not measured here. Studies of background
+  music and of binaural beats disagree, and the page claims nothing.
+- The jazz and the classical are generated, not played by musicians, and the page says so.
+- When the page is hidden, the browser slows its timers, so the sounds made of events (drops, birds, notes)
+  may thin out.
+- Checked in Chromium only, at 320 to 1600 px, light and dark, full screen at 1600 × 1000 and 1280 × 720.
+  Not on a phone's speaker nor in Safari.
+

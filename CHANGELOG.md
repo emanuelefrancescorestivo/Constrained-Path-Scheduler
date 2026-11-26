@@ -4,6 +4,11 @@
 
 ### Added
 
+- Sounds to focus (DECISIONS.md D207): nature, rain, binaural, sea, café, jazz, classical and a fireplace,
+  made by the browser as they play, one tap away on the focus page, with a volume, remembered.
+  The focus page fits full screen (AUDIT 137), and its clock keeps the same share of the ring at
+  every size.
+
 - Rewards to unlock (DECISIONS.md D206): rings and backdrops for the focus page, unlocked by sessions
   timed with Focus, and accessories for the avatar (a graduation cap, a laurel, a crown) unlocked by the
   level. A Rewards page under You shows them all and how far each is.
