@@ -52,6 +52,13 @@
     {% for m in focus.materials %}<li><a href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ lucide(material_icons[m.kind], "mat-icon") }}<span>{{ m.title }}</span></a></li>{% endfor %}
   </ul>
   {% endif %}
+  {% if focus.study %}
+  {# D208: this week's part of the course's study plan, beside the clock. #}
+  <div class="focus-study">
+    <p class="kicker">{{ _("Week {n}", n=focus.study.number) }} · {{ focus.study.topics | join(" · ") }}</p>
+    {% for h in focus.study.how %}<p><b>{{ h.name }}:</b> {{ h.what }}</p>{% endfor %}
+  </div>
+  {% endif %}
   {% if fm and fm.linked %}
   {# D163: the course's pages on Moodle beside the clock. Another tab is time away (D17). #}
   <p class="focus-moodle"><a href="{{ fm.pages.materials }}" rel="noopener noreferrer" target="_blank">{{ _("Materials on Moodle") }} ↗</a> · <a href="{{ fm.pages.course }}" rel="noopener noreferrer" target="_blank">{{ _("Course page") }} ↗</a><br><small>{{ _("They open in another tab, which the clock counts as time away.") }}</small></p>

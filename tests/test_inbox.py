@@ -246,6 +246,7 @@ TABLES = {
     "push_devices": "reminder_devices",
     "feedback": "feedback",
     "course_topics": "shared_topics",
+    "course_texts": "course_texts",  # D208: the text read from a course's files on Moodle
     "class_links": "class_link",  # D104: when it was made and its uses, not its code
     "accounts": "account",
     "sessions": "signed_in",

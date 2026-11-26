@@ -7095,3 +7095,36 @@ main.site.todo-wide { max-width: none; }
 .sound-volume svg { width: 18px; height: 18px; flex: none; }
 .sound-volume input { flex: 1; min-height: 32px; accent-color: var(--accent); }
 .sound-note { margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.4; }
+
+/* D208: a course read from Moodle with the student's key, and its study plan. */
+.moodle-read { margin-top: 14px; }
+.moodle-read .btn svg { width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px; }
+.moodle-read .hint { margin: 8px 0 0; }
+.moodle-key-ask > summary { margin: 4px 0 0; }
+.moodle-key-form { display: grid; gap: 8px; margin: 8px 0 0; }
+.moodle-key-steps { margin: 0; padding-left: 20px; line-height: 1.6; }
+.moodle-key-form .row-input input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.moodle-key-form .hint { margin: 0; }
+.cx-key { display: block; }
+.study-plan .plan-order { margin: 0 0 12px; color: var(--muted); }
+.study-plan > .hint { margin: 10px 0 0; }
+.plan-weeks { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.plan-week { padding: 0; }
+.plan-week > details > summary { display: grid; gap: 2px; margin: 0; padding: 14px 16px; color: var(--text); }
+.plan-week > details > summary::before { display: none; }
+.plan-week > details > summary small { color: var(--muted); font-weight: 500; line-height: 1.4; }
+.plan-week > details > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.plan-week > details > :last-child { margin-bottom: 14px; }
+.plan-week.is-now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.plan-week.is-past summary b { color: var(--muted); }
+.pill-now { justify-self: start; display: inline-block; margin-left: 0; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 0.8rem; font-weight: 700; }
+.plan-topics { margin: 0 0 10px; padding-left: 20px; }
+.plan-topics > li { margin: 0 0 6px; }
+.plan-topics ul { margin: 4px 0 0; padding-left: 18px; color: var(--muted); }
+.plan-needs { margin: 0 0 10px; }
+.plan-how { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.plan-how li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--fill-4); }
+.plan-how b { color: var(--accent-ink); font-size: 0.85rem; }
+.focus-study { max-width: 30rem; margin: 4px auto 0; padding: 10px 14px; border-radius: 14px; background: var(--material); text-align: left; }
+.focus-study p { margin: 0 0 4px; font-size: 0.9rem; }
+.focus-study p:last-child { margin-bottom: 0; }

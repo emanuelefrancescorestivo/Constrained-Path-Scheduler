@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urljoin, urlsplit
@@ -447,6 +447,55 @@ def _activity_name(node: _Node) -> str:
     return instance.text(frozenset({"accesshide"})) if instance is not None else ""
 
 
+class _Marking:
+    """A section's name as it is read for placing: one that goes on from numbered ones
+    without its own number ("Session: AI as a GPT" after "Session 6") is the next
+    ("Session 7: AI as a GPT"). It remembers the last numbered section, so one is made
+    per course."""
+
+    def __init__(self) -> None:
+        self.last: tuple[str, int] | None = None  # the unit word and number of the last numbered section
+
+    def __call__(self, name: str) -> str:
+        topic = syllabus.marked(_spelled(name))
+        word = re.match(r"^([^\W\d_]+)", name)
+        if topic is not None and (topic.week or topic.lecture) and word:
+            self.last = (folded(word.group(1)), topic.week or topic.lecture or 0)
+            return name
+        if self.last and word and folded(word.group(1)) == self.last[0] and not re.search(r"\d", name):
+            number = self.last[1] + 1
+            self.last = (self.last[0], number)
+            return f"{word.group(1)} {number}: {name[word.end() :].strip(' :-–—')}"
+        return name
+
+
+def sections(
+    name: str,
+    site: str,
+    course_id: int,
+    found: Sequence[tuple[str, int, Sequence[tuple[str, str, str]]]],
+) -> Reading:
+    """A course as Moodle's web service gives it (D208): each section's name and number,
+    and each activity's name, page and kind (`modname`), placed by the same rules as a
+    page saved from Moodle (`moodle`)."""
+    marking = _Marking()
+    items: list[Material] = []
+    for section_name, number, activities in found:
+        section_name = _clean(section_name)
+        mark = marking(section_name) if number != 0 else section_name
+        names = [mark] if mark and number != 0 else []
+        for title, url, modtype in activities:
+            kind = _MOODLE_KINDS.get(modtype)
+            title = _clean(title)
+            if kind is None or not title or not url or _GRADES.match(folded(title)):
+                continue
+            if section_name and _GRADES.match(folded(section_name)):
+                continue
+            item = Material(title, url, kind, section_name)
+            items.append(_placed(item, names, numbered=number != 0))
+    return Reading("moodle", name, tuple(_unique(items)), site.rstrip("/"), course_id)
+
+
 def moodle(html: str) -> Reading | None:
     """A course page saved from Moodle: each activity that holds material, under its
     section and subsection, placed by their names. None when the page is not one."""
@@ -460,22 +509,7 @@ def moodle(html: str) -> Reading | None:
     title = _title_of(root)
     name = _clean(re.sub(r"\s*\|\s*[^|]*$", "", title.split(":", 1)[-1] if ":" in title else title))
     items: list[Material] = []
-    last: list[tuple[str, int]] = []  # the unit word and number of the last numbered section
-
-    def marking(name: str) -> str:
-        """A section's name as it is read for placing: one that goes on from numbered
-        ones without its own number ("Session: AI as a GPT" after "Session 6") is the
-        next ("Session 7: AI as a GPT")."""
-        topic = syllabus.marked(_spelled(name))
-        word = re.match(r"^([^\W\d_]+)", name)
-        if topic is not None and (topic.week or topic.lecture) and word:
-            last[:] = [(folded(word.group(1)), topic.week or topic.lecture or 0)]
-            return name
-        if last and word and folded(word.group(1)) == last[0][0] and not re.search(r"\d", name):
-            number = last[0][1] + 1
-            last[:] = [(last[0][0], number)]
-            return f"{word.group(1)} {number}: {name[word.end() :].strip(' :-–—')}"
-        return name
+    marking = _Marking()
 
     def walk(node: _Node, path: tuple[tuple[str, int | None, str], ...]) -> None:
         for child in node.children:

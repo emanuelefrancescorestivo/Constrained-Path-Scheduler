@@ -8252,3 +8252,69 @@ fireplace)."
 - Checked in Chromium only, at 320 to 1600 px, light and dark, full screen at 1600 × 1000 and 1280 × 720.
   Not on a phone's speaker nor in Safari.
 
+## D208. A course read from Moodle with the student's key, and a study plan from it
+
+**Asked.** The owner: "probably the most important step is connecting the materials from Moodle and
+parsing them, and so creating a structured plan of what to study, in what progression and how, even if
+it requires API calls as long as they don't cost too much". Then: "hybrid: the student enters the
+course's Moodle link as they already do, and the app downloads the contents, saves them in the course
+and uses them to generate the study plan". Asked how the app signs in and what it keeps, the owner chose
+the student's Moodle key, and the text and the plan, not the files.
+
+**Chosen.**
+- **The key, once:** the student pastes the key of Moodle's mobile web service, the one Moodle's own app
+  uses. It is copied from the site's Security keys page (`/user/managetoken.php`), which the app links
+  to.
+  - The app asks Moodle `core_webservice_get_site_info` and keeps the key only if
+    `core_course_get_contents` is among its functions.
+  - The key is sealed as the calendar's link is (D175). Moodle's answer names the student; only the
+    site's name is kept.
+  - "Forget it" on Connections drops the key, and Moodle can reset it.
+- **Reading a course:** for each course linked to its Moodle page (D163), one tap ("Read its materials
+  and plan the study"):
+  - `core_course_get_contents` gives the sections. They become the course's materials on its weeks, by
+    the same rules as a saved page's (D174), now shared (`coursepages.sections`).
+  - Files of notes' kinds (PDF, PowerPoint, Word, LibreOffice, Markdown, text) on the course's own site
+    are downloaded with the key in their address: at most 60 files, 10 MB each, 120 MB a course. A
+    video, an archive, or a file on another site is never fetched, so the key never leaves the
+    university's site.
+  - Each file is read by `notefiles` (D134), its first 12,000 characters kept as text (`course_texts`,
+    deleted with the plan, in its copy), and the file dropped.
+- **The plan, week by week:** the topics in the order to learn them with their key points, what to know
+  first, and how to study them, as one of six kinds the tips rest on (read, test yourself, worked
+  example, exercises, summary, exam practice).
+  - **With the model:** when the student said yes to AI (D12), Claude Haiku 5.5 writes it in one call.
+    The course's text is cut at 160,000 characters, under 100,000 tokens even at two characters a token,
+    so it stays at Haiku's lower price. The answer is kept to its shape and to the course's weeks
+    (`studyplan.checked_plan`).
+  - **Cost:** 0.009 to 0.013 USD a course, 0.08 USD for six courses, and 755 courses under the monthly
+    cap of 10 USD (`benchmarks/syllabus_cost.py`).
+  - **Without the model,** the rules plan it from the files' names and headings, and the "how" from the
+    kinds of files there are.
+  - **Where it shows:**
+    - the plan's topics go on the week's sessions (D81), unless the student gave the course's topics;
+    - the course's page shows the plan week by week, the current week open;
+    - the focus screen shows this week's topics and how.
+- **Privacy:** the privacy page now says the key is kept encrypted and used only to read the linked
+  courses, and that the files' text goes to Anthropic when a study plan is asked for with AI on. Both
+  lines are the owner's to approve (C2).
+
+**Rejected.**
+- **The student's password, exchanged for a key** (`login/token.php`): it fails with a university's
+  single sign-on, and asking for another site's password frightens.
+- **Keeping the files:** copies of teachers' slides on the app's server, and disk the pilot does not
+  need. The text and a link to each file on Moodle are kept.
+- **The university's agreement first** (docs/CURRICULUM.md §5a): the owner's choice, made knowingly.
+  Whether a university's terms allow it is the owner's to ask.
+
+**Disclosed.**
+- Tried against a made-up Moodle written for the tests (the shape of Moodle 4.5's answers, read in its
+  source), not against a real university's Moodle.
+- A university can turn its mobile service off for apps; the app then says so, and a saved page still
+  brings the links (D174).
+- With single sign-on, the key usually appears only after the student signs in once to the Moodle app.
+  To be checked on the owner's Moodle.
+- The model's plan has run only against a fake provider here (no key), like every AI feature (D12). The
+  page says it may miss or mix things up.
+- Checked in Chromium only, at phone size and 1280 px, light and dark.
+
