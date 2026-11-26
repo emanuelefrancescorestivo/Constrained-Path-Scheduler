@@ -4,6 +4,11 @@
 
 ### Added
 
+- Planning a course from Moodle, step by step (DECISIONS.md D209): one page with the three steps, which
+  are done and which comes next, the key's field and each course's "Read and plan" button. It is linked
+  from Courses, from every course's Moodle card and from Connections. In the demo a course is already read
+  from a made-up Moodle and planned.
+
 - A course read from Moodle and planned (DECISIONS.md D208): with their Moodle key, given once, a
   student has the app read a linked course's files and make its study plan, week by week. The plan
   gives the topics in order, what to know first, and how to study each week; it is written by Claude

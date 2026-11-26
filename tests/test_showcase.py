@@ -137,6 +137,9 @@ def _app(store, admin, demo=None):
 def _student_pages(web, token):
     for path in ("", "/progress", "/trends", "/community", "/notes", "/groups", "/cards/review", "/focus"):
         assert web.get(f"/p/{token}{path}").status_code == 200, path
+    # D209: the algebra course read from the made-up Moodle and planned, the guide all done.
+    guide = unescape(web.get(f"/p/{token}/guide/moodle").text)
+    assert "3 of 3 steps done" in guide and "See the plan" in guide
 
 
 @pytest.mark.slow
@@ -162,6 +165,8 @@ def test_cps_demo_makes_a_store_to_look_around_and_serves_it(tmp_path, capsys):
     assert sam is not None and len(sam.outcomes) > 20
     assert service.topic_courses(sam) == ["Algebra 1", "Analysis 1", "Probability Theory"]
     assert service.cards_due(store, sam, found.clock()) > 0
+    # D209: each year's algebra course read from the made-up Moodle and planned by the rules.
+    assert service.study_plan_view(sam, 0, found.clock())["files"] == 24
 
     you = service.load_subscription(store, found.you)
     assert you is not None and you.outcomes  # the semester so far, reported

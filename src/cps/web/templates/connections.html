@@ -28,7 +28,7 @@
     {# D208: the student's own Moodle key, so the app reads the linked courses' files. #}
     {% set k = moodle_key %}
     <li id="moodle-key">{{ dot("ok" if k.linked else "off") }}<span class="grow"><b>{{ _("Key to read your courses") }}</b>
-      <small>{% if k.linked %}{{ _("Kept sealed since {day}, read-only: the app reads your linked courses' files with it.", day=k.since) }}{% else %}{{ _("With your Moodle key the app reads your linked courses' files and plans how to study them.") }}{% endif %}</small></span>
+      <small>{% if k.linked %}{{ _("Kept sealed since {day}, read-only: the app reads your linked courses' files with it.", day=k.since) }}{% else %}{{ _("With your Moodle key the app reads your linked courses' files and plans how to study them.") }}{% endif %} <a href="/p/{{ token }}/guide/moodle">{{ _("Step by step") }}</a></small></span>
       {% if k.linked %}<form method="post" action="/p/{{ token }}/moodle/key"><input type="hidden" name="action" value="forget"><button type="submit" class="btn btn-sm btn-plain">{{ _("Forget it") }}</button></form>{% endif %}</li>
     {% if not k.linked and k.site %}
     <li class="cx-key">{% include "_moodle_key.html" %}</li>

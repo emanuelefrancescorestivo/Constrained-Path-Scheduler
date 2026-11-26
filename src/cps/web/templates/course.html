@@ -61,6 +61,8 @@
   </form>
   <p class="hint">{% if not m.find %}{{ _("Or paste your Moodle's address alone, such as moodle.example.edu, and the app searches it for this course.") }} {% endif %}{{ _("Moodle keeps your sign-in: the app keeps only the address.") }}</p>
   {% endif %}
+  {# D209: the whole way, step by step, from wherever the student is. #}
+  <p class="guide-link"><a href="/p/{{ token }}/guide/moodle">{{ lucide('message-circle-question') }}{% if plan %}{{ _("How the plan is made, step by step") }}{% else %}{{ _("Plan this course from Moodle: step by step") }}{% endif %}</a></p>
 </section>
 
 {# D208: the course's study plan, from its own materials on Moodle: each week's topics in

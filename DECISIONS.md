@@ -8318,3 +8318,53 @@ the student's Moodle key, and the text and the plan, not the files.
   page says it may miss or mix things up.
 - Checked in Chromium only, at phone size and 1280 px, light and dark.
 
+
+## D209. Planning a course from Moodle, step by step
+
+**Asked.** The owner, about D208: "i need a tutorial, in the app too because i cant find it".
+
+**Why it was hard to find.** D208's button sat on a course's Moodle card only once the course was linked,
+and the key was given on Connections, another page. A student who had not linked a course saw neither, and
+the demo's students had no course linked, so the demo showed nothing of it.
+
+**Chosen.**
+- **One page, three steps** (`/p/<plan>/guide/moodle`, `service.moodle_guide_view`):
+  1. link a course to its page on Moodle;
+  2. give the key, once;
+  3. read a course and plan it.
+- **It knows where the student is.** Each step says whether it is done, and the first one not done is lit.
+  - The key's field is on the page once the site is known, and saving it comes back to the next step.
+  - Each linked course has its "Read and plan" button there, and each planned course its "See the plan".
+- **Pictures drawn in HTML,** not screenshots: the browser's bar with the course's address (the student's
+  own Moodle once known), and the Security keys row to copy. They follow the language and the theme.
+- **Answers for what goes wrong:**
+  - no key on the Security keys page;
+  - Moodle refusing the key;
+  - a Moodle that lets no app read;
+  - files not read;
+  - where the Moodle's address is.
+- **What the app keeps,** said once more on the page: the address, the key sealed, the files' text, the
+  plan; never the password.
+- **Where it is found:**
+  - on Courses, above the list until a course has its plan, then beside it;
+  - on every course's Moodle card;
+  - on Connections, in the key's row.
+- **The demo shows it done.** Each demo student's algebra course is linked to a made-up Moodle
+  (`moodle.example.edu`), its key given and its files read and planned by the rules, so the plan is on the
+  course's page and this week's part on Focus.
+  - `cps demo` serves the same made-up Moodle (`showcase.demo_moodle_call`, `demo_fetch_file`), so
+    "Read it again" works there too.
+  - Any other site goes to the real web service.
+  - The demo never asks the model for a plan (`read_moodle_course(ai=False)`): no visitor asked for one.
+
+**Rejected.**
+- **Spark's tour for it:** a tour shows once and is gone; a page stays where the student can find it again.
+- **Screenshots of Moodle:** they show one university's theme in one language, and go stale with Moodle's
+  versions.
+- **A row under You:** Courses, the course's card and Connections are where a student looks for it.
+
+**Disclosed.**
+- The made-up Moodle's links (the course's pages, Security keys) lead nowhere: `example.edu` is not a site.
+- Moodle's menu words (Preferences, Security keys) are Moodle 4.5's in the app's language, which may not be
+  the student's Moodle's.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.

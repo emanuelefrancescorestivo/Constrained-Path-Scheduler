@@ -16701,6 +16701,7 @@ def week_materials(subscription: Subscription, course: str, now: datetime | None
 MOODLE_KEY = re.compile(r"^[0-9a-fA-F]{32}$")
 MOODLE_KEY_PAGE = "/user/managetoken.php"  # Moodle's Security keys page, where a student copies it
 moodle_call = _sources.moodle_call  # for the web app, which calls only service
+MoodleError = _sources.MoodleError
 fetch_file = _sources.fetch_file
 
 # What each way to study says when the rules made the plan (the model writes its own).
@@ -16860,12 +16861,15 @@ def read_moodle_course(
     fetch: Callable[..., bytes] | None = None,
     provider: _ai.Provider | None = None,
     now: datetime | None = None,
+    ai: bool = True,
 ) -> tuple[Subscription, dict]:
     """A course read from Moodle with the student's key (D208): its sections and activities
     become its materials on its weeks (as a saved page's do, D174); its files are downloaded,
     read and dropped, their text kept; and a study plan is made from them, week by week, by
     the model when the student said yes to AI and the server has it, else by rules. The plan's
-    topics go on the week's sessions (D81) unless the student gave the course's topics."""
+    topics go on the week's sessions (D81) unless the student gave the course's topics.
+    `ai` False keeps to the rules whatever the student said: the demo's made-up students
+    (D209), whose plans no visitor asked a model for."""
     now = now or datetime.now(UTC)
     course = _topic_course(subscription, index)
     key = course_key(course)
@@ -16929,7 +16933,7 @@ def read_moodle_course(
     mondays = _teaching(subscription, course)[0]
     weeks = [(m.isoformat(), n) for n, m in enumerate(mondays, start=1)]
     plan, by, order = None, "rules", ""
-    model = (provider or _ai.cards_from_env()) if ai_on(subscription) and read else None
+    model = (provider or _ai.cards_from_env()) if ai and ai_on(subscription) and read else None
     if model is not None:
         language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
         by_week, whole = _plan_input(read, weeks)
@@ -17056,6 +17060,55 @@ def week_study(subscription: Subscription, course: str, now: datetime | None = N
             }
             for h in w.get("how") or ()
         ][:2],
+    }
+
+
+# D209: the owner, 2026-11-26, about D208: "i need a tutorial, in the app too because i
+# cant find it". Planning a course from Moodle takes three steps spread over two pages (a
+# course's Moodle card, Connections) and one more on Moodle itself; the guide puts them on
+# one page, in order, says which are done, and starts the next one from where it is.
+MOODLE_GUIDE_STEPS = ("link", "key", "read")
+MOODLE_EXAMPLE = "https://moodle.your-university.edu"  # an address for the pictures, no site
+
+
+def moodle_guide_view(subscription: Subscription) -> dict:
+    """D209: the way to a course's study plan from Moodle, step by step, and where the
+    student is on it: a course linked to its page (D163), the key given once (D208), a
+    course read and planned. Each course says what it still needs; `next` is the first
+    step not done, None once a course has its plan."""
+    options = subscription.options
+    linked = options.get("moodle_courses") or {}
+    plans = options.get("study_plans") or {}
+    key = moodle_key_view(subscription)
+    courses = [
+        {
+            "index": index,
+            "name": name,
+            "linked": course_key(name) in linked,
+            "planned": course_key(name) in plans,
+        }
+        for index, name in enumerate(topic_courses(subscription))
+    ]
+    done = {
+        "link": any(c["linked"] for c in courses),
+        "key": key["linked"],
+        "read": any(c["planned"] for c in courses),
+    }
+    site = moodle_site(subscription)
+    first = next((c for c in courses if c["linked"] and not c["planned"]), None)
+    return {
+        "steps": [{"key": step, "done": done[step]} for step in MOODLE_GUIDE_STEPS],
+        "done": sum(done.values()),
+        "next": next((step for step in MOODLE_GUIDE_STEPS if not done[step]), None),
+        "courses": courses,
+        "planned": [c for c in courses if c["planned"]],
+        "to_read": first,  # the first course linked and not yet read
+        "key": key,
+        "site": bool(site),
+        "host": _host(site) or _host(MOODLE_EXAMPLE),
+        "home": site or MOODLE_EXAMPLE,
+        "example": f"{site or MOODLE_EXAMPLE}/course/view.php?id=",
+        "ai": ai_on(subscription) and _ai.cards_from_env() is not None,
     }
 
 
