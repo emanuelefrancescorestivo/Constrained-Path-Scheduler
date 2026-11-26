@@ -8550,3 +8550,62 @@ the plan had no week.
 - An even pace no course keeps: a long chapter gets the same weeks as a short one until the student moves
   its files.
 - Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D213. The backbone: from Moodle to a plan of when, what and how to revise
+
+**Asked.** The owner, on their own Moodle, with four screenshots (an algebra course's four lectures in its
+first week and nothing after week 2; three courses at "0 files read"; the courses reached by small names in
+the sidebar): "1st it is not intuitive to click on cours written this little engaging and popping out way,
+2nd and foremost this pipeline of moodle connection -> materials retrieval -> analysis and parsing of
+materials spread over the lecture weeks for planning WHEN, WHAT, and HOW to revise is LITERALLY THE
+BACKBONE of a study planner so this has to be EASY, INTUITIVE, EFFECTIVE".
+
+**Effective: where each file goes** (`service._material_places`). A course's files are placed, most
+trusted first, by:
+1. the days and weeks their names or sections give ("28 settembre - 4 ottobre", "Week 3"), as before;
+2. the day each was put on Moodle (`timecreated`, which Moodle's web service gives with each file), when
+   the course's files went up over at least three of its weeks: a teacher who uploads as the course goes.
+   A file put there at the weekend is for the week after; before the term, for the first week; in a week
+   without classes, for the next. Not used when everything went up at once (before the term, or a course
+   copied from last year): those weeks say nothing;
+3. a lecture's number ("L3", "Lecture 3", "Slides_03") as the timetable's class of that number, only when
+   the numbers keep up with the classes held so far, at least half of them: "L1" to "L4" in a course's
+   second week are its classes (D174's pages), four "lectures" after forty classes are chapters (AUDIT 140);
+4. else the order the numbers or sections give, spread over the weeks of lectures (D212).
+The plan says how: by the weeks named (nothing to say), "each file is in the week your teacher put it on
+Moodle", or "its order, not its weeks"; a file is moved to another week on the course's materials, and
+stays there. With files placed by when they went up, a week without a new file goes on with the last
+part, as in an order, and the model is told so and given every week.
+
+**Easy: reading that says what it does.** "Plan all my courses" reads them one after the other; those
+waiting their turn say "Waiting for the courses before it" rather than "0 of 22 files read", and are
+called stopped only after 45 minutes; a course whose reading starts says so at once; the guide's row puts
+the course's name above its meter; the reading in the background keeps the student's language (AUDIT 141).
+
+**Intuitive: Courses is the plan's home** (`service.plan_hub`, `courses.html`).
+- **On a laptop, Courses is a section of the sidebar** with its icon, after Today, Calendar and Community
+  (D153 put Community third), not only the small heading above the list of courses.
+- **The Moodle side's one next action, at the top:** "Connect Moodle" before the key; "Plan all my N
+  courses" when courses are linked and not planned, with a link to choose those not linked; while files
+  are read, every course's files together on one meter; nothing once every course is planned.
+- **Each course a card:** its name and exam; this week's part of its plan, what to study (its topics) and
+  how (Read, Test yourself, Exercises…); how it was planned ("Planned from 24 files on Moodle", "each file
+  in the week it was put on Moodle", "in its order, spread over its weeks"), its meter while read, or its
+  own next action ("Plan it from Moodle", "Link it to Moodle"); its weeks taught and cards below.
+- **A course's page opens on its study plan,** week by week, the Moodle card under it.
+
+**Rejected.**
+- **Asking the student, course by course, how their teacher keeps Moodle:** the files say it; a question
+  per course is friction (D165). A file in the wrong week is moved in one tap.
+- **Trusting a lecture's number always (D174) or never:** both fail, on the owner's two kinds of course.
+- **Reading the courses all at once:** six downloads per course, three courses at once, on a small server;
+  one after the other, the first plan fills sooner, and the others say they wait.
+- **A new page for the plan:** Courses already is where a course's plan lives; it now shows it.
+
+**Disclosed.**
+- Three weeks, two days, half the classes and 45 minutes are choices, tried on a Moodle written for the
+  tests from the owner's screenshots, not on their real course: a teacher who uploads a week ahead puts
+  files a week early; one who uploads the first half before the term crowds it in week 1.
+- A file's upload day is Moodle's `timecreated`, else `timemodified` (a file replaced later counts from
+  its replacement); a saved page (D174) has neither, and keeps rules 1, 3 and 4.
+- Checked in Chromium only, at 1440 × 900 and phone size, light and dark.

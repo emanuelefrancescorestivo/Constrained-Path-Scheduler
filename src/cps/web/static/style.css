@@ -4832,7 +4832,7 @@ main.tech:not(.code-page) .code-pin-stage { grid-template-columns: minmax(0, 1fr
 @keyframes code-uncover { from { transform: none; } to { transform: scaleX(0); } }
 @keyframes code-slide { from { transform: none; } to { transform: translateX(320%); } }
 /* Courses (D86-D88) */
-.course-rows > li { align-items: center; padding: 12px 0; }
+.list.course-rows > li { align-items: center; padding: 12px 0; }
 .course-row { display: grid; gap: 5px; }
 .course-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .course-name .dot, .course-head .dot { margin: 0; flex: none; }
@@ -7212,6 +7212,48 @@ main.site.todo-wide { max-width: none; }
 .moodle-reading.is-stopped p { color: var(--muted); }
 .moodle-reading .btn svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
 .moodle-card .found-pick { margin-top: 12px; }
+/* D213: Courses as the study plan's home: the Moodle side's one next action, then each course
+   a card with this week's part of its plan, what and how, its state and its own next action. */
+.plan-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; border: 1px solid var(--accent); }
+.plan-hero h2 { margin: 0 0 4px; font-size: 1.12rem; }
+.plan-hero p { margin: 0; }
+.plan-hero .hint { margin-top: 6px; }
+.plan-hero .meter { margin: 8px 0 2px; }
+.plan-hero .hero-icon { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-ink); }
+.plan-hero .hero-icon svg { width: 26px; height: 26px; }
+.plan-hero form { margin: 0; flex: none; }
+.plan-hero .btn svg { width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px; }
+.plan-hero.is-reading { border-color: var(--line); }
+.course-cards { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.course-card { display: grid; gap: 10px; border-left: 4px solid var(--cc, var(--c-none)); }
+.cc-head { display: flex; align-items: center; gap: 10px; min-height: 44px; color: inherit; text-decoration: none; }
+.cc-head b { font-size: 1.08rem; }
+.cc-head:hover b { text-decoration: underline; }
+.cc-week { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--fill); }
+.cc-label { margin: 0; color: var(--muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+.cc-topics { margin: 0; padding-left: 18px; line-height: 1.45; }
+.cc-topics li { font-weight: 600; }
+.cc-how { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.cc-how .chip { padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 0.8rem; font-weight: 700; }
+.cc-state { display: grid; gap: 8px; }
+.cc-source { display: flex; align-items: flex-start; gap: 6px; margin: 0; color: var(--muted); font-size: 0.85rem; }
+.cc-source svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--ok); }
+.cc-action { margin: 0; justify-self: start; }
+.cc-action .btn svg, a.cc-action svg { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+.cc-progress { display: grid; gap: 4px; }
+.cc-progress small { color: var(--muted); }
+.course-card .moodle-reading { margin: 0; }
+@media (max-width: 640px) {
+  .plan-hero { flex-wrap: wrap; }
+  .plan-hero .grow { flex-basis: calc(100% - 64px); }
+  .plan-hero form, .plan-hero > .btn { flex-basis: 100%; }
+  .plan-hero form .btn, .plan-hero > .btn { width: 100%; justify-content: center; }
+}
+/* The guide's rows while a course is read: the course's name above its meter (D211's rows
+   had them side by side, squeezed, the owner's screenshot). */
+.guide-plans > li { display: block; }
+.guide-plans .found-row { justify-content: space-between; }
+
 /* D212: a course placed by its order, not its weeks; a week that goes on from an earlier one. */
 .plan-spread { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; }
 .plan-spread svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--accent-ink); }

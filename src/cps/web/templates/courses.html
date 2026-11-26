@@ -21,22 +21,81 @@
   <span class="chev" aria-hidden="true">›</span>
 </a>
 {% endmacro %}
-{% if courses and mg and mg.next is not none %}{{ guide_card(mg) }}{% endif %}
+{# D213: the backbone, whole: the Moodle side with its one next action, then each course with
+   this week's part of its plan, what to study and how, and its own next action. #}
+{% from "_moodle_reading.html" import reading %}
+{% set h = hub %}
 {% if courses %}
-<ul class="card list course-rows" data-tour="course-list">
-  {% for c in courses %}
-  <li>
-    <a class="grow course-row {% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}" href="/p/{{ token }}/courses/{{ c.index }}">
-      <span class="course-name"><span class="dot"></span><b>{{ c.course }}</b>{% if c.exam %}<small class="course-exam">{{ _("Exam {when}", when=c.exam.says) }}</small>{% endif %}</span>
+{% if not h.key %}
+<section class="card plan-hero" aria-labelledby="hero-title">
+  <span class="hero-icon" aria-hidden="true">{{ lucide('graduation-cap') }}</span>
+  <div class="grow">
+    <h2 id="hero-title">{{ _("Plan every course from Moodle") }}</h2>
+    <p>{{ _("Give your Moodle key once: the app finds your courses, reads their files and plans each week, when, what and how to revise.") }}</p>
+  </div>
+  <a class="btn btn-primary" href="/p/{{ token }}/guide/moodle#step-key">{{ _("Connect Moodle") }}</a>
+</section>
+{% elif h.reading %}
+<section class="card plan-hero is-reading" aria-labelledby="hero-title" data-reading="/p/{{ token }}/moodle/reading">
+  <span class="hero-icon" aria-hidden="true">{{ lucide('hourglass') }}</span>
+  <div class="grow">
+    <h2 id="hero-title">{{ _("Reading your courses' files") }}</h2>
+    <p data-reading-sum>{{ _n("{done} of {n} file read", "{done} of {n} files read", h.total, done=h.done) }}</p>
+    <div class="meter"><span class="fill w{{ (h.percent // 10) * 10 }}" data-reading-sum-fill></span></div>
+    <p class="hint">{{ _("Each plan is ready already from the files' names, and gets fuller as they are read. You can leave this page.") }}</p>
+  </div>
+</section>
+{% elif h.to_plan %}
+<section class="card plan-hero" aria-labelledby="hero-title">
+  <span class="hero-icon" aria-hidden="true">{{ lucide('sparkles') }}</span>
+  <div class="grow">
+    <h2 id="hero-title">{{ _n("{n} course to plan from Moodle", "{n} courses to plan from Moodle", h.to_plan) }}</h2>
+    <p>{{ _("The app reads their files and plans each week: what to study, in what order, and how.") }}{% if h.unlinked %} {{ _n("{n} course is not linked to Moodle yet.", "{n} courses are not linked to Moodle yet.", h.unlinked) }} <a href="/p/{{ token }}/guide/moodle#step-link">{{ _("Link them") }}</a>{% endif %}</p>
+  </div>
+  <form method="post" action="/p/{{ token }}/moodle/read-all"><button type="submit" class="btn btn-primary">{{ lucide('sparkles') }}{{ _n("Plan my course", "Plan all my {n} courses", h.to_plan) }}</button></form>
+</section>
+{% elif h.unlinked %}
+<section class="card plan-hero" aria-labelledby="hero-title">
+  <span class="hero-icon" aria-hidden="true">{{ lucide('link') }}</span>
+  <div class="grow">
+    <h2 id="hero-title">{{ _n("{n} course is not linked to Moodle yet.", "{n} courses are not linked to Moodle yet.", h.unlinked) }}</h2>
+    <p>{{ _("Choose each one from the courses your key found, and the app plans it.") }}</p>
+  </div>
+  <a class="btn btn-primary" href="/p/{{ token }}/guide/moodle#step-link">{{ _("Link them") }}</a>
+</section>
+{% endif %}
+
+<ul class="course-cards course-rows" data-tour="course-list">
+  {% for c in courses %}{% set p = h.courses[c.index] %}
+  <li class="card course-card {% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}">
+    <a class="cc-head" href="/p/{{ token }}/courses/{{ c.index }}{% if p.state == 'planned' or p.state == 'reading' %}#study-plan{% endif %}">
+      <span class="dot"></span><b class="grow">{{ c.course }}</b>{% if c.exam %}<small class="course-exam">{{ _("Exam {when}", when=c.exam.says) }}</small>{% endif %}<span class="chev" aria-hidden="true">›</span>
+    </a>
+    {% if p.week %}
+    <div class="cc-week">
+      <p class="cc-label">{{ _("Week {n}: what to study", n=p.week.number) }}</p>
+      <ul class="cc-topics">{% for t in p.week.topics %}<li>{{ t }}</li>{% endfor %}</ul>
+      {% if p.week.how %}<p class="cc-how">{% for x in p.week.how %}<span class="chip" title="{{ x.what }}">{{ x.name }}</span>{% endfor %}</p>{% endif %}
+    </div>
+    {% endif %}
+    <div class="cc-state">
+      {% if p.state == "reading" %}
+      {{ reading(token, c.index, p.reading) }}
+      {% elif p.state == "planned" %}
+      <p class="cc-source">{{ lucide('circle-check') }}<span>{% if p.files %}{{ _n("Planned from {n} file on Moodle", "Planned from {n} files on Moodle", p.files) }}{% else %}{{ _("Planned from Moodle") }}{% endif %}{% if p.how == "uploaded" %} · {{ _("each file in the week it was put on Moodle") }}{% elif p.how == "order" %} · {{ _("in its order, spread over its weeks") }}{% endif %}</span></p>
+      {% if p.reading and (p.reading.error or p.reading.stopped) %}{{ reading(token, c.index, p.reading) }}{% endif %}
+      {% elif p.state == "linked" and h.key %}
+      <form method="post" action="/p/{{ token }}/courses/{{ c.index }}/moodle/read" class="cc-action"><button type="submit" class="btn btn-tinted">{{ lucide('sparkles') }}{{ _("Plan it from Moodle") }}</button></form>
+      {% elif p.state == "none" and h.key %}
+      <a class="btn btn-plain cc-action" href="/p/{{ token }}/guide/moodle#step-link">{{ lucide('link') }}{{ _("Link it to Moodle") }}</a>
+      {% endif %}
       {% if c.weeks %}
-      <span class="meter" role="img" aria-label="{{ _('{taught} of {weeks} weeks taught', taught=c.taught, weeks=c.weeks) }}"><span class="fill w{{ (c.percent // 10) * 10 }}"></span></span>
-      <small>{{ _("{taught} of {weeks} weeks taught", taught=c.taught, weeks=c.weeks) }}{% if c.taught %} · {{ _n("{n} reviewed", "{n} reviewed", c.reviewed) }}{% endif %}</small>
+      <div class="cc-progress"><span class="meter" role="img" aria-label="{{ _('{taught} of {weeks} weeks taught', taught=c.taught, weeks=c.weeks) }}"><span class="fill w{{ (c.percent // 10) * 10 }}"></span></span>
+      <small>{{ _("{taught} of {weeks} weeks taught", taught=c.taught, weeks=c.weeks) }}{% if c.taught %} · {{ _n("{n} reviewed", "{n} reviewed", c.reviewed) }}{% endif %}{% if c.cards %} · {{ _n("{n} card", "{n} cards", c.cards) }}{% if c.due %} · {{ _n("{n} to review", "{n} to review", c.due) }}{% endif %}{% endif %}{% if c.workload == "below" %} · {{ _("fewer hours than the credits suggest") }}{% endif %}</small></div>
       {% else %}
       <small>{{ _("No lectures of this course in your timetable") }}</small>
       {% endif %}
-      <small class="course-facts-line">{% if c.topics %}{{ _n("{n} topic", "{n} topics", c.topics) }}{% else %}{{ _("No topics yet") }}{% endif %}{% if c.cards %} · {{ _n("{n} card", "{n} cards", c.cards) }}{% if c.due %} · {{ _n("{n} to review", "{n} to review", c.due) }}{% endif %}{% endif %}{% if c.workload == "below" %} · {{ _("fewer hours than the credits suggest") }}{% endif %}</small>
-    </a>
-    <span class="chev" aria-hidden="true">›</span>
+    </div>
   </li>
   {% endfor %}
 </ul>
@@ -46,7 +105,7 @@
 </div>
 
 <div class="context-col">
-{% if courses and mg and mg.next is none %}{{ guide_card(mg) }}{% endif %}
+{% if courses and mg %}{{ guide_card(mg) }}{% endif %}
 {% if courses %}
 <a class="card import-card" href="/p/{{ token }}/courses/import">
   <span class="grow"><b>{{ _("Import your semester's program") }}</b><br><small>{{ _("Paste it or choose its PDF: every course's topics, weeks, assessment, credits and hours at once.") }}</small></span>

@@ -12,6 +12,21 @@
 
 ### Added
 
+- The backbone, from Moodle to a plan of when, what and how (DECISIONS.md D213): Courses is now a section
+  of the laptop's sidebar and the plan's home, with the Moodle side's one next action at the top ("Connect
+  Moodle", "Plan all my courses", or one meter while files are read) and each course as a card with this
+  week's topics and how to study them. A course's page opens on its plan. Files whose names give no week go
+  in the week their teacher put them on Moodle, when the course's files went up over its weeks.
+
+### Fixed
+
+- A course's lectures numbered by chapter are no longer all planned in its first week: a lecture's number
+  is a class of the timetable only when the numbers keep up with the classes held (AUDIT 140).
+- Courses waiting their turn to be read say so instead of "0 files read", and the guide's rows put each
+  name above its meter (AUDIT 141).
+
+### Added
+
 - Moodle as each teacher uses it (DECISIONS.md D212): a course whose Moodle says its weeks (dates, "Week 3",
   numbered lectures) is placed by them; one kept a section per topic, or with every file in one section,
   is planned in its order, spread over the weeks of lectures, each week going on from the last part, and

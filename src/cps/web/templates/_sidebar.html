@@ -26,13 +26,16 @@
     {# D153: Community among the main sections, after the calendar (the owner, 2026-11-19:
        "community is at the very bottom it could be easier to reach"); the map stays below. #}
     {{ item("/community", _("Community"), tab == "community" and not here.endswith("/map"), "users") }}
+    {# D213: the courses and their study plans, a section of their own, not only a heading;
+       after Community, which D153 put third. #}
+    {{ item("/courses", _("Courses"), tab == "courses", "book-open-text") }}
     {{ item("/focus", _("Focus"), tab == "focus", "timer") }}
     {{ item("/cards", _("Flashcards"), tab == "cards", "layers", sidebar.cards_due) }}
     {{ item("/todo", _("To-do"), tab == "tasks", "list-checks") }}
     {{ item("/progress", _("Progress"), tab == "progress", "chart-column") }}
   </nav>
   <section class="side-courses" aria-labelledby="side-courses-title">
-    <h2 class="side-title" id="side-courses-title"><a href="/p/{{ token }}/courses"{% if tab == "courses" and here.endswith("/courses") %} aria-current="page"{% endif %}>{{ _("Courses") }}</a></h2>
+    <h2 class="side-title" id="side-courses-title"><a href="/p/{{ token }}/courses">{{ _("Your courses") }}</a></h2>
     {% if sidebar.courses %}
     <ul>
       {% for c in sidebar.courses %}<li><a href="/p/{{ token }}/courses/{{ c.index }}" class="{% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}"{% if here.endswith("/courses/" ~ c.index) %} aria-current="page"{% endif %}><span class="dot"></span><span class="grow">{{ c.name }}</span>{% if c.exam %}<small class="{% if c.soon %}is-soon{% endif %}">{{ c.exam }}</small>{% endif %}</a></li>
