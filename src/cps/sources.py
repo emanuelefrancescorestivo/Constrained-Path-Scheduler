@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import socket
 import urllib.error
 import urllib.parse
@@ -271,6 +272,7 @@ def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TI
     try:
         with opener.open(request, timeout=timeout) as response:
             body = response.read(MAX_BYTES + 1)
+            final = response.geturl() or url
     except SourceError:
         raise
     except urllib.error.HTTPError as exc:
@@ -285,10 +287,41 @@ def fetch_calendar(url: str, *, allow_private: bool = False, timeout: float = TI
             _("the calendar behind the link is larger than {mb} MB", mb=MAX_BYTES // (1024 * 1024))
         )
     if b"BEGIN:VCALENDAR" not in body[:4096].upper():
-        raise SourceError(
-            _(
-                "the link does not lead to a calendar (.ics); use the export or subscription "
-                "address, not the address of the web page"
-            )
-        )
+        raise SourceError(not_a_calendar(final, body))
     return body
+
+
+# AUDIT 138: what a link answered instead of a calendar, so the student knows what to do. The
+# owner met the one sentence for every case. A sign-in page is told by where the redirects
+# ended (a site's login, CAS, Shibboleth, SAML, OAuth address) or by a password field; a short
+# answer that is no page (Moodle's export says "Invalid authentication" when its key no longer
+# matches the password) is quoted as it came.
+_SIGN_IN = re.compile(
+    r"/(?:login|logon|signin|sign-in|cas|idp|sso|saml2?|shibboleth(?:\.sso)?|wayf|oauth2?|auth)(?:[/.?]|$)",
+    re.IGNORECASE,
+)
+_PASSWORD_FIELD = re.compile(r"<input[^>]+type\s*=\s*[\"']?password", re.IGNORECASE)
+
+
+def not_a_calendar(final: str, body: bytes) -> str:
+    """Why `body`, the answer of a link that ended at `final`, is not a calendar, in
+    words the student can act on."""
+    text = body[:65536].decode("utf-8", "replace")
+    if _SIGN_IN.search(urlsplit(final).path or "") or _PASSWORD_FIELD.search(text):
+        return _(
+            "the link opens a sign-in page, not a calendar: copy the link the platform shows "
+            "for its calendar export, not the address of a page you are on"
+        )
+    said = " ".join(text.split())
+    if said and len(said) <= 160 and "<" not in said:
+        if "authentication" in said.lower() or "token" in said.lower():
+            return _(
+                "the platform answered «{answer}»: its calendar link no longer works (it changes "
+                "when your password changes); get a new one and paste it here",
+                answer=said,
+            )
+        return _("the platform answered «{answer}» instead of a calendar", answer=said)
+    return _(
+        "the link does not lead to a calendar (.ics); use the export or subscription address, "
+        "not the address of the web page"
+    )

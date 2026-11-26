@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+- A deadlines' link that is not a calendar now says what it is and what to copy: a Moodle page's address
+  (the Export calendar page itself, a course, the dashboard) is caught before anything is fetched, with the
+  way to the calendar's link in Moodle's own words; a sign-in page or Moodle's own refusal is named (AUDIT 138).
+- The way to the Moodle key follows Moodle 4.3 and later, which shows a key only once, after Reset: the steps,
+  the guide and its picture say so, in Moodle's words (AUDIT 139).
+
 ### Added
 
 - Sounds to focus that sound real (DECISIONS.md D210): every sound but binaural is now a recording in the

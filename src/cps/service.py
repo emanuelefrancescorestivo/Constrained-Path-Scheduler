@@ -2931,6 +2931,9 @@ def revise_subscription(
     )
     if deadlines_url is not None and deadlines_url.strip() != (_deadlines_link(merged) or ""):
         url = deadlines_url.strip() or None
+        refusal = moodle_page_refusal(url) if url else None  # AUDIT 138
+        if refusal:
+            raise InvalidInput(_("the learning platform's link: {error}", error=refusal))
         # D175: the link carries Moodle's key to the student's calendar: kept sealed,
         # never shown again; its site, which is no secret, beside it.
         site = _MOODLE_EXPORT.match(url) if url else None
@@ -7077,6 +7080,64 @@ _MOODLE_EXPORT = re.compile(
 )
 
 
+# AUDIT 138: a Moodle page pasted where its calendar's link goes. The owner met "the link does
+# not lead to a calendar" with no word of what to copy instead: the likeliest slip is the
+# address bar of the Export calendar page itself, after its button, rather than the link
+# Moodle shows below the button. Told before anything is fetched, in Moodle's own words.
+_MOODLE_PAGE = re.compile(
+    r"^(https?://[^/?#\s]+(?:/[^?#\s]*?)?)/(calendar/export\.php|calendar/[a-z_]+\.php|course/view\.php|"
+    r"my/(?:courses\.php|index\.php)?|mod/[a-z]+/view\.php|user/[a-z]+\.php|login/index\.php)(?:[?#]|$)",
+    re.IGNORECASE,
+)
+
+
+# AUDIT 139: Moodle's words for the way to the key, from Moodle 4.5's language packs
+# (lang/*/moodle.php "preferences" and "reset", webservice.php "securitykeys"). Since Moodle
+# 4.3 the Security keys page lists keys by name only: a key is shown once, at the top of the
+# page, just after "Reset" makes a new one (user/managetoken.php).
+MOODLE_KEY_WORDS: dict[str, dict[str, str]] = {
+    "en": {"preferences": "Preferences", "keys": "Security keys", "reset": "Reset"},
+    "fr": {"preferences": "Préférences", "keys": "Clefs de sécurité", "reset": "Réinitialiser"},
+    "it": {"preferences": "Preferenze", "keys": "Chiave di sicurezza", "reset": "Reset"},
+    "es": {"preferences": "Preferencias", "keys": "Claves de seguridad", "reset": "Reiniciar"},
+}
+
+
+def moodle_key_words() -> dict[str, str]:
+    """Moodle's words for its Security keys page and its Reset, in the app's language."""
+    return MOODLE_KEY_WORDS.get(current_language(), MOODLE_KEY_WORDS["en"])
+
+
+def moodle_export_words() -> dict[str, str]:
+    """Moodle's words for the way to its calendar's link (D154), in the app's language."""
+    return MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+
+
+def moodle_page_refusal(url: str) -> str | None:
+    """Why a Moodle page's address is not its calendar's link, and where the link is; None
+    for any other address (AUDIT 138)."""
+    found = _MOODLE_PAGE.match(url.strip())
+    if not found or _MOODLE_EXPORT.match(url.strip()):
+        return None
+    words = moodle_export_words()
+    if found.group(2).lower() == "calendar/export.php":
+        return _(
+            "this is the address of the page «{export}», not the calendar's link: on that page, tap "
+            "«{button}» and copy the link Moodle then shows below the button (it contains "
+            "export_execute.php), not the address bar's",
+            export=words["export"],
+            button=words["button"],
+        )
+    return _(
+        "this is the address of a Moodle page, not of its calendar: open {page}, choose «{events}» "
+        "and «{period}», tap «{button}» and copy the link Moodle then shows below the button",
+        page=f"{found.group(1)}/calendar/export.php",
+        events=words["events"],
+        period=words["period"],
+        button=words["button"],
+    )
+
+
 def learning_platform(subscription: Subscription) -> str | None:
     """The learning platform's own page: a student's dashboard is at `<site>/my/` on every
     Moodle site, in a subfolder too. The site is the student's Moodle (`moodle_site`,
@@ -7269,6 +7330,9 @@ def deadlines_preview(
     gives none. Nothing is kept."""
     now = now or datetime.now(UTC)
     zone = _zone(tz)
+    refusal = moodle_page_refusal(url)  # AUDIT 138: said before anything is fetched
+    if refusal:
+        return {"found": [], "count": 0, "error": refusal}
     try:
         found = [a for a in find_assignments(decode_ics(fetch(url.strip())), tz) if a.due > now]
     except ServiceError as error:
@@ -7389,7 +7453,7 @@ def setup_sentence(values: Mapping) -> dict:
         if a.get("kind") == "class" or not a.get("weekday"):
             continue
         busy.setdefault((a.get("label") or "", a.get("start"), a.get("end")), []).append(_(a["weekday"]))
-    words = MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+    words = moodle_export_words()
     site = values.get("deadlines_site") or None
     # Each choice as (value, words), for the radio and for the sentence.
     return {
@@ -16768,6 +16832,7 @@ def moodle_key_view(subscription: Subscription) -> dict:
         "since": format_date(datetime.fromisoformat(at).date(), "day_month") if linked and at else "",
         "page": f"{site}{MOODLE_KEY_PAGE}" if site else None,
         "site": bool(site),
+        "words": moodle_key_words(),  # AUDIT 139
     }
 
 

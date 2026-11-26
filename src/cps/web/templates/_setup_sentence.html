@@ -63,7 +63,7 @@
           <span class="row-end"><input id="moodle_site" type="text" inputmode="url" autocomplete="url" placeholder="moodle.your-university.edu" data-moodle-site>
           <a class="btn btn-sm" data-moodle-open hidden target="_blank" rel="noopener noreferrer">{{ _("Open the export") }} ↗</a></span></span>{% endif %}</li>
         <li>{{ _h("Choose <b>{events}</b> and <b>{period}</b>, then the button <b>{button}</b>.", events=m.events, period=m.period, button=m.button) }}</li>
-        <li>{% if values.deadlines_linked %}<p class="hint">{{ _("Linked to {host}", host=values.deadlines_host or "Moodle") }} · {{ _("The link is kept sealed and never shown again.") }}</p>{% endif %}<label for="deadlines_url">{{ _("Copy the link it shows and paste it here") }}</label>
+        <li>{% if values.deadlines_linked %}<p class="hint">{{ _("Linked to {host}", host=values.deadlines_host or "Moodle") }} · {{ _("The link is kept sealed and never shown again.") }}</p>{% endif %}<label for="deadlines_url">{{ _("Copy the link Moodle then shows below the button (not the address bar's) and paste it here") }}</label>
           <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url or '' }}" placeholder="https://…/calendar/export_execute.php?…" data-preview="/p/{{ token }}/deadlines/preview" aria-describedby="deadlines-found">
           <div id="deadlines-found" class="deadlines-found" aria-live="polite"></div></li>
       </ol>

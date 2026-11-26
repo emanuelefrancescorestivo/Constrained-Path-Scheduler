@@ -453,6 +453,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     version = asset_version(HERE / "static")
     templates.env.globals["asset"] = lambda name: f"/static/v/{version}/{name}"
+    templates.env.globals["moodle_words"] = service.moodle_export_words  # AUDIT 138
 
     @app.middleware("http")
     async def guard(request: Request, call_next: Callable) -> Response:

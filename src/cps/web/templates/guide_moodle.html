@@ -41,13 +41,17 @@
   {% set s = g.steps[1] %}
   <li class="card guide-step{% if s.done %} is-done{% elif g.next == 'key' %} is-next{% endif %}" id="step-key">
     <div class="guide-head"><span class="guide-num" aria-hidden="true">{% if s.done %}{{ lucide('circle-check') }}{% else %}2{% endif %}</span><h2>{{ _("Give the app your Moodle key, once") }}</h2>{% if s.done %}<small class="guide-done">{{ _("Done") }}</small>{% endif %}</div>
-    <p>{{ _("On Moodle, tap your picture at the top right, then Preferences, then Security keys. Copy the key in the row «Moodle mobile web service».") }}</p>
+    {% set kw = g.key.words %}
+    <p>{{ _("On Moodle, tap your picture at the top right, then «{preferences}», then «{keys}». On the row «Moodle mobile web service», tap «{reset}» and confirm: Moodle then shows the new key at the top of the page, once. Copy it.", preferences=kw.preferences, keys=kw.keys, reset=kw.reset) }}</p>
+    {# AUDIT 139: since Moodle 4.3 the page lists keys by name only, so the picture shows
+       the row's Reset and the new key Moodle shows once above the list. #}
     <figure class="guide-fig">
       <div class="mock-keys" aria-hidden="true">
-        <div class="mock-row mock-th"><span>{{ _("Service") }}</span><span>{{ _("Key") }}</span></div>
-        <div class="mock-row"><span>Moodle mobile web service</span><span class="mock-key">3f9c0d…b21a</span></div>
+        <div class="mock-new"><span class="mock-key">3f9c0d…b21a</span><span class="mock-copy">{{ lucide('layers') }}</span></div>
+        <div class="mock-row mock-th"><span>{{ _("Service") }}</span><span></span></div>
+        <div class="mock-row"><span>Moodle mobile web service</span><span class="mock-reset">{{ kw.reset }}</span></div>
       </div>
-      <figcaption>{{ _("Moodle's Security keys page: the row to copy") }}</figcaption>
+      <figcaption>{{ _("«{keys}» on Moodle: «{reset}» on this row, then the new key at the top", keys=kw.keys, reset=kw.reset) }}</figcaption>
     </figure>
     {% if g.key.linked %}
     <p class="hint">{{ _("Kept sealed since {day}. You can forget it in Connections.", day=g.key.since) }} <a href="/p/{{ token }}/connections#moodle-key">{{ _("Forget it") }}</a></p>
@@ -100,7 +104,7 @@
 <section class="section guide-help" aria-labelledby="guide-help-title">
   <div class="section-title"><h2 id="guide-help-title">{{ _("If something goes wrong") }}</h2></div>
   <div class="card list guide-faq">
-    <details><summary>{{ _("There is no key on the Security keys page") }}</summary><p>{{ _("Sign in once to the Moodle app on your phone: Moodle makes the key then. If your university signs you in through its own page, this may be the only way.") }}</p></details>
+    <details><summary>{{ _("I see no key on Moodle's page, only names") }}</summary><p>{{ _("Since Moodle 4.3 a key is shown only once: tap «{reset}» on the row «Moodle mobile web service» and Moodle shows the new key at the top of the page. It signs your phone's Moodle app out: sign in there again. No such row? Sign in once to the Moodle app on your phone: Moodle makes it then.", reset=g.key.words.reset) }}</p></details>
     <details><summary>{{ _("Moodle does not accept the key") }}</summary><p>{{ _("Copy it again, whole: 32 letters and digits. If it was reset on Moodle, copy the new one.") }}</p></details>
     <details><summary>{{ _("Moodle does not let apps read courses") }}</summary><p>{{ _("Some universities turn the Moodle app off. Save the course's page from your browser and bring it into the course's materials: its links come, week by week, without the files' text.") }}</p></details>
     <details><summary>{{ _("Some files were not read") }}</summary><p>{{ _("Slides, PDFs, Word, PowerPoint, OpenDocument and text are read; scans, photos and videos are not. The app reads at most 60 files of a course.") }}</p></details>

@@ -2,11 +2,15 @@
    Connections page and on a course's Moodle card; `back` returns to the course. #}
 <form method="post" action="/p/{{ token }}/moodle/key" class="moodle-key-form">
   {% if back is defined %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  {# AUDIT 139: since Moodle 4.3 the page lists keys by name only; a key shows once, at the
+     top of the page, just after Reset makes a new one. Moodle's words in the student's language. #}
+  {% set kw = moodle_key.words %}
   <ol class="moodle-key-steps">
-    <li>{% if moodle_key.page %}<a href="{{ moodle_key.page }}" rel="noopener noreferrer" target="_blank">{{ _("Open your Moodle's Security keys page") }} ↗</a>{% else %}{{ _("Open your Moodle's Security keys page") }}{% endif %}</li>
-    <li>{{ _("Copy the key of «Moodle mobile web service».") }}</li>
+    <li>{% if moodle_key.page %}<a href="{{ moodle_key.page }}" rel="noopener noreferrer" target="_blank">{{ _("Open your Moodle's page «{keys}»", keys=kw.keys) }} ↗</a>{% else %}{{ _("Open your Moodle's page «{keys}»", keys=kw.keys) }}{% endif %}</li>
+    <li>{{ _("On the row «Moodle mobile web service», tap «{reset}» and confirm.", reset=kw.reset) }}</li>
+    <li>{{ _("Moodle then shows the new key at the top of the page, once: copy it.") }}</li>
     <li><label for="moodle-key-in">{{ _("Paste it here") }}</label></li>
   </ol>
   <div class="row-input"><input id="moodle-key-in" name="key" required maxlength="64" autocomplete="off" spellcheck="false" pattern="[0-9a-fA-F]{32}" placeholder="0123abcd…"><button type="submit" class="btn">{{ _("Save") }}</button></div>
-  <p class="hint">{{ _("No key there? Sign in once to the Moodle app on your phone: Moodle makes the key then. The app keeps it sealed, only reads with it, and you can forget it here or reset it on Moodle.") }}</p>
+  <p class="hint">{{ _("A new key signs your phone's Moodle app out: sign in there again. No row «Moodle mobile web service»? Sign in once to the Moodle app on your phone: Moodle makes it then. The app keeps the key sealed, only reads with it, and you can forget it here or reset it on Moodle.") }}</p>
 </form>
