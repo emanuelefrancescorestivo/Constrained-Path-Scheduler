@@ -31,8 +31,8 @@ more than an impressive number.
     cps serve                                # the calendar feeds the Streamlit page publishes
     deploy/hetzner/new-env.sh                # the server's settings from three answers, its two keys made (D181)
     docker compose -f deploy/hetzner/compose.yaml up -d --build   # the pilot on its server, behind Caddy (D75, docs/HETZNER.md)
-    pytest                                   # 1767 passed, 17 deselected, 1 xfailed, about 450 s
-    pytest -m "slow or not slow" --cov=cps   # all 1784 + 1 xfailed, 94% coverage, about 10 min; CI runs this
+    pytest                                   # 1784 passed, 17 deselected, 1 xfailed, about 450 s
+    pytest -m "slow or not slow" --cov=cps   # all 1801 + 1 xfailed, 94% coverage, about 10 min; CI runs this
     ruff check . && ruff format --check . && mypy
     python demo.py                           # recomputes every number quoted in the docs
     python benchmarks/replanning.py          # planner vs greedy-0.90 and every-k, 100 seeds
