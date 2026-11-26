@@ -504,6 +504,15 @@ if (readingBox) {
     } catch {
       return true; // offline for a moment: ask again
     }
+    // D213: every course's files together, on Courses' card.
+    const sum = document.querySelector("[data-reading-sum]");
+    if (sum && now.said) sum.textContent = now.said;
+    const sumFill = document.querySelector("[data-reading-sum-fill]");
+    if (sumFill) sumFill.className = `fill w${Math.floor((now.percent || 0) / 10) * 10}`;
+    if (sum && !now.reading) {
+      location.reload();
+      return false;
+    }
     for (const row of document.querySelectorAll("[data-reading-course]")) {
       const course = now.courses.find((c) => String(c.index) === row.dataset.readingCourse);
       if (!course || course.error || course.stopped) {

@@ -3011,6 +3011,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             "courses.html",
             token=token,
             moodle_guide=service.moodle_guide_view(subscription, store=store, now=config.clock()),  # D209
+            hub=service.plan_hub(store, subscription, config.clock()),  # D213
             courses=courses,
             tab="courses",
             saved=notice or (_notice(saved) if saved else None),

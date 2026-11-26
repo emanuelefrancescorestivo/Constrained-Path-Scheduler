@@ -196,7 +196,8 @@ def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(t
     sub = service.load_subscription(tmp_path, sub.token)
     plan = service.study_plan_view(sub, algebra, NOW, store=tmp_path)
     assert not plan["by_names"] and plan["files"] == 24 and plan["reading"] is None
-    assert service.moodle_readings(tmp_path, sub, NOW) == {"courses": [], "reading": False}
+    after = service.moodle_readings(tmp_path, sub, NOW)
+    assert (after["courses"], after["reading"]) == ([], False)
     assert len(service.course_texts(tmp_path, sub, "Algebra 3")) == 24
 
 

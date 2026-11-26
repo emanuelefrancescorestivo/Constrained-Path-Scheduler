@@ -17463,7 +17463,15 @@ def moodle_readings(
                 done=state["done"],
             )
         courses.append({"index": index, "name": name, "said": said, **state})
-    return {"courses": courses, "reading": any(_moving(c) for c in courses)}
+    moving = [c for c in courses if _moving(c)]
+    done, total = sum(c["done"] for c in moving), sum(c["total"] for c in moving)
+    return {
+        "courses": courses,
+        "reading": bool(moving),
+        # D213: every course's files together, for Courses' card
+        "said": _n("{done} of {n} file read", "{done} of {n} files read", total, done=done),
+        "percent": round(100 * done / total) if total else 0,
+    }
 
 
 def study_plan_view(
@@ -17511,6 +17519,7 @@ def study_plan_view(
         "by_names": kept.get("by") == "names",  # D211: from the files' names, the files still to read
         # D212: a course whose Moodle gives an order, not weeks: its steps spread over the weeks
         "in_order": bool(kept.get("in_order")),
+        "how": kept.get("how") or ("order" if kept.get("in_order") else "weeks"),  # D213
         "steps": kept.get("steps", 0),
         "teaching": len(_teaching(subscription, course)[0]),
         "pending": kept.get("pending", 0),
@@ -17548,6 +17557,57 @@ def week_study(subscription: Subscription, course: str, now: datetime | None = N
             }
             for h in w.get("how") or ()
         ][:2],
+    }
+
+
+# D213: the owner, about D211's guide on their own Moodle: "this pipeline of moodle connection ->
+# materials retrieval -> analysis and parsing of materials spread over the lecture weeks for
+# planning WHEN, WHAT, and HOW to revise is LITERALLY THE BACKBONE of a study planner so this has
+# to be EASY, INTUITIVE, EFFECTIVE". Courses shows it whole: where the Moodle side stands, with
+# its one next action, and each course with this week's part of its plan.
+def plan_hub(store: str | os.PathLike, subscription: Subscription, now: datetime | None = None) -> dict:
+    """The study plan of every course from Moodle, for Courses (D213): whether the key is
+    given; the courses to plan, not linked and planned; the files being read, all courses
+    together; and for each course (by index) its state ("none": not linked, "linked",
+    "reading", "planned"), how far its reading is, how its files were placed and this week's
+    part of its plan (`week_study`)."""
+    now = now or datetime.now(UTC)
+    guide = moodle_guide_view(subscription, store=store, now=now)
+    plans = subscription.options.get("study_plans") or {}
+    courses = {}
+    for c in guide["courses"]:
+        kept = plans.get(course_key(c["name"])) or {}
+        state = (
+            "reading"
+            if _moving(c["reading"])
+            else "planned"
+            if c["planned"]
+            else "linked"
+            if c["linked"]
+            else "none"
+        )
+        courses[c["index"]] = {
+            "state": state,
+            "reading": c["reading"],
+            "week": week_study(subscription, c["name"], now) if kept else None,
+            "how": kept.get("how") or ("order" if kept.get("in_order") else "weeks"),
+            "by": kept.get("by") or "",
+            "files": kept.get("files", 0),
+            "moodle_name": c["moodle_name"],
+        }
+    moving = [c["reading"] for c in guide["courses"] if _moving(c["reading"])]
+    return {
+        "key": guide["key"]["linked"],
+        "site": guide["site"],
+        "lists": guide["lists"],
+        "to_plan": len(guide["to_plan"]),
+        "unlinked": sum(1 for c in guide["courses"] if not c["linked"]),
+        "planned": len(guide["planned"]),
+        "reading": bool(moving),
+        "done": sum(r["done"] for r in moving),
+        "total": sum(r["total"] for r in moving),
+        "percent": round(100 * sum(r["done"] for r in moving) / max(1, sum(r["total"] for r in moving))),
+        "courses": courses,
     }
 
 

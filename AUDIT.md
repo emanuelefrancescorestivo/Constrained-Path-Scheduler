@@ -1504,3 +1504,21 @@ di sicurezza", from its 4.5 packs), and warn that the phone's app signs out. Bef
 browser check with D211 found the page's word for "Security keys" drawn as "<built-in method keys of dict
 object>": in Jinja, `kw.keys` is the dictionary's method, not its "keys" entry. Fixed with `kw["keys"]`;
 `tests/test_moodle_fast.py` checks the guide, Connections and a course's page in three languages.
+
+**140. A course's lectures numbered by chapter were planned in its first week.** Found on 2026-11-26 by
+the owner, on their own Moodle: an algebra course's "Lecture 1 Properties of integers" to "Lecture 4
+Cyclic groups" were all in week 1 of its study plan and "td 05-students" in week 2; weeks 3 to 14 had
+nothing. D174 read a lecture's number as the timetable's class of that number, right for a course that
+numbers its classes (the owner's own pages then) and wrong for one that numbers chapters, four classes
+a week making four "lectures" one week. Status: fixed by D213: a file whose name gives no day nor week
+goes in the week its teacher put it on Moodle, when the course's files went up over its weeks; else a
+lecture's number is a class only when the numbers keep up with the classes held (at least half of them),
+else an order spread over the weeks. `tests/test_moodle_backbone.py` reproduces the owner's course.
+
+**141. Courses read one after the other looked stuck at "0 files read", side by side with their names.**
+Found on 2026-11-26 by the owner, on the guide after "Plan all my courses": three courses at 0, each name
+squeezed beside its meter. D211 read the courses one after the other, so the second and third waited at
+0 with nothing saying so, and the guide's row laid the name and the meter side by side. Status: fixed by
+D213: a course waiting its turn says "Waiting for the courses before it" until its reading starts (and is
+called stopped only after 45 minutes); a reading that starts says so at once; the row puts the name above
+its meter; the background reading keeps the student's language.
