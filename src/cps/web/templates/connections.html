@@ -22,8 +22,8 @@
     {% endif %}
     {% set c = m.calendar %}
     <li>{{ dot("warn" if c.error else ("ok" if c.linked else "off")) }}<span class="grow"><b>{{ _("Deadlines") }}</b>
-      <small>{% if c.error %}{{ _("The calendar link could not be read: {error}", error=c.error) }}{% elif c.linked %}{{ _("Linked to {host}", host=c.host or "Moodle") }}{% if c.read %} · {{ _("read {when}", when=c.read) }}{% endif %} · {{ _n("{n} deadline brought", "{n} deadlines brought", c.brought) }}{% else %}{{ _("Not linked: assignments and quizzes due would come by themselves.") }}{% endif %}</small></span>
-      <a class="btn btn-sm {% if c.error or not c.linked %}btn-tinted{% else %}btn-plain{% endif %}" href="/p/{{ token }}/settings/exams#deadlines">{% if c.linked %}{{ _("Change") }}{% else %}{{ _("Link it") }}{% endif %}</a></li>
+      <small>{% if c.error %}{{ _("The calendar link could not be read: {error}", error=c.error) }}{% elif c.linked %}{{ _("Linked to {host}", host=c.host or "Moodle") }}{% if c.read %} · {{ _("read {when}", when=c.read) }}{% endif %} · {{ _n("{n} deadline brought", "{n} deadlines brought", c.brought) }}{% else %}{{ _("Not linked. Only if your teachers put deadlines on Moodle's calendar: they would then come by themselves.") }}{% endif %}</small></span>
+      <a class="btn btn-sm {% if c.error %}btn-tinted{% else %}btn-plain{% endif %}" href="/p/{{ token }}/settings/exams#deadlines">{% if c.linked %}{{ _("Change") }}{% else %}{{ _("Link it") }}{% endif %}</a></li>
     {% endif %}
     {# D208: the student's own Moodle key, so the app reads the linked courses' files. #}
     {% set k = moodle_key %}

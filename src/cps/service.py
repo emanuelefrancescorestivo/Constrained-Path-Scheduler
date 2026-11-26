@@ -16531,13 +16531,20 @@ def _material_places(
     subscription: Subscription, course: str, items: Sequence[_coursepages.Material]
 ) -> list[str]:
     """Each item's place: the Monday of the teaching week it falls in, else "course"
-    (the whole course) or "exams" (exam practice)."""
+    (the whole course) or "exams" (exam practice). D212: items that give only their step
+    in the course's order go to the week where their step's share of the lecture hours
+    begins, the steps spread over the weeks as a list without weeks is (D187)."""
     mondays, hours, weeks = _teaching(subscription, course)
     placed = [i for i in items if i.placed]
     weeks_of = iter(_syllabus.place([i.topic() for i in placed], hours, weeks, mondays) if placed else [])
+    steps = sorted({i.step for i in items if i.ordered and i.step is not None})
+    spread = _syllabus.place([_syllabus.Topic(str(n)) for n in steps], hours, weeks, mondays) if steps else []
+    step_week = dict(zip(steps, spread, strict=True))
     out = []
     for item in items:
-        week = next(weeks_of) if item.placed else None
+        week = (
+            next(weeks_of) if item.placed else (step_week.get(item.step) if item.step is not None else None)
+        )
         out.append(mondays[week - 1].isoformat() if week is not None else item.shelf)
     return out
 
@@ -16639,7 +16646,12 @@ def _keep_reading(
         )
     options["materials"] = {**(options.get("materials") or {}), key: others + fresh}
     sources = dict((options.get("material_sources") or {}).get(key) or {})
-    sources[source] = {"name": reading.name, "from": reading.source, "address": label or ""}
+    sources[source] = {
+        "name": reading.name,
+        "from": reading.source,
+        "address": label or "",
+        "in_order": reading.in_order,  # D212: placed by its sections' order, not by weeks it names
+    }
     options["material_sources"] = {**(options.get("material_sources") or {}), key: sources}
     linked = False
     if reading.site and reading.course_id and key not in (options.get("moodle_courses") or {}):
@@ -16753,6 +16765,7 @@ def course_materials_view(subscription: Subscription, index: int, now: datetime 
                 "address": meta.get("address") or "",
                 "host": _host(meta.get("address")) if meta.get("address") else "",
                 "count": sum(1 for x in read if x.get("source") == source),
+                "in_order": bool(meta.get("in_order")),
             }
             for source, meta in sources.items()
         ],
@@ -16991,15 +17004,16 @@ def course_texts(store: str | os.PathLike, subscription: Subscription, course: s
 
 
 def _plan_input(
-    read: Sequence[_studyplan.Read], weeks: Sequence[tuple[str, int]]
+    read: Sequence[_studyplan.Read], weeks: Sequence[tuple[str, int]], *, every: bool = False
 ) -> tuple[list[dict], list[dict]]:
     """The files for the model, week by week, each cut so that the course stays within
-    `studyplan.TEXT_MOST` characters."""
+    `studyplan.TEXT_MOST` characters. With `every` (a course read in its order, D212), the
+    weeks without files too, for the model to plan them."""
     each = max(1500, _studyplan.TEXT_MOST // max(1, len(read)))
     out = []
     for monday, number in weeks:
         files = [{"title": r.title, "kind": r.kind, "text": r.text[:each]} for r in read if r.week == monday]
-        if files:
+        if files or every:
             out.append({"week": number, "files": files})
     whole = [
         {"title": r.title, "kind": "exam" if r.week == "exams" else r.kind, "text": r.text[:each]}
@@ -17122,8 +17136,8 @@ def read_moodle_course(
     model = (provider or _ai.cards_from_env()) if files and ai and ai_on(subscription) and read else None
     if model is not None:
         language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
-        by_week, whole = _plan_input(read, weeks)
-        system, prompt = _ai.plan_prompt(course, language, by_week, whole)
+        by_week, whole = _plan_input(read, weeks, every=reading.in_order)
+        system, prompt = _ai.plan_prompt(course, language, by_week, whole, in_order=reading.in_order)
         data = _ai.ask(
             _store(store),
             subscription.token,
@@ -17139,7 +17153,7 @@ def read_moodle_course(
         if plan is not None:
             by, order = "ai", _studyplan.clip((data or {}).get("order") or "", 400)
     if plan is None:
-        plan = _studyplan.rules_plan(weeks, read)
+        plan = _studyplan.rules_plan(weeks, read, continued=reading.in_order)
     options = dict(subscription.options)
     options["study_plans"] = {
         **(options.get("study_plans") or {}),
@@ -17153,11 +17167,19 @@ def read_moodle_course(
             "left": left,
             "read": now.astimezone(UTC).isoformat(timespec="seconds"),
             "host": _host(site),
+            # D212: placed by its sections' order, spread over the weeks of lectures
+            "in_order": reading.in_order,
+            "steps": len({i.step for i in reading.items if i.ordered}),
         },
     }
     before = (options.get("topics") or {}).get(key) or {}
     if plan and (not before.get("items") or before.get("source") == "moodle"):
-        topics = [_syllabus.Topic(t["title"], week=w["number"]) for w in plan for t in w["topics"]]
+        topics = [
+            _syllabus.Topic(t["title"], week=w["number"])
+            for w in plan
+            if not w.get("continued")
+            for t in w["topics"]
+        ]
         options["topics"] = {
             **(options.get("topics") or {}),
             key: {
@@ -17314,9 +17336,9 @@ def _reading_state(state: dict | None, now: datetime) -> dict | None:
     }
 
 
-def _moving(state: dict | None) -> bool:
+def _moving(state: object) -> bool:
     """A course's files still being read: not refused, not stopped."""
-    return bool(state) and not state["error"] and not state["stopped"]
+    return isinstance(state, dict) and not state["error"] and not state["stopped"]
 
 
 def moodle_reading(
@@ -17387,6 +17409,7 @@ def study_plan_view(
                 "now": monday <= today < monday + timedelta(days=7),
                 "past": monday + timedelta(days=7) <= today,
                 "topics": w.get("topics") or [],
+                "continued": w.get("continued"),  # D212: the week it goes on from
                 "needs": w.get("needs") or [],
                 "how": [
                     {
@@ -17402,6 +17425,10 @@ def study_plan_view(
     return {
         "weeks": weeks,
         "by_names": kept.get("by") == "names",  # D211: from the files' names, the files still to read
+        # D212: a course whose Moodle gives an order, not weeks: its steps spread over the weeks
+        "in_order": bool(kept.get("in_order")),
+        "steps": kept.get("steps", 0),
+        "teaching": len(_teaching(subscription, course)[0]),
         "pending": kept.get("pending", 0),
         "reading": moodle_reading(store, subscription, course, now),
         "by_ai": kept.get("by") == "ai",

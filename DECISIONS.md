@@ -8489,3 +8489,64 @@ and its address pasted, one by one.
 - A reading in the background lives in the server's process: a restart stops it, and the page says so.
 - Six at once, three seconds, three files, ten minutes and 12,000 characters are choices, not measured.
 - Tried against a made-up Moodle only. Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D212. Moodle as each teacher uses it: the weeks when it says them, else its order
+
+**Asked.** The owner, after D211: "none of our professors uses moodle in a homogeneous standardised way, so
+we need to take into account that moodle only serves to parse lecture materials week by week if done
+properly or else just for the topic progression, whilst we want to maintain the flexibility in case one
+day the app is deployed to institutions that do use it as it should be used. again, in our uni moodle is
+not used to schedule exams or deadlines".
+
+**What D174 and D208 did.** A course's materials were placed by what their sections and names say: a date
+or a week ("28 settembre - 4 ottobre", "Week 3"), a lecture's number ("Vorlesung 2", "L3", "Slides_03").
+A course kept as many teachers keep theirs, a section per chapter or topic ("Integrali", "Chapter 3:
+Series") or every file in the first section, placed nothing: everything went to "the whole course", and
+the plan had no week.
+
+**Chosen.**
+- **Two ways to read a course, chosen by the course itself** (`coursepages._in_order`), for Moodle's web
+  service (D208) and a saved Moodle page (D174) alike:
+  - the sections that hold material are counted; when half of them or more place something (a week, a
+    day, a lecture), the course is read by its weeks, as before;
+  - else it gives an order: each section is a step of the course (`Material.step`), and every file in it
+    goes with it, whatever number it carries;
+  - with every file in the first section and nothing naming a week, each file is a step, in order; what
+    names the whole course (a syllabus, a course guide, a reading list, a calendar, in five languages)
+    stays for the whole course, and fewer than three files make no order;
+  - exam practice stays on its shelf either way.
+- **An order is spread over the weeks of lectures** (`service._material_places`), as a list without weeks
+  is (D187): each step starts in the week where its share of the timetable's lecture hours begins.
+  - The rules' plan goes on from the last step in the weeks between (`rules_plan(continued=True)`), each
+    such week saying "going on from week N", so every week of lectures has its part; the sessions' topics
+    take each step once.
+  - The model is told that the files were spread and is given every week, those without files too, to
+    plan them all in the materials' order (`ai.plan_prompt(in_order=True)`).
+  - The plan and the course's materials say it: "This course's Moodle gives its order, not its weeks";
+    a file is moved to another week on the materials' page (D174's move), and stays there when the course
+    is read again.
+- **A Moodle that names its weeks is read as before:** an institution that keeps Moodle week by week, with
+  dates or numbered lectures, gets its weeks (the generality cases of D174 are unchanged, and now also say
+  they are not read in order).
+- **Exams and deadlines never come from a course on Moodle.** Exams come from the timetable, or the student
+  adds them; deadlines the student adds, or from Moodle's calendar (D148) only where teachers use it. The
+  guide says so; setting up's "From Moodle" and Connections' row now say "only if your teachers put
+  deadlines on Moodle's calendar", and Connections no longer lights its button when the calendar is not
+  linked.
+- **The demo shows both:** Algebra is kept week by week, Advanced Statistics and Probability Theory a
+  section per topic with no week named.
+
+**Rejected.**
+- **Asking the student how each course's Moodle is kept:** the sections say it, and the plan says what was
+  read; a question per course is friction (D165).
+- **Weighting each step by its number of files:** a chapter with ten exercise sheets is not ten times as
+  long; each step has an equal share of the hours, as D187's chapters do.
+- **Reading a section's number as its week** ("Topic 3", "Section 3", Moodle's default names): a topics
+  course's third section is its third subject, not its third week.
+
+**Disclosed.**
+- Half the sections, three files and the course-wide words are choices; tried on Moodle pages and web
+  service answers written for the tests and the demo, not on a real university's courses.
+- An even pace no course keeps: a long chapter gets the same weeks as a short one until the student moves
+  its files.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.

@@ -72,6 +72,7 @@
       <form method="post" action="/p/{{ token }}/courses/{{ view.index }}/materials/source"><input type="hidden" name="source" value="{{ s.key }}"><button type="submit" class="btn btn-sm btn-plain" aria-label="{{ _('Remove what this page gave') }}">{{ _("Remove") }}</button></form></li>
     {% endfor %}
   </ul>
+  {% if view.sources | selectattr("in_order") | list %}<p class="hint">{{ _("Its Moodle gives the course's order, not its weeks: its parts are spread over your weeks of lectures, in order. Move an item if it belongs to another week.") }}</p>{% endif %}
   <p class="hint">{{ _("Read the same page again when the teacher adds to it: what it gave is replaced, and the items you moved stay where you put them.") }}</p>
 </section>
 {% endif %}

@@ -137,6 +137,9 @@
     <li>{{ lucide('calendar-check') }}<span>{{ _("Its topics go on the week's sessions, unless you gave the course's topics yourself.") }}</span></li>
     <li>{{ lucide('timer') }}<span>{{ _("On Focus, this week's part of the plan shows when you study that course.") }}</span></li>
     <li>{{ lucide('repeat') }}<span>{{ _("When the teacher adds files, tap «Read it again and update the plan» on the course's page.") }}</span></li>
+    {# D212: a teacher's Moodle need not follow the weeks, and keeps no exams nor deadlines here. #}
+    <li>{{ lucide('layers') }}<span>{{ _("A course whose Moodle does not say its weeks is planned in its order, spread over your weeks of lectures; move a file to another week on its materials.") }}</span></li>
+    <li>{{ lucide('calendar') }}<span>{{ _("Exams and deadlines are not read from your courses on Moodle: exams come from your timetable or you add them, deadlines you add, or from Moodle's calendar if your teachers use it.") }}</span></li>
   </ul>
   {% if g.planned %}<p class="row-buttons">{% for c in g.planned %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/courses/{{ c.index }}#study-plan">{{ _("{course}'s plan", course=c.name) }}</a>{% endfor %}</p>{% endif %}
 </section>

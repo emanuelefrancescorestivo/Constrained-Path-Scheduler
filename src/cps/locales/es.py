@@ -1623,7 +1623,6 @@ MESSAGES: dict[str, str] = {
     "Not in your timetable any more: give its date.": "Ya no está en tu horario: indica su fecha.",
     "not linked": "no enlazado",
     "Not linked yet": "Aún no enlazado",
-    "Not linked: assignments and quizzes due would come by themselves.": "No enlazado: los trabajos y cuestionarios pendientes llegarían solos.",
     "Not now": "Ahora no",
     "Not on this device yet.": "Aún no en este dispositivo.",
     "not on this server": "no en este servidor",
@@ -3923,4 +3922,14 @@ MESSAGES: dict[str, str] = {
     "from the names of {n} files on Moodle": "a partir de los nombres de {n} archivos en Moodle",
     "{done} of {n} file read": "{done} de {n} archivo leído",
     "{done} of {n} files read": "{done} de {n} archivos leídos",
+    # D212: Moodle as each teacher uses it.
+    "Not linked. Only if your teachers put deadlines on Moodle's calendar: they would then come by themselves.": "Sin vincular. Solo si tus profesores ponen las entregas en el calendario de Moodle: entonces llegarían solas.",
+    "Only if your teachers put deadlines on Moodle's calendar. Your exams come from your timetable, or you add them in Settings.": "Solo si tus profesores ponen las entregas en el calendario de Moodle. Tus exámenes vienen de tu horario, o los añades en Ajustes.",
+    "A course whose Moodle does not say its weeks is planned in its order, spread over your weeks of lectures; move a file to another week on its materials.": "Un curso cuyo Moodle no indica sus semanas se planifica en su orden, repartido entre tus semanas de clases; mueve un archivo a otra semana en sus materiales.",
+    "Exams and deadlines are not read from your courses on Moodle: exams come from your timetable or you add them, deadlines you add, or from Moodle's calendar if your teachers use it.": "Los exámenes y las entregas no se leen de tus cursos en Moodle: los exámenes vienen de tu horario o los añades tú, las entregas las añades tú, o vienen del calendario de Moodle si tus profesores lo usan.",
+    "This course's Moodle gives its order, not its weeks: the app spread its {n} part over your {weeks} weeks of lectures.": "El Moodle de este curso da su orden, no sus semanas: la app repartió su {n} parte entre tus {weeks} semanas de clases.",
+    "This course's Moodle gives its order, not its weeks: the app spread its {n} parts over your {weeks} weeks of lectures.": "El Moodle de este curso da su orden, no sus semanas: la app repartió sus {n} partes entre tus {weeks} semanas de clases.",
+    "Move a file to another week": "Mover un archivo a otra semana",
+    "going on from week {n}": "sigue de la semana {n}",
+    "Its Moodle gives the course's order, not its weeks: its parts are spread over your weeks of lectures, in order. Move an item if it belongs to another week.": "Su Moodle da el orden del curso, no sus semanas: sus partes están repartidas entre tus semanas de clases, en orden. Mueve un elemento si pertenece a otra semana.",
 }

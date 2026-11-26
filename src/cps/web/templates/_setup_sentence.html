@@ -55,6 +55,8 @@
   <div class="sentence-adds">
     <details class="add-busy" name="sentence"{% if values.deadlines_error %} open{% endif %}>
       <summary class="btn btn-sm btn-tinted">{{ lucide('graduation-cap') }} {{ _("From Moodle") }}</summary>
+      {# D212: many teachers keep no deadlines on Moodle; the exams come from the timetable. #}
+      <p class="hint moodle-only">{{ _("Only if your teachers put deadlines on Moodle's calendar. Your exams come from your timetable, or you add them in Settings.") }}</p>
       <ol class="add-panel moodle-steps">
         <li><b>{{ _("Open your Moodle's export page.") }}</b>
           {% if sentence.export_page %}<a class="btn btn-sm" href="{{ sentence.export_page }}" target="_blank" rel="noopener noreferrer">{{ _("Open the export") }} ↗</a>

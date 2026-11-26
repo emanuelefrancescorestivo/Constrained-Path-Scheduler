@@ -12,6 +12,12 @@
 
 ### Added
 
+- Moodle as each teacher uses it (DECISIONS.md D212): a course whose Moodle says its weeks (dates, "Week 3",
+  numbered lectures) is placed by them; one kept a section per topic, or with every file in one section,
+  is planned in its order, spread over the weeks of lectures, each week going on from the last part, and
+  the plan says so. Exams and deadlines are never read from a course on Moodle: exams come from the
+  timetable or are added, and Moodle's calendar is offered only where teachers use it.
+
 - Moodle without copying and pasting, and fast (DECISIONS.md D211): the key, given first, finds the
   student's courses on Moodle and links the ones with the same name as the plan's; the others are chosen
   from a list. A course's plan shows at once from its files' names, then grows fuller as the files are read

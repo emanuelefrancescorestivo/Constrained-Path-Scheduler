@@ -715,6 +715,9 @@ _DEMO_OTHERS: dict[int, tuple[str, tuple[str, ...]]] = {
     ),
 }
 DEMO_USER = 7  # the student's number on the made-up Moodle, as its site information gives it
+# D212: two of them kept as many teachers keep theirs, a section per topic and no week named,
+# so the demo shows a course planned in its order and spread over its weeks of lectures.
+DEMO_IN_ORDER = frozenset({4022, 1013})
 
 
 def _demo_topics(number: int) -> list[str]:
@@ -777,12 +780,17 @@ def _demo_contents(number: int) -> list[dict]:
     }
     out = [general]
     topics = _demo_topics(number)
+    by_topic = number in DEMO_IN_ORDER
     for n, topic in enumerate(topics, 1):
         cmid = number * 100 + n * 10
-        modules = [resource(cmid, f"Lecture {n} · {topic}", f"lecture-{n:02d}.md", 2400)]
+        lecture = f"Slides · {topic}" if by_topic else f"Lecture {n} · {topic}"
+        modules = [resource(cmid, lecture, f"lecture-{n:02d}.md", 2400)]
         if n < len(topics):
-            modules.append(resource(cmid + 1, f"Exercise sheet {n}", f"exercises-{n:02d}.md", 1200))
-        out.append({"id": n, "name": f"Week {n} · {topic}", "section": n, "modules": modules})
+            sheet = f"Exercises · {topic}" if by_topic else f"Exercise sheet {n}"
+            modules.append(resource(cmid + 1, sheet, f"exercises-{n:02d}.md", 1200))
+        out.append(
+            {"id": n, "name": topic if by_topic else f"Week {n} · {topic}", "section": n, "modules": modules}
+        )
     out.append(
         {
             "id": len(topics) + 1,

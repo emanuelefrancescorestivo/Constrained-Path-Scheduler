@@ -7212,6 +7212,11 @@ main.site.todo-wide { max-width: none; }
 .moodle-reading.is-stopped p { color: var(--muted); }
 .moodle-reading .btn svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
 .moodle-card .found-pick { margin-top: 12px; }
+/* D212: a course placed by its order, not its weeks; a week that goes on from an earlier one. */
+.plan-spread { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; }
+.plan-spread svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--accent-ink); }
+.plan-cont { color: var(--muted); font-weight: 600; }
+.add-busy .moodle-only { margin: 10px 0 0; }
 
 /* D210: a recording on its way, said without motion; where the recordings come from. */
 .sound-chip[aria-busy="true"] { opacity: 0.7; }

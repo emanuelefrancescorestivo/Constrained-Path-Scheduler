@@ -764,6 +764,71 @@ def test_a_course_s_materials_are_read_in_each_system_s_shape(shape):
     html, base, expected = MATERIAL_PAGES[shape]
     found = coursepages.read(html, base)
     assert [(m.title, m.week, m.lecture, m.day, m.shelf) for m in found.items] == expected
+    assert not found.in_order  # each names its weeks, days or lectures (D212)
+
+
+# D212: a teacher's Moodle that gives the course's order and not its weeks. Each part (a
+# section, or a file when everything is in the first section) is a step, spread over the weeks
+# of lectures by the service; what names the whole course, and exam practice, stay apart.
+MATERIAL_ORDERS = {
+    # Moodle's topics format, in Italy: a section per chapter, named by its subject.
+    "Moodle chapters, Italy": (
+        _moodle(
+            [
+                (0, "Generale", [("resource", "Programma del corso")]),
+                (
+                    1,
+                    "Integrali",
+                    [("resource", "Dispense sugli integrali"), ("resource", "Esercizi integrali")],
+                ),
+                (2, "Serie numeriche", [("resource", "Dispense sulle serie")]),
+                (3, "Equazioni differenziali", [("resource", "Dispense EDO"), ("resource", "Esame 2025")]),
+            ]
+        ),
+        [
+            ("Programma del corso", None, "course"),
+            ("Dispense sugli integrali", 1, "course"),
+            ("Esercizi integrali", 1, "course"),
+            ("Dispense sulle serie", 2, "course"),
+            ("Dispense EDO", 3, "course"),
+            ("Esame 2025", None, "exams"),
+        ],
+    ),
+    # Every file in the first section, in Spain: the files in their order, the course guide apart.
+    "Moodle in one section, Spain": (
+        _moodle(
+            [
+                (
+                    0,
+                    "General",
+                    [
+                        ("resource", "Guía docente"),
+                        ("resource", "Tema uno: conjuntos"),
+                        ("resource", "Tema dos: funciones"),
+                        ("resource", "Tema tres: límites"),
+                    ],
+                )
+            ]
+        ),
+        [
+            ("Guía docente", None, "course"),
+            ("Tema uno: conjuntos", 1, "course"),
+            ("Tema dos: funciones", 2, "course"),
+            ("Tema tres: límites", 3, "course"),
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("shape", MATERIAL_ORDERS)
+def test_a_course_whose_moodle_gives_an_order_is_read_in_it(shape):
+    from cps import coursepages
+
+    html, expected = MATERIAL_ORDERS[shape]
+    found = coursepages.read(html, None)
+    assert found.in_order
+    assert [(m.title, m.step, m.shelf) for m in found.items] == expected
+    assert not any(m.placed for m in found.items)  # no week, lecture or day of its own
 
 
 @pytest.mark.parametrize("shape", SHAPES)

@@ -211,14 +211,21 @@ class Read:
     kind: str
 
 
-def rules_plan(weeks: Sequence[tuple[str, int]], read: Sequence[Read]) -> list[dict]:
+def rules_plan(
+    weeks: Sequence[tuple[str, int]], read: Sequence[Read], *, continued: bool = False
+) -> list[dict]:
     """A plan without the model: for each teaching week (its Monday, its number) that has
     files, the topics are the reading's titles and its first headings, and the "how" comes
-    from the kinds of files there are. Its words are keys the page translates."""
-    out = []
+    from the kinds of files there are. Its words are keys the page translates. With
+    `continued` (a course read in its order, D212), a week without files goes on with the
+    last week that had some, marked so, as a chapter runs over its weeks (D187)."""
+    out: list[dict] = []
     for monday, number in weeks:
         here = [r for r in read if r.week == monday]
         if not here:
+            last = next((w for w in reversed(out) if not w.get("continued")), None)
+            if continued and last is not None:
+                out.append({**last, "monday": monday, "number": number, "continued": last["number"]})
             continue
         topics = []
         for r in here:
