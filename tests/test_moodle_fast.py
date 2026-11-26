@@ -145,7 +145,7 @@ def test_hidden_courses_are_left_out_and_a_moodle_without_the_list_still_takes_t
     assert [f for f, _p in asked] == ["core_webservice_get_site_info"] and not service.moodle_list(kept)
 
 
-def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(tmp_path):
+def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(tmp_path, monkeypatch):
     sub = _plan(tmp_path)
     sub = service.connect_moodle_key(sub, KEY, call=showcase.demo_moodle_call, now=NOW, site_text=SITE)
     service.save_subscription(tmp_path, sub)
@@ -169,18 +169,23 @@ def test_a_course_is_planned_from_its_files_names_at_once_then_from_their_text(t
     readings = service.moodle_readings(tmp_path, sub, NOW)
     assert readings["reading"] and readings["courses"][0]["said"] == "0 of 24 files read"
     # The second go: the files, a few at a time, the progress kept on the plan as they come.
-    seen = []
+    # Each progress written, as written: every three files read, then gone once the plan is made.
+    # (Recorded where it is kept, not seen from a download: the made-up files come at once, and
+    # a download may finish before any progress is written, as it did on a CI runner.)
+    kept = []
+    keep = service._set_reading
 
-    def watched(url, *, limit):
-        state = service.moodle_reading(tmp_path, sub, "Algebra 3", NOW)
-        seen.append(state and state["done"])
-        return fetch(url, limit=limit)
+    def recorded(store, token, key, state):
+        kept.append(state and (state.get("done"), state.get("total")))
+        keep(store, token, key, state)
 
+    monkeypatch.setattr(service, "_set_reading", recorded)
     done = service.read_moodle_files(
-        tmp_path, sub.token, algebra, call=showcase.demo_moodle_call, fetch=watched, clock=lambda: NOW
+        tmp_path, sub.token, algebra, call=showcase.demo_moodle_call, fetch=fetch, clock=lambda: NOW
     )
     assert done["by"] == "rules" and done["files"] == 24 and done["pending"] == 0
-    assert len(fetched) == 24 and max(s or 0 for s in seen) > 0  # progress written while reading
+    assert len(fetched) == 24
+    assert kept == [(n, 24) for n in range(3, 25, 3)] + [None]
     sub = service.load_subscription(tmp_path, sub.token)
     plan = service.study_plan_view(sub, algebra, NOW, store=tmp_path)
     assert not plan["by_names"] and plan["files"] == 24 and plan["reading"] is None
