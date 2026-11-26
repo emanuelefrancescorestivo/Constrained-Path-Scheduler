@@ -9741,6 +9741,61 @@ def set_focus_shortcut(subscription: Subscription, name: str) -> Subscription:
     return replace(subscription, options={**subscription.options, "focus_lock": lock})
 
 
+# D207: sounds to concentrate by, on the focus page (the owner: "nature, rain, binaural, sea,
+# cosy café hum, jazz, classic, fireplace"). Each is made by the browser as it plays
+# (`static/sound.js`, the Web Audio API): no recording, no file to fetch, nothing to license, and
+# it plays offline. Jazz and classical are generated too: a soft swing on four chords, and an
+# arpeggio on the chords of Pachelbel's Canon (1690s, in the public domain) with its upper line.
+# Each key is the script's name for it; the icon is Lucide's.
+FOCUS_SOUNDS: tuple[tuple[str, str, str], ...] = (
+    ("nature", "Nature", "trees"),
+    ("rain", "Rain", "cloud-rain"),
+    ("binaural", "Binaural", "headphones"),
+    ("sea", "Sea", "waves"),
+    ("cafe", "Café", "coffee"),
+    ("jazz", "Jazz", "music-2"),
+    ("classical", "Classical", "piano"),
+    ("fireplace", "Fireplace", "flame"),
+)
+FOCUS_VOLUME = 50  # out of 100, the first time
+
+
+def focus_sound(subscription: Subscription) -> dict:
+    """The sound the student last chose on the focus page (D207), its name and volume, and the
+    whole list: none chosen until one is tapped; a name this version does not make, none."""
+    chosen = subscription.options.get("focus_sound") or {}
+    key = str(chosen.get("key") or "")
+    names = {k: _(name) for k, name, _icon in FOCUS_SOUNDS}
+    try:
+        volume = max(0, min(100, int(chosen.get("volume", FOCUS_VOLUME))))
+    except (TypeError, ValueError):
+        volume = FOCUS_VOLUME
+    return {
+        "key": key if key in names else "",
+        "name": names.get(key, ""),
+        "volume": volume,
+        "sounds": [{"key": k, "name": names[k], "icon": icon} for k, _name, icon in FOCUS_SOUNDS],
+    }
+
+
+def set_focus_sound(subscription: Subscription, key: str, volume: object = None) -> Subscription:
+    """Keep the sound tapped and its volume (D207), saved as they change (D165); an empty key
+    keeps the volume and forgets the sound."""
+    if key and key not in {k for k, _name, _icon in FOCUS_SOUNDS}:
+        raise InvalidInput(_("choose one of the options shown"))
+    kept = focus_sound(subscription)["volume"]
+    if volume not in (None, ""):
+        try:
+            kept = max(0, min(100, int(str(volume))))
+        except ValueError:
+            raise InvalidInput(
+                _("{what} is a number from {low} to {high}", what=_("Volume"), low=0, high=100)
+            ) from None
+    return replace(
+        subscription, options={**subscription.options, "focus_sound": {"key": key, "volume": kept}}
+    )
+
+
 def focus_rhythm_default(subscription: Subscription) -> bool:
     """Whether a session started in one tap (Today, Join, a session's card) keeps the 25 + 5
     rhythm (D179): the student's last choice on the focus page, on until they turn it off."""

@@ -1628,6 +1628,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             focus=focus_now,
             look=service.focus_look(subscription),  # D206: the ring and backdrop chosen
+            sound=service.focus_sound(subscription),  # D207: the sound to concentrate by
             # D135: before a session, the tip for it; none while the timer runs.
             why_tip=None
             if running
@@ -1985,6 +1986,25 @@ def create_app(config: Config | None = None) -> FastAPI:
             return refused(request, token, error)
         service.log_event(store, token, "focus_lock", "set" if name.strip() else "forgotten")
         return RedirectResponse(f"/p/{token}/focus#lock", 303)
+
+    @app.post("/p/{token}/focus/sound")
+    async def focus_sound(request: Request, token: str) -> Response:
+        """D207: the sound the student tapped on the focus page and its volume, saved as they
+        change. Only the page's script sends it (the sounds are made by the script)."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=3)
+        key, volume = str(form.get("key") or "")[:20], form.get("volume")
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.set_focus_sound(current, key, volume)
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        service.log_event(store, token, "focus_sound", key or "none")
+        return Response(status_code=204)
 
     @app.get("/p/{token}/log", response_class=HTMLResponse)
     def log_form(request: Request, token: str, sid: str = "") -> HTMLResponse:

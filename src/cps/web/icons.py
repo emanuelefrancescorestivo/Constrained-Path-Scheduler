@@ -78,6 +78,9 @@ ART: dict[str, str] = {
 # The crests' pictures (D189): each badge's own icon, as `service` lists them.
 CRESTS: frozenset[str] = service.CREST_ICONS
 
+# The focus page's sounds (D207), each with its icon as `service` lists them.
+SOUNDS: frozenset[str] = frozenset(icon for _key, _name, icon in service.FOCUS_SOUNDS)
+
 # The bars, the sidebar and the buttons.
 PLACES: tuple[str, ...] = (
     "sun",
@@ -109,6 +112,9 @@ PLACES: tuple[str, ...] = (
     "kanban",
     "layout-template",  # the to-do page's templates
     "lock",  # a reward still locked (D206)
+    "pause",  # the focus page's sound, playing or not (D207)
+    "music",
+    "volume-2",
 )
 
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -149,4 +155,4 @@ MATERIAL: dict[str, str] = {
 
 def shipped() -> set[str]:
     """Every icon the app may draw."""
-    return set(ART.values()) | set(CRESTS) | set(PLACES) | set(MATERIAL.values())
+    return set(ART.values()) | set(CRESTS) | set(PLACES) | set(MATERIAL.values()) | set(SOUNDS)

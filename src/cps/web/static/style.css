@@ -957,9 +957,11 @@ td.d { display: table-cell; padding: 0; }
 /* -- focus sessions, posts and the diary ----------------------------------------- */
 .focus {
   min-height: calc(100dvh - var(--topbar) - 80px); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 24px 0;
+  /* "safe": when the page is taller than the screen (full screen on a laptop), it starts at
+     the top instead of spilling above it, where no scroll reaches (AUDIT 137). */
+  align-items: center; justify-content: safe center; text-align: center; gap: 10px; padding: 24px 0;
 }
-.focus:fullscreen { background: var(--bg); min-height: 100vh; }
+.focus:fullscreen { background: var(--bg); min-height: 100vh; overflow-y: auto; padding: 32px 16px; }
 .focus-course { font-size: 1.25rem; font-weight: 600; margin: 0; }
 .focus-timer {
   font-size: clamp(4rem, 18vw, 7.5rem); font-weight: 200; letter-spacing: -0.04em;
@@ -1820,9 +1822,15 @@ html:not(.settled) :is(.feed, .library, .group-list, .tiles) > :nth-child(n+5) {
 .toast.leaving { animation: toast-out 0.2s var(--ease-in) both; }
 
 /* Focus: the clock breathes, inside the vine that grows round it (D179). */
-.focus-dial { position: relative; display: grid; place-items: center; width: min(86vw, 30rem); aspect-ratio: 1; margin: 4px 0 8px; }
+.focus-dial { position: relative; display: grid; place-items: center; width: min(86vw, 30rem); aspect-ratio: 1; margin: 4px 0 8px; container-type: inline-size; }
+/* Full screen keeps the dial within the window's height, the course above it in view. */
+.focus:fullscreen .focus-dial { width: min(86vw, 30rem, 60vh); }
 .focus-face { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.focus-dial .focus-timer { position: relative; font-size: clamp(2.8rem, 13vw, 5.4rem); }
+/* D207: the clock's size follows the dial's, so the digits keep the same share of the ring at
+   every size: minutes and seconds about half its width, an hour's longer digits a little more.
+   A lighter weight than 200 reads from further away. */
+.focus-dial .focus-timer { position: relative; font-size: clamp(2.8rem, 13vw, 5.4rem); font-size: 19cqi; font-weight: 300; }
+.focus-dial .focus-timer.is-hours { font-size: 13cqi; }
 .focus-dial::before {
   content: ""; position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(closest-side, var(--accent-soft), transparent);
@@ -7050,3 +7058,40 @@ main.site.todo-wide { max-width: none; }
 .run-unlocks a { display: inline-flex; align-items: center; gap: 6px; }
 .run-unlocks svg { width: 18px; height: 18px; color: var(--t-pink); }
 .av-more { margin: 8px 0 0; }
+
+/* D207: sounds to focus, under the clock: the one chosen in one tap, the list beside it. */
+.focus-sound { position: relative; z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 8px; margin: 0 0 6px; }
+.focus-sound[hidden] { display: none; }
+.sound-toggle, .sound-pick > summary {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--material); color: var(--text);
+  font: inherit; font-weight: 650; cursor: pointer; list-style: none;
+}
+.sound-pick > summary::-webkit-details-marker { display: none; }
+.sound-pick > summary::before { content: none; }
+.sound-pick > summary { margin: 0; }
+.sound-toggle svg, .sound-pick > summary svg { width: 18px; height: 18px; flex: none; }
+.sound-toggle .i-pause { display: none; }
+.focus-sound.is-playing .sound-toggle .i-pause { display: inline; }
+.focus-sound.is-playing .sound-toggle .i-play { display: none; }
+.focus-sound.is-playing .sound-toggle { border-color: transparent; background: var(--accent-soft); color: var(--accent-ink); }
+.sound-pick { position: static; }  /* the list centres on the whole row, so it stays on a phone's screen */
+.sound-pick[open] > summary { background: var(--fill-2); }
+.sound-panel {
+  position: absolute; top: calc(100% + 8px); left: 50%; z-index: 20; width: min(92vw, 22rem);
+  margin: 0; padding: 14px; transform: translateX(-50%); text-align: left; background: var(--elevated);
+}
+.sound-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sound-chip {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--fill-4); color: var(--text);
+  font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+}
+.sound-chip svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+.sound-chip.is-chosen { border-color: var(--accent); }
+.sound-chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+.sound-chip[aria-pressed="true"] svg { color: var(--accent-ink); }
+.sound-volume { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; color: var(--muted); }
+.sound-volume svg { width: 18px; height: 18px; flex: none; }
+.sound-volume input { flex: 1; min-height: 32px; accent-color: var(--accent); }
+.sound-note { margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.4; }

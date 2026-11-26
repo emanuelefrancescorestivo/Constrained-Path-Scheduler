@@ -1474,3 +1474,11 @@ last curve had one point of three, so every page drawing the maker logged an err
 the path only up to the curve before. Status: fixed: the dangling point is gone and the path closes
 where the browser closed it, so it looks the same (checked in Chromium: no error on the avatar page).
 
+**137. The focus page full screen spilled above the top.** Found on 2026-11-26 by the owner, from a
+laptop full screen: the course's name and the top of the dial were cut off. The page was centred in a
+box as tall as the window; when the page was taller than the window, the centring pushed its top above
+the window, where no scroll reaches. Reproduced in Chromium at 1600 × 1000: the course's name was 123 px
+above the window. Status: fixed: the centring is "safe" and the full screen scrolls, the dial at most 60 %
+of the window's height (`tests/test_focus_sound.py`; checked in Chromium at 1600 × 1000 and 1280 × 720,
+the name 32 px from the top).
+
