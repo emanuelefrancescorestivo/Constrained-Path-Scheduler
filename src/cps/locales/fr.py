@@ -4332,4 +4332,9 @@ MESSAGES: dict[str, str] = {
     "{n} courses planned from their files. Step by step, for the others.": "{n} cours planifiés à partir de leurs fichiers. Étape par étape, pour les autres.",
     "{n} of 3 steps done": "{n} étapes sur 3 faites",
     "{n} of 3 steps done. The app reads a course's files and plans each week: step by step.": "{n} étapes sur 3 faites. L'app lit les fichiers d'un cours et planifie chaque semaine : étape par étape.",
+    # D210: the focus page's sounds, recordings in the public domain.
+    "Lo-fi": "Lo-fi",
+    "Real recordings, in the public domain; binaural is made by your browser and needs headphones. Tap a sound again to stop it.": "De vrais enregistrements, dans le domaine public ; le binaural est fait par ton navigateur et demande un casque. Touche à nouveau un son pour l'arrêter.",
+    "Where the recordings come from": "D'où viennent les enregistrements",
+    "Each is in the public domain (CC0), cut into a loop by the app.": "Chacun est dans le domaine public (CC0), coupé en boucle par l'app.",
 }

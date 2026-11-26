@@ -4,6 +4,11 @@
 
 ### Added
 
+- Sounds to focus that sound real (DECISIONS.md D210): every sound but binaural is now a recording in the
+  public domain, looped without a seam: birds in a forest at dawn, rain on a window from inside, waves on
+  a shore, a coffee shop in Vienna, a wood fire crackling, a lo-fi loop, jazz chords on a piano, and Bach's
+  first prelude played by Kimiko Ishizaka. Lo-fi is new. Where each comes from is one tap away.
+
 - Planning a course from Moodle, step by step (DECISIONS.md D209): one page with the three steps, which
   are done and which comes next, the key's field and each course's "Read and plan" button. It is linked
   from Courses, from every course's Moodle card and from Connections. In the demo a course is already read

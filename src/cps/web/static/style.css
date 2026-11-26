@@ -7185,3 +7185,11 @@ main.site.todo-wide { max-width: none; }
 .guide-link { margin: 12px 0 0; }
 .guide-link a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .guide-link svg { width: 18px; height: 18px; }
+
+/* D210: a recording on its way, said without motion; where the recordings come from. */
+.sound-chip[aria-busy="true"] { opacity: 0.7; }
+.sound-chip[aria-busy="true"] span::after { content: "…"; }
+.sound-credits { margin: 8px 0 0; font-size: 0.8rem; color: var(--muted); }
+.sound-credits > summary { margin: 0; color: var(--muted); font-weight: 600; }
+.sound-credits ul { margin: 6px 0; padding-left: 18px; line-height: 1.5; }
+.sound-credits p { margin: 0; }
