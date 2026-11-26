@@ -363,7 +363,16 @@ def command_demo(args) -> int:
     makes it again. Only a directory this command made is ever removed."""
     import shutil
 
-    from .showcase import MARKER, Outdated, Showcase, add_student, seed, seed_world
+    from .showcase import (
+        MARKER,
+        Outdated,
+        Showcase,
+        add_student,
+        demo_fetch_file,
+        demo_moodle_call,
+        seed,
+        seed_world,
+    )
 
     where: Path = args.store
     try:
@@ -423,6 +432,9 @@ def command_demo(args) -> int:
     config.admin_token = admin
     # The demo's accounts are made up: an e-mail it cannot send is shown on screen (D94).
     config.show_mail = config.mailer is None
+    # Its made-up Moodle (D209), so a course is read and planned again in the demo too.
+    config.moodle_call = demo_moodle_call
+    config.fetch_file = demo_fetch_file
     if args.public:
         world = found
         config.demo = lambda year: add_student(where, world, lang=service.current_language(), year=year).token

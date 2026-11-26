@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{# D209: planning a course from Moodle, step by step. The owner could not find D208's
+   button: it sits on a course's Moodle card only once the course is linked, and the key
+   is given on another page. Here the three steps are one page, in order, each saying
+   whether it is done and starting from where it is; the next one is lit. The pictures
+   are drawn in HTML (an address bar, Moodle's Security keys row), not screenshots: they
+   follow the language, the theme and the student's own Moodle address. #}
+{% block title %}{{ _("Plan your study from Moodle") }} · {{ _("Study plan") }}{% endblock %}
+{% block main %}
+{% set g = guide %}
+<p class="back"><a href="/p/{{ token }}/courses">{{ _("Courses") }}</a></p>
+<div class="page-title">
+  <h1>{{ _("Plan your study from Moodle") }}</h1>
+  <p>{{ _("Three steps, once. Then the app reads a course's files on Moodle and plans what to study each week, in what order and how.") }}</p>
+</div>
+
+<div class="card guide-progress" role="status">
+  <p><b>{{ _("{n} of 3 steps done", n=g.done) }}</b>{% if g.next is none %} · {{ _("You are set.") }}{% endif %}</p>
+  <div class="meter"><span class="fill w{{ (g.done * 100 // 3 // 10) * 10 }}"></span></div>
+</div>
+
+<ol class="guide-steps">
+  {% set s = g.steps[0] %}
+  <li class="card guide-step{% if s.done %} is-done{% elif g.next == 'link' %} is-next{% endif %}" id="step-link">
+    <div class="guide-head"><span class="guide-num" aria-hidden="true">{% if s.done %}{{ lucide('circle-check') }}{% else %}1{% endif %}</span><h2>{{ _("Link a course to its page on Moodle") }}</h2>{% if s.done %}<small class="guide-done">{{ _("Done") }}</small>{% endif %}</div>
+    <p>{{ _("On Moodle, open the course. Copy the address in your browser's bar: it ends with view.php?id= and the course's number.") }}</p>
+    <figure class="guide-fig">
+      <div class="mock-bar" aria-hidden="true">{{ lucide('lock') }}<span class="mock-url">{{ g.example }}<mark>1234</mark></span></div>
+      <figcaption>{{ _("The course's address, as your browser shows it") }}</figcaption>
+    </figure>
+    <p>{{ _("Then paste it in the course's «On Moodle» card here, and tap Link.") }}</p>
+    {% if g.courses %}
+    <ul class="list guide-courses">
+      {% for c in g.courses %}<li><a href="/p/{{ token }}/courses/{{ c.index }}#moodle"><span class="grow">{{ c.name }}</span><small class="{% if c.linked %}is-ok{% else %}is-todo{% endif %}">{% if c.linked %}{{ _("Linked") }}{% else %}{{ _("Link it") }}{% endif %}</small><span class="chev" aria-hidden="true">›</span></a></li>{% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint">{{ _("Your plan has no courses with an exam yet. Add them in Settings, then come back.") }}</p>
+    {% endif %}
+  </li>
+
+  {% set s = g.steps[1] %}
+  <li class="card guide-step{% if s.done %} is-done{% elif g.next == 'key' %} is-next{% endif %}" id="step-key">
+    <div class="guide-head"><span class="guide-num" aria-hidden="true">{% if s.done %}{{ lucide('circle-check') }}{% else %}2{% endif %}</span><h2>{{ _("Give the app your Moodle key, once") }}</h2>{% if s.done %}<small class="guide-done">{{ _("Done") }}</small>{% endif %}</div>
+    <p>{{ _("On Moodle, tap your picture at the top right, then Preferences, then Security keys. Copy the key in the row «Moodle mobile web service».") }}</p>
+    <figure class="guide-fig">
+      <div class="mock-keys" aria-hidden="true">
+        <div class="mock-row mock-th"><span>{{ _("Service") }}</span><span>{{ _("Key") }}</span></div>
+        <div class="mock-row"><span>Moodle mobile web service</span><span class="mock-key">3f9c0d…b21a</span></div>
+      </div>
+      <figcaption>{{ _("Moodle's Security keys page: the row to copy") }}</figcaption>
+    </figure>
+    {% if g.key.linked %}
+    <p class="hint">{{ _("Kept sealed since {day}. You can forget it in Connections.", day=g.key.since) }} <a href="/p/{{ token }}/connections#moodle-key">{{ _("Forget it") }}</a></p>
+    {% elif g.site %}
+    {% set back = "guide" %}{% include "_moodle_key.html" %}
+    {% else %}
+    <p class="hint">{{ _("Link a course first: the app learns your Moodle from its address.") }}</p>
+    {% endif %}
+  </li>
+
+  {% set s = g.steps[2] %}
+  <li class="card guide-step{% if s.done %} is-done{% elif g.next == 'read' %} is-next{% endif %}" id="step-read">
+    <div class="guide-head"><span class="guide-num" aria-hidden="true">{% if s.done %}{{ lucide('circle-check') }}{% else %}3{% endif %}</span><h2>{{ _("Read a course and plan its study") }}</h2>{% if s.done %}<small class="guide-done">{{ _("Done") }}</small>{% endif %}</div>
+    <p>{{ _("The app downloads the course's files with your key, reads them, keeps their text and not the files, and plans each week: the topics in order, what to know first, how to study them. It takes up to a minute.") }}</p>
+    <p class="hint">{% if g.ai %}{{ _("Claude Haiku writes the plan from the files' text, since you said yes to AI.") }}{% else %}{{ _("Without AI, the app's rules make the plan from the files' names and headings; with AI on, Claude Haiku writes a fuller one.") }}{% endif %}</p>
+    {% set linked = g.courses | selectattr("linked") | list %}
+    {% if g.key.linked and linked %}
+    <ul class="list guide-courses">
+      {% for c in linked %}
+      <li>{% if c.planned %}<a href="/p/{{ token }}/courses/{{ c.index }}#study-plan"><span class="grow">{{ c.name }}</span><small class="is-ok">{{ _("See the plan") }}</small><span class="chev" aria-hidden="true">›</span></a>
+      {% else %}<form method="post" action="/p/{{ token }}/courses/{{ c.index }}/moodle/read" class="guide-read"><span class="grow">{{ c.name }}</span><button type="submit" class="btn btn-sm btn-primary">{{ lucide('sparkles') }}{{ _("Read and plan") }}</button></form>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% elif not g.key.linked %}
+    <p class="hint">{{ _("Once the key is given, each linked course has its button here and on its page.") }}</p>
+    {% endif %}
+  </li>
+</ol>
+
+<section class="card guide-then" aria-labelledby="guide-then-title">
+  <h2 id="guide-then-title">{{ _("Then, while you study") }}</h2>
+  <ul class="guide-points">
+    <li>{{ lucide('book-open-text') }}<span>{{ _("The plan is on the course's page, under Study plan, week by week: this week's opens by itself.") }}</span></li>
+    <li>{{ lucide('calendar-check') }}<span>{{ _("Its topics go on the week's sessions, unless you gave the course's topics yourself.") }}</span></li>
+    <li>{{ lucide('timer') }}<span>{{ _("On Focus, this week's part of the plan shows when you study that course.") }}</span></li>
+    <li>{{ lucide('repeat') }}<span>{{ _("When the teacher adds files, tap «Read it again and update the plan» on the course's page.") }}</span></li>
+  </ul>
+  {% if g.planned %}<p class="row-buttons">{% for c in g.planned %}<a class="btn btn-sm btn-tinted" href="/p/{{ token }}/courses/{{ c.index }}#study-plan">{{ _("{course}'s plan", course=c.name) }}</a>{% endfor %}</p>{% endif %}
+</section>
+
+<section class="card guide-kept" aria-labelledby="guide-kept-title">
+  <h2 id="guide-kept-title">{{ lucide('shield-check') }}{{ _("What the app keeps") }}</h2>
+  <ul>
+    <li>{{ _("The course's address, and your key sealed. The app uses the key for two things only: your Moodle's name and a course's contents.") }}</li>
+    <li>{{ _("The text of the files, not the files, and the plan. In your copy of the plan, and gone with it.") }}</li>
+    <li>{{ _("Never your password: Moodle keeps your sign-in. Forget the key in Connections, or reset it on Moodle's Security keys page.") }}</li>
+  </ul>
+</section>
+
+<section class="section guide-help" aria-labelledby="guide-help-title">
+  <div class="section-title"><h2 id="guide-help-title">{{ _("If something goes wrong") }}</h2></div>
+  <div class="card list guide-faq">
+    <details><summary>{{ _("There is no key on the Security keys page") }}</summary><p>{{ _("Sign in once to the Moodle app on your phone: Moodle makes the key then. If your university signs you in through its own page, this may be the only way.") }}</p></details>
+    <details><summary>{{ _("Moodle does not accept the key") }}</summary><p>{{ _("Copy it again, whole: 32 letters and digits. If it was reset on Moodle, copy the new one.") }}</p></details>
+    <details><summary>{{ _("Moodle does not let apps read courses") }}</summary><p>{{ _("Some universities turn the Moodle app off. Save the course's page from your browser and bring it into the course's materials: its links come, week by week, without the files' text.") }}</p></details>
+    <details><summary>{{ _("Some files were not read") }}</summary><p>{{ _("Slides, PDFs, Word, PowerPoint, OpenDocument and text are read; scans, photos and videos are not. The app reads at most 60 files of a course.") }}</p></details>
+    <details><summary>{{ _("Where is my Moodle's address?") }}</summary><p>{{ _("It is the start of any page of your Moodle, up to the first / after its name, such as {example}.", example=g.home) }}</p></details>
+  </div>
+</section>
+{% endblock %}

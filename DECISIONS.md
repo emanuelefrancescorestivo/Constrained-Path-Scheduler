@@ -8318,3 +8318,110 @@ the student's Moodle key, and the text and the plan, not the files.
   page says it may miss or mix things up.
 - Checked in Chromium only, at phone size and 1280 px, light and dark.
 
+
+## D209. Planning a course from Moodle, step by step
+
+**Asked.** The owner, about D208: "i need a tutorial, in the app too because i cant find it".
+
+**Why it was hard to find.** D208's button sat on a course's Moodle card only once the course was linked,
+and the key was given on Connections, another page. A student who had not linked a course saw neither, and
+the demo's students had no course linked, so the demo showed nothing of it.
+
+**Chosen.**
+- **One page, three steps** (`/p/<plan>/guide/moodle`, `service.moodle_guide_view`):
+  1. link a course to its page on Moodle;
+  2. give the key, once;
+  3. read a course and plan it.
+- **It knows where the student is.** Each step says whether it is done, and the first one not done is lit.
+  - The key's field is on the page once the site is known, and saving it comes back to the next step.
+  - Each linked course has its "Read and plan" button there, and each planned course its "See the plan".
+- **Pictures drawn in HTML,** not screenshots: the browser's bar with the course's address (the student's
+  own Moodle once known), and the Security keys row to copy. They follow the language and the theme.
+- **Answers for what goes wrong:**
+  - no key on the Security keys page;
+  - Moodle refusing the key;
+  - a Moodle that lets no app read;
+  - files not read;
+  - where the Moodle's address is.
+- **What the app keeps,** said once more on the page: the address, the key sealed, the files' text, the
+  plan; never the password.
+- **Where it is found:**
+  - on Courses, above the list until a course has its plan, then beside it;
+  - on every course's Moodle card;
+  - on Connections, in the key's row.
+- **The demo shows it done.** Each demo student's algebra course is linked to a made-up Moodle
+  (`moodle.example.edu`), its key given and its files read and planned by the rules, so the plan is on the
+  course's page and this week's part on Focus.
+  - `cps demo` serves the same made-up Moodle (`showcase.demo_moodle_call`, `demo_fetch_file`), so
+    "Read it again" works there too.
+  - Any other site goes to the real web service.
+  - The demo never asks the model for a plan (`read_moodle_course(ai=False)`): no visitor asked for one.
+
+**Rejected.**
+- **Spark's tour for it:** a tour shows once and is gone; a page stays where the student can find it again.
+- **Screenshots of Moodle:** they show one university's theme in one language, and go stale with Moodle's
+  versions.
+- **A row under You:** Courses, the course's card and Connections are where a student looks for it.
+
+**Disclosed.**
+- The made-up Moodle's links (the course's pages, Security keys) lead nowhere: `example.edu` is not a site.
+- Moodle's menu words (Preferences, Security keys) are Moodle 4.5's in the app's language, which may not be
+  the student's Moodle's.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D210. Sounds to focus that sound real: recordings in the public domain, and lo-fi
+
+**Asked.** The owner, about D207's sounds: "the sounds for focus are not really what they are meant to be,
+pick better more earthy vibes, add lo-fi, i want the hum and chatter from the café, the rain droplets on
+the window, the crepitio of the fire".
+
+**Why D207's fell short.** Noise through filters and generated notes are a likeness: no synthesis here
+makes the voices of a café or a log that cracks.
+
+**Chosen.**
+- **Recordings, under CC0 only** (`cps/focussounds.py`): every sound but binaural, from Freesound and the
+  Internet Archive. CC0 asks nothing, so each file can be cut, levelled and shipped with the app.
+  - Each licence was read on the recording's own page.
+  - The notice (`static/sounds/NOTICE.md`) and the focus page name each one, its author and its page.
+- **Chosen how:** among Freesound's recordings under CC0 for each kind, the most downloaded, then the
+  steadiest stretch of a minute or more (no frother, no slammed door). The steadiness is measured by the
+  loudness of each second; the choice was not made by ear here.
+  - Nature: birds in a forest on a summer morning. Rain: rain on a glass window, recorded indoors.
+  - Sea: waves on a shore. Café: a coffee shop in Vienna, its voices and cups. Fire: a wood fire crackling
+    close by (Felix Blume).
+  - Lo-fi, new: a loop of 36 bars at 87 beats a minute, made to loop.
+  - Jazz: slow jazz chords on a piano. Classical: Bach's Prelude No. 1 in C major (BWV 846), played by
+    Kimiko Ishizaka, who released her Well-Tempered Clavier under CC0.
+- **Loops without a seam** (`benchmarks/focus_sounds.py`, which makes the files again):
+  - An ambience loops after 60 to 80 seconds, its seam an equal-power crossfade of 5 or 6 seconds.
+  - A piece of music plays to its end, rests, and starts again.
+  - Each file keeps a quarter of a second of the loop's other end on both sides, and the page loops between
+    them. A decoder that adds a few milliseconds at the start then still joins the loop on the same samples.
+  - Decoded by ffmpeg, each file comes back at its loop's length plus the two margins, within a millisecond.
+- **One loudness:** every loop at −24 LUFS, the fire at −27.7. Its crackles peak 33 dB over its average, so
+  a look-ahead limiter holds them under −2 dBFS.
+  - At the page's output in Chromium, measured by the same meter (`benchmarks/focus_loudness.mjs`), the
+    recordings sat 5.5 to 8.6 LU under binaural, which D207 had matched to its other sounds by their
+    RMS. The recordings are raised 3 dB (`RECORDED_TRIM`) and D207's own sounds lowered 2.5 dB, together:
+    measured again, every recording is within 2 LU of binaural at the middle volume, the fire 3.3 under.
+- **Fetched only when played:** 7.9 MB in all, each file 0.8 to 1.2 MB (MP3, about 115 kbit/s for an
+  ambience and 100 for music).
+  - Each comes from the app's own files under the Content-Security-Policy, kept for the visit and by the
+    service worker.
+  - Offline before its first fetch, D207's own version of the sound plays instead (the jazz's for lo-fi).
+- **Binaural stays made by the browser:** two tones a few hertz apart are what it is.
+
+**Rejected.**
+- **Recordings under CC BY, CC BY-NC or Pixabay's licence:** each sets conditions to keep for as long as the
+  file is shipped.
+- **Better synthesis:** voices and wood cannot be made convincingly from filters.
+- **Longer recordings:** a minute or more of an ambience does not show its seam, and a longer file costs a
+  slow network more for nothing heard.
+
+**Disclosed.**
+- Nobody listened to the choices here: they rest on titles, tags, downloads and measured steadiness. A
+  sound the owner does not like is changed by one line of `focussounds.py` and running the benchmark.
+- Freesound's files are its previews, MP3 at 128 kbit/s, encoded again at 100 to 115.
+- Whether any sound helps focus was not measured, and the page claims nothing.
+- Checked in Chromium only: each sound plays, the loudness was measured at the output, and a refused
+  download plays the browser's own version. Not tried on a phone's speaker nor in Safari.

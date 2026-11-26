@@ -11,6 +11,17 @@
    from and the class's link. On a phone they follow the list. #}
 <div class="with-context">
 <div class="list-col">
+{# D209: planning from Moodle, step by step: above the courses until a course has its
+   plan, then beside them. #}
+{% set mg = moodle_guide %}
+{% macro guide_card(mg) %}
+<a class="card import-card guide-card" href="/p/{{ token }}/guide/moodle">
+  <span class="guide-card-icon" aria-hidden="true">{{ lucide('sparkles') }}</span>
+  <span class="grow"><b>{{ _("Plan your study from Moodle") }}</b><br><small>{% if mg.next is none %}{{ _n("{n} course planned from its files. Step by step, for the others.", "{n} courses planned from their files. Step by step, for the others.", mg.planned | length) }}{% else %}{{ _("{n} of 3 steps done. The app reads a course's files and plans each week: step by step.", n=mg.done) }}{% endif %}</small></span>
+  <span class="chev" aria-hidden="true">›</span>
+</a>
+{% endmacro %}
+{% if courses and mg and mg.next is not none %}{{ guide_card(mg) }}{% endif %}
 {% if courses %}
 <ul class="card list course-rows" data-tour="course-list">
   {% for c in courses %}
@@ -35,6 +46,7 @@
 </div>
 
 <div class="context-col">
+{% if courses and mg and mg.next is none %}{{ guide_card(mg) }}{% endif %}
 {% if courses %}
 <a class="card import-card" href="/p/{{ token }}/courses/import">
   <span class="grow"><b>{{ _("Import your semester's program") }}</b><br><small>{{ _("Paste it or choose its PDF: every course's topics, weeks, assessment, credits and hours at once.") }}</small></span>

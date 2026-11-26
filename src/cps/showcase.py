@@ -655,6 +655,137 @@ class Student:
     group: str
 
 
+# D209: a made-up Moodle, so the demo shows a course already read and planned (D208) and
+# "Read it again" works: the algebra course of each year, a section a week with its
+# lecture's notes and exercise sheet, and a past paper. Its files are short Markdown, read
+# by the same rules as a student's own. Any other site goes to the real web service.
+DEMO_MOODLE = "https://moodle.example.edu"
+DEMO_KEY = "feedfacecafebeefdeadbeef00c0ffee"  # made up; the demo's students already gave it
+DEMO_COURSES = {"2": 4021, "1": 1011}  # the algebra course's number, by year
+_DEMO_FILE = re.compile(r"/webservice/pluginfile\.php/(\d+)/mod_resource/content/0/([a-z0-9-]+\.md)")
+
+
+def _demo_topics(number: int) -> list[str]:
+    study = next(y for key, y in YEARS.items() if DEMO_COURSES[key] == number)
+    return [line.split(": ", 1)[1] for line in study.program.splitlines()]
+
+
+def _demo_contents(number: int) -> list[dict]:
+    """What `core_course_get_contents` answers for the made-up course."""
+
+    files = f"{DEMO_MOODLE}/webservice/pluginfile.php"
+
+    def resource(cmid: int, name: str, filename: str, size: int) -> dict:
+        return {
+            "id": cmid,
+            "name": name,
+            "modname": "resource",
+            "url": f"{DEMO_MOODLE}/mod/resource/view.php?id={cmid}",
+            "contents": [
+                {
+                    "type": "file",
+                    "filename": filename,
+                    "filesize": size,
+                    "fileurl": f"{files}/{number}/mod_resource/content/0/{filename}",
+                }
+            ],
+        }
+
+    general = {
+        "id": 0,
+        "name": "General",
+        "section": 0,
+        "modules": [
+            {
+                "id": number * 100,
+                "name": "Announcements",
+                "modname": "forum",
+                "url": f"{DEMO_MOODLE}/mod/forum/view.php?id={number * 100}",
+            },
+            {
+                "id": number * 100 + 1,
+                "name": "Course guide",
+                "modname": "page",
+                "url": f"{DEMO_MOODLE}/mod/page/view.php?id={number * 100 + 1}",
+            },
+        ],
+    }
+    out = [general]
+    topics = _demo_topics(number)
+    for n, topic in enumerate(topics, 1):
+        cmid = number * 100 + n * 10
+        modules = [resource(cmid, f"Lecture {n} · {topic}", f"lecture-{n:02d}.md", 2400)]
+        if n < len(topics):
+            modules.append(resource(cmid + 1, f"Exercise sheet {n}", f"exercises-{n:02d}.md", 1200))
+        out.append({"id": n, "name": f"Week {n} · {topic}", "section": n, "modules": modules})
+    out.append(
+        {
+            "id": len(topics) + 1,
+            "name": "Exams",
+            "section": len(topics) + 1,
+            "modules": [resource(number * 100 + 99, "Past exam 2025", "past-exam-2025.md", 1800)],
+        }
+    )
+    return out
+
+
+def _demo_text(number: int, filename: str) -> str:
+    topics = _demo_topics(number)
+    if filename == "past-exam-2025.md":
+        return "# Past exam 2025\n\n" + "\n".join(
+            f"{n}. A question on {t.lower()}." for n, t in enumerate(topics[:-1], 1)
+        )
+    kind, n = filename[:-3].rsplit("-", 1)
+    topic = topics[int(n) - 1]
+    if kind == "exercises":
+        return f"# Exercise sheet {int(n)}\n\n1. Exercises on {topic.lower()}.\n2. One more, harder."
+    parts = [p.strip() for p in re.split(r",|\band\b", topic) if p.strip()]
+    body = [f"# {parts[0][0].upper()}{parts[0][1:]}", "", f"What {topic.lower()} are, with examples."]
+    for part in parts[1:]:
+        body += ["", f"## {part[0].upper()}{part[1:]}", "", "A definition, a theorem and its proof."]
+    body += ["", "## Worked example", "", "One example solved step by step."]
+    return "\n".join(body)
+
+
+def demo_moodle_call(site: str, key: str, function: str, params: dict | None = None) -> object:
+    """Moodle's web service for the made-up Moodle; any other site's is the real one."""
+    if site.rstrip("/") != DEMO_MOODLE:
+        return service.moodle_call(site, key, function, params)
+    if key != DEMO_KEY:
+        raise service.MoodleError("Invalid token - token not found", "invalidtoken")
+    if function == "core_webservice_get_site_info":
+        names = ("core_webservice_get_site_info", "core_course_get_contents")
+        return {"sitename": "Moodle (made up for the demo)", "functions": [{"name": n} for n in names]}
+    number = int((params or {}).get("courseid") or 0)
+    if function != "core_course_get_contents" or number not in DEMO_COURSES.values():
+        raise service.MoodleError("Course or activity not accessible.", "requireloginerror")
+    return _demo_contents(number)
+
+
+def demo_fetch_file(url: str, *, limit: int) -> bytes:
+    """A file of the made-up Moodle; any other site's is fetched for real."""
+    found = _DEMO_FILE.search(url)
+    if not url.startswith(DEMO_MOODLE + "/") or found is None:
+        return service.fetch_file(url, limit=limit)
+    return _demo_text(int(found.group(1)), found.group(2)).encode()
+
+
+def _demo_moodle(where: Path, token: str, study: Year, now: datetime) -> None:
+    """The algebra course linked to the made-up Moodle, the key given, the course read and
+    planned by the rules (D209)."""
+    you = service.load_subscription(where, token)
+    if you is None or study.algebra not in service.topic_courses(you):
+        return
+    index = service.topic_courses(you).index(study.algebra)
+    address = f"{DEMO_MOODLE}/course/view.php?id={DEMO_COURSES[study.key]}"
+    you = service.link_moodle_course(you, index, {"address": address})
+    you = service.connect_moodle_key(you, DEMO_KEY, call=demo_moodle_call, now=now - timedelta(days=3))
+    you, _summary = service.read_moodle_course(
+        where, you, index, call=demo_moodle_call, fetch=demo_fetch_file, now=now - timedelta(days=3), ai=False
+    )
+    service.save_subscription(where, you)
+
+
 def add_student(
     where: Path,
     world: Showcase,
@@ -784,6 +915,7 @@ def add_student(
     for card in flashcards.of(Store(where), you.token, study.algebra)[:4]:
         service.answer_card(where, you, card.id, "good", now=now - timedelta(days=11))
         service.answer_card(where, you, card.id, rng.choice(["good", "hard"]), now=now - timedelta(days=6))
+    _demo_moodle(where, you.token, study, now)  # D209
     return Student(you.token, handle, group.id)
 
 

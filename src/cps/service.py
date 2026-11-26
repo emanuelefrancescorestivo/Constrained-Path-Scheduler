@@ -68,6 +68,7 @@ from . import coursepages as _coursepages
 from . import crests as _crests
 from . import daylight as _daylight
 from . import fitting
+from . import focussounds as _focussounds
 from . import i18n as _i18n
 from . import inbox as _inbox
 from . import insights as _insights
@@ -9748,16 +9749,22 @@ def set_focus_shortcut(subscription: Subscription, name: str) -> Subscription:
 # it plays offline. Jazz and classical are generated too: a soft swing on four chords, and an
 # arpeggio on the chords of Pachelbel's Canon (1690s, in the public domain) with its upper line.
 # Each key is the script's name for it; the icon is Lucide's.
+# D210: the owner found them not what they were meant to be, and asked for lo-fi: every sound but
+# binaural is now a recording in the public domain (`focussounds`), fetched from the app's own
+# files when it is first played; the browser's own version plays in its place before that, when
+# the device is offline.
 FOCUS_SOUNDS: tuple[tuple[str, str, str], ...] = (
     ("nature", "Nature", "trees"),
     ("rain", "Rain", "cloud-rain"),
     ("binaural", "Binaural", "headphones"),
     ("sea", "Sea", "waves"),
     ("cafe", "Café", "coffee"),
+    ("lofi", "Lo-fi", "cassette-tape"),
     ("jazz", "Jazz", "music-2"),
     ("classical", "Classical", "piano"),
     ("fireplace", "Fireplace", "flame"),
 )
+FOCUS_PAD = _focussounds.PAD
 FOCUS_VOLUME = 50  # out of 100, the first time
 
 
@@ -9775,7 +9782,18 @@ def focus_sound(subscription: Subscription) -> dict:
         "key": key if key in names else "",
         "name": names.get(key, ""),
         "volume": volume,
-        "sounds": [{"key": k, "name": names[k], "icon": icon} for k, _name, icon in FOCUS_SOUNDS],
+        "pad": FOCUS_PAD,
+        "sounds": [
+            {
+                "key": k,
+                "name": names[k],
+                "icon": icon,
+                # D210: the recording's loop and where it comes from; None for binaural.
+                "loop": _focussounds.RECORDED[k].loop if k in _focussounds.RECORDED else None,
+                "credit": _focussounds.RECORDED.get(k),
+            }
+            for k, _name, icon in FOCUS_SOUNDS
+        ],
     }
 
 
@@ -16701,6 +16719,7 @@ def week_materials(subscription: Subscription, course: str, now: datetime | None
 MOODLE_KEY = re.compile(r"^[0-9a-fA-F]{32}$")
 MOODLE_KEY_PAGE = "/user/managetoken.php"  # Moodle's Security keys page, where a student copies it
 moodle_call = _sources.moodle_call  # for the web app, which calls only service
+MoodleError = _sources.MoodleError
 fetch_file = _sources.fetch_file
 
 # What each way to study says when the rules made the plan (the model writes its own).
@@ -16860,12 +16879,15 @@ def read_moodle_course(
     fetch: Callable[..., bytes] | None = None,
     provider: _ai.Provider | None = None,
     now: datetime | None = None,
+    ai: bool = True,
 ) -> tuple[Subscription, dict]:
     """A course read from Moodle with the student's key (D208): its sections and activities
     become its materials on its weeks (as a saved page's do, D174); its files are downloaded,
     read and dropped, their text kept; and a study plan is made from them, week by week, by
     the model when the student said yes to AI and the server has it, else by rules. The plan's
-    topics go on the week's sessions (D81) unless the student gave the course's topics."""
+    topics go on the week's sessions (D81) unless the student gave the course's topics.
+    `ai` False keeps to the rules whatever the student said: the demo's made-up students
+    (D209), whose plans no visitor asked a model for."""
     now = now or datetime.now(UTC)
     course = _topic_course(subscription, index)
     key = course_key(course)
@@ -16929,7 +16951,7 @@ def read_moodle_course(
     mondays = _teaching(subscription, course)[0]
     weeks = [(m.isoformat(), n) for n, m in enumerate(mondays, start=1)]
     plan, by, order = None, "rules", ""
-    model = (provider or _ai.cards_from_env()) if ai_on(subscription) and read else None
+    model = (provider or _ai.cards_from_env()) if ai and ai_on(subscription) and read else None
     if model is not None:
         language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
         by_week, whole = _plan_input(read, weeks)
@@ -17056,6 +17078,55 @@ def week_study(subscription: Subscription, course: str, now: datetime | None = N
             }
             for h in w.get("how") or ()
         ][:2],
+    }
+
+
+# D209: the owner, 2026-11-26, about D208: "i need a tutorial, in the app too because i
+# cant find it". Planning a course from Moodle takes three steps spread over two pages (a
+# course's Moodle card, Connections) and one more on Moodle itself; the guide puts them on
+# one page, in order, says which are done, and starts the next one from where it is.
+MOODLE_GUIDE_STEPS = ("link", "key", "read")
+MOODLE_EXAMPLE = "https://moodle.your-university.edu"  # an address for the pictures, no site
+
+
+def moodle_guide_view(subscription: Subscription) -> dict:
+    """D209: the way to a course's study plan from Moodle, step by step, and where the
+    student is on it: a course linked to its page (D163), the key given once (D208), a
+    course read and planned. Each course says what it still needs; `next` is the first
+    step not done, None once a course has its plan."""
+    options = subscription.options
+    linked = options.get("moodle_courses") or {}
+    plans = options.get("study_plans") or {}
+    key = moodle_key_view(subscription)
+    courses = [
+        {
+            "index": index,
+            "name": name,
+            "linked": course_key(name) in linked,
+            "planned": course_key(name) in plans,
+        }
+        for index, name in enumerate(topic_courses(subscription))
+    ]
+    done = {
+        "link": any(c["linked"] for c in courses),
+        "key": key["linked"],
+        "read": any(c["planned"] for c in courses),
+    }
+    site = moodle_site(subscription)
+    first = next((c for c in courses if c["linked"] and not c["planned"]), None)
+    return {
+        "steps": [{"key": step, "done": done[step]} for step in MOODLE_GUIDE_STEPS],
+        "done": sum(done.values()),
+        "next": next((step for step in MOODLE_GUIDE_STEPS if not done[step]), None),
+        "courses": courses,
+        "planned": [c for c in courses if c["planned"]],
+        "to_read": first,  # the first course linked and not yet read
+        "key": key,
+        "site": bool(site),
+        "host": _host(site) or _host(MOODLE_EXAMPLE),
+        "home": site or MOODLE_EXAMPLE,
+        "example": f"{site or MOODLE_EXAMPLE}/course/view.php?id=",
+        "ai": ai_on(subscription) and _ai.cards_from_env() is not None,
     }
 
 

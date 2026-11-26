@@ -3008,6 +3008,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "courses.html",
             token=token,
+            moodle_guide=service.moodle_guide_view(subscription),  # D209
             courses=courses,
             tab="courses",
             saved=notice or (_notice(saved) if saved else None),
@@ -3266,7 +3267,21 @@ def create_app(config: Config | None = None) -> FastAPI:
         back = str(form.get("back") or "")
         if re.fullmatch(r"\d{1,2}", back):
             return RedirectResponse(f"/p/{token}/courses/{back}#moodle", 303)
+        if back == "guide":  # D209: the guide's own step, and on to the next
+            return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
         return RedirectResponse(f"/p/{token}/connections?key=linked#moodle-key", 303)
+
+    @app.get("/p/{token}/guide/moodle", response_class=HTMLResponse)
+    def moodle_guide(request: Request, token: str) -> HTMLResponse:
+        """D209: planning a course from Moodle, step by step, where the student is on it."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        service.log_visit(store, token, config.clock())
+        guide = service.moodle_guide_view(subscription)
+        return page(
+            request, "guide_moodle.html", token=token, guide=guide, moodle_key=guide["key"], tab="courses"
+        )
 
     @app.get("/p/{token}/courses/{index}", response_class=HTMLResponse)
     def course(request: Request, token: str, index: int, saved: str = "") -> HTMLResponse:

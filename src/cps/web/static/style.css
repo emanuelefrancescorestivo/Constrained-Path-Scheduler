@@ -7128,3 +7128,68 @@ main.site.todo-wide { max-width: none; }
 .focus-study { max-width: 30rem; margin: 4px auto 0; padding: 10px 14px; border-radius: 14px; background: var(--material); text-align: left; }
 .focus-study p { margin: 0 0 4px; font-size: 0.9rem; }
 .focus-study p:last-child { margin-bottom: 0; }
+
+/* D209: planning a course from Moodle, step by step. The next step is lit by the accent,
+   a step done is ticked and quieter; the pictures are an address bar and Moodle's
+   Security keys row drawn in HTML, so they follow the theme and the language. */
+.guide-progress { display: grid; gap: 8px; }
+.guide-progress p { margin: 0; }
+.guide-steps { display: grid; gap: 14px; margin: 14px 0; padding: 0; list-style: none; }
+.guide-step { display: grid; gap: 10px; }
+.guide-step > p, .guide-step .hint { margin: 0; }
+.guide-step.is-next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.guide-step.is-done > :not(.guide-head) { opacity: 0.85; }
+.guide-head { display: flex; align-items: center; gap: 10px; }
+.guide-head h2 { flex: 1; margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.guide-num { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 800; }
+.guide-step.is-next .guide-num { background: var(--accent); color: var(--on-accent); }
+.guide-step.is-done .guide-num { background: var(--ok-soft); color: var(--ok); }
+.guide-num svg { width: 20px; height: 20px; }
+.guide-done { color: var(--ok); font-weight: 700; }
+.guide-fig { margin: 0; }
+.guide-fig figcaption { margin-top: 6px; color: var(--muted); font-size: 0.8rem; }
+.mock-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--fill); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; overflow: hidden; }
+.mock-bar svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
+.mock-url { min-width: 0; overflow-wrap: anywhere; }
+.mock-url mark { padding: 0 2px; border-radius: 4px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.mock-keys { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 0.8rem; }
+.mock-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 12px; }
+.mock-th { background: var(--fill); color: var(--muted); font-weight: 700; }
+.mock-row + .mock-row { border-top: 1px solid var(--line); }
+.mock-row:not(.mock-th) { background: var(--accent-soft); }
+.mock-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent-ink); font-weight: 700; }
+.guide-courses { margin: 0; padding: 0; }
+.guide-courses > li { padding: 4px 0; align-items: center; }
+.guide-courses li > a, .guide-read { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; color: inherit; text-decoration: none; }
+.guide-courses small { font-weight: 700; }
+.guide-courses .is-ok { color: var(--ok); }
+.guide-courses .is-todo { color: var(--accent-ink); }
+.guide-read { margin: 0; }
+.guide-read .btn svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
+.guide-then h2, .guide-kept h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.05rem; }
+.guide-kept h2 svg { width: 20px; height: 20px; color: var(--ok); }
+.guide-points { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.guide-points li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.45; }
+.guide-points svg { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--accent-ink); }
+.guide-then .row-buttons { margin: 12px 0 0; }
+.guide-kept { margin-top: 14px; }
+.guide-kept ul { margin: 0; padding-left: 20px; line-height: 1.5; }
+.guide-kept li + li { margin-top: 6px; }
+.guide-faq details { padding: 0 16px; }
+.guide-faq details + details { border-top: 1px solid var(--line); }
+.guide-faq summary { padding: 12px 0; font-weight: 600; }
+.guide-faq details p { margin: 0 0 12px; line-height: 1.5; }
+.guide-card { align-items: center; }
+.guide-card-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-ink); }
+.guide-card-icon svg { width: 22px; height: 22px; }
+.guide-link { margin: 12px 0 0; }
+.guide-link a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.guide-link svg { width: 18px; height: 18px; }
+
+/* D210: a recording on its way, said without motion; where the recordings come from. */
+.sound-chip[aria-busy="true"] { opacity: 0.7; }
+.sound-chip[aria-busy="true"] span::after { content: "…"; }
+.sound-credits { margin: 8px 0 0; font-size: 0.8rem; color: var(--muted); }
+.sound-credits > summary { margin: 0; color: var(--muted); font-weight: 600; }
+.sound-credits ul { margin: 6px 0; padding-left: 18px; line-height: 1.5; }
+.sound-credits p { margin: 0; }

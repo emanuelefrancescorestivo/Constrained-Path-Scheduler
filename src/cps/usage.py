@@ -79,6 +79,7 @@ _RULES: tuple[tuple[str, str, str], ...] = (
     ("GET", r"/(week|agenda|timetable)", "calendar"),
     ("GET", r"/(tasks|todo)", "tasks"),  # D195: the to-do list is Tasks' page
     ("GET", r"/courses", "courses"),
+    ("GET", r"/guide/moodle", "courses"),  # D209: planning a course from Moodle, step by step
     ("GET", r"/courses/import", "program"),
     ("GET", r"/class/[^/]+", "program"),  # a class's program, taken (D104)
     ("GET", r"/courses/\d+", "course"),

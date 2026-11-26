@@ -101,15 +101,21 @@
   <p class="focus-meta">{{ _("Started at {time}", time=focus.started_local) }}{% if focus.rhythm and focus.rounds %} · {{ _("Round {n} of {total}", n=focus.round, total=focus.rounds) }}{% endif %}<span id="focus-away">{% if focus.interruptions %} · {{ _n("left the app {n} time ({minutes} min)", "left the app {n} times ({minutes} min)", focus.interruptions, minutes=focus.away_minutes) }}{% endif %}</span></p>
   {# D207 (the owner: "concentration music, from a library of nature, rain, binaural, sea, cosy
      café hum, jazz, classic, fireplace"): one tap plays the sound last chosen; the list opens
-     under it. The script makes each sound as it plays, so without it nothing shows. #}
-  <div class="focus-sound" id="focus-sound" data-save="/p/{{ token }}/focus/sound" data-sound="{{ sound.key }}" hidden>
+     under it. The script plays each sound, so without it nothing shows. D210: a recording in the
+     public domain for every sound but binaural, fetched from the app's own files when first played. #}
+  <div class="focus-sound" id="focus-sound" data-save="/p/{{ token }}/focus/sound" data-sound="{{ sound.key }}" data-pad="{{ sound.pad }}" hidden>
     <button type="button" class="sound-toggle" id="sound-toggle" aria-pressed="false"{% if not sound.key %} hidden{% endif %}>{{ lucide('play', 'i-play') }}{{ lucide('pause', 'i-pause') }}<span id="sound-name">{{ sound.name }}</span></button>
     <details class="sound-pick">
       <summary>{{ lucide('music') }}<span>{{ _("Sounds to focus") }}</span></summary>
       <div class="card sound-panel">
-        <div class="sound-list">{% for s in sound.sounds %}<button type="button" class="sound-chip{% if s.key == sound.key %} is-chosen{% endif %}" data-sound-key="{{ s.key }}" data-name="{{ s.name }}" aria-pressed="false">{{ lucide(s.icon) }}<span>{{ s.name }}</span></button>{% endfor %}</div>
+        <div class="sound-list">{% for s in sound.sounds %}<button type="button" class="sound-chip{% if s.key == sound.key %} is-chosen{% endif %}" data-sound-key="{{ s.key }}" data-name="{{ s.name }}"{% if s.loop %} data-src="{{ asset('sounds/' ~ s.key ~ '.mp3') }}" data-loop="{{ s.loop }}"{% endif %} aria-pressed="false">{{ lucide(s.icon) }}<span>{{ s.name }}</span></button>{% endfor %}</div>
         <label class="sound-volume">{{ lucide('volume-2') }}<span class="visually-hidden">{{ _("Volume") }}</span><input type="range" id="sound-volume" min="0" max="100" step="5" value="{{ sound.volume }}"></label>
-        <p class="sound-note">{{ _("Made by your browser as they play, not recordings. Binaural needs headphones. Tap a sound again to stop it.") }}</p>
+        <p class="sound-note">{{ _("Real recordings, in the public domain; binaural is made by your browser and needs headphones. Tap a sound again to stop it.") }}</p>
+        {# D210: where each recording comes from, as its notice says (static/sounds/NOTICE.md). #}
+        <details class="sound-credits"><summary>{{ _("Where the recordings come from") }}</summary>
+          <ul>{% for s in sound.sounds if s.credit %}<li><a href="{{ s.credit.page }}" rel="noopener noreferrer" target="_blank">{{ s.name }}: «{{ s.credit.title }}», {{ s.credit.author }} ↗</a></li>{% endfor %}</ul>
+          <p>{{ _("Each is in the public domain (CC0), cut into a loop by the app.") }}</p>
+        </details>
       </div>
     </details>
   </div>

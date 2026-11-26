@@ -26,3 +26,6 @@ demo.txt
 
 # The pilot server's settings (deploy/hetzner/env.example): never committed.
 deploy/hetzner/.env
+
+# the focus sounds downloaded by benchmarks/focus_sounds.py (D210)
+.cache/

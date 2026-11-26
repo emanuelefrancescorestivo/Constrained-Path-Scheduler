@@ -31,6 +31,8 @@ where = ["src"]
     "static/vendor/lucide/*", "static/landing/*/*",
     # flag-icons 7.6.0's square flags, with their licence (D143).
     "static/vendor/flags/*", "static/vendor/flags/1x1/*",
+    # The focus page's recordings in the public domain, with their notice (D210).
+    "static/sounds/*",
 ]
 # The list of universities and its licence (D39).
 "cps" = ["data/*"]

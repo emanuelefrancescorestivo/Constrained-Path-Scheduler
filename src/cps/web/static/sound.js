@@ -1,11 +1,19 @@
-// D207: sounds to concentrate by, on the focus page, each made by the browser as it plays
-// (the Web Audio API): no recording is fetched, nothing needs a licence, and it plays offline.
-// The page lists the sounds and the student's last choice (service.focus_sound); this script
-// makes them, plays and stops them, and saves the choice and the volume as they change.
-// Nature, rain, sea, the fire and the café are noise shaped by filters with random events (a
+// D207: sounds to concentrate by, on the focus page. The page lists the sounds and the
+// student's last choice (service.focus_sound); this script plays and stops them, and saves the
+// choice and the volume as they change. Nothing here loops visibly on the page (D93).
+//
+// D210: every sound but binaural is a recording in the public domain (cps/focussounds.py), a
+// loop of a minute or more fetched from the app's own files the first time it is played, then
+// kept for the visit (and by the service worker). Each file carries a quarter of a second of
+// its loop's other end on both sides (`data-pad`), so the loop runs between `pad` and
+// `pad + data-loop` whatever a decoder adds at the start. An ambience starts anywhere in its
+// loop; a piece of music at its beginning.
+//
+// D207's sounds made by the browser stay, for a device offline before a recording was fetched:
+// nature, rain, sea, the fire and the café are noise shaped by filters with random events (a
 // bird, a drop, a crackle, a cup); binaural is two tones 10 Hz apart, one in each ear; jazz and
 // classical are generated notes: a soft swing on four chords, and an arpeggio on the chords of
-// Pachelbel's Canon with its upper line. Nothing here loops visibly on the page (D93).
+// Pachelbel's Canon with its upper line. Lo-fi has none of its own and plays the jazz.
 
 const box = document.getElementById("focus-sound");
 if (box && (window.AudioContext || window.webkitAudioContext)) {
@@ -361,8 +369,50 @@ if (box && (window.AudioContext || window.webkitAudioContext)) {
     },
   };
 
-  // Each sound brought to about the same loudness, measured at its output in Chromium (D207).
-  const TRIM = { nature: 1.2, rain: 0.9, binaural: 0.9, sea: 0.5, cafe: 1, jazz: 3.2, classical: 3.8, fireplace: 0.6 };
+  // Each sound brought to about the same loudness, measured at its output in Chromium (D207),
+  // and since D210 by the ear's weighting (benchmarks/focus_loudness.mjs): D207's balance among
+  // them kept, all 2.5 dB down, so binaural meets the recordings.
+  const TRIM = { nature: 0.9, rain: 0.68, binaural: 0.68, sea: 0.38, cafe: 0.75, jazz: 2.4, classical: 2.85, fireplace: 0.45 };
+  // D210: the recordings are all at -24 LUFS (benchmarks/focus_sounds.py), the fire at -27.7;
+  // this brings them to about -27 LUFS at the page's middle volume, as binaural.
+  const RECORDED_TRIM = 1.75;
+  const MUSIC = new Set(["lofi", "jazz", "classical"]);
+  const STAND_IN = { lofi: "jazz" }; // the browser's own version, offline before the first fetch
+  const PAD = Number(box.dataset.pad || 0.25);
+  const buffers = new Map(); // key -> a promise of the decoded recording, or of null
+
+  function recording(chip) {
+    const key = chip.dataset.soundKey;
+    if (!buffers.has(key)) {
+      const loaded = fetch(chip.dataset.src, { credentials: "same-origin" })
+        .then((answer) => {
+          if (!answer.ok) throw new Error(String(answer.status));
+          return answer.arrayBuffer();
+        })
+        // The callback form: Safari before 14.1 has no promise from decodeAudioData.
+        .then((data) => new Promise((done, fail) => ctx.decodeAudioData(data, done, fail)))
+        .catch(() => {
+          buffers.delete(key); // asked again next time, once the network is back
+          return null;
+        });
+      buffers.set(key, loaded);
+    }
+    return buffers.get(key);
+  }
+
+  function looping(out, buffer, loop, music) {
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.loopStart = PAD;
+    source.loopEnd = Math.min(PAD + loop, buffer.duration);
+    source.connect(out);
+    source.start(0, music ? PAD : PAD + Math.random() * loop);
+    return () => {
+      try { source.stop(); } catch { /* already stopped */ }
+      source.disconnect();
+    };
+  }
 
   // -- playing, stopping, saving --------------------------------------------------------------
   function ready() {
@@ -397,14 +447,31 @@ if (box && (window.AudioContext || window.webkitAudioContext)) {
     playing = null;
   }
 
+  let asked = 0; // the last sound asked for: a recording that arrives late for another is not played
+
   async function play(key) {
     await ready();
     stopSound();
+    const ticket = ++asked;
+    const chip = chips.find((c) => c.dataset.soundKey === key);
+    let buffer = null;
+    if (chip && chip.dataset.src) {
+      box.classList.add("is-loading");
+      chip.setAttribute("aria-busy", "true");
+      buffer = await recording(chip);
+      chip.removeAttribute("aria-busy");
+      box.classList.remove("is-loading");
+      if (ticket !== asked) return;
+    }
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(TRIM[key] || 1, ctx.currentTime + 1.5);
+    const loud = buffer ? RECORDED_TRIM : TRIM[key in SOUNDS ? key : STAND_IN[key]] || 1;
+    gain.gain.linearRampToValueAtTime(loud, ctx.currentTime + 1.5);
     gain.connect(master);
-    playing = { key, gain, stop: SOUNDS[key](gain) };
+    const stop = buffer
+      ? looping(gain, buffer, Number(chip.dataset.loop), MUSIC.has(key))
+      : (SOUNDS[key] || SOUNDS[STAND_IN[key]])(gain);
+    playing = { key, gain, stop };
   }
 
   function show() {
@@ -444,7 +511,10 @@ if (box && (window.AudioContext || window.webkitAudioContext)) {
     });
   }
   toggle.addEventListener("click", async () => {
-    if (playing) stopSound();
+    if (box.classList.contains("is-loading")) {
+      asked += 1; // a recording still on its way: not played when it arrives
+      box.classList.remove("is-loading");
+    } else if (playing) stopSound();
     else if (chosen) await play(chosen);
     show();
   });
