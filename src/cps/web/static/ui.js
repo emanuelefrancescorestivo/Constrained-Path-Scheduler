@@ -483,8 +483,43 @@ for (const field of document.querySelectorAll("input[data-moodle-site]")) {
     const site = field.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
     const fine = /^[a-z0-9.-]+\.[a-z]{2,}(:\d{2,5})?(\/[\w.~-]+)*$/i.test(site);
     open.hidden = !fine;
-    if (fine) open.href = `https://${site}/calendar/export.php`;
+    // The page the link opens: the calendar's export (D154), or another (D211: the keys).
+    if (fine) open.href = `https://${site}${open.dataset.moodlePage || "/calendar/export.php"}`;
   });
+}
+
+// D211: a course's files read in the background. The page shows the plan made from their
+// names and how far the reading is; this asks the server every few seconds, moves each
+// course's meter and words, and loads the page again once a course is read (or stopped),
+// so its fuller plan shows. Without it, the page's own link shows how far it is.
+const readingBox = document.querySelector("[data-reading]");
+if (readingBox) {
+  const ask = async () => {
+    if (document.hidden) return true;
+    let now;
+    try {
+      const answer = await fetch(readingBox.dataset.reading, { cache: "no-store" });
+      if (!answer.ok) return false;
+      now = await answer.json();
+    } catch {
+      return true; // offline for a moment: ask again
+    }
+    for (const row of document.querySelectorAll("[data-reading-course]")) {
+      const course = now.courses.find((c) => String(c.index) === row.dataset.readingCourse);
+      if (!course || course.error || course.stopped) {
+        location.reload();
+        return false;
+      }
+      const said = row.querySelector("[data-said]");
+      if (said) said.textContent = course.said;
+      const fill = row.querySelector("[data-fill]");
+      if (fill) fill.className = `fill w${Math.floor(course.percent / 10) * 10}`;
+    }
+    return now.reading;
+  };
+  const timer = setInterval(async () => {
+    if (!(await ask())) clearInterval(timer);
+  }, 3000);
 }
 
 // D154: a learning platform's link, pasted, shows the deadlines it brings before

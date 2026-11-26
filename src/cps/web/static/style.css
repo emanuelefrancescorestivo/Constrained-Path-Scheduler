@@ -7191,6 +7191,28 @@ main.site.todo-wide { max-width: none; }
 .guide-link a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .guide-link svg { width: 18px; height: 18px; }
 
+/* D211: the courses the key found, each linked or chosen from the list; the files' reading. */
+.guide-found > li { display: block; }
+.found-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.found-row .grow b, .found-pick label b, .guide-read .grow small { display: block; }
+.found-row .grow small, .found-pick label small, .guide-read .grow small { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+.found-row .is-ok svg { width: 20px; height: 20px; }
+.found-pick { display: grid; gap: 6px; margin: 6px 0; }
+.found-pick select { flex: 1 1 12em; min-width: 0; }
+.guide-find { margin: 0; }
+.guide-find .btn svg, .guide-all .btn svg { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+.guide-all { margin: 0; }
+.guide-by-hand { display: grid; gap: 10px; }
+.guide-by-hand summary { font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.guide-by-hand > p { margin: 0; }
+.moodle-reading { display: grid; gap: 8px; margin: 4px 0 8px; }
+.moodle-reading p { margin: 0; }
+.reading-said { display: flex; align-items: center; gap: 8px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.reading-said svg { width: 18px; height: 18px; color: var(--accent-ink); }
+.moodle-reading.is-stopped p { color: var(--muted); }
+.moodle-reading .btn svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
+.moodle-card .found-pick { margin-top: 12px; }
+
 /* D210: a recording on its way, said without motion; where the recordings come from. */
 .sound-chip[aria-busy="true"] { opacity: 0.7; }
 .sound-chip[aria-busy="true"] span::after { content: "…"; }

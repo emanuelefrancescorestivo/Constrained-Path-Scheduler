@@ -1500,4 +1500,7 @@ D208 told students to copy the key from its row, as Moodle showed it before 4.3.
 just after Reset makes a new one, and resetting the mobile service's key signs the phone's Moodle app out.
 Status: fixed: the key's steps, the guide's step, its picture and its answer say Reset, then copy the key
 shown at the top, in Moodle's words in the student's language (French "Clefs de sécurité", Italian "Chiave
-di sicurezza", from its 4.5 packs), and warn that the phone's app signs out.
+di sicurezza", from its 4.5 packs), and warn that the phone's app signs out. Before it was pushed, a
+browser check with D211 found the page's word for "Security keys" drawn as "<built-in method keys of dict
+object>": in Jinja, `kw.keys` is the dictionary's method, not its "keys" entry. Fixed with `kw["keys"]`;
+`tests/test_moodle_fast.py` checks the guide, Connections and a course's page in three languages.

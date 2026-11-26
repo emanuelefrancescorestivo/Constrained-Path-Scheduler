@@ -3009,7 +3009,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             request,
             "courses.html",
             token=token,
-            moodle_guide=service.moodle_guide_view(subscription),  # D209
+            moodle_guide=service.moodle_guide_view(subscription, store=store, now=config.clock()),  # D209
             courses=courses,
             tab="courses",
             saved=notice or (_notice(saved) if saved else None),
@@ -3204,41 +3204,140 @@ def create_app(config: Config | None = None) -> FastAPI:
             why_tip=service.tip_here(subscription, "course", config.clock(), course=view["course"]),  # D135
             todo=service.todo_view(subscription, config.clock(), course=view["course"]),  # D202
             # D208: the course's study plan read from Moodle, and the key that reads it.
-            plan=service.study_plan_view(subscription, index, config.clock()),
+            plan=service.study_plan_view(subscription, index, config.clock(), store=store),
             moodle_key=service.moodle_key_view(subscription),
+            moodle_list=service.moodle_list(subscription),  # D211: the courses the key found
             tab="courses",
             exam_row=exam,
             values=values,
             **extra,
         )
 
+    # D211: a course's files read after the page has answered, a thread per tap that reads its
+    # courses one after the other (each with its own few downloads at once); a course already
+    # being read is not read twice. Tests read at once (`config.background` False).
+    reading_now: set[tuple[str, int]] = set()
+    reading_lock = threading.Lock()
+
+    def read_files_later(token: str, indices: list[int]) -> None:
+        with reading_lock:
+            indices = [i for i in indices if (token, i) not in reading_now]
+            reading_now.update((token, i) for i in indices)
+        if not indices:
+            return
+
+        def run() -> None:
+            for index in indices:
+                try:
+                    service.read_moodle_files(
+                        store,
+                        token,
+                        index,
+                        call=config.moodle_call,
+                        fetch=config.fetch_file,
+                        clock=config.clock,
+                    )
+                except Exception as error:  # kept for the owner; the page says it stopped
+                    LOG.warning("a course's files were not read: %s", type(error).__name__)
+                    service.record_error(
+                        store,
+                        source="server",
+                        route="moodle-read",
+                        kind=type(error).__name__,
+                        message=str(error)[:300],
+                        detail="",
+                        now=config.clock(),
+                    )
+                finally:
+                    with reading_lock:
+                        reading_now.discard((token, index))
+
+        if config.background:
+            threading.Thread(target=run, name="cps-moodle", daemon=True).start()
+        else:
+            run()
+
+    def plan_from_moodle(token: str, indices: list[int]) -> list[int]:
+        """D211: each course's plan from its files' names at once, and the courses whose files
+        are still to read, which are then read in the background."""
+        later = []
+        for index in indices:
+            with reading_lock:
+                if (token, index) in reading_now:
+                    continue
+            summary = service.plan_moodle_course(
+                store, token, index, call=config.moodle_call, now=config.clock()
+            )
+            if summary["pending"]:
+                later.append(index)
+        read_files_later(token, later)
+        return later
+
     @app.post("/p/{token}/courses/{index}/moodle/read")
-    def course_moodle_read(request: Request, token: str, index: int) -> Response:
-        """D208: the course read from Moodle with the student's key, and its study plan
-        made. It can take a minute: every file is downloaded and read, then the plan."""
+    async def course_moodle_read(request: Request, token: str, index: int) -> Response:
+        """D208: the course read from Moodle with the student's key, and its study plan made.
+        D211: the plan from the files' names shows at once; the files are read after, in the
+        background, the page showing how far."""
         subscription = load(token)
         if subscription is None:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
+        form = await request.form(max_files=0, max_fields=2)
         try:
-            read, _summary = service.read_moodle_course(
-                store,
-                subscription,
-                index,
-                call=config.moodle_call,
-                fetch=config.fetch_file,
-                now=config.clock(),
-            )
-            # Only what reading the course changed, so an edit made meanwhile stays.
-            kinds = ("materials", "material_sources", "study_plans", "topics")
-            changed = {k: read.options[k] for k in kinds if k in read.options}
-            service.update_subscription(
-                store, token, lambda current: service.replace(current, options={**current.options, **changed})
-            )
+            plan_from_moodle(token, [index])
         except service.ServiceError as error:
             return course_page(request, subscription, index, 400, error=str(error))
+        if form.get("back") == "guide":
+            return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
         return RedirectResponse(f"/p/{token}/courses/{index}?saved=read#study-plan", 303)
+
+    @app.post("/p/{token}/moodle/read-all")
+    def moodle_read_all(request: Request, token: str) -> Response:
+        """D211: every course linked to Moodle and not yet planned from its files, planned
+        in one tap (the owner: "all the links from all courses")."""
+        subscription = load(token)
+        if subscription is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        indices = [
+            c["index"]
+            for c in service.moodle_guide_view(subscription, store=store, now=config.clock())["to_plan"]
+        ]
+        try:
+            plan_from_moodle(token, indices)
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
+
+    @app.post("/p/{token}/moodle/find")
+    def moodle_find(request: Request, token: str) -> Response:
+        """D211: the student's courses on Moodle read again with their key, the new ones linked."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        try:
+            service.update_subscription(
+                store,
+                token,
+                lambda current: service.find_moodle_courses(
+                    current, call=config.moodle_call, now=config.clock()
+                ),
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(f"/p/{token}/guide/moodle#step-link", 303)
+
+    @app.get("/p/{token}/moodle/reading")
+    def moodle_reading_state(request: Request, token: str) -> Response:
+        """D211: how far the reading of each course's files is, for the pages that show it."""
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse({"courses": [], "reading": False}, status_code=404)
+        view = service.moodle_readings(store, subscription, config.clock())  # in the plan's language
+        return JSONResponse(view, headers={"Cache-Control": "no-store"})
 
     @app.post("/p/{token}/moodle/key")
     async def moodle_key(request: Request, token: str) -> Response:
@@ -3248,18 +3347,19 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=3)
+        form = await request.form(max_files=0, max_fields=4)
         if form.get("action") == "forget":
             service.update_subscription(store, token, service.forget_moodle_key)
             service.log_event(store, token, "moodle_key", "forgotten")
             return RedirectResponse(f"/p/{token}/connections?key=forgotten#moodle-key", 303)
         text = str(form.get("key") or "")[:100]
+        site = str(form.get("site") or "")[:500]  # D211: the Moodle's address, when not known yet
         try:
             service.update_subscription(
                 store,
                 token,
                 lambda current: service.connect_moodle_key(
-                    current, text, call=config.moodle_call, now=config.clock()
+                    current, text, call=config.moodle_call, now=config.clock(), site_text=site
                 ),
             )
         except service.ServiceError as error:
@@ -3268,8 +3368,8 @@ def create_app(config: Config | None = None) -> FastAPI:
         back = str(form.get("back") or "")
         if re.fullmatch(r"\d{1,2}", back):
             return RedirectResponse(f"/p/{token}/courses/{back}#moodle", 303)
-        if back == "guide":  # D209: the guide's own step, and on to the next
-            return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
+        if back == "guide":  # D209: the guide's own step; D211: on to the courses it found
+            return RedirectResponse(f"/p/{token}/guide/moodle#step-link", 303)
         return RedirectResponse(f"/p/{token}/connections?key=linked#moodle-key", 303)
 
     @app.get("/p/{token}/guide/moodle", response_class=HTMLResponse)
@@ -3279,7 +3379,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if subscription is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
-        guide = service.moodle_guide_view(subscription)
+        guide = service.moodle_guide_view(subscription, store=store, now=config.clock())
         return page(
             request, "guide_moodle.html", token=token, guide=guide, moodle_key=guide["key"], tab="courses"
         )
@@ -3362,7 +3462,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return missing(request)
         if not changes.allow(token):
             return too_many(request)
-        form = await request.form(max_files=0, max_fields=3)
+        form = await request.form(max_files=0, max_fields=4)
         fields = {k: str(v) for k, v in form.items()}
         unlink = fields.get("action") == "unlink"
         try:
@@ -3379,6 +3479,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             return course_page(request, subscription, index, 400, error=str(error), moodle_draft=fields)
         if saved is None:
             return missing(request)
+        if fields.get("back") == "guide":  # D211: a course chosen from the list, on the guide
+            return RedirectResponse(f"/p/{token}/guide/moodle#step-link", 303)
         linked = service.moodle_course(saved, service.topic_courses(saved)[index])["linked"]
         done = "moodle_off" if unlink else ("moodle" if linked else "moodle_site")
         return RedirectResponse(f"/p/{token}/courses/{index}?saved={done}#moodle", 303)

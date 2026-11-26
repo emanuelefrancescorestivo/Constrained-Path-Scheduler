@@ -261,6 +261,7 @@ TABLES = {
     "push_sent": None,  # which sessions were reminded, for three days
     "server_keys": None,  # the server's own key
     "errors": None,  # names no plan
+    "moodle_reading": None,  # D211: how far a course's files are read, gone once read
     "premium_codes": None,  # the owner's codes, as digests; a plan's premium is in its document (D176)
 }
 

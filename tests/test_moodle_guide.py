@@ -2,12 +2,12 @@
 Planning a course from Moodle, step by step (DECISIONS.md D209). The owner, about D208: "i
 need a tutorial, in the app too because i cant find it".
 
-What must hold: the guide says which of its three steps are done (a course linked, the key
-given, a course read and planned) and lights the first one not done; it is reached from
-Courses, from a course's Moodle card and from Connections; the key given on it comes back to
-it, and a course is read and planned from it in one tap. The demo's made-up Moodle answers
-the demo's courses only, refuses a key that is not its own, and leaves any other site to the
-real web service.
+What must hold: the guide says which of its three steps are done (the key given, a course
+linked, a course read and planned; the key first since D211) and lights the first one not
+done; it is reached from Courses, from a course's Moodle card and from Connections; the key
+given on it comes back to it, and a course is read and planned from it in one tap. The demo's
+made-up Moodle answers the demo's courses only, refuses a key that is not its own, and leaves
+any other site to the real web service.
 """
 
 from __future__ import annotations
@@ -64,10 +64,13 @@ def test_the_guide_follows_the_student_step_by_step(tmp_path):
     sub = _plan(tmp_path)
     algebra = service.topic_courses(sub).index("Algebra 3")
     guide = service.moodle_guide_view(sub)
-    assert (guide["done"], guide["next"], guide["site"]) == (0, "link", False)
+    # D211: the key first, as it finds the courses; then the courses linked; then planned.
+    assert [s["key"] for s in guide["steps"]] == ["key", "link", "read"]
+    assert (guide["done"], guide["next"], guide["site"]) == (0, "key", False)
     assert guide["example"].startswith(service.MOODLE_EXAMPLE)  # the picture's address, no site yet
     assert [c["name"] for c in guide["courses"]] == service.topic_courses(sub)
 
+    # A course linked by its address first still works (D209's way), and teaches the site.
     sub = service.link_moodle_course(sub, algebra, {"address": ADDRESS})
     guide = service.moodle_guide_view(sub)
     assert (guide["done"], guide["next"], guide["host"]) == (1, "key", "moodle.example.edu")
@@ -76,13 +79,17 @@ def test_the_guide_follows_the_student_step_by_step(tmp_path):
     sub = service.connect_moodle_key(sub, showcase.DEMO_KEY, call=showcase.demo_moodle_call, now=NOW)
     guide = service.moodle_guide_view(sub)
     assert (guide["done"], guide["next"], guide["to_read"]["name"]) == (2, "read", "Algebra 3")
+    # The key found the other course and linked it by its name.
+    analysis = next(c for c in guide["courses"] if c["name"] == "Analysis 3")
+    assert analysis["found"] and analysis["moodle_name"] == "Analysis 3 · 2026–27"
+    assert [c["name"] for c in guide["to_plan"]] == ["Algebra 3", "Analysis 3"]
 
     sub, summary = service.read_moodle_course(
         tmp_path, sub, algebra, call=showcase.demo_moodle_call, fetch=showcase.demo_fetch_file, now=NOW
     )
     assert summary["by"] == "rules" and summary["files"] == 24
     guide = service.moodle_guide_view(sub)
-    assert (guide["done"], guide["next"], guide["to_read"]) == (3, None, None)
+    assert (guide["done"], guide["next"], guide["to_read"]["name"]) == (3, None, "Analysis 3")
     assert [c["name"] for c in guide["planned"]] == ["Algebra 3"]
 
 
@@ -92,36 +99,38 @@ def test_the_guide_is_found_where_the_student_looks_and_does_each_step(tmp_path)
     algebra = service.topic_courses(sub).index("Algebra 3")
     with _app(tmp_path) as web:
         page = unescape(web.get(f"/p/{token}/guide/moodle").text)
-        assert "0 of 3 steps done" in page and 'id="step-link"' in page
-        assert page.index("is-next") < page.index('id="step-link"') < page.index('id="step-key"')
-        assert "Link a course first" in page  # no site yet: no key field
+        assert "0 of 3 steps done" in page and 'id="step-key"' in page
+        assert page.index("is-next") < page.index('id="step-key"') < page.index('id="step-link"')
+        # No Moodle known yet: its address comes with the key, the keys' page follows it.
+        assert 'name="site"' in page and 'data-moodle-page="/user/managetoken.php"' in page
         # Found from Courses (above the list until a course is planned), a course's card, Connections.
         courses = web.get(f"/p/{token}/courses").text
         assert courses.index(f"/p/{token}/guide/moodle") < courses.index("course-rows")
         assert f"/p/{token}/guide/moodle" in web.get(f"/p/{token}/courses/{algebra}").text
-        assert f"/p/{token}/guide/moodle" in web.get(f"/p/{token}/connections").text
+        connections = web.get(f"/p/{token}/connections").text
+        assert f"/p/{token}/guide/moodle" in connections and 'name="site"' in connections
 
-        web.post(f"/p/{token}/courses/{algebra}/moodle", data={"address": ADDRESS})
-        page = unescape(web.get(f"/p/{token}/guide/moodle").text)
-        assert "1 of 3 steps done" in page and 'name="back" value="guide"' in page
-        assert "moodle.example.edu/user/managetoken.php" in page  # its Security keys page
         given = web.post(
-            f"/p/{token}/moodle/key", data={"key": showcase.DEMO_KEY, "back": "guide"}, follow_redirects=False
+            f"/p/{token}/moodle/key",
+            data={"key": showcase.DEMO_KEY, "site": "moodle.example.edu/my/", "back": "guide"},
+            follow_redirects=False,
         )
-        assert given.headers["location"] == f"/p/{token}/guide/moodle#step-read"
+        assert given.headers["location"] == f"/p/{token}/guide/moodle#step-link"
         page = unescape(web.get(f"/p/{token}/guide/moodle").text)
-        assert "2 of 3 steps done" in page
-        assert f'action="/p/{token}/courses/{algebra}/moodle/read"' in page and "Read and plan" in page
+        assert "2 of 3 steps done" in page and "Your key found 6 courses on Moodle." in page
+        assert "Linked to «Algebra 3 · 2026–27»" in page and "Linked to «Analysis 3 · 2026–27»" in page
+        assert "Plan all my 2 courses" in page and f'action="/p/{token}/moodle/read-all"' in page
 
-        read = web.post(f"/p/{token}/courses/{algebra}/moodle/read", follow_redirects=False)
-        assert read.headers["location"].endswith("#study-plan")
+        read = web.post(f"/p/{token}/moodle/read-all", follow_redirects=False)
+        assert read.headers["location"] == f"/p/{token}/guide/moodle#step-read"
         page = unescape(web.get(f"/p/{token}/guide/moodle").text)
-        assert "3 of 3 steps done" in page and "You are set." in page and "See the plan" in page
-        assert "is-next" not in page
+        assert "3 of 3 steps done" in page and "You are set." in page and page.count("See the plan") >= 2
+        assert "is-next" not in page and "data-reading=" not in page  # read at once in the tests
         courses = web.get(f"/p/{token}/courses").text  # once planned, beside the list
         assert courses.index("course-rows") < courses.index(f"/p/{token}/guide/moodle")
         course = unescape(web.get(f"/p/{token}/courses/{algebra}").text)
         assert "Lecture 2 · Linear maps, kernel and image" in course  # the plan, from its files
+        assert "from 24 files on Moodle" in course
 
 
 def test_the_demo_s_moodle_answers_its_own_courses_only(monkeypatch):

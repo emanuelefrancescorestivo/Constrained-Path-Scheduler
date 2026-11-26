@@ -8425,3 +8425,67 @@ makes the voices of a café or a log that cracks.
 - Whether any sound helps focus was not measured, and the page claims nothing.
 - Checked in Chromium only: each sound plays, the loudness was measured at the output, and a refused
   download plays the browser's own version. Not tried on a phone's speaker nor in Safari.
+
+## D211. Moodle without copying and pasting, and fast
+
+**Asked.** The owner, trying D209's guide on their own Moodle: "it's taking ages to plan this", "it takes
+time to copy and paste everything", "all the links from all courses".
+
+**Why it was slow.** D208 read a course in one request: every file downloaded one after the other, each PDF
+read whole with the layout reading meant for flashcards (D151, D166), then the plan. The page waited for
+all of it, a minute or more on a small server, with a spinner. And each course had to be opened on Moodle
+and its address pasted, one by one.
+
+**Chosen.**
+- **The key comes first and finds the courses.** With the key, Moodle's mobile web service lists the
+  courses the student is enrolled in (`core_enrol_get_users_courses`, read-only, given the student's own
+  number from `core_webservice_get_site_info`).
+  - Each plan course not yet linked is linked to the Moodle course whose name holds all its words
+    (`studyplan.match_courses`): folded, a Roman numeral as its number, small words in seven languages
+    dropped, a capital letter alone kept as a group's label ("Statistics A" is not "Statistics B").
+  - The closest wins when several hold the words (fewest left over); the most specific plan course chooses
+    first ("Algebra 3" before "Algebra"); two as close, or none, are left to the student.
+  - A course already linked is never taken over.
+  - The rest are chosen from the list in a menu, on the guide and on the course's Moodle card; pasting an
+    address stays, for a Moodle that does not list courses.
+  - The key may now be given before any course is linked, with the Moodle's address typed beside it; the
+    link to its Security keys page follows the address as it is typed.
+  - The guide's steps are now: the key, the courses linked, the courses planned.
+- **A plan at once, then a fuller one.** "Read and plan" answers in the time of one call to Moodle: the plan
+  from the course's sections and its files' names (`read_moodle_course(files=False)`, `by: "names"`), and
+  the number of files still to read. The files are then read after the page has answered, in the background
+  (`read_moodle_files`), and the plan made again from their text.
+  - Files are downloaded six at a time (`MOODLE_READERS`).
+  - A PDF is read for its plain text up to 12,000 characters (`notefiles.QUICK_CHARS`), its first pages,
+    the pages after not even opened; the layout's reading stays for flashcards.
+  - How far it is ("12 of 24 files read") is kept every three files in its own table (`moodle_reading`),
+    apart from the plan's document: written there, it raced the student's own changes (in a test, a language
+    changed while the files were read failed on a conflict), so a reading never blocks an edit.
+  - The pages show it: the guide and the course's page have a meter, moved every three seconds by `ui.js`
+    from `/p/<plan>/moodle/reading`, and the page loads again once the course is read. Without the script,
+    a link shows how far it is.
+  - Moodle's refusal is kept in its place and said; a reading that has not moved for ten minutes (the
+    server restarted meanwhile) is shown as stopped, with "Read it again".
+  - Whatever the student changed meanwhile stays: only the course's materials, plan and topics are merged
+    into the plan as it is then.
+- **"Plan all my courses" in one tap** on the guide: every linked course not yet planned from its files,
+  each planned from its names at once, their files read one course after the other.
+- **The demo's made-up Moodle lists six courses** (both years', as a second-year student's Moodle still
+  lists the first), each with made-up weeks, so "Plan all my courses" works in the demo.
+
+**Rejected.**
+- **Waiting with a spinner while reading faster:** however fast, a course of sixty files on a small server
+  takes long enough to look broken.
+- **Reading only the files' names:** the model needs their text for a plan worth having (D208).
+- **Keeping the progress in the plan's document:** see above.
+- **Linking courses by their codes:** a timetable's export rarely carries Moodle's course code; their names
+  come from the same catalogue.
+
+**Disclosed.**
+- Matching is by the words of the names, tried on names written for the tests and the demo, not on a real
+  university's list; a course named differently on the timetable and on Moodle is left to the student.
+- The list read is kept with the plan (names and numbers, at most 80); the privacy page says so (the
+  owner's to approve, C2).
+- A reading in the background lives in the server's process: a restart stops it, and the page says so.
+- Six at once, three seconds, three files, ten minutes and 12,000 characters are choices, not measured.
+- Tried against a made-up Moodle only. Checked in Chromium only, at 1280 px and phone size, light and dark.

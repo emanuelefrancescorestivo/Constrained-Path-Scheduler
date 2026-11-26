@@ -12,6 +12,12 @@
 
 ### Added
 
+- Moodle without copying and pasting, and fast (DECISIONS.md D211): the key, given first, finds the
+  student's courses on Moodle and links the ones with the same name as the plan's; the others are chosen
+  from a list. A course's plan shows at once from its files' names, then grows fuller as the files are read
+  in the background, several at a time, with how far it is on the page. "Plan all my courses" plans every
+  linked course in one tap.
+
 - Sounds to focus that sound real (DECISIONS.md D210): every sound but binaural is now a recording in the
   public domain, looped without a seam: birds in a forest at dawn, rain on a window from inside, waves on
   a shore, a coffee shop in Vienna, a wood fire crackling, a lo-fi loop, jazz chords on a piano, and Bach's

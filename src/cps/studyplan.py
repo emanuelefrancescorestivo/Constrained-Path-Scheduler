@@ -285,3 +285,89 @@ def checked_plan(data: object, weeks: Sequence[tuple[str, int]]) -> list[dict] |
                 "how": how[:HOW_A_WEEK],
             }
     return [out[n] for n in sorted(out)] or None
+
+
+# -- D211: the student's courses on Moodle, matched to the plan's by their names ------------------
+# The owner, after D209: "it takes time to copy and paste everything ... all the links from all
+# courses". With the key, Moodle lists the courses the student is enrolled in
+# (`core_enrol_get_users_courses`); each plan course is matched to the one whose name holds all its
+# words, a code, a year or a semester around them being left over (ADE and Moodle are fed from the
+# same catalogue, so the words are the same; a Roman numeral reads as its number).
+
+_SMALL_WORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "the",
+        "of",
+        "for",
+        "to",
+        "in",
+        "on",
+        "de",
+        "des",
+        "du",
+        "la",
+        "le",
+        "les",
+        "l",
+        "d",
+        "et",
+        "en",
+        "un",
+        "une",
+        "au",
+        "aux",
+        "di",
+        "del",
+        "della",
+        "dei",
+        "e",
+        "il",
+        "lo",
+        "gli",
+        "y",
+        "el",
+        "los",
+        "las",
+        "por",
+    ]
+)
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8"}
+
+
+def name_words(name: str) -> frozenset[str]:
+    """A course's name as the set of its words that tell it apart: folded, Roman numerals as
+    numbers, small words dropped, but a capital letter alone kept, the label of a group
+    ("Statistics A" is not "Statistics B")."""
+    out = set()
+    for raw in re.findall(r"[^\W_]+", name):
+        label = len(raw) == 1 and raw.isupper()
+        for word in re.findall(r"[a-z0-9]+", folded(raw)):
+            if word not in _SMALL_WORDS or label:
+                out.add(_ROMAN.get(word, word))
+    return frozenset(out)
+
+
+def match_courses(plan: Sequence[str], moodle: Sequence[tuple[int, str]]) -> dict[str, int]:
+    """Each plan course to the Moodle course (its number, its names) whose name holds all the
+    plan course's words, the closest when several do (fewest words left over); a Moodle course
+    goes to one plan course at most; a plan course with none, or with two as close, is left for
+    the student to choose."""
+    wanted = {name: name_words(name) for name in plan}
+    offered = [(number, name_words(names)) for number, names in moodle]
+    out: dict[str, int] = {}
+    taken: set[int] = set()
+    # The most specific plan courses first, so "Algebra 3" is not taken by "Algebra".
+    for name in sorted(plan, key=lambda n: -len(wanted[n])):
+        words = wanted[name]
+        if not words:
+            continue
+        close = sorted((len(have - words), number) for number, have in offered if words <= have)
+        close = [(extra, number) for extra, number in close if number not in taken]
+        if not close or (len(close) > 1 and close[0][0] == close[1][0]):
+            continue
+        out[name] = close[0][1]
+        taken.add(close[0][1])
+    return out
