@@ -1482,3 +1482,25 @@ above the window. Status: fixed: the centring is "safe" and the full screen scro
 of the window's height (`tests/test_focus_sound.py`; checked in Chromium at 1600 × 1000 and 1280 × 720,
 the name 32 px from the top).
 
+
+**138. A learning platform's link that was not a calendar said nothing of what to copy.** Found on
+2026-11-26 by the owner, on the deadlines' settings in French: "the link does not lead to a calendar
+(.ics)", the one sentence for every case. Moodle's Export calendar page shows the calendar's link in a box
+below its button (calendar/export.php, Moodle 4.5), while the address bar keeps the page's own address:
+copying the bar is the likely slip, and a course's or the dashboard's address another. Status: fixed: a
+Moodle page's address is told apart before anything is fetched, in Moodle's own words in the student's
+language (checked against Moodle 4.5's French, Italian and Spanish packs), with their Moodle's export page;
+a link that ends on a sign-in page, or answers Moodle's own "Invalid authentication" or "no export", says so;
+the settings' hint names the box below the button (`tests/test_calendar_link_help.py`).
+
+**139. D208's way to the Moodle key was wrong for Moodle 4.3 and later.** Found on 2026-11-26 by the
+owner, on their university's Security keys page ("where are the keys?"): the page lists keys by name only.
+D208 told students to copy the key from its row, as Moodle showed it before 4.3. Read in Moodle 4.5's source
+(user/managetoken.php, core_external\util::generate_token): a key is shown once, at the top of the page,
+just after Reset makes a new one, and resetting the mobile service's key signs the phone's Moodle app out.
+Status: fixed: the key's steps, the guide's step, its picture and its answer say Reset, then copy the key
+shown at the top, in Moodle's words in the student's language (French "Clefs de sécurité", Italian "Chiave
+di sicurezza", from its 4.5 packs), and warn that the phone's app signs out. Before it was pushed, a
+browser check with D211 found the page's word for "Security keys" drawn as "<built-in method keys of dict
+object>": in Jinja, `kw.keys` is the dictionary's method, not its "keys" entry. Fixed with `kw["keys"]`;
+`tests/test_moodle_fast.py` checks the guide, Connections and a course's page in three languages.

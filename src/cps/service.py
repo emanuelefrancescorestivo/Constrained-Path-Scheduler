@@ -50,6 +50,7 @@ import sqlite3
 import threading
 from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from itertools import pairwise
@@ -2931,6 +2932,9 @@ def revise_subscription(
     )
     if deadlines_url is not None and deadlines_url.strip() != (_deadlines_link(merged) or ""):
         url = deadlines_url.strip() or None
+        refusal = moodle_page_refusal(url) if url else None  # AUDIT 138
+        if refusal:
+            raise InvalidInput(_("the learning platform's link: {error}", error=refusal))
         # D175: the link carries Moodle's key to the student's calendar: kept sealed,
         # never shown again; its site, which is no secret, beside it.
         site = _MOODLE_EXPORT.match(url) if url else None
@@ -7077,6 +7081,64 @@ _MOODLE_EXPORT = re.compile(
 )
 
 
+# AUDIT 138: a Moodle page pasted where its calendar's link goes. The owner met "the link does
+# not lead to a calendar" with no word of what to copy instead: the likeliest slip is the
+# address bar of the Export calendar page itself, after its button, rather than the link
+# Moodle shows below the button. Told before anything is fetched, in Moodle's own words.
+_MOODLE_PAGE = re.compile(
+    r"^(https?://[^/?#\s]+(?:/[^?#\s]*?)?)/(calendar/export\.php|calendar/[a-z_]+\.php|course/view\.php|"
+    r"my/(?:courses\.php|index\.php)?|mod/[a-z]+/view\.php|user/[a-z]+\.php|login/index\.php)(?:[?#]|$)",
+    re.IGNORECASE,
+)
+
+
+# AUDIT 139: Moodle's words for the way to the key, from Moodle 4.5's language packs
+# (lang/*/moodle.php "preferences" and "reset", webservice.php "securitykeys"). Since Moodle
+# 4.3 the Security keys page lists keys by name only: a key is shown once, at the top of the
+# page, just after "Reset" makes a new one (user/managetoken.php).
+MOODLE_KEY_WORDS: dict[str, dict[str, str]] = {
+    "en": {"preferences": "Preferences", "keys": "Security keys", "reset": "Reset"},
+    "fr": {"preferences": "Préférences", "keys": "Clefs de sécurité", "reset": "Réinitialiser"},
+    "it": {"preferences": "Preferenze", "keys": "Chiave di sicurezza", "reset": "Reset"},
+    "es": {"preferences": "Preferencias", "keys": "Claves de seguridad", "reset": "Reiniciar"},
+}
+
+
+def moodle_key_words() -> dict[str, str]:
+    """Moodle's words for its Security keys page and its Reset, in the app's language."""
+    return MOODLE_KEY_WORDS.get(current_language(), MOODLE_KEY_WORDS["en"])
+
+
+def moodle_export_words() -> dict[str, str]:
+    """Moodle's words for the way to its calendar's link (D154), in the app's language."""
+    return MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+
+
+def moodle_page_refusal(url: str) -> str | None:
+    """Why a Moodle page's address is not its calendar's link, and where the link is; None
+    for any other address (AUDIT 138)."""
+    found = _MOODLE_PAGE.match(url.strip())
+    if not found or _MOODLE_EXPORT.match(url.strip()):
+        return None
+    words = moodle_export_words()
+    if found.group(2).lower() == "calendar/export.php":
+        return _(
+            "this is the address of the page «{export}», not the calendar's link: on that page, tap "
+            "«{button}» and copy the link Moodle then shows below the button (it contains "
+            "export_execute.php), not the address bar's",
+            export=words["export"],
+            button=words["button"],
+        )
+    return _(
+        "this is the address of a Moodle page, not of its calendar: open {page}, choose «{events}» "
+        "and «{period}», tap «{button}» and copy the link Moodle then shows below the button",
+        page=f"{found.group(1)}/calendar/export.php",
+        events=words["events"],
+        period=words["period"],
+        button=words["button"],
+    )
+
+
 def learning_platform(subscription: Subscription) -> str | None:
     """The learning platform's own page: a student's dashboard is at `<site>/my/` on every
     Moodle site, in a subfolder too. The site is the student's Moodle (`moodle_site`,
@@ -7191,6 +7253,18 @@ def link_moodle_course(subscription: Subscription, index: int, form: Mapping[str
     """A course linked to its page on Moodle, from the address pasted (D163). The site
     alone is kept as the student's Moodle, so its course search can find the course."""
     course = _topic_course(subscription, index)
+    chosen = str(form.get("moodle_id") or "").strip()
+    if chosen:  # D211: one of the student's courses, from the list their key read
+        listed = subscription.options.get("moodle_list") or {}
+        match = next((c for c in listed.get("courses") or () if str(c["id"]) == chosen), None)
+        if match is None:
+            raise InvalidInput(_("choose one of the options shown"))
+        options = dict(subscription.options)
+        options["moodle_courses"] = {
+            **(options.get("moodle_courses") or {}),
+            course_key(course): {"site": str(listed["site"]), "id": int(match["id"])},
+        }
+        return replace(subscription, options=options)
     text = str(form.get("address") or "").strip()
     if len(text) > 500:
         raise InvalidInput(_("at most {n} characters here", n=500))
@@ -7269,6 +7343,9 @@ def deadlines_preview(
     gives none. Nothing is kept."""
     now = now or datetime.now(UTC)
     zone = _zone(tz)
+    refusal = moodle_page_refusal(url)  # AUDIT 138: said before anything is fetched
+    if refusal:
+        return {"found": [], "count": 0, "error": refusal}
     try:
         found = [a for a in find_assignments(decode_ics(fetch(url.strip())), tz) if a.due > now]
     except ServiceError as error:
@@ -7389,7 +7466,7 @@ def setup_sentence(values: Mapping) -> dict:
         if a.get("kind") == "class" or not a.get("weekday"):
             continue
         busy.setdefault((a.get("label") or "", a.get("start"), a.get("end")), []).append(_(a["weekday"]))
-    words = MOODLE_EXPORT_WORDS.get(current_language(), MOODLE_EXPORT_WORDS["en"])
+    words = moodle_export_words()
     site = values.get("deadlines_site") or None
     # Each choice as (value, words), for the radio and for the sentence.
     return {
@@ -16454,13 +16531,20 @@ def _material_places(
     subscription: Subscription, course: str, items: Sequence[_coursepages.Material]
 ) -> list[str]:
     """Each item's place: the Monday of the teaching week it falls in, else "course"
-    (the whole course) or "exams" (exam practice)."""
+    (the whole course) or "exams" (exam practice). D212: items that give only their step
+    in the course's order go to the week where their step's share of the lecture hours
+    begins, the steps spread over the weeks as a list without weeks is (D187)."""
     mondays, hours, weeks = _teaching(subscription, course)
     placed = [i for i in items if i.placed]
     weeks_of = iter(_syllabus.place([i.topic() for i in placed], hours, weeks, mondays) if placed else [])
+    steps = sorted({i.step for i in items if i.ordered and i.step is not None})
+    spread = _syllabus.place([_syllabus.Topic(str(n)) for n in steps], hours, weeks, mondays) if steps else []
+    step_week = dict(zip(steps, spread, strict=True))
     out = []
     for item in items:
-        week = next(weeks_of) if item.placed else None
+        week = (
+            next(weeks_of) if item.placed else (step_week.get(item.step) if item.step is not None else None)
+        )
         out.append(mondays[week - 1].isoformat() if week is not None else item.shelf)
     return out
 
@@ -16562,7 +16646,12 @@ def _keep_reading(
         )
     options["materials"] = {**(options.get("materials") or {}), key: others + fresh}
     sources = dict((options.get("material_sources") or {}).get(key) or {})
-    sources[source] = {"name": reading.name, "from": reading.source, "address": label or ""}
+    sources[source] = {
+        "name": reading.name,
+        "from": reading.source,
+        "address": label or "",
+        "in_order": reading.in_order,  # D212: placed by its sections' order, not by weeks it names
+    }
     options["material_sources"] = {**(options.get("material_sources") or {}), key: sources}
     linked = False
     if reading.site and reading.course_id and key not in (options.get("moodle_courses") or {}):
@@ -16676,6 +16765,7 @@ def course_materials_view(subscription: Subscription, index: int, now: datetime 
                 "address": meta.get("address") or "",
                 "host": _host(meta.get("address")) if meta.get("address") else "",
                 "count": sum(1 for x in read if x.get("source") == source),
+                "in_order": bool(meta.get("in_order")),
             }
             for source, meta in sources.items()
         ],
@@ -16717,6 +16807,8 @@ def week_materials(subscription: Subscription, course: str, now: datetime | None
 # key) and `core_course_get_contents` (a course's sections and files).
 
 MOODLE_KEY = re.compile(r"^[0-9a-fA-F]{32}$")
+MOODLE_LIST_MOST = 80  # courses kept from a student's list: years of courses, at most
+MOODLE_READERS = 6  # a course's files downloaded and read at once (D211)
 MOODLE_KEY_PAGE = "/user/managetoken.php"  # Moodle's Security keys page, where a student copies it
 moodle_call = _sources.moodle_call  # for the web app, which calls only service
 MoodleError = _sources.MoodleError
@@ -16768,6 +16860,7 @@ def moodle_key_view(subscription: Subscription) -> dict:
         "since": format_date(datetime.fromisoformat(at).date(), "day_month") if linked and at else "",
         "page": f"{site}{MOODLE_KEY_PAGE}" if site else None,
         "site": bool(site),
+        "words": moodle_key_words(),  # AUDIT 139
     }
 
 
@@ -16777,18 +16870,24 @@ def connect_moodle_key(
     *,
     call: Callable[..., object] | None = None,
     now: datetime | None = None,
+    site_text: str = "",
 ) -> Subscription:
     """Keep the student's Moodle key (D208), sealed, once Moodle has said it reads courses
-    with it. Moodle's answer names the student; nothing of it is kept but the site's name."""
+    with it. Moodle's answer names the student; nothing of it is kept but the site's name.
+    D211: the site may come with the key (`site_text`, the Moodle's address or any of its
+    pages), and the student's courses are then found and linked (`find_moodle_courses`)."""
     now = now or datetime.now(UTC)
     key = text.strip()
     if not MOODLE_KEY.match(key):
         raise InvalidInput(
             _("A Moodle key is 32 letters and digits: copy it from Moodle's Security keys page.")
         )
+    if site_text.strip():
+        given, _number = read_moodle_address(site_text)
+        subscription = replace(subscription, options={**subscription.options, "moodle_site": given})
     site = moodle_site(subscription)
     if not site:
-        raise InvalidInput(_("First link a course to its page on Moodle, so the app knows your Moodle."))
+        raise InvalidInput(_("Type your Moodle's address with the key, so the app knows where to read."))
     try:
         info = (call or _sources.moodle_call)(site, key, "core_webservice_get_site_info")
     except _sources.MoodleError as exc:
@@ -16806,8 +16905,61 @@ def connect_moodle_key(
         "key": _sealed.seal(key),
         "name": " ".join(str(info.get("sitename") or "").split())[:80],
         "at": now.astimezone(UTC).isoformat(timespec="seconds"),
+        # D211: the student's own number on that Moodle, which its list of courses asks for.
+        "user": info.get("userid") if isinstance(info.get("userid"), int) else None,
+        "lists": "core_enrol_get_users_courses" in functions,
     }
-    return replace(subscription, options={**subscription.options, "moodle_key": kept})
+    subscription = replace(subscription, options={**subscription.options, "moodle_key": kept})
+    if kept["lists"] and kept["user"]:
+        with contextlib.suppress(InvalidInput):  # the key is kept even if its list fails
+            subscription = find_moodle_courses(subscription, call=call, now=now)
+    return subscription
+
+
+def find_moodle_courses(
+    subscription: Subscription, *, call: Callable[..., object] | None = None, now: datetime | None = None
+) -> Subscription:
+    """D211: the courses the student is enrolled in on their Moodle, read with their key
+    (`core_enrol_get_users_courses`), kept as their numbers and names; each plan course not yet
+    linked is linked to the one its name matches (`studyplan.match_courses`), the others left for
+    the student to choose from the list. Nothing is fetched but the list."""
+    now = now or datetime.now(UTC)
+    kept = subscription.options.get("moodle_key") or {}
+    site = str(kept.get("site") or "")
+    token = _moodle_key(subscription, site) if site else None
+    if token is None or not kept.get("user"):
+        raise InvalidInput(_("Add your Moodle key in Connections first."))
+    try:
+        found = (call or _sources.moodle_call)(
+            site, token, "core_enrol_get_users_courses", {"userid": int(kept["user"])}
+        )
+    except _sources.MoodleError as exc:
+        raise InvalidInput(_moodle_refusal(exc)) from exc
+    except _sources.SourceError as exc:
+        raise InvalidInput(str(exc)) from exc
+    courses = []
+    for c in found if isinstance(found, list) else []:
+        if not isinstance(c, Mapping) or not isinstance(c.get("id"), int) or c.get("visible") == 0:
+            continue
+        name = " ".join(str(c.get("fullname") or c.get("displayname") or "").split())[:160]
+        short = " ".join(str(c.get("shortname") or "").split())[:60]
+        if name:
+            courses.append({"id": c["id"], "name": name, "short": short})
+    courses.sort(key=lambda c: c["name"].casefold())
+    options = dict(subscription.options)
+    options["moodle_list"] = {
+        "site": site,
+        "at": now.astimezone(UTC).isoformat(timespec="seconds"),
+        "courses": courses[:MOODLE_LIST_MOST],
+    }
+    linked = dict(options.get("moodle_courses") or {})
+    open_names = [c for c in topic_courses(subscription) if course_key(c) not in linked]
+    taken = {int(e["id"]) for e in linked.values() if str(e.get("site")) == site}
+    offered = [(c["id"], f"{c['name']} {c['short']}") for c in courses if c["id"] not in taken]
+    for name, number in _studyplan.match_courses(open_names, offered).items():
+        linked[course_key(name)] = {"site": site, "id": number, "found": True}
+    options["moodle_courses"] = linked
+    return replace(subscription, options=options)
 
 
 def forget_moodle_key(subscription: Subscription) -> Subscription:
@@ -16852,15 +17004,16 @@ def course_texts(store: str | os.PathLike, subscription: Subscription, course: s
 
 
 def _plan_input(
-    read: Sequence[_studyplan.Read], weeks: Sequence[tuple[str, int]]
+    read: Sequence[_studyplan.Read], weeks: Sequence[tuple[str, int]], *, every: bool = False
 ) -> tuple[list[dict], list[dict]]:
     """The files for the model, week by week, each cut so that the course stays within
-    `studyplan.TEXT_MOST` characters."""
+    `studyplan.TEXT_MOST` characters. With `every` (a course read in its order, D212), the
+    weeks without files too, for the model to plan them."""
     each = max(1500, _studyplan.TEXT_MOST // max(1, len(read)))
     out = []
     for monday, number in weeks:
         files = [{"title": r.title, "kind": r.kind, "text": r.text[:each]} for r in read if r.week == monday]
-        if files:
+        if files or every:
             out.append({"week": number, "files": files})
     whole = [
         {"title": r.title, "kind": "exam" if r.week == "exams" else r.kind, "text": r.text[:each]}
@@ -16880,6 +17033,8 @@ def read_moodle_course(
     provider: _ai.Provider | None = None,
     now: datetime | None = None,
     ai: bool = True,
+    files: bool = True,
+    progress: Callable[[int, int], None] | None = None,
 ) -> tuple[Subscription, dict]:
     """A course read from Moodle with the student's key (D208): its sections and activities
     become its materials on its weeks (as a saved page's do, D174); its files are downloaded,
@@ -16887,7 +17042,13 @@ def read_moodle_course(
     the model when the student said yes to AI and the server has it, else by rules. The plan's
     topics go on the week's sessions (D81) unless the student gave the course's topics.
     `ai` False keeps to the rules whatever the student said: the demo's made-up students
-    (D209), whose plans no visitor asked a model for."""
+    (D209), whose plans no visitor asked a model for.
+
+    D211 (the owner: "it's taking ages to plan this"): `files` False makes the plan from the
+    course's sections and the files' names alone, in the time of one call to Moodle, and says
+    how many files are still to read (`pending`); the web app shows it at once and reads the
+    files after, in the background. Files are downloaded and read several at a time, a PDF's
+    first pages only (`notefiles.text(quick=True)`); `progress(done, total)` follows them."""
     now = now or datetime.now(UTC)
     course = _topic_course(subscription, index)
     key = course_key(course)
@@ -16924,38 +17085,59 @@ def read_moodle_course(
         for x in _links(subscription, course)
         if x.get("source") == source
     }
-    files, left = _studyplan.to_read(found)
+    to_read, left = _studyplan.to_read(found)
     getter = fetch or _sources.fetch_file
+
+    def titled(file: _studyplan.File) -> str:
+        several = sum(1 for f in to_read if f.page == file.page) > 1
+        return f"{file.activity} · {file.filename}" if several else file.activity
+
+    def one(file: _studyplan.File) -> str | None:
+        try:
+            body = getter(_studyplan.with_key(file.address, token), limit=_studyplan.FILE_MOST)
+            return _notefiles.text(file.filename, body, quick=True).text[: _studyplan.TEXT_PER_FILE]
+        except (_sources.SourceError, _notefiles.NotesError):
+            return None
+
     read: list[_studyplan.Read] = []
     items: list[str] = []
     failed = 0
-    for file in files:
-        try:
-            body = getter(_studyplan.with_key(file.address, token), limit=_studyplan.FILE_MOST)
-            extracted = _notefiles.text(file.filename, body)
-        except (_sources.SourceError, _notefiles.NotesError):
-            failed += 1
-            continue
-        several = sum(1 for f in files if f.page == file.page) > 1
-        title = f"{file.activity} · {file.filename}" if several else file.activity
-        read.append(
-            _studyplan.Read(
-                title,
-                where_of.get(file.page, "course"),
-                extracted.text[: _studyplan.TEXT_PER_FILE],
-                _studyplan.kind_of(f"{file.activity} {file.filename}"),
-            )
-        )
-        items.append(file.address)
-    _keep_texts(store, subscription.token, key, read, items, now)
+    if files:
+        texts: list[str | None] = [None] * len(to_read)
+        with ThreadPoolExecutor(max_workers=MOODLE_READERS) as pool:
+            jobs = {pool.submit(one, f): i for i, f in enumerate(to_read)}
+            for done, job in enumerate(as_completed(jobs), start=1):
+                texts[jobs[job]] = job.result()
+                if progress is not None:
+                    progress(done, len(to_read))
+        for file, text in zip(to_read, texts, strict=True):
+            if text is None:
+                failed += 1
+                continue
+            kind = _studyplan.kind_of(f"{file.activity} {file.filename}")
+            read.append(_studyplan.Read(titled(file), where_of.get(file.page, "course"), text, kind))
+            items.append(file.address)
+        _keep_texts(store, subscription.token, key, read, items, now)
+    else:
+        # The sections' activities by their names: every activity that holds material once.
+        seen: set[str] = set()
+        for sec in found:
+            for activity in sec.activities:
+                if activity.page in seen:
+                    continue
+                seen.add(activity.page)
+                names = " ".join(f.filename for f in activity.files)
+                kind = _studyplan.kind_of(f"{activity.name} {names}")
+                read.append(_studyplan.Read(activity.name, where_of.get(activity.page, "course"), "", kind))
     mondays = _teaching(subscription, course)[0]
     weeks = [(m.isoformat(), n) for n, m in enumerate(mondays, start=1)]
-    plan, by, order = None, "rules", ""
-    model = (provider or _ai.cards_from_env()) if ai and ai_on(subscription) and read else None
+    # Names only, when files are left to read; with none, the plan is as whole as it gets.
+    plan, by, order = None, "names" if not files and to_read else "rules", ""
+    model = (provider or _ai.cards_from_env()) if files and ai and ai_on(subscription) and read else None
     if model is not None:
         language = _LANGUAGE_NAMES.get(language_of(subscription), "English")
-        by_week, whole = _plan_input(read, weeks)
-        system, prompt = _ai.plan_prompt(course, language, by_week, whole)
+        by_week, whole = _plan_input(read, weeks, every=reading.in_order)
+        system, prompt = _ai.plan_prompt(course, language, by_week, whole, in_order=reading.in_order)
         data = _ai.ask(
             _store(store),
             subscription.token,
@@ -16971,7 +17153,7 @@ def read_moodle_course(
         if plan is not None:
             by, order = "ai", _studyplan.clip((data or {}).get("order") or "", 400)
     if plan is None:
-        plan = _studyplan.rules_plan(weeks, read)
+        plan = _studyplan.rules_plan(weeks, read, continued=reading.in_order)
     options = dict(subscription.options)
     options["study_plans"] = {
         **(options.get("study_plans") or {}),
@@ -16979,16 +17161,25 @@ def read_moodle_course(
             "weeks": plan,
             "by": by,
             "order": order,
-            "files": len(read),
+            "files": len(read) if files else 0,
+            "pending": 0 if files else len(to_read),  # D211: files still to read
             "failed": failed,
             "left": left,
             "read": now.astimezone(UTC).isoformat(timespec="seconds"),
             "host": _host(site),
+            # D212: placed by its sections' order, spread over the weeks of lectures
+            "in_order": reading.in_order,
+            "steps": len({i.step for i in reading.items if i.ordered}),
         },
     }
     before = (options.get("topics") or {}).get(key) or {}
     if plan and (not before.get("items") or before.get("source") == "moodle"):
-        topics = [_syllabus.Topic(t["title"], week=w["number"]) for w in plan for t in w["topics"]]
+        topics = [
+            _syllabus.Topic(t["title"], week=w["number"])
+            for w in plan
+            if not w.get("continued")
+            for t in w["topics"]
+        ]
         options["topics"] = {
             **(options.get("topics") or {}),
             key: {
@@ -17001,7 +17192,8 @@ def read_moodle_course(
         }
     log_event(store, subscription.token, "moodle_read", by)
     summary = {
-        "files": len(read),
+        "pending": 0 if files else len(to_read),
+        "files": len(read) if files else 0,
         "failed": failed,
         "left": left,
         "weeks": len(plan),
@@ -17011,10 +17203,196 @@ def read_moodle_course(
     return replace(subscription, options=options), summary
 
 
-def study_plan_view(subscription: Subscription, index: int, now: datetime | None = None) -> dict | None:
+# D211: a course read in two goes. First its sections and files' names, in the time of one call
+# to Moodle, so a plan shows at once; then its files, in the background, the progress kept in its
+# own table (`moodle_reading`), apart from the plan's document, so that writing it every few files
+# never races the student's own changes. A reading that has not moved for `MOODLE_STALE` (the
+# server restarted meanwhile) is shown as stopped, to start again.
+MOODLE_KINDS = ("materials", "material_sources", "study_plans", "topics")
+MOODLE_STALE = timedelta(minutes=10)
+
+
+def _set_reading(store: str | os.PathLike, token: str, key: str, state: dict | None) -> None:
+    """Where the reading of a course's files stands, kept; None: no longer read."""
+    with _store(store).connection() as db:
+        if state is None:
+            db.execute("DELETE FROM moodle_reading WHERE token = ? AND course = ?", (token, key))
+            return
+        db.execute(
+            "INSERT OR REPLACE INTO moodle_reading (token, course, done, total, error, at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (token, key, state.get("done", 0), state.get("total", 0), state.get("error", ""), state["at"]),
+        )
+
+
+def _readings(store: str | os.PathLike | None, token: str) -> dict[str, dict]:
+    """Every course of a plan whose files are being read (or whose reading was refused)."""
+    if store is None:
+        return {}
+    with _store(store).connection() as db:
+        rows = db.execute(
+            "SELECT course, done, total, error, at FROM moodle_reading WHERE token = ?", (token,)
+        ).fetchall()
+    return {c: {"done": d, "total": t, "error": e, "at": a} for c, d, t, e, a in rows}
+
+
+def _merge_moodle_read(store: str | os.PathLike, token: str, read: Subscription) -> Subscription | None:
+    """What reading a course changed, merged into the plan as it is now, so an edit made
+    meanwhile stays."""
+    changed = {k: read.options[k] for k in MOODLE_KINDS if k in read.options}
+    for attempt in range(3):  # a minute's reading is worth trying again for
+        try:
+            return update_subscription(
+                store, token, lambda current: replace(current, options={**current.options, **changed})
+            )
+        except Conflict:
+            if attempt == 2:
+                raise
+    return None
+
+
+def plan_moodle_course(
+    store: str | os.PathLike,
+    token: str,
+    index: int,
+    *,
+    call: Callable[..., object] | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """D211, the first go: the course's plan from its sections and files' names, kept at once,
+    and the files marked as still to read. Returns `read_moodle_course`'s summary."""
+    now = now or datetime.now(UTC)
+    subscription = load_subscription(store, token)
+    if subscription is None:
+        raise InvalidInput(_("Not found"))
+    read, summary = read_moodle_course(store, subscription, index, call=call, now=now, files=False)
+    key = course_key(_topic_course(subscription, index))
+    _merge_moodle_read(store, token, read)
+    at = now.astimezone(UTC).isoformat(timespec="seconds")
+    _set_reading(store, token, key, {"total": summary["pending"], "at": at} if summary["pending"] else None)
+    return summary
+
+
+def read_moodle_files(
+    store: str | os.PathLike,
+    token: str,
+    index: int,
+    *,
+    call: Callable[..., object] | None = None,
+    fetch: Callable[..., bytes] | None = None,
+    provider: _ai.Provider | None = None,
+    clock: Callable[[], datetime] | None = None,
+) -> dict | None:
+    """D211, the second go, meant for the background: the course's files read and its plan
+    made again from them, the progress kept every few files. A refusal is kept in place of
+    the progress, for the pages to say. None when it failed."""
+    clock = clock or (lambda: datetime.now(UTC))
+    subscription = load_subscription(store, token)
+    if subscription is None:
+        return None
+    key = course_key(_topic_course(subscription, index))
+    shown = [0]
+
+    def progress(done: int, total: int) -> None:
+        if done - shown[0] >= 3 or done == total:
+            shown[0] = done
+            at = clock().astimezone(UTC).isoformat(timespec="seconds")
+            _set_reading(store, token, key, {"done": done, "total": total, "at": at})
+
+    try:
+        read, summary = read_moodle_course(
+            store,
+            subscription,
+            index,
+            call=call,
+            fetch=fetch,
+            provider=provider,
+            now=clock(),
+            progress=progress,
+        )
+    except ServiceError as error:
+        at = clock().astimezone(UTC).isoformat(timespec="seconds")
+        _set_reading(store, token, key, {"error": str(error), "at": at})
+        return None
+    _merge_moodle_read(store, token, read)
+    _set_reading(store, token, key, None)
+    return summary
+
+
+def _reading_state(state: dict | None, now: datetime) -> dict | None:
+    if not state:
+        return None
+    at = datetime.fromisoformat(state["at"]) if state.get("at") else now
+    if state.get("error"):
+        return {"error": state["error"], "done": 0, "total": 0, "stopped": False, "percent": 0}
+    total = int(state.get("total") or 0)
+    done = int(state.get("done") or 0)
+    return {
+        "error": "",
+        "done": done,
+        "total": total,
+        "stopped": now - at > MOODLE_STALE,
+        "percent": round(100 * done / total) if total else 0,
+    }
+
+
+def _moving(state: object) -> bool:
+    """A course's files still being read: not refused, not stopped."""
+    return isinstance(state, dict) and not state["error"] and not state["stopped"]
+
+
+def moodle_reading(
+    store: str | os.PathLike | None, subscription: Subscription, course: str, now: datetime | None = None
+) -> dict | None:
+    """Where the reading of a course's files stands (D211): `done` of `total`, a refusal
+    (`error`), or `stopped` when it has not moved for a while; None when nothing is being read."""
+    now = now or datetime.now(UTC)
+    return _reading_state(_readings(store, subscription.token).get(course_key(course)), now)
+
+
+def moodle_list(subscription: Subscription) -> list[dict]:
+    """D211: the student's courses on Moodle, as their key last read them, to choose from."""
+    return list((subscription.options.get("moodle_list") or {}).get("courses") or ())
+
+
+def moodle_readings(
+    store: str | os.PathLike, subscription: Subscription, now: datetime | None = None
+) -> dict:
+    """D211: every course whose files are being read, for the pages to follow: where each
+    stands, in words, and whether any is still moving."""
+    now = now or datetime.now(UTC)
+    kept = _readings(store, subscription.token)
+    courses = []
+    for index, name in enumerate(topic_courses(subscription)):
+        state = _reading_state(kept.get(course_key(name)), now)
+        if state is None:
+            continue
+        if state["error"]:
+            said = state["error"]
+        elif state["stopped"]:
+            said = _("The reading stopped: read it again.")
+        else:
+            said = _n(
+                "{done} of {n} file read",
+                "{done} of {n} files read",
+                state["total"],
+                done=state["done"],
+            )
+        courses.append({"index": index, "name": name, "said": said, **state})
+    return {"courses": courses, "reading": any(_moving(c) for c in courses)}
+
+
+def study_plan_view(
+    subscription: Subscription,
+    index: int,
+    now: datetime | None = None,
+    *,
+    store: str | os.PathLike | None = None,
+) -> dict | None:
     """A course's study plan (D208), week by week, for its page: each week's topics in
     order with their key points, what to know first, and how to study it; the current
-    week marked. None before the course was read from Moodle."""
+    week marked. None before the course was read from Moodle. With the `store`, how far
+    the reading of its files is (D211)."""
     now = now or datetime.now(UTC)
     course = _topic_course(subscription, index)
     kept = (subscription.options.get("study_plans") or {}).get(course_key(course))
@@ -17031,6 +17409,7 @@ def study_plan_view(subscription: Subscription, index: int, now: datetime | None
                 "now": monday <= today < monday + timedelta(days=7),
                 "past": monday + timedelta(days=7) <= today,
                 "topics": w.get("topics") or [],
+                "continued": w.get("continued"),  # D212: the week it goes on from
                 "needs": w.get("needs") or [],
                 "how": [
                     {
@@ -17045,6 +17424,13 @@ def study_plan_view(subscription: Subscription, index: int, now: datetime | None
     read = datetime.fromisoformat(kept["read"])
     return {
         "weeks": weeks,
+        "by_names": kept.get("by") == "names",  # D211: from the files' names, the files still to read
+        # D212: a course whose Moodle gives an order, not weeks: its steps spread over the weeks
+        "in_order": bool(kept.get("in_order")),
+        "steps": kept.get("steps", 0),
+        "teaching": len(_teaching(subscription, course)[0]),
+        "pending": kept.get("pending", 0),
+        "reading": moodle_reading(store, subscription, course, now),
         "by_ai": kept.get("by") == "ai",
         "order": kept.get("order") or "",
         "files": kept.get("files", 0),
@@ -17085,28 +17471,44 @@ def week_study(subscription: Subscription, course: str, now: datetime | None = N
 # cant find it". Planning a course from Moodle takes three steps spread over two pages (a
 # course's Moodle card, Connections) and one more on Moodle itself; the guide puts them on
 # one page, in order, says which are done, and starts the next one from where it is.
-MOODLE_GUIDE_STEPS = ("link", "key", "read")
+MOODLE_GUIDE_STEPS = ("key", "link", "read")  # D211: the key first, as it finds the courses
 MOODLE_EXAMPLE = "https://moodle.your-university.edu"  # an address for the pictures, no site
 
 
-def moodle_guide_view(subscription: Subscription) -> dict:
+def moodle_guide_view(
+    subscription: Subscription, *, store: str | os.PathLike | None = None, now: datetime | None = None
+) -> dict:
     """D209: the way to a course's study plan from Moodle, step by step, and where the
-    student is on it: a course linked to its page (D163), the key given once (D208), a
-    course read and planned. Each course says what it still needs; `next` is the first
-    step not done, None once a course has its plan."""
+    student is on it: the key given once (D208; first since D211, as it finds the courses),
+    a course linked to its page (D163), a course read and planned. Each course says what it
+    still needs; `next` is the first step not done, None once a course has its plan. With the
+    `store`, how far each course's files are read (D211)."""
+    now = now or datetime.now(UTC)
+    readings = _readings(store, subscription.token)
     options = subscription.options
     linked = options.get("moodle_courses") or {}
     plans = options.get("study_plans") or {}
     key = moodle_key_view(subscription)
-    courses = [
-        {
-            "index": index,
-            "name": name,
-            "linked": course_key(name) in linked,
-            "planned": course_key(name) in plans,
-        }
-        for index, name in enumerate(topic_courses(subscription))
-    ]
+    listed = options.get("moodle_list") or {}
+    names = {int(c["id"]): c["name"] for c in listed.get("courses") or ()}
+    courses = []
+    for index, name in enumerate(topic_courses(subscription)):
+        entry = linked.get(course_key(name)) or {}
+        plan = plans.get(course_key(name)) or {}
+        courses.append(
+            {
+                "index": index,
+                "name": name,
+                "linked": bool(entry),
+                # D211: found by the key and matched by its name, and Moodle's own name for it
+                "found": bool(entry.get("found")),
+                "moodle_name": names.get(int(entry["id"])) if entry else None,
+                "moodle_id": int(entry["id"]) if entry else None,
+                "planned": bool(plan),
+                "by_names": plan.get("by") == "names",
+                "reading": _reading_state(readings.get(course_key(name)), now),
+            }
+        )
     done = {
         "link": any(c["linked"] for c in courses),
         "key": key["linked"],
@@ -17119,6 +17521,15 @@ def moodle_guide_view(subscription: Subscription) -> dict:
         "done": sum(done.values()),
         "next": next((step for step in MOODLE_GUIDE_STEPS if not done[step]), None),
         "courses": courses,
+        "list": listed.get("courses") or [],  # D211: the student's courses, as their key read them
+        "lists": bool((options.get("moodle_key") or {}).get("lists")),
+        "reading": any(_moving(c["reading"]) for c in courses),
+        # Linked and not planned from their files yet, nor being read now: "Plan all my courses".
+        "to_plan": [
+            c
+            for c in courses
+            if c["linked"] and (not c["planned"] or c["by_names"]) and not _moving(c["reading"])
+        ],
         "planned": [c for c in courses if c["planned"]],
         "to_read": first,  # the first course linked and not yet read
         "key": key,

@@ -8425,3 +8425,128 @@ makes the voices of a café or a log that cracks.
 - Whether any sound helps focus was not measured, and the page claims nothing.
 - Checked in Chromium only: each sound plays, the loudness was measured at the output, and a refused
   download plays the browser's own version. Not tried on a phone's speaker nor in Safari.
+
+## D211. Moodle without copying and pasting, and fast
+
+**Asked.** The owner, trying D209's guide on their own Moodle: "it's taking ages to plan this", "it takes
+time to copy and paste everything", "all the links from all courses".
+
+**Why it was slow.** D208 read a course in one request: every file downloaded one after the other, each PDF
+read whole with the layout reading meant for flashcards (D151, D166), then the plan. The page waited for
+all of it, a minute or more on a small server, with a spinner. And each course had to be opened on Moodle
+and its address pasted, one by one.
+
+**Chosen.**
+- **The key comes first and finds the courses.** With the key, Moodle's mobile web service lists the
+  courses the student is enrolled in (`core_enrol_get_users_courses`, read-only, given the student's own
+  number from `core_webservice_get_site_info`).
+  - Each plan course not yet linked is linked to the Moodle course whose name holds all its words
+    (`studyplan.match_courses`): folded, a Roman numeral as its number, small words in seven languages
+    dropped, a capital letter alone kept as a group's label ("Statistics A" is not "Statistics B").
+  - The closest wins when several hold the words (fewest left over); the most specific plan course chooses
+    first ("Algebra 3" before "Algebra"); two as close, or none, are left to the student.
+  - A course already linked is never taken over.
+  - The rest are chosen from the list in a menu, on the guide and on the course's Moodle card; pasting an
+    address stays, for a Moodle that does not list courses.
+  - The key may now be given before any course is linked, with the Moodle's address typed beside it; the
+    link to its Security keys page follows the address as it is typed.
+  - The guide's steps are now: the key, the courses linked, the courses planned.
+- **A plan at once, then a fuller one.** "Read and plan" answers in the time of one call to Moodle: the plan
+  from the course's sections and its files' names (`read_moodle_course(files=False)`, `by: "names"`), and
+  the number of files still to read. The files are then read after the page has answered, in the background
+  (`read_moodle_files`), and the plan made again from their text.
+  - Files are downloaded six at a time (`MOODLE_READERS`).
+  - A PDF is read for its plain text up to 12,000 characters (`notefiles.QUICK_CHARS`), its first pages,
+    the pages after not even opened; the layout's reading stays for flashcards.
+  - How far it is ("12 of 24 files read") is kept every three files in its own table (`moodle_reading`),
+    apart from the plan's document: written there, it raced the student's own changes (in a test, a language
+    changed while the files were read failed on a conflict), so a reading never blocks an edit.
+  - The pages show it: the guide and the course's page have a meter, moved every three seconds by `ui.js`
+    from `/p/<plan>/moodle/reading`, and the page loads again once the course is read. Without the script,
+    a link shows how far it is.
+  - Moodle's refusal is kept in its place and said; a reading that has not moved for ten minutes (the
+    server restarted meanwhile) is shown as stopped, with "Read it again".
+  - Whatever the student changed meanwhile stays: only the course's materials, plan and topics are merged
+    into the plan as it is then.
+- **"Plan all my courses" in one tap** on the guide: every linked course not yet planned from its files,
+  each planned from its names at once, their files read one course after the other.
+- **The demo's made-up Moodle lists six courses** (both years', as a second-year student's Moodle still
+  lists the first), each with made-up weeks, so "Plan all my courses" works in the demo.
+
+**Rejected.**
+- **Waiting with a spinner while reading faster:** however fast, a course of sixty files on a small server
+  takes long enough to look broken.
+- **Reading only the files' names:** the model needs their text for a plan worth having (D208).
+- **Keeping the progress in the plan's document:** see above.
+- **Linking courses by their codes:** a timetable's export rarely carries Moodle's course code; their names
+  come from the same catalogue.
+
+**Disclosed.**
+- Matching is by the words of the names, tried on names written for the tests and the demo, not on a real
+  university's list; a course named differently on the timetable and on Moodle is left to the student.
+- The list read is kept with the plan (names and numbers, at most 80); the privacy page says so (the
+  owner's to approve, C2).
+- A reading in the background lives in the server's process: a restart stops it, and the page says so.
+- Six at once, three seconds, three files, ten minutes and 12,000 characters are choices, not measured.
+- Tried against a made-up Moodle only. Checked in Chromium only, at 1280 px and phone size, light and dark.
+
+## D212. Moodle as each teacher uses it: the weeks when it says them, else its order
+
+**Asked.** The owner, after D211: "none of our professors uses moodle in a homogeneous standardised way, so
+we need to take into account that moodle only serves to parse lecture materials week by week if done
+properly or else just for the topic progression, whilst we want to maintain the flexibility in case one
+day the app is deployed to institutions that do use it as it should be used. again, in our uni moodle is
+not used to schedule exams or deadlines".
+
+**What D174 and D208 did.** A course's materials were placed by what their sections and names say: a date
+or a week ("28 settembre - 4 ottobre", "Week 3"), a lecture's number ("Vorlesung 2", "L3", "Slides_03").
+A course kept as many teachers keep theirs, a section per chapter or topic ("Integrali", "Chapter 3:
+Series") or every file in the first section, placed nothing: everything went to "the whole course", and
+the plan had no week.
+
+**Chosen.**
+- **Two ways to read a course, chosen by the course itself** (`coursepages._in_order`), for Moodle's web
+  service (D208) and a saved Moodle page (D174) alike:
+  - the sections that hold material are counted; when half of them or more place something (a week, a
+    day, a lecture), the course is read by its weeks, as before;
+  - else it gives an order: each section is a step of the course (`Material.step`), and every file in it
+    goes with it, whatever number it carries;
+  - with every file in the first section and nothing naming a week, each file is a step, in order; what
+    names the whole course (a syllabus, a course guide, a reading list, a calendar, in five languages)
+    stays for the whole course, and fewer than three files make no order;
+  - exam practice stays on its shelf either way.
+- **An order is spread over the weeks of lectures** (`service._material_places`), as a list without weeks
+  is (D187): each step starts in the week where its share of the timetable's lecture hours begins.
+  - The rules' plan goes on from the last step in the weeks between (`rules_plan(continued=True)`), each
+    such week saying "going on from week N", so every week of lectures has its part; the sessions' topics
+    take each step once.
+  - The model is told that the files were spread and is given every week, those without files too, to
+    plan them all in the materials' order (`ai.plan_prompt(in_order=True)`).
+  - The plan and the course's materials say it: "This course's Moodle gives its order, not its weeks";
+    a file is moved to another week on the materials' page (D174's move), and stays there when the course
+    is read again.
+- **A Moodle that names its weeks is read as before:** an institution that keeps Moodle week by week, with
+  dates or numbered lectures, gets its weeks (the generality cases of D174 are unchanged, and now also say
+  they are not read in order).
+- **Exams and deadlines never come from a course on Moodle.** Exams come from the timetable, or the student
+  adds them; deadlines the student adds, or from Moodle's calendar (D148) only where teachers use it. The
+  guide says so; setting up's "From Moodle" and Connections' row now say "only if your teachers put
+  deadlines on Moodle's calendar", and Connections no longer lights its button when the calendar is not
+  linked.
+- **The demo shows both:** Algebra is kept week by week, Advanced Statistics and Probability Theory a
+  section per topic with no week named.
+
+**Rejected.**
+- **Asking the student how each course's Moodle is kept:** the sections say it, and the plan says what was
+  read; a question per course is friction (D165).
+- **Weighting each step by its number of files:** a chapter with ten exercise sheets is not ten times as
+  long; each step has an equal share of the hours, as D187's chapters do.
+- **Reading a section's number as its week** ("Topic 3", "Section 3", Moodle's default names): a topics
+  course's third section is its third subject, not its third week.
+
+**Disclosed.**
+- Half the sections, three files and the course-wide words are choices; tried on Moodle pages and web
+  service answers written for the tests and the demo, not on a real university's courses.
+- An even pace no course keeps: a long chapter gets the same weeks as a short one until the student moves
+  its files.
+- Checked in Chromium only, at 1280 px and phone size, light and dark.

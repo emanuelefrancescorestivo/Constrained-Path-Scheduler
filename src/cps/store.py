@@ -301,6 +301,20 @@ CREATE TABLE IF NOT EXISTS course_texts (
     read   TEXT NOT NULL,
     PRIMARY KEY (token, course, item)
 );
+-- D211: how far the reading of a course's files on Moodle is, while the server reads them
+-- after the page has answered: the files read of all, or Moodle's refusal, and when. Kept
+-- apart from the plan's document, so that writing it every few files never races the
+-- student's own changes to their plan. The row goes once the course is read; it is not in
+-- the plan's copy (it says nothing the plan does not), and goes with the plan (`_FORGET`).
+CREATE TABLE IF NOT EXISTS moodle_reading (
+    token  TEXT NOT NULL,
+    course TEXT NOT NULL,
+    done   INTEGER NOT NULL DEFAULT 0,
+    total  INTEGER NOT NULL DEFAULT 0,
+    error  TEXT NOT NULL DEFAULT '',
+    at     TEXT NOT NULL,
+    PRIMARY KEY (token, course)
+);
 -- A class's link (D104): what a student's courses hold (their topics, and what a
 -- course page or the semester's program said of them), offered to whoever has the
 -- link, read from the plan when the link is opened. One per plan; a new one replaces
@@ -476,6 +490,7 @@ _FORGET = (
     "DELETE FROM feedback WHERE token = :t",
     "DELETE FROM course_topics WHERE token = :t",
     "DELETE FROM course_texts WHERE token = :t",  # D208
+    "DELETE FROM moodle_reading WHERE token = :t",  # D211
     "DELETE FROM class_links WHERE token = :t",
     "DELETE FROM usage WHERE token = :t",
     "DELETE FROM usage_consent WHERE token = :t",

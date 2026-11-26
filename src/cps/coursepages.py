@@ -192,10 +192,17 @@ class Material:
     lecture: int | None = None
     day: str | None = None
     shelf: str = "course"  # where it stays when nothing places it: the whole course, or "exams"
+    # D212: its place in the course's progression (its section's, from 1), when the course's
+    # Moodle gives an order and not the weeks; spread over the weeks of lectures by `service`.
+    step: int | None = None
 
     @property
     def placed(self) -> bool:
         return self.shelf != "exams" and (self.week is not None or self.lecture is not None or bool(self.day))
+
+    @property
+    def ordered(self) -> bool:
+        return self.shelf != "exams" and self.step is not None
 
     def topic(self) -> syllabus.Topic:
         return syllabus.Topic(self.title, self.week, self.lecture, self.day)
@@ -214,6 +221,7 @@ class Reading:
     site: str | None = None
     course_id: int | None = None
     unresolved: int = 0
+    in_order: bool = False  # D212: placed by the order of its sections, not by weeks it names
 
 
 # --------------------------------------------------------------------------- #
@@ -469,6 +477,56 @@ class _Marking:
         return name
 
 
+# D212: the owner, 2026-11-26: "none of our professors uses moodle in a homogeneous standardised
+# way ... moodle only serves to parse lecture materials week by week if done properly or else just
+# for the topic progression". A course whose sections name their weeks, days or lectures is placed
+# by them, as before; one whose sections do not (a section per chapter or topic, named or not, or
+# every file in the first section) gives its order only: each section is a step of the course,
+# spread over its weeks of lectures by `service`, as a list without weeks is (D187). Which one is
+# decided by the sections that hold material: under half of them placing anything is an order.
+# In the first section alone, what names the whole course (a syllabus, a reading list, a
+# calendar) stays for the whole course; `ORDER_LEAST` files at least make an order there.
+ORDER_LEAST = 3
+_COURSE_WIDE = re.compile(
+    r"\b(syllab\w*|sillab\w*|program(?:me|ma|a|m)?|course (?:guide|information|outline)|guida|"
+    r"guide (?:du cours|de l'etudiant)|guia docente|plan de cours|bibliogra\w*|reading list|textbooks?|"
+    r"manuel|libro di testo|calend\w*|schedule|orario|regolamento|rules|announcements?|avvisi|annonces?|"
+    r"anuncios|forum|info(?:rmation)?s?)\b"
+)
+
+
+def _in_order(items: list[Material], steps: list[object]) -> tuple[list[Material], bool]:
+    """The items, each given its section's place in the course when its sections give an
+    order and not the weeks (D212), and whether they do. `steps` names each item's section,
+    None for the first one ("General")."""
+    holding = list(
+        dict.fromkeys(
+            k for item, k in zip(items, steps, strict=True) if k is not None and item.shelf != "exams"
+        )
+    )
+    marked = {k for item, k in zip(items, steps, strict=True) if k is not None and item.placed}
+    if len(holding) >= 2 and 2 * len(marked) < len(holding):
+        rank = {k: n for n, k in enumerate(holding, start=1)}
+        return [
+            replace(item, week=None, lecture=None, day=None, step=rank[k])
+            if k in rank and item.shelf != "exams"
+            else item
+            for item, k in zip(items, steps, strict=True)
+        ], True
+    if holding or any(item.placed for item in items):
+        return items, False
+    # Every file in the first section, nothing naming a week: the files in their order.
+    flat = [
+        n
+        for n, item in enumerate(items)
+        if item.shelf != "exams" and not _COURSE_WIDE.search(folded(item.title))
+    ]
+    if len(flat) < ORDER_LEAST:
+        return items, False
+    rank = {n: r for r, n in enumerate(flat, start=1)}
+    return [replace(item, step=rank[n]) if n in rank else item for n, item in enumerate(items)], True
+
+
 def sections(
     name: str,
     site: str,
@@ -480,6 +538,7 @@ def sections(
     page saved from Moodle (`moodle`)."""
     marking = _Marking()
     items: list[Material] = []
+    steps: list[object] = []
     for section_name, number, activities in found:
         section_name = _clean(section_name)
         mark = marking(section_name) if number != 0 else section_name
@@ -493,7 +552,9 @@ def sections(
                 continue
             item = Material(title, url, kind, section_name)
             items.append(_placed(item, names, numbered=number != 0))
-    return Reading("moodle", name, tuple(_unique(items)), site.rstrip("/"), course_id)
+            steps.append(number if number != 0 else None)
+    items, in_order = _in_order(items, steps)
+    return Reading("moodle", name, tuple(_unique(items)), site.rstrip("/"), course_id, in_order=in_order)
 
 
 def moodle(html: str) -> Reading | None:
@@ -509,6 +570,7 @@ def moodle(html: str) -> Reading | None:
     title = _title_of(root)
     name = _clean(re.sub(r"\s*\|\s*[^|]*$", "", title.split(":", 1)[-1] if ":" in title else title))
     items: list[Material] = []
+    steps: list[object] = []
     marking = _Marking()
 
     def walk(node: _Node, path: tuple[tuple[str, int | None, str], ...]) -> None:
@@ -544,14 +606,17 @@ def moodle(html: str) -> Reading | None:
             group = next((n for n, _, _ in reversed(path) if n), "")
             item = Material(title, url, kind, group)
             items.append(_placed(item, names, numbered=not general))
+            steps.append(None if not path or general else (path[0][1], path[0][0]))
 
     walk(root, ())
+    items, in_order = _in_order(items, steps)
     return Reading(
         "moodle",
         name,
         tuple(_unique(items)),
         site,
         int(number.group(1)) if number else None,
+        in_order=in_order,
     )
 
 

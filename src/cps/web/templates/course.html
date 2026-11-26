@@ -16,6 +16,7 @@
 {# D163: the course on Moodle, one tap from here. Linked once by pasting its address;
    Moodle keeps its own sign-in, the app keeps the address only. #}
 {% from "_art.html" import art %}
+{% from "_moodle_reading.html" import reading %}
 {% set m = v.moodle %}{% set md = moodle_draft or {} %}
 <section class="card moodle-card" id="moodle" aria-labelledby="moodle-title">
   <div class="materials-head">{{ art("cap") }}<div class="grow">
@@ -40,11 +41,15 @@
   </details>
   {# D208: the course's files read with the student's key, and a study plan made from them. #}
   <div class="moodle-read">
-    {% if moodle_key.linked %}
+    {% if moodle_key.linked and plan and plan.reading and not plan.reading.error and not plan.reading.stopped %}
+    {# D211: the files being read in the background; the plan below is from their names. #}
+    <div data-reading="/p/{{ token }}/moodle/reading">{{ reading(token, v.index, plan.reading) }}</div>
+    {% elif moodle_key.linked %}
+    {% if plan and plan.reading %}{{ reading(token, v.index, plan.reading) }}{% endif %}
     <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle/read">
       <button type="submit" class="btn btn-primary btn-block">{{ lucide('sparkles') }}{% if plan %}{{ _("Read it again and update the plan") }}{% else %}{{ _("Read its materials and plan the study") }}{% endif %}</button>
     </form>
-    <p class="hint">{{ _("The app downloads the course's files with your key, reads them and keeps their text, not the files. It takes up to a minute.") }}</p>
+    <p class="hint">{{ _("The plan shows at once from the files' names; the app then downloads the files with your key, reads them and keeps their text, not the files.") }}</p>
     {% else %}
     <details class="moodle-key-ask">
       <summary>{{ _("Plan the study from its materials") }}</summary>
@@ -54,6 +59,16 @@
     {% endif %}
   </div>
   {% else %}
+  {% if moodle_list %}{# D211: one of the courses the student's key found, without pasting #}
+  <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle" class="found-pick">
+    <label for="moodle-pick">{{ _("Which course is it on Moodle?") }}</label>
+    <div class="row-input"><select id="moodle-pick" name="moodle_id" required>
+      <option value="">{{ _("Choose…") }}</option>
+      {% for c in moodle_list %}<option value="{{ c.id }}">{{ c.name }}{% if c.short and c.short not in c.name %} · {{ c.short }}{% endif %}</option>{% endfor %}
+    </select><button type="submit" class="btn">{{ _("Link") }}</button></div>
+  </form>
+  <p class="hint">{{ _("Not in the list? Paste its address instead.") }}</p>
+  {% endif %}
   {% if m.find %}<p><a class="btn btn-tinted" href="{{ m.find }}" rel="noopener noreferrer" target="_blank">{{ _("Find it on Moodle") }} ↗</a></p>{% endif %}
   <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle" class="inline-form moodle-link">
     <label for="moodle-address">{% if m.find %}{{ _("Then paste the course's address here") }}{% else %}{{ _("Open the course on Moodle and paste its address here") }}{% endif %}</label>
@@ -69,13 +84,15 @@
    the order to learn them, what to know first, and how to study it. #}
 {% if plan %}
 <section class="section study-plan" id="study-plan" aria-labelledby="study-plan-title">
-  <div class="section-title"><h2 id="study-plan-title">{{ _("Study plan") }}</h2><small>{{ _n("from {n} file on Moodle", "from {n} files on Moodle", plan.files) }} · {{ plan.read }}</small></div>
+  <div class="section-title"><h2 id="study-plan-title">{{ _("Study plan") }}</h2><small>{% if plan.by_names %}{{ _n("from the names of {n} file on Moodle", "from the names of {n} files on Moodle", plan.pending) }}{% else %}{{ _n("from {n} file on Moodle", "from {n} files on Moodle", plan.files) }}{% endif %} · {{ plan.read }}</small></div>
   {% if plan.order %}<p class="plan-order">{{ plan.order }}</p>{% endif %}
+  {# D212: a teacher's Moodle that gives the order of the course and not its weeks. #}
+  {% if plan.in_order %}<p class="hint plan-spread">{{ lucide('layers') }}<span>{{ _n("This course's Moodle gives its order, not its weeks: the app spread its {n} part over your {weeks} weeks of lectures.", "This course's Moodle gives its order, not its weeks: the app spread its {n} parts over your {weeks} weeks of lectures.", plan.steps, weeks=plan.teaching) }} <a href="/p/{{ token }}/courses/{{ v.index }}/materials">{{ _("Move a file to another week") }}</a></span></p>{% endif %}
   <ol class="plan-weeks">
     {% for w in plan.weeks %}
     <li class="card plan-week{% if w.now %} is-now{% elif w.past %} is-past{% endif %}">
       <details{% if w.now or (loop.first and not plan.weeks | selectattr("now") | list) %} open{% endif %}>
-        <summary><b>{{ w.label }}</b>{% if w.now %} <span class="pill-now">{{ _("This week") }}</span>{% endif %}<small>{{ w.topics | map(attribute="title") | join(" · ") }}</small></summary>
+        <summary><b>{{ w.label }}</b>{% if w.now %} <span class="pill-now">{{ _("This week") }}</span>{% endif %}{% if w.continued %} <small class="plan-cont">{{ _("going on from week {n}", n=w.continued) }}</small>{% endif %}<small>{{ w.topics | map(attribute="title") | join(" · ") }}</small></summary>
         <ol class="plan-topics">{% for t in w.topics %}<li><b>{{ t.title }}</b>{% if t.points %}<ul>{% for p in t.points %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ol>
         {% if w.needs %}<p class="plan-needs"><b>{{ _("First:") }}</b> {{ w.needs | join(" · ") }}</p>{% endif %}
         {% if w.how %}<ul class="plan-how">{% for h in w.how %}<li class="how-{{ h.kind }}"><b>{{ h.name }}</b><span>{{ h.what }}</span></li>{% endfor %}</ul>{% endif %}
@@ -83,7 +100,7 @@
     </li>
     {% endfor %}
   </ol>
-  <p class="hint">{% if plan.by_ai %}{{ _("Written by Claude Haiku from the course's files: it may miss or mix things up, so check it against them.") }}{% else %}{{ _("Made by the app's rules from the files' names and headings.") }}{% if plan.ai_offer %} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn on AI for a fuller plan") }}</a>{% endif %}{% endif %}{% if plan.failed %} {{ _n("{n} file could not be read.", "{n} files could not be read.", plan.failed) }}{% endif %}{% if plan.left %} {{ _n("{n} more file was left out: the app reads at most 60.", "{n} more files were left out: the app reads at most 60.", plan.left) }}{% endif %}</p>
+  <p class="hint">{% if plan.by_names %}{{ _("Made by the app's rules from the course's sections and the files' names, while their text is read.") }}{% elif plan.by_ai %}{{ _("Written by Claude Haiku from the course's files: it may miss or mix things up, so check it against them.") }}{% else %}{{ _("Made by the app's rules from the files' names and headings.") }}{% if plan.ai_offer %} <a href="/p/{{ token }}/settings/data#ai">{{ _("Turn on AI for a fuller plan") }}</a>{% endif %}{% endif %}{% if plan.failed %} {{ _n("{n} file could not be read.", "{n} files could not be read.", plan.failed) }}{% endif %}{% if plan.left %} {{ _n("{n} more file was left out: the app reads at most 60.", "{n} more files were left out: the app reads at most 60.", plan.left) }}{% endif %}</p>
 </section>
 {% endif %}
 

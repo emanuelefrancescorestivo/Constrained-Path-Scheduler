@@ -13,7 +13,9 @@
   <label for="deadlines_url">{{ _("Your learning platform's calendar link (Moodle)") }}</label>
   {% endif %}
   <input id="deadlines_url" name="deadlines_url" type="url" inputmode="url" value="{{ values.deadlines_url or '' }}" placeholder="https://…/calendar/export_execute.php?…">
-  <p class="hint">{{ _("In Moodle: Calendar, Export calendar, All courses, Recent and next 60 days, Get calendar URL. Assignments and quizzes due appear below by themselves, at 2 hours each until you change it.") }}</p>
+  {# AUDIT 138: Moodle's own words in the student's language, and which link to copy. #}
+  {% set mw = moodle_words() %}
+  <p class="hint">{{ _h("In Moodle: <b>{calendar}</b>, <b>{export}</b>, <b>{events}</b>, <b>{period}</b>, then <b>{button}</b>. Copy the link Moodle then shows below the button, not the address bar's.", calendar=mw.calendar, export=mw.export, events=mw.events, period=mw.period, button=mw.button) }} {{ _("Assignments and quizzes due appear below by themselves, at 2 hours each until you change it.") }}</p>
   {% if values.deadlines_error %}<p class="error">{{ _("The learning platform's link could not be read: {error}", error=values.deadlines_error) }}</p>{% endif %}
   {% for t in values.tasks %}
   <div class="item">

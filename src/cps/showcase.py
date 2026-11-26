@@ -665,9 +665,77 @@ DEMO_COURSES = {"2": 4021, "1": 1011}  # the algebra course's number, by year
 _DEMO_FILE = re.compile(r"/webservice/pluginfile\.php/(\d+)/mod_resource/content/0/([a-z0-9-]+\.md)")
 
 
+# D211: the made-up Moodle's other courses, so a key finds a student's whole list and "Plan all
+# my courses" has something to plan: both years', as a second-year student's Moodle still lists
+# their first year. Their topics are a course's usual ones, written for the demo.
+_DEMO_OTHERS: dict[int, tuple[str, tuple[str, ...]]] = {
+    4022: (
+        "Advanced Statistics",
+        (
+            "Estimators and their bias",
+            "Confidence intervals",
+            "Hypothesis tests",
+            "Linear regression",
+            "Analysis of variance",
+            "Non-parametric tests",
+        ),
+    ),
+    4023: (
+        "Analysis 3",
+        (
+            "Metric spaces",
+            "Continuity and compactness",
+            "Differentiation in several variables",
+            "Implicit functions",
+            "Multiple integrals",
+            "Change of variables",
+        ),
+    ),
+    1012: (
+        "Analysis 1",
+        (
+            "Real numbers",
+            "Sequences and limits",
+            "Series",
+            "Continuous functions",
+            "Derivatives",
+            "Integrals",
+        ),
+    ),
+    1013: (
+        "Probability Theory",
+        (
+            "Events and probability",
+            "Conditional probability",
+            "Random variables",
+            "Expectation and variance",
+            "Common distributions",
+            "The law of large numbers",
+        ),
+    ),
+}
+DEMO_USER = 7  # the student's number on the made-up Moodle, as its site information gives it
+# D212: two of them kept as many teachers keep theirs, a section per topic and no week named,
+# so the demo shows a course planned in its order and spread over its weeks of lectures.
+DEMO_IN_ORDER = frozenset({4022, 1013})
+
+
 def _demo_topics(number: int) -> list[str]:
+    if number in _DEMO_OTHERS:
+        return list(_DEMO_OTHERS[number][1])
     study = next(y for key, y in YEARS.items() if DEMO_COURSES[key] == number)
     return [line.split(": ", 1)[1] for line in study.program.splitlines()]
+
+
+def _demo_list() -> list[dict]:
+    """What `core_enrol_get_users_courses` answers on the made-up Moodle: every course, with
+    a name and a code as a university's Moodle writes them."""
+    names = {DEMO_COURSES[key]: y.algebra for key, y in YEARS.items()}
+    names.update({number: name for number, (name, _topics) in _DEMO_OTHERS.items()})
+    return [
+        {"id": number, "fullname": f"{name} · 2026–27", "shortname": f"MATH-{number}", "visible": 1}
+        for number, name in sorted(names.items())
+    ]
 
 
 def _demo_contents(number: int) -> list[dict]:
@@ -712,12 +780,17 @@ def _demo_contents(number: int) -> list[dict]:
     }
     out = [general]
     topics = _demo_topics(number)
+    by_topic = number in DEMO_IN_ORDER
     for n, topic in enumerate(topics, 1):
         cmid = number * 100 + n * 10
-        modules = [resource(cmid, f"Lecture {n} · {topic}", f"lecture-{n:02d}.md", 2400)]
+        lecture = f"Slides · {topic}" if by_topic else f"Lecture {n} · {topic}"
+        modules = [resource(cmid, lecture, f"lecture-{n:02d}.md", 2400)]
         if n < len(topics):
-            modules.append(resource(cmid + 1, f"Exercise sheet {n}", f"exercises-{n:02d}.md", 1200))
-        out.append({"id": n, "name": f"Week {n} · {topic}", "section": n, "modules": modules})
+            sheet = f"Exercises · {topic}" if by_topic else f"Exercise sheet {n}"
+            modules.append(resource(cmid + 1, sheet, f"exercises-{n:02d}.md", 1200))
+        out.append(
+            {"id": n, "name": topic if by_topic else f"Week {n} · {topic}", "section": n, "modules": modules}
+        )
     out.append(
         {
             "id": len(topics) + 1,
@@ -754,10 +827,17 @@ def demo_moodle_call(site: str, key: str, function: str, params: dict | None = N
     if key != DEMO_KEY:
         raise service.MoodleError("Invalid token - token not found", "invalidtoken")
     if function == "core_webservice_get_site_info":
-        names = ("core_webservice_get_site_info", "core_course_get_contents")
-        return {"sitename": "Moodle (made up for the demo)", "functions": [{"name": n} for n in names]}
+        names = ("core_webservice_get_site_info", "core_course_get_contents", "core_enrol_get_users_courses")
+        return {
+            "sitename": "Moodle (made up for the demo)",
+            "userid": DEMO_USER,
+            "functions": [{"name": n} for n in names],
+        }
+    if function == "core_enrol_get_users_courses" and (params or {}).get("userid") == DEMO_USER:
+        return _demo_list()
     number = int((params or {}).get("courseid") or 0)
-    if function != "core_course_get_contents" or number not in DEMO_COURSES.values():
+    known = {*DEMO_COURSES.values(), *_DEMO_OTHERS}
+    if function != "core_course_get_contents" or number not in known:
         raise service.MoodleError("Course or activity not accessible.", "requireloginerror")
     return _demo_contents(number)
 

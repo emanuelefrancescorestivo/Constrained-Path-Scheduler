@@ -1,0 +1,21 @@
+{# D211: how far the reading of a course's files is. The plan from the files' names is
+   already there; the files are read in the background, and this follows them: ui.js asks
+   /moodle/reading every few seconds and moves the meter, and loads the page again once the
+   course is read. Without the script, the link shows how far it is now. `r` is
+   service.moodle_reading, `index` the course's. #}
+{% macro reading(token, index, r, back="") -%}
+<div class="moodle-reading{% if r.error %} is-error{% elif r.stopped %} is-stopped{% endif %}" data-reading-course="{{ index }}" role="status">
+  {% if r.error %}
+  <p class="error">{{ r.error }}</p>
+  {% elif r.stopped %}
+  <p>{{ _("The reading stopped: read it again.") }}</p>
+  {% else %}
+  <p class="reading-said">{{ lucide('hourglass') }}<span data-said>{{ _n("{done} of {n} file read", "{done} of {n} files read", r.total, done=r.done) }}</span></p>
+  <div class="meter"><span class="fill w{{ (r.percent // 10) * 10 }}" data-fill></span></div>
+  <p class="hint">{{ _("The plan is ready from the files' names; it gets fuller once their text is read. You can leave this page.") }} <a href="" data-reading-again>{{ _("See how far it is") }}</a></p>
+  {% endif %}
+  {% if r.error or r.stopped %}
+  <form method="post" action="/p/{{ token }}/courses/{{ index }}/moodle/read">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button type="submit" class="btn btn-sm btn-tinted">{{ lucide('repeat') }}{{ _("Read it again") }}</button></form>
+  {% endif %}
+</div>
+{%- endmacro %}

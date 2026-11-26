@@ -44,9 +44,10 @@ class Extracted:
     read: int  # the pages read, at most MAX_PAGES
 
 
-def text(data: bytes, *, maths: bool = False) -> Extracted:
+def text(data: bytes, *, maths: bool = False, most: int = MAX_CHARS) -> Extracted:
     """The text of a PDF's pages, a line break between two pages. With `maths` (notes
-    made into cards, D151), each page as `maths_text` reads it."""
+    made into cards, D151), each page as `maths_text` reads it. Reading stops once `most`
+    characters are found (D211: a study plan needs a file's first pages only)."""
     if len(data) > MAX_BYTES:
         raise PdfError("large")
     if b"%PDF-" not in data[:1024]:
@@ -67,13 +68,13 @@ def text(data: bytes, *, maths: bool = False) -> Extracted:
             found = maths_text(page) if maths else page.extract_text() or ""
             out.append(found)
             size += len(found)
-            if size >= MAX_CHARS:
+            if size >= min(most, MAX_CHARS):
                 break
     except PdfError:
         raise
     except Exception as exc:  # pypdf raises many kinds on a damaged file
         raise PdfError("unreadable") from exc
-    joined = "\n".join(out)[:MAX_CHARS]
+    joined = "\n".join(out)[: min(most, MAX_CHARS)]
     if not joined.strip():
         raise PdfError("empty")
     return Extracted(joined, count, len(out))

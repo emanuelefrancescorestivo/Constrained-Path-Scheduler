@@ -41,6 +41,7 @@ MAX_BYTES = pdftext.MAX_BYTES  # 10 MB: a deck with pictures; the pictures are n
 MAX_UNZIPPED = 25 * 1024 * 1024  # all the XML parts read, unzipped
 MAX_PARTS = 300  # slides of a deck read
 MAX_CHARS = 60_000  # characters kept: the card rules' own limit (cardmaker.MAX_TEXT)
+QUICK_CHARS = 12_000  # a quick read's PDF text: `studyplan.TEXT_PER_FILE`, what a plan keeps
 KINDS = ("pdf", "docx", "pptx", "odt", "odp", "text")
 HEADING_WORDS = 10  # a whole line in bold up to this long is a heading
 TITLE_WORDS = 12  # a slide's topmost box up to this long is its title, with none marked
@@ -64,15 +65,16 @@ class Extracted:
     cut: bool  # the text was longer than MAX_CHARS
 
 
-def text(name: str, data: bytes) -> Extracted:
+def text(name: str, data: bytes, *, quick: bool = False) -> Extracted:
     """The text of a file of notes, told by its first bytes, its name helping only
-    for text files."""
+    for text files. `quick` (D211, a course's files read for its study plan): a PDF's
+    text as pypdf gives it, without D151's layout reading, and only its first pages."""
     if len(data) > MAX_BYTES:
         raise NotesError("large")
     head = data[:16]
     if b"%PDF-" in data[:1024]:
         try:
-            found = pdftext.text(data, maths=True)
+            found = pdftext.text(data, maths=not quick, most=QUICK_CHARS if quick else pdftext.MAX_CHARS)
         except pdftext.PdfError as exc:
             raise NotesError(exc.reason) from exc
         return _done(found.text, "pdf", found.pages, found.read, indent=False)

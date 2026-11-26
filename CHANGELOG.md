@@ -2,7 +2,27 @@
 
 ## Unreleased
 
+### Fixed
+
+- A deadlines' link that is not a calendar now says what it is and what to copy: a Moodle page's address
+  (the Export calendar page itself, a course, the dashboard) is caught before anything is fetched, with the
+  way to the calendar's link in Moodle's own words; a sign-in page or Moodle's own refusal is named (AUDIT 138).
+- The way to the Moodle key follows Moodle 4.3 and later, which shows a key only once, after Reset: the steps,
+  the guide and its picture say so, in Moodle's words (AUDIT 139).
+
 ### Added
+
+- Moodle as each teacher uses it (DECISIONS.md D212): a course whose Moodle says its weeks (dates, "Week 3",
+  numbered lectures) is placed by them; one kept a section per topic, or with every file in one section,
+  is planned in its order, spread over the weeks of lectures, each week going on from the last part, and
+  the plan says so. Exams and deadlines are never read from a course on Moodle: exams come from the
+  timetable or are added, and Moodle's calendar is offered only where teachers use it.
+
+- Moodle without copying and pasting, and fast (DECISIONS.md D211): the key, given first, finds the
+  student's courses on Moodle and links the ones with the same name as the plan's; the others are chosen
+  from a list. A course's plan shows at once from its files' names, then grows fuller as the files are read
+  in the background, several at a time, with how far it is on the page. "Plan all my courses" plans every
+  linked course in one tap.
 
 - Sounds to focus that sound real (DECISIONS.md D210): every sound but binaural is now a recording in the
   public domain, looped without a seam: birds in a forest at dawn, rain on a window from inside, waves on

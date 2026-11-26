@@ -7156,8 +7156,13 @@ main.site.todo-wide { max-width: none; }
 .mock-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 12px; }
 .mock-th { background: var(--fill); color: var(--muted); font-weight: 700; }
 .mock-row + .mock-row { border-top: 1px solid var(--line); }
-.mock-row:not(.mock-th) { background: var(--accent-soft); }
+.mock-row:not(.mock-th) { background: var(--surface); }
 .mock-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent-ink); font-weight: 700; }
+/* AUDIT 139: the new key Moodle shows once above its list, and the row's Reset. */
+.mock-new { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+.mock-copy { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--on-accent); }
+.mock-copy svg { width: 14px; height: 14px; }
+.mock-reset { color: var(--accent-ink); font-weight: 700; text-decoration: underline; }
 .guide-courses { margin: 0; padding: 0; }
 .guide-courses > li { padding: 4px 0; align-items: center; }
 .guide-courses li > a, .guide-read { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; color: inherit; text-decoration: none; }
@@ -7185,6 +7190,33 @@ main.site.todo-wide { max-width: none; }
 .guide-link { margin: 12px 0 0; }
 .guide-link a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .guide-link svg { width: 18px; height: 18px; }
+
+/* D211: the courses the key found, each linked or chosen from the list; the files' reading. */
+.guide-found > li { display: block; }
+.found-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.found-row .grow b, .found-pick label b, .guide-read .grow small { display: block; }
+.found-row .grow small, .found-pick label small, .guide-read .grow small { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+.found-row .is-ok svg { width: 20px; height: 20px; }
+.found-pick { display: grid; gap: 6px; margin: 6px 0; }
+.found-pick select { flex: 1 1 12em; min-width: 0; }
+.guide-find { margin: 0; }
+.guide-find .btn svg, .guide-all .btn svg { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+.guide-all { margin: 0; }
+.guide-by-hand { display: grid; gap: 10px; }
+.guide-by-hand summary { font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.guide-by-hand > p { margin: 0; }
+.moodle-reading { display: grid; gap: 8px; margin: 4px 0 8px; }
+.moodle-reading p { margin: 0; }
+.reading-said { display: flex; align-items: center; gap: 8px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.reading-said svg { width: 18px; height: 18px; color: var(--accent-ink); }
+.moodle-reading.is-stopped p { color: var(--muted); }
+.moodle-reading .btn svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
+.moodle-card .found-pick { margin-top: 12px; }
+/* D212: a course placed by its order, not its weeks; a week that goes on from an earlier one. */
+.plan-spread { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; }
+.plan-spread svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--accent-ink); }
+.plan-cont { color: var(--muted); font-weight: 600; }
+.add-busy .moodle-only { margin: 10px 0 0; }
 
 /* D210: a recording on its way, said without motion; where the recordings come from. */
 .sound-chip[aria-busy="true"] { opacity: 0.7; }
