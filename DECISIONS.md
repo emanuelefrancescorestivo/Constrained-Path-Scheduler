@@ -8583,8 +8583,8 @@ called stopped only after 45 minutes; a course whose reading starts says so at o
 the course's name above its meter; the reading in the background keeps the student's language (AUDIT 141).
 
 **Intuitive: Courses is the plan's home** (`service.plan_hub`, `courses.html`).
-- **On a laptop, Courses is a section of the sidebar** with its icon, among Today and Calendar, not only
-  the small heading above the list of courses.
+- **On a laptop, Courses is a section of the sidebar** with its icon, after Today, Calendar and Community
+  (D153 put Community third), not only the small heading above the list of courses.
 - **The Moodle side's one next action, at the top:** "Connect Moodle" before the key; "Plan all my N
   courses" when courses are linked and not planned, with a link to choose those not linked; while files
   are read, every course's files together on one meter; nothing once every course is planned.
