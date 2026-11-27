@@ -319,6 +319,11 @@ class Config:
     # D208: Moodle's web service and a file's download; None: `sources.moodle_call`, `fetch_file`.
     moodle_call: Callable[..., Any] | None = None
     fetch_file: Callable[..., bytes] | None = None
+    # D216 (AUDIT 147): whether a course is read from Moodle inside the request that asks; None
+    # follows `background` (tests read inline). The demo refreshes no feeds in the background but
+    # still reads Moodle in its queue (D215), which it did not.
+    moodle_inline: bool | None = None
+    moodle_demo: tuple[str, str] | None = None  # D216: the demo's made-up Moodle and key, said there
     background: bool = True  # refresh feeds in a thread (tests turn it off)
     # New plans per address per hour. A class on one university network shares one
     # public address: two hundred lets a whole lecture start together (D94; forty
@@ -3235,7 +3240,8 @@ def create_app(config: Config | None = None) -> FastAPI:
     # reader per process works through, a course at a time, each with a few downloads at once, so
     # readings never pile up in a small server's memory and no request waits on a slow Moodle. A
     # course already queued or being read is not queued twice. Tests read at once
-    # (`config.background` False).
+    # (`config.moodle_inline`, which follows `config.background` unless set; AUDIT 147: the demo,
+    # which turns `background` off for its feeds, read inline too, and still could time out).
     reading_now: set[tuple[str, int]] = set()
     reading_lock = threading.Lock()
     reading_queue: queue.Queue[tuple[str, int, bool, contextvars.Context]] = queue.Queue()
@@ -3284,6 +3290,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             token, index, again, context = reading_queue.get()
             context.run(read_one, token, index, again)  # in the language of the tap that queued it
 
+    read_inline = config.moodle_inline if config.moodle_inline is not None else not config.background
+
     def plan_from_moodle(token: str, indices: list[int], *, again: bool = False) -> list[int]:
         """The courses to read from Moodle, queued; each says at once that it waits its turn
         (D213). Returns the courses queued."""
@@ -3292,7 +3300,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             reading_now.update((token, i) for i in chosen)
         if not chosen:
             return []
-        if not config.background:
+        if read_inline:
             for index in chosen:
                 read_one(token, index, again)
             return chosen
@@ -3314,7 +3322,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     looked_at: dict[str, str] = {}
 
     def moodle_look(subscription: service.Subscription) -> None:
-        if not config.background:
+        if read_inline:
             return
         now = config.clock()
         day = now.date().isoformat()
@@ -3424,10 +3432,100 @@ def create_app(config: Config | None = None) -> FastAPI:
         view = service.moodle_readings(store, subscription, config.clock())  # in the plan's language
         return JSONResponse(view, headers={"Cache-Control": "no-store"})
 
+    # D216 (AUDIT 146): where the student's Moodle is, asked of the Moodle as the address is typed,
+    # so the link to its Security keys lands there. Each site's answer is kept ten minutes, a plan
+    # asks at most 120 times an hour (a field typed in), and guesses from its university once.
+    where_answers: dict[str, tuple[datetime, dict]] = {}
+    where_asks = Limiter(120, 3600.0)
+    guessed: dict[str, dict | None] = {}
+
+    def moodle_probe(site: str) -> Any:
+        return (config.moodle_probe or service.moodle_public_config)(site)
+
+    def where_is(text: str) -> dict:
+        now = config.clock()
+        key = f"{service.current_language()} {text.strip().lower()}"
+        kept = where_answers.get(key)
+        if kept and now - kept[0] < timedelta(minutes=10):
+            return kept[1]
+        found = service.moodle_where(text, moodle_probe)
+        if len(where_answers) > 2_000:
+            where_answers.clear()
+        where_answers[key] = (now, found)
+        return found
+
+    @app.get("/p/{token}/moodle/where")
+    def moodle_where(request: Request, token: str, site: str = "", guess: int = 0) -> Response:
+        """D216: the student's Moodle from what they typed, checked with the Moodle itself; with
+        `guess`, the first Moodle found at the usual addresses of their university's domains."""
+        subscription = load(token)
+        if subscription is None:
+            return JSONResponse({"found": False}, status_code=404)
+        if not where_asks.allow(token):
+            return JSONResponse({"found": False}, status_code=429)
+        if guess:
+            if token not in guessed:
+                sites = service.moodle_guesses(store, token, subscription.options["tz"])
+                guessed[token] = service.moodle_guess(sites, moodle_probe)
+            found = guessed[token] or {"found": False}
+        else:
+            found = where_is(site[:500])
+        return JSONResponse(found, headers={"Cache-Control": "no-store"})
+
+    @app.post("/p/{token}/moodle/site")
+    async def moodle_site_kept(request: Request, token: str) -> Response:
+        """D216: the Moodle's address kept before its key, for a page without its script: the
+        page comes back with the link to its Security keys, checked with the Moodle."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=4)
+        text = str(form.get("site") or "")[:500]
+        found = where_is(text)
+        if not found.get("site"):
+            return key_refused(request, token, str(form.get("back") or ""), found["says"], text)
+        service.update_subscription(
+            store, token, lambda current: service.keep_moodle_site(current, str(found["site"]))
+        )
+        return RedirectResponse(key_back(token, str(form.get("back") or ""), "#moodle-key"), 303)
+
+    def key_back(token: str, back: str, anchor: str = "") -> str:
+        """Where a form of the key returns to: a course, the guide, the first run, Connections."""
+        if re.fullmatch(r"\d{1,2}", back):
+            return f"/p/{token}/courses/{back}#moodle"
+        if back == "guide":
+            return f"/p/{token}/guide/moodle#step-key"
+        if back == "start":
+            return f"/p/{token}/start/moodle"
+        return f"/p/{token}/connections{anchor or '#moodle-key'}"
+
+    def key_refused(request: Request, token: str, back: str, error: str, site: str) -> HTMLResponse:
+        """D216: a key or an address refused, said on the page it was given on with what was typed,
+        where that page can say it (the first run, the guide); elsewhere on a page of its own."""
+        subscription = load(token)
+        if subscription is not None and back == "start" and service.first_run(subscription) is not None:
+            return first_run_page(request, subscription, "moodle", 400, key_error=error, key_site=site)
+        if subscription is not None and back == "guide":
+            guide = service.moodle_guide_view(subscription, store=store, now=config.clock())
+            return page(
+                request,
+                "guide_moodle.html",
+                400,
+                token=token,
+                guide=guide,
+                moodle_key=guide["key"],
+                key_error=error,
+                key_site=site,
+                tab="courses",
+            )
+        return refused(request, token, service.InvalidInput(error))
+
     @app.post("/p/{token}/moodle/key")
     async def moodle_key(request: Request, token: str) -> Response:
         """D208: the student's Moodle key, kept sealed once Moodle says it reads courses;
-        or forgotten."""
+        or forgotten. D216: the courses it found and linked are then planned, without another
+        tap ("Plan all my courses" stays for the ones linked later)."""
         if load(token) is None:
             return missing(request)
         if not changes.allow(token):
@@ -3439,6 +3537,7 @@ def create_app(config: Config | None = None) -> FastAPI:
             return RedirectResponse(f"/p/{token}/connections?key=forgotten#moodle-key", 303)
         text = str(form.get("key") or "")[:100]
         site = str(form.get("site") or "")[:500]  # D211: the Moodle's address, when not known yet
+        back = str(form.get("back") or "")
         try:
             service.update_subscription(
                 store,
@@ -3448,13 +3547,19 @@ def create_app(config: Config | None = None) -> FastAPI:
                 ),
             )
         except service.ServiceError as error:
-            return refused(request, token, error)
+            return key_refused(request, token, back, str(error), site)
         service.log_event(store, token, "moodle_key", "linked")
-        back = str(form.get("back") or "")
+        current = load(token)
+        guide = service.moodle_guide_view(current, store=store, now=config.clock()) if current else None
+        queued = plan_from_moodle(token, [c["index"] for c in guide["to_plan"]]) if guide else []
+        if back == "start":  # D216: the first run goes on to the class, saying what was found
+            service.update_subscription(store, token, lambda s: service.first_run_at(s, "class"))
+            service.log_event(store, token, "first run", f"moodle {len(queued)}")
+            return RedirectResponse(f"/p/{token}/start/class?moodle={len(queued)}", 303)
         if re.fullmatch(r"\d{1,2}", back):
             return RedirectResponse(f"/p/{token}/courses/{back}#moodle", 303)
         if back == "guide":  # D209: the guide's own step; D211: on to the courses it found
-            return RedirectResponse(f"/p/{token}/guide/moodle#step-link", 303)
+            return RedirectResponse(f"/p/{token}/guide/moodle#{'step-read' if queued else 'step-link'}", 303)
         return RedirectResponse(f"/p/{token}/connections?key=linked#moodle-key", 303)
 
     @app.get("/p/{token}/guide/moodle", response_class=HTMLResponse)
@@ -4890,15 +4995,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             anchor = "#deadlines" if part == "deadlines" else ""
             return RedirectResponse(f"/p/{token}/settings/{where}?saved=1{anchor}", 303)
         # Setting up goes on to the week with its plan (D98): the questions about the
-        # week come later, one a day on Today. A first run goes on to the class (D107).
+        # week come later, one a day on Today. A first run goes on to the class (D107),
+        # by Moodle since D216.
         if new and service.first_run(load(token) or subscription) is not None:
-            service.update_subscription(store, token, lambda current: service.first_run_at(current, "class"))
-            return RedirectResponse(f"/p/{token}/start/class", 303)
+            service.update_subscription(store, token, lambda current: service.first_run_at(current, "moodle"))
+            return RedirectResponse(f"/p/{token}/start/moodle", 303)
         return RedirectResponse(f"/p/{token}/week?new=1" if new else f"/p/{token}?saved=1", 303)
 
     # -- the first run (D107) ----------------------------------------------------
 
-    FIRST_RUN_PAGES = ("you", "class", "sharing", "remind")
+    FIRST_RUN_PAGES = ("you", "moodle", "class", "sharing", "remind")
 
     def first_run_page(
         request: Request, subscription: service.Subscription, step: str, status: int = 200, **extra: Any
@@ -4915,6 +5021,13 @@ def create_app(config: Config | None = None) -> FastAPI:
             offered = {"university": shown["university"], "programme": shown["programme"]} if shown else {}
             context.update(profile=current, years=service.YEAR_WORDS)
             context["values"] = extra.pop("values", None) or current or offered
+        elif step == "moodle":
+            # D216: the key's form as Connections and the guide have it, its address first.
+            context.update(
+                moodle_key=service.moodle_key_view(subscription),
+                course_count=len(service.topic_courses(subscription)),
+                moodle_demo=config.moodle_demo,  # the demo's made-up Moodle and its key, to try it
+            )
         elif step == "class":
             context["view"] = service.first_run_class_view(store, subscription)
         elif step == "sharing":
@@ -4937,13 +5050,15 @@ def create_app(config: Config | None = None) -> FastAPI:
         )
 
     @app.get("/p/{token}/start/{step}", response_class=HTMLResponse)
-    def first_run_step(request: Request, token: str, step: str, imported: int = -1) -> Response:
+    def first_run_step(
+        request: Request, token: str, step: str, imported: int = -1, moodle: int = -1
+    ) -> Response:
         subscription = load(token)
         if subscription is None or step not in FIRST_RUN_PAGES:
             return missing(request)
         if service.first_run(subscription) is None:
             return RedirectResponse(f"/p/{token}", 303)  # over, or a plan made before it
-        return first_run_page(request, subscription, step, imported=imported)
+        return first_run_page(request, subscription, step, imported=imported, moodle=moodle)
 
     @app.post("/p/{token}/start/{step}", response_class=HTMLResponse)
     async def first_run_answer(request: Request, token: str, step: str) -> Response:
@@ -4973,6 +5088,10 @@ def create_app(config: Config | None = None) -> FastAPI:
                 store, token, lambda current: service.first_run_at(current, "courses")
             )
             return RedirectResponse(f"/p/{token}/settings?new=1", 303)
+        if step == "moodle":  # D216: skipped; given, the key's own form goes on to the class
+            service.update_subscription(store, token, lambda current: service.first_run_at(current, "class"))
+            service.log_event(store, token, "first run", "moodle, skipped")
+            return RedirectResponse(f"/p/{token}/start/class", 303)
         if step == "class":
             service.update_subscription(
                 store, token, lambda current: service.first_run_at(current, "sharing")

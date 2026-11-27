@@ -236,7 +236,12 @@ def test_courses_shows_the_moodle_side_s_next_action_and_each_course_s_week(tmp_
         assert "Plan every course from Moodle" in page and f"/p/{token}/guide/moodle#step-key" in page
         # The laptop's sidebar has Courses as a section of its own.
         assert f'href="/p/{token}/courses" aria-current="page"' in page
-        web.post(f"/p/{token}/moodle/key", data={"key": KEY, "site": SITE, "back": "guide"})
+        # The key given on a page plans its courses at once (D216); courses linked and not yet
+        # planned (here the key kept without a page, as before D216) are offered in one tap.
+        kept = service.connect_moodle_key(
+            service.load_subscription(tmp_path, token), KEY, call=moodle.call, now=LATE, site_text=SITE
+        )
+        service.save_subscription(tmp_path, kept)
         page = unescape(web.get(f"/p/{token}/courses").text)
         assert "2 courses to plan from Moodle" in page and f'action="/p/{token}/moodle/read-all"' in page
         assert page.count("Plan it from Moodle") == 2

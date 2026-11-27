@@ -7336,3 +7336,13 @@ main.site.todo-wide { max-width: none; }
 @media (max-width: 760px) {
   .unit-cards .cc-cols { grid-template-columns: 1fr; }
 }
+
+/* D216: the Moodle step of the first run, and the line under a Moodle's address that says
+   whether the Moodle answered (its name, how it signs in), so the link lands on Security keys. */
+.moodle-says { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.moodle-says:empty { display: none; }
+.moodle-says.is-ok { color: var(--ok); }
+.moodle-says.is-todo { color: var(--accent-ink); }
+.run-moodle { margin: 0 0 12px; }
+.run-moodle .moodle-key-form { margin: 0; }
+.run-moodle .moodle-key-steps li { margin: 0 0 6px; }

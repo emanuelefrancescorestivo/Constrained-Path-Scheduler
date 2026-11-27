@@ -364,12 +364,15 @@ def command_demo(args) -> int:
     import shutil
 
     from .showcase import (
+        DEMO_KEY,
+        DEMO_MOODLE,
         MARKER,
         Outdated,
         Showcase,
         add_student,
         demo_fetch_file,
         demo_moodle_call,
+        demo_moodle_probe,
         seed,
         seed_world,
     )
@@ -435,6 +438,9 @@ def command_demo(args) -> int:
     # Its made-up Moodle (D209), so a course is read and planned again in the demo too.
     config.moodle_call = demo_moodle_call
     config.fetch_file = demo_fetch_file
+    config.moodle_probe = demo_moodle_probe  # D216: its made-up Moodle says where it is too
+    config.moodle_inline = False  # AUDIT 147: a real Moodle on the demo is read in the queue (D215)
+    config.moodle_demo = (DEMO_MOODLE.removeprefix("https://"), DEMO_KEY)  # made up, said on its first run
     if args.public:
         world = found
         config.demo = lambda year: add_student(where, world, lang=service.current_language(), year=year).token

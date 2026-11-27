@@ -1550,3 +1550,21 @@ instance of 512 MB and a tenth of a core. Not reproduced here: with the made-up 
 the host's logs, which say whether memory or time stopped it, are the owner's. Status: fixed by D215 as far as
 can be without them: the page waits for no call to Moodle, and one reader per process reads one course at a
 time, three files at once. `tests/test_moodle_units.py` checks that the tap answers while Moodle has not.
+
+**146. "Open «Security keys»" did not take the student there.** Found on 2026-11-27 by the owner: "when
+clicking on "take me to security keys" it does not take you there". The page built the link by adding
+`/user/managetoken.php` to whatever was typed: a dashboard's address (`…/my/`) gave `…/my/user/managetoken.php`,
+a page no Moodle has, and an address with a query (`…/calendar/view.php?view=month`) gave no link at all. The
+server did the same with the address kept: `…/user/preferences.php` was read as two folders the Moodle was
+under. Which address the owner typed was not seen; a Moodle that signs in through the university's own page
+can also open its home page after signing in, whatever the link. Status: fixed by D216: the site is read from
+any of its pages' addresses, cut at Moodle's own folders, and asked of the Moodle itself (its `wwwroot`, how it
+signs in), which the line under the field says, with "tap the link again" for a single sign-on; a site kept
+before is read again the same way. `tests/test_moodle_first_run.py`.
+
+**147. The demo read Moodle inside the request, though D215 queued it.** Found on 2026-11-27 while adding
+D216: D215's queue ran only when `config.background` was on, and `cps demo` turns it off (its feeds are not
+refreshed in a thread), so on the public demo, where the owner met AUDIT 145, every course was still read
+before the page answered. Status: fixed by D216: `Config.moodle_inline` decides it, following `background`
+unless set, and the demo sets it off. `tests/test_moodle_first_run.py` checks that a key saved there answers
+while Moodle has not.

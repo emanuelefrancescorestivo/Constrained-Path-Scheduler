@@ -474,18 +474,78 @@ document.addEventListener("change", (event) => {
 
 // D154: the Moodle export page from its site's address as it is typed: every Moodle
 // keeps it at <site>/calendar/export.php. Without this script the steps say where it
-// is in Moodle's own words.
+// is in Moodle's own words. D216 (AUDIT 146): the link added its page to whatever was
+// pasted (`…/my/` gave `…/my/user/managetoken.php`, a page no Moodle has). At once it now
+// opens on the host alone; where the page names the server's check (`data-moodle-where`),
+// the server reads the site from any of its pages' addresses, asks the Moodle where it is
+// and how it signs in, and the link and the line under the field follow its answer. With
+// `data-moodle-guess` and an empty field, the usual addresses of the student's university
+// are asked first. Without this script, "Find my Moodle" does the same on the server.
 for (const field of document.querySelectorAll("input[data-moodle-site]")) {
   const box = field.closest("[data-moodle]");
   const open = box.querySelector("[data-moodle-open]");
+  const says = box.querySelector("[data-moodle-says]");
+  const find = box.querySelector("[data-moodle-find]");
+  const where = field.dataset.moodleWhere;
+  const page = open.dataset.moodlePage || "/calendar/export.php"; // or D211's keys
   box.hidden = false;
-  field.addEventListener("input", () => {
-    const site = field.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-    const fine = /^[a-z0-9.-]+\.[a-z]{2,}(:\d{2,5})?(\/[\w.~-]+)*$/i.test(site);
+  if (find && where) find.hidden = true;
+  let timer = 0;
+  let asked = "";
+  const say = (words, found) => {
+    if (!says) return;
+    says.textContent = words || "";
+    says.classList.toggle("is-ok", found === true);
+    says.classList.toggle("is-todo", found === false);
+  };
+  const answer = async (query, typed) => {
+    try {
+      const reply = await fetch(`${where}?${query}`, { headers: { Accept: "application/json" } });
+      if (!reply.ok || field.value.trim() !== typed) return null;
+      return await reply.json();
+    } catch {
+      return null; // offline: the host's own page stays
+    }
+  };
+  const look = async () => {
+    const typed = field.value.trim();
+    const host = typed.replace(/^https?:\/\//i, "").split(/[/?#]/)[0];
+    const fine = /^[a-z0-9.-]+\.[a-z]{2,}(:\d{2,5})?$/i.test(host);
     open.hidden = !fine;
-    // The page the link opens: the calendar's export (D154), or another (D211: the keys).
-    if (fine) open.href = `https://${site}${open.dataset.moodlePage || "/calendar/export.php"}`;
+    if (!fine) {
+      say("", null);
+      return;
+    }
+    const scheme = /^http:\/\//i.test(typed) ? "http" : "https";
+    open.href = `${scheme}://${host.toLowerCase()}${page}`;
+    if (!where || typed === asked) return;
+    asked = typed;
+    const found = await answer(`site=${encodeURIComponent(typed)}`, typed);
+    if (!found) return;
+    if (found.site) open.href = `${found.site}${page}`;
+    say(found.says, found.found);
+  };
+  field.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(look, 450);
   });
+  field.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !where) return;
+    event.preventDefault(); // the check, not "Find my Moodle", which the script hid
+    clearTimeout(timer);
+    look();
+  });
+  if (field.value.trim()) look();
+  else if (where && "moodleGuess" in field.dataset) {
+    answer("guess=1", "").then((found) => {
+      if (!found || !found.found || field.value.trim()) return;
+      field.value = found.site;
+      asked = found.site;
+      open.href = `${found.site}${page}`;
+      open.hidden = false;
+      say(found.says, true);
+    });
+  }
 }
 
 // D211: a course's files read in the background. The page shows the plan made from their

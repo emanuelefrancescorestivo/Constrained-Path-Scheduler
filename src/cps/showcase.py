@@ -842,6 +842,21 @@ def demo_moodle_call(site: str, key: str, function: str, params: dict | None = N
     return _demo_contents(number)
 
 
+def demo_moodle_probe(site: str) -> object:
+    """D216: what the made-up Moodle says about itself before any sign-in (D175), so a new
+    student on the demo sees it found, as a real one is; any other site is asked for real."""
+    if site.rstrip("/") != DEMO_MOODLE:
+        return service.moodle_public_config(site)
+    return {
+        "wwwroot": DEMO_MOODLE,
+        "httpswwwroot": DEMO_MOODLE,
+        "sitename": "Moodle (made up for the demo)",
+        "typeoflogin": 1,
+        "enablewebservices": 1,
+        "enablemobilewebservice": 1,
+    }
+
+
 def demo_fetch_file(url: str, *, limit: int) -> bytes:
     """A file of the made-up Moodle; any other site's is fetched for real."""
     found = _DEMO_FILE.search(url)
