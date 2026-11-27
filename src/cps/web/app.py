@@ -38,6 +38,7 @@ import json
 import logging
 import mimetypes
 import os
+import queue
 import re
 import secrets
 import threading
@@ -3219,94 +3220,96 @@ def create_app(config: Config | None = None) -> FastAPI:
             plan=service.study_plan_view(subscription, index, config.clock(), store=store),
             moodle_key=service.moodle_key_view(subscription),
             moodle_list=service.moodle_list(subscription),  # D211: the courses the key found
-            # D214: why Moodle could not be read for this course, with the ways out
-            refusal=(service.moodle_reading(store, subscription, view["course"], config.clock()) or {}).get(
-                "error"
-            ),
+            # D214: why Moodle could not be read for this course, with the ways out; D215: or
+            # where its reading stands, queued or under way
+            moodle_state=service.moodle_reading(store, subscription, view["course"], config.clock()),
             tab="courses",
             exam_row=exam,
             values=values,
             **extra,
         )
 
-    # D211: a course's files read after the page has answered, a thread per tap that reads its
-    # courses one after the other (each with its own few downloads at once); a course already
-    # being read is not read twice. Tests read at once (`config.background` False).
+    # D211: a course's files read after the page has answered. D215 (the owner, on the demo's free
+    # host with their own Moodle: a 502 on "Plan all my courses"): the page waits for nothing on
+    # Moodle. Every course to read, by a tap or by the daily look (D214), goes in one queue that one
+    # reader per process works through, a course at a time, each with a few downloads at once, so
+    # readings never pile up in a small server's memory and no request waits on a slow Moodle. A
+    # course already queued or being read is not queued twice. Tests read at once
+    # (`config.background` False).
     reading_now: set[tuple[str, int]] = set()
     reading_lock = threading.Lock()
+    reading_queue: queue.Queue[tuple[str, int, bool, contextvars.Context]] = queue.Queue()
+    reader_started = threading.Event()
 
-    def read_files_later(token: str, indices: list[int]) -> None:
-        with reading_lock:
-            indices = [i for i in indices if (token, i) not in reading_now]
-            reading_now.update((token, i) for i in indices)
-        if not indices:
-            return
-
-        def run() -> None:
-            for index in indices:
-                try:
-                    service.read_moodle_files(
-                        store,
-                        token,
-                        index,
-                        call=config.moodle_call,
-                        fetch=config.fetch_file,
-                        clock=config.clock,
-                    )
-                except Exception as error:  # kept for the owner; the page says it stopped
-                    LOG.warning("a course's files were not read: %s", type(error).__name__)
-                    service.record_error(
-                        store,
-                        source="server",
-                        route="moodle-read",
-                        kind=type(error).__name__,
-                        message=str(error)[:300],
-                        detail="",
-                        now=config.clock(),
-                    )
-                finally:
-                    with reading_lock:
-                        reading_now.discard((token, index))
-
-        if config.background:
-            # D213: in the request's language, which the thread does not inherit by itself.
-            context = contextvars.copy_context()
-            threading.Thread(target=context.run, args=(run,), name="cps-moodle", daemon=True).start()
-        else:
-            run()
-
-    def plan_from_moodle(token: str, indices: list[int], *, again: bool = False) -> list[int]:
-        """D211: each course's plan from its files' names at once, and the courses whose files
-        are still to read, which are then read in the background, one after the other: all
-        but the first wait their turn, and say so (D213). D214: a course Moodle refuses keeps
-        why on its card and page, and the others go on; `again`, the daily look, says nothing
-        of a refusal (the plan stays as it was) and keeps a course whose files did not change."""
-        later: list[int] = []
-        for index in indices:
-            with reading_lock:
-                if (token, index) in reading_now:
-                    continue
+    def read_one(token: str, index: int, again: bool) -> None:
+        """A course's plan from its files' names, then its files read. A refusal is kept on the
+        course, except on the daily look, whose plan then stays as it was."""
+        try:
             try:
                 summary = service.plan_moodle_course(
-                    store,
-                    token,
-                    index,
-                    call=config.moodle_call,
-                    now=config.clock(),
-                    queued=bool(later),
-                    again=again,
+                    store, token, index, call=config.moodle_call, now=config.clock(), again=again
                 )
             except service.ServiceError as error:
                 if not again:
                     service.keep_moodle_refusal(store, token, index, str(error), config.clock())
-                continue
+                return
             if summary["pending"]:
-                later.append(index)
-        read_files_later(token, later)
-        return later
+                service.read_moodle_files(
+                    store,
+                    token,
+                    index,
+                    call=config.moodle_call,
+                    fetch=config.fetch_file,
+                    clock=config.clock,
+                )
+        except Exception as error:  # kept for the owner; the course says it stopped
+            LOG.warning("a course's files were not read: %s", type(error).__name__)
+            service.record_error(
+                store,
+                source="server",
+                route="moodle-read",
+                kind=type(error).__name__,
+                message=str(error)[:300],
+                detail="",
+                now=config.clock(),
+            )
+            if not again:
+                service.moodle_stopped(store, token, index, config.clock())
+        finally:
+            with reading_lock:
+                reading_now.discard((token, index))
+
+    def reader() -> None:
+        while True:
+            token, index, again, context = reading_queue.get()
+            context.run(read_one, token, index, again)  # in the language of the tap that queued it
+
+    def plan_from_moodle(token: str, indices: list[int], *, again: bool = False) -> list[int]:
+        """The courses to read from Moodle, queued; each says at once that it waits its turn
+        (D213). Returns the courses queued."""
+        with reading_lock:
+            chosen = [i for i in indices if (token, i) not in reading_now]
+            reading_now.update((token, i) for i in chosen)
+        if not chosen:
+            return []
+        if not config.background:
+            for index in chosen:
+                read_one(token, index, again)
+            return chosen
+        if not again:
+            for index in chosen:
+                service.queue_moodle_course(store, token, index, config.clock())
+        context = contextvars.copy_context()
+        for index in chosen:
+            reading_queue.put((token, index, again, context))
+        with reading_lock:
+            if not reader_started.is_set():
+                threading.Thread(target=reader, name="cps-moodle", daemon=True).start()
+                reader_started.set()
+        return chosen
 
     # D214 (AUDIT 144): once a day, when the student opens Today or Courses, the courses planned
-    # from Moodle are looked at again in the background, so a teacher's new slides reach the
+    # from Moodle are looked at again, in the queue above, so a teacher's new slides reach the
     # plan without a tap; a course whose files did not change keeps its plan, at no cost.
     looked_at: dict[str, str] = {}
 
@@ -3324,15 +3327,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         if len(looked_at) > 10_000:
             looked_at.clear()
         looked_at[token] = day
-
-        def run() -> None:
-            try:
-                plan_from_moodle(token, due, again=True)
-            except Exception as error:  # the plan stays as it was; tried again tomorrow
-                LOG.warning("the daily look at Moodle failed: %s", type(error).__name__)
-
-        context = contextvars.copy_context()
-        threading.Thread(target=context.run, args=(run,), name="cps-moodle-look", daemon=True).start()
+        plan_from_moodle(token, due, again=True)
 
     @app.post("/p/{token}/courses/{index}/moodle/read")
     async def course_moodle_read(request: Request, token: str, index: int) -> Response:
@@ -3347,19 +3342,20 @@ def create_app(config: Config | None = None) -> FastAPI:
         form = await request.form(max_files=0, max_fields=2)
         if not 0 <= index < len(service.topic_courses(subscription)):
             return missing(request)
-        # D214: a refusal stays on the course, with the ways out, not on a page of its own.
-        planned = plan_from_moodle(token, [index])
-        refused_now = (
-            service.moodle_reading(
-                store, subscription, service.topic_courses(subscription)[index], config.clock()
-            )
-            or {}
-        ).get("error")
+        # D214: a refusal stays on the course, with the ways out, not on a page of its own. D215: the
+        # course is queued and read in the background; its page follows it, and says a refusal.
+        course = service.topic_courses(subscription)[index]
+        plan_from_moodle(token, [index])
         if form.get("back") == "guide":
             return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
         if form.get("back") == "courses":
             return RedirectResponse(f"/p/{token}/courses#course-{index}", 303)
-        if refused_now and not planned:
+        # The plan, once there is one (at once where reading is not in the background); else the
+        # course's Moodle card, which follows the reading or says why Moodle refused.
+        now_kept = load(token) or subscription
+        planned = service.course_key(course) in (now_kept.options.get("study_plans") or {})
+        state = service.moodle_reading(store, now_kept, course, config.clock()) or {}
+        if state.get("error") or not planned:
             return RedirectResponse(f"/p/{token}/courses/{index}#moodle", 303)
         return RedirectResponse(f"/p/{token}/courses/{index}?saved=read#study-plan", 303)
 

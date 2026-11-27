@@ -8669,3 +8669,32 @@ page's whole width, and opens scrolled to this week on a phone.
 - Links in a text area are read only when they lead to Moodle's own files on the course's site; a link to
   another site (a teacher's drive) is not followed with the key.
 - Checked in Chromium only, at 1440 × 900 and phone size, light and dark.
+
+## D215. Reading Moodle waits on nothing: one queue, one reader, a course at a time
+
+The owner, on the public demo with their own Moodle, after D214: "it crashes when planning from moodle", a
+screenshot of Chrome's «HTTP ERROR 502» on `…/moodle/read-all`. On the made-up Moodle the same tap answers in
+0.2 s here. The demo runs on Render's free instance (512 MB, a tenth of a core); "Plan all my courses" called
+the student's Moodle once per course before answering (D211's plan from the files' names), and each course's
+files were then read in a thread of its own, six downloads at once, beside D214's daily look. A 502 is the
+host saying the app did not answer: memory or time, which only the host's logs can tell (AUDIT 145).
+
+**Chosen.**
+- **The page waits for no call to Moodle.** "Plan all my courses", a course's "Plan it from Moodle" and the
+  daily look put the courses in one queue (`queue_moodle_course`), and each says at once that it waits its
+  turn (D213); the page answers at once and follows the reading as before (`data-reading`).
+- **One reader per process**, a course at a time: its plan from the files' names, then its files, three
+  downloads at once (`MOODLE_READERS`, six before). A course already queued is not queued twice; the daily
+  look waits in the same queue, so readings never pile up.
+- **A failure of the server's own says "The reading stopped: read it again"** on the course
+  (`moodle_stopped`), and goes to the owner's error log, as before; a refusal of Moodle's is said on the
+  course as in D214.
+- **The course's page follows its reading** from its Moodle card when it has no plan yet, and says a refusal
+  there.
+
+**Rejected.** A bigger instance for the demo: the owner's money and account, and the pilot's server (D75)
+has room anyway; a reader per course or per student: what piled up.
+
+**Disclosed.** Whether memory or time made the 502 is not known (the host's logs are the owner's). One reader
+per process means a student whose courses wait behind another's waits longer; the queue is lost if the server
+restarts, and its courses then say they stopped (D211). Three downloads at once is a choice.

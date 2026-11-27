@@ -73,7 +73,8 @@
     <p class="hint">{{ _("Its files are being read: the plan above gets fuller as they are.") }}</p>
     {% elif moodle_key.linked %}
     {% if plan and plan.reading %}{{ reading(token, v.index, plan.reading, choices=moodle_list) }}
-    {% elif refusal %}{{ reading(token, v.index, {"error": refusal}, choices=moodle_list, current=m.id) }}{% endif %}
+    {% elif moodle_state and (moodle_state.error or moodle_state.stopped) %}{{ reading(token, v.index, moodle_state, choices=moodle_list, current=m.id) }}
+    {% elif moodle_state %}<div data-reading="/p/{{ token }}/moodle/reading">{{ reading(token, v.index, moodle_state) }}</div>{% endif %}
     <form method="post" action="/p/{{ token }}/courses/{{ v.index }}/moodle/read">
       <button type="submit" class="btn btn-primary btn-block">{{ lucide('sparkles') }}{% if plan %}{{ _("Read it again and update the plan") }}{% else %}{{ _("Read its materials and plan the study") }}{% endif %}</button>
     </form>

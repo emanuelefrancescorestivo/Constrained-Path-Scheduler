@@ -1542,3 +1542,11 @@ was not seen; its cause is for them to tell from the new message.
 teacher who uploads the slides each Friday reached the plan only when the student tapped "Read it again".
 Status: fixed by D214: Moodle is looked at again once a day, when the student opens Today or Courses, and a
 course whose files changed is planned again.
+
+**145. "Plan all my courses" answered with a 502 on the demo's free host.** Found on 2026-11-27 by the owner,
+on the public demo with their own Moodle. The request called Moodle once per course before answering, and the
+reading that followed ran six downloads at once in a thread per tap, beside the daily look (D214), on an
+instance of 512 MB and a tenth of a core. Not reproduced here: with the made-up Moodle the request takes 0.2 s;
+the host's logs, which say whether memory or time stopped it, are the owner's. Status: fixed by D215 as far as
+can be without them: the page waits for no call to Moodle, and one reader per process reads one course at a
+time, three files at once. `tests/test_moodle_units.py` checks that the tap answers while Moodle has not.
