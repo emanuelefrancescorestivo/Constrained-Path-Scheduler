@@ -5,12 +5,12 @@
    sees the sessions, and, once the first session is done, reminders. The courses
    are setting up's page (settings.html); Today comes after. Each step can be
    skipped; nothing here needs a script but turning reminders on. #}
-{% block title %}{% if step == "you" %}{{ _("Who’s studying?") }}{% elif step == "class" %}{{ _("Study with your class") }}{% elif step == "sharing" %}{{ _("Who sees your sessions?") }}{% else %}{{ _("Same time tomorrow?") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
+{% block title %}{% if step == "you" %}{{ _("Who’s studying?") }}{% elif step == "moodle" %}{{ _("Plan from your Moodle") }}{% elif step == "class" %}{{ _("Study with your class") }}{% elif step == "sharing" %}{{ _("Who sees your sessions?") }}{% else %}{{ _("Same time tomorrow?") }}{% endif %} · {{ _("Study plan") }}{% endblock %}
 {% block head %}{% if step == "remind" %}<script type="module" src="{{ asset('push.js') }}"></script>{% endif %}{% endblock %}
 {% block main %}
 <div class="run run-{{ step }}">
 {% if step != "remind" %}
-{% with step = {"you": 2, "class": 4, "sharing": 5}[step] %}{% include "_steps.html" %}{% endwith %}
+{% with step = {"you": 2, "moodle": 4, "class": 5, "sharing": 6}[step] %}{% include "_steps.html" %}{% endwith %}
 {% endif %}
 
 {% if step == "you" %}
@@ -40,9 +40,25 @@
 </form>
 <p class="hint run-note">{{ _("Nothing else is asked. Your plan, your calendar and your exam results are never shown.") }}</p>
 
+{% elif step == "moodle" %}
+{# D216 (the owner: "it should be proposed in the very first tutorial"): Moodle right after the
+   courses, the address and the key on one page; the key's own form finds the courses on Moodle,
+   links them by name and plans them, then the first run goes on to the class. #}
+<div class="run-say">{{ mascot("think", uid="run") }}<p>{{ _("Your courses are on Moodle? Give me your key once: I find them, read their files and plan what to study each week.") }}</p></div>
+<h1>{{ _("Plan from your Moodle") }}</h1>
+{% if moodle_demo %}<p class="notice" role="note">{{ _("On the demo, its made-up Moodle: {site}, with the key {key}.", site=moodle_demo[0], key=moodle_demo[1]) }}</p>{% endif %}
+<div class="card run-moodle">
+  {% set back = "start" %}{% include "_moodle_key.html" %}
+</div>
+{% if not course_count %}<p class="hint run-note">{{ _("Your plan has no courses yet: the key then finds yours on Moodle, to choose in Courses.") }}</p>{% endif %}
+<form method="post" action="/p/{{ token }}/start/moodle" class="run-later"><button type="submit" name="skip" value="1" class="btn btn-plain btn-block">{{ _("Not on Moodle? Skip") }}</button></form>
+<p class="hint run-note">{{ _("Later works too, from Courses. The app reads with the key only, never with your password.") }}</p>
+
 {% elif step == "class" %}
 <div class="run-say">{{ mascot("cheer", uid="run") }}<p>{{ _("Your classmates make the feed. Follow a few: you can change it any time.") }}</p></div>
 <h1>{{ _("Study with your class") }}</h1>
+{% if moodle is defined and moodle > 0 %}<p class="notice notice-ok" role="status">{{ _n("Moodle connected: {n} course is being planned from its files.", "Moodle connected: {n} courses are being planned from their files.", moodle) }}</p>
+{% elif moodle is defined and moodle == 0 %}<p class="notice notice-ok" role="status">{{ _h('Moodle connected. Link your courses to it in <a href="{href}">Courses</a>, and they are planned from their files.', href="/p/" ~ token ~ "/guide/moodle#step-link") }}</p>{% endif %}
 {% if imported is defined and imported >= 0 %}<p class="notice notice-ok" role="status">{{ _n("{n} topic taken from your class.", "{n} topics taken from your class.", imported) }}</p>{% endif %}
 {% if view.class %}{% set c = view.class %}
 <div class="card run-class">

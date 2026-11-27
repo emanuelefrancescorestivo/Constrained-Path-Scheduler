@@ -254,9 +254,9 @@ def test_setup_makes_the_plan_and_shows_both_addresses(web):
     )
     # Setup went on to the week with its plan, and from there to Today (D98): the
     # questions about the week (D42) and the calendar's links come later, one a day.
-    # A new plan's first run goes on to the class instead (D107); the week's page,
-    # which a new semester still shows, is the same.
-    assert answer.headers["location"] == f"/p/{token}/start/class"
+    # A new plan's first run goes on to the class instead (D107), by Moodle since D216;
+    # the week's page, which a new semester still shows, is the same.
+    assert answer.headers["location"] == f"/p/{token}/start/moodle"
     week = web.get(f"/p/{token}/week?new=1").text
     assert "Your week." in week and f'href="/p/{token}" data-tour="setup-next">Looks good</a>' in week
     assert "How long is your trip to university?" in web.get(f"/p/{token}/routine").text

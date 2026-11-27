@@ -1,21 +1,31 @@
 {# D208: where a student finds their Moodle key, and the field to paste it, once. On the
-   Connections page and on a course's Moodle card; `back` returns to the course. #}
-<form method="post" action="/p/{{ token }}/moodle/key" class="moodle-key-form">
+   Connections page, on a course's Moodle card, on the guide and, since D216, in the first run;
+   `back` returns to the course, the guide or the first run. #}
+<form method="post" action="/p/{{ token }}/moodle/key" class="moodle-key-form" id="moodle-key-form">
   {% if back is defined %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  {% if key_error %}<p class="alert" role="alert">{{ key_error }}</p>{% endif %}
   {# AUDIT 139: since Moodle 4.3 the page lists keys by name only; a key shows once, at the
      top of the page, just after Reset makes a new one. Moodle's words in the student's language. #}
   {% set kw = moodle_key.words %}
   <ol class="moodle-key-steps">
     {# D211: the key may come first, before any course is linked: the Moodle's address then
-       comes with it, and the page's link to its Security keys follows it as it is typed. #}
+       comes with it, and the page's link to its Security keys follows it as it is typed.
+       D216 (AUDIT 146): the server reads the site from any of its pages' addresses and asks the
+       Moodle where it is, so the link lands on Security keys; without the script, "Find my
+       Moodle" keeps the address and the page comes back with the link. With `guess`, the
+       first run asks the usual addresses of the student's university first. #}
     {% if not moodle_key.site %}<li class="moodle-site" data-moodle><label for="moodle-key-site">{{ _("Your Moodle's address") }}</label>
-      <span class="row-end"><input id="moodle-key-site" name="site" type="text" required maxlength="500" inputmode="url" autocomplete="url" spellcheck="false" placeholder="moodle.your-university.edu" data-moodle-site>
-      <a class="btn btn-sm" data-moodle-open data-moodle-page="/user/managetoken.php" hidden target="_blank" rel="noopener noreferrer">{{ _("Open «{keys}»", keys=kw["keys"]) }} ↗</a></span></li>{% endif %}
-    <li>{% if moodle_key.page %}<a href="{{ moodle_key.page }}" rel="noopener noreferrer" target="_blank">{{ _("Open your Moodle's page «{keys}»", keys=kw["keys"]) }} ↗</a>{% else %}{{ _("Open your Moodle's page «{keys}»", keys=kw["keys"]) }}{% endif %}</li>
+      <span class="row-end"><input id="moodle-key-site" name="site" type="text" required maxlength="500" inputmode="url" autocomplete="url" spellcheck="false" placeholder="moodle.your-university.edu" value="{{ key_site or '' }}" data-moodle-site data-moodle-where="/p/{{ token }}/moodle/where"{% if back == "start" %} data-moodle-guess{% endif %} aria-describedby="moodle-key-says">
+      <button type="submit" class="btn btn-sm" formaction="/p/{{ token }}/moodle/site" formnovalidate data-moodle-find>{{ _("Find my Moodle") }}</button>
+      <a class="btn btn-sm btn-tinted" data-moodle-open data-moodle-page="/user/managetoken.php" hidden target="_blank" rel="noopener noreferrer">{{ _("Open «{keys}»", keys=kw["keys"]) }} ↗</a></span>
+      <small class="moodle-says" id="moodle-key-says" data-moodle-says role="status" aria-live="polite"></small></li>
+    {% else %}
+    <li><a class="btn btn-sm btn-tinted" href="{{ moodle_key.page }}" rel="noopener noreferrer" target="_blank">{{ _("Open your Moodle's page «{keys}»", keys=kw["keys"]) }} ↗</a>{% if moodle_key.host %} <small class="muted">{{ moodle_key.host }}</small>{% endif %}</li>
+    {% endif %}
     <li>{{ _("On the row «Moodle mobile web service», tap «{reset}» and confirm.", reset=kw.reset) }}</li>
     <li>{{ _("Moodle then shows the new key at the top of the page, once: copy it.") }}</li>
     <li><label for="moodle-key-in">{{ _("Paste it here") }}</label></li>
   </ol>
-  <div class="row-input"><input id="moodle-key-in" name="key" required maxlength="64" autocomplete="off" spellcheck="false" pattern="[0-9a-fA-F]{32}" placeholder="0123abcd…"><button type="submit" class="btn">{{ _("Save") }}</button></div>
+  <div class="row-input"><input id="moodle-key-in" name="key" required maxlength="64" autocomplete="off" spellcheck="false" pattern="\s*[0-9a-fA-F]{32}\s*" placeholder="0123abcd…"><button type="submit" class="btn{% if back in ('start', 'guide') %} btn-primary{% endif %}">{% if back in ("start", "guide") %}{{ _("Save and plan my courses") }}{% else %}{{ _("Save") }}{% endif %}</button></div>
   <p class="hint">{{ _("A new key signs your phone's Moodle app out: sign in there again. No row «Moodle mobile web service»? Sign in once to the Moodle app on your phone: Moodle makes it then. The app keeps the key sealed, only reads with it, and you can forget it here or reset it on Moodle.") }}</p>
 </form>

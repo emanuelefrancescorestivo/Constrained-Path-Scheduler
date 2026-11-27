@@ -3774,8 +3774,10 @@ def first_day_later(subscription: Subscription, now: datetime | None = None) -> 
 # A new student's first run, after Strava's (D107): the timetable, who is studying,
 # the courses, the class, who sees the sessions; then Today with one session, the
 # session's summary, and the question about reminders once it is done. Each step
-# after the account can be skipped. A plan made before D107 has no first run.
-FIRST_RUN_STEPS = ("Timetable", "You", "Your courses", "Your class", "Sharing")
+# after the account can be skipped. A plan made before D107 has no first run. D216 (the owner:
+# "it should be proposed in the very first tutorial"): Moodle after the courses, the address and
+# the key on one page, the courses then found, linked by name and planned without another tap.
+FIRST_RUN_STEPS = ("Timetable", "You", "Your courses", "Moodle", "Your class", "Sharing")  # Moodle: D216
 FIRST_RUN_CLASSMATES = 5  # the classmates the class step offers to follow
 SHARE_DEFAULT = "followers"  # who sees a shared session unless the student chose (D107)
 _CLASS_CODE = re.compile(r"[A-Za-z0-9_-]{12}")
@@ -7174,21 +7176,117 @@ _MOODLE_COURSE = re.compile(
     r"\?(?:[^#\s]*?&)?id=(\d{1,10})(?:[&#][^\s]*)?$",
     re.IGNORECASE,
 )
-# The site alone (`moodle.example.edu`, with or without https://, or a page at its root
-# such as its dashboard), so "Find it on Moodle" can search it before any course is linked.
-_MOODLE_HOME = re.compile(
+
+
+# D216 (AUDIT 146): a Moodle's own folders and files at its root, from Moodle 4.5's source tree
+# (and `public`, where Moodle 5 keeps them on disk; its addresses do not change). A page's
+# address is cut at the first of these, or at any `.php`: what comes before is the site, in a
+# subfolder too (`https://x.edu/moodle`). Before, the link to Security keys added its page to
+# whatever was pasted, `…/my/user/managetoken.php`, a page no Moodle has.
+MOODLE_FOLDERS = frozenset(
+    {
+        "admin",
+        "ai",
+        "analytics",
+        "auth",
+        "availability",
+        "backup",
+        "badges",
+        "blocks",
+        "blog",
+        "cache",
+        "calendar",
+        "cohort",
+        "comment",
+        "communication",
+        "competency",
+        "completion",
+        "contentbank",
+        "course",
+        "customfield",
+        "dataformat",
+        "enrol",
+        "error",
+        "files",
+        "filter",
+        "grade",
+        "group",
+        "h5p",
+        "install",
+        "iplookup",
+        "lang",
+        "lib",
+        "local",
+        "login",
+        "media",
+        "message",
+        "mnet",
+        "mod",
+        "moodlenet",
+        "my",
+        "notes",
+        "payment",
+        "pix",
+        "plagiarism",
+        "portfolio",
+        "privacy",
+        "public",
+        "question",
+        "rating",
+        "report",
+        "reportbuilder",
+        "repository",
+        "rss",
+        "search",
+        "sms",
+        "tag",
+        "theme",
+        "user",
+        "userpix",
+        "webservice",
+    }
+)
+_MOODLE_ADDRESS = re.compile(
     r"^(?:(https?)://)?([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d{1,5})?)"
-    r"((?:/[^?#\s/]+){0,2}?)/?(?:/(?:my(?:/courses\.php|/index\.php)?|index\.php|login/index\.php)/?)?$",
+    r"(/[^?#\s]*)?(?:[?#][^\s]*)?$",
     re.IGNORECASE,
 )
+MOODLE_FOLDER_DEPTH = 2  # the folders a Moodle is kept under at most (`/moodle`, `/elearning/2026`)
+
+
+def moodle_site_of(text: str) -> str | None:
+    """D216: a Moodle's site (its `wwwroot`, as best the address says it) from the address of
+    any of its pages as a student copies it from the browser's bar, or the site typed alone:
+    `moodle.example.edu`, `https://x.edu/moodle/my/`, `…/user/preferences.php`,
+    `…/calendar/view.php?view=month`. The scheme is https unless http is written; the query and
+    the fragment are dropped. None for what is not an address of a web page, or one whose path
+    goes deeper than `MOODLE_FOLDER_DEPTH` folders before any of Moodle's own."""
+    text = text.strip()
+    if not text or len(text) > 500:
+        return None
+    found = _MOODLE_ADDRESS.match(text)
+    if not found:
+        return None
+    scheme = (found.group(1) or "https").lower()
+    kept: list[str] = []
+    for part in (found.group(3) or "").split("/"):
+        if not part:
+            continue
+        if part.lower() in MOODLE_FOLDERS or part.lower().endswith(".php"):
+            break
+        if len(kept) == MOODLE_FOLDER_DEPTH:
+            return None  # deeper than any Moodle is kept: a page of some other site
+        kept.append(part)
+    return f"{scheme}://{found.group(2).lower()}" + "".join(f"/{part}" for part in kept)
 
 
 def moodle_site(subscription: Subscription) -> str | None:
     """The student's Moodle (D163): the one they gave, else the site of their deadlines'
-    calendar link (D92), else the site of a course they linked. None without one."""
+    calendar link (D92), else the site of a course they linked. None without one. D216: the
+    one they gave read again as a site, so a page's address kept before AUDIT 146 is cut too."""
     options = subscription.options
     if options.get("moodle_site"):
-        return str(options["moodle_site"])
+        return moodle_site_of(str(options["moodle_site"])) or str(options["moodle_site"])
     found = _deadlines_site(options)
     if found:
         return found
@@ -7205,10 +7303,12 @@ def read_moodle_address(text: str) -> tuple[str, int | None]:
     found = _MOODLE_COURSE.match(text)
     if found:
         return found.group(1).rstrip("/"), int(found.group(2))
-    home = _MOODLE_HOME.match(text)
-    if home and len(text) <= 300:
-        scheme = (home.group(1) or "https").lower()
-        return f"{scheme}://{home.group(2).lower()}{home.group(3)}", None
+    # D216 (AUDIT 146): any page of the site without a query gives the site, cut at Moodle's own
+    # folders; before, `…/user/preferences.php` was kept as a folder the Moodle was under. A page
+    # with a query (a file's `view.php?id=`) names something else than the course, and is refused.
+    home = moodle_site_of(text) if len(text) <= 300 and not re.search(r"[?#]", text) else None
+    if home:
+        return home, None
     raise InvalidInput(
         _("a course's address on Moodle, such as https://moodle.example.edu/course/view.php?id=123")
     )
@@ -16942,6 +17042,159 @@ def moodle_key_view(subscription: Subscription) -> dict:
     }
 
 
+# D216: where a student's Moodle is, asked of the Moodle itself, so the link to its Security keys
+# lands there. `tool_mobile_get_public_config` is what Moodle's own app asks first, with no
+# sign-in (D175); its `wwwroot` is the site's address as the Moodle knows it
+# (admin/tool/mobile/classes/api.php), its `typeoflogin` whether it signs in through another page.
+def _address_ask() -> str:
+    """D216: how to type a Moodle's address, in the request's language."""
+    return _("Type your Moodle's address as your browser shows it, such as moodle.your-university.edu.")
+
+
+MOODLE_SUBFOLDER = "/moodle"  # tried when the host alone does not answer: a Moodle kept under it
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _site_name(found: Mapping) -> str:
+    """A Moodle's name as it says it, without the markup some keep in it (multilang spans)."""
+    return " ".join(_TAGS.sub(" ", str(found.get("sitename") or "")).split())[:80]
+
+
+def _wwwroot(found: Mapping, asked: str) -> str:
+    """The site's own address from its answer, when it is on the host that was asked (a Moodle
+    cannot send the student elsewhere); else the address asked."""
+    host = _host(asked)
+    for key in ("httpswwwroot", "wwwroot"):
+        root = str(found.get(key) or "").rstrip("/")
+        if re.match(r"^https?://", root) and _host(root) == host and len(root) <= 300:
+            return moodle_site_of(root) or root
+    return asked
+
+
+def moodle_where(text: str, probe: Callable[[str], Mapping]) -> dict:
+    """D216: the student's Moodle from what they typed or pasted, checked with the Moodle
+    itself: its site (`site`), its Security keys page (`page`), its name, whether it signs in
+    through the university's own page (`sso`) and whether it is open to apps; `found` False when
+    it did not answer, with the site the address gives. `says` is the line the page shows."""
+    site = moodle_site_of(text)
+    if site is None:
+        return {
+            "found": False,
+            "site": None,
+            "page": None,
+            "says": _address_ask(),
+        }
+    tries = [site]
+    if not urlsplit(site).path:
+        tries.append(site + MOODLE_SUBFOLDER)
+    for asked in tries:
+        try:
+            found = probe(asked)
+        except (SourceError, ValueError, TypeError, AttributeError):
+            continue
+        if not isinstance(found, Mapping):
+            continue
+        root = _wwwroot(found, asked)
+        name = _site_name(found) or _host(root)
+        sso = int(found.get("typeoflogin") or 1) in (2, 3)
+        apps = bool(found.get("enablewebservices")) and bool(found.get("enablemobilewebservice"))
+        if not apps:
+            says = _(
+                "Found: «{name}». It is closed to apps, so a key cannot read its courses: "
+                "its calendar's link and its pages still can.",
+                name=name,
+            )
+        elif sso:
+            says = _(
+                "Found: «{name}». It signs in through your university: if Moodle opens its home "
+                "page after you sign in, tap the link again.",
+                name=name,
+            )
+        else:
+            says = _("Found: «{name}».", name=name)
+        return {
+            "found": True,
+            "site": root,
+            "page": root + MOODLE_KEY_PAGE,
+            "name": name,
+            "host": _host(root),
+            "sso": sso,
+            "apps": apps,
+            "says": says,
+        }
+    return {
+        "found": False,
+        "site": site,
+        "page": site + MOODLE_KEY_PAGE,
+        "host": _host(site),
+        "says": _(
+            "{host} did not answer as a Moodle: check the address, or open the link anyway.", host=_host(site)
+        ),
+    }
+
+
+MOODLE_GUESSES = ("moodle.{d}", "elearning.{d}", "e-learning.{d}", "{d}/moodle")  # D216: common hosts
+
+
+def moodle_guesses(store: str | os.PathLike, token: str, tz: str) -> list[str]:
+    """D216: where a student's Moodle may be, from their university's web domains in the list
+    of universities (D39), as many universities name it: `moodle.`, `elearning.`, `e-learning.`
+    before the domain, or `/moodle` after it. Empty without a profile or a known university."""
+    profile = profile_of(store, token)
+    if not profile or not profile.get("university"):
+        return []
+    found = _universities.canonical(str(profile["university"]), _universities.country_of_zone(tz))
+    if found is None:
+        return []
+    return [
+        f"https://{shape.format(d=domain.lower())}"
+        for domain in found.domains[:2]
+        for shape in MOODLE_GUESSES
+    ]
+
+
+def moodle_guess(sites: Sequence[str], probe: Callable[[str], Mapping]) -> dict | None:
+    """D216: the first of `sites` that answers as a Moodle open to apps, asked at once (each
+    answers in its own time); None when none does. Its `says` names where it came from."""
+    if not sites:
+        return None
+
+    def ask(site: str) -> dict | None:
+        try:
+            found = probe(site)
+        except (SourceError, ValueError, TypeError, AttributeError):
+            return None
+        return dict(found) if isinstance(found, Mapping) else None
+
+    with ThreadPoolExecutor(max_workers=min(len(sites), 8)) as pool:
+        answers = list(pool.map(ask, sites))
+    for site, found in zip(sites, answers, strict=True):
+        if found and found.get("enablewebservices") and found.get("enablemobilewebservice"):
+            root = _wwwroot(found, site)
+            name = _site_name(found) or _host(root)
+            return {
+                "found": True,
+                "guessed": True,
+                "site": root,
+                "page": root + MOODLE_KEY_PAGE,
+                "name": name,
+                "host": _host(root),
+                "sso": int(found.get("typeoflogin") or 1) in (2, 3),
+                "apps": True,
+                "says": _("Found from your university: «{name}». Not yours? Type its address.", name=name),
+            }
+    return None
+
+
+def keep_moodle_site(subscription: Subscription, site: str) -> Subscription:
+    """D216: the student's Moodle kept before its key (a page without its script asks for it
+    first, so the link to its Security keys can be drawn)."""
+    given = moodle_site_of(site)
+    if given is None:
+        raise InvalidInput(_address_ask())
+    return replace(subscription, options={**subscription.options, "moodle_site": given})
+
+
 def connect_moodle_key(
     subscription: Subscription,
     text: str,
@@ -16961,7 +17214,9 @@ def connect_moodle_key(
             _("A Moodle key is 32 letters and digits: copy it from Moodle's Security keys page.")
         )
     if site_text.strip():
-        given, _number = read_moodle_address(site_text)
+        given = moodle_site_of(site_text)  # D216: any page of the site, not only a course's
+        if given is None:
+            raise InvalidInput(_address_ask())
         subscription = replace(subscription, options={**subscription.options, "moodle_site": given})
     site = moodle_site(subscription)
     if not site:
@@ -16978,10 +17233,16 @@ def connect_moodle_key(
         raise InvalidInput(
             _("This key cannot read courses: copy the key of the «Moodle mobile web service».")
         )
+    # D216: the site as Moodle names it (`siteurl`, its wwwroot), when on the same host: a Moodle
+    # in a subfolder typed as its host alone is then kept with its folder.
+    named = str(info.get("siteurl") or "").rstrip("/")
+    if re.match(r"^https?://", named) and _host(named) == _host(site) and moodle_site_of(named):
+        site = moodle_site_of(named) or site
+        subscription = replace(subscription, options={**subscription.options, "moodle_site": site})
     kept = {
         "site": site,
         "key": _sealed.seal(key),
-        "name": " ".join(str(info.get("sitename") or "").split())[:80],
+        "name": _site_name(info),
         "at": now.astimezone(UTC).isoformat(timespec="seconds"),
         # D211: the student's own number on that Moodle, which its list of courses asks for.
         "user": info.get("userid") if isinstance(info.get("userid"), int) else None,

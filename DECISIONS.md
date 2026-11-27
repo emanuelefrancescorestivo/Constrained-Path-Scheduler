@@ -8698,3 +8698,51 @@ has room anyway; a reader per course or per student: what piled up.
 **Disclosed.** Whether memory or time made the 502 is not known (the host's logs are the owner's). One reader
 per process means a student whose courses wait behind another's waits longer; the queue is lost if the server
 restarts, and its courses then say they stopped (D211). Three downloads at once is a choice.
+
+## D216. Moodle in the first run, and the link to Security keys that lands there
+
+The owner, after D215: "it takes too many steps to upload moodle, it should be proposed in the very first
+tutorial if a student wants to upload it, also when clicking on "take me to security keys" it does not take
+you there. fix this is very important". Bringing Moodle took, after setting up: Courses, the guide, the
+address, "Open «Security keys»", Moodle's Reset, the key, Save, then "Plan all my courses". The link added
+its page to whatever was typed, so a dashboard's address gave a page no Moodle has, and an address with a
+query gave no link (AUDIT 146).
+
+**Chosen.**
+- **Moodle is a step of the first run**, after the courses and before the class (six steps now): one page
+  with the address, the link to Security keys, Moodle's two steps in its own words (AUDIT 139), the key, and
+  "Save and plan my courses"; "Not on Moodle? Skip" goes on to the class. The key's form is the one
+  Connections, a course's card and the guide have (`_moodle_key.html`, `back=start`).
+- **The key plans at once.** Wherever it is given, the courses it found and linked by name (D211) are queued
+  and planned (D215) without "Plan all my courses", which stays for courses linked later. The first run then
+  says how many are being planned; the guide opens on its third step.
+- **The site from any of its pages' addresses** (`moodle_site_of`): the scheme, the host and at most two
+  folders before Moodle's own (`MOODLE_FOLDERS`, from Moodle 4.5's source tree) or any `.php`; the query
+  dropped. A site kept before is read again the same way, so the links of plans made before are right too.
+- **Asked of the Moodle itself** (`moodle_where`) as the address is typed, by the page's script (`GET
+  /p/<plan>/moodle/where`): `tool_mobile_get_public_config`, which Moodle's own app asks first without signing
+  in (D175), names its `wwwroot` (kept only on the host asked), its name, whether it signs in through the
+  university's page and whether it is open to apps. The line under the field says which; a single sign-on
+  adds "if Moodle opens its home page after you sign in, tap the link again". The host's `/moodle` is tried
+  when the host alone does not answer. The key's own answer (`siteurl`) corrects the site once more.
+- **A guess from the university** (`moodle_guesses`, `moodle_guess`): with a profile whose university is in the
+  list (D39), its first two domains are asked at `moodle.`, `elearning.`, `e-learning.` and `/moodle`, all at
+  once, once a plan; the first Moodle open to apps fills the field, "Not yours? Type its address."
+- **Without the script**, "Find my Moodle" keeps the address and the page comes back with the link checked
+  (`POST /p/<plan>/moodle/site`). A key refused is said on the page it was given on, with the address typed
+  kept (the first run, the guide), not on a page of its own.
+- **The demo** says its made-up Moodle and key on the first run's step, and its Moodle answers the check
+  (`demo_moodle_probe`). It reads Moodle in D215's queue, which its `background` off had left inline
+  (`Config.moodle_inline`, AUDIT 147).
+
+**Rejected.** Moodle's own way to hand an app a key (`admin/tool/mobile/launch.php`): it answers to the app's
+URL scheme only (`moodlemobile://`), which a web page cannot receive. Asking for the student's password to
+fetch the key: never (D92). Guessing from the student's e-mail's domain: an address kept private. A list of
+universities' Moodles kept by hand: it goes stale, and the Moodle's own answer is checked anyway.
+
+**Disclosed.** Which address the owner typed was not seen; a Moodle that signs in through another page may
+still land on its home page after signing in, which the line says. The four guesses are common shapes, not a
+measured list, and ask up to eight hosts once per plan; tried against made-up answers only. The first run is a
+step longer for a student without Moodle (one tap, "Skip"). The key planning at once spends the model's calls
+when AI is on, as "Plan all" did. Checked in Chromium only, at phone size and 1280 px, light and dark, and
+without its script.

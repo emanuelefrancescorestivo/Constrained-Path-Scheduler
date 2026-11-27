@@ -110,19 +110,24 @@ def test_the_first_run_goes_step_by_step_to_today(tmp_path):
         token = where.split("/")[2]
         assert where == f"/p/{token}/start/you"
         you = unescape(web.get(where).text)
-        assert "Who’s studying?" in you and "Setting up, step 2 of 5" in you and "formnovalidate" in you
+        # Six steps since D216: Moodle after the courses.
+        assert "Who’s studying?" in you and "Setting up, step 2 of 6" in you and "formnovalidate" in you
         answer = web.post(where, data=ALEX, follow_redirects=False)
         assert answer.headers["location"] == f"/p/{token}/settings?new=1"
         assert service.profile_of(web.root, token)["handle"] == "alex"
         courses = unescape(web.get(f"/p/{token}/settings?new=1").text)
         assert (
             "What do you study?" in courses
-            and "Setting up, step 3 of 5" in courses
+            and "Setting up, step 3 of 6" in courses
             and "Looks right" in courses
         )
-        assert _courses(web, token) == f"/p/{token}/start/class"
+        assert _courses(web, token) == f"/p/{token}/start/moodle"  # D216: Moodle, then the class
+        moodle = unescape(web.get(f"/p/{token}/start/moodle").text)
+        assert "Plan from your Moodle" in moodle and "Setting up, step 4 of 6" in moodle
+        answer = web.post(f"/p/{token}/start/moodle", data={"skip": "1"}, follow_redirects=False)
+        assert answer.headers["location"] == f"/p/{token}/start/class"
         mates = unescape(web.get(f"/p/{token}/start/class").text)
-        assert "Study with your class" in mates and "Setting up, step 4 of 5" in mates
+        assert "Study with your class" in mates and "Setting up, step 5 of 6" in mates
         answer = web.post(f"/p/{token}/start/class", follow_redirects=False)
         assert answer.headers["location"] == f"/p/{token}/start/sharing"
         sharing = unescape(web.get(f"/p/{token}/start/sharing").text)

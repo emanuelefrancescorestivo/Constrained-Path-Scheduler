@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- "Open «Security keys»" lands on Moodle's Security keys page whatever address of the Moodle was typed or
+  pasted (its dashboard, a course, Preferences), checked with the Moodle itself; a Moodle that signs in through
+  the university says to tap the link again after signing in (AUDIT 146, D216).
+- The public demo reads Moodle in the background queue too, as D215 meant (AUDIT 147).
+
 - Planning from Moodle no longer makes the page wait on Moodle: the courses are queued and read one at a time
   in the background, three files at once, so a small server is not overwhelmed (AUDIT 145, D215).
 
@@ -19,6 +24,10 @@
   the guide and its picture say so, in Moodle's words (AUDIT 139).
 
 ### Added
+
+- Moodle in the very first tutorial (DECISIONS.md D216): after the courses, one page asks for the Moodle's
+  address (guessed from the university when it can be) and the key; the courses are then found, linked and
+  planned without another tap, or the step is skipped. The key planning at once holds everywhere it is given.
 
 - Courses rebuilt around the week (DECISIONS.md D214): each course's card says what this week is about, with its
   files, how to study it (steps ticked as they are done) and when (the next sessions, Start now), and how its

@@ -290,7 +290,8 @@ def test_the_pages_link_the_key_read_the_course_and_show_the_plan(tmp_path):
         assert "Plan the study from its materials" in course and "/user/managetoken.php" in course
         assert web.post(f"/p/{sub.token}/moodle/key", data={"key": "nope"}).status_code == 400
         saved = web.post(f"/p/{sub.token}/moodle/key", data={"key": KEY, "back": str(index)})
-        assert saved.status_code == 200 and "Read its materials and plan the study" in unescape(saved.text)
+        # D216: the course linked is planned with the key, without a tap more; reading it again works.
+        assert saved.status_code == 200 and "Slides: limits" in unescape(saved.text)
         page = unescape(web.post(f"/p/{sub.token}/courses/{index}/moodle/read").text)
         assert "Read from Moodle: the course's study plan is below." in page and 'id="study-plan"' in page
         assert "Slides: limits" in page and "Made by the app's rules" in page

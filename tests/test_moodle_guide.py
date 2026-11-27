@@ -115,12 +115,13 @@ def test_the_guide_is_found_where_the_student_looks_and_does_each_step(tmp_path)
             data={"key": showcase.DEMO_KEY, "site": "moodle.example.edu/my/", "back": "guide"},
             follow_redirects=False,
         )
-        assert given.headers["location"] == f"/p/{token}/guide/moodle#step-link"
+        # D216: the courses the key linked are planned at once, without "Plan all my courses".
+        assert given.headers["location"] == f"/p/{token}/guide/moodle#step-read"
         page = unescape(web.get(f"/p/{token}/guide/moodle").text)
-        assert "2 of 3 steps done" in page and "Your key found 6 courses on Moodle." in page
+        assert "Your key found 6 courses on Moodle." in page
         assert "Linked to «Algebra 3 · 2026–27»" in page and "Linked to «Analysis 3 · 2026–27»" in page
-        assert "Plan all my 2 courses" in page and f'action="/p/{token}/moodle/read-all"' in page
-
+        assert "Plan all my 2 courses" not in page
+        # "Plan all" stays for courses linked later; with nothing left to plan it does nothing.
         read = web.post(f"/p/{token}/moodle/read-all", follow_redirects=False)
         assert read.headers["location"] == f"/p/{token}/guide/moodle#step-read"
         page = unescape(web.get(f"/p/{token}/guide/moodle").text)
