@@ -16886,7 +16886,7 @@ def week_materials(subscription: Subscription, course: str, now: datetime | None
 
 MOODLE_KEY = re.compile(r"^[0-9a-fA-F]{32}$")
 MOODLE_LIST_MOST = 80  # courses kept from a student's list: years of courses, at most
-MOODLE_READERS = 6  # a course's files downloaded and read at once (D211)
+MOODLE_READERS = 3  # a course's files downloaded and read at once (D211; 6 before D215)
 MOODLE_KEY_PAGE = "/user/managetoken.php"  # Moodle's Security keys page, where a student copies it
 moodle_call = _sources.moodle_call  # for the web app, which calls only service
 MoodleError = _sources.MoodleError
@@ -17136,6 +17136,22 @@ def moodle_due(subscription: Subscription, now: datetime | None = None) -> list[
         if not seen or now - max(seen) >= MOODLE_REREAD:
             out.append(index)
     return out
+
+
+def queue_moodle_course(store: str | os.PathLike, token: str, index: int, now: datetime) -> None:
+    """D215: a course put in the queue of courses to read from Moodle, saying at once that it
+    waits its turn (D213), before any call to Moodle."""
+    subscription = load_subscription(store, token)
+    if subscription is None:
+        return
+    key = course_key(_topic_course(subscription, index))
+    at = now.astimezone(UTC).isoformat(timespec="seconds")
+    _set_reading(store, token, key, {"done": -1, "total": 0, "at": at})
+
+
+def moodle_stopped(store: str | os.PathLike, token: str, index: int, now: datetime) -> None:
+    """D215: a reading that failed for a reason of the server's own, said on the course."""
+    keep_moodle_refusal(store, token, index, _("The reading stopped: read it again."), now)
 
 
 def keep_moodle_refusal(store: str | os.PathLike, token: str, index: int, words: str, now: datetime) -> None:

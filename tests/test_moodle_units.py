@@ -299,3 +299,62 @@ def test_courses_shows_this_week_course_by_course_and_the_whole_semester(tmp_pat
         assert 'class="sem-grid"' in grid and 'aria-current="date"' in grid
         assert "Lecture 1 Properties of integers" in grid and "goes on" in grid
         assert f'href="/p/{token}/courses/{algebra}#w2"' in grid
+
+
+def test_planning_from_moodle_waits_on_nothing_and_reads_one_course_at_a_time(tmp_path):
+    """D215: the owner met a 502 on "Plan all my courses" on the demo's free host, with their own
+    Moodle. The tap now waits for no call to Moodle: the courses are queued, say so at once, and
+    one reader reads them one after the other."""
+    import threading
+    import time as clock
+
+    sub = _plan(tmp_path)
+    token = sub.token
+    mondays = service._teaching(sub, "Algebra 3")[0]
+    gate = threading.Event()
+
+    class Slow(Moodle):
+        active = 0
+        most = 0
+
+        def call(self, site, key, function, params=None):
+            if function != "core_course_get_contents":
+                return super().call(site, key, function, params)
+            Slow.active += 1
+            Slow.most = max(Slow.most, Slow.active)
+            try:
+                gate.wait(10)  # a slow Moodle: nothing answers until the test says so
+                return super().call(site, key, function, params)
+            finally:
+                Slow.active -= 1
+
+    moodle = Slow([_friday(m) for m in (mondays[0], mondays[2], mondays[4])])
+    config = Config(
+        store=tmp_path,
+        clock=lambda: NOW,
+        background=True,
+        sweep_every=None,
+        remind_every=None,
+        moodle_call=moodle.call,
+        fetch_file=moodle.fetch,
+    )
+    with TestClient(create_app(config)) as web:
+        web.post(f"/p/{token}/moodle/key", data={"key": KEY, "site": SITE, "back": "guide"})
+        started = clock.monotonic()
+        answer = web.post(f"/p/{token}/moodle/read-all", follow_redirects=False)
+        assert answer.status_code == 303 and clock.monotonic() - started < 5  # Moodle has not answered
+        kept = service.load_subscription(tmp_path, token)
+        for course in ("Algebra 3", "Analysis 3"):
+            assert service.moodle_reading(tmp_path, kept, course, NOW)["queued"]
+        gate.set()
+        for _ in range(100):
+            if not service.moodle_readings(tmp_path, kept, NOW)["reading"]:
+                break
+            clock.sleep(0.1)
+        kept = service.load_subscription(tmp_path, token)
+        assert "algebra 3" in kept.options["study_plans"]
+        assert (
+            "Moodle sent this course empty"
+            in service.moodle_reading(tmp_path, kept, "Analysis 3", NOW)["error"]
+        )
+        assert Slow.most == 1  # one course at a time

@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Planning from Moodle no longer makes the page wait on Moodle: the courses are queued and read one at a time
+  in the background, three files at once, so a small server is not overwhelmed (AUDIT 145, D215).
+
 - The weeks a part of a course goes on over now say on their sessions what to study and how (AUDIT 142).
 - Notes a teacher links in a text area or a section's description on Moodle are read; a course with nothing to
   read says what Moodle sent and offers the ways out on the course itself, never "are you enrolled?" (AUDIT 143).
