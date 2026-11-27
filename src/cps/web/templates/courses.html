@@ -9,7 +9,7 @@
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 {# D162: the courses on the left; on a wide screen, beside them, where their topics come
    from and the class's link. On a phone they follow the list. #}
-<div class="with-context">
+<div class="with-context{% if view == "semester" %} is-wide{% endif %}">
 <div class="list-col">
 {# D209: planning from Moodle, step by step: above the courses until a course has its
    plan, then beside them. #}
@@ -65,45 +65,118 @@
 </section>
 {% endif %}
 
-<ul class="course-cards course-rows" data-tour="course-list">
-  {% for c in courses %}{% set p = h.courses[c.index] %}
-  <li class="card course-card {% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}">
+{# D214, the owner's pick: this week, course by course (C), or the whole semester at a glance
+   (B). Two addresses, so both views work without a script. #}
+<nav class="seg-views" aria-label="{{ _('Courses') }}">
+  <a href="/p/{{ token }}/courses"{% if view != "semester" %} aria-current="page"{% endif %}>{{ lucide('calendar-check') }}{{ _("This week") }}</a>
+  <a href="/p/{{ token }}/courses?view=semester"{% if view == "semester" %} aria-current="page"{% endif %}>{{ lucide('table') }}{{ _("The semester") }}</a>
+</nav>
+{% if view == "semester" %}
+{% set sm = semester %}
+<section class="card semester" aria-labelledby="sem-title">
+  <h2 id="sem-title" class="visually-hidden">{{ _("The semester") }}</h2>
+  <div class="sem-scroll">
+  <table class="sem-grid">
+    <thead><tr><th scope="col"><span class="visually-hidden">{{ _("Course") }}</span></th>{% for w in sm.weeks %}<th scope="col"{% if w.now %} class="is-now" aria-current="date"{% endif %}>{{ w.label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in sm.rows %}{% set c = courses | selectattr("index", "equalto", r.index) | first %}
+    <tr class="{% if c and c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}">
+      <th scope="row"><a href="/p/{{ token }}/courses/{{ r.index }}"><span class="dot"></span>{{ r.course }}</a></th>
+      {% if r.error %}
+      <td colspan="{{ sm.weeks | length }}" class="sem-error"><a href="/p/{{ token }}/courses#course-{{ r.index }}"><span>{{ r.error }}</span></a></td>
+      {% else %}
+      {% for cell in r.cells %}
+      {% if cell %}
+      <td class="sem-cell is-{{ cell.state }}{% if cell.continued %} is-cont{% endif %}"><a href="/p/{{ token }}/courses/{{ r.index }}#w{{ cell.n }}" title="{{ _('Week {n}', n=cell.n) }}{% if cell.title %}: {{ cell.title }}{% endif %}{% if cell.recall is not none %} · {{ cell.recall }} %{% endif %}">
+        <span class="sem-t">{% if cell.waiting %}{{ _("files to come") }}{% elif cell.continued %}↳ {{ _("goes on") }}{% elif cell.title %}{{ cell.title }}{% else %}{{ _("Week {n}", n=cell.n) }}{% endif %}</span>
+        <span class="sem-m{% if cell.level %} mem-{{ cell.level }}{% endif %}" role="img" aria-label="{% if cell.recall is not none %}{{ _('Memory now: {n} %', n=cell.recall) }}{% else %}{{ _('Not taught yet') }}{% endif %}"><i class="w{{ ((cell.recall or 0) // 10) * 10 }}"></i></span>
+      </a></td>
+      {% else %}<td class="sem-none"></td>{% endif %}
+      {% endfor %}
+      {% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint sem-key">{{ _("Each box is a week of lectures: what it is about and how much of it you remember now, by the memory model. A box opens the week on its course's page.") }}</p>
+</section>
+{% else %}
+<ul class="course-cards course-rows unit-cards" data-tour="course-list">
+  {% for c in courses %}{% set p = h.courses[c.index] %}{% set u = p.unit %}
+  <li class="card course-card {% if c.color is not none %}c{{ c.color }}{% else %}cn{% endif %}" id="course-{{ c.index }}">
     <a class="cc-head" href="/p/{{ token }}/courses/{{ c.index }}{% if p.state == 'planned' or p.state == 'reading' %}#study-plan{% endif %}">
       <span class="dot"></span><b class="grow">{{ c.course }}</b>{% if c.exam %}<small class="course-exam">{{ _("Exam {when}", when=c.exam.says) }}</small>{% endif %}<span class="chev" aria-hidden="true">›</span>
     </a>
-    {% if p.week %}
-    <div class="cc-week">
-      <p class="cc-label">{{ _("Week {n}: what to study", n=p.week.number) }}</p>
-      <ul class="cc-topics">{% for t in p.week.topics %}<li>{{ t }}</li>{% endfor %}</ul>
-      {% if p.week.how %}<p class="cc-how">{% for x in p.week.how %}<span class="chip" title="{{ x.what }}">{{ x.name }}</span>{% endfor %}</p>{% endif %}
+    {% if p.state == "reading" %}{{ reading(token, c.index, p.reading) }}
+    {% elif p.error %}<div class="cc-refused">{{ reading(token, c.index, {"error": p.error}, "courses", choices=moodle_list, current=p.moodle_id) }}</div>{% endif %}
+    {% if u %}
+    {# D214: one card, three questions: what this week is about, how to study it (ticked as it is
+       done), and when the engine has the next session. #}
+    <div class="cc-cols">
+      <div class="cc-col">
+        <p class="cc-label">{{ _("What · week {n}", n=u.number) }}</p>
+        <p class="cc-big">{{ u.topics[0] if u.topics else _("Week {n}", n=u.number) }}</p>
+        {% if u.continued %}<small>{{ _("goes on from week {n}", n=u.continued) }}</small>{% elif u.topics | length > 1 %}<small>{{ u.topics[1:] | join(" · ") }}</small>{% endif %}
+        {% if u.files %}<div class="cc-files">{% for f in u.files %}<a class="file-chip" href="{{ f.url }}" target="_blank" rel="noopener noreferrer">{{ lucide('file-text') }}<span>{{ f.title }}</span></a>{% endfor %}</div>{% endif %}
+      </div>
+      <div class="cc-col">
+        <p class="cc-label">{{ _("How") }}</p>
+        {% if u.steps %}
+        <form method="post" action="/p/{{ token }}/courses/{{ c.index }}/steps" class="cc-steps" data-autosave>
+          <input type="hidden" name="monday" value="{{ u.monday }}">
+          {% for x in u.steps %}<label title="{{ x.what }}"><input type="checkbox" name="step" value="{{ x.kind }}"{% if x.done %} checked{% endif %}><span>{{ x.name }}</span></label>{% endfor %}
+          <noscript><button type="submit" class="btn btn-sm btn-plain">{{ _("Save") }}</button></noscript>
+        </form>
+        {% else %}<small>{{ _("Test yourself without your notes, then check what you missed.") }}</small>{% endif %}
+      </div>
+      <div class="cc-col">
+        <p class="cc-label">{{ _("When") }}</p>
+        {% if u.next %}<p class="cc-big">{{ u.next[0].when }}</p>{% if u.next | length > 1 %}<small>{{ _("then {when}", when=u.next[1].when) }}</small>{% endif %}
+        {% else %}<small>{{ _("No session planned for it yet") }}</small>{% endif %}
+        <form method="post" action="/p/{{ token }}/focus/start"><input type="hidden" name="course" value="{{ c.course }}"><input type="hidden" name="goal" value="25"><button type="submit" class="btn btn-sm btn-tinted">{{ lucide('play') }}{{ _("Start now") }}</button></form>
+      </div>
     </div>
-    {% endif %}
+    <div class="cc-foot">
+      {% if u.recall is not none %}<span class="cc-memory"><span class="meter mem-{{ u.level }}" role="img" aria-label="{{ _('Memory now: {n} %', n=u.recall) }}"><span class="fill w{{ (u.recall // 10) * 10 }}"></span></span>{{ _("Memory of week {n} now: {r} %", n=u.number, r=u.recall) }}</span>{% endif %}
+    </div>
+    <details class="cc-made">
+      <summary>{{ _("How this plan was made") }}</summary>
+      <ol class="made-steps">
+        <li><b>{{ _("Moodle") }}</b><span>{% if p.moodle_name %}«{{ p.moodle_name }}»{% else %}{{ _("course {n}", n=p.moodle_id) }}{% endif %}{% if u.checked %} · {{ _("looked at {day}", day=u.checked) }}{% endif %}</span></li>
+        <li><b>{{ _("Files") }}</b><span>{{ _n("{n} read", "{n} read", u.files_read) }}{% if u.skipped %} · {{ _n("{n} not read (video, archive or over the limits)", "{n} not read (videos, archives or over the limits)", u.skipped) }}{% endif %}{% if u.failed %} · {{ _n("{n} could not be opened", "{n} could not be opened", u.failed) }}{% endif %}</span></li>
+        <li><b>{{ _("Weeks") }}</b><span>{% if u.how == "uploaded" %}{{ _("each file in the week it was put on Moodle") }}{% elif u.how == "order" %}{{ _("in its order, spread over its weeks") }}{% else %}{{ _("by the weeks its sections name") }}{% endif %}{% if u.by == "ai" %} · {{ _("read by Claude Haiku") }}{% endif %}</span></li>
+        <li><b>{{ _("When") }}</b><span>{{ _n("{n} week of lectures; a self-test when its predicted recall falls towards 90 %", "{n} weeks of lectures; a self-test when each one's predicted recall falls towards 90 %", u.weeks) }}</span></li>
+      </ol>
+      <p class="hint"><a href="/p/{{ token }}/courses/{{ c.index }}/materials">{{ _("Move a file to another week") }}</a> · <a href="/p/{{ token }}/courses/{{ c.index }}#moodle">{{ _("Change its course on Moodle") }}</a></p>
+    </details>
+    {% else %}
     <div class="cc-state">
-      {% if p.state == "reading" %}
-      {{ reading(token, c.index, p.reading) }}
-      {% elif p.state == "planned" %}
-      <p class="cc-source">{{ lucide('circle-check') }}<span>{% if p.files %}{{ _n("Planned from {n} file on Moodle", "Planned from {n} files on Moodle", p.files) }}{% else %}{{ _("Planned from Moodle") }}{% endif %}{% if p.how == "uploaded" %} · {{ _("each file in the week it was put on Moodle") }}{% elif p.how == "order" %} · {{ _("in its order, spread over its weeks") }}{% endif %}</span></p>
-      {% if p.reading and (p.reading.error or p.reading.stopped) %}{{ reading(token, c.index, p.reading) }}{% endif %}
-      {% elif p.state == "linked" and h.key %}
-      <form method="post" action="/p/{{ token }}/courses/{{ c.index }}/moodle/read" class="cc-action"><button type="submit" class="btn btn-tinted">{{ lucide('sparkles') }}{{ _("Plan it from Moodle") }}</button></form>
+      {% if p.state == "planned" %}
+      <p class="cc-source">{{ lucide('circle-check') }}<span>{% if p.files %}{{ _n("Planned from {n} file on Moodle", "Planned from {n} files on Moodle", p.files) }}{% else %}{{ _("Planned from Moodle") }}{% endif %}</span></p>
+      {% elif p.state == "linked" and h.key and not p.error %}
+      <form method="post" action="/p/{{ token }}/courses/{{ c.index }}/moodle/read" class="cc-action"><input type="hidden" name="back" value="courses"><button type="submit" class="btn btn-tinted">{{ lucide('sparkles') }}{{ _("Plan it from Moodle") }}</button></form>
       {% elif p.state == "none" and h.key %}
       <a class="btn btn-plain cc-action" href="/p/{{ token }}/guide/moodle#step-link">{{ lucide('link') }}{{ _("Link it to Moodle") }}</a>
       {% endif %}
-      {% if c.weeks %}
-      <div class="cc-progress"><span class="meter" role="img" aria-label="{{ _('{taught} of {weeks} weeks taught', taught=c.taught, weeks=c.weeks) }}"><span class="fill w{{ (c.percent // 10) * 10 }}"></span></span>
-      <small>{{ _("{taught} of {weeks} weeks taught", taught=c.taught, weeks=c.weeks) }}{% if c.taught %} · {{ _n("{n} reviewed", "{n} reviewed", c.reviewed) }}{% endif %}{% if c.cards %} · {{ _n("{n} card", "{n} cards", c.cards) }}{% if c.due %} · {{ _n("{n} to review", "{n} to review", c.due) }}{% endif %}{% endif %}{% if c.workload == "below" %} · {{ _("fewer hours than the credits suggest") }}{% endif %}</small></div>
-      {% else %}
-      <small>{{ _("No lectures of this course in your timetable") }}</small>
-      {% endif %}
     </div>
+    {% endif %}
+    {% if c.weeks %}
+    <div class="cc-progress"><span class="meter" role="img" aria-label="{{ _('{taught} of {weeks} weeks taught', taught=c.taught, weeks=c.weeks) }}"><span class="fill w{{ (c.percent // 10) * 10 }}"></span></span>
+    <small>{{ _("{taught} of {weeks} weeks taught", taught=c.taught, weeks=c.weeks) }}{% if c.taught %} · {{ _n("{n} reviewed", "{n} reviewed", c.reviewed) }}{% endif %}{% if c.cards %} · {{ _n("{n} card", "{n} cards", c.cards) }}{% if c.due %} · {{ _n("{n} to review", "{n} to review", c.due) }}{% endif %}{% endif %}{% if c.workload == "below" %} · {{ _("fewer hours than the credits suggest") }}{% endif %}</small></div>
+    {% else %}
+    <small>{{ _("No lectures of this course in your timetable") }}</small>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>
+{% endif %}
 {% else %}
 <p class="card">{{ _("Your plan has no courses with an exam yet. Add them in Settings, then come back.") }}</p>
 {% endif %}
 </div>
 
+{% if view != "semester" %}
 <div class="context-col">
 {% if courses and mg %}{{ guide_card(mg) }}{% endif %}
 {% if courses %}
@@ -145,5 +218,6 @@
   </form>
 </section>
 </div>
+{% endif %}
 </div>
 {% endblock %}

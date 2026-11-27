@@ -243,9 +243,11 @@ def test_courses_shows_the_moodle_side_s_next_action_and_each_course_s_week(tmp_
         web.post(f"/p/{token}/moodle/read-all")
         page = unescape(web.get(f"/p/{token}/courses").text)
         assert "courses to plan from Moodle" not in page and "Plan every course" not in page
-        assert "Week 11: what to study" in page or "Week 10: what to study" in page
+        # D214: each course's card is this week's unit, design C (what, how, when), with how its
+        # plan was made a tap away.
+        assert "What · week 11" in page or "What · week 10" in page
         assert "Lecture 4 Cyclic groups" in page and "each file in the week it was put on Moodle" in page
-        assert page.count("Planned from 5 files on Moodle") == 2
+        assert page.count("How this plan was made") == 2
         # The course's page opens on its plan, said to follow the files' days on Moodle.
         algebra = service.topic_courses(sub).index("Algebra 3")
         course = unescape(web.get(f"/p/{token}/courses/{algebra}").text)

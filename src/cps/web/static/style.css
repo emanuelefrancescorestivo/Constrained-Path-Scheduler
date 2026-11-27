@@ -3720,6 +3720,8 @@ body[data-sky] .month-head { background: var(--glass-board-head); }
 .syllabus { margin: 6px 0 0; font-size: 0.9rem; }
 .syllabus ul { margin: 2px 0 0; padding-left: 1.2em; }
 .syllabus-add { margin: 6px 0 0; font-size: 0.85rem; }
+/* D214: how to study the week a session reviews, from its course's plan */
+.steps-line { margin: 6px 0 0; font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 /* The logo's menu inside a plan (D89) */
 .brand-button { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .brand-menu[popover] { inset: auto; top: calc(var(--topbar, 56px) + 6px); left: 12px; width: min(320px, calc(100vw - 24px)); padding: 6px; }
@@ -7267,3 +7269,70 @@ main.site.todo-wide { max-width: none; }
 .sound-credits > summary { margin: 0; color: var(--muted); font-weight: 600; }
 .sound-credits ul { margin: 6px 0; padding-left: 18px; line-height: 1.5; }
 .sound-credits p { margin: 0; }
+
+/* D214, the owner's pick for Courses: this week, course by course (C), or the semester (B). */
+.seg-views { display: inline-flex; gap: 4px; padding: 4px; margin: 0 0 12px; border-radius: 999px; background: var(--fill); }
+.seg-views a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 999px; color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.seg-views a svg { width: 16px; height: 16px; }
+.seg-views a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-sm); color: var(--accent-ink); }
+.unit-cards .cc-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; }
+.cc-col { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: var(--fill); }
+.cc-col small { color: var(--muted); }
+.cc-big { margin: 0; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.cc-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-height: 32px; padding: 4px 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 0.82rem; font-weight: 600; }
+.file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-chip svg { flex: none; width: 14px; height: 14px; color: var(--accent-ink); }
+.cc-steps { display: grid; gap: 2px; margin: 0; }
+.cc-steps label { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; font-size: 0.92rem; }
+/* a step done is a tick, not the app's switch (`input[type="checkbox"]` elsewhere) */
+.cc-steps input[type="checkbox"]:not(.pill input) { appearance: auto; -webkit-appearance: checkbox; width: 20px; height: 20px; margin: 0; border: 0; border-radius: 4px; background: none; box-shadow: none; accent-color: var(--accent); flex: none; }
+.cc-steps input:checked + span { color: var(--muted); text-decoration: line-through; }
+.cc-col form { margin: 0; }
+.cc-col .btn svg { width: 15px; height: 15px; margin-right: 4px; vertical-align: -2px; }
+.cc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; }
+.cc-memory { display: inline-flex; align-items: center; gap: 8px; }
+.cc-memory .meter { display: block; flex: none; width: 72px; }
+.cc-memory .fill { display: block; height: 100%; }
+.cc-memory .mem-strong .fill { background: var(--mem-strong); }
+.cc-memory .mem-good .fill { background: var(--mem-good); }
+.cc-memory .mem-fading .fill { background: var(--mem-fading); }
+.cc-memory .mem-review .fill { background: var(--mem-review); }
+.cc-made { border-radius: 12px; background: var(--fill); }
+.cc-made summary { cursor: pointer; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; color: var(--accent-ink); font-weight: 600; font-size: 0.9rem; }
+.cc-made[open] summary { border-bottom: 1px solid var(--line); }
+.cc-made .hint { margin: 0; padding: 0 12px 12px; }
+.made-steps { list-style: none; margin: 0; padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.made-steps li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface); font-size: 0.85rem; }
+.made-steps b { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.cc-refused .moodle-reading { padding: 10px 12px; border-radius: 12px; background: var(--danger-soft); }
+.reading-exits { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.reading-exits form { margin: 0; }
+.reading-pick select { max-width: 16rem; }
+.semester { padding: 12px; }
+.sem-scroll { overflow-x: auto; }
+.sem-grid { border-collapse: separate; border-spacing: 4px; min-width: 100%; font-size: 0.8rem; }
+.sem-grid thead th { color: var(--muted); font-weight: 700; text-align: center; white-space: nowrap; padding: 2px 4px; font-variant-numeric: tabular-nums; }
+.sem-grid thead th.is-now { color: var(--accent-ink); }
+.sem-grid tbody th { text-align: left; padding: 0 6px 0 0; white-space: nowrap; }
+.sem-grid tbody th a { display: inline-flex; align-items: center; gap: 7px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.88rem; }
+.sem-grid tbody th .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cc, var(--c-none)); }
+.sem-cell { padding: 0; min-width: 76px; }
+.sem-cell a { display: grid; align-content: space-between; gap: 5px; min-height: 58px; padding: 6px 7px; border-radius: 9px; background: var(--fill); color: var(--text); text-decoration: none; }
+.sem-cell.is-now a { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sem-cell.is-ahead a { opacity: 0.6; }
+.sem-cell.is-cont .sem-t { color: var(--muted); font-weight: 500; }
+.sem-t { font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.sem-m { display: block; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.sem-m i { display: block; height: 100%; background: var(--mem-review); }
+.sem-m.mem-strong i { background: var(--mem-strong); }
+.sem-m.mem-good i { background: var(--mem-good); }
+.sem-m.mem-fading i { background: var(--mem-fading); }
+.sem-none { min-width: 76px; }
+.sem-error a { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 9px; background: var(--danger-soft); color: var(--danger-text); text-decoration: none; font-weight: 600; }
+.sem-key { margin: 8px 4px 0; }
+/* the semester takes the page's whole width: the courses' grid needs it more than the context */
+.with-context.is-wide { grid-template-columns: minmax(0, 1fr); grid-template-areas: "list"; }
+@media (max-width: 760px) {
+  .unit-cards .cc-cols { grid-template-columns: 1fr; }
+}

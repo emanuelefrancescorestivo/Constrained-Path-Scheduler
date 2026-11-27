@@ -1398,6 +1398,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         token = subscription.token
         if subscription.source_url and service.is_stale(subscription, config.clock()):
             feeds.refresh(token)
+        moodle_look(subscription)  # D214: the courses planned from Moodle, once a day
         service.log_visit(store, token, config.clock())
         today = config.clock().astimezone(ZoneInfo(subscription.options["tz"])).date()
         first = context.pop("first", None) or today.isoformat()
@@ -2992,11 +2993,14 @@ def create_app(config: Config | None = None) -> FastAPI:
     }
 
     @app.get("/p/{token}/courses", response_class=HTMLResponse)
-    def courses_list(request: Request, token: str, imported: int = -1, saved: str = "") -> HTMLResponse:
+    def courses_list(
+        request: Request, token: str, imported: int = -1, saved: str = "", view: str = ""
+    ) -> HTMLResponse:
         subscription = load(token)
         if subscription is None:
             return missing(request)
         service.log_visit(store, token, config.clock())
+        moodle_look(subscription)  # D214
         courses = service.courses_view(store, subscription, config.clock())
         notice = (
             service.translate_plural(
@@ -3012,6 +3016,12 @@ def create_app(config: Config | None = None) -> FastAPI:
             token=token,
             moodle_guide=service.moodle_guide_view(subscription, store=store, now=config.clock()),  # D209
             hub=service.plan_hub(store, subscription, config.clock()),  # D213
+            # D214: this week, course by course (C), or the whole semester (B)
+            view="semester" if view == "semester" else "week",
+            semester=service.semester_view(store, subscription, config.clock())
+            if view == "semester"
+            else None,
+            moodle_list=service.moodle_list(subscription),
             courses=courses,
             tab="courses",
             saved=notice or (_notice(saved) if saved else None),
@@ -3209,6 +3219,10 @@ def create_app(config: Config | None = None) -> FastAPI:
             plan=service.study_plan_view(subscription, index, config.clock(), store=store),
             moodle_key=service.moodle_key_view(subscription),
             moodle_list=service.moodle_list(subscription),  # D211: the courses the key found
+            # D214: why Moodle could not be read for this course, with the ways out
+            refusal=(service.moodle_reading(store, subscription, view["course"], config.clock()) or {}).get(
+                "error"
+            ),
             tab="courses",
             exam_row=exam,
             values=values,
@@ -3261,22 +3275,64 @@ def create_app(config: Config | None = None) -> FastAPI:
         else:
             run()
 
-    def plan_from_moodle(token: str, indices: list[int]) -> list[int]:
+    def plan_from_moodle(token: str, indices: list[int], *, again: bool = False) -> list[int]:
         """D211: each course's plan from its files' names at once, and the courses whose files
         are still to read, which are then read in the background, one after the other: all
-        but the first wait their turn, and say so (D213)."""
+        but the first wait their turn, and say so (D213). D214: a course Moodle refuses keeps
+        why on its card and page, and the others go on; `again`, the daily look, says nothing
+        of a refusal (the plan stays as it was) and keeps a course whose files did not change."""
         later: list[int] = []
         for index in indices:
             with reading_lock:
                 if (token, index) in reading_now:
                     continue
-            summary = service.plan_moodle_course(
-                store, token, index, call=config.moodle_call, now=config.clock(), queued=bool(later)
-            )
+            try:
+                summary = service.plan_moodle_course(
+                    store,
+                    token,
+                    index,
+                    call=config.moodle_call,
+                    now=config.clock(),
+                    queued=bool(later),
+                    again=again,
+                )
+            except service.ServiceError as error:
+                if not again:
+                    service.keep_moodle_refusal(store, token, index, str(error), config.clock())
+                continue
             if summary["pending"]:
                 later.append(index)
         read_files_later(token, later)
         return later
+
+    # D214 (AUDIT 144): once a day, when the student opens Today or Courses, the courses planned
+    # from Moodle are looked at again in the background, so a teacher's new slides reach the
+    # plan without a tap; a course whose files did not change keeps its plan, at no cost.
+    looked_at: dict[str, str] = {}
+
+    def moodle_look(subscription: service.Subscription) -> None:
+        if not config.background:
+            return
+        now = config.clock()
+        day = now.date().isoformat()
+        token = subscription.token
+        if looked_at.get(token) == day:
+            return
+        due = service.moodle_due(subscription, now)
+        if not due:
+            return
+        if len(looked_at) > 10_000:
+            looked_at.clear()
+        looked_at[token] = day
+
+        def run() -> None:
+            try:
+                plan_from_moodle(token, due, again=True)
+            except Exception as error:  # the plan stays as it was; tried again tomorrow
+                LOG.warning("the daily look at Moodle failed: %s", type(error).__name__)
+
+        context = contextvars.copy_context()
+        threading.Thread(target=context.run, args=(run,), name="cps-moodle-look", daemon=True).start()
 
     @app.post("/p/{token}/courses/{index}/moodle/read")
     async def course_moodle_read(request: Request, token: str, index: int) -> Response:
@@ -3289,13 +3345,41 @@ def create_app(config: Config | None = None) -> FastAPI:
         if not changes.allow(token):
             return too_many(request)
         form = await request.form(max_files=0, max_fields=2)
-        try:
-            plan_from_moodle(token, [index])
-        except service.ServiceError as error:
-            return course_page(request, subscription, index, 400, error=str(error))
+        if not 0 <= index < len(service.topic_courses(subscription)):
+            return missing(request)
+        # D214: a refusal stays on the course, with the ways out, not on a page of its own.
+        planned = plan_from_moodle(token, [index])
+        refused_now = (
+            service.moodle_reading(
+                store, subscription, service.topic_courses(subscription)[index], config.clock()
+            )
+            or {}
+        ).get("error")
         if form.get("back") == "guide":
             return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
+        if form.get("back") == "courses":
+            return RedirectResponse(f"/p/{token}/courses#course-{index}", 303)
+        if refused_now and not planned:
+            return RedirectResponse(f"/p/{token}/courses/{index}#moodle", 303)
         return RedirectResponse(f"/p/{token}/courses/{index}?saved=read#study-plan", 303)
+
+    @app.post("/p/{token}/courses/{index}/steps")
+    async def course_steps(request: Request, token: str, index: int) -> Response:
+        """D214: the steps of a course's week the student has done, saved as each is ticked."""
+        if load(token) is None:
+            return missing(request)
+        if not changes.allow(token):
+            return too_many(request)
+        form = await request.form(max_files=0, max_fields=12)
+        monday = str(form.get("monday") or "")
+        kinds = [str(k) for k in form.getlist("step")][:8]
+        try:
+            service.update_subscription(
+                store, token, lambda current: service.tick_unit_steps(current, index, monday, kinds)
+            )
+        except service.ServiceError as error:
+            return refused(request, token, error)
+        return RedirectResponse(f"/p/{token}/courses#course-{index}", 303)
 
     @app.post("/p/{token}/moodle/read-all")
     def moodle_read_all(request: Request, token: str) -> Response:

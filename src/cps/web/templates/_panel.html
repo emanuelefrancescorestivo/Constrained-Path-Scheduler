@@ -47,11 +47,12 @@
     {% for value, word in (recall_words if card.self_test else outcome_words).items() %}<button class="btn btn-sm" name="outcome" value="{{ value }}"{% if card.reported == value %} aria-pressed="true"{% endif %}>{{ _(word) }}</button>{% endfor %}
   </form>
   {% endif %}
-  {% if card.what or card.why or card.syllabus or card.week or (card.gain and card.reported != "skipped") %}
+  {% if card.what or card.why or card.syllabus or card.steps or card.week or (card.gain and card.reported != "skipped") %}
   <details class="nx-how">
     <summary>{{ _("How, and why now") }}</summary>
     {% if card.what %}<p class="what">{{ card.what }}</p>{% endif %}
     {% if card.syllabus %}<div class="syllabus"><span class="muted">{{ _("In the syllabus:") }}</span><ul>{% for t in card.syllabus %}<li>{{ t }}</li>{% endfor %}</ul></div>{% endif %}
+    {% if card.steps %}<p class="steps-line">{# D214: how to study the week, from its course's plan #}<span class="muted">{{ _("How:") }}</span> {% for x in card.steps %}<span class="chip">{{ x }}</span>{% endfor %}</p>{% endif %}
     {% if card.week and not card.reported %}<p class="syllabus-add"><a href="/p/{{ token }}/cards/review?course={{ card.title | urlencode }}&amp;week={{ card.week }}">{{ _("Your cards for this week") }}</a></p>{% endif %}
     {% if card.why %}<p class="why">{{ card.why }}</p>{% endif %}
     {% if card.gain and card.reported != "skipped" and card.reported not in recall_words %}<p class="gain">{{ _h("On exam day, this topic: <b>{without}</b> without this session, <b>{with_it}</b> with it, if no other review followed (a model's estimate).", without=card.gain.without ~ " %", with_it=card.gain["with"] ~ " %") }}</p>{% endif %}

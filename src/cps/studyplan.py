@@ -24,9 +24,11 @@ file (slides, exercises, solutions, a past exam).
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from html.parser import HTMLParser
+from urllib.parse import unquote, urlsplit
 
 from .coursepages import folded
 
@@ -91,6 +93,81 @@ class Section:
 _KINDS = ("resource", "folder", "page", "book", "lesson", "imscp", "url", "quiz", "h5pactivity")
 
 
+class _Links(HTMLParser):
+    """The links of a piece of Moodle's HTML: each address with the words it is written as."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[tuple[str, str]] = []
+        self._href: str | None = None
+        self._words: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "a":
+            self._href = dict(attrs).get("href") or None
+            self._words = []
+
+    def handle_data(self, data: str) -> None:
+        if self._href is not None:
+            self._words.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._href is not None:
+            self.links.append((self._href, " ".join(" ".join(self._words).split())))
+            self._href = None
+
+
+_PLUGINFILE = re.compile(r"^(https?://[^/]+(?:/[^?#]*?)?)/(?:webservice/)?pluginfile\.php(/[^?#]+)")
+
+
+def _text_files(html: object, host: str, name: str, section: str, number: int) -> list[Activity]:
+    """D214 (AUDIT 143): the files a teacher links in a text: a text area on the course page
+    (Moodle's "label") or a section's description. Only Moodle's own files on the course's site,
+    of notes' kinds; each becomes an activity of its own, as a file would be: its page the
+    address a browser opens with the student's own sign-in, its address the web service's."""
+    if not isinstance(html, str) or "pluginfile.php" not in html:
+        return []
+    parser = _Links()
+    try:
+        parser.feed(html)
+        parser.close()
+    except (AssertionError, ValueError):  # markup HTMLParser cannot follow: nothing read from it
+        return []
+    out = []
+    seen = set()
+    for href, words in parser.links:
+        found = _PLUGINFILE.match(href.strip())
+        if not found or (urlsplit(href).hostname or "").lower() != host:
+            continue
+        base, path = found.group(1), found.group(2)
+        filename = unquote(path.rsplit("/", 1)[-1])
+        if not filename.lower().endswith(READABLE) or path in seen:
+            continue
+        seen.add(path)
+        title = words if len(words) > 2 else (name or filename)
+        address = f"{base}/webservice/pluginfile.php{path}"
+        file = File(title, f"{base}/pluginfile.php{path}", filename, address, 1, section, number)
+        out.append(Activity(title, "resource", file.page, (file,)))
+    return out
+
+
+def inventory(contents: object) -> Counter[str]:
+    """D214: what Moodle sent for a course, its activities counted by kind (`modname`), those
+    hidden from the student left out; for saying why nothing could be read."""
+    kinds: Counter[str] = Counter()
+    for raw in contents if isinstance(contents, list) else []:
+        if not isinstance(raw, Mapping):
+            continue
+        for module in raw.get("modules") or []:
+            if (
+                isinstance(module, Mapping)
+                and module.get("uservisible") is not False
+                and module.get("visible") != 0
+            ):
+                kinds[str(module.get("modname") or "")] += 1
+    return kinds
+
+
 def sections(contents: object, site: str) -> list[Section]:
     """Moodle's answer to `core_course_get_contents` read into sections, keeping only the
     activities that hold material and only files on the same site as the course (a file's
@@ -104,11 +181,17 @@ def sections(contents: object, site: str) -> list[Section]:
         name = " ".join(str(raw.get("name") or "").split())
         number = raw.get("section")
         number = number if isinstance(number, int) else len(out)
-        activities = []
+        activities = _text_files(raw.get("summary"), host, name, name, number)
         for module in raw.get("modules") or []:
-            if not isinstance(module, Mapping) or module.get("modname") not in _KINDS:
+            if not isinstance(module, Mapping):
                 continue
             if module.get("visible") == 0 or module.get("uservisible") is False:
+                continue
+            if module.get("modname") == "label":  # D214: a text area, and the files it links
+                title = " ".join(str(module.get("name") or "").split())
+                activities.extend(_text_files(module.get("description"), host, title, name, number))
+                continue
+            if module.get("modname") not in _KINDS:
                 continue
             title = " ".join(str(module.get("name") or "").split())
             page = str(module.get("url") or "")
