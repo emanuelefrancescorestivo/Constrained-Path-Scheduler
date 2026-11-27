@@ -5119,6 +5119,8 @@ def _session_card(
         # What the syllabus says the week's lectures were about (D81), and where the
         # course's topics are kept.
         "syllabus": _syllabus_of(s, syllabus or {}),
+        # How to study that week, from its course's plan from Moodle (D214).
+        "steps": _steps_of(s, syllabus or {}),
         "course_index": next(
             (i for i, c in enumerate(courses) if s.kind != "task" and course_key(c) == course_key(s.subject)),
             None,
@@ -15934,7 +15936,7 @@ def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[st
     """Topic titles by course and teaching week ("05 Oct", as in a session's
     topic), and by course and "before" for the weeks begun before the plan began."""
     kept = subscription.options.get("topics") or {}
-    if not kept or subscription.plan is None:
+    if (not kept and not subscription.options.get("study_plans")) or subscription.plan is None:
         return {}
     start = PlanReport.from_dict(subscription.plan).settings.start
     index: dict[tuple[str, str], list[str]] = {}
@@ -15949,6 +15951,13 @@ def _syllabus_index(subscription: Subscription) -> dict[tuple[str, str], list[st
                     before = index.setdefault((key, "before"), [])
                     if item["title"] not in before:
                         before.append(item["title"])
+    # D214: how to study each week, from the course's study plan from Moodle (D208), under
+    # "how:" and the week's label, every week a part goes on over (D212) included.
+    for key, plan in (subscription.options.get("study_plans") or {}).items():
+        for week in plan.get("weeks") or ():
+            kinds = [h["kind"] for h in week.get("how") or () if h.get("kind")]
+            if kinds and week.get("monday"):
+                index[(key, "how:" + _week_label(date.fromisoformat(week["monday"])))] = kinds
     return index
 
 
@@ -15960,6 +15969,18 @@ def _syllabus_of(s: SessionView, index: Mapping[tuple[str, str], list[str]]) -> 
     if not index or s.kind == "task" or not s.topic:
         return []
     return _syllabus_of_name(s.topic, s.subject, index)
+
+
+def _steps_of(s: SessionView, index: Mapping[tuple[str, str], list[str]]) -> list[str]:
+    """D214: how to study the week a session reviews, by its course's study plan: the steps'
+    names, in the plan's order."""
+    if not index or s.kind == "task" or not s.topic:
+        return []
+    week = _WEEK_TOPIC.match(s.topic.removeprefix(f"{s.subject} · "))
+    if week is None:
+        return []
+    kinds = index.get((course_key(s.subject), "how:" + week.group(1)), [])
+    return [_(PLAN_HOW_NAMES.get(k, k)) for k in kinds]
 
 
 def topics_nudge(store: str | os.PathLike, subscription: Subscription) -> dict | None:
@@ -17080,6 +17101,94 @@ def _plan_input(
     return out, whole
 
 
+def _moodle_sign(found: Sequence[_studyplan.Section]) -> str:
+    """D214: what a course on Moodle holds, as one digest: its sections, activities and files,
+    with when each file was put there and its size; the same digest, the same course."""
+    parts = sorted(
+        f"{sec.number}|{sec.name}|{a.page}|{f.address}|{f.uploaded}|{f.size}"
+        for sec in found
+        for a in sec.activities
+        for f in a.files or (_studyplan.File(a.name, a.page, "", "", 0, sec.name, sec.number),)
+    )
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
+
+
+# D214 (AUDIT 144): a course planned from Moodle is looked at again once a day, when the
+# student opens the app, so that the slides a teacher puts there each week reach the plan
+# without a tap; only a course whose files changed is planned again (`read_moodle_course`).
+MOODLE_REREAD = timedelta(days=1)
+
+
+def moodle_due(subscription: Subscription, now: datetime | None = None) -> list[int]:
+    """The courses planned from Moodle that were last looked at `MOODLE_REREAD` ago or more,
+    by index; none without the key."""
+    now = now or datetime.now(UTC)
+    if not moodle_key_view(subscription)["linked"]:
+        return []
+    plans = subscription.options.get("study_plans") or {}
+    linked = subscription.options.get("moodle_courses") or {}
+    out = []
+    for index, name in enumerate(topic_courses(subscription)):
+        plan = plans.get(course_key(name)) or {}
+        if not plan or course_key(name) not in linked:
+            continue
+        seen = [datetime.fromisoformat(v) for v in (plan.get("read"), plan.get("checked")) if v]
+        if not seen or now - max(seen) >= MOODLE_REREAD:
+            out.append(index)
+    return out
+
+
+def keep_moodle_refusal(store: str | os.PathLike, token: str, index: int, words: str, now: datetime) -> None:
+    """D214: why a course could not be read from Moodle, kept on the course (its card on
+    Courses, its page) with the ways out, in place of a page of its own."""
+    subscription = load_subscription(store, token)
+    if subscription is None:
+        return
+    key = course_key(_topic_course(subscription, index))
+    at = now.astimezone(UTC).isoformat(timespec="seconds")
+    _set_reading(store, token, key, {"done": 0, "total": 0, "error": words, "at": at})
+
+
+# D214 (AUDIT 143): what a course on Moodle held when none of it could be read, by kind, in
+# the student's words; the owner met "is it the right course, and are you enrolled?" on a course
+# they were enrolled in, whose teacher kept the notes elsewhere than in files.
+MOODLE_KIND_WORDS = {
+    "forum": "forums",
+    "assign": "assignments",
+    "label": "text areas",
+    "lti": "external tools",
+    "choice": "polls",
+    "feedback": "surveys",
+    "attendance": "attendance sheets",
+    "bigbluebuttonbn": "online classes",
+    "zoom": "online classes",
+    "workshop": "workshops",
+    "glossary": "glossaries",
+    "wiki": "wikis",
+    "data": "databases",
+    "scorm": "SCORM packages",
+}
+
+
+def _moodle_nothing(kinds: Mapping[str, int]) -> str:
+    """Why nothing of a course on Moodle could be read: empty, or only activities that hold no
+    files (forums, assignments, text areas without notes linked...)."""
+    total = sum(kinds.values())
+    if not total:
+        return _(
+            "Moodle sent this course empty: it may not be the course you meant, or its teacher "
+            "has hidden everything for now."
+        )
+    ranked = sorted(kinds.items(), key=lambda kv: -kv[1])
+    names = list(dict.fromkeys(_(MOODLE_KIND_WORDS.get(k, "other activities")) for k, _count in ranked))
+    return _n(
+        "Moodle sent this course with {n} activity and no file of notes in it: {kinds}.",
+        "Moodle sent this course with {n} activities and no file of notes in them: {kinds}.",
+        total,
+        kinds=", ".join(names),
+    )
+
+
 def read_moodle_course(
     store: str | os.PathLike,
     subscription: Subscription,
@@ -17092,6 +17201,7 @@ def read_moodle_course(
     ai: bool = True,
     files: bool = True,
     progress: Callable[[int, int], None] | None = None,
+    again: bool = False,
 ) -> tuple[Subscription, dict]:
     """A course read from Moodle with the student's key (D208): its sections and activities
     become its materials on its weeks (as a saved page's do, D174); its files are downloaded,
@@ -17105,7 +17215,10 @@ def read_moodle_course(
     course's sections and the files' names alone, in the time of one call to Moodle, and says
     how many files are still to read (`pending`); the web app shows it at once and reads the
     files after, in the background. Files are downloaded and read several at a time, a PDF's
-    first pages only (`notefiles.text(quick=True)`); `progress(done, total)` follows them."""
+    first pages only (`notefiles.text(quick=True)`); `progress(done, total)` follows them.
+
+    D214: `again`, the daily look (`moodle_due`), keeps the plan as it is when the course's
+    files are those it was made from (`_moodle_sign`), and says so (`unchanged`)."""
     now = now or datetime.now(UTC)
     course = _topic_course(subscription, index)
     key = course_key(course)
@@ -17126,9 +17239,25 @@ def read_moodle_course(
         raise InvalidInput(str(exc)) from exc
     found = _studyplan.sections(contents, site)
     if not any(sec.activities for sec in found):
-        raise InvalidInput(
-            _("Moodle gave nothing for this course: is it the right course, and are you enrolled in it?")
-        )
+        raise InvalidInput(_moodle_nothing(_studyplan.inventory(contents)))
+    sign = _moodle_sign(found)
+    stamp = now.astimezone(UTC).isoformat(timespec="seconds")
+    plans_before = subscription.options.get("study_plans") or {}
+    earlier = plans_before.get(key) or {}
+    if again and earlier.get("sign") == sign and not earlier.get("pending"):
+        options = dict(subscription.options)
+        options["study_plans"] = {**plans_before, key: {**earlier, "checked": stamp}}
+        unchanged = {
+            "unchanged": True,
+            "pending": 0,
+            "files": earlier.get("files", 0),
+            "failed": 0,
+            "left": 0,
+            "weeks": len(earlier.get("weeks") or ()),
+            "by": earlier.get("by") or "",
+            "materials": 0,
+        }
+        return replace(subscription, options=options), unchanged
     reading = _coursepages.sections(
         course,
         site,
@@ -17237,6 +17366,11 @@ def read_moodle_course(
             "in_order": how == "order",
             "how": how,
             "steps": sum(1 for w in plan if not w.get("continued")),
+            # D214: what it was made from, to see on the daily look whether it changed; when it
+            # was last looked at; the files of other kinds (videos, archives), never read.
+            "sign": sign,
+            "checked": stamp,
+            "skipped": sum(1 for sec in found for a in sec.activities for f in a.files if not f.readable),
         },
     }
     before = (options.get("topics") or {}).get(key) or {}
@@ -17246,12 +17380,21 @@ def read_moodle_course(
             for w in plan
             if not w.get("continued")
             for t in w["topics"]
-        ]
+        ][: _syllabus.MAX_TOPICS]
+        placed = _placed(subscription, course, topics)
+        # D214 (AUDIT 142): a part that goes on over the weeks after it (D212, D213) is taught in
+        # each of them, as a chapter of a list without weeks is (D187): its "until" is the last
+        # week it goes on to, so the sessions of those weeks say what they review too.
+        last = {w["continued"]: w["number"] for w in plan if w.get("continued")}
+        for topic, item in zip(topics, placed, strict=True):
+            end = last.get(topic.week) if topic.week is not None else None
+            if end and end <= len(mondays):
+                item["until"] = mondays[end - 1].isoformat()
         options["topics"] = {
             **(options.get("topics") or {}),
             key: {
                 "course": course,
-                "items": _placed(subscription, course, topics[: _syllabus.MAX_TOPICS]),
+                "items": placed,
                 "from": None,
                 "facts": before.get("facts") or {},
                 "source": "moodle",
@@ -17329,17 +17472,23 @@ def plan_moodle_course(
     call: Callable[..., object] | None = None,
     now: datetime | None = None,
     queued: bool = False,
+    again: bool = False,
 ) -> dict:
     """D211, the first go: the course's plan from its sections and files' names, kept at once,
     and the files marked as still to read, `queued` behind another course's (D213). Returns
-    `read_moodle_course`'s summary."""
+    `read_moodle_course`'s summary. `again`: the daily look (D214), which keeps the plan of a
+    course whose files did not change."""
     now = now or datetime.now(UTC)
     subscription = load_subscription(store, token)
     if subscription is None:
         raise InvalidInput(_("Not found"))
-    read, summary = read_moodle_course(store, subscription, index, call=call, now=now, files=False)
+    read, summary = read_moodle_course(
+        store, subscription, index, call=call, now=now, files=False, again=again
+    )
     key = course_key(_topic_course(subscription, index))
     _merge_moodle_read(store, token, read)
+    if summary.get("unchanged"):
+        return summary
     at = now.astimezone(UTC).isoformat(timespec="seconds")
     state = {"done": -1 if queued else 0, "total": summary["pending"], "at": at}
     _set_reading(store, token, key, state if summary["pending"] else None)
@@ -17574,6 +17723,7 @@ def plan_hub(store: str | os.PathLike, subscription: Subscription, now: datetime
     now = now or datetime.now(UTC)
     guide = moodle_guide_view(subscription, store=store, now=now)
     plans = subscription.options.get("study_plans") or {}
+    recalls = _recalls_now(subscription, now) if plans else {}
     courses = {}
     for c in guide["courses"]:
         kept = plans.get(course_key(c["name"])) or {}
@@ -17594,6 +17744,10 @@ def plan_hub(store: str | os.PathLike, subscription: Subscription, now: datetime
             "by": kept.get("by") or "",
             "files": kept.get("files", 0),
             "moodle_name": c["moodle_name"],
+            "moodle_id": c["moodle_id"],
+            # D214: this week's unit, design C's card: what, how, when, and how it was made
+            "unit": course_week(subscription, c["index"], now, recalls) if kept else None,
+            "error": (c["reading"] or {}).get("error"),
         }
     moving = [c["reading"] for c in guide["courses"] if _moving(c["reading"])]
     return {
@@ -17608,6 +17762,198 @@ def plan_hub(store: str | os.PathLike, subscription: Subscription, now: datetime
         "total": sum(r["total"] for r in moving),
         "percent": round(100 * sum(r["done"] for r in moving) / max(1, sum(r["total"] for r in moving))),
         "courses": courses,
+    }
+
+
+# D214: the owner chose design C for Courses, "this week, course by course" (what, how, when in
+# one card, how its plan was made a tap away), and B's grid of the whole semester beside it.
+# Each week of lectures of a course is one unit: what it is about and its files (Moodle),
+# how to study it (the course's plan), when (the engine's sessions), and its memory now.
+UNIT_STEPS_KEPT = 40  # weeks whose ticked steps a course keeps
+
+
+def _recalls_now(subscription: Subscription, now: datetime) -> dict[str, float]:
+    """Every taught topic's predicted recall now, by the plan's name for it: one replay of the
+    plan's history for all courses."""
+    if not subscription.plan:
+        return {}
+    plan = PlanReport.from_dict(subscription.plan)
+    model = model_of(plan.settings)
+    day = _days_after(plan.settings.start, now.astimezone(_zone(plan.settings.tz)))
+    _snap, _gains, state = _memory_timeline(plan, model, [day])
+    out = {}
+    for spec in plan.specs:
+        if spec.get("available_day", 0.0) <= day and spec["name"] in state:
+            memory, last = state[spec["name"]]
+            out[spec["name"]] = model.retrievability(max(day - last, 0.0), memory.stability)
+    return out
+
+
+def _week_recall(course: str, monday: date, recalls: Mapping[str, float]) -> float | None:
+    base = f"{course} · week of {_week_label(monday)}"
+    values = [v for name, v in recalls.items() if name == base or name.startswith(base + " (")]
+    return min(values) if values else None
+
+
+def tick_unit_steps(
+    subscription: Subscription, index: int, monday: str, kinds: Sequence[str]
+) -> Subscription:
+    """D214: the steps of a course's week the student has done, saved as they are ticked."""
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    weeks = ((subscription.options.get("study_plans") or {}).get(key) or {}).get("weeks") or ()
+    if monday not in {w.get("monday") for w in weeks}:
+        raise InvalidInput(_("this week is not in the course's plan"))
+    done = [k for k in dict.fromkeys(kinds) if k in _studyplan.HOW_KINDS]
+    kept = dict(((subscription.options.get("unit_steps") or {}).get(key)) or {})
+    kept[monday] = done
+    kept = dict(sorted(kept.items())[-UNIT_STEPS_KEPT:])
+    options = {
+        **subscription.options,
+        "unit_steps": {**(subscription.options.get("unit_steps") or {}), key: kept},
+    }
+    return replace(subscription, options=options)
+
+
+def course_week(
+    subscription: Subscription,
+    index: int,
+    now: datetime | None = None,
+    recalls: Mapping[str, float] | None = None,
+) -> dict | None:
+    """D214: a course's unit of this week (else of the last week taught): what it is about, the
+    part it goes on from, its files, how to study it with the steps ticked, its memory now, and
+    the course's next two sessions. None for a course without a plan from its materials."""
+    now = now or datetime.now(UTC)
+    course = _topic_course(subscription, index)
+    key = course_key(course)
+    kept = (subscription.options.get("study_plans") or {}).get(key)
+    if not kept:
+        return None
+    zone = _zone(subscription.options["tz"])
+    local = now.astimezone(zone)
+    today = local.date()
+    past = [w for w in kept.get("weeks") or () if date.fromisoformat(w["monday"]) <= today]
+    if not past:
+        return None
+    w = past[-1]
+    own = date.fromisoformat(kept["weeks"][w["continued"] - 1]["monday"]) if w.get("continued") else None
+    files_week = (own or date.fromisoformat(w["monday"])).isoformat()
+    files = [
+        {"title": x["title"], "url": x["url"], "kind": x.get("kind") or ""}
+        for x in _links(subscription, course)
+        if x.get("week") == files_week and x.get("url")
+    ][:4]
+    done = set((((subscription.options.get("unit_steps") or {}).get(key)) or {}).get(w["monday"]) or ())
+    recall = _week_recall(
+        course,
+        date.fromisoformat(w["monday"]),
+        recalls if recalls is not None else _recalls_now(subscription, now),
+    )
+    plan = PlanReport.from_dict(subscription.plan) if subscription.plan else None
+    upcoming = []
+    for s in plan.sessions if plan else ():
+        start = datetime.fromisoformat(s.start).astimezone(zone)
+        if course_key(s.subject) == key and s.kind != "task" and start >= local:
+            upcoming.append({"when": _when(start, local), "sid": session_id(s)})
+        if len(upcoming) == 2:
+            break
+    return {
+        "number": w["number"],
+        "monday": w["monday"],
+        "topics": [t["title"] for t in w.get("topics") or ()][:3],
+        "continued": w.get("continued"),
+        "files": files,
+        "steps": [
+            {
+                "kind": h["kind"],
+                "name": _(PLAN_HOW_NAMES.get(h["kind"], h["kind"])),
+                "what": h.get("what") or _(PLAN_HOW_WORDS.get(h["kind"], "")),
+                "done": h["kind"] in done,
+            }
+            for h in w.get("how") or ()
+        ][:HOW_SHOWN],
+        "recall": round(100 * recall) if recall is not None else None,
+        "level": _learning.level(recall) if recall is not None else None,
+        "next": upcoming,
+        "how": kept.get("how") or ("order" if kept.get("in_order") else "weeks"),
+        "files_read": kept.get("files", 0),
+        "failed": kept.get("failed", 0),
+        "skipped": kept.get("skipped", 0) + kept.get("left", 0),
+        "by": kept.get("by") or "",
+        "weeks": len(kept.get("weeks") or ()),
+        "checked": format_date(
+            datetime.fromisoformat(kept.get("checked") or kept["read"]).astimezone(zone).date(), "day_short"
+        )
+        if kept.get("checked") or kept.get("read")
+        else "",
+    }
+
+
+HOW_SHOWN = 4  # steps a week's card lists
+
+
+def semester_view(
+    store: str | os.PathLike,
+    subscription: Subscription,
+    now: datetime | None = None,
+    recalls: Mapping[str, float] | None = None,
+) -> dict:
+    """D214, the owner's B: every course over the semester's weeks of lectures, each cell one
+    unit: what it is about (a part, or the part it goes on from, or its files still to come on
+    Moodle), its memory now, and where it stands (past, this week, to come). A course whose
+    reading from Moodle was refused says why across its row."""
+    now = now or datetime.now(UTC)
+    recalls = recalls if recalls is not None else _recalls_now(subscription, now)
+    today = now.astimezone(_zone(subscription.options["tz"])).date()
+    this_monday = today - timedelta(days=today.weekday())
+    readings = _readings(store, subscription.token)
+    rows: list[dict[str, Any]] = []
+    columns: set[date] = set()
+    for index, course in enumerate(topic_courses(subscription)):
+        key = course_key(course)
+        mondays = _teaching(subscription, course)[0]
+        columns.update(mondays)
+        kept = (subscription.options.get("study_plans") or {}).get(key) or {}
+        by_monday = {w["monday"]: w for w in kept.get("weeks") or ()}
+        how = kept.get("how") or "weeks"
+        cells: dict[date, dict[str, Any]] = {}
+        for n, monday in enumerate(mondays, start=1):
+            w = by_monday.get(monday.isoformat()) or {}
+            first = next(iter(t["title"] for t in w.get("topics") or ()), None)
+            continued = bool(w.get("continued"))
+            recall = _week_recall(course, monday, recalls)
+            cells[monday] = {
+                "n": n,
+                "title": first,
+                "continued": continued,
+                "waiting": continued and how == "uploaded" and monday >= this_monday,
+                "level": _learning.level(recall) if recall is not None else None,
+                "recall": round(100 * recall) if recall is not None else None,
+                "state": "now" if monday == this_monday else ("past" if monday < this_monday else "ahead"),
+            }
+        reading = _reading_state(readings.get(key), now)
+        rows.append(
+            {
+                "index": index,
+                "course": course,
+                "cells": cells,
+                "error": reading.get("error") if reading else None,
+                "planned": bool(kept),
+            }
+        )
+    weeks = sorted(columns)
+    return {
+        "weeks": [
+            {
+                "monday": m.isoformat(),
+                "label": format_date(m, "day_short"),
+                "now": m == this_monday,
+            }
+            for m in weeks
+        ],
+        "rows": [{**r, "cells": [r["cells"].get(m) for m in weeks]} for r in rows],
+        "now": next((i for i, m in enumerate(weeks) if m == this_monday), None),
     }
 
 

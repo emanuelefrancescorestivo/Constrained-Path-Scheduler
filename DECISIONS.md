@@ -8609,3 +8609,63 @@ the course's name above its meter; the reading in the background keeps the stude
 - A file's upload day is Moodle's `timecreated`, else `timemodified` (a file replaced later counts from
   its replacement); a saved page (D174) has neither, and keeps rules 1, 3 and 4.
 - Checked in Chromium only, at 1440 × 900 and phone size, light and dark.
+
+## D214. Courses rebuilt around the week: this week course by course, and the semester
+
+The owner, on their own Moodle after D213: a course ended on «Moodle n'a rien donné pour ce cours : est-ce le
+bon cours, et y es-tu inscrit ?», a page of its own with one button back; then "ricomincia tutto il sistema
+dell'upload da moodle, la lettura dei materiali e la pianificazione attraverso il nostro engine, mostrami in
+maniera trasparente come funziona, poi proponi dei design ergonomici ed intuitivi per la pagina dei corsi".
+The whole pipeline was traced on a Moodle written from their screenshots (the trace and three designs were
+shown to them as a page), which found three defects (AUDIT 142, 143, 144). Of the designs, "i like C but i
+also like the holistic view of B over all courses, maybe in the today or in the courses page".
+
+**One idea: each week of lectures of a course is one unit.** It already is the engine's topic ("Algebra 3 ·
+week of 16 Nov", with its memory by FSRS-6); it now carries what its course's plan from Moodle says too.
+- **What, on every week.** A part that goes on over the weeks after it (D212, D213) is saved with the last
+  of them as its "until", as a chapter of a list without weeks is (D187), so the sessions that review those
+  weeks say what they are about. Before, 5 of the 7 next sessions of the trace said nothing (AUDIT 142).
+- **How, on the session.** The week's steps from the course's plan (Read, Test yourself, Exercises…) are
+  on the session's card on Today and the calendar, under what the syllabus says (`_steps_of`).
+- **Moodle looked at again once a day** (`moodle_due`, `MOODLE_REREAD`), in the background when the student
+  opens Today or Courses, so the slides a teacher puts there each week reach the plan without a tap
+  (AUDIT 144). Only a course whose files changed is planned again: the course's sections, files, upload
+  days and sizes are kept as one digest (`_moodle_sign`); the same digest keeps the plan and costs no
+  download and no model call. A failure says nothing and is tried again the next day.
+- **Notes in a text area or a section's description are read** (`studyplan._text_files`): the links to
+  Moodle's own files on the course's site, of notes' kinds, each read as a file would be (AUDIT 143).
+- **A refusal stays on the course** (`keep_moodle_refusal`), on its card and its page, saying what Moodle
+  sent ("3 activities and no file of notes in them: forums, text areas, assignments", `_moodle_nothing`,
+  or an empty course), never "are you enrolled?", with the ways out: read it again, another of the
+  student's courses on Moodle, the teacher's site or a document (D174), or the timetable's lectures alone.
+
+**Courses, the owner's C.** Each course one card answering three questions: **what** this week is about
+(its part, the part it goes on from, its files to open), **how** to study it (its steps, ticked as they
+are done and saved as they are ticked, D165), **when** (the engine's next two sessions, "Start now" for a
+25-minute focus on it); its memory now; and **how its plan was made** a tap away: the Moodle course and
+when it was looked at, the files read and not read, how the weeks were placed, and the engine's rule.
+
+**The semester, the owner's B,** a second view of Courses (`?view=semester`, a link, so it works without
+a script): a row per course, a box per week of lectures, each its part ("goes on", "files to come" for a
+week after the last file uploaded), its memory now on the progress page's four steps, this week outlined;
+a box opens that week on its course's page; a course Moodle refused says why across its row. It takes the
+page's whole width, and opens scrolled to this week on a phone.
+
+**Rejected.**
+- **The grid on Today** (the owner's "maybe in the today"): Today is one thing (D171), and a grid of every
+  course and week wants a page's width; Courses has it.
+- **Reading Moodle again at every visit, or every course every day:** a call per course per page, and with
+  AI a model call per course per day; once a day and only what changed costs one call per course.
+- **Asking the student whether they are enrolled:** the course is there; what it holds is what to say.
+- **A page of its own for a refusal (D208's):** a dead end; the course's card has room for the way out.
+
+**Disclosed.**
+- The trace that found the defects ran on a made-up Moodle shaped like the owner's, not on their course;
+  the cause of their own "rien donné" is not known yet (a course of forums and text areas, a course matched
+  by name to last year's, or one hidden for now): the page now says which.
+- A day, the digest's parts and two sessions are choices. A week after the last file uploaded goes on with
+  the last part until the next look finds more. The engine still plans from the timetable's lectures; the
+  units say what and how, not when. Steps ticked are the student's word, as reports are.
+- Links in a text area are read only when they lead to Moodle's own files on the course's site; a link to
+  another site (a teacher's drive) is not followed with the key.
+- Checked in Chromium only, at 1440 × 900 and phone size, light and dark.

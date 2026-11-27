@@ -1522,3 +1522,23 @@ squeezed beside its meter. D211 read the courses one after the other, so the sec
 D213: a course waiting its turn says "Waiting for the courses before it" until its reading starts (and is
 called stopped only after 45 minutes); a reading that starts says so at once; the row puts the name above
 its meter; the background reading keeps the student's language.
+
+**142. The weeks a part goes on over said nothing on their sessions.** Found on 2026-11-27 by tracing the
+pipeline for the owner, on a Moodle written from their screenshots: of the next seven sessions of the algebra
+course, five reviewed a week with no file of its own, which the course's page showed as "Lecture 4
+(continued)" and the sessions showed as nothing. D212 and D213 kept a part on its own week only. Status:
+fixed by D214: the part is saved with the last week it goes on to, and those weeks' sessions say what and
+how. `tests/test_moodle_units.py`.
+
+**143. A course whose notes sit in text areas was "nothing", and the student was asked if enrolled.** Found
+on 2026-11-27 by the owner: «Moodle n'a rien donné pour ce cours : est-ce le bon cours, et y es-tu inscrit ?»,
+on a page with one button back. D208 read files, folders, pages and links, and dropped text areas
+(Moodle's "label") and sections' descriptions, where many teachers link their PDFs; with nothing left, it
+asked about enrolment. Status: fixed by D214: the files linked in text areas and descriptions are read, and a
+course with nothing to read says what Moodle sent, on the course, with the ways out. The owner's own course
+was not seen; its cause is for them to tell from the new message.
+
+**144. A course planned from Moodle never saw its new files.** Found on 2026-11-27 by tracing the pipeline: a
+teacher who uploads the slides each Friday reached the plan only when the student tapped "Read it again".
+Status: fixed by D214: Moodle is looked at again once a day, when the student opens Today or Courses, and a
+course whose files changed is planned again.

@@ -745,3 +745,10 @@ document.querySelectorAll("[data-fills]").forEach((group) => {
     field.focus();
   });
 });
+
+// D214: the semester's grid opens on this week, scrolled into view sideways on a narrow screen.
+const semesterNow = document.querySelector(".sem-grid thead th.is-now");
+const semesterScroll = semesterNow && semesterNow.closest(".sem-scroll");
+if (semesterNow && semesterScroll && semesterScroll.scrollWidth > semesterScroll.clientWidth) {
+  semesterScroll.scrollLeft = Math.max(0, semesterNow.offsetLeft - semesterScroll.clientWidth / 2 + semesterNow.offsetWidth / 2);
+}

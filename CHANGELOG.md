@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- The weeks a part of a course goes on over now say on their sessions what to study and how (AUDIT 142).
+- Notes a teacher links in a text area or a section's description on Moodle are read; a course with nothing to
+  read says what Moodle sent and offers the ways out on the course itself, never "are you enrolled?" (AUDIT 143).
+- A course planned from Moodle is looked at again once a day, and planned again when its files changed (AUDIT 144).
+
 - A deadlines' link that is not a calendar now says what it is and what to copy: a Moodle page's address
   (the Export calendar page itself, a course, the dashboard) is caught before anything is fetched, with the
   way to the calendar's link in Moodle's own words; a sign-in page or Moodle's own refusal is named (AUDIT 138).
@@ -11,6 +16,10 @@
   the guide and its picture say so, in Moodle's words (AUDIT 139).
 
 ### Added
+
+- Courses rebuilt around the week (DECISIONS.md D214): each course's card says what this week is about, with its
+  files, how to study it (steps ticked as they are done) and when (the next sessions, Start now), and how its
+  plan was made a tap away; "The semester" shows every course's weeks as one grid, memory now on each.
 
 - The backbone, from Moodle to a plan of when, what and how (DECISIONS.md D213): Courses is now a section
   of the laptop's sidebar and the plan's home, with the Moodle side's one next action at the top ("Connect
