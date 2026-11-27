@@ -3345,14 +3345,17 @@ def create_app(config: Config | None = None) -> FastAPI:
         # D214: a refusal stays on the course, with the ways out, not on a page of its own. D215: the
         # course is queued and read in the background; its page follows it, and says a refusal.
         course = service.topic_courses(subscription)[index]
-        had_plan = service.course_key(course) in (subscription.options.get("study_plans") or {})
         plan_from_moodle(token, [index])
         if form.get("back") == "guide":
             return RedirectResponse(f"/p/{token}/guide/moodle#step-read", 303)
         if form.get("back") == "courses":
             return RedirectResponse(f"/p/{token}/courses#course-{index}", 303)
-        state = service.moodle_reading(store, subscription, course, config.clock()) or {}
-        if state.get("error") or not had_plan:
+        # The plan, once there is one (at once where reading is not in the background); else the
+        # course's Moodle card, which follows the reading or says why Moodle refused.
+        now_kept = load(token) or subscription
+        planned = service.course_key(course) in (now_kept.options.get("study_plans") or {})
+        state = service.moodle_reading(store, now_kept, course, config.clock()) or {}
+        if state.get("error") or not planned:
             return RedirectResponse(f"/p/{token}/courses/{index}#moodle", 303)
         return RedirectResponse(f"/p/{token}/courses/{index}?saved=read#study-plan", 303)
 
